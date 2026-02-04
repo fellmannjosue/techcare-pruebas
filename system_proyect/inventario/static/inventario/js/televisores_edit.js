@@ -1,23 +1,23 @@
 $(document).ready(function () {
 
     // ================================
-    // ABRIR MODAL EDITAR DATASHOW
+    // ABRIR MODAL EDITAR TELEVISOR
     // ================================
     $(document).on("click", ".editar-btn", function () {
 
         let id = $(this).data("id");
 
-        $("#modal-datashow-body").html(`
+        $("#modal-televisor-body").html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary"></div>
                 <p class="mt-2">Cargando datos...</p>
             </div>
         `);
 
-        $("#modalEditarDataShow").modal("show");
+        $("#modalEditarTelevisor").modal("show");
 
-        $.get(`/inventario/datashow/get/${id}/`, function (html) {
-            $("#modal-datashow-body").html(html);
+        $.get(`/inventario/televisor/get/${id}/`, function (html) {
+            $("#modal-televisor-body").html(html);
         }).fail(() => {
             Swal.fire("Error", "No se pudo cargar el formulario.", "error");
         });
@@ -28,14 +28,14 @@ $(document).ready(function () {
     // ================================
     // GUARDAR CAMBIOS
     // ================================
-    $(document).on("submit", "#form-edit-datashow", function (e) {
+    $(document).on("submit", "#form-edit-televisor", function (e) {
 
         e.preventDefault();
 
-        let id = $("#datashow-id").val();
+        let id = $("#televisor-id").val();
         let formData = $(this).serialize();
 
-        $.post(`/inventario/datashow/update/${id}/`, formData)
+        $.post(`/inventario/televisor/update/${id}/`, formData)
             .done((resp) => {
                 if (resp.ok) {
                     Swal.fire("Actualizado", "Cambios guardados correctamente.", "success")
@@ -50,15 +50,15 @@ $(document).ready(function () {
 
 
     // ================================
-    // ELIMINAR DATASHOW
+    // ELIMINAR TELEVISOR
     // ================================
     $(document).on("click", ".eliminar-btn", function () {
 
         let id = $(this).data("id");
 
         Swal.fire({
-            title: "¿Eliminar DataShow?",
-            text: "No podrás recuperar este registro.",
+            title: "¿Eliminar televisor?",
+            text: "Esta acción no se puede deshacer.",
             icon: "warning",
             showCancelButton: true,
             confirmButtonText: "Eliminar",
@@ -66,13 +66,13 @@ $(document).ready(function () {
         }).then((res) => {
 
             if (res.isConfirmed) {
-                $.post(`/inventario/datashow/delete/${id}/`, function (resp) {
+                $.post(`/inventario/televisor/delete/${id}/`, function (resp) {
                     if (resp.ok) {
-                        Swal.fire("Eliminado", "Registro eliminado correctamente.", "success")
+                        Swal.fire("Eliminado", "Televisor eliminado correctamente.", "success")
                             .then(() => location.reload());
                     }
                 }).fail(() => {
-                    Swal.fire("Error", "No se pudo eliminar.", "error");
+                    Swal.fire("Error", "No se pudo eliminar el registro.", "error");
                 });
             }
 

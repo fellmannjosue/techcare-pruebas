@@ -142,10 +142,10 @@ DATABASES = {
 'zkbio_sqlserver': {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
-    'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', '121800-Jfellmann'),
+    'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
+    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', 'biotime-2026'),
     'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
-    'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '1433'),
+    'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
     'OPTIONS': {
         'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
     },

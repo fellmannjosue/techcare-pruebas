@@ -1,19 +1,63 @@
 <form id="form-edit-impresora">
     {% csrf_token %}
-    <input type="hidden" id="impresora-id" name="id" value="{{ impresora.id }}">
+
+    <!-- ID del registro -->
+    <input type="hidden" id="impresora-id" name="id" value="{{ obj.id }}">
 
     <div class="row g-3">
-        {{ form.asset_id }}
-        {{ form.nombre }}
-        {{ form.modelo }}
-        {{ form.serie }}
-        {{ form.asignado_a }}
-        {{ form.nivel_tinta }}
-        {{ form.ultima_vez_llenado }}
-        {{ form.cantidad_impresiones }}
-        {{ form.a_color }}
-        {{ form.observaciones }}
+
+        <div class="col-md-6">
+            <label>Asset ID</label>
+            {{ form.asset_id }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Nombre</label>
+            {{ form.nombre }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Modelo</label>
+            {{ form.modelo }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Serie</label>
+            {{ form.serie }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Asignado a</label>
+            {{ form.asignado_a }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Nivel de tinta (%)</label>
+            {{ form.nivel_tinta }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Última vez llenado</label>
+            {{ form.ultima_vez_llenado }}
+        </div>
+
+        <div class="col-md-6">
+            <label>Cantidad impresiones</label>
+            {{ form.cantidad_impresiones }}
+        </div>
+
+        <div class="col-md-12 form-check mt-2">
+            {{ form.a_color }} <label class="ms-1">Impresora a color</label>
+        </div>
+
+        <div class="col-12 mt-2">
+            <label>Observaciones</label>
+            {{ form.observaciones }}
+        </div>
+
     </div>
 
-    <button type="submit" class="btn btn-primary w-100 mt-3">Guardar Cambios</button>
+    <button type="submit" class="btn btn-primary w-100 mt-3">
+        Guardar Cambios
+    </button>
 </form>

@@ -69,7 +69,7 @@ def atencion_form(request):
  JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID     = c.CrsoID
  JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
  WHERE d.Alum = 1
-  AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
+  --AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
   AND da.Descripcion IN (N'PrimariaBL', N'ColegioBL', N'PreescolarBL')
   AND ec.Desertor    = 0
   AND ec.TrasladoPer = 0

@@ -1,15 +1,46 @@
 <form id="form-edit-televisor">
     {% csrf_token %}
-    <input type="hidden" id="televisor-id" name="id" value="{{ televisor.id }}">
+
+    <!-- ID del registro -->
+    <input type="hidden" id="televisor-id" name="id" value="{{ obj.id }}">
 
     <div class="row g-3">
-        {{ form.asset_id }}
-        {{ form.modelo }}
-        {{ form.serie }}
-        {{ form.ip }}
-        {{ form.grado }}
-        {{ form.area }}
-        {{ form.observaciones }}
+
+        <div class="col-md-6">
+            <label>{{ form.asset_id.label }}</label>
+            {{ form.asset_id }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.modelo.label }}</label>
+            {{ form.modelo }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.serie.label }}</label>
+            {{ form.serie }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.ip.label }}</label>
+            {{ form.ip }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.grado.label }}</label>
+            {{ form.grado }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.area.label }}</label>
+            {{ form.area }}
+        </div>
+
+        <div class="col-12">
+            <label>{{ form.observaciones.label }}</label>
+            {{ form.observaciones }}
+        </div>
+
     </div>
 
     <button type="submit" class="btn btn-primary w-100 mt-3">Guardar Cambios</button>

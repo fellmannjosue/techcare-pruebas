@@ -54,7 +54,8 @@ def obtener_alumnos_bilingue():
       JOIN dbo.tblEdcEjecCrso       AS ec ON a.AreaID     = ec.AreaID
       JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
       JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
-     WHERE d.Alum = 1 AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
+     WHERE d.Alum = 1 
+     --AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
        AND da.Descripcion IN (N'PrimariaBL', N'ColegioBL', N'PreescolarBL')
        AND ec.Desertor = 0 AND ec.TrasladoPer = 0
      ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, NombreCompl
@@ -87,7 +88,7 @@ def obtener_alumnos_colegio():
      INNER JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
      INNER JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
      WHERE (d.Alum = 1) 
-       AND (DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE()))
+       --AND (DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE()))
        AND (da.Descripcion IN (N'Colegio', N'Bachillerato')) 
        AND (ec.Desertor = 0) AND (ec.TrasladoPer = 0)
      ORDER BY AreaDesc, c.CrsoNumero, c.GrupoNumero, NombreCompl

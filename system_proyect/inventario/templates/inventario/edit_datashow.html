@@ -1,18 +1,61 @@
 <form id="form-edit-datashow">
     {% csrf_token %}
-    <input type="hidden" id="datashow-id" name="id" value="{{ datashow.id }}">
+
+    <!-- ID del registro -->
+    <input type="hidden" id="datashow-id" name="id" value="{{ obj.id }}">
 
     <div class="row g-3">
-        {{ form.asset_id }}
-        {{ form.nombre }}
-        {{ form.modelo }}
-        {{ form.serie }}
-        {{ form.estado }}
-        {{ form.cable_corriente }}
-        {{ form.hdmi }}
-        {{ form.vga }}
-        {{ form.extension }}
-        {{ form.observaciones }}
+
+        <div class="col-md-6">
+            <label>{{ form.asset_id.label }}</label>
+            {{ form.asset_id }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.nombre.label }}</label>
+            {{ form.nombre }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.modelo.label }}</label>
+            {{ form.modelo }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.serie.label }}</label>
+            {{ form.serie }}
+        </div>
+
+        <div class="col-md-6">
+            <label>{{ form.estado.label }}</label>
+            {{ form.estado }}
+        </div>
+
+        <div class="col-md-6 form-check">
+            {{ form.cable_corriente }}
+            <label class="ms-1">Corriente</label>
+        </div>
+
+        <div class="col-md-6 form-check">
+            {{ form.hdmi }}
+            <label class="ms-1">HDMI</label>
+        </div>
+
+        <div class="col-md-6 form-check">
+            {{ form.vga }}
+            <label class="ms-1">VGA</label>
+        </div>
+
+        <div class="col-md-6 form-check">
+            {{ form.extension }}
+            <label class="ms-1">Extensión</label>
+        </div>
+
+        <div class="col-12">
+            <label>{{ form.observaciones.label }}</label>
+            {{ form.observaciones }}
+        </div>
+
     </div>
 
     <button type="submit" class="btn btn-primary w-100 mt-3">Guardar Cambios</button>

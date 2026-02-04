@@ -1,7 +1,9 @@
 $(document).ready(function () {
 
-    // Abrir modal de edición
-    $(document).on("click", ".editar-computadora", function () {
+    // ================================
+    // ABRIR MODAL EDITAR COMPUTADORA
+    // ================================
+    $(document).on("click", ".editar-btn", function () {
         let id = $(this).data("id");
 
         $("#modal-computadora-body").html(`
@@ -13,30 +15,41 @@ $(document).ready(function () {
 
         $("#modalEditarComputadora").modal("show");
 
-        $.get(`/inventario/computadora/edit/${id}/`, function (html) {
+        $.get(`/inventario/computadora/get/${id}/`, function (html) {
             $("#modal-computadora-body").html(html);
+        }).fail(() => {
+            Swal.fire("Error", "No se pudo cargar el formulario.", "error");
         });
     });
 
-    // Guardar edición
+
+    // ================================
+    // GUARDAR EDICIÓN
+    // ================================
     $(document).on("submit", "#form-edit-computadora", function (e) {
         e.preventDefault();
 
         let id = $("#computadora-id").val();
         let formData = $(this).serialize();
 
-        $.post(`/inventario/computadora/edit/${id}/`, formData, function (resp) {
-            if (resp.ok) {
-                Swal.fire("Actualizado", "Los cambios fueron guardados.", "success")
-                    .then(() => location.reload());
-            } else {
-                Swal.fire("Error", "Verifica los campos ingresados.", "error");
-            }
-        });
+        $.post(`/inventario/computadora/update/${id}/`, formData)
+            .done((resp) => {
+                if (resp.ok) {
+                    Swal.fire("Actualizado", "Los cambios fueron guardados.", "success")
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire("Error", "Verifica los campos ingresados.", "error");
+                }
+            })
+            .fail(() => Swal.fire("Error", "No se pudo guardar la información.", "error"));
     });
 
-    // Eliminar
-    $(document).on("click", ".eliminar-computadora", function () {
+
+    // ================================
+    // ELIMINAR COMPUTADORA
+    // ================================
+    $(document).on("click", ".eliminar-btn", function () {
+
         let id = $(this).data("id");
 
         Swal.fire({
@@ -47,15 +60,20 @@ $(document).ready(function () {
             confirmButtonText: "Sí, eliminar",
             cancelButtonText: "Cancelar"
         }).then((res) => {
+
             if (res.isConfirmed) {
                 $.post(`/inventario/computadora/delete/${id}/`, function (resp) {
                     if (resp.ok) {
-                        Swal.fire("Eliminado", "Registro eliminado.", "success")
+                        Swal.fire("Eliminado", "Registro eliminado correctamente.", "success")
                             .then(() => location.reload());
                     }
+                }).fail(() => {
+                    Swal.fire("Error", "No se pudo eliminar el registro.", "error");
                 });
             }
+
         });
+
     });
 
 });
