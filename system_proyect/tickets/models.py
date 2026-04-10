@@ -4,15 +4,16 @@ from django.contrib.auth.models import User
 
 class Ticket(models.Model):
     ticket_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
     name = models.CharField(max_length=255)
     grade = models.CharField(max_length=50)
     email = models.CharField(max_length=255)
     description = models.TextField()
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
-    status = models.CharField(max_length=50, default='Enviado')
+    status = models.CharField(max_length=50, default='Pendiente')
     comments = models.TextField(blank=True, null=True)
 
-    # ⭐ CAMPO NUEVO PARA BLOQUEAR A LA IA
+    # IA pendiente para más adelante
     ia_bloqueada = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -43,7 +44,8 @@ class TicketComment(models.Model):
     TIPO_CHOICES = (
         ('usuario', 'Usuario'),
         ('tecnico', 'Técnico'),
-        ('ia', 'IA'),
+        # IA pendiente para más adelante
+        # ('ia', 'IA'),
     )
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comentarios')

@@ -55,7 +55,7 @@ def obtener_alumnos_bilingue():
       JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
       JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
      WHERE d.Alum = 1 
-     --AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
+     AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
        AND da.Descripcion IN (N'PrimariaBL', N'ColegioBL', N'PreescolarBL')
        AND ec.Desertor = 0 AND ec.TrasladoPer = 0
      ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, NombreCompl
@@ -88,7 +88,7 @@ def obtener_alumnos_colegio():
      INNER JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
      INNER JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
      WHERE (d.Alum = 1) 
-       --AND (DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE()))
+       AND (DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE()))
        AND (da.Descripcion IN (N'Colegio', N'Bachillerato')) 
        AND (ec.Desertor = 0) AND (ec.TrasladoPer = 0)
      ORDER BY AreaDesc, c.CrsoNumero, c.GrupoNumero, NombreCompl
@@ -535,7 +535,11 @@ def editar_progress_report(request, pk):
     from django.contrib import messages
     from django.shortcuts import render, redirect, get_object_or_404
 
-    COORDINADORES_BL = ["Mrs. Osorto", "Miss Alcerro", "Miss Angela"]
+    COORDINADORES_BL = [
+    ( "Mr. Martinez"),
+    ( "Miss Alcerro"),
+    ( "Mr. Ruiz"),
+]
     coordinadores = COORDINADORES_BL
 
     reporte = get_object_or_404(ProgressReport, pk=pk)
@@ -1220,5 +1224,9 @@ def es_coordinador(user):
 
 
 # Cambia estos según tu lógica o roles
-COORDINADORES_BL = ["Mrs. Osorto", "Miss Alcerro", "Miss Angela"]
+COORDINADORES_BL = [
+    ( "Mr. Martinez"),
+    ( "Miss Alcerro"),
+    ( "Mr. Ruiz"),
+]
 COORDINADORES_COLEGIO = ["Profe. Licona", "Profe. Felipe", "Profe. Gabriela"]

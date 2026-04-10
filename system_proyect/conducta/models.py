@@ -17,9 +17,9 @@ ESTADO_CHOICES = (
 )
 
 COORDINADORES_BL = [
-    ("Mrs. Osorto", "Mrs. Osorto"),
+    ("Mr. Martinez", "Mr. Martinez"),
     ("Miss Alcerro", "Miss Alcerro"),
-    ("Miss Angela", "Miss Angela"),
+    ("Mr. Ruiz", "Mr. Ruiz"),
 ]
 
 COORDINADORES_COL = [
