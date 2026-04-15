@@ -123,6 +123,12 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
+                {# <--- hecho por claude code: botón 📷 para subir evidencia del reporte informativo.
+                   Cambia a verde (bi-image-fill) si ya tiene evidencias, gris si no tiene. #}
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="informativo" title="Subir evidencia">
+                  <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
+                </button>
               </td>
             </tr>
             {% endfor %}
@@ -157,6 +163,11 @@
                 </a>
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
+                </button>
+                {# <--- hecho por claude code: botón 📷 para reporte conductual. #}
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="conductual" title="Subir evidencia">
+                  <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
               </td>
             </tr>
@@ -193,6 +204,11 @@
                 </a>
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
+                </button>
+                {# <--- hecho por claude code: botón 📷 para progress report. #}
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="progress" title="Subir evidencia">
+                  <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
               </td>
             </tr>
@@ -239,6 +255,51 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SUBIR EVIDENCIA  <--- hecho por claude code
+     Modal con formulario multipart para subir imagen de evidencia.
+     Los campos hidden 'tipo' y 'reporte_id' se llenan por JS al
+     hacer clic en el botón 📷 de cada fila. Preview en tiempo real. -->
+<div class="modal fade" id="modalEvidencia" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-image me-2"></i>Subir Evidencia</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'subir_evidencia' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <!-- Campos ocultos que JS rellena según la fila clickeada -->
+                <input type="hidden" name="tipo" id="ev-tipo">
+                <input type="hidden" name="reporte_id" id="ev-reporte-id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Imagen <span class="text-danger">*</span></label>
+                        <input type="file" name="imagen" id="ev-imagen"
+                               class="form-control" accept="image/*" required>
+                        <!-- Preview en vivo de la imagen seleccionada -->
+                        <div class="mt-2 text-center">
+                            <img id="ev-preview" src="#" alt="Vista previa"
+                                 class="img-fluid rounded d-none"
+                                 style="max-height:180px; border:1px solid #dee2e6;">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Comentario <span class="text-muted small">(opcional)</span></label>
+                        <textarea name="comentario" class="form-control" rows="2"
+                                  placeholder="Descripción de la evidencia..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i> Guardar Evidencia
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

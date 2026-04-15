@@ -28,4 +28,32 @@ $(function() {
         e.preventDefault();
         $('#modalTresFaltas').modal('show');
     });
+
+    // <--- hecho por claude code: abrir modal de evidencia y cargar tipo + id del reporte
+    // clickeado. Limpia el preview anterior antes de abrir.
+    $(document).on('click', '.btn-evidencia', function() {
+        const tipo = $(this).data('tipo');
+        const id   = $(this).data('id');
+        $('#ev-tipo').val(tipo);
+        $('#ev-reporte-id').val(id);
+        // Limpiar preview de imagen anterior
+        $('#ev-preview').addClass('d-none').attr('src', '#');
+        $('#ev-imagen').val('');
+        $('#modalEvidencia').modal('show');
+    });
+
+    // <--- hecho por claude code: preview en tiempo real de la imagen seleccionada.
+    // Usa FileReader para mostrar la imagen antes de enviar el formulario.
+    $(document).on('change', '#ev-imagen', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#ev-preview').attr('src', e.target.result).removeClass('d-none');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#ev-preview').addClass('d-none').attr('src', '#');
+        }
+    });
 });

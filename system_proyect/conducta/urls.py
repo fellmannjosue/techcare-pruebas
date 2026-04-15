@@ -35,5 +35,8 @@ urlpatterns = [
     path('progress-report/<int:pk>/pdf/', views.descargar_pdf_progress, name='descargar_pdf_progress'),
 
 
-    # Otros endpoints PDF y features especiales puedes ponerlos aquí...
+    # --- EVIDENCIAS ---  <--- hecho por claude code
+    # Recibe el POST del modal del dashboard coordinador.
+    # Acepta imagen + comentario + tipo + reporte_id y guarda EvidenciaReporte.
+    path('evidencia/subir/', views.subir_evidencia, name='subir_evidencia'),
 ]

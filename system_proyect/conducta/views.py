@@ -32,7 +32,8 @@ from .models import (
     ReporteConductual,
     ProgressReport,
     MateriaDocenteBilingue,
-    MateriaDocenteColegio
+    MateriaDocenteColegio,
+    EvidenciaReporte,  # <--- hecho por claude code: importar modelo de evidencias para la view subir_evidencia
 )
 from tickets.models import Ticket
 
@@ -71,7 +72,6 @@ def obtener_alumnos_bilingue():
     except Exception as e:
         print(">>> ERROR SQL BILINGUE:", e)
     return alumnos
-
 
 def obtener_alumnos_colegio():
     query = """
@@ -531,101 +531,122 @@ def editar_reporte_informativo(request, pk):
 
 @login_required
 def editar_progress_report(request, pk):
-    import json
-    from django.contrib import messages
-    from django.shortcuts import render, redirect, get_object_or_404
+    # <--- hecho por claude code: view reescrita para corregir 3 bugs críticos:
+    # Bug 1: Maestro A reclamaba TODAS las materias al guardar (incluso vacías),
+    #         bloqueando a Maestro B. Fix: docente solo se asigna si hay contenido.
+    # Bug 2: Indentación rota en el loop de Asociadas → NameError cuando el
+    #         coordinador guardaba. Fix: loop correctamente indentado.
+    # Bug 3: Solo se guardaba UNA fila de Asociadas (la última). Fix: loop correcto.
+    # Extra: json.dumps() en un JSONField causaba doble serialización. Fix: lista directa.
 
-    COORDINADORES_BL = [
-    ( "Mr. Martinez"),
-    ( "Miss Alcerro"),
-    ( "Mr. Ruiz"),
-]
-    coordinadores = COORDINADORES_BL
+    COORDINADORES_BL = ["Mr. Martinez", "Miss Alcerro", "Mr. Ruiz"]
 
     reporte = get_object_or_404(ProgressReport, pk=pk)
     es_coord = es_coordinador(request.user)
-    usuario_actual = request.user.get_full_name() or request.user.username  # Usa el nombre completo si está
+    usuario_actual = request.user.get_full_name() or request.user.username
 
-    # --- Decodificar materias ---
+    # Decodificar materias — JSONField puede devolver str si fue guardado con json.dumps()
     materias = reporte.materias_json
     if isinstance(materias, str):
         try:
             materias = json.loads(materias)
         except Exception:
             materias = []
-    if materias is None:
+    if not materias:
         materias = []
 
-    # --- Determina para cada materia si el usuario la puede editar ---
+    # Marcar editabilidad: editable si no tiene docente, o el docente es el usuario actual,
+    # o el usuario es coordinador
     for mat in materias:
-        if es_coord or not mat.get("docente") or mat.get("docente", "") == usuario_actual:
+        docente_guardado = mat.get("docente", "")
+        if es_coord or not docente_guardado or docente_guardado == usuario_actual:
             mat["editable"] = True
         else:
             mat["editable"] = False
 
     if request.method == 'POST':
         nuevas_materias = []
-        asociadas_indices_existentes = []
-        # 1️⃣ Procesa materias normales y existentes (NO 'Asociadas')
+
+        # Separar Asociadas existentes para preservar sus docentes
+        asociadas_existentes = [m for m in materias if m.get('materia') == 'Asociadas']
+
+        # ── 1. Procesar materias normales (no Asociadas) ──────────────────────
         for mat in materias:
-            materia = mat.get('materia', '')
-            if materia == 'Asociadas':
-                # Guarda índices para procesarlos después
-                asociadas_indices_existentes.append(mat)
-                continue
-            if mat["editable"]:
-                asignacion = request.POST.get(f'asignacion_{materia}', mat.get('asignacion', ''))
-                comentario = request.POST.get(f'comentario_{materia}', mat.get('comentario', ''))
-                mat['asignacion'] = asignacion
-                mat['comentario'] = comentario
-                # SOLO asigna el docente si está vacío
-            if mat["editable"]:
-                  mat['docente'] = usuario_actual
+            if mat.get('materia') == 'Asociadas':
+                continue  # se procesan en el bloque siguiente
 
-            nuevas_materias.append(mat)
+            nombre = mat.get('materia', '')
 
-# Procesa TODAS las filas de 'Asociadas'
+            if mat["editable"]:
+                asignacion_nueva = request.POST.get(f'asignacion_{nombre}', '').strip()
+                comentario_nuevo = request.POST.get(f'comentario_{nombre}', '').strip()
+                mat['asignacion'] = asignacion_nueva
+                mat['comentario'] = comentario_nuevo
+
+                if not es_coord:
+                    # Asigna docente solo si el maestro puso contenido real
+                    # (evita reclamar materias vacías que son de otro maestro)
+                    if asignacion_nueva or comentario_nuevo:
+                        mat['docente'] = usuario_actual
+                    elif mat.get('docente') == usuario_actual:
+                        # Si borró todo lo suyo, libera la materia
+                        mat['docente'] = ''
+                # El coordinador NO cambia el campo docente
+
+            # Guardar sin la clave 'editable' (es solo para el template)
+            nuevas_materias.append({k: v for k, v in mat.items() if k != 'editable'})
+
+        # ── 2. Procesar TODAS las filas de Asociadas ─────────────────────────
         asignaciones_asociadas = request.POST.getlist('asignacion_Asociadas[]')
-        comentarios_asociadas = request.POST.getlist('comentario_Asociadas[]')
+        comentarios_asociadas  = request.POST.getlist('comentario_Asociadas[]')
 
-        for i in range(len(asignaciones_asociadas)):
-             # Conserva el docente si ya existía para ese índice, si no, usa usuario_actual
-                     docente_valor = usuario_actual
-        if i < len(asociadas_indices_existentes) and asociadas_indices_existentes[i].get('docente'):
-                docente_valor = asociadas_indices_existentes[i]['docente']
-             # Si el usuario actual es quien edita (editable), entonces sobreescribe
-        if i < len(asociadas_indices_existentes) and asociadas_indices_existentes[i].get('editable'):
-            docente_valor = usuario_actual
-        nuevas_materias.append({
-        'materia': 'Asociadas',
-        'asignacion': asignaciones_asociadas[i],
-        'comentario': comentarios_asociadas[i],
-        'docente': docente_valor,
-        'editable': True,  # Solo para el template
-    })
+        for i, asignacion in enumerate(asignaciones_asociadas):
+            comentario = comentarios_asociadas[i] if i < len(comentarios_asociadas) else ''
 
+            # Determinar docente: preservar el original si la fila ya existía y no es editable
+            if i < len(asociadas_existentes):
+                docente_original  = asociadas_existentes[i].get('docente', '')
+                era_editable      = asociadas_existentes[i].get('editable', True)
+                if era_editable and not es_coord:
+                    docente_valor = usuario_actual if (asignacion.strip() or comentario.strip()) else docente_original
+                elif es_coord:
+                    docente_valor = docente_original  # coordinador no cambia docente
+                else:
+                    docente_valor = docente_original  # fila ajena → preservar
+            else:
+                # Fila nueva agregada con el botón "+"
+                docente_valor = usuario_actual if (asignacion.strip() or comentario.strip()) else ''
 
-        # 3️⃣ Actualiza los campos generales y guarda
-        reporte.materias_json = json.dumps(nuevas_materias)
+            nuevas_materias.append({
+                'materia':    'Asociadas',
+                'asignacion': asignacion,
+                'comentario': comentario,
+                'docente':    docente_valor,
+            })
+
+        # ── 3. Guardar ────────────────────────────────────────────────────────
+        # JSONField acepta la lista directamente; json.dumps() causaba doble serialización
+        reporte.materias_json     = nuevas_materias
         reporte.comentario_general = request.POST.get('comentario_general', reporte.comentario_general)
+
         if es_coord:
-            reporte.coordinador_firma = request.POST.get('coordinador_firma', reporte.coordinador_firma)
-            reporte.estado = request.POST.get('estado', reporte.estado)
+            reporte.coordinador_firma      = request.POST.get('coordinador_firma', reporte.coordinador_firma)
+            reporte.estado                 = request.POST.get('estado', reporte.estado)
             reporte.comentario_coordinador = request.POST.get('comentario_coordinador', reporte.comentario_coordinador)
 
         reporte.save()
         messages.success(request, "¡Reporte actualizado correctamente!")
+
         if es_coord:
             return redirect('dashboard_coordinador', area='bilingue')
-        else:
-            return redirect('historial_maestro_bilingue')
+        return redirect('historial_maestro_bilingue')
 
     return render(request, 'conducta/editor_progress.html', {
-        'reporte': reporte,
-        'materias': materias,
+        'reporte':       reporte,
+        'materias':      materias,
         'es_coordinador': es_coord,
         'usuario_actual': usuario_actual,
-        'coordinadores': coordinadores,
+        'coordinadores':  COORDINADORES_BL,
     })
 
 # -----------  DESCARGA EN PDF  -----------
@@ -1200,7 +1221,6 @@ def dashboard_coordinador(request, area):
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 
-    
 @login_required
 def historial_alumno_coordinador(request, alumno_id):
     """
@@ -1229,4 +1249,64 @@ COORDINADORES_BL = [
     ( "Miss Alcerro"),
     ( "Mr. Ruiz"),
 ]
-COORDINADORES_COLEGIO = ["Profe. Licona", "Profe. Felipe", "Profe. Gabriela"]
+COORDINADORES_COLEGIO = [
+    "Profe. Licona", "Profe. Felipe", "Profe. Gabriela"
+    ]
+
+
+# ─────────────────────────────────────────────────────────────
+# subir_evidencia  <--- hecho por claude code
+# View que recibe el POST del modal de evidencias del dashboard
+# coordinador. Solo coordinadores pueden subir evidencias (chequeo
+# con es_coordinador). Según el 'tipo' que llega en el POST,
+# asigna la FK correcta del EvidenciaReporte y redirige al
+# dashboard del área correspondiente.
+# ─────────────────────────────────────────────────────────────
+@login_required
+def subir_evidencia(request):
+    # Solo coordinadores pueden subir evidencias
+    if not es_coordinador(request.user):
+        return HttpResponseForbidden("Solo coordinadores pueden subir evidencias.")
+
+    if request.method == 'POST':
+        tipo = request.POST.get('tipo')
+        reporte_id = request.POST.get('reporte_id')
+        imagen = request.FILES.get('imagen')
+        comentario = request.POST.get('comentario', '')
+
+        # Validar que lleguen todos los datos mínimos
+        if not imagen or not tipo or not reporte_id:
+            messages.error(request, "Faltan datos para subir la evidencia.")
+            return redirect(request.META.get('HTTP_REFERER', 'dashboard_maestro'))
+
+        # Crear la evidencia sin guardar aún (se asignará la FK según tipo)
+        ev = EvidenciaReporte(
+            tipo=tipo,
+            imagen=imagen,
+            comentario=comentario,
+            subido_por=request.user
+        )
+
+        # Asignar la FK correcta según el tipo de reporte
+        if tipo == 'conductual':
+            reporte = get_object_or_404(ReporteConductual, pk=reporte_id)
+            ev.reporte_conductual = reporte
+            area = reporte.area
+        elif tipo == 'informativo':
+            reporte = get_object_or_404(ReporteInformativo, pk=reporte_id)
+            ev.reporte_informativo = reporte
+            area = reporte.area
+        elif tipo == 'progress':
+            reporte = get_object_or_404(ProgressReport, pk=reporte_id)
+            ev.reporte_progress = reporte
+            area = 'bilingue'  # progress solo existe en bilingüe
+        else:
+            messages.error(request, "Tipo de reporte inválido.")
+            return redirect('dashboard_maestro')
+
+        ev.save()
+        messages.success(request, "Evidencia subida correctamente.")
+        return redirect('dashboard_coordinador', area=area)
+
+    # Si alguien accede por GET, redirigir al inicio
+    return redirect('dashboard_maestro')

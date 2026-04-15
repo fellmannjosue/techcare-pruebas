@@ -188,3 +188,23 @@ class ProgressReportForm(forms.Form):
             self.fields['comentario_coordinador'].widget = forms.HiddenInput()
         else:
             self.fields['estado'].required = True
+
+
+# ─────────────────────────────────────────────────────────────
+# EvidenciaForm  <--- hecho por claude code
+# Formulario simple para subir una imagen de evidencia asociada
+# a cualquier tipo de reporte. El campo 'imagen' valida que el
+# archivo sea una imagen real. El 'comentario' es opcional.
+# El tipo y el reporte_id se envían como campos hidden en el HTML
+# del modal (no van en este form para mantenerlo genérico).
+# ─────────────────────────────────────────────────────────────
+class EvidenciaForm(forms.Form):
+    imagen = forms.ImageField(
+        label="Imagen",
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    comentario = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        required=False,
+        label="Comentario"
+    )

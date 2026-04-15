@@ -3,6 +3,10 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+# <--- hecho por claude code: imports necesarios para servir archivos MEDIA en desarrollo.
+# En producción (DEBUG=False) nginx/apache se encarga de esto.
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
 
@@ -57,3 +61,10 @@ urlpatterns = [
     path('reloj/', include('reloj.urls')),
 
 ]
+
+# <--- hecho por claude code: sirve archivos de media (imágenes subidas por usuarios)
+# en modo desarrollo (DEBUG=True). Necesario para que las evidencias sean accesibles
+# en el template vía {{ ev.imagen.url }}.
+# En producción nginx debe tener un location /media/ apuntando a MEDIA_ROOT.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

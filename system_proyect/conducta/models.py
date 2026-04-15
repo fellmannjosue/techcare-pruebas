@@ -38,7 +38,7 @@ class IncisoConductual(models.Model):
         ('muy_grave', 'Muy Grave'),
     )
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo de Inciso")
-    descripcion = models.CharField(max_length=500, verbose_name="Descripción del inciso")
+    descripcion = models.CharField(max_length=1000, verbose_name="Descripción del inciso")
     activo = models.BooleanField(default=True, verbose_name="¿Activo?")
 
     def __str__(self):
@@ -176,4 +176,71 @@ class ProgressReport(models.Model):
     class Meta:
         verbose_name = "Progress Report"
         verbose_name_plural = "Progress Reports"
+        ordering = ['-fecha']
+
+# ────────────────────────────────────────────────────────────────
+# upload_to dinámico para EvidenciaReporte  <--- hecho por claude code
+# Genera la ruta de guardado según el área y tipo del reporte.
+# Estructura: evidencias/<area>/<tipo>/<filename>
+# Ejemplo:    evidencias/bilingue/conductual/foto.jpg
+#             evidencias/colegio/informativo/imagen.png
+# Se accede al área desde la FK del reporte relacionado.
+# ────────────────────────────────────────────────────────────────
+def evidencia_upload_to(instance, filename):
+    tipo = instance.tipo
+    area = 'bilingue'  # valor por defecto
+    if tipo == 'conductual' and instance.reporte_conductual_id:
+        # Acceder al área sin hacer query extra usando el _id cacheado
+        area = instance.reporte_conductual.area
+    elif tipo == 'informativo' and instance.reporte_informativo_id:
+        area = instance.reporte_informativo.area
+    elif tipo == 'progress':
+        area = 'bilingue'  # progress solo existe en bilingüe
+    return f'evidencias/{area}/{tipo}/{filename}'
+
+
+# ────────────────────────────────────────────────────────────────
+# Evidencia de Reporte  <--- hecho por claude code
+# Permite subir imágenes como evidencia asociadas a cualquier tipo
+# de reporte (conductual, informativo o progress). Usa tres FK
+# nullable para que cada reporte pueda acceder a sus evidencias
+# con el reverse manager: r.evidenciareporte_set.all()
+# ────────────────────────────────────────────────────────────────
+class EvidenciaReporte(models.Model):
+    TIPO_CHOICES = (
+        ('conductual', 'Conductual'),
+        ('informativo', 'Informativo'),
+        ('progress', 'Progress'),
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, verbose_name="Tipo de reporte")
+
+    # FK nullable a cada tipo de reporte — solo una estará activa por evidencia
+    reporte_conductual = models.ForeignKey(
+        ReporteConductual, null=True, blank=True,
+        on_delete=models.CASCADE, verbose_name="Reporte Conductual"
+    )
+    reporte_informativo = models.ForeignKey(
+        ReporteInformativo, null=True, blank=True,
+        on_delete=models.CASCADE, verbose_name="Reporte Informativo"
+    )
+    reporte_progress = models.ForeignKey(
+        ProgressReport, null=True, blank=True,
+        on_delete=models.CASCADE, verbose_name="Progress Report"
+    )
+
+    # upload_to usa la función dinámica definida arriba para separar por área y tipo
+    imagen = models.ImageField(upload_to=evidencia_upload_to, verbose_name="Imagen")
+    comentario = models.TextField(blank=True, null=True, verbose_name="Comentario")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de subida")
+    subido_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        verbose_name="Subido por"
+    )
+
+    def __str__(self):
+        return f"Evidencia {self.get_tipo_display()} – {self.fecha.strftime('%d/%m/%Y') if self.fecha else ''}"
+
+    class Meta:
+        verbose_name = "Evidencia de Reporte"
+        verbose_name_plural = "Evidencias de Reportes"
         ordering = ['-fecha']

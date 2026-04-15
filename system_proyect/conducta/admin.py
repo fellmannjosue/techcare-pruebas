@@ -1,7 +1,9 @@
 from django.contrib import admin
+from django.utils.html import format_html  # <--- hecho por claude code: necesario para renderizar HTML seguro en el admin (preview de imagen)
 from .models import (
     IncisoConductual, MateriaDocenteBilingue, MateriaDocenteColegio,
-    ReporteConductual, ReporteInformativo, ProgressReport
+    ReporteConductual, ReporteInformativo, ProgressReport,
+    EvidenciaReporte  # <--- hecho por claude code: importar el nuevo modelo de evidencias
 )
 
 @admin.register(IncisoConductual)
@@ -66,6 +68,27 @@ class ProgressReportAdmin(admin.ModelAdmin):
     # Opcional: para ver el JSON bonito en la vista detalle
     def formfield_for_dbfield(self, db_field, **kwargs):
         field = super().formfield_for_dbfield(db_field, **kwargs)
-        if db_field.name == 'materias_json':
+        if db_field.name == 'materias_json' and field is not None:  # <--- hecho por claude code: guard para evitar AttributeError si field es None
             field.widget.attrs['style'] = 'font-family:monospace; min-width: 400px; min-height: 100px;'
         return field
+
+
+# ─────────────────────────────────────────────────────────────
+# Admin de EvidenciaReporte  <--- hecho por claude code
+# Muestra las evidencias subidas con preview visual de la imagen.
+# El método preview() usa format_html para evitar XSS al
+# renderizar la etiqueta <img> de forma segura.
+# ─────────────────────────────────────────────────────────────
+@admin.register(EvidenciaReporte)
+class EvidenciaReporteAdmin(admin.ModelAdmin):
+    list_display = ['tipo', 'subido_por', 'comentario', 'fecha', 'preview']
+    list_filter = ['tipo']
+    readonly_fields = ['fecha', 'preview']
+    search_fields = ['comentario', 'subido_por__username']
+
+    def preview(self, obj):
+        # Muestra miniatura de la imagen si existe, "-" si no hay imagen
+        if obj.imagen:
+            return format_html('<img src="{}" width="60" style="border-radius:4px; object-fit:cover;"/>', obj.imagen.url)
+        return "-"
+    preview.short_description = "Vista previa"
