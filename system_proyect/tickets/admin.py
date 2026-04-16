@@ -1,14 +1,16 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin, TabularInline as UnfoldTabularInline
 from django.utils.html import format_html
+from core.audit_admin import AuditAdminMixin
 from .models import Ticket, TicketComment
 
-class TicketCommentInline(admin.TabularInline):
+class TicketCommentInline(UnfoldTabularInline):
     model = TicketComment
     extra = 0
     readonly_fields = ('usuario', 'fecha',)
     fields = ('usuario', 'mensaje', 'fecha')
 
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('ticket_id', 'name', 'email', 'description', 'attachment_link', 'status', 'created_at')
     inlines = [TicketCommentInline]
 
@@ -19,7 +21,7 @@ class TicketAdmin(admin.ModelAdmin):
         return "No disponible"
     attachment_link.short_description = "Adjunto"
 
-class TicketCommentAdmin(admin.ModelAdmin):
+class TicketCommentAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('ticket', 'usuario', 'mensaje', 'fecha')
     list_filter = ('ticket', 'usuario', 'fecha')
     search_fields = ('mensaje', 'usuario__username', 'ticket__ticket_id')

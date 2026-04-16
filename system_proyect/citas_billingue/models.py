@@ -1,7 +1,8 @@
 from django.db import models
+from core.models import AuditModel
 
 
-class Relationship_bl(models.Model):
+class Relationship_bl(AuditModel):
     """Tipo de parentesco (padre, madre, tutor, etc.)."""
     name = models.CharField(max_length=50)
 
@@ -9,7 +10,7 @@ class Relationship_bl(models.Model):
         return self.name
 
 
-class Grade_bl(models.Model):
+class Grade_bl(AuditModel):
     """Nombre del grado (Primero, Segundo, etc.)."""
     name = models.CharField(max_length=50)
 
@@ -17,7 +18,7 @@ class Grade_bl(models.Model):
         return self.name
 
 
-class Teacher_bl(models.Model):
+class Teacher_bl(AuditModel):
     """Información del maestro."""
     name = models.CharField(max_length=255)
     area = models.CharField(
@@ -35,7 +36,7 @@ class Teacher_bl(models.Model):
         return self.name
 
 
-class Subject_bl(models.Model):
+class Subject_bl(AuditModel):
     """Materias impartidas, vinculadas con un grado y un maestro."""
     name = models.CharField(max_length=255)
     grade = models.ForeignKey(Grade_bl, on_delete=models.CASCADE, related_name='subjects')  # Relación con el grado
@@ -45,7 +46,7 @@ class Subject_bl(models.Model):
         return f"{self.name} ({self.grade.name})"
 
 
-class Schedule_bl(models.Model):
+class Schedule_bl(AuditModel):
     """Horario del maestro."""
     teacher = models.ForeignKey(Teacher_bl, on_delete=models.CASCADE, related_name="schedules")
     day_of_week = models.CharField(
@@ -66,7 +67,7 @@ class Schedule_bl(models.Model):
         return f"{self.teacher.name} - {self.day_of_week} ({self.start_time} - {self.end_time})"
 
 
-class Appointment_bl(models.Model):
+class Appointment_bl(AuditModel):
     """Citas agendadas por los padres."""
     parent_name = models.CharField(max_length=255)  # Nombre del padre
     student_name = models.CharField(max_length=255)  # Nombre del alumno

@@ -59,15 +59,15 @@
               <th>Comentario/Observación</th>
             </tr>
           </thead>
-          {# <--- hecho por claude code: tabla reescrita para mostrar el docente que llenó
+          <!--{# <--- hecho por claude code: tabla reescrita para mostrar el docente que llenó
              cada fila, y permitir que varios maestros editen sus propias materias.
              Cada fila muestra en azul quién la llenó. Las filas ajenas son readonly.
-             El botón "+" solo aparece en la primera fila de Asociadas. #}
+             El botón "+" solo aparece en la primera fila de Asociadas. #}-->
           <tbody>
             {% for mat in materias %}
               {% if mat.materia == "Asociadas" %}
-                {# <--- hecho por claude code: botón "+" movido fuera de las filas
-                   al área debajo de la tabla para evitar el bug de forloop.first #}
+                <!--{# <--- hecho por claude code: botón "+" movido fuera de las filas
+                   al área debajo de la tabla para evitar el bug de forloop.first #}-->
                 <tr class="fila-asociada">
                   <td>
                     <input type="text" class="form-control form-control-sm" value="Asociadas" readonly>
@@ -106,8 +106,8 @@
         </table>
       </div>
 
-      {# <--- hecho por claude code: botón "+" para agregar Asociadas fuera de la
-         tabla para evitar problemas con forloop.first #}
+      <!--{# <--- hecho por claude code: botón "+" para agregar Asociadas fuera de la
+         tabla para evitar problemas con forloop.first #}-->
       <div class="mb-2">
         <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddAsociada">
           + Agregar fila Asociada
@@ -120,9 +120,9 @@
       </div>
 
       {% if es_coordinador %}
-      {# <--- hecho por claude code: estados corregidos para que coincidan con
+      <!--{# <--- hecho por claude code: estados corregidos para que coincidan con
          ESTADO_CHOICES del modelo (enviado/revisando/revisado/aprobado).
-         Antes tenía 'pendiente' y 'rechazado' que no existen en el modelo. #}
+         Antes tenía 'pendiente' y 'rechazado' que no existen en el modelo. #}-->
       <div class="mb-3">
         <label class="form-label">Estado:</label>
         <select name="estado" class="form-select">

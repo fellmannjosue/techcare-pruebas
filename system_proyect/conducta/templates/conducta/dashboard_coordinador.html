@@ -123,12 +123,20 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
-                {# <--- hecho por claude code: botón 📷 para subir evidencia del reporte informativo.
-                   Cambia a verde (bi-image-fill) si ya tiene evidencias, gris si no tiene. #}
+                <!--{# <--- hecho por claude code: botón 📷 para subir evidencia del reporte informativo.
+                   Cambia a verde (bi-image-fill) si ya tiene evidencias, gris si no tiene. #}-->
                 <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                         data-id="{{ r.pk }}" data-tipo="informativo" title="Subir evidencia">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
+                <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del informativo #}-->
+                {% for ev in r.evidenciareporte_set.all %}
+                <img src="{{ ev.imagen.url }}"
+                     class="img-evidencia-hover ms-1"
+                     width="32" height="32"
+                     title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                     style="object-fit:cover; border-radius:4px;">
+                {% endfor %}
               </td>
             </tr>
             {% endfor %}
@@ -164,11 +172,19 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
-                {# <--- hecho por claude code: botón 📷 para reporte conductual. #}
+                <!--{# <--- hecho por claude code: botón 📷 para reporte conductual. #}-->
                 <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                         data-id="{{ r.pk }}" data-tipo="conductual" title="Subir evidencia">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
+                <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del conductual #}-->
+                {% for ev in r.evidenciareporte_set.all %}
+                <img src="{{ ev.imagen.url }}"
+                     class="img-evidencia-hover ms-1"
+                     width="32" height="32"
+                     title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                     style="object-fit:cover; border-radius:4px;">
+                {% endfor %}
               </td>
             </tr>
             {% endfor %}
@@ -205,11 +221,19 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
-                {# <--- hecho por claude code: botón 📷 para progress report. #}
+                <!--{# <--- hecho por claude code: botón 📷 para progress report. #}-->
                 <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                         data-id="{{ r.pk }}" data-tipo="progress" title="Subir evidencia">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
+                <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del progress #}-->
+                {% for ev in r.evidenciareporte_set.all %}
+                <img src="{{ ev.imagen.url }}"
+                     class="img-evidencia-hover ms-1"
+                     width="32" height="32"
+                     title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                     style="object-fit:cover; border-radius:4px;">
+                {% endfor %}
               </td>
             </tr>
             {% endfor %}
@@ -276,11 +300,18 @@
                 <input type="hidden" name="tipo" id="ev-tipo">
                 <input type="hidden" name="reporte_id" id="ev-reporte-id">
                 <div class="modal-body">
+                    <!-- <--- hecho por claude code: campo titulo para identificar de quién es la evidencia,
+                         editable por el coordinador al momento de subir la captura. -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Título / Nombre <span class="text-danger">*</span></label>
+                        <input type="text" name="titulo" id="ev-titulo"
+                               class="form-control" placeholder="Ej: Evidencia de Juan Pérez — 15/04/2026" required>
+                        <div class="form-text text-muted">Escribe quién es o de qué trata esta evidencia.</div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Imagen <span class="text-danger">*</span></label>
                         <input type="file" name="imagen" id="ev-imagen"
                                class="form-control" accept="image/*" required>
-                        <!-- Preview en vivo de la imagen seleccionada -->
                         <div class="mt-2 text-center">
                             <img id="ev-preview" src="#" alt="Vista previa"
                                  class="img-fluid rounded d-none"
@@ -290,7 +321,7 @@
                     <div class="mb-3">
                         <label class="form-label">Comentario <span class="text-muted small">(opcional)</span></label>
                         <textarea name="comentario" class="form-control" rows="2"
-                                  placeholder="Descripción de la evidencia..."></textarea>
+                                  placeholder="Descripción adicional..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

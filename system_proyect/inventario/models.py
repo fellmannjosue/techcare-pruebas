@@ -1,8 +1,10 @@
 # inventario/models.py
 
 from django.db import models
+from core.models import AuditModel
 
-class InventoryItem(models.Model):
+
+class InventoryItem(AuditModel):
     CATEGORY_CHOICES = [
         ('Equipo Informatico', 'Equipo Informatico'),
         ('Equipo de poyecion',   'Equipo de poyecion'),
@@ -22,7 +24,7 @@ class InventoryItem(models.Model):
         return f"{self.category} - {self.details}"
 
 
-class Computadora(models.Model):
+class Computadora(AuditModel):
     asset_id        = models.CharField("ID Computadora", max_length=50, unique=True)
     modelo          = models.CharField("Modelo", max_length=100)
     serie           = models.CharField("Serie", max_length=100)
@@ -54,7 +56,7 @@ class Computadora(models.Model):
 
 
 
-class Televisor(models.Model):
+class Televisor(AuditModel):
     asset_id      = models.CharField("ID Televisor", max_length=50, unique=True)
     modelo        = models.CharField("Modelo", max_length=100)
     serie         = models.CharField("Serie", max_length=100)
@@ -69,7 +71,7 @@ class Televisor(models.Model):
     )
 
 
-class Impresora(models.Model):
+class Impresora(AuditModel):
     asset_id            = models.CharField("ID Impresora", max_length=50, unique=True)
     nombre              = models.CharField("Nombre", max_length=100)
     modelo              = models.CharField("Modelo", max_length=100)
@@ -87,7 +89,7 @@ class Impresora(models.Model):
     )
 
 
-class Router(models.Model):
+class Router(AuditModel):
     asset_id      = models.CharField("ID Router", max_length=50, unique=True)
     modelo        = models.CharField("Modelo", max_length=100)
     serie         = models.CharField("Serie", max_length=100)
@@ -104,7 +106,7 @@ class Router(models.Model):
     )
 
 
-class DataShow(models.Model):
+class DataShow(AuditModel):
     asset_id        = models.CharField("ID DataShow", max_length=50, unique=True)
     nombre          = models.CharField("Nombre", max_length=100)
     modelo          = models.CharField("Modelo", max_length=100)
@@ -121,7 +123,7 @@ class DataShow(models.Model):
         blank=True, null=True
     )
 
-class Monitor(models.Model):
+class Monitor(AuditModel):
 
     OPCIONES_UBICACION = [
         ("laboratorio", "Laboratorio"),

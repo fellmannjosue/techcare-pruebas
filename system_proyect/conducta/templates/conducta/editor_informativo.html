@@ -37,9 +37,12 @@
             <span class="campo-label">Fecha de registro:</span>
             <div class="campo-lectura">{{ reporte.fecha|date:"d/m/Y H:i" }}</div>
         </div>
-        <div class="mb-2">
-            <span class="campo-label">Comentario del Docente:</span>
-            <div class="campo-lectura" style="white-space: pre-line;">{{ reporte.comentario|default:"—" }}</div>
+        {# <--- hecho por claude code: comentario del docente editable por coordinador #}
+        <div class="mb-3">
+            <label class="form-label"><strong>Comentario del Docente:</strong></label>
+            <textarea class="form-control" name="comentario" rows="3"
+                      style="background:#f8f9fa;">{{ reporte.comentario|default_if_none:"" }}</textarea>
+            <div class="form-text text-muted">El coordinador puede editar este campo.</div>
         </div>
         <hr>
         <!-- Campos editables para el coordinador -->

@@ -1,4 +1,6 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from core.audit_admin import AuditAdminMixin
 from .models import (
     InventoryItem,
     Computadora,
@@ -9,25 +11,25 @@ from .models import (
 )
 
 @admin.register(InventoryItem)
-class InventoryItemAdmin(admin.ModelAdmin):
+class InventoryItemAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('category', 'details')
     search_fields = ('category', 'details')
 
 
 @admin.register(Computadora)
-class ComputadoraAdmin(admin.ModelAdmin):
+class ComputadoraAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('asset_id', 'modelo', 'serie', 'ip', 'asignado_a', 'area', 'grado', 'fecha_instalado')
     search_fields = ('asset_id', 'modelo', 'serie', 'ip', 'asignado_a', 'area', 'grado')
 
 
 @admin.register(Televisor)
-class TelevisorAdmin(admin.ModelAdmin):
+class TelevisorAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('asset_id', 'modelo', 'serie', 'ip', 'grado', 'area')
     search_fields = ('asset_id', 'modelo', 'serie', 'ip', 'grado', 'area')
 
 
 @admin.register(Impresora)
-class ImpresoraAdmin(admin.ModelAdmin):
+class ImpresoraAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = (
         'asset_id', 'nombre', 'modelo', 'serie', 'asignado_a',
         'nivel_tinta', 'ultima_vez_llenado', 'cantidad_impresiones', 'a_color'
@@ -37,13 +39,13 @@ class ImpresoraAdmin(admin.ModelAdmin):
 
 
 @admin.register(Router)
-class RouterAdmin(admin.ModelAdmin):
+class RouterAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('asset_id', 'modelo', 'serie', 'nombre_router', 'ip_asignada', 'ip_uso', 'ubicado')
     search_fields = ('asset_id', 'modelo', 'serie', 'nombre_router', 'ubicado')
 
 
 @admin.register(DataShow)
-class DataShowAdmin(admin.ModelAdmin):
+class DataShowAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('asset_id', 'nombre', 'modelo', 'serie', 'estado')
     list_filter = ('estado', 'cable_corriente', 'hdmi', 'vga', 'extension')
     search_fields = ('asset_id', 'nombre', 'modelo', 'serie')

@@ -25,12 +25,13 @@
       <div class="mb-3 position-relative">
         <label for="password" class="form-label">Contraseña</label>
         <input type="password" id="password" name="password" class="form-control" required autocomplete="current-password">
-        <img 
+        <!-- <--- hecho por claude code: eliminado onclick="togglePassword()" que llamaba
+             a función inexistente. El toggle lo maneja login.js vía event listener. -->
+        <img
           src="{% static 'accounts/img/eye_closed.png' %}"
           alt="Mostrar/ocultar contraseña"
           id="eyeIcon"
           class="toggle-eye"
-          onclick="togglePassword()"
           style="position: absolute; right: 16px; top: 38px; width: 24px; cursor: pointer;"
         />
       </div>

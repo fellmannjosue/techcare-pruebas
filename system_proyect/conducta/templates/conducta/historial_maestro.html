@@ -125,14 +125,14 @@
                                 <td>{{ r.materia }}</td>
                                 <td>{{ r.docente }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
-                                {# <--- hecho por claude code: muestra miniaturas de evidencias
-                                   con efecto hover zoom. Usa img-evidencia-hover definida en historial.css #}
+                                <!--{# <--- hecho por claude code: muestra miniaturas de evidencias
+                                   con efecto hover zoom. Usa img-evidencia-hover definida en historial.css #}-->
                                 <td>
                                     {% for ev in r.evidenciareporte_set.all %}
                                     <img src="{{ ev.imagen.url }}"
                                          class="img-evidencia-hover me-1"
                                          width="40" height="40"
-                                         title="{{ ev.comentario|default:'Sin comentario' }}"
+                                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                                          style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
                                     {% empty %}
                                     <span class="text-muted small">—</span>
@@ -165,7 +165,7 @@
                                 <th>Materia</th>
                                 <th>Docente</th>
                                 <th>Fecha</th>
-                                <th>Evidencias</th>  {# <--- hecho por claude code #}
+                                <th>Evidencias</th>  <!--{# <--- hecho por claude code #}-->
                                 <th>Individual</th>
                                 <th>Tres Strikes</th>
                             </tr>
@@ -179,13 +179,13 @@
                                 <td>{{ r.materia }}</td>
                                 <td>{{ r.docente }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
-                                {# <--- hecho por claude code: evidencias con hover zoom para conductual #}
+                                <!--{# <--- hecho por claude code: evidencias con hover zoom para conductual #}-->
                                 <td>
                                     {% for ev in r.evidenciareporte_set.all %}
                                     <img src="{{ ev.imagen.url }}"
                                          class="img-evidencia-hover me-1"
                                          width="40" height="40"
-                                         title="{{ ev.comentario|default:'Sin comentario' }}"
+                                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                                          style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
                                     {% empty %}
                                     <span class="text-muted small">—</span>
@@ -224,7 +224,7 @@
                                 <th>Semana Inicio</th>
                                 <th>Semana Fin</th>
                                 <th>Fecha</th>
-                                <th>Evidencias</th>  {# <--- hecho por claude code #}
+                                <th>Evidencias</th>  <!--{# <--- hecho por claude code #}-->
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -237,13 +237,13 @@
                                 <td>{{ r.semana_inicio }}</td>
                                 <td>{{ r.semana_fin }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
-                                {# <--- hecho por claude code: evidencias con hover zoom para progress #}
+                               <!-- {# <--- hecho por claude code: evidencias con hover zoom para progress #}-->
                                 <td>
                                     {% for ev in r.evidenciareporte_set.all %}
                                     <img src="{{ ev.imagen.url }}"
                                          class="img-evidencia-hover me-1"
                                          width="40" height="40"
-                                         title="{{ ev.comentario|default:'Sin comentario' }}"
+                                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                                          style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
                                     {% empty %}
                                     <span class="text-muted small">—</span>

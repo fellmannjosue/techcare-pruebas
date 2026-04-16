@@ -1,6 +1,8 @@
 # admin.py
 
 from django.contrib import admin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from core.audit_admin import AuditAdminMixin
 from .models import (
     Grado,
     Medico,
@@ -14,19 +16,19 @@ from .models import (
 
 
 @admin.register(Grado)
-class GradoAdmin(admin.ModelAdmin):
+class GradoAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('nombre',)
     search_fields = ('nombre',)
 
 
 @admin.register(Medico)
-class MedicoAdmin(admin.ModelAdmin):
+class MedicoAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ('nombre',)
     search_fields = ('nombre',)
 
 
 @admin.register(AtencionMedica)
-class AtencionMedicaAdmin(admin.ModelAdmin):
+class AtencionMedicaAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display    = ('estudiante', 'grado', 'fecha_hora', 'atendido_por')
     list_filter     = ('grado', 'atendido_por', 'fecha_hora')
     search_fields   = ('estudiante', 'motivo', 'tratamiento')
@@ -34,25 +36,25 @@ class AtencionMedicaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Proveedor)
-class ProveedorAdmin(admin.ModelAdmin):
+class ProveedorAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display  = ('nombre',)
     search_fields = ('nombre',)
 
 
 @admin.register(Responsable)
-class ResponsableAdmin(admin.ModelAdmin):
+class ResponsableAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display  = ('nombre',)
     search_fields = ('nombre',)
 
 
 @admin.register(Presentacion)
-class PresentacionAdmin(admin.ModelAdmin):
+class PresentacionAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display  = ('nombre',)
     search_fields = ('nombre',)
 
 
 @admin.register(InventarioMedicamento)
-class InventarioMedicamentoAdmin(admin.ModelAdmin):
+class InventarioMedicamentoAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display   = (
         'nombre',
         'presentacion',       # ← Ahora se muestra la presentación
@@ -70,7 +72,7 @@ class InventarioMedicamentoAdmin(admin.ModelAdmin):
 
 
 @admin.register(UsoMedicamento)
-class UsoMedicamentoAdmin(admin.ModelAdmin):
+class UsoMedicamentoAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display    = ('medicamento', 'cantidad_usada', 'responsable', 'fecha_uso')
     list_filter     = ('responsable', 'fecha_uso')
     search_fields   = ('medicamento__nombre', 'responsable__nombre', 'comentario')

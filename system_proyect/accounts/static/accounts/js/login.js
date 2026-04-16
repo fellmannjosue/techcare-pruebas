@@ -5,10 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
         eyeIcon.addEventListener('click', function() {
             if (pwdInput.type === 'password') {
                 pwdInput.type = 'text';
-                eyeIcon.src = eyeIcon.src.replace('eye_closed.png', 'eye_open.png');
+                eyeIcon.src = eyeIcon.src.replace('eye_closed.png', 'eye_opened.png');
             } else {
                 pwdInput.type = 'password';
-                eyeIcon.src = eyeIcon.src.replace('eye_open.png', 'eye_closed.png');
+                eyeIcon.src = eyeIcon.src.replace('eye_opened.png', 'eye_closed.png');
             }
         });
     }

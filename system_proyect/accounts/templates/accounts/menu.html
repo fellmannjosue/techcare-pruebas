@@ -200,6 +200,16 @@
 
    <!-- TARJETAS -->
 {% if show_cards %}
+<!-- <--- hecho por claude code: alerta de bienvenida usando session, no messages,
+     para que no aparezca en la página de login. Se descarta con el botón X. -->
+{% if request.session.show_welcome %}
+<div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert" id="alertBienvenido">
+    <strong>¡Bienvenido, {{ request.user.first_name|default:request.user.username }}!</strong>
+    Has iniciado sesión correctamente.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="container-fluid mt-4">
     <div class="row g-3">
 

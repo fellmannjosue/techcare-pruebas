@@ -1,6 +1,8 @@
 from django.db import models
+from core.models import AuditModel
 
-class TipoFalla(models.Model):
+
+class TipoFalla(AuditModel):
     nombre = models.CharField(max_length=100, verbose_name="Tipo de Falla")
 
     class Meta:
@@ -11,7 +13,7 @@ class TipoFalla(models.Model):
     def __str__(self):
         return self.nombre
 
-class MaintenanceRecord(models.Model):
+class MaintenanceRecord(AuditModel):
     equipment_id = models.CharField(max_length=50, verbose_name="ID del Equipo")
     model = models.CharField(max_length=100, verbose_name="Modelo")
     serie = models.CharField(max_length=100, verbose_name="Serie")

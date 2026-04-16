@@ -38,9 +38,13 @@ CSRF_TRUSTED_ORIGINS = [
 # 4. APLICACIONES INSTALADAS
 # ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
-    # Paquetes para personalizar el Admin
-    'colorfield',
-    'admin_interface',
+    # Unfold debe ir ANTES de django.contrib.admin
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
+
+    # Jazzmin (comentado temporalmente)
+    # 'jazzmin',
 
     # Apps de Django
     'django.contrib.admin',
@@ -285,3 +289,82 @@ OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '500'))
 
 # Opcional: Configura el timeout para las llamadas a la API (segundos)
 OPENAI_TIMEOUT = int(os.getenv('OPENAI_TIMEOUT', '20'))
+
+
+# ─────────────────────────────────────────────────────────────
+# UNFOLD — Configuración del panel de administración
+# ─────────────────────────────────────────────────────────────
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+
+UNFOLD = {
+    "SITE_TITLE": "Plataforma Admin ANA",
+    "SITE_HEADER": "Plataforma Admin ANA",
+    "SITE_SUBHEADER": "Asociación Nuevo Amanecer",
+    "SITE_URL": "/",
+    "SITE_ICON": lambda request: static("accounts/img/nuevo.ico"),
+    "SITE_LOGO": lambda request: static("accounts/img/ana-transformed.png"),
+    "SITE_SYMBOL": "speed",
+    "SITE_FAVICONS": [
+        {"rel": "icon", "sizes": "32x32", "href": lambda request: static("accounts/img/nuevo.ico")},
+    ],
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "COLORS": {
+        "font": {
+            "subtle-light": "107 114 128",
+            "subtle-dark": "156 163 175",
+            "default-light": "75 85 99",
+            "default-dark": "209 213 219",
+            "important-light": "17 24 39",
+            "important-dark": "243 244 246",
+        },
+        "primary": {
+            "50":  "240 253 250",
+            "100": "204 251 241",
+            "200": "153 246 228",
+            "300": "94 234 212",
+            "400": "45 212 191",
+            "500": "20 184 166",
+            "600": "13 148 136",
+            "700": "15 118 110",
+            "800": "17 94 89",
+            "900": "19 78 74",
+            "950": "4 47 46",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": "Administración",
+                "separator": True,
+                "items": [
+                    {"title": "Usuarios", "icon": "person", "link": reverse_lazy("admin:auth_user_changelist")},
+                    {"title": "Grupos", "icon": "group", "link": reverse_lazy("admin:auth_group_changelist")},
+                ],
+            },
+            {
+                "title": "Módulos",
+                "separator": True,
+                "items": [
+                    {"title": "Tickets", "icon": "confirmation_number", "link": reverse_lazy("admin:tickets_ticket_changelist")},
+                    {"title": "Conducta", "icon": "menu_book", "link": reverse_lazy("admin:conducta_reporteconductual_changelist")},
+                    {"title": "Enfermería", "icon": "favorite", "link": reverse_lazy("admin:enfermeria_atencionmedica_changelist")},
+                    {"title": "Inventario", "icon": "inventory_2", "link": reverse_lazy("admin:inventario_computadora_changelist")},
+                    {"title": "Mantenimiento", "icon": "build", "link": reverse_lazy("admin:mantenimiento_maintenancerecord_changelist")},
+                    {"title": "Seguridad", "icon": "shield", "link": reverse_lazy("admin:seguridad_inventariocamara_changelist")},
+                    {"title": "Citas Colegio", "icon": "calendar_month", "link": reverse_lazy("admin:citas_colegio_appointment_col_changelist")},
+                    {"title": "Citas Bilingüe", "icon": "event", "link": reverse_lazy("admin:citas_billingue_appointment_bl_changelist")},
+                ],
+            },
+        ],
+    },
+}
+
+# ─────────────────────────────────────────────────────────────
+# JAZZMIN — Configuración comentada (usar unfold por ahora)
+# ─────────────────────────────────────────────────────────────
+# JAZZMIN_SETTINGS = { ... }
+# JAZZMIN_UI_TWEAKS = { ... }

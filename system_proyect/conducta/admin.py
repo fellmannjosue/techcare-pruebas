@@ -1,5 +1,7 @@
 from django.contrib import admin
-from django.utils.html import format_html  # <--- hecho por claude code: necesario para renderizar HTML seguro en el admin (preview de imagen)
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from django.utils.html import format_html  # necesario para renderizar HTML seguro en el admin (preview de imagen)
+from core.audit_admin import AuditAdminMixin
 from .models import (
     IncisoConductual, MateriaDocenteBilingue, MateriaDocenteColegio,
     ReporteConductual, ReporteInformativo, ProgressReport,
@@ -7,25 +9,25 @@ from .models import (
 )
 
 @admin.register(IncisoConductual)
-class IncisoConductualAdmin(admin.ModelAdmin):
+class IncisoConductualAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ['tipo', 'descripcion', 'activo']
     list_filter = ['tipo', 'activo']
     search_fields = ['descripcion']
 
 @admin.register(MateriaDocenteBilingue)
-class MateriaDocenteBilingueAdmin(admin.ModelAdmin):
+class MateriaDocenteBilingueAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ['materia', 'docente', 'activo']
     list_filter = ['activo']
     search_fields = ['materia', 'docente']
 
 @admin.register(MateriaDocenteColegio)
-class MateriaDocenteColegioAdmin(admin.ModelAdmin):
+class MateriaDocenteColegioAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ['materia', 'docente', 'activo']
     list_filter = ['activo']
     search_fields = ['materia', 'docente']
 
 @admin.register(ReporteConductual)
-class ReporteConductualAdmin(admin.ModelAdmin):
+class ReporteConductualAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = [
         'alumno_nombre', 'materia', 'usuario', 'area', 'estado',
         'coordinador_firma', 'comentario_coordinador', 'fecha'
@@ -35,7 +37,7 @@ class ReporteConductualAdmin(admin.ModelAdmin):
     readonly_fields = ['fecha']
 
 @admin.register(ReporteInformativo)
-class ReporteInformativoAdmin(admin.ModelAdmin):
+class ReporteInformativoAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = [
         'alumno_nombre', 'materia', 'usuario', 'area', 'estado',
         'coordinador_firma', 'comentario_coordinador', 'fecha'
@@ -45,7 +47,7 @@ class ReporteInformativoAdmin(admin.ModelAdmin):
     readonly_fields = ['fecha']
 
 @admin.register(ProgressReport)
-class ProgressReportAdmin(admin.ModelAdmin):
+class ProgressReportAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = [
         'alumno_nombre', 'usuario', 'grado', 'semana_inicio', 'semana_fin',
         'estado', 'coordinador_firma', 'comentario_coordinador', 'fecha', 'materias_resumen'
@@ -80,7 +82,7 @@ class ProgressReportAdmin(admin.ModelAdmin):
 # renderizar la etiqueta <img> de forma segura.
 # ─────────────────────────────────────────────────────────────
 @admin.register(EvidenciaReporte)
-class EvidenciaReporteAdmin(admin.ModelAdmin):
+class EvidenciaReporteAdmin(AuditAdminMixin, UnfoldModelAdmin):
     list_display = ['tipo', 'subido_por', 'comentario', 'fecha', 'preview']
     list_filter = ['tipo']
     readonly_fields = ['fecha', 'preview']

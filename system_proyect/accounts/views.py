@@ -34,8 +34,9 @@ def login_view(request):
 
         if user:
             login(request, user)
+            # <--- hecho por claude code: welcome se maneja solo con session para que
+            # no aparezca en la página de login cuando el menú no consume el mensaje.
             request.session['show_welcome'] = True
-            messages.success(request, f'¡Bienvenido {user.first_name}!')
 
             # Redirecciones
             if is_maestro or user.groups.filter(name__in=[
@@ -255,6 +256,10 @@ def menu_view(request):
         'show_coordinador_bilingue': is_admin or is_coord_bilingue,
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
     }
+
+    # <--- hecho por claude code: limpiar session welcome después de renderizar
+    # para que solo aparezca una vez al entrar, no en cada recarga.
+    request.session.pop('show_welcome', None)
 
     return render(request, 'accounts/menu.html', context)
 

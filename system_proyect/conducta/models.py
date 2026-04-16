@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from core.models import AuditModel
 
 # ────────────────
 # Choices globales
@@ -31,7 +32,7 @@ COORDINADORES_COL = [
 # ────────────────
 # Inciso Conductual
 # ────────────────
-class IncisoConductual(models.Model):
+class IncisoConductual(AuditModel):
     TIPO_CHOICES = (
         ('leve', 'Leve'),
         ('grave', 'Grave'),
@@ -52,7 +53,7 @@ class IncisoConductual(models.Model):
 # ────────────────
 # Materia-Docente (Bilingüe)
 # ────────────────
-class MateriaDocenteBilingue(models.Model):
+class MateriaDocenteBilingue(AuditModel):
     materia = models.CharField(max_length=100, verbose_name="Materia")
     docente = models.CharField(max_length=100, verbose_name="Docente")
     activo = models.BooleanField(default=True, verbose_name="¿Activo?")
@@ -68,7 +69,7 @@ class MateriaDocenteBilingue(models.Model):
 # ────────────────
 # Materia-Docente (Colegio)
 # ────────────────
-class MateriaDocenteColegio(models.Model):
+class MateriaDocenteColegio(AuditModel):
     materia = models.CharField(max_length=100, verbose_name="Materia")
     docente = models.CharField(max_length=100, verbose_name="Docente")
     activo = models.BooleanField(default=True, verbose_name="¿Activo?")
@@ -84,7 +85,7 @@ class MateriaDocenteColegio(models.Model):
 # ────────────────
 # Reporte Conductual
 # ────────────────
-class ReporteConductual(models.Model):
+class ReporteConductual(AuditModel):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Usuario que reporta")
     area = models.CharField(max_length=10, choices=AREA_CHOICES, default='bilingue', verbose_name="Área")
     alumno_id = models.CharField(max_length=50, verbose_name="ID Alumno")
@@ -129,7 +130,7 @@ class ReporteConductual(models.Model):
 # ────────────────
 # Reporte Informativo
 # ────────────────
-class ReporteInformativo(models.Model):
+class ReporteInformativo(AuditModel):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Usuario que reporta")
     area = models.CharField(max_length=10, choices=AREA_CHOICES, default='bilingue', verbose_name="Área")
     alumno_id = models.CharField(max_length=50, verbose_name="ID Alumno")
@@ -155,7 +156,7 @@ class ReporteInformativo(models.Model):
 # ────────────────
 # Progress Report
 # ────────────────
-class ProgressReport(models.Model):
+class ProgressReport(AuditModel):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Usuario que reporta")
     alumno_id = models.CharField(max_length=50, verbose_name="ID Alumno")
     alumno_nombre = models.CharField(max_length=120, verbose_name="Nombre del Alumno")
@@ -206,7 +207,7 @@ def evidencia_upload_to(instance, filename):
 # nullable para que cada reporte pueda acceder a sus evidencias
 # con el reverse manager: r.evidenciareporte_set.all()
 # ────────────────────────────────────────────────────────────────
-class EvidenciaReporte(models.Model):
+class EvidenciaReporte(AuditModel):
     TIPO_CHOICES = (
         ('conductual', 'Conductual'),
         ('informativo', 'Informativo'),
@@ -230,6 +231,8 @@ class EvidenciaReporte(models.Model):
 
     # upload_to usa la función dinámica definida arriba para separar por área y tipo
     imagen = models.ImageField(upload_to=evidencia_upload_to, verbose_name="Imagen")
+    # <--- hecho por claude code: campo titulo para identificar de quién es la evidencia
+    titulo = models.CharField(max_length=200, blank=True, null=True, verbose_name="Título / Nombre")
     comentario = models.TextField(blank=True, null=True, verbose_name="Comentario")
     fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de subida")
     subido_por = models.ForeignKey(

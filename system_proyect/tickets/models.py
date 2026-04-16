@@ -1,8 +1,9 @@
 from django.db import models
 from datetime import datetime
 from django.contrib.auth.models import User
+from core.models import AuditModel
 
-class Ticket(models.Model):
+class Ticket(AuditModel):
     ticket_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
     name = models.CharField(max_length=255)
@@ -40,7 +41,7 @@ class Ticket(models.Model):
         return f"{self.ticket_id} - {self.name}"
 
 
-class TicketComment(models.Model):
+class TicketComment(AuditModel):
     TIPO_CHOICES = (
         ('usuario', 'Usuario'),
         ('tecnico', 'Técnico'),

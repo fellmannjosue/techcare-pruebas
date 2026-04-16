@@ -1,6 +1,7 @@
 from django.db import models
+from core.models import AuditModel
 
-class InventarioCamara(models.Model):
+class InventarioCamara(AuditModel):
     nombre       = models.CharField("Nombre de cámara",   max_length=100)
     modelo       = models.CharField("Modelo",             max_length=100)
     serie        = models.CharField("Serie",              max_length=100)
@@ -15,7 +16,7 @@ class InventarioCamara(models.Model):
         return f"{self.nombre} ({self.modelo})"
 
 
-class ContableCamara(models.Model):
+class ContableCamara(AuditModel):
     modelo            = models.CharField("Modelo",            max_length=100)
     nombre            = models.CharField("Nombre",            max_length=100)
     cantidad_modelo   = models.PositiveIntegerField("Cantidad")
@@ -25,7 +26,7 @@ class ContableCamara(models.Model):
         return f"{self.nombre} – {self.cantidad_modelo}"
 
 
-class IdentificacionCamaraGabinete(models.Model):
+class IdentificacionCamaraGabinete(AuditModel):
     numero_gabinete = models.CharField("Núm. Gabinete",    max_length=50)
     switches        = models.PositiveIntegerField("Cant. switches")
     patchcords      = models.PositiveIntegerField("Cant. patchcord")

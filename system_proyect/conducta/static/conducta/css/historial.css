@@ -36,6 +36,29 @@
     border-radius: 18px !important;
 }
 
+/* ──────────────────────────────────────────────────────────
+   Hover zoom en miniaturas de evidencia  <--- hecho por claude code
+   Al pasar el mouse sobre una miniatura, se amplía 3.5x.
+   overflow visible en .table-responsive para que no quede cortada.
+   ────────────────────────────────────────────────────────── */
+.img-evidencia-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    z-index: 1;
+    border: 1px solid #dee2e6;
+    cursor: zoom-in;
+}
+
+.img-evidencia-hover:hover {
+    transform: scale(10);
+    z-index: 100;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.table-responsive {
+    overflow: visible !important;
+}
+
 @media (max-width: 700px) {
     .historial-container {
         padding: 12px 5px;

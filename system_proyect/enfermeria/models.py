@@ -1,12 +1,13 @@
 from django.db import models
 from django.conf import settings  # Para AUTH_USER_MODEL y MEDIA settings
+from core.models import AuditModel
 import os
 
 # ——————————————————————————————————————————————
 # Modelos existentes en MySQL (sponsors3)
 # ——————————————————————————————————————————————
 
-class Grado(models.Model):
+class Grado(AuditModel):
     nombre = models.CharField("Grado", max_length=50)
 
     class Meta:
@@ -17,7 +18,7 @@ class Grado(models.Model):
         return self.nombre
 
 
-class Medico(models.Model):
+class Medico(AuditModel):
     nombre = models.CharField("Nombre del Profesional", max_length=100)
 
     class Meta:
@@ -28,7 +29,7 @@ class Medico(models.Model):
         return self.nombre
 
 
-class AtencionMedica(models.Model):
+class AtencionMedica(AuditModel):
     estudiante   = models.CharField("Nombre del Estudiante", max_length=100)
     grado        = models.ForeignKey(
         Grado,
@@ -43,7 +44,6 @@ class AtencionMedica(models.Model):
     )
     motivo       = models.TextField("Motivo")
     tratamiento  = models.TextField("Tratamiento")
-    creado       = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Atención Médica"
@@ -73,7 +73,7 @@ class AtencionMedica(models.Model):
         return settings.MEDIA_URL + filename
 
 
-class Proveedor(models.Model):
+class Proveedor(AuditModel):
     nombre = models.CharField("Nombre del Proveedor", max_length=100)
 
     class Meta:
@@ -84,7 +84,7 @@ class Proveedor(models.Model):
         return self.nombre
 
 
-class Responsable(models.Model):
+class Responsable(AuditModel):
     nombre = models.CharField("Nombre del Responsable", max_length=100)
 
     class Meta:
@@ -95,7 +95,7 @@ class Responsable(models.Model):
         return self.nombre
 
 
-class Presentacion(models.Model):
+class Presentacion(AuditModel):
     """
     Cada instancia representa una forma/presentación farmacéutica:
     blíster, ml, crema, roll-on, etc.  
@@ -111,18 +111,11 @@ class Presentacion(models.Model):
         return self.nombre
 
 
-class InventarioMedicamento(models.Model):
+class InventarioMedicamento(AuditModel):
     nombre             = models.CharField("Medicamento", max_length=100)
     fecha_ingreso      = models.DateField("Fecha de Ingreso")
     proveedor          = models.ForeignKey(Proveedor, on_delete=models.PROTECT, verbose_name="Proveedor")
     cantidad_existente = models.PositiveIntegerField("Cantidad Existente")
-    modificado_por     = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Modificado por"
-    )
 
     # ← Ahora permitimos null en existentes
     presentacion = models.ForeignKey(
@@ -142,7 +135,7 @@ class InventarioMedicamento(models.Model):
         return f"{self.nombre} ({self.presentacion or '—'} – {self.cantidad_existente} disp.)"
 
 
-class UsoMedicamento(models.Model):
+class UsoMedicamento(AuditModel):
     medicamento     = models.ForeignKey(
         InventarioMedicamento,
         on_delete=models.CASCADE,

@@ -12,10 +12,12 @@ $(function() {
     }
 
     // Acción para mostrar historial del alumno en modal
+    // <--- hecho por claude code: usando Bootstrap 5 API (no jQuery .modal())
     $(document).on('click', '.btn-historial', function() {
         let alumno_id = $(this).data('alumno');
         $('#historial-content').html('<div class="text-center text-muted py-3">Cargando historial...</div>');
-        $('#modalHistorial').modal('show');
+        const modalEl = document.getElementById('modalHistorial');
+        new bootstrap.Modal(modalEl).show();
         $.get('/conducta/coordinador/historial/alumno/' + alumno_id + '/', function(data) {
             $('#historial-content').html(data);
         }).fail(function() {
@@ -29,8 +31,9 @@ $(function() {
         $('#modalTresFaltas').modal('show');
     });
 
-    // <--- hecho por claude code: abrir modal de evidencia y cargar tipo + id del reporte
-    // clickeado. Limpia el preview anterior antes de abrir.
+    // <--- hecho por claude code: abrir modal de evidencia con Bootstrap 5 API.
+    // $().modal('show') es Bootstrap 4 — en Bootstrap 5 se usa new bootstrap.Modal().
+    // Esto era la causa de que el botón 📷 no hacía nada.
     $(document).on('click', '.btn-evidencia', function() {
         const tipo = $(this).data('tipo');
         const id   = $(this).data('id');
@@ -39,7 +42,8 @@ $(function() {
         // Limpiar preview de imagen anterior
         $('#ev-preview').addClass('d-none').attr('src', '#');
         $('#ev-imagen').val('');
-        $('#modalEvidencia').modal('show');
+        const modalEl = document.getElementById('modalEvidencia');
+        new bootstrap.Modal(modalEl).show();
     });
 
     // <--- hecho por claude code: preview en tiempo real de la imagen seleccionada.

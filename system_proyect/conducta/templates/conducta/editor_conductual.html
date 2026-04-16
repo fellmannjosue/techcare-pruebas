@@ -37,39 +37,63 @@
             <span class="campo-label">Fecha de registro:</span>
             <div class="campo-lectura">{{ reporte.fecha|date:"d/m/Y H:i" }}</div>
         </div>
-        <div class="mb-2">
-            <span class="campo-label">Incisos Leve:</span>
-            <div class="campo-lectura">
-                {% for inciso in reporte.incisos_leve.all %}
-                    <div><strong>•</strong> {{ inciso.descripcion }}</div>
+        <!--{# <--- hecho por claude code: incisos cambiados de divs readonly a checkboxes
+           editables para que el coordinador pueda agregar o quitar incisos al reporte. #}-->
+        <div class="mb-3">
+            <label class="form-label"><strong>Incisos Leve:</strong></label>
+            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
+                {% for inciso in incisos_leve %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="incisos_leve" value="{{ inciso.pk }}"
+                           id="leve_{{ inciso.pk }}"
+                           {% if inciso in reporte.incisos_leve.all %}checked{% endif %}>
+                    <label class="form-check-label" for="leve_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                </div>
                 {% empty %}
-                    <span>-</span>
+                    <span class="text-muted">No hay incisos leve registrados.</span>
                 {% endfor %}
             </div>
         </div>
-        <div class="mb-2">
-            <span class="campo-label">Incisos Grave:</span>
-            <div class="campo-lectura">
-                {% for inciso in reporte.incisos_grave.all %}
-                    <div><strong>•</strong> {{ inciso.descripcion }}</div>
+        <div class="mb-3">
+            <label class="form-label"><strong>Incisos Grave:</strong></label>
+            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
+                {% for inciso in incisos_grave %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="incisos_grave" value="{{ inciso.pk }}"
+                           id="grave_{{ inciso.pk }}"
+                           {% if inciso in reporte.incisos_grave.all %}checked{% endif %}>
+                    <label class="form-check-label" for="grave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                </div>
                 {% empty %}
-                    <span>-</span>
+                    <span class="text-muted">No hay incisos grave registrados.</span>
                 {% endfor %}
             </div>
         </div>
-        <div class="mb-2">
-            <span class="campo-label">Incisos Muy Grave:</span>
-            <div class="campo-lectura">
-                {% for inciso in reporte.incisos_muygrave.all %}
-                    <div><strong>•</strong> {{ inciso.descripcion }}</div>
+        <div class="mb-3">
+            <label class="form-label"><strong>Incisos Muy Grave:</strong></label>
+            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
+                {% for inciso in incisos_muygrave %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="incisos_muygrave" value="{{ inciso.pk }}"
+                           id="muygrave_{{ inciso.pk }}"
+                           {% if inciso in reporte.incisos_muygrave.all %}checked{% endif %}>
+                    <label class="form-check-label" for="muygrave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                </div>
                 {% empty %}
-                    <span>-</span>
+                    <span class="text-muted">No hay incisos muy grave registrados.</span>
                 {% endfor %}
             </div>
         </div>
-        <div class="mb-2">
-            <span class="campo-label">Comentario del Docente:</span>
-            <div class="campo-lectura" style="white-space: pre-line;">{{ reporte.comentario|default:"—" }}</div>
+       <!--{# <--- hecho por claude code: comentario del docente cambiado de div readonly
+           a textarea editable para que el coordinador pueda corregirlo o completarlo #}-->
+        <div class="mb-3">
+            <label class="form-label"><strong>Comentario del Docente:</strong></label>
+            <textarea class="form-control" name="comentario" rows="3"
+                      style="background:#f8f9fa;">{{ reporte.comentario|default_if_none:"" }}</textarea>
+            <div class="form-text text-muted">El coordinador puede editar este campo.</div>
         </div>
         <hr>
         <!-- Campos editables para el coordinador -->

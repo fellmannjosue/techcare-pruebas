@@ -477,22 +477,33 @@ def editar_reporte_conductual(request, pk):
     else:
         coordinadores = COORDINADORES_COLEGIO
 
+    # <--- hecho por claude code: se cargan todos los incisos activos para que el
+    # coordinador pueda agregar/quitar incisos al editar el reporte conductual.
+    incisos_leve     = IncisoConductual.objects.filter(activo=True, tipo='leve').order_by('descripcion')
+    incisos_grave    = IncisoConductual.objects.filter(activo=True, tipo='grave').order_by('descripcion')
+    incisos_muygrave = IncisoConductual.objects.filter(activo=True, tipo='muy_grave').order_by('descripcion')
+
     if request.method == "POST":
-        # Guardar los campos editables del coordinador
-        comentario_coordinador = request.POST.get("comentario_coordinador", "")
-        estado = request.POST.get("estado", "enviado")
-        coordinador_firma = request.POST.get("coordinador_firma", "")
-        # Actualiza solo los campos de coordinación
-        reporte.comentario_coordinador = comentario_coordinador
-        reporte.estado = estado
-        reporte.coordinador_firma = coordinador_firma
+        reporte.comentario            = request.POST.get("comentario", "")
+        reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
+        reporte.estado                = request.POST.get("estado", "enviado")
+        reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
         reporte.save()
+        # <--- hecho por claude code: actualizar incisos desde los checkboxes del coordinador
+        ids_leve     = request.POST.getlist("incisos_leve")
+        ids_grave    = request.POST.getlist("incisos_grave")
+        ids_muygrave = request.POST.getlist("incisos_muygrave")
+        reporte.incisos_leve.set(ids_leve)
+        reporte.incisos_grave.set(ids_grave)
+        reporte.incisos_muygrave.set(ids_muygrave)
         messages.success(request, "Reporte conductual actualizado correctamente.")
         return redirect('dashboard_coordinador', area=reporte.area)
-    # Renderizar formulario
     return render(request, "conducta/editor_conductual.html", {
         "reporte": reporte,
         "coordinadores": coordinadores,
+        "incisos_leve": incisos_leve,
+        "incisos_grave": incisos_grave,
+        "incisos_muygrave": incisos_muygrave,
     })
 
 # ────────────────
@@ -510,16 +521,14 @@ def editar_reporte_informativo(request, pk):
         coordinadores = COORDINADORES_COLEGIO
 
     if request.method == "POST":
-        comentario_coordinador = request.POST.get("comentario_coordinador", "")
-        estado = request.POST.get("estado", "enviado")
-        coordinador_firma = request.POST.get("coordinador_firma", "")
-        reporte.comentario_coordinador = comentario_coordinador
-        reporte.estado = estado
-        reporte.coordinador_firma = coordinador_firma
+        # <--- hecho por claude code: se agrega 'comentario' (del docente) editable
+        reporte.comentario            = request.POST.get("comentario", "")
+        reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
+        reporte.estado                = request.POST.get("estado", "enviado")
+        reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
         reporte.save()
         messages.success(request, "Reporte informativo actualizado correctamente.")
         return redirect('dashboard_coordinador', area=reporte.area)
-    # Renderizar formulario
     return render(request, "conducta/editor_informativo.html", {
         "reporte": reporte,
         "coordinadores": coordinadores,
@@ -578,22 +587,30 @@ def editar_progress_report(request, pk):
             nombre = mat.get('materia', '')
 
             if mat["editable"]:
-                asignacion_nueva = request.POST.get(f'asignacion_{nombre}', '').strip()
-                comentario_nuevo = request.POST.get(f'comentario_{nombre}', '').strip()
+                asignacion_nueva   = request.POST.get(f'asignacion_{nombre}', '').strip()
+                comentario_nuevo   = request.POST.get(f'comentario_{nombre}', '').strip()
+                asignacion_previa  = mat.get('asignacion', '').strip()
+                comentario_previo  = mat.get('comentario', '').strip()
+
                 mat['asignacion'] = asignacion_nueva
                 mat['comentario'] = comentario_nuevo
 
                 if not es_coord:
-                    # Asigna docente solo si el maestro puso contenido real
-                    # (evita reclamar materias vacías que son de otro maestro)
-                    if asignacion_nueva or comentario_nuevo:
-                        mat['docente'] = usuario_actual
-                    elif mat.get('docente') == usuario_actual:
-                        # Si borró todo lo suyo, libera la materia
-                        mat['docente'] = ''
-                # El coordinador NO cambia el campo docente
+                    # <--- hecho por claude code: fix crítico
+                    # Solo reclamar docencia si el maestro REALMENTE cambió el valor.
+                    # Sin esto, abrir el form y guardar sin tocar una materia de otro
+                    # maestro la reclama como propia (readonly envía el valor igual).
+                    cambio_real = (asignacion_nueva != asignacion_previa) or \
+                                  (comentario_nuevo != comentario_previo)
 
-            # Guardar sin la clave 'editable' (es solo para el template)
+                    if cambio_real:
+                        if asignacion_nueva or comentario_nuevo:
+                            mat['docente'] = usuario_actual  # el usuario editó → es suya
+                        else:
+                            mat['docente'] = ''  # borró todo → libera la materia
+                    # Si no hubo cambio real, preservar el docente original tal como está
+
+            # Guardar sin la clave 'editable' (es solo para el template, no va a la BD)
             nuevas_materias.append({k: v for k, v in mat.items() if k != 'editable'})
 
         # ── 2. Procesar TODAS las filas de Asociadas ─────────────────────────
@@ -714,28 +731,21 @@ def descargar_pdf_informativo(request, pk):
     pdf.drawCentredString(w/2, y_actual, "Reporte informativo")
     y_actual -= 14*mm
 
-    # Datos alumno
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(32*mm, y_actual, "Nombre:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(60*mm, y_actual, reporte.alumno_nombre)
+    # <--- hecho por claude code: offsets calculados con stringWidth para que el valor
+    # quede pegado a la etiqueta sin espacio extra visible.
+    def label_val(pdf, x, y, label, valor, lbl_font="Helvetica-Bold", lbl_size=11, val_font="Helvetica", val_size=10, gap=2):
+        pdf.setFont(lbl_font, lbl_size)
+        pdf.drawString(x, y, label)
+        ancho = pdf.stringWidth(label, lbl_font, lbl_size)
+        pdf.setFont(val_font, val_size)
+        pdf.drawString(x + ancho + gap, y, valor)
 
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(110*mm, y_actual, "Grado:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(130*mm, y_actual, reporte.grado)
-    y_actual -= 9*mm
-
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(32*mm, y_actual, "Docente:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(65*mm, y_actual, reporte.docente or '')
-
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(90*mm, y_actual, "Fecha:")
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(110*mm, y_actual, reporte.fecha.strftime('%d/%m/%Y') if reporte.fecha else '')
-    y_actual -= 16*mm
+    label_val(pdf, 32*mm, y_actual, "Nombre:", reporte.alumno_nombre)
+    label_val(pdf, 118*mm, y_actual, "Grado:", reporte.grado)
+    y_actual -= 8*mm
+    label_val(pdf, 32*mm, y_actual, "Docente:", reporte.docente or '')
+    label_val(pdf, 100*mm, y_actual, "Fecha:", reporte.fecha.strftime('%d/%m/%Y') if reporte.fecha else '')
+    y_actual -= 12*mm
 
     # Comentario del docente
     pdf.setFont("Helvetica-Bold", 11)
@@ -760,30 +770,28 @@ def descargar_pdf_informativo(request, pk):
         )
         y_actual -= 8*mm
 
-    # ====== FIRMAS DOCENTE Y COORDINADOR ======
-    y_firma = 40 * mm  # o el valor que uses para que siempre quede abajo
-    x_firma_doc = 38 * mm
-    x_firma_coord = 110 * mm
-    largo_firma = 65 * mm  # Puedes usar el mismo largo para ambos
+    # <--- hecho por claude code: firmas fijas hacia abajo de la página (28mm del borde),
+    # líneas más largas, y "Firma Pariente:" en lugar de "Firma Padre/Madre:".
+    y_firma = min(y_actual - 15*mm, 28*mm)
+    largo_firma = 58 * mm
+    x_col1 = 15 * mm
+    x_col2 = 78 * mm
+    x_col3 = 141 * mm
 
-    # Firma docente
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(x_firma_doc, y_firma + 5*mm, "Firma:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(x_firma_doc + 35*mm, y_firma + 5*mm, f"{reporte.docente or ''}")
     pdf.setStrokeColor(colors.black)
     pdf.setLineWidth(0.7)
-    pdf.line(x_firma_doc, y_firma, x_firma_doc + largo_firma, y_firma)
 
-    # Firma coordinador
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(x_firma_coord, y_firma + 5*mm, "Firma:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(x_firma_coord + 38*mm, y_firma + 5*mm, f"{getattr(reporte, 'coordinador_firma', '') or ''}")
-    pdf.setStrokeColor(colors.black)
-    pdf.setLineWidth(0.7)
-    pdf.line(x_firma_coord, y_firma, x_firma_coord + largo_firma, y_firma)
-
+    for x_col, label, nombre in [
+        (x_col1, "Firma:", reporte.docente or ""),
+        (x_col2, "Firma:", getattr(reporte, 'coordinador_firma', '') or ""),
+        (x_col3, "Firma Pariente:", ""),
+    ]:
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(x_col, y_firma + 5*mm, label)
+        ancho_lbl = pdf.stringWidth(label, "Helvetica-Bold", 10)
+        pdf.setFont("Helvetica", 10)
+        pdf.drawString(x_col + ancho_lbl + 2, y_firma + 5*mm, nombre)
+        pdf.line(x_col, y_firma, x_col + largo_firma, y_firma)
 
     pdf.save()
     buf.seek(0)
@@ -799,55 +807,48 @@ def descargar_pdf_conductual(request, pk):
     pdf = canvas.Canvas(buf, pagesize=letter)
     pdf.setTitle("reporte_conductual.pdf")
 
-    width_logo = 35 * mm
-    height_logo = 35 * mm
+    # <--- hecho por claude code: logo reducido a 22mm y reposicionado para comprimir espacio superior
+    width_logo = 22 * mm
+    height_logo = 22 * mm
     x_logo = (w - width_logo) / 2
     logo_path = os.path.join(settings.STATIC_ROOT, "conducta/img/ana-transformed.png")
     if os.path.exists(logo_path):
         pdf.drawImage(
             logo_path,
             x=x_logo,
-            y=h-40*mm,
+            y=h - 28*mm,
             width=width_logo,
             height=height_logo,
             mask='auto'
         )
-    y_actual = h - 52*mm
+    y_actual = h - 33*mm
 
     # Título
     pdf.setFont("Helvetica-Bold", 16)
     titulo = "Nuevo Amanecer School" if getattr(reporte, "area", None) == "bilingue" else "C.E.M.N.G Nuevo Amanecer"
     pdf.drawCentredString(w/2, y_actual, titulo)
-    y_actual -= 14*mm
+    y_actual -= 9*mm
     pdf.setFont("Helvetica", 13)
     pdf.drawCentredString(w/2, y_actual, "Reporte conductual")
-    y_actual -= 14*mm
+    y_actual -= 10*mm
 
-    # -----------------------------
-    # Nombre (primera línea)
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(32*mm, y_actual, "Nombre:")
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(60*mm, y_actual, reporte.alumno_nombre)
+    # <--- hecho por claude code: misma función label_val para eliminar espacios extra
+    def label_val(pdf, x, y, label, valor, lbl_font="Helvetica-Bold", lbl_size=11, val_font="Helvetica", val_size=11, gap=2):
+        pdf.setFont(lbl_font, lbl_size)
+        pdf.drawString(x, y, label)
+        ancho = pdf.stringWidth(label, lbl_font, lbl_size)
+        pdf.setFont(val_font, val_size)
+        pdf.drawString(x + ancho + gap, y, valor)
 
-    # Grado y Fecha (debajo)
-    y_actual -= 8*mm
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(32*mm, y_actual, "Grado:")
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(60*mm, y_actual, reporte.grado)
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(110*mm, y_actual, "Fecha:")
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(130*mm, y_actual, reporte.fecha.strftime('%d/%m/%Y') if reporte.fecha else '')
-    
-    # Docente (debajo)
-    y_actual -= 8*mm
-    pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(32*mm, y_actual, "Docente:")
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(60*mm, y_actual, reporte.docente or "")
-    y_actual -= 12*mm
+    label_val(pdf, 32*mm, y_actual, "Nombre:", reporte.alumno_nombre)
+
+    y_actual -= 7*mm
+    label_val(pdf, 32*mm, y_actual, "Grado:", reporte.grado)
+    label_val(pdf, 118*mm, y_actual, "Fecha:", reporte.fecha.strftime('%d/%m/%Y') if reporte.fecha else '')
+
+    y_actual -= 7*mm
+    label_val(pdf, 32*mm, y_actual, "Docente:", reporte.docente or "")
+    y_actual -= 9*mm
 
     # ----------- INCISOS -----------
     maxw = w - 65*mm
@@ -855,7 +856,7 @@ def descargar_pdf_conductual(request, pk):
         incisos = getattr(reporte, tipo).all()
         pdf.setFont("Helvetica-Bold", 11)
         pdf.drawString(32*mm, y_actual, f"Incisos {label}:")
-        y_actual -= 8*mm
+        y_actual -= 6*mm
         if incisos:
             for i in incisos:
                 y_actual = draw_paragraph(
@@ -865,57 +866,53 @@ def descargar_pdf_conductual(request, pk):
         else:
             pdf.setFont("Helvetica-Oblique", 10)
             pdf.drawString(38*mm, y_actual, "-")
-            y_actual -= 8*mm
-        y_actual -= 6*mm
+            y_actual -= 6*mm
+        y_actual -= 4*mm
 
     # ----------- COMENTARIOS -----------
     pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(32*mm, y_actual, "Comentario del Docente:")
-    y_actual -= 8*mm
+    y_actual -= 6*mm
     y_actual = draw_paragraph(
         pdf, reporte.comentario or "-", x=38*mm, y=y_actual, max_width=maxw,
         font="Helvetica", font_size=10, italic=True, leading=12
     )
-    y_actual -= 10*mm
+    y_actual -= 7*mm
 
     if hasattr(reporte, 'comentario_coordinador') and reporte.comentario_coordinador:
         pdf.setFont("Helvetica-Bold", 11)
         pdf.drawString(32*mm, y_actual, "Comentario del Coordinador:")
-        y_actual -= 8*mm
+        y_actual -= 6*mm
         y_actual = draw_paragraph(
             pdf, reporte.comentario_coordinador, x=38*mm, y=y_actual, max_width=maxw,
             font="Helvetica", font_size=10, italic=True, leading=12
         )
-        y_actual -= 8*mm
+        y_actual -= 6*mm
 
-    # ======================
-    #  FIRMA (siempre abajo)
-    # ======================
+    # <--- hecho por claude code: firma dinámica a 5mm (~15px) del último contenido,
+    # <--- hecho por claude code: firmas fijas hacia abajo (28mm del borde),
+    # líneas más largas y "Firma Pariente:" en lugar de "Firma Padre/Madre:".
+    y_firma = min(y_actual - 15*mm, 28*mm)
+    largo_firma = 58 * mm
+    x_col1 = 15 * mm
+    x_col2 = 78 * mm
+    x_col3 = 141 * mm
 
-    y_firma = 40 * mm   # Puedes subir/bajar este valor según tu hoja.
-    x_firma_doc = 38 * mm
-    x_firma_coord = 110 * mm
-    largo_firma = 65 * mm  # Puedes hacer la línea un poco más larga si lo deseas
-
-    # ------ FIRMA DOCENTE ------
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(x_firma_doc, y_firma + 5*mm, "Firma:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(x_firma_doc + 22*mm, y_firma + 5*mm, f"{reporte.docente or ''}")
-    # Línea exactamente debajo
     pdf.setStrokeColor(colors.black)
     pdf.setLineWidth(0.7)
-    pdf.line(x_firma_doc, y_firma, x_firma_doc + largo_firma, y_firma)
 
-    # ------ FIRMA COORDINADOR ------
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(x_firma_coord, y_firma + 5*mm, "Firma:")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(x_firma_coord + 22*mm, y_firma + 5*mm, f"{getattr(reporte, 'coordinador_firma', '') or ''}")
-    pdf.setStrokeColor(colors.black)
-    pdf.setLineWidth(0.7)
-    pdf.line(x_firma_coord, y_firma, x_firma_coord + largo_firma, y_firma)
-    
+    for x_col, label, nombre in [
+        (x_col1, "Firma:", reporte.docente or ""),
+        (x_col2, "Firma:", getattr(reporte, 'coordinador_firma', '') or ""),
+        (x_col3, "Firma Pariente:", ""),
+    ]:
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(x_col, y_firma + 5*mm, label)
+        ancho_lbl = pdf.stringWidth(label, "Helvetica-Bold", 10)
+        pdf.setFont("Helvetica", 10)
+        pdf.drawString(x_col + ancho_lbl + 2, y_firma + 5*mm, nombre)
+        pdf.line(x_col, y_firma, x_col + largo_firma, y_firma)
+
     pdf.save()
     buf.seek(0)
     return HttpResponse(buf, content_type="application/pdf")
@@ -1057,13 +1054,49 @@ def descargar_pdf_progress(request, pk):
 def descargar_pdf_conductual_3_strikes(request, pk):
     from .models import ReporteConductual
     reporte = get_object_or_404(ReporteConductual, pk=pk)
-    reportes = list(ReporteConductual.objects.filter(
+
+    # <--- hecho por claude code: regla corregida — el reporte 3 strikes solo se genera
+    # cuando el alumno acumula 3 reportes del MISMO tipo (3 leve, 3 grave o 3 muy grave).
+    # Antes tomaba cualquier 3 reportes mezclados, lo cual era incorrecto.
+    todos = list(ReporteConductual.objects.filter(
         area=reporte.area,
         alumno_id=reporte.alumno_id
-    ).order_by('fecha')[:3])
+    ).prefetch_related('incisos_leve', 'incisos_grave', 'incisos_muygrave').order_by('fecha'))
 
-    if len(reportes) < 3:
-        return HttpResponse("Este alumno aún no tiene 3 reportes conductuales.", content_type="text/plain")
+    leves     = [r for r in todos if r.incisos_leve.exists() and not r.incisos_grave.exists() and not r.incisos_muygrave.exists()]
+    graves    = [r for r in todos if r.incisos_grave.exists() and not r.incisos_muygrave.exists()]
+    muy_graves = [r for r in todos if r.incisos_muygrave.exists()]
+
+    reportes = None
+    if len(leves) >= 3:
+        reportes = leves[:3]
+    elif len(graves) >= 3:
+        reportes = graves[:3]
+    elif len(muy_graves) >= 3:
+        reportes = muy_graves[:3]
+
+    if reportes is None:
+        # <--- hecho por claude code: mensaje de error como alerta Bootstrap en lugar
+        # de texto plano (que tenía encoding roto y se veía mal).
+        html = """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sin reporte 3 strikes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="min-height:100vh;">
+  <div class="card shadow p-4" style="max-width:480px;width:100%;">
+    <div class="alert alert-warning mb-3">
+      <strong>&#9888; Sin reporte 3 strikes</strong><br>
+      Este alumno aún no acumula 3 reportes conductuales del mismo tipo
+      (3 leve, 3 grave o 3 muy grave).
+    </div>
+    <a href="javascript:history.back()" class="btn btn-secondary w-100">&larr; Volver</a>
+  </div>
+</body>
+</html>"""
+        return HttpResponse(html, status=400)
 
     buf = io.BytesIO()
     w, h = letter
@@ -1273,6 +1306,8 @@ def subir_evidencia(request):
         reporte_id = request.POST.get('reporte_id')
         imagen = request.FILES.get('imagen')
         comentario = request.POST.get('comentario', '')
+        # <--- hecho por claude code: se recibe el titulo para identificar la evidencia
+        titulo = request.POST.get('titulo', '')
 
         # Validar que lleguen todos los datos mínimos
         if not imagen or not tipo or not reporte_id:
@@ -1283,6 +1318,7 @@ def subir_evidencia(request):
         ev = EvidenciaReporte(
             tipo=tipo,
             imagen=imagen,
+            titulo=titulo,
             comentario=comentario,
             subido_por=request.user
         )
