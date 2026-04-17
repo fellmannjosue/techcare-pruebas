@@ -32,6 +32,26 @@ def send_email_async(subject, message, recipient_list):
     ).start()
 
 
+def enviar_correo_ticket_resuelto(ticket):
+    """Envía el historial del chat al usuario y al técnico cuando el ticket se resuelve."""
+    comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
+    chat_conversacion = [
+        {
+            'autor': c.usuario.get_full_name() or c.usuario.username,
+            'fecha': c.fecha.strftime('%d/%m/%Y %H:%M'),
+            'mensaje': c.mensaje,
+        }
+        for c in comentarios
+    ]
+    html_msg = render_to_string('tickets/email/ticket_update.html', {
+        'ticket': ticket,
+        'chat_conversacion': chat_conversacion,
+    })
+    asunto = f"Ticket #{ticket.ticket_id} – Resuelto"
+    send_email_async(asunto, html_msg, [ticket.email])
+    send_email_async(asunto, html_msg, ['techcare.app2024@gmail.com'])
+
+
 # ======================================================
 # 🔥 SUBMIT TICKET
 # ======================================================
@@ -211,6 +231,8 @@ def ticket_comments(request, ticket_id):
                         tipo="info"
                     )
 
+                enviar_correo_ticket_resuelto(ticket)
+
         # -------------------- NUEVO COMENTARIO --------------------
         form = TicketCommentForm(request.POST)
         if form.is_valid() and mensaje:
@@ -252,7 +274,7 @@ def ticket_comments(request, ticket_id):
 
 
 # ======================================================
-# AJAX → Render parcial de comentarios
+# AJAX → Render parcial de comentarios (GET)
 # ======================================================
 @login_required
 def ticket_comments_ajax(request, ticket_id):
@@ -263,6 +285,49 @@ def ticket_comments_ajax(request, ticket_id):
     html = render_to_string(template, {"comentarios": comentarios, "request": request})
 
     return JsonResponse({'html': html})
+
+
+# ======================================================
+# AJAX → Enviar comentario (POST)
+# ======================================================
+@require_POST
+@login_required
+def ticket_send_comment_ajax(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+
+    if ticket.status.lower() == "resuelto":
+        return JsonResponse({"ok": False, "error": "Ticket cerrado"}, status=400)
+
+    mensaje = request.POST.get("mensaje", "").strip()
+    if not mensaje:
+        return JsonResponse({"ok": False, "error": "Mensaje vacío"}, status=400)
+
+    comentario = TicketComment.objects.create(
+        ticket=ticket,
+        usuario=request.user,
+        mensaje=mensaje,
+        tipo="usuario" if not request.user.is_staff else "tecnico"
+    )
+
+    # Notificaciones
+    if comentario.tipo == "usuario":
+        for tech in User.objects.filter(groups__name__icontains="tecnico"):
+            crear_notificacion(
+                usuario=tech,
+                mensaje=f"Nuevo mensaje en ticket #{ticket.ticket_id} por {request.user.username}.",
+                modulo="tickets",
+                tipo="info"
+            )
+    else:
+        if ticket.usuario:
+            crear_notificacion(
+                usuario=ticket.usuario,
+                mensaje=f"Un técnico respondió en tu ticket #{ticket.ticket_id}.",
+                modulo="tickets",
+                tipo="info"
+            )
+
+    return JsonResponse({"ok": True})
 
 
 # ======================================================
@@ -292,13 +357,15 @@ def ticket_status_update_ajax(request, ticket_id):
             tipo="info"
         )
 
-    if new_status == "Resuelto" and ticket.usuario:
-        crear_notificacion(
-            usuario=ticket.usuario,
-            mensaje=f"Tu ticket #{ticket.ticket_id} ha sido resuelto.",
-            modulo="tickets",
-            tipo="exito"
-        )
+    if new_status == "Resuelto":
+        if ticket.usuario:
+            crear_notificacion(
+                usuario=ticket.usuario,
+                mensaje=f"Tu ticket #{ticket.ticket_id} ha sido resuelto.",
+                modulo="tickets",
+                tipo="exito"
+            )
+        enviar_correo_ticket_resuelto(ticket)
 
     return JsonResponse({"ok": True})
 

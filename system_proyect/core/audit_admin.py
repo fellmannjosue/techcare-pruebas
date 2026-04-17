@@ -1,9 +1,19 @@
-# <!-- <--- hecho por claude code: mixin de admin para auditoría automática.
+# <--- hecho por claude code: mixin de admin para auditoría automática.
 #      Captura request.user al guardar desde el admin y lo asigna a
 #      creado_por (solo en creación) y modificado_por (siempre).
-#      Los campos de auditoría se muestran como readonly en el admin. -->
+#      Los campos de auditoría se muestran como readonly en el admin.
+#      Hereda de UnfoldModelAdmin si unfold está instalado, si no usa ModelAdmin.
 
-class AuditAdminMixin:
+from django.contrib import admin
+
+try:
+    from unfold.admin import ModelAdmin as UnfoldModelAdmin
+    _AdminBase = UnfoldModelAdmin
+except ImportError:
+    _AdminBase = admin.ModelAdmin
+
+
+class AuditAdminMixin(_AdminBase):
     """Agrega los campos de auditoría como readonly en el admin
     y los rellena automáticamente al guardar."""
 

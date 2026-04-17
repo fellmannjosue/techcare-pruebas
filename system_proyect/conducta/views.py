@@ -372,17 +372,20 @@ def progress_report_bilingue(request):
 
         if form.is_valid():
             # --- PROCESAR MATERIAS ---
+            usuario_actual = request.user.get_full_name() or request.user.username
             materias_list = []
             for materia in materias:
                 if materia == "Asociadas":
                     asignaciones = request.POST.getlist('asignacion_Asociadas[]')
                     comentarios = request.POST.getlist('comentario_Asociadas[]')
-                    for idx, asignacion in enumerate(asignaciones):
+                    # Máximo 5 asociadas
+                    for idx, asignacion in enumerate(asignaciones[:5]):
                         comentario = comentarios[idx] if idx < len(comentarios) else ""
                         materias_list.append({
                             'materia': 'Asociadas',
                             'asignacion': asignacion,
                             'comentario': comentario,
+                            'docente': usuario_actual if (asignacion.strip() or comentario.strip()) else '',
                         })
                 else:
                     asignacion = request.POST.get(f"asignacion_{materia}", "")
@@ -391,6 +394,7 @@ def progress_report_bilingue(request):
                         'materia': materia,
                         'asignacion': asignacion,
                         'comentario': comentario,
+                        'docente': usuario_actual if (asignacion.strip() or comentario.strip()) else '',
                     })
             # --- DATOS GENERALES ---
             semana_inicio = form.cleaned_data.get('semana_inicio')
@@ -438,12 +442,16 @@ def historial_maestro_bilingue(request):
 
     tickets_usuario = Ticket.objects.filter(email=usuario.email).order_by('-created_at')
 
+    es_admin = request.user.groups.filter(name='administracion').exists()
+    back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
+
     return render(request, 'conducta/historial_maestro.html', {
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
         'reportes_progress': reportes_progress,
         'tickets_usuario': tickets_usuario,
         'area': 'bilingue',
+        'back_url': back_url,
     })
 
 
@@ -455,12 +463,16 @@ def historial_maestro_colegio(request):
 
     tickets_usuario = Ticket.objects.filter(email=usuario.email).order_by('-created_at')
 
+    es_admin = request.user.groups.filter(name='administracion').exists()
+    back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
+
     return render(request, 'conducta/historial_maestro.html', {
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
-        'reportes_progress': [],   # vacía para mantener compatibilidad
-        'tickets_usuario': tickets_usuario,      # <- AGREGA AQUÍ
+        'reportes_progress': [],
+        'tickets_usuario': tickets_usuario,
         'area': 'colegio',
+        'back_url': back_url,
     })
 
 # ────────────────
@@ -564,14 +576,22 @@ def editar_progress_report(request, pk):
     if not materias:
         materias = []
 
-    # Marcar editabilidad: editable si no tiene docente, o el docente es el usuario actual,
-    # o el usuario es coordinador
+    # Marcar editabilidad:
+    # - Coordinador: siempre editable
+    # - Materia vacía (sin contenido y sin docente): cualquier maestro puede llenarla
+    # - Materia del propio maestro: editable
+    # - Materia de otro maestro, o con contenido sin docente (legacy): readonly
     for mat in materias:
-        docente_guardado = mat.get("docente", "")
-        if es_coord or not docente_guardado or docente_guardado == usuario_actual:
+        docente_guardado  = mat.get("docente", "").strip()
+        tiene_contenido   = bool(mat.get("asignacion", "").strip() or mat.get("comentario", "").strip())
+        if es_coord:
             mat["editable"] = True
+        elif docente_guardado == usuario_actual:
+            mat["editable"] = True
+        elif not docente_guardado and not tiene_contenido:
+            mat["editable"] = True   # materia vacía, disponible para cualquiera
         else:
-            mat["editable"] = False
+            mat["editable"] = False  # tiene contenido de otro maestro → protegida
 
     if request.method == 'POST':
         nuevas_materias = []
@@ -613,11 +633,11 @@ def editar_progress_report(request, pk):
             # Guardar sin la clave 'editable' (es solo para el template, no va a la BD)
             nuevas_materias.append({k: v for k, v in mat.items() if k != 'editable'})
 
-        # ── 2. Procesar TODAS las filas de Asociadas ─────────────────────────
+        # ── 2. Procesar TODAS las filas de Asociadas (máximo 5) ──────────────
         asignaciones_asociadas = request.POST.getlist('asignacion_Asociadas[]')
         comentarios_asociadas  = request.POST.getlist('comentario_Asociadas[]')
 
-        for i, asignacion in enumerate(asignaciones_asociadas):
+        for i, asignacion in enumerate(asignaciones_asociadas[:5]):
             comentario = comentarios_asociadas[i] if i < len(comentarios_asociadas) else ''
 
             # Determinar docente: preservar el original si la fila ya existía y no es editable
@@ -1314,7 +1334,29 @@ def subir_evidencia(request):
             messages.error(request, "Faltan datos para subir la evidencia.")
             return redirect(request.META.get('HTTP_REFERER', 'dashboard_maestro'))
 
-        # Crear la evidencia sin guardar aún (se asignará la FK según tipo)
+        # Asignar la FK correcta según el tipo de reporte
+        if tipo == 'conductual':
+            reporte = get_object_or_404(ReporteConductual, pk=reporte_id)
+            total_evidencias = EvidenciaReporte.objects.filter(reporte_conductual=reporte).count()
+            area = reporte.area
+        elif tipo == 'informativo':
+            reporte = get_object_or_404(ReporteInformativo, pk=reporte_id)
+            total_evidencias = EvidenciaReporte.objects.filter(reporte_informativo=reporte).count()
+            area = reporte.area
+        elif tipo == 'progress':
+            reporte = get_object_or_404(ProgressReport, pk=reporte_id)
+            total_evidencias = EvidenciaReporte.objects.filter(reporte_progress=reporte).count()
+            area = 'bilingue'
+        else:
+            messages.error(request, "Tipo de reporte inválido.")
+            return redirect('dashboard_maestro')
+
+        # Máximo 2 evidencias por reporte
+        if total_evidencias >= 2:
+            messages.error(request, "Este reporte ya tiene el máximo de 2 evidencias permitidas.")
+            return redirect('dashboard_coordinador', area=area)
+
+        # Crear y guardar la evidencia
         ev = EvidenciaReporte(
             tipo=tipo,
             imagen=imagen,
@@ -1323,22 +1365,12 @@ def subir_evidencia(request):
             subido_por=request.user
         )
 
-        # Asignar la FK correcta según el tipo de reporte
         if tipo == 'conductual':
-            reporte = get_object_or_404(ReporteConductual, pk=reporte_id)
             ev.reporte_conductual = reporte
-            area = reporte.area
         elif tipo == 'informativo':
-            reporte = get_object_or_404(ReporteInformativo, pk=reporte_id)
             ev.reporte_informativo = reporte
-            area = reporte.area
         elif tipo == 'progress':
-            reporte = get_object_or_404(ProgressReport, pk=reporte_id)
             ev.reporte_progress = reporte
-            area = 'bilingue'  # progress solo existe en bilingüe
-        else:
-            messages.error(request, "Tipo de reporte inválido.")
-            return redirect('dashboard_maestro')
 
         ev.save()
         messages.success(request, "Evidencia subida correctamente.")

@@ -78,7 +78,11 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-info text-dark">{{ t.status }}</span>
+                                    {% if t.status == "Resuelto" or t.status == "Cerrado" or t.status == "Closed" %}
+                                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Resuelto</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ t.status }}</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <a href="{% url 'ticket_comments' t.id %}?area={{ area }}"
@@ -112,6 +116,7 @@
                                 <th>Materia</th>
                                 <th>Docente</th>
                                 <th>Fecha</th>
+                                <th>Estado</th>
                                 <th>Evidencias</th>  {# <--- hecho por claude code #}
                                 <th>Acciones</th>
                             </tr>
@@ -125,6 +130,14 @@
                                 <td>{{ r.materia }}</td>
                                 <td>{{ r.docente }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
+                                {# <--- hecho por claude code: badge de estado para informativo #}
+                                <td>
+                                    {% if r.estado == "aprobado" %}
+                                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Aprobado</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Enviado</span>
+                                    {% endif %}
+                                </td>
                                 <!--{# <--- hecho por claude code: muestra miniaturas de evidencias
                                    con efecto hover zoom. Usa img-evidencia-hover definida en historial.css #}-->
                                 <td>
@@ -145,7 +158,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center">No hay reportes informativos.</td>
+                                <td colspan="8" class="text-center">No hay reportes informativos.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -165,6 +178,7 @@
                                 <th>Materia</th>
                                 <th>Docente</th>
                                 <th>Fecha</th>
+                                <th>Estado</th>
                                 <th>Evidencias</th>  <!--{# <--- hecho por claude code #}-->
                                 <th>Individual</th>
                                 <th>Tres Strikes</th>
@@ -179,6 +193,14 @@
                                 <td>{{ r.materia }}</td>
                                 <td>{{ r.docente }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
+                                {# <--- hecho por claude code: badge de estado para conductual #}
+                                <td>
+                                    {% if r.estado == "aprobado" %}
+                                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Aprobado</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Enviado</span>
+                                    {% endif %}
+                                </td>
                                 <!--{# <--- hecho por claude code: evidencias con hover zoom para conductual #}-->
                                 <td>
                                     {% for ev in r.evidenciareporte_set.all %}
@@ -203,7 +225,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center">No hay reportes conductuales.</td>
+                                <td colspan="9" class="text-center">No hay reportes conductuales.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -224,6 +246,7 @@
                                 <th>Semana Inicio</th>
                                 <th>Semana Fin</th>
                                 <th>Fecha</th>
+                                <th>Estado</th>
                                 <th>Evidencias</th>  <!--{# <--- hecho por claude code #}-->
                                 <th>Acciones</th>
                             </tr>
@@ -237,7 +260,15 @@
                                 <td>{{ r.semana_inicio }}</td>
                                 <td>{{ r.semana_fin }}</td>
                                 <td>{{ r.fecha|date:"Y-m-d H:i" }}</td>
-                               <!-- {# <--- hecho por claude code: evidencias con hover zoom para progress #}-->
+                                {# <--- hecho por claude code: badge de estado para progress #}
+                                <td>
+                                    {% if r.estado == "aprobado" %}
+                                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Aprobado</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Enviado</span>
+                                    {% endif %}
+                                </td>
+                               <!--{# <--- hecho por claude code: evidencias con hover zoom para progress #}-->
                                 <td>
                                     {% for ev in r.evidenciareporte_set.all %}
                                     <img src="{{ ev.imagen.url }}"
@@ -257,7 +288,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center">No hay progress reports.</td>
+                                <td colspan="8" class="text-center">No hay progress reports.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -266,8 +297,8 @@
             </div>
             {% endif %}
         </div>
-        <a class="btn-dashboard text-center mt-4" href="/conducta/dashboard/maestro/">
-            &larr; Regresar al Dashboard
+        <a class="btn-dashboard text-center mt-4" href="{{ back_url }}">
+            &larr; Regresar
         </a>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

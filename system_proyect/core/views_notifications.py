@@ -59,7 +59,7 @@ def notificaciones_usuario(request):
         for n in notis
     ]
 
-    return JsonResponse({"notificaciones": data})
+    return JsonResponse({"ok": True, "notificaciones": data})
 
 
 # ============================================================
@@ -77,16 +77,13 @@ def marcar_notificaciones_leidas(request):
     """
     try:
         body = request.body.decode('utf-8')
-        data = json.loads(body)
+        data = json.loads(body) if body.strip() else {}
         ids = data.get("ids", [])
 
-        if not ids:
-            return JsonResponse({"ok": False, "error": "No se enviaron IDs"}, status=400)
-
-        Notificacion.objects.filter(
-            destinatario=request.user,
-            id__in=ids
-        ).update(leida=True)
+        qs = Notificacion.objects.filter(destinatario=request.user, leida=False)
+        if ids:
+            qs = qs.filter(id__in=ids)
+        qs.update(leida=True)
 
         return JsonResponse({"ok": True})
 

@@ -38,13 +38,13 @@ CSRF_TRUSTED_ORIGINS = [
 # 4. APLICACIONES INSTALADAS
 # ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
-    # Unfold debe ir ANTES de django.contrib.admin
+    # Jazzmin (comentado — reemplazado por Unfold)
+    # 'jazzmin',
+
+    # Unfold — panel de administración
     'unfold',
     'unfold.contrib.filters',
     'unfold.contrib.forms',
-
-    # Jazzmin (comentado temporalmente)
-    # 'jazzmin',
 
     # Apps de Django
     'django.contrib.admin',
@@ -292,79 +292,103 @@ OPENAI_TIMEOUT = int(os.getenv('OPENAI_TIMEOUT', '20'))
 
 
 # ─────────────────────────────────────────────────────────────
+# JAZZMIN — comentado (reemplazado por Unfold)
+# ─────────────────────────────────────────────────────────────
+# JAZZMIN_SETTINGS = { ... }
+# JAZZMIN_UI_TWEAKS = { ... }
+
+# ─────────────────────────────────────────────────────────────
 # UNFOLD — Configuración del panel de administración
 # ─────────────────────────────────────────────────────────────
-from django.templatetags.static import static
 from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 UNFOLD = {
     "SITE_TITLE": "Plataforma Admin ANA",
     "SITE_HEADER": "Plataforma Admin ANA",
     "SITE_SUBHEADER": "Asociación Nuevo Amanecer",
     "SITE_URL": "/",
-    "SITE_ICON": lambda request: static("accounts/img/nuevo.ico"),
-    "SITE_LOGO": lambda request: static("accounts/img/ana-transformed.png"),
-    "SITE_SYMBOL": "speed",
-    "SITE_FAVICONS": [
-        {"rel": "icon", "sizes": "32x32", "href": lambda request: static("accounts/img/nuevo.ico")},
-    ],
+    "SITE_ICON": lambda request: "/static/accounts/img/nuevo.ico",
+    "SITE_LOGO": lambda request: "/static/accounts/img/ana-transformed.png",
+    "SITE_SYMBOL": "settings",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
-    "COLORS": {
-        "font": {
-            "subtle-light": "107 114 128",
-            "subtle-dark": "156 163 175",
-            "default-light": "75 85 99",
-            "default-dark": "209 213 219",
-            "important-light": "17 24 39",
-            "important-dark": "243 244 246",
-        },
-        "primary": {
-            "50":  "240 253 250",
-            "100": "204 251 241",
-            "200": "153 246 228",
-            "300": "94 234 212",
-            "400": "45 212 191",
-            "500": "20 184 166",
-            "600": "13 148 136",
-            "700": "15 118 110",
-            "800": "17 94 89",
-            "900": "19 78 74",
-            "950": "4 47 46",
-        },
+    "ENVIRONMENT": None,
+    # Sin THEME fijo → aparece el toggle claro/oscuro/automático en la barra superior
+    "LOGIN": {
+        "image": lambda request: "/static/accounts/img/ana-transformed.png",
     },
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": True,
         "navigation": [
             {
-                "title": "Administración",
+                "title": _("Usuarios"),
                 "separator": True,
                 "items": [
-                    {"title": "Usuarios", "icon": "person", "link": reverse_lazy("admin:auth_user_changelist")},
-                    {"title": "Grupos", "icon": "group", "link": reverse_lazy("admin:auth_group_changelist")},
+                    {
+                        "title": _("Usuarios"),
+                        "icon": "person",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Grupos"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
                 ],
             },
             {
-                "title": "Módulos",
+                "title": _("Tickets"),
                 "separator": True,
                 "items": [
-                    {"title": "Tickets", "icon": "confirmation_number", "link": reverse_lazy("admin:tickets_ticket_changelist")},
-                    {"title": "Conducta", "icon": "menu_book", "link": reverse_lazy("admin:conducta_reporteconductual_changelist")},
-                    {"title": "Enfermería", "icon": "favorite", "link": reverse_lazy("admin:enfermeria_atencionmedica_changelist")},
-                    {"title": "Inventario", "icon": "inventory_2", "link": reverse_lazy("admin:inventario_computadora_changelist")},
-                    {"title": "Mantenimiento", "icon": "build", "link": reverse_lazy("admin:mantenimiento_maintenancerecord_changelist")},
-                    {"title": "Seguridad", "icon": "shield", "link": reverse_lazy("admin:seguridad_inventariocamara_changelist")},
-                    {"title": "Citas Colegio", "icon": "calendar_month", "link": reverse_lazy("admin:citas_colegio_appointment_col_changelist")},
-                    {"title": "Citas Bilingüe", "icon": "event", "link": reverse_lazy("admin:citas_billingue_appointment_bl_changelist")},
+                    {"title": _("Tickets"), "icon": "confirmation_number", "link": reverse_lazy("admin:tickets_ticket_changelist")},
+                    {"title": _("Comentarios"), "icon": "chat", "link": reverse_lazy("admin:tickets_ticketcomment_changelist")},
+                ],
+            },
+            {
+                "title": _("Conducta"),
+                "separator": True,
+                "items": [
+                    {"title": _("Incisos"), "icon": "menu_book", "link": reverse_lazy("admin:conducta_incisoconductual_changelist")},
+                    {"title": _("Reportes Conductuales"), "icon": "report", "link": reverse_lazy("admin:conducta_reporteconductual_changelist")},
+                    {"title": _("Reportes Informativos"), "icon": "info", "link": reverse_lazy("admin:conducta_reporteinformativo_changelist")},
+                    {"title": _("Progress Reports"), "icon": "bar_chart", "link": reverse_lazy("admin:conducta_progressreport_changelist")},
+                    {"title": _("Evidencias"), "icon": "photo_camera", "link": reverse_lazy("admin:conducta_evidenciareporte_changelist")},
+                ],
+            },
+            {
+                "title": _("Enfermería"),
+                "separator": True,
+                "items": [
+                    {"title": _("Atenciones"), "icon": "medical_services", "link": reverse_lazy("admin:enfermeria_atencionmedica_changelist")},
+                    {"title": _("Inventario Medicamentos"), "icon": "medication", "link": reverse_lazy("admin:enfermeria_inventariomedicamento_changelist")},
+                ],
+            },
+            {
+                "title": _("Inventario"),
+                "separator": True,
+                "items": [
+                    {"title": _("Inventario"), "icon": "inventory_2", "link": reverse_lazy("admin:inventario_inventoryitem_changelist")},
+                    {"title": _("Computadoras"), "icon": "computer", "link": reverse_lazy("admin:inventario_computadora_changelist")},
+                ],
+            },
+            {
+                "title": _("Mantenimiento"),
+                "separator": True,
+                "items": [
+                    {"title": _("Registros"), "icon": "build", "link": reverse_lazy("admin:mantenimiento_maintenancerecord_changelist")},
+                ],
+            },
+            {
+                "title": _("Seguridad"),
+                "separator": True,
+                "items": [
+                    {"title": _("Cámaras"), "icon": "videocam", "link": reverse_lazy("admin:seguridad_inventariocamara_changelist")},
                 ],
             },
         ],
     },
 }
-
-# ─────────────────────────────────────────────────────────────
-# JAZZMIN — Configuración comentada (usar unfold por ahora)
-# ─────────────────────────────────────────────────────────────
-# JAZZMIN_SETTINGS = { ... }
-# JAZZMIN_UI_TWEAKS = { ... }

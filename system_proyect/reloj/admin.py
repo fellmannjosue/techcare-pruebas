@@ -1,5 +1,4 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin as UnfoldModelAdmin
 from .models import (
     ScheduleTemplate, ScheduleRule, EmployeeScheduleAssignment,
     OvertimeRequest, Feriado, SabadoEspecial, TiempoCompensatorio, PermisoEmpleado
@@ -21,7 +20,7 @@ class ScheduleRuleInline(admin.TabularInline):
 # ─────────────────────────────────────────────────────────────
 
 @admin.register(ScheduleTemplate)
-class ScheduleTemplateAdmin(UnfoldModelAdmin):
+class ScheduleTemplateAdmin(admin.ModelAdmin):
     list_display  = ("nombre", "descripcion")
     search_fields = ("nombre",)
     ordering      = ("nombre",)
@@ -30,7 +29,7 @@ class ScheduleTemplateAdmin(UnfoldModelAdmin):
 
 
 @admin.register(EmployeeScheduleAssignment)
-class EmployeeScheduleAssignmentAdmin(UnfoldModelAdmin):
+class EmployeeScheduleAssignmentAdmin(admin.ModelAdmin):
     list_display  = ("emp_code", "nombre_empleado", "template", "fecha_inicio", "fecha_fin", "activo")
     list_filter   = ("activo", "template")
     search_fields = ("emp_code", "nombre_empleado")
@@ -39,7 +38,7 @@ class EmployeeScheduleAssignmentAdmin(UnfoldModelAdmin):
 
 
 @admin.register(OvertimeRequest)
-class OvertimeRequestAdmin(UnfoldModelAdmin):
+class OvertimeRequestAdmin(admin.ModelAdmin):
     list_display  = ("emp_code", "fecha", "minutos_calculados", "minutos_autorizados", "status", "approved_by", "approved_at")
     list_filter   = ("status", "approved_by")
     search_fields = ("emp_code",)
@@ -53,7 +52,7 @@ class OvertimeRequestAdmin(UnfoldModelAdmin):
 # ─────────────────────────────────────────────────────────────
 
 @admin.register(Feriado)
-class FeriadoAdmin(UnfoldModelAdmin):
+class FeriadoAdmin(admin.ModelAdmin):
     list_display  = ("fecha", "descripcion", "creado_por", "creado_en")
     search_fields = ("descripcion",)
     date_hierarchy = "fecha"
@@ -61,7 +60,7 @@ class FeriadoAdmin(UnfoldModelAdmin):
 
 
 @admin.register(SabadoEspecial)
-class SabadoEspecialAdmin(UnfoldModelAdmin):
+class SabadoEspecialAdmin(admin.ModelAdmin):
     list_display  = ("fecha", "descripcion", "creado_por", "creado_en")
     search_fields = ("descripcion",)
     date_hierarchy = "fecha"
@@ -69,7 +68,7 @@ class SabadoEspecialAdmin(UnfoldModelAdmin):
 
 
 @admin.register(TiempoCompensatorio)
-class TiempoCompensatorioAdmin(UnfoldModelAdmin):
+class TiempoCompensatorioAdmin(admin.ModelAdmin):
     list_display  = ("emp_code", "nombre_empleado", "fecha", "minutos_registrados", "estado", "registrado_por", "autorizado_por", "autorizado_en")
     list_filter   = ("estado", "autorizado_por")
     search_fields = ("emp_code", "nombre_empleado", "motivo")
@@ -78,7 +77,7 @@ class TiempoCompensatorioAdmin(UnfoldModelAdmin):
 
 
 @admin.register(PermisoEmpleado)
-class PermisoEmpleadoAdmin(UnfoldModelAdmin):
+class PermisoEmpleadoAdmin(admin.ModelAdmin):
     list_display  = ("emp_code", "nombre_empleado", "fecha_inicio", "fecha_fin", "motivo", "aprobado", "autorizado_por")
     list_filter   = ("aprobado", "autorizado_por")
     search_fields = ("emp_code", "nombre_empleado", "motivo")

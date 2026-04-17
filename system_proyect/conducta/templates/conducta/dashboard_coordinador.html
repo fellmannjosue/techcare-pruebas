@@ -124,9 +124,11 @@
                   <i class="bi bi-clock-history"></i>
                 </button>
                 <!--{# <--- hecho por claude code: botón 📷 para subir evidencia del reporte informativo.
-                   Cambia a verde (bi-image-fill) si ya tiene evidencias, gris si no tiene. #}-->
-                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                        data-id="{{ r.pk }}" data-tipo="informativo" title="Subir evidencia">
+                   Cambia a verde (bi-image-fill) si ya tiene evidencias, gris si no tiene.
+                   data-num-evidencias permite que el JS bloquee cuando ya hay 2. #}-->
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
+                        title="{% if r.evidenciareporte_set.count >= 2 %}Máximo de evidencias alcanzado (2){% else %}Subir evidencia{% endif %}">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
                 <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del informativo #}-->
@@ -172,9 +174,11 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
-                <!--{# <--- hecho por claude code: botón 📷 para reporte conductual. #}-->
-                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                        data-id="{{ r.pk }}" data-tipo="conductual" title="Subir evidencia">
+                <!--{# <--- hecho por claude code: botón 📷 para reporte conductual.
+                   data-num-evidencias permite que el JS bloquee cuando ya hay 2. #}-->
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="conductual" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
+                        title="{% if r.evidenciareporte_set.count >= 2 %}Máximo de evidencias alcanzado (2){% else %}Subir evidencia{% endif %}">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
                 <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del conductual #}-->
@@ -221,9 +225,11 @@
                 <button class="btn btn-info btn-sm btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial">
                   <i class="bi bi-clock-history"></i>
                 </button>
-                <!--{# <--- hecho por claude code: botón 📷 para progress report. #}-->
-                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                        data-id="{{ r.pk }}" data-tipo="progress" title="Subir evidencia">
+                <!--{# <--- hecho por claude code: botón 📷 para progress report.
+                   data-num-evidencias permite que el JS bloquee cuando ya hay 2. #}-->
+                <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
+                        data-id="{{ r.pk }}" data-tipo="progress" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
+                        title="{% if r.evidenciareporte_set.count >= 2 %}Máximo de evidencias alcanzado (2){% else %}Subir evidencia{% endif %}">
                   <i class="bi {% if r.evidenciareporte_set.all %}bi-image-fill{% else %}bi-image{% endif %}"></i>
                 </button>
                 <!--{# <--- hecho por claude code: miniaturas con hover zoom para evidencias del progress #}-->

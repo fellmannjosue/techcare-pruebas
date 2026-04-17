@@ -200,6 +200,7 @@ def menu_view(request):
     # 🔰 ROLES Y PERMISOS
     # =====================================================
     is_admin            = user.is_superuser
+    is_administracion   = user.groups.filter(name='administracion').exists()
     is_group_citas_bl   = user.groups.filter(name='citas bilingue').exists()
     is_group_citas_col  = user.groups.filter(name='citas colegio').exists()
     is_group_enfermeria = user.groups.filter(name='enfermeria').exists()
@@ -243,9 +244,11 @@ def menu_view(request):
         'show_cards': show_cards,
 
         # ---------- Visibilidad según rol ----------
+        'is_administracion': is_administracion,
+
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
-        'show_tickets':     is_admin or can_view_tickets,
+        'show_tickets':     is_admin or can_view_tickets or is_administracion,
         'show_sponsors':    is_admin or can_view_sponsors,
         'show_seguridad':   is_admin or can_view_seguridad,
         'show_citas_bl':    is_admin or is_group_citas_bl,
@@ -285,7 +288,7 @@ def notify_tickets(request):
                 "id": t.id,
                 "ticket_id": t.ticket_id,
                 "name": t.name,
-                "fecha": t.fecha_creacion.strftime("%d/%m/%Y %H:%M")
+                "fecha": t.created_at.strftime("%d/%m/%Y %H:%M") if t.created_at else ""
             }
             for t in recientes
         ]

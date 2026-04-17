@@ -33,10 +33,10 @@ $(function () {
           <tr>
             <td><strong>${mat}</strong></td>
             <td>
-              <input type="text" name="asignacion_${mat}" class="form-control" autocomplete="off">
+              <input type="text" name="asignacion_${mat}" class="form-control" maxlength="50" autocomplete="off">
             </td>
             <td>
-              <input type="text" name="comentario_${mat}" class="form-control" autocomplete="off">
+              <input type="text" name="comentario_${mat}" class="form-control" maxlength="50" autocomplete="off">
             </td>
           </tr>
         `;
@@ -45,11 +45,11 @@ $(function () {
           <tr id="fila-asociadas">
             <td><strong>Asociadas</strong></td>
             <td>
-              <input type="text" name="asignacion_Asociadas[]" class="form-control input-asociadas" autocomplete="off">
+              <input type="text" name="asignacion_Asociadas[]" class="form-control input-asociadas" maxlength="50" autocomplete="off">
             </td>
             <td class="d-flex align-items-center gap-2">
               <button type="button" class="btn btn-success btn-sm add-asociada me-2" title="Agregar otra fila">+</button>
-              <input type="text" name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" autocomplete="off">
+              <input type="text" name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" maxlength="50" autocomplete="off">
             </td>
           </tr>
         `;

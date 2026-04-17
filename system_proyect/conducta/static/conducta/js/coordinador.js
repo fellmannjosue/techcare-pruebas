@@ -33,8 +33,13 @@ $(function() {
 
     // <--- hecho por claude code: abrir modal de evidencia con Bootstrap 5 API.
     // $().modal('show') es Bootstrap 4 — en Bootstrap 5 se usa new bootstrap.Modal().
-    // Esto era la causa de que el botón 📷 no hacía nada.
+    // Bloquea la apertura si el reporte ya tiene 2 evidencias (máximo permitido).
     $(document).on('click', '.btn-evidencia', function() {
+        const numEvidencias = parseInt($(this).data('num-evidencias')) || 0;
+        if (numEvidencias >= 2) {
+            alert('Este reporte ya tiene el máximo de 2 evidencias permitidas.');
+            return;
+        }
         const tipo = $(this).data('tipo');
         const id   = $(this).data('id');
         $('#ev-tipo').val(tipo);

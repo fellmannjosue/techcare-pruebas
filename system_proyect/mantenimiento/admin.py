@@ -1,10 +1,9 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin as UnfoldModelAdmin
 from core.audit_admin import AuditAdminMixin
 from .models import MaintenanceRecord, TipoFalla
 
 @admin.register(MaintenanceRecord)
-class MaintenanceRecordAdmin(AuditAdminMixin, UnfoldModelAdmin):
+class MaintenanceRecordAdmin(AuditAdminMixin):
     list_display = (
         'id', 'equipment_id', 'model', 'serie',
         'teacher_name', 'grade', 'tipo_falla', 'date', 'status'
@@ -18,7 +17,7 @@ class MaintenanceRecordAdmin(AuditAdminMixin, UnfoldModelAdmin):
     date_hierarchy = 'date'
 
 @admin.register(TipoFalla)
-class TipoFallaAdmin(AuditAdminMixin, UnfoldModelAdmin):
+class TipoFallaAdmin(AuditAdminMixin):
     list_display = ('id', 'nombre')
     search_fields = ('nombre',)
     ordering = ('nombre',)

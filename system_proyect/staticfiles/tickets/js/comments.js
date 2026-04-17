@@ -195,7 +195,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ------ AUTOSYNC ------
   setInterval(cargarMensajes, 2000);
-  setInterval(getTicketStatus, 2000);
 
   cargarMensajes();
   getTicketStatus();
@@ -508,18 +507,41 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // ------ FORMULARIO NORMAL DE MENSAJE ------
+  // ------ FORMULARIO MENSAJE TÉCNICO (AJAX) ------
+  // AJAX para limpiar el input inmediatamente, sin recarga de página
   if (form) {
-    form.addEventListener("submit", function () {
-      setTimeout(() => {
-        cargarMensajes();
-      }, 500);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const csrf = form.querySelector("[name=csrfmiddlewaretoken]");
+      const textarea = form.querySelector("textarea") || form.querySelector("input[name=mensaje]");
+      const mensaje = textarea ? textarea.value.trim() : "";
+
+      if (!mensaje) return;
+
+      fetch(`/tickets/ticket_send_comment_ajax/${ticketId}/`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrf ? csrf.value : "",
+          "X-Requested-With": "XMLHttpRequest",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ mensaje }),
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.ok) {
+            if (textarea) textarea.value = "";
+            cargarMensajes();
+          }
+        })
+        .catch(() => {});
     });
   }
 
   // ------ AUTOSYNC ------
   setInterval(cargarMensajes, 2000);
-  setInterval(getTicketStatus, 2000);
+  // setInterval(getTicketStatus) eliminado — sobrescribía el select del técnico
 
   cargarMensajes();
   getTicketStatus();

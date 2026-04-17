@@ -75,11 +75,11 @@
                   </td>
                   <td>
                     <input type="text" name="asignacion_Asociadas[]" value="{{ mat.asignacion }}"
-                           class="form-control form-control-sm" {% if not mat.editable %}readonly{% endif %}>
+                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
                   </td>
                   <td>
                     <input type="text" name="comentario_Asociadas[]" value="{{ mat.comentario }}"
-                           class="form-control form-control-sm" {% if not mat.editable %}readonly{% endif %}>
+                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
                   </td>
                 </tr>
               {% else %}
@@ -91,11 +91,11 @@
                   </td>
                   <td>
                     <input type="text" name="asignacion_{{ mat.materia }}" value="{{ mat.asignacion }}"
-                           class="form-control form-control-sm" {% if not mat.editable %}readonly{% endif %}>
+                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
                   </td>
                   <td>
                     <input type="text" name="comentario_{{ mat.materia }}" value="{{ mat.comentario }}"
-                           class="form-control form-control-sm" {% if not mat.editable %}readonly{% endif %}>
+                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
                   </td>
                 </tr>
               {% endif %}
@@ -161,17 +161,34 @@
         tr.classList.add('fila-asociada');
         tr.innerHTML = `
           <td><input type="text" class="form-control" value="Asociadas" readonly></td>
-          <td><input type="text" name="asignacion_Asociadas[]" class="form-control"></td>
-          <td><input type="text" name="comentario_Asociadas[]" class="form-control"></td>
+          <td><input type="text" name="asignacion_Asociadas[]" class="form-control" maxlength="50"></td>
+          <td><input type="text" name="comentario_Asociadas[]" class="form-control" maxlength="50"></td>
         `;
         return tr;
       }
       // Permite varios botones si hay varias filas pero solo el primero visible
+      const MAX_ASOCIADAS = 5;
       const btnAdd = document.getElementById('btnAddAsociada');
+
+      function contarAsociadas() {
+        return document.querySelectorAll('#tabla-materias .fila-asociada').length;
+      }
+
+      function actualizarBotonAsociada() {
+        if (btnAdd) btnAdd.disabled = contarAsociadas() >= MAX_ASOCIADAS;
+      }
+
+      actualizarBotonAsociada();
+
       if (btnAdd) {
         btnAdd.addEventListener('click', function() {
+          if (contarAsociadas() >= MAX_ASOCIADAS) {
+            alert('Máximo ' + MAX_ASOCIADAS + ' filas de Asociadas permitidas.');
+            return;
+          }
           const tabla = document.getElementById('tabla-materias').getElementsByTagName('tbody')[0];
           tabla.appendChild(crearFilaAsociada());
+          actualizarBotonAsociada();
         });
       }
     });
