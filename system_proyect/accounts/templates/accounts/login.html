@@ -3,65 +3,124 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Iniciar Sesión</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="{% static 'accounts/css/login.css' %}">
+  <title>Iniciar Sesión – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <style>
+    .login-bg {
+      background: linear-gradient(135deg, #1864ab 0%, #1971c2 50%, #228be6 100%);
+      min-height: 100vh;
+    }
+    .login-card {
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    }
+    .login-logo {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+    }
+    .toggle-eye {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity .2s;
+    }
+    .toggle-eye:hover { opacity: 1; }
+  </style>
 </head>
-<body>
-  <div class="login-container">
-    <div class="login-logo text-center">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo">
-    </div>
-    <h2 class="login-title">Iniciar Sesión</h2>
+<body class="login-bg d-flex align-items-center">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
 
-    <form id="loginForm" method="post" novalidate>
-      {% csrf_token %}
-      <div class="mb-3">
-        <label for="username" class="form-label">Usuario</label>
-        <input type="text" id="username" name="username" class="form-control" required autocomplete="username">
-      </div>
-      <div class="mb-3 position-relative">
-        <label for="password" class="form-label">Contraseña</label>
-        <input type="password" id="password" name="password" class="form-control" required autocomplete="current-password">
-        <!-- <--- hecho por claude code: eliminado onclick="togglePassword()" que llamaba
-             a función inexistente. El toggle lo maneja login.js vía event listener. -->
-        <img
-          src="{% static 'accounts/img/eye_closed.png' %}"
-          alt="Mostrar/ocultar contraseña"
-          id="eyeIcon"
-          class="toggle-eye"
-          style="position: absolute; right: 16px; top: 38px; width: 24px; cursor: pointer;"
-        />
-      </div>
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" id="is_maestro" name="is_maestro">
-        <label class="form-check-label" for="is_maestro">
-          ¿Eres maestro?
-        </label>
-      </div>
-      <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
-      <div class="d-flex justify-content-between align-items-center mt-3">
-        <a href="{% url 'password_reset' %}" class="btn btn-link px-0">Se me olvidó la contraseña</a>
-        <a href="{% url 'register_maestro' %}" class="btn btn-outline-primary">Crear usuario</a>
-      </div>
-    </form>
+        <!-- Logo + título -->
+        <div class="text-center mb-4">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" class="login-logo mb-3">
+          <h2 class="text-white fw-bold mb-1">TechCare</h2>
+          <p class="text-white-50 small mb-0">Asociación Nuevo Amanecer</p>
+        </div>
 
-    {% if messages %}
-      <div class="mt-3">
-        {% for message in messages %}
-          <div class="alert alert-info py-2">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
+        <!-- Card -->
+        <div class="card login-card">
+          <div class="card-body p-4 p-md-5">
+            <h3 class="card-title text-center mb-4">Iniciar Sesión</h3>
 
-    <div class="footer mt-4 text-center">
-      <p>© {{ year|default:"2025" }} Soporte Técnico – Asociación Nuevo Amanecer. Todos los derechos reservados.</p>
+            {% if messages %}
+              {% for message in messages %}
+                <div class="alert alert-info alert-dismissible py-2 mb-3" role="alert">
+                  <i class="ti ti-info-circle me-1"></i>{{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              {% endfor %}
+            {% endif %}
+
+            <form id="loginForm" method="post" novalidate>
+              {% csrf_token %}
+
+              <div class="mb-3">
+                <label for="username" class="form-label">Usuario</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-user"></i></span>
+                  <input type="text" id="username" name="username"
+                         class="form-control" required autocomplete="username"
+                         placeholder="Tu nombre de usuario">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <div class="input-group position-relative">
+                  <span class="input-group-text"><i class="ti ti-lock"></i></span>
+                  <input type="password" id="password" name="password"
+                         class="form-control" required autocomplete="current-password"
+                         placeholder="••••••••">
+                  <img src="{% static 'accounts/img/eye_closed.png' %}"
+                       alt="Mostrar/ocultar contraseña"
+                       id="eyeIcon"
+                       class="toggle-eye">
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-check cursor-pointer">
+                  <input class="form-check-input" type="checkbox" id="is_maestro" name="is_maestro">
+                  <span class="form-check-label">Soy maestro</span>
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="ti ti-login me-2"></i>Iniciar Sesión
+              </button>
+            </form>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+              <a href="{% url 'password_reset' %}" class="text-muted small">
+                <i class="ti ti-key me-1"></i>Olvidé mi contraseña
+              </a>
+              <a href="{% url 'register_maestro' %}" class="btn btn-sm btn-outline-primary">
+                <i class="ti ti-user-plus me-1"></i>Crear cuenta
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center text-white-50 small mt-4">
+          © {{ year|default:"2025" }} Soporte Técnico – Asociación Nuevo Amanecer
+        </div>
+
+      </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js" defer></script>
   <script src="{% static 'accounts/js/login.js' %}" defer></script>
 </body>
 </html>

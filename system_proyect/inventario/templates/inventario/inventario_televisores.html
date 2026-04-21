@@ -1,222 +1,90 @@
+{% extends 'inventario/base_inventario.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% block title %}Televisores{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}Inventario – Televisores{% endblock %}
+{% block nav_televisores %}active{% endblock %}
 
-  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-  <title>Inventario – Televisores</title>
-
-  <!-- Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- DataTables -->
-  <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-
-  <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-
-  <style>
-    body { background-color: #eef2f7; font-family: 'Segoe UI', sans-serif; }
-    .form-card { background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
-    .footer { text-align:center; padding:20px; color:#777; }
-  </style>
-</head>
-
-<body>
-
-<div class="d-flex" id="wrapper">
-
-  <!-- SIDEBAR -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:220px;">
-
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" width="42" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-plus me-2 text-cyan"></i>Agregar Televisor</h3>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="col-md-6">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          {% endfor %}
+          <div class="col-12">
+            <button class="btn btn-primary w-100"><i class="ti ti-device-floppy me-1"></i> Guardar Televisor</button>
+          </div>
+        </form>
+      </div>
     </div>
+  </div>
 
-    <hr class="text-secondary">
-
-    <ul class="nav nav-pills flex-column mb-auto">
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_computadoras' %}">
-          Computadoras</a></li>
-
-      <li><a class="nav-link text-white active" href="{% url 'inventario:inventario_televisores' %}">
-          Televisores</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_impresoras' %}">
-          Impresoras</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_routers' %}">
-          Routers</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_datashows' %}">
-          DataShows</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_monitores' %}">
-          Monitores</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_por_categoria' %}">
-          Por Categoría</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:inventario_registros' %}">
-          Ver registros</a></li>
-
-      <li><a class="nav-link text-white" href="{% url 'inventario:dashboard' %}">
-          Volver al menú</a></li>
-    </ul>
-
-    <hr class="text-secondary">
-
-    <div class="dropdown">
-      <a class="text-decoration-none text-white d-flex align-items-center dropdown-toggle"
-         href="#" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" width="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark shadow">
-        <li><a class="dropdown-item" href="{% url 'logout' %}">Cerrar Sesión</a></li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /SIDEBAR -->
-
-  <!-- MAIN -->
-  <div class="flex-grow-1">
-
-    <nav class="navbar bg-white shadow-sm px-3">
-      <span class="fs-4">Inventario – Televisores</span>
-    </nav>
-
-    <div class="container-fluid py-4">
-
-      <div class="row g-4">
-
-        <!-- FORM -->
-        <div class="col-lg-5">
-          <div class="form-card">
-            <h5 class="text-center">Agregar Televisor</h5>
-
-            <form method="post">
-              {% csrf_token %}
-              <div class="row g-3">
-                {% for field in form %}
-                  <div class="col-md-6">
-                    <label class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% for e in field.errors %}
-                      <div class="text-danger small">{{ e }}</div>
-                    {% endfor %}
-                  </div>
-                {% endfor %}
-              </div>
-
-              <button class="btn btn-primary w-100 mt-3">Guardar Televisor</button>
-            </form>
-          </div>
-        </div>
-
-        <!-- TABLE -->
-        <div class="col-lg-7">
-
-          <h5 class="mb-3">Televisores Registrados</h5>
-
-          <div class="table-responsive shadow-sm">
-            <table id="televisores-table" class="table table-striped table-bordered align-middle nowrap" style="width:100%;">
-              <thead class="table-dark">
-                <tr>
-                  <th>ID</th>
-                  <th>Asset ID</th>
-                  <th>Modelo</th>
-                  <th>Serie</th>
-                  <th>IP</th>
-                  <th>Grado</th>
-                  <th>Área</th>
-                  <th>Observaciones</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {% for tv in televisores %}
-                <tr>
-                  <td>{{ tv.id }}</td>
-                  <td>{{ tv.asset_id }}</td>
-                  <td>{{ tv.modelo }}</td>
-                  <td>{{ tv.serie }}</td>
-                  <td>{{ tv.ip }}</td>
-                  <td>{{ tv.grado }}</td>
-                  <td>{{ tv.area }}</td>
-                  <td>{{ tv.observaciones|default:"—" }}</td>
-
-                  <td>
-                    <button class="btn btn-sm btn-primary editar-televisor"
-                            data-id="{{ tv.id }}">Editar</button>
-
-                    <button class="btn btn-sm btn-danger eliminar-televisor"
-                            data-id="{{ tv.id }}">Eliminar</button>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="text-end mt-3">
-            <a href="{% url 'inventario:dashboard' %}" class="btn btn-outline-secondary">← Volver</a>
-          </div>
-
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-device-tv me-2"></i>Televisores Registrados</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="televisores-table" class="table table-vcenter table-hover card-table nowrap" style="width:100%;">
+            <thead>
+              <tr>
+                <th>ID</th><th>Asset ID</th><th>Modelo</th><th>Serie</th>
+                <th>IP</th><th>Grado</th><th>Área</th><th>Observaciones</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tv in televisores %}
+              <tr>
+                <td>{{ tv.id }}</td><td>{{ tv.asset_id }}</td><td>{{ tv.modelo }}</td>
+                <td>{{ tv.serie }}</td><td>{{ tv.ip }}</td><td>{{ tv.grado }}</td>
+                <td>{{ tv.area }}</td><td>{{ tv.observaciones|default:"—" }}</td>
+                <td>
+                  <button class="btn btn-sm btn-ghost-primary editar-televisor" data-id="{{ tv.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+                  <button class="btn btn-sm btn-ghost-danger eliminar-televisor" data-id="{{ tv.id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <div class="footer">© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer</div>
-
     </div>
   </div>
 </div>
 
-<!-- MODAL EDITAR TELEVISOR -->
-<div class="modal fade" id="modalEditarTelevisor" tabindex="-1">
+<div class="modal modal-blur fade" id="modalEditarTelevisor" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">Editar Televisor</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-pencil me-2"></i>Editar Televisor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-
-      <div class="modal-body" id="modal-televisor-body">
-        <div class="text-center p-4">
-          <div class="spinner-border text-primary"></div>
-          <p>Cargando datos...</p>
-        </div>
-      </div>
-
+      <div class="modal-body" id="modal-televisor-body"></div>
     </div>
   </div>
 </div>
+{% endblock %}
 
-<!-- JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- DataTables -->
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-
+{% block extra_js %}
 <script>
-  $(function () {
-    $('#televisores-table').DataTable({
-      pageLength: 10,
-      language: { url: "https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
-      responsive: true
-    });
+$(function(){
+  $('#televisores-table').DataTable({
+    pageLength: 10, scrollX: true, order: [[0,'desc']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
+});
 </script>
-
-<!-- ARCHIVO AJAX -->
 <script src="{% static 'inventario/js/televisores_edit.js' %}"></script>
-
-</body>
-</html>
+{% endblock %}

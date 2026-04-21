@@ -1,60 +1,37 @@
+{% extends 'inventario/base_inventario.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Filtro de Computadoras – Inventario</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% block title %}Filtro Computadoras{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}Computadoras – Filtro Avanzado{% endblock %}
+{% block nav_computadoras %}active{% endblock %}
 
-  <!-- Favicon -->
-  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+{% block extra_head %}
+<link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet">
+<style>
+  #computadoras-table { width: 100%; table-layout: fixed; }
+  mark.match-bold { background: transparent; font-weight: 700; padding: 0; }
+</style>
+{% endblock %}
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-        rel="stylesheet"/>
-  <!-- DataTables CSS -->
-  <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"
-        rel="stylesheet"/>
-  <!-- DataTables Buttons (para imprimir) -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'inventario:inventario_computadoras' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver a Computadoras
+  </a>
+</div>
+{% endblock %}
 
-  <style>
-    body {
-      background: #eef2f7;
-      font-family: 'Segoe UI', sans-serif;
-    }
-    /* Fuerza la tabla al 100% del ancho y reparte columnas */
-    #computadoras-table {
-      width: 100%;
-      table-layout: fixed;
-    }
-    .table-responsive.w-100 { width: 100%; }
-    footer {
-      margin-top: 2rem;
-      text-align: center;
-      color: #666;
-      font-size: .9rem;
-      padding-bottom: 1rem;
-    }
-    /* Resaltado limpio (sin fondo), solo negrita */
-    mark.match-bold {
-      background: transparent;
-      font-weight: 700;
-      padding: 0;
-    }
-  </style>
-</head>
-<body>
-  <div class="container-fluid py-4">
-
-    <h1 class="mb-4">Computadoras Registradas</h1>
-
-    <!-- CONTROLES DE FILTRADO POR COLUMNA -->
-    <div class="row mb-3 g-2 align-items-end">
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-filter me-2 text-blue"></i>Filtrar Computadoras</h3>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
       <div class="col-md-4">
-        <label for="column-filter" class="form-label">Filtrar por campo:</label>
+        <label class="form-label">Filtrar por campo</label>
         <select id="column-filter" class="form-select">
-          <option value="">Todos</option>
+          <option value="">Todos los campos</option>
           <option value="1">Asset ID</option>
           <option value="2">Modelo</option>
           <option value="3">Serie</option>
@@ -67,29 +44,26 @@
         </select>
       </div>
       <div class="col-md-4">
-        <label for="column-search" class="form-label">Buscar texto:</label>
-        <input id="column-search" type="text" class="form-control"
-               placeholder="Escribe para buscar…"/>
+        <label class="form-label">Buscar texto</label>
+        <input id="column-search" type="text" class="form-control" placeholder="Escribe para buscar…">
       </div>
-      <div class="col-md-4">
-        <div class="d-grid gap-2">
-          <button id="clear-filter" class="btn btn-outline-secondary">Limpiar filtros</button>
-          <!-- Botón Imprimir (externo) -->
-          <button type="button" id="btn-imprimir" class="btn btn-dark">
-            Imprimir
-          </button>
-          <!-- Botón Excel (externo) -->
-          <button type="button" id="btn-excel" class="btn btn-success">
-            Exportar a Excel
-          </button>
-        </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button id="clear-filter" class="btn btn-ghost-secondary flex-fill">
+          <i class="ti ti-x me-1"></i> Limpiar
+        </button>
+        <button id="btn-imprimir" class="btn btn-ghost-secondary flex-fill">
+          <i class="ti ti-printer me-1"></i> Imprimir
+        </button>
+        <button id="btn-excel" class="btn btn-ghost-success flex-fill">
+          <i class="ti ti-file-spreadsheet me-1"></i> Excel
+        </button>
       </div>
     </div>
-
-    <!-- TABLA AMPLIADA -->
-    <div class="table-responsive w-100 shadow-sm mb-4">
-      <table id="computadoras-table" class="table table-hover table-bordered mb-0">
-        <thead class="table-dark">
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table id="computadoras-table" class="table table-vcenter table-hover card-table">
+        <thead>
           <tr>
             <th style="width:5%;">#</th>
             <th style="width:10%;">Asset ID</th>
@@ -105,182 +79,91 @@
         </thead>
         <tbody>
           {% for pc in computadoras %}
-            <tr>
-              <td>{{ forloop.counter }}</td>
-              <td>{{ pc.asset_id }}</td>
-              <td>{{ pc.modelo }}</td>
-              <td>{{ pc.serie }}</td>
-              <td>{{ pc.ip }}</td>
-              <td>{{ pc.asignado_a }}</td>
-              <td>{{ pc.area }}</td>
-              <td>{{ pc.grado }}</td>
-              <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
-              <td>{{ pc.observaciones }}</td>
-            </tr>
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ pc.asset_id }}</td>
+            <td>{{ pc.modelo }}</td>
+            <td>{{ pc.serie }}</td>
+            <td>{{ pc.ip }}</td>
+            <td>{{ pc.asignado_a }}</td>
+            <td>{{ pc.area }}</td>
+            <td>{{ pc.grado }}</td>
+            <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
+            <td>{{ pc.observaciones }}</td>
+          </tr>
           {% empty %}
-            <tr>
-              <td colspan="10" class="text-center py-3">
-                No hay computadoras registradas.
-              </td>
-            </tr>
+          <tr><td colspan="10" class="text-center text-muted py-3">No hay computadoras registradas.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-
-    <!-- Botón para regresar al dashboard -->
-    <div class="text-end mb-4">
-      <a href="{% url 'inventario:inventario_computadoras' %}" class="btn btn-outline-secondary">
-        ← Volver a Computadora
-      </a>
-    </div>
-
-    <footer>© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer</footer>
   </div>
+</div>
+{% endblock %}
 
-  <!-- JS: jQuery, DataTables, Bootstrap (el orden importa para DataTables) -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% block extra_js %}
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js"></script>
+<script>
+$(function(){
+  function timestamp() {
+    const d = new Date(), pad = n => n.toString().padStart(2,'0');
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+  }
 
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+  var table = $('#computadoras-table').DataTable({
+    pageLength: 10,
+    order: [[8,'desc']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+    dom: 'Bfrtip',
+    buttons: [
+      { extend: 'print', text: 'Imprimir', title: 'Computadoras filtradas', exportOptions: { columns: ':visible' } },
+      { extend: 'excelHtml5', text: 'Exportar a Excel', title: 'Computadoras_filtradas_' + timestamp(),
+        exportOptions: { columns: ':visible', modifier: { search: 'applied', order: 'applied' },
+          format: { body: function(data){ return (data||'').toString().replace(/<[^>]*>/g,''); } } } }
+    ]
+  });
 
-  <!-- DataTables Buttons (impresión) -->
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+  $('#btn-imprimir').on('click', function(){ table.button('.buttons-print').trigger(); });
+  $('#btn-excel').on('click', function(){ table.button('.buttons-excel').trigger(); });
 
-  <!-- JSZip (requisito para Excel) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <!-- DataTables Buttons HTML5 (Excel) -->
-  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+  $('#column-search, #column-filter').on('keyup change', function(){
+    var col = $('#column-filter').val(), term = $('#column-search').val();
+    if (!col) { table.search(term).draw(); }
+    else { table.column(col).search(term).draw(); }
+  });
 
-  <!-- Bootstrap (puede ir después de DataTables sin problema) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  $('#clear-filter').on('click', function(e){
+    e.preventDefault();
+    $('#column-filter').val(''); $('#column-search').val('');
+    table.search('').columns().search('').draw();
+  });
 
-  <!-- mark.js para resaltar coincidencias -->
-  <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js"></script>
-
-  <script>
-    $(function() {
-      // Helper para timestamp en el nombre del archivo Excel
-      function timestamp() {
-        const d = new Date();
-        const pad = n => n.toString().padStart(2,'0');
-        return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
-      }
-
-      // Inicializa DataTable con botones de impresión y Excel
-      var table = $('#computadoras-table').DataTable({
-        pageLength: 10,
-        responsive: true,
-        order: [[8, 'desc']], // Fecha Instal. desc
-        language: {
-          url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json'
-        },
-        dom: 'Bfrtip', // Muestra zona de botones arriba
-        buttons: [
-          {
-            extend: 'print',
-            text: 'Imprimir',
-            title: 'Computadoras filtradas',
-            exportOptions: { columns: ':visible' }
-          },
-          {
-            extend: 'excelHtml5',
-            text: 'Exportar a Excel',
-            title: 'Computadoras_filtradas_' + timestamp(),
-            exportOptions: {
-              columns: ':visible',
-              // SOLO lo filtrado y en el orden actual
-              modifier: { search: 'applied', order: 'applied' },
-              // Quitar etiquetas HTML (por el resaltado <mark> y otros)
-              format: {
-                body: function (data, row, column, node) {
-                  return (data || '').toString().replace(/<[^>]*>/g, '');
-                }
-              }
-            }
-          }
-        ]
-      });
-
-      // Botón externo "Imprimir" que dispara el botón de DataTables
-      $('#btn-imprimir').on('click', function () {
-        table.button('.buttons-print').trigger();
-      });
-
-      // Botón externo "Exportar a Excel"
-      $('#btn-excel').on('click', function () {
-        table.button('.buttons-excel').trigger();
-      });
-
-      // --------- FILTRADO DINÁMICO ----------
-      $('#column-search, #column-filter').on('keyup change', function() {
-        var col = $('#column-filter').val();
-        var term = $('#column-search').val();
-        if (!col) {
-          table.search(term).draw();
-        } else {
-          table
-            .column(col)
-            .search(term)
-            .draw();
-        }
-      });
-
-      // Limpiar filtros
-      $('#clear-filter').click(function(e) {
-        e.preventDefault();
-        $('#column-filter').val('');
-        $('#column-search').val('');
-        table.search('').columns().search('').draw();
-      });
-
-      // --------- RESALTADO EN NEGRITA (mark.js) ----------
-      const tbodyEl = $('#computadoras-table tbody').get(0);
-
-      function resaltar() {
-        var term = ($('#column-search').val() || '').trim();
-        if (!tbodyEl) return;
-
-        if (!term) {
-          new Mark(tbodyEl).unmark();
-          return;
-        }
-
-        var col = $('#column-filter').val(); // string o ''
-        if (col) {
-          var idx = parseInt(col, 10) + 1; // nth-child es 1-based
-          new Mark(tbodyEl).unmark({
-            done: function () {
-              $('#computadoras-table tbody tr td:nth-child(' + idx + ')').each(function() {
-                new Mark(this).mark(term, {
-                  separateWordSearch: false,
-                  caseSensitive: false,
-                  acrossElements: true,
-                  className: 'match-bold'
-                });
-              });
-            }
-          });
-        } else {
-          new Mark(tbodyEl).unmark({
-            done: function () {
-              new Mark(tbodyEl).mark(term, {
-                separateWordSearch: false,
-                caseSensitive: false,
-                acrossElements: true,
-                className: 'match-bold'
-              });
-            }
-          });
-        }
-      }
-
-      // Resalta al cargar, al dibujar (paginación/orden) y al cambiar filtros
-      resaltar();
-      table.on('draw', resaltar);
-      $('#column-search, #column-filter').on('keyup change', resaltar);
-    });
-  </script>
-</body>
-</html>
+  var tbodyEl = $('#computadoras-table tbody').get(0);
+  function resaltar(){
+    var term = ($('#column-search').val()||'').trim();
+    if (!tbodyEl) return;
+    if (!term) { new Mark(tbodyEl).unmark(); return; }
+    var col = $('#column-filter').val();
+    if (col) {
+      var idx = parseInt(col,10)+1;
+      new Mark(tbodyEl).unmark({ done: function(){
+        $('#computadoras-table tbody tr td:nth-child('+idx+')').each(function(){
+          new Mark(this).mark(term, { separateWordSearch:false, caseSensitive:false, acrossElements:true, className:'match-bold' });
+        });
+      }});
+    } else {
+      new Mark(tbodyEl).unmark({ done: function(){
+        new Mark(tbodyEl).mark(term, { separateWordSearch:false, caseSensitive:false, acrossElements:true, className:'match-bold' });
+      }});
+    }
+  }
+  resaltar();
+  table.on('draw', resaltar);
+  $('#column-search, #column-filter').on('keyup change', resaltar);
+});
+</script>
+{% endblock %}

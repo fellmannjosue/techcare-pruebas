@@ -223,6 +223,61 @@ class TiempoCompensatorio(models.Model):
         return f"{self.emp_code} - {self.nombre_empleado} - {self.fecha} ({self.minutos_registrados} min)"
 
 
+class ReporteNota(models.Model):
+    """
+    Comentario/nota por empleado y fecha en el Generar Reporte.
+    Un registro por (emp_code, fecha).
+    """
+    emp_code  = models.CharField("Código empleado", max_length=20, db_index=True)
+    fecha     = models.DateField("Fecha", db_index=True)
+    comentario = models.TextField("Comentario", blank=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Creado por",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reporte_notas"
+    )
+    actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
+
+    class Meta:
+        db_table = "reloj_reporte_nota"
+        verbose_name = "Nota de reporte"
+        verbose_name_plural = "Notas de reporte"
+        unique_together = ("emp_code", "fecha")
+        ordering = ["-fecha", "emp_code"]
+
+    def __str__(self):
+        return f"{self.emp_code} {self.fecha}"
+
+
+class ReporteComentario(models.Model):
+    """
+    Múltiples comentarios por (emp_code, fecha) en el Generar Reporte.
+    Máximo 5 por registro, controlado en la vista.
+    """
+    emp_code   = models.CharField("Código empleado", max_length=20, db_index=True)
+    fecha      = models.DateField("Fecha", db_index=True)
+    texto      = models.TextField("Texto")
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Creado por",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reporte_comentarios"
+    )
+    creado_en = models.DateTimeField("Creado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_reporte_comentario"
+        verbose_name = "Comentario de reporte"
+        verbose_name_plural = "Comentarios de reporte"
+        ordering = ["creado_en"]
+
+    def __str__(self):
+        return f"{self.emp_code} {self.fecha}: {self.texto[:40]}"
+
+
 class PermisoEmpleado(models.Model):
     """
     Permisos (ausencias justificadas): médico, personal, etc.

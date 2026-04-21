@@ -3,151 +3,417 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-  <title>Fichas de Mantenimiento</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Mantenimiento – TechCare</title>
+  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
+
+  <!-- Tabler CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <!-- DataTables Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
+
   <style>
-    .dashboard-container { margin-top: 32px; }
-    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 14px; }
-    .form-container { max-width:900px; margin:20px auto; background:#f8f9fa; padding:20px; border-radius:10px; }
-    .table-container { max-width:1000px; margin:40px auto; }
-    @media (max-width: 768px) {
-      .sidebar { min-width: 100px !important; max-width: 160px !important; }
-      .dashboard-container { margin-top: 20px; padding: 8px; }
+    .navbar-vertical .nav-link.active { background: rgba(255,255,255,.1); border-radius: 6px; }
+    .stat-card-icon {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
     }
+    .table td { vertical-align: middle; }
   </style>
 </head>
-<body class="bg-light">
-<div class="d-flex" id="wrapper">
 
-  <!-- Sidebar -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:230px;">
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
-    </div>
-    <hr class="text-secondary">
-    <ul class="nav nav-pills flex-column mb-auto">
-      <li>
-        <a href="{% url 'menu' %}" class="nav-link text-white">
-          <i class="fa-solid fa-house me-2"></i> Menú Principal
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'mantenimiento:maintenance_dashboard' %}" class="nav-link text-white active">
-          <i class="fa-solid fa-screwdriver-wrench me-2"></i> Mantenimiento
-        </a>
-      </li>
-      <!-- Agrega más opciones si lo deseas -->
-    </ul>
-    <hr class="text-secondary">
-    <div class="dropdown">
-      <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-        
-        <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /Sidebar -->
+<body class="antialiased">
+<div class="wrapper">
 
-  <!-- Main content -->
-  <div class="flex-grow-1 d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-light bg-white shadow-sm px-3">
-      <div class="container-fluid">
-        <div class="navbar-brand d-flex align-items-center gap-3">
-          <span class="fs-4">Fichas de Mantenimiento</span>
+  <!-- ══════════════════ SIDEBAR ══════════════════ -->
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+
+      <div class="navbar-nav flex-row d-lg-none">
+        <div class="nav-item dropdown">
+          <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown">
+            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
+          </a>
+          <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+            <span class="dropdown-item-text fw-bold">{{ request.user.get_full_name|default:request.user.username }}</span>
+            <div class="dropdown-divider"></div>
+            <a href="{% url 'logout' %}" class="dropdown-item">Cerrar sesión</a>
+          </div>
         </div>
       </div>
-    </nav>
 
-    <div class="dashboard-container container">
-      <div class="form-container mt-4">
-        <h2 class="text-center mb-4">Registrar Mantenimiento</h2>
-        <form method="post" novalidate>
-          {% csrf_token %}
-          <div class="row g-3">
-            <div class="col-md-4">{{ form.equipment_id.label_tag }}{{ form.equipment_id }}</div>
-            <div class="col-md-4">{{ form.model.label_tag }}{{ form.model }}</div>
-            <div class="col-md-4">{{ form.serie.label_tag }}{{ form.serie }}</div>
-            <div class="col-md-6">{{ form.teacher_name.label_tag }}{{ form.teacher_name }}</div>
-            <div class="col-md-6">{{ form.grade.label_tag }}{{ form.grade }}</div>
-            <div class="col-md-6">{{ form.tipo_falla.label_tag }}{{ form.tipo_falla }}</div>
-            <div class="col-md-6">{{ form.date.label_tag }}{{ form.date }}</div>
-            <div class="col-md-6">{{ form.status.label_tag }}{{ form.status }}</div>
-            <div class="col-12">
-              {{ form.solucion.label_tag }}
-              <textarea name="{{ form.solucion.html_name }}"
-                        id="{{ form.solucion.id_for_label }}"
-                        class="form-control"
-                        rows="4">{{ form.solucion.value|default_if_none:'' }}</textarea>
-              {{ form.solucion.errors }}
+      <div class="collapse navbar-collapse" id="sidebar-menu">
+        <ul class="navbar-nav pt-lg-3">
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'menu' %}">
+              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+              <span class="nav-link-title">Menú Principal</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link active" href="{% url 'mantenimiento:maintenance_dashboard' %}">
+              <span class="nav-link-icon"><i class="ti ti-tool"></i></span>
+              <span class="nav-link-title">Mantenimiento</span>
+            </a>
+          </li>
+
+        </ul>
+
+        <div class="mt-auto pt-3 border-top border-secondary">
+          <div class="d-flex align-items-center gap-2 px-2 py-1">
+            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
+            <div class="flex-fill">
+              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ request.user.email }}</div>
             </div>
-            <div class="col-12">
-              {{ form.observaciones.label_tag }}
-              <textarea name="{{ form.observaciones.html_name }}"
-                        id="{{ form.observaciones.id_for_label }}"
-                        class="form-control"
-                        rows="4">{{ form.observaciones.value|default_if_none:'' }}</textarea>
-              {{ form.observaciones.errors }}
+            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
+              <i class="ti ti-logout fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </aside>
+  <!-- /SIDEBAR -->
+
+  <!-- ══════════════════ PAGE WRAPPER ══════════════════ -->
+  <div class="page-wrapper">
+
+    <!-- Page header -->
+    <div class="page-header d-print-none">
+      <div class="container-xl">
+        <div class="row align-items-center">
+          <div class="col">
+            <div class="page-pretitle">Módulo</div>
+            <h2 class="page-title">Fichas de Mantenimiento</h2>
+          </div>
+          <div class="col-auto ms-auto">
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-1"
+                    data-bs-toggle="modal" data-bs-target="#modalNuevoRegistro">
+              <i class="ti ti-plus"></i> Nuevo Registro
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page body -->
+    <div class="page-body">
+      <div class="container-xl">
+
+        <!-- STATS -->
+        <div class="row row-deck row-cards mb-4">
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="stat-card-icon bg-blue-lt text-blue">
+                    <i class="ti ti-clipboard-list"></i>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Total Registros</div>
+                    <div class="h2 mb-0 fw-bold">{{ total }}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary mt-4 w-100">Guardar Ficha</button>
-        </form>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="stat-card-icon bg-yellow-lt text-yellow">
+                    <i class="ti ti-clock"></i>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Pendiente</div>
+                    <div class="h2 mb-0 fw-bold">{{ pendiente }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="stat-card-icon bg-cyan-lt text-cyan">
+                    <i class="ti ti-settings"></i>
+                  </div>
+                  <div>
+                    <div class="text-muted small">En Proceso</div>
+                    <div class="h2 mb-0 fw-bold">{{ en_proceso }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="stat-card-icon bg-green-lt text-green">
+                    <i class="ti ti-circle-check"></i>
+                  </div>
+                  <div>
+                    <div class="text-muted small">Completado</div>
+                    <div class="h2 mb-0 fw-bold">{{ completado }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- /STATS -->
+
+        <!-- TABLA -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <i class="ti ti-table me-2 text-muted"></i>Registros
+            </h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table id="tablaMantenimiento" class="table table-vcenter table-hover card-table">
+                <thead>
+                  <tr>
+                    <th>Equipo</th>
+                    <th>Modelo</th>
+                    <th>Serie</th>
+                    <th>Maestro</th>
+                    <th>Grado</th>
+                    <th>Tipo de Falla</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Solución</th>
+                    <th>Observaciones</th>
+                    <th class="w-1">PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for record in records %}
+                  <tr>
+                    <td class="fw-semibold">{{ record.equipment_id }}</td>
+                    <td>{{ record.model }}</td>
+                    <td class="text-muted">{{ record.serie }}</td>
+                    <td>{{ record.teacher_name }}</td>
+                    <td>{{ record.grade }}</td>
+                    <td>{{ record.tipo_falla|default:"—" }}</td>
+                    <td>{{ record.date|date:"d/m/Y" }}</td>
+                    <td>
+                      {% if record.status == "Completado" %}
+                        <span class="badge bg-success-lt text-success">
+                          <i class="ti ti-circle-check me-1"></i>Completado
+                        </span>
+                      {% elif record.status == "En Proceso" %}
+                        <span class="badge bg-cyan-lt text-cyan">
+                          <i class="ti ti-settings me-1"></i>En Proceso
+                        </span>
+                      {% else %}
+                        <span class="badge bg-warning-lt text-warning">
+                          <i class="ti ti-clock me-1"></i>Pendiente
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="text-truncate d-inline-block" style="max-width:160px;"
+                            title="{{ record.solucion }}">
+                        {{ record.solucion|default:"—"|truncatechars:50 }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-truncate d-inline-block" style="max-width:140px;"
+                            title="{{ record.observaciones }}">
+                        {{ record.observaciones|default:"—"|truncatechars:40 }}
+                      </span>
+                    </td>
+                    <td>
+                      <a href="{% url 'mantenimiento:download_maintenance_pdf' record.id %}"
+                         class="btn btn-sm btn-ghost-secondary" title="Descargar PDF">
+                        <i class="ti ti-file-type-pdf"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="11" class="text-center text-muted py-5">
+                      <i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>
+                      No hay fichas registradas aún.
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- /TABLA -->
+
       </div>
-      <div class="table-container">
-        <h3 class="text-center mb-3">Fichas Registradas</h3>
-        <table class="table table-bordered table-hover">
-          <thead class="table-dark">
-            <tr>
-              <th>Equipo</th><th>Modelo</th><th>Serie</th><th>Maestro</th>
-              <th>Grado</th><th>Tipo de Falla</th><th>Fecha</th><th>Estado</th>
-              <th>Solución</th><th>Observaciones</th><th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for record in records %}
-            <tr>
-              <td>{{ record.equipment_id }}</td>
-              <td>{{ record.model }}</td>
-              <td>{{ record.serie }}</td>
-              <td>{{ record.teacher_name }}</td>
-              <td>{{ record.grade }}</td>
-              <td>{{ record.tipo_falla }}</td>
-              <td>{{ record.date }}</td>
-              <td>{{ record.status }}</td>
-              <td>{{ record.solucion|default:"—" }}</td>
-              <td>{{ record.observaciones|default:"—" }}</td>
-              <td>
-                <a href="{% url 'mantenimiento:download_maintenance_pdf' record.id %}"
-                   class="btn btn-sm btn-secondary">PDF</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="11" class="text-center">No hay fichas registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    </div>
+    <!-- /Page body -->
+
+    <footer class="footer footer-transparent d-print-none">
+      <div class="container-xl">
+        <div class="text-center text-muted small py-2">
+          © {% now "Y" %} Sistema TechCare – Asociación Nuevo Amanecer
+        </div>
       </div>
-      <div class="text-center my-4">
-        <a href="{% url 'menu' %}" class="btn btn-outline-secondary">
-          <img src="{% static 'mantenimiento/img/regresar.png' %}" alt="Regresar"
-               style="width:24px; vertical-align:middle; margin-right:8px;">
-          Volver al Menú Principal
-        </a>
-      </div>
-      <div class="footer">
-        © {{ year }} Soporte Técnico - Asociación Nuevo Amanecer. Todos los derechos reservados.
-      </div>
+    </footer>
+
+  </div>
+  <!-- /PAGE WRAPPER -->
+
+</div>
+
+
+<!-- ══════════════════ MODAL: Nuevo Registro ══════════════════ -->
+<div class="modal modal-blur fade" id="modalNuevoRegistro" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="ti ti-tool me-2 text-primary"></i>Nuevo Registro de Mantenimiento
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3">
+
+            <div class="col-md-4">
+              <label class="form-label">ID del Equipo</label>
+              {{ form.equipment_id }}
+              {{ form.equipment_id.errors }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Modelo</label>
+              {{ form.model }}
+              {{ form.model.errors }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Serie</label>
+              {{ form.serie }}
+              {{ form.serie.errors }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Nombre del Maestro</label>
+              {{ form.teacher_name }}
+              {{ form.teacher_name.errors }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Grado</label>
+              {{ form.grade }}
+              {{ form.grade.errors }}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Tipo de Falla</label>
+              {{ form.tipo_falla }}
+              {{ form.tipo_falla.errors }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha</label>
+              {{ form.date }}
+              {{ form.date.errors }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              {{ form.status }}
+              {{ form.status.errors }}
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Solución Aplicada</label>
+              <textarea name="{{ form.solucion.html_name }}"
+                        id="{{ form.solucion.id_for_label }}"
+                        class="form-control" rows="3"
+                        placeholder="Describa la solución aplicada…">{{ form.solucion.value|default_if_none:'' }}</textarea>
+              {{ form.solucion.errors }}
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">
+                Observaciones <span class="text-muted">(opcional)</span>
+              </label>
+              <textarea name="{{ form.observaciones.html_name }}"
+                        id="{{ form.observaciones.id_for_label }}"
+                        class="form-control" rows="2"
+                        placeholder="Observaciones adicionales…">{{ form.observaciones.value|default_if_none:'' }}</textarea>
+              {{ form.observaciones.errors }}
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary ms-auto">
+            <i class="ti ti-device-floppy me-1"></i> Guardar Registro
+          </button>
+        </div>
+
+      </form>
     </div>
   </div>
 </div>
-<!-- JS: Bootstrap -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- /MODAL -->
+
+
+<!-- ══════════════════ SCRIPTS ══════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  $(function () {
+    $('#tablaMantenimiento').DataTable({
+      pageLength: 15,
+      order: [[6, 'desc']],
+      language: {
+        lengthMenu:   "Mostrar _MENU_ registros",
+        zeroRecords:  "Sin registros",
+        info:         "Mostrando _START_ a _END_ de _TOTAL_",
+        infoEmpty:    "Sin registros",
+        infoFiltered: "(de _MAX_ totales)",
+        search:       "Buscar:",
+        paginate: { first:"«", last:"»", next:"›", previous:"‹" }
+      }
+    });
+
+    {% if form.errors %}
+    var modal = new bootstrap.Modal(document.getElementById('modalNuevoRegistro'));
+    modal.show();
+    {% endif %}
+  });
+</script>
+
 </body>
 </html>

@@ -1,0 +1,65 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}{{ modo }} Feriado{% endblock %}
+{% block page_pretitle %}Reloj – Feriados{% endblock %}
+{% block page_title %}{{ modo }} Feriado{% endblock %}
+{% block nav_feriados %}active{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'reloj_feriados_list' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-calendar me-2"></i>{{ modo }} Feriado</h3>
+  </div>
+  <div class="card-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="row g-3">
+        {% for field in form %}
+        <div class="col-md-{% if field.field.widget.input_type == 'date' %}6{% else %}12{% endif %}">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors|striptags }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="mt-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-device-floppy me-1"></i> Guardar
+        </button>
+        <a href="{% url 'reloj_feriados_list' %}" class="btn btn-ghost-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('form input, form textarea, form select').forEach(function(el){
+    if (el.type === 'checkbox') el.classList.add('form-check-input');
+    else if (el.tagName === 'SELECT') el.classList.add('form-select');
+    else if (!el.classList.contains('form-control')) el.classList.add('form-control');
+  });
+});
+</script>
+{% endblock %}

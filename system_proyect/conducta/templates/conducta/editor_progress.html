@@ -1,198 +1,211 @@
+{% extends 'conducta/base_conducta.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Editar Progress Report</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'conducta/css/progress.css' %}">
-  <style>
-    .docente-mini { font-size: 0.92em; color: #2196f3; }
-    .btn-add-asociada { font-size: 1.2em; margin-left: 8px; }
-  </style>
-</head>
-<body>
-  <div class="container my-4">
-    <h2 class="mb-4">Editar Progress Report</h2>
 
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-success">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
+{% block title %}Editar Progress Report{% endblock %}
+{% block page_pretitle %}{% if es_coordinador %}Coordinador{% else %}Maestro{% endif %}{% endblock %}
+{% block page_title %}Editar Progress Report{% endblock %}
+{% block logout_url %}{% if es_coordinador %}{% url 'logout' %}{% else %}{% url 'maestro_logout' %}{% endif %}{% endblock %}
 
-    <form method="post" autocomplete="off">
-      {% csrf_token %}
+{% block page_actions %}
+  <a href="{% if es_coordinador %}{% url 'dashboard_coordinador' 'bilingue' %}{% else %}{% url 'historial_maestro_bilingue' %}{% endif %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+{% endblock %}
 
-      <!-- Datos generales -->
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <label class="form-label">Estudiante:</label>
-          <input type="text" class="form-control" value="{{ reporte.alumno_nombre }}" readonly>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Grado:</label>
-          <input type="text" class="form-control" value="{{ reporte.grado }}" readonly>
-        </div>
+{% block sidebar_nav %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'menu' %}">
+      <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+      <span class="nav-link-title">Menú Principal</span>
+    </a>
+  </li>
+  {% if es_coordinador %}
+  <li class="nav-item">
+    <a class="nav-link active" href="{% url 'dashboard_coordinador' 'bilingue' %}">
+      <span class="nav-link-icon"><i class="ti ti-user-check"></i></span>
+      <span class="nav-link-title">Dashboard Coordinador</span>
+    </a>
+  </li>
+  {% else %}
+  <li class="nav-item">
+    <a class="nav-link" href="/conducta/dashboard/maestro/">
+      <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+      <span class="nav-link-title">Dashboard</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="{% url 'historial_maestro_bilingue' %}">
+      <span class="nav-link-icon"><i class="ti ti-history"></i></span>
+      <span class="nav-link-title">Ver Historial</span>
+    </a>
+  </li>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-chart-line me-2 text-blue"></i>Progress Report #{{ reporte.pk }}</h3>
       </div>
+      <div class="card-body">
+        <form method="post" autocomplete="off">
+          {% csrf_token %}
 
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <label class="form-label">Semana inicio:</label>
-          <input type="date" class="form-control" value="{{ reporte.semana_inicio|date:'Y-m-d' }}" readonly>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Semana fin:</label>
-          <input type="date" class="form-control" value="{{ reporte.semana_fin|date:'Y-m-d' }}" readonly>
-        </div>
-      </div>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Estudiante</label>
+              <div class="campo-lectura-tabler">{{ reporte.alumno_nombre }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Grado</label>
+              <div class="campo-lectura-tabler">{{ reporte.grado }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Semana inicio</label>
+              <div class="campo-lectura-tabler">{{ reporte.semana_inicio|date:'d/m/Y' }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Semana fin</label>
+              <div class="campo-lectura-tabler">{{ reporte.semana_fin|date:'d/m/Y' }}</div>
+            </div>
+          </div>
 
-      <!-- Tabla de materias -->
-      <div class="table-responsive">
-        <table class="table table-bordered align-middle" id="tabla-materias">
-          <thead class="table-light">
-            <tr>
-              <th style="width:180px;">Materia</th>
-              <th style="width:230px;">Asignación</th>
-              <th>Comentario/Observación</th>
-            </tr>
-          </thead>
-          <!--{# <--- hecho por claude code: tabla reescrita para mostrar el docente que llenó
-             cada fila, y permitir que varios maestros editen sus propias materias.
-             Cada fila muestra en azul quién la llenó. Las filas ajenas son readonly.
-             El botón "+" solo aparece en la primera fila de Asociadas. #}-->
-          <tbody>
-            {% for mat in materias %}
-              {% if mat.materia == "Asociadas" %}
-                <!--{# <--- hecho por claude code: botón "+" movido fuera de las filas
-                   al área debajo de la tabla para evitar el bug de forloop.first #}-->
-                <tr class="fila-asociada">
-                  <td>
-                    <input type="text" class="form-control form-control-sm" value="Asociadas" readonly>
-                    {% if mat.docente %}<div class="docente-mini">{{ mat.docente }}</div>{% endif %}
-                  </td>
-                  <td>
-                    <input type="text" name="asignacion_Asociadas[]" value="{{ mat.asignacion }}"
-                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
-                  </td>
-                  <td>
-                    <input type="text" name="comentario_Asociadas[]" value="{{ mat.comentario }}"
-                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
-                  </td>
+          <hr class="my-3">
+
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle" id="tabla-materias">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:180px;">Materia</th>
+                  <th style="width:230px;">Asignación</th>
+                  <th>Comentario / Observación</th>
                 </tr>
-              {% else %}
-                <!-- Materias normales: fila gris si es de otro maestro (readonly) -->
-                <tr {% if not mat.editable %}class="table-secondary"{% endif %}>
-                  <td>
-                    <input type="text" class="form-control form-control-sm" value="{{ mat.materia }}" readonly>
-                    {% if mat.docente %}<div class="docente-mini">{{ mat.docente }}</div>{% endif %}
-                  </td>
-                  <td>
-                    <input type="text" name="asignacion_{{ mat.materia }}" value="{{ mat.asignacion }}"
-                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
-                  </td>
-                  <td>
-                    <input type="text" name="comentario_{{ mat.materia }}" value="{{ mat.comentario }}"
-                           class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
-                  </td>
-                </tr>
-              {% endif %}
-            {% empty %}
-              <tr><td colspan="3" class="text-center text-muted">Sin materias registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {% for mat in materias %}
+                  {% if mat.materia == "Asociadas" %}
+                    <tr class="fila-asociada">
+                      <td>
+                        <input type="text" class="form-control form-control-sm" value="Asociadas" readonly>
+                        {% if mat.docente %}<div class="small text-blue mt-1">{{ mat.docente }}</div>{% endif %}
+                      </td>
+                      <td>
+                        <input type="text" name="asignacion_Asociadas[]" value="{{ mat.asignacion }}"
+                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                      </td>
+                      <td>
+                        <input type="text" name="comentario_Asociadas[]" value="{{ mat.comentario }}"
+                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr {% if not mat.editable %}class="table-secondary"{% endif %}>
+                      <td>
+                        <input type="text" class="form-control form-control-sm" value="{{ mat.materia }}" readonly>
+                        {% if mat.docente %}<div class="small text-blue mt-1">{{ mat.docente }}</div>{% endif %}
+                      </td>
+                      <td>
+                        <input type="text" name="asignacion_{{ mat.materia }}" value="{{ mat.asignacion }}"
+                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                      </td>
+                      <td>
+                        <input type="text" name="comentario_{{ mat.materia }}" value="{{ mat.comentario }}"
+                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% empty %}
+                  <tr><td colspan="3" class="text-center text-muted">Sin materias registradas.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
-      <!--{# <--- hecho por claude code: botón "+" para agregar Asociadas fuera de la
-         tabla para evitar problemas con forloop.first #}-->
-      <div class="mb-2">
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddAsociada">
-          + Agregar fila Asociada
-        </button>
-      </div>
+          <div class="mb-3">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddAsociada">
+              <i class="ti ti-plus me-1"></i> Agregar fila Asociada
+            </button>
+          </div>
 
-      <div class="mb-3">
-        <label class="form-label">Comentario General:</label>
-        <textarea name="comentario_general" id="id_comentario_general" rows="3" class="form-control">{{ reporte.comentario_general }}</textarea>
-      </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Comentario General</label>
+            <textarea name="comentario_general" id="id_comentario_general" rows="3" class="form-control">{{ reporte.comentario_general }}</textarea>
+          </div>
 
-      {% if es_coordinador %}
-      <!--{# <--- hecho por claude code: estados corregidos para que coincidan con
-         ESTADO_CHOICES del modelo (enviado/revisando/revisado/aprobado).
-         Antes tenía 'pendiente' y 'rechazado' que no existen en el modelo. #}-->
-      <div class="mb-3">
-        <label class="form-label">Estado:</label>
-        <select name="estado" class="form-select">
-          <option value="enviado"   {% if reporte.estado == 'enviado'   %}selected{% endif %}>Enviado</option>
-          <option value="revisando" {% if reporte.estado == 'revisando' %}selected{% endif %}>Revisando</option>
-          <option value="revisado"  {% if reporte.estado == 'revisado'  %}selected{% endif %}>Revisado</option>
-          <option value="aprobado"  {% if reporte.estado == 'aprobado'  %}selected{% endif %}>Aprobado</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Firma Coordinador:</label>
-        <select name="coordinador_firma" class="form-select">
-          <option value="">-- Selecciona --</option>
-          {% for c in coordinadores %}
-            <option value="{{ c }}" {% if reporte.coordinador_firma == c %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Comentario del Coordinador:</label>
-        <textarea name="comentario_coordinador" rows="3" class="form-control">{{ reporte.comentario_coordinador }}</textarea>
-      </div>
-      {% endif %}
+          {% if es_coordinador %}
+          <hr class="my-3">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Estado</label>
+              <select name="estado" class="form-select">
+                <option value="enviado"   {% if reporte.estado == 'enviado'   %}selected{% endif %}>Enviado</option>
+                <option value="revisando" {% if reporte.estado == 'revisando' %}selected{% endif %}>Revisando</option>
+                <option value="revisado"  {% if reporte.estado == 'revisado'  %}selected{% endif %}>Revisado</option>
+                <option value="aprobado"  {% if reporte.estado == 'aprobado'  %}selected{% endif %}>Aprobado</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Firma Coordinador</label>
+              <select name="coordinador_firma" class="form-select">
+                <option value="">-- Selecciona --</option>
+                {% for c in coordinadores %}
+                  <option value="{{ c }}" {% if reporte.coordinador_firma == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">Comentario del Coordinador</label>
+              <textarea name="comentario_coordinador" rows="3" class="form-control">{{ reporte.comentario_coordinador }}</textarea>
+            </div>
+          </div>
+          {% endif %}
 
-      <button type="submit" class="btn btn-primary w-100">Guardar cambios</button>
-    </form>
-    <a href="{% if es_coordinador %}{% url 'dashboard_coordinador' 'bilingue' %}{% else %}{% url 'historial_maestro_bilingue' %}{% endif %}" class="btn btn-link mt-3">&larr; Regresar</a>
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+              <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+            </button>
+            <a href="{% if es_coordinador %}{% url 'dashboard_coordinador' 'bilingue' %}{% else %}{% url 'historial_maestro_bilingue' %}{% endif %}" class="btn btn-ghost-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // Agregar nueva fila Asociadas dinámicamente
-    document.addEventListener('DOMContentLoaded', function() {
-      function crearFilaAsociada() {
-        const tr = document.createElement('tr');
-        tr.classList.add('fila-asociada');
-        tr.innerHTML = `
-          <td><input type="text" class="form-control" value="Asociadas" readonly></td>
-          <td><input type="text" name="asignacion_Asociadas[]" class="form-control" maxlength="50"></td>
-          <td><input type="text" name="comentario_Asociadas[]" class="form-control" maxlength="50"></td>
-        `;
-        return tr;
-      }
-      // Permite varios botones si hay varias filas pero solo el primero visible
-      const MAX_ASOCIADAS = 5;
-      const btnAdd = document.getElementById('btnAddAsociada');
+</div>
+{% endblock %}
 
-      function contarAsociadas() {
-        return document.querySelectorAll('#tabla-materias .fila-asociada').length;
-      }
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const MAX_ASOCIADAS = 5;
+  const btnAdd = document.getElementById('btnAddAsociada');
 
-      function actualizarBotonAsociada() {
-        if (btnAdd) btnAdd.disabled = contarAsociadas() >= MAX_ASOCIADAS;
-      }
+  function contarAsociadas() {
+    return document.querySelectorAll('#tabla-materias .fila-asociada').length;
+  }
 
-      actualizarBotonAsociada();
+  function actualizarBoton() {
+    if (btnAdd) btnAdd.disabled = contarAsociadas() >= MAX_ASOCIADAS;
+  }
 
-      if (btnAdd) {
-        btnAdd.addEventListener('click', function() {
-          if (contarAsociadas() >= MAX_ASOCIADAS) {
-            alert('Máximo ' + MAX_ASOCIADAS + ' filas de Asociadas permitidas.');
-            return;
-          }
-          const tabla = document.getElementById('tabla-materias').getElementsByTagName('tbody')[0];
-          tabla.appendChild(crearFilaAsociada());
-          actualizarBotonAsociada();
-        });
-      }
+  actualizarBoton();
+
+  if (btnAdd) {
+    btnAdd.addEventListener('click', function() {
+      if (contarAsociadas() >= MAX_ASOCIADAS) return;
+      const tbody = document.querySelector('#tabla-materias tbody');
+      const tr = document.createElement('tr');
+      tr.classList.add('fila-asociada');
+      tr.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" value="Asociadas" readonly></td>
+        <td><input type="text" name="asignacion_Asociadas[]" class="form-control form-control-sm" maxlength="50"></td>
+        <td><input type="text" name="comentario_Asociadas[]" class="form-control form-control-sm" maxlength="50"></td>
+      `;
+      tbody.appendChild(tr);
+      actualizarBoton();
     });
-  </script>
-</body>
-</html>
-  
+  }
+});
+</script>
+{% endblock %}

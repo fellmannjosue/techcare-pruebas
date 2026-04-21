@@ -1,124 +1,60 @@
+{% extends 'enfermeria/base_enfermeria.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Panel de Servicios de Enfermería</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Favicon -->
-  <link rel="icon" href="{% static 'enfermeria/img/favicon.ico' %}" type="image/x-icon" />
-  <!-- Bootstrap & FontAwesome -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-  <!-- Tu CSS personalizado -->
-  <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-</head>
-<body class="bg-light">
+{% block title %}Dashboard{% endblock %}
+{% block page_pretitle %}Bienvenido{% endblock %}
+{% block page_title %}Panel de Enfermería{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
 
-<div class="d-flex" id="wrapper">
-  <!-- Sidebar -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:220px;">
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
-    </div>
-    <hr class="text-secondary">
-    <ul class="nav nav-pills flex-column mb-auto">
-      <li><a href="{% url 'menu' %}" class="nav-link text-white"><i class="fa-solid fa-house me-2"></i> Menú Principal</a></li>
-      <li><a href="{% url 'enfermeria:atencion_form' %}" class="nav-link text-white"><i class="fa-solid fa-user-nurse me-2"></i> Atención Médica</a></li>
-      <li><a href="{% url 'enfermeria:inventario_list' %}" class="nav-link text-white"><i class="fa-solid fa-pills me-2"></i> Inventario Medicamentos</a></li>
-      <li><a href="{% url 'enfermeria:medical_history' %}" class="nav-link text-white"><i class="fa-solid fa-file-medical me-2"></i> Historial Médico</a></li>
-    </ul>
-    <hr class="text-secondary">
-    <div class="dropdown">
-      <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-        
-        <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /Sidebar -->
+{% block content %}
+<div class="row row-cards g-4">
 
-  <!-- Main content -->
-  <div class="flex-grow-1 d-flex flex-column min-vh-100">
-    <!-- Header -->
-    <nav class="navbar navbar-light bg-white shadow-sm px-3">
-      <div class="container-fluid">
-        <div class="navbar-brand d-flex align-items-center gap-3">
-          <span class="fs-4">Panel de Servicios de Enfermería</span>
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'enfermeria:atencion_form' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-user-heart text-blue" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Atención Médica</div>
+          <div class="text-muted small mt-1">Registrar y consultar atenciones</div>
         </div>
       </div>
-    </nav>
-    <!-- /Header -->
-
-    <!-- Cards -->
-    <div class="container py-4">
-      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center">
-
-        <!-- Atención Médica -->
-        <div class="col">
-          <a href="{% url 'enfermeria:atencion_form' %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center">
-              <div class="card-body">
-                <i class="fa-solid fa-user-nurse fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Atención Médica</h5>
-                <p class="card-text text-muted">Registrar y consultar atenciones.</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <!-- Inventario Medicamentos -->
-        <div class="col">
-          <a href="{% url 'enfermeria:inventario_list' %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center">
-              <div class="card-body">
-                <i class="fa-solid fa-pills fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Inventario Medicamentos</h5>
-                <p class="card-text text-muted">Ver existencias y movimientos.</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <!-- Historial Médico -->
-        <div class="col">
-          <a href="{% url 'enfermeria:medical_history' %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center">
-              <div class="card-body">
-                <i class="fa-solid fa-file-medical fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Historial Médico</h5>
-                <p class="card-text text-muted">Ver historial del paciente.</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <!-- Regresar a Menú Principal -->
-        <div class="col">
-          <a href="{% url 'menu' %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center">
-              <div class="card-body">
-                <i class="fa-solid fa-house fa-3x text-secondary mb-3"></i>
-                <h5 class="card-title">Regresar a Menú Principal</h5>
-                <p class="card-text text-muted">Volver al dashboard general.</p>
-              </div>
-            </div>
-          </a>
-        </div>
-      </div>
-    </div>
-    <!-- /Cards -->
-
-    <footer class="footer mt-auto py-3 bg-white text-center small border-top">
-      © {{ year }} Soporte Técnico – Asociación Nuevo Amanecer. Todos los derechos reservados.
-    </footer>
+    </a>
   </div>
-</div>
 
-<!-- Bootstrap Bundle JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" defer></script>
-</body>
-</html>
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'enfermeria:uso_create' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-pill text-orange" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Registrar Uso</div>
+          <div class="text-muted small mt-1">Registrar uso de medicamentos</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'enfermeria:inventario_list' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-package text-green" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Inventario Medicamentos</div>
+          <div class="text-muted small mt-1">Ver existencias y movimientos</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'enfermeria:medical_history' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-file-medical text-cyan" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Historial Médico</div>
+          <div class="text-muted small mt-1">Consultar historial del paciente</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

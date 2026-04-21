@@ -1,246 +1,116 @@
+{% extends 'tickets/base_tickets_user.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
+{% block title %}Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block page_pretitle %}Tickets{% endblock %}
+{% block page_title %}Conversación – Ticket {{ ticket.ticket_id }}{% endblock %}
 
-<head>
-    <meta charset="UTF-8">
-    <title>Conversación del Ticket – {{ ticket.ticket_id }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'tickets/css/comments_user.css' %}">
-    <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-    <style>
-        .sidebar {
-            min-width: 210px;
-            max-width: 210px;
-            background: #222b3c;
-            color: #fff;
-            min-height: 100vh;
-        }
-        .main-content {
-            max-width: 900px;
-            margin: 32px auto;
-        }
-        .ticket-info {
-            background: #176cf2;
-            color: #fff;
-            border-radius: 14px 14px 0 0;
-            padding: 18px 22px 8px 22px;
-            margin-bottom: 0;
-            font-size: 1.07rem;
-        }
-        .chat-bubble {
-            background: #fff;
-            border-radius: 10px;
-            padding: 10px 16px;
-            margin-bottom: 12px;
-            max-width: 80%;
-            box-shadow: 0 2px 8px #e6e6e6;
-        }
-        .chat-bubble.mine {
-            background: #d9f8d9;
-            margin-left: auto;
-        }
+{% block extra_head %}
+<style>
+  .chat-box { max-height:380px; overflow-y:auto; background:#f8fafc; border-radius:8px; padding:16px; }
+  .chat-bubble { background:#fff; border-radius:10px; padding:10px 16px; margin-bottom:10px; max-width:80%; box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .chat-bubble.mine { background:#d9f8d9; margin-left:auto; }
+  .chat-bubble.tecnico-bubble { background:#fff4e6; border-left:4px solid #f59f00; }
+  .chat-meta { font-size:.82rem; color:#adb5bd; margin-top:5px; }
+</style>
+{% endblock %}
 
-        /* IA pendiente para más adelante */
-        /*
-        .chat-bubble.ia-bubble {
-            background: #f0f5ff;
-            border-left: 4px solid #22b573;
-        }
-        */
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  {% if request.GET.area == "bilingue" %}
+    <a href="{% url 'historial_maestro_bilingue' %}" class="btn btn-ghost-secondary">
+      <i class="ti ti-arrow-left me-1"></i> Volver al Historial
+    </a>
+  {% else %}
+    <a href="{% url 'historial_maestro_colegio' %}" class="btn btn-ghost-secondary">
+      <i class="ti ti-arrow-left me-1"></i> Volver al Historial
+    </a>
+  {% endif %}
+</div>
+{% endblock %}
 
-        .chat-bubble.tecnico-bubble {
-            background: #fff4e6;
-            border-left: 4px solid #ffc107;
-        }
-        .chat-meta {
-            font-size: 0.9em;
-            color: #888;
-            margin-top: 6px;
-        }
-
-        /* IA pendiente para más adelante */
-        /*
-        .problemas-rapidos button {
-            margin-right: 6px;
-            margin-bottom: 6px;
-            font-size: 0.98em;
-        }
-        */
-    </style>
-</head>
-
-<body>
-
-<div class="d-flex" id="wrapper">
-
-    <!-- Sidebar simple -->
-    <nav class="bg-dark sidebar flex-shrink-0 p-3">
-        <div class="mb-3 text-center">
-            <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;">
-            <div class="fw-bold mt-2">TechCare</div>
-        </div>
-
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li>
-                {% if request.GET.area == "bilingue" %}
-                <a href="{% url 'historial_maestro_bilingue' %}" class="btn btn-outline-light w-100 mb-2">
-                    ← Regresar al Historial
-                </a>
-                {% else %}
-                <a href="{% url 'historial_maestro_colegio' %}" class="btn btn-outline-light w-100 mb-2">
-                    ← Regresar al Historial
-                </a>
-                {% endif %}
-            </li>
-        </ul>
-    </nav>
-
-    <!-- Main content -->
-    <div class="flex-grow-1 main-content">
-
-        <div class="ticket-info mb-1">
-            <b>Ticket:</b> {{ ticket.ticket_id }}<br>
-            <b>Estado:</b> <span class="badge bg-light text-dark">{{ ticket.status }}</span>
-            <b>| Nombre:</b> {{ ticket.name }}
-            <b>| Correo:</b> {{ ticket.email }}
-        </div>
-
-        <div class="bg-white px-4 py-3 rounded-bottom mb-3 border-bottom">
-            <div><b>Descripción:</b> {{ ticket.description }}</div>
-            {% if ticket.attachment %}
-            <div><b>Adjunto:</b>
-                <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-outline-primary ms-1" target="_blank">
-                    <i class="bi bi-paperclip"></i> Ver archivo
-                </a>
-            </div>
-            {% endif %}
-        </div>
-
-        <h5 class="mb-2"><i class="bi bi-chat-left-text"></i> Conversación del Ticket</h5>
-
-        <div id="chat-mensajes"
-             style="max-height: 340px; overflow-y:auto; background:#f9fafb; border-radius:9px; padding: 16px; margin-bottom:8px;">
-            {% for c in comentarios %}
-            <div class="chat-bubble
-                {% if c.tipo == 'usuario' and c.usuario == request.user %} mine
-                {% elif c.tipo == 'tecnico' %} tecnico-bubble
-                {% endif %}">
-                {{ c.mensaje|linebreaksbr }}
-
-                <div class="chat-meta">
-                    {% if c.tipo == 'usuario' %}
-                        <i class="bi bi-person-circle"></i>
-                        <span class="fw-semibold">
-                            {% if c.usuario %}{{ c.usuario.username }}{% else %}Usuario{% endif %}
-                        </span>
-
-                    {% elif c.tipo == 'tecnico' %}
-                        <i class="bi bi-tools"></i>
-                        <span class="fw-semibold text-primary">Técnico</span>
-
-                    {% comment %}
-                    IA pendiente para más adelante
-                    {% elif c.tipo == 'ia' %}
-                        <i class="bi bi-robot"></i>
-                        <span class="fw-semibold text-success">IA TechCare</span>
-                    {% endcomment %}
-                    {% endif %}
-
-                    <span class="text-secondary">{{ c.fecha|date:"d/m/Y H:i" }}</span>
-                </div>
-            </div>
-
-            {% empty %}
-            <div class="alert alert-light text-center py-3">
-                <i class="bi bi-chat-left-dots"></i> No hay comentarios aún.
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- TICKET CERRADO -->
-        {% if ticket.status == "Resuelto" %}
-        <div class="alert alert-success text-center mb-2">
-            <i class="bi bi-lock"></i> Este ticket ha sido marcado como <b>Resuelto</b>.
-        </div>
-
-        {% else %}
-
-        {% comment %}
-        IA pendiente para más adelante
-
-        {% if not ticket.ia_bloqueada %}
-        <div class="problemas-rapidos mb-2">
-            <label class="fw-semibold me-2">Problema frecuente:</label>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="insertMsg('No puedo imprimir desde mi computadora.')">Impresora no imprime</button>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="insertMsg('No tengo acceso a internet.')">Sin acceso a Internet</button>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="insertMsg('Mi computadora no enciende.')">Computadora no enciende</button>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="insertMsg('Tengo problemas con mi correo institucional.')">Problema con correo</button>
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="insertMsg('Otro (describir abajo).')">Otro</button>
-        </div>
-
-        <div class="chat-footer">
-            <form id="formComentarioIA" method="post" autocomplete="off">
-                {% csrf_token %}
-                <div class="input-group">
-                    {{ form.mensaje }}
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-send"></i> Preguntar a la IA
-                    </button>
-                </div>
-            </form>
-
-            <div id="chat-ia-opciones" class="mt-2">
-                <button id="btn-contactar-tecnico" class="btn btn-warning btn-sm">
-                    <i class="bi bi-person-lines-fill"></i> No me ayudó, contactar técnico
-                </button>
-            </div>
-        </div>
-
-        {% else %}
-        <div class="alert alert-warning text-center">
-            <i class="bi bi-robot"></i> La IA ha finalizado la asistencia. Ahora un técnico dará seguimiento.
-        </div>
-        {% endif %}
-        {% endcomment %}
-
-        <!-- Chat normal usuario/técnico -->
-        <div class="chat-footer">
-            <form id="formComentarioUsuario" method="post" autocomplete="off">
-                {% csrf_token %}
-                <div class="input-group">
-                    {{ form.mensaje }}
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-send"></i> Enviar mensaje
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        {% endif %}
+{% block content %}
+{# Info del ticket #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+      <div><span class="text-muted small">Ticket:</span> <strong>{{ ticket.ticket_id }}</strong></div>
+      <div><span class="text-muted small">Nombre:</span> {{ ticket.name }}</div>
+      <div><span class="text-muted small">Correo:</span> {{ ticket.email }}</div>
+      <div>
+        <span class="text-muted small">Estado:</span>
+        <span class="badge
+          {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
+          {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
+          {% else %}bg-warning-lt text-warning{% endif %}">
+          {{ ticket.status }}
+        </span>
+      </div>
     </div>
+    <div class="mt-2 text-muted small">{{ ticket.description }}</div>
+    {% if ticket.attachment %}
+    <div class="mt-1">
+      <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-ghost-secondary" target="_blank">
+        <i class="ti ti-paperclip me-1"></i> Ver adjunto
+      </a>
+    </div>
+    {% endif %}
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{# Chat #}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-message-circle me-2"></i>Conversación del Ticket</h3>
+  </div>
+  <div class="card-body">
+    <div id="chat-mensajes" class="chat-box mb-3">
+      {% for c in comentarios %}
+      <div class="chat-bubble
+        {% if c.tipo == 'usuario' and c.usuario == request.user %}mine
+        {% elif c.tipo == 'tecnico' %}tecnico-bubble
+        {% endif %}">
+        {{ c.mensaje|linebreaksbr }}
+        <div class="chat-meta">
+          {% if c.tipo == 'usuario' %}
+            <i class="bi bi-person-circle"></i>
+            <span class="fw-semibold">{% if c.usuario %}{{ c.usuario.username }}{% else %}Usuario{% endif %}</span>
+          {% elif c.tipo == 'tecnico' %}
+            <i class="bi bi-tools"></i>
+            <span class="fw-semibold text-warning">Técnico</span>
+          {% endif %}
+          {{ c.fecha|date:"d/m/Y H:i" }}
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center text-muted py-3"><i class="ti ti-message-off me-1"></i>No hay comentarios aún.</div>
+      {% endfor %}
+    </div>
 
-{% comment %}
-IA pendiente para más adelante
-<script>
-    function insertMsg(msg) {
-        var textarea = document.querySelector('textarea[name="mensaje"]');
-        if (textarea) {
-            textarea.value = msg;
-            textarea.focus();
-        }
-    }
-</script>
-{% endcomment %}
+    {% if ticket.status == "Resuelto" %}
+    <div class="alert alert-success mb-0">
+      <i class="ti ti-circle-check me-1"></i> Este ticket ha sido marcado como <b>Resuelto</b>.
+    </div>
+    {% else %}
+    <form id="formComentarioUsuario" method="post" autocomplete="off">
+      {% csrf_token %}
+      <div class="input-group">
+        {{ form.mensaje }}
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-send me-1"></i> Enviar mensaje
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
 
+{% block extra_js %}
 <script src="{% static 'tickets/js/comments.js' %}"></script>
-
-</body>
-</html>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const inp = document.querySelector('textarea[name="mensaje"], input[name="mensaje"]');
+  if (inp && !inp.classList.contains('form-control')) inp.classList.add('form-control');
+});
+</script>
+{% endblock %}

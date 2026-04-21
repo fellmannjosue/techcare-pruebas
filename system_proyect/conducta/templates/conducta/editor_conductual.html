@@ -1,128 +1,172 @@
+{% extends 'conducta/base_conducta.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Editar Reporte Conductual</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-    <link rel="stylesheet" href="{% static 'conducta/css/editor_reporte.css' %}">
-</head>
-<body>
-<div class="container py-4">
-    <a href="{% url 'dashboard_coordinador' reporte.area %}" class="btn btn-outline-secondary mb-3">&larr; Volver al Dashboard</a>
-    <form method="post" class="editor-reporte-box" autocomplete="off">
-        <h2>Editar Reporte Conductual</h2>
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-        {% csrf_token %}
-        <!-- Datos originales solo lectura -->
-        <div class="mb-2">
-            <span class="campo-label">Alumno:</span>
-            <div class="campo-lectura">{{ reporte.alumno_nombre }}</div>
-        </div>
-        <div class="mb-2">
-            <span class="campo-label">Grado:</span>
-            <div class="campo-lectura">{{ reporte.grado }}</div>
-        </div>
-        <div class="mb-2">
-            <span class="campo-label">Materia / Docente:</span>
-            <div class="campo-lectura">{{ reporte.materia }} — {{ reporte.docente }}</div>
-        </div>
-        <div class="mb-2">
-            <span class="campo-label">Fecha de registro:</span>
-            <div class="campo-lectura">{{ reporte.fecha|date:"d/m/Y H:i" }}</div>
-        </div>
-        <!--{# <--- hecho por claude code: incisos cambiados de divs readonly a checkboxes
-           editables para que el coordinador pueda agregar o quitar incisos al reporte. #}-->
-        <div class="mb-3">
-            <label class="form-label"><strong>Incisos Leve:</strong></label>
-            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
-                {% for inciso in incisos_leve %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox"
-                           name="incisos_leve" value="{{ inciso.pk }}"
-                           id="leve_{{ inciso.pk }}"
-                           {% if inciso in reporte.incisos_leve.all %}checked{% endif %}>
-                    <label class="form-check-label" for="leve_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
-                </div>
-                {% empty %}
-                    <span class="text-muted">No hay incisos leve registrados.</span>
-                {% endfor %}
+
+{% block title %}Editar Reporte Conductual{% endblock %}
+{% block page_pretitle %}Coordinador{% endblock %}
+{% block page_title %}Editar Reporte Conductual{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'dashboard_coordinador' reporte.area %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver al Dashboard
+  </a>
+{% endblock %}
+
+{% block sidebar_nav %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'menu' %}">
+      <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+      <span class="nav-link-title">Menú Principal</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="{% url 'dashboard_coordinador' reporte.area %}">
+      <span class="nav-link-icon"><i class="ti ti-user-check"></i></span>
+      <span class="nav-link-title">Dashboard Coordinador</span>
+    </a>
+  </li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-shield-check me-2 text-orange"></i>Reporte Conductual #{{ reporte.pk }}</h3>
+      </div>
+      <div class="card-body">
+        <form method="post" autocomplete="off">
+          {% csrf_token %}
+
+          <!-- Datos de solo lectura -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Alumno</label>
+              <div class="campo-lectura-tabler">{{ reporte.alumno_nombre }}</div>
             </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label"><strong>Incisos Grave:</strong></label>
-            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
-                {% for inciso in incisos_grave %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox"
-                           name="incisos_grave" value="{{ inciso.pk }}"
-                           id="grave_{{ inciso.pk }}"
-                           {% if inciso in reporte.incisos_grave.all %}checked{% endif %}>
-                    <label class="form-check-label" for="grave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
-                </div>
-                {% empty %}
-                    <span class="text-muted">No hay incisos grave registrados.</span>
-                {% endfor %}
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Grado</label>
+              <div class="campo-lectura-tabler">{{ reporte.grado }}</div>
             </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label"><strong>Incisos Muy Grave:</strong></label>
-            <div class="campo-lectura" style="max-height:180px; overflow-y:auto;">
-                {% for inciso in incisos_muygrave %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox"
-                           name="incisos_muygrave" value="{{ inciso.pk }}"
-                           id="muygrave_{{ inciso.pk }}"
-                           {% if inciso in reporte.incisos_muygrave.all %}checked{% endif %}>
-                    <label class="form-check-label" for="muygrave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
-                </div>
-                {% empty %}
-                    <span class="text-muted">No hay incisos muy grave registrados.</span>
-                {% endfor %}
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Materia / Docente</label>
+              <div class="campo-lectura-tabler">{{ reporte.materia }} — {{ reporte.docente }}</div>
             </div>
-        </div>
-       <!--{# <--- hecho por claude code: comentario del docente cambiado de div readonly
-           a textarea editable para que el coordinador pueda corregirlo o completarlo #}-->
-        <div class="mb-3">
-            <label class="form-label"><strong>Comentario del Docente:</strong></label>
+            <div class="col-md-6">
+              <label class="form-label text-muted small">Fecha de registro</label>
+              <div class="campo-lectura-tabler">{{ reporte.fecha|date:"d/m/Y H:i" }}</div>
+            </div>
+          </div>
+
+          <hr class="my-3">
+
+          <!-- Incisos -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="card border-warning">
+                <div class="card-header bg-warning-lt py-2">
+                  <span class="fw-bold"><i class="ti ti-alert-circle me-1 text-warning"></i>Incisos Leve</span>
+                </div>
+                <div class="card-body p-2" style="max-height:180px; overflow-y:auto;">
+                  {% for inciso in incisos_leve %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox"
+                             name="incisos_leve" value="{{ inciso.pk }}" id="leve_{{ inciso.pk }}"
+                             {% if inciso in reporte.incisos_leve.all %}checked{% endif %}>
+                      <label class="form-check-label small" for="leve_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                    </div>
+                  {% empty %}
+                    <span class="text-muted small">Sin incisos.</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card border-orange">
+                <div class="card-header bg-orange-lt py-2">
+                  <span class="fw-bold"><i class="ti ti-alert-triangle me-1 text-orange"></i>Incisos Grave</span>
+                </div>
+                <div class="card-body p-2" style="max-height:180px; overflow-y:auto;">
+                  {% for inciso in incisos_grave %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox"
+                             name="incisos_grave" value="{{ inciso.pk }}" id="grave_{{ inciso.pk }}"
+                             {% if inciso in reporte.incisos_grave.all %}checked{% endif %}>
+                      <label class="form-check-label small" for="grave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                    </div>
+                  {% empty %}
+                    <span class="text-muted small">Sin incisos.</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card border-danger">
+                <div class="card-header bg-danger-lt py-2">
+                  <span class="fw-bold"><i class="ti ti-alert-octagon me-1 text-danger"></i>Incisos Muy Grave</span>
+                </div>
+                <div class="card-body p-2" style="max-height:180px; overflow-y:auto;">
+                  {% for inciso in incisos_muygrave %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox"
+                             name="incisos_muygrave" value="{{ inciso.pk }}" id="muygrave_{{ inciso.pk }}"
+                             {% if inciso in reporte.incisos_muygrave.all %}checked{% endif %}>
+                      <label class="form-check-label small" for="muygrave_{{ inciso.pk }}">{{ inciso.descripcion }}</label>
+                    </div>
+                  {% empty %}
+                    <span class="text-muted small">Sin incisos.</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Comentario del Docente</label>
             <textarea class="form-control" name="comentario" rows="3"
                       style="background:#f8f9fa;">{{ reporte.comentario|default_if_none:"" }}</textarea>
-            <div class="form-text text-muted">El coordinador puede editar este campo.</div>
-        </div>
-        <hr>
-        <!-- Campos editables para el coordinador -->
-        <div class="mb-3">
-            <label class="form-label"><strong>Comentario del Coordinador:</strong></label>
-            <textarea class="form-control" name="comentario_coordinador" rows="3">{{ reporte.comentario_coordinador|default_if_none:"" }}</textarea>
-        </div>
-        <div class="mb-3">
-            <label class="form-label"><strong>Estado del Reporte:</strong></label>
-            <select name="estado" class="form-select">
-                <option value="enviado" {% if reporte.estado == "enviado" %}selected{% endif %}>Enviado</option>
+            <div class="form-text">El coordinador puede editar este campo.</div>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-bold">Comentario del Coordinador</label>
+              <textarea class="form-control" name="comentario_coordinador" rows="3">{{ reporte.comentario_coordinador|default_if_none:"" }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Estado del Reporte</label>
+              <select name="estado" class="form-select">
+                <option value="enviado"   {% if reporte.estado == "enviado"   %}selected{% endif %}>Enviado</option>
                 <option value="revisando" {% if reporte.estado == "revisando" %}selected{% endif %}>Revisando</option>
-                <option value="revisado" {% if reporte.estado == "revisado" %}selected{% endif %}>Revisado</option>
-                <option value="aprobado" {% if reporte.estado == "aprobado" %}selected{% endif %}>Aprobado</option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label class="form-label"><strong>Firma del Coordinador:</strong></label>
-            <select name="coordinador_firma" class="form-select">
+                <option value="revisado"  {% if reporte.estado == "revisado"  %}selected{% endif %}>Revisado</option>
+                <option value="aprobado"  {% if reporte.estado == "aprobado"  %}selected{% endif %}>Aprobado</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Firma del Coordinador</label>
+              <select name="coordinador_firma" class="form-select">
                 <option value="">---------</option>
                 {% for coord in coordinadores %}
-                    <option value="{{ coord }}" {% if reporte.coordinador_firma == coord %}selected{% endif %}>{{ coord }}</option>
+                  <option value="{{ coord }}" {% if reporte.coordinador_firma == coord %}selected{% endif %}>{{ coord }}</option>
                 {% endfor %}
-            </select>
-        </div>
-        <button class="btn btn-success mt-3">Guardar Cambios</button>
-    </form>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+              <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+            </button>
+            <a href="{% url 'dashboard_coordinador' reporte.area %}" class="btn btn-ghost-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{% static 'conducta/js/editor_reporte.js' %}"></script>
-</body>
-</html>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'conducta/js/editor_reporte.js' %}"></script>
+{% endblock %}

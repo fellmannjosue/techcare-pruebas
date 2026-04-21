@@ -1,246 +1,109 @@
+{% extends 'inventario/base_inventario.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-  <title>Inventario – Computadoras</title>
+{% block title %}Computadoras{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}Inventario – Computadoras{% endblock %}
+{% block nav_computadoras %}active{% endblock %}
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'inventario:filtro_computadoras' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-filter me-1"></i> Filtrar
+  </a>
+</div>
+{% endblock %}
 
-  <!-- DataTables CSS -->
-  <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-  <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
-
-  <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-
-  <style>
-    body { background-color: #eef2f7; font-family: 'Segoe UI', sans-serif; }
-    .dashboard-container { margin-top: 32px; }
-    .form-card { max-width: 540px; margin: 2rem auto 1rem auto; padding: 1.5rem; border-radius: .75rem; background: #fff; box-shadow: 0 .5rem 1rem rgba(0,0,0,0.1);}
-    .form-card h5 { margin-bottom: 1rem; color: #0056b3; }
-    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 14px; }
-  </style>
-</head>
-
-<body>
-<div class="d-flex" id="wrapper">
-
-  <!-- SIDEBAR -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:220px;">
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
-    </div>
-
-    <hr class="text-secondary">
-
-    <ul class="nav nav-pills flex-column mb-auto">
-
-      <li><a href="{% url 'inventario:inventario_computadoras' %}" class="nav-link text-white">
-        <i class="fa-solid fa-desktop me-2"></i> Computadoras</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_televisores' %}" class="nav-link text-white">
-        <i class="fa-solid fa-tv me-2"></i> Televisores</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_impresoras' %}" class="nav-link text-white">
-        <i class="fa-solid fa-print me-2"></i> Impresoras</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_routers' %}" class="nav-link text-white">
-        <i class="fa-solid fa-wifi me-2"></i> Routers</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_datashows' %}" class="nav-link text-white">
-        <i class="fa-solid fa-video me-2"></i> DataShows</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_monitores' %}" class="nav-link text-white">
-        <i class="fa-solid fa-display me-2"></i> Monitores</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_por_categoria' %}" class="nav-link text-white">
-        <i class="fa-solid fa-layer-group me-2"></i> Por Categoría</a>
-      </li>
-
-      <li><a href="{% url 'inventario:inventario_registros' %}" class="nav-link text-white">
-        <i class="fa-solid fa-clipboard-list me-2"></i> Ver registros</a>
-      </li>
-
-      <li><a href="{% url 'inventario:dashboard' %}" class="nav-link text-white">
-        <i class="fa-solid fa-house me-2"></i> Volver al menú</a>
-      </li>
-
-    </ul>
-
-    <hr class="text-secondary">
-
-    <div class="dropdown">
-      <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" width="32" height="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-        <li><a class="dropdown-item" href="{% url 'logout' %}">
-          <i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /SIDEBAR -->
-
-  <!-- MAIN CONTENT -->
-  <div class="flex-grow-1 d-flex flex-column min-vh-100">
-
-    <nav class="navbar navbar-light bg-white shadow-sm px-3">
-      <span class="fs-4">Inventario – Computadoras</span>
-    </nav>
-
-    <div class="dashboard-container container-fluid py-4">
-
-      <div class="row">
-
-        <!-- FORMULARIO -->
-        <div class="col-lg-5">
-          <div class="form-card">
-            <h5 class="text-center">Agregar Nueva Computadora</h5>
-
-            <div class="mb-3 text-end">
-              <a href="{% url 'inventario:filtro_computadoras' %}" class="btn btn-outline-primary">Filtrar Computadoras</a>
-            </div>
-
-            <form method="post" novalidate>
-              {% csrf_token %}
-              <div class="row g-3">
-
-                <div class="col-md-6"><label class="form-label">Asset ID</label>{{ form.asset_id }}</div>
-                <div class="col-md-6"><label class="form-label">Modelo</label>{{ form.modelo }}</div>
-                <div class="col-md-6"><label class="form-label">Serie</label>{{ form.serie }}</div>
-                <div class="col-md-6"><label class="form-label">IP</label>{{ form.ip }}</div>
-                <div class="col-md-6"><label class="form-label">Asignado a</label>{{ form.asignado_a }}</div>
-                <div class="col-md-6"><label class="form-label">Área</label>{{ form.area }}</div>
-                <div class="col-md-6"><label class="form-label">Grado</label>{{ form.grado }}</div>
-                <div class="col-md-6"><label class="form-label">Fecha Instalado</label>{{ form.fecha_instalado }}</div>
-
-                <div class="col-12">
-                  <label class="form-label">Observaciones</label>
-                  {{ form.observaciones }}
-                </div>
-
-              </div>
-
-              <button type="submit" class="btn btn-primary w-100 mt-4">Guardar Computadora</button>
-            </form>
-
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-plus me-2 text-blue"></i>Agregar Computadora</h3>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-6"><label class="form-label">Asset ID</label>{{ form.asset_id }}</div>
+          <div class="col-md-6"><label class="form-label">Modelo</label>{{ form.modelo }}</div>
+          <div class="col-md-6"><label class="form-label">Serie</label>{{ form.serie }}</div>
+          <div class="col-md-6"><label class="form-label">IP</label>{{ form.ip }}</div>
+          <div class="col-md-6"><label class="form-label">Asignado a</label>{{ form.asignado_a }}</div>
+          <div class="col-md-6"><label class="form-label">Área</label>{{ form.area }}</div>
+          <div class="col-md-6"><label class="form-label">Grado</label>{{ form.grado }}</div>
+          <div class="col-md-6"><label class="form-label">Fecha Instalado</label>{{ form.fecha_instalado }}</div>
+          <div class="col-12"><label class="form-label">Observaciones</label>{{ form.observaciones }}</div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="ti ti-device-floppy me-1"></i> Guardar Computadora
+            </button>
           </div>
-        </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
-        <!-- TABLA -->
-        <div class="col-lg-7">
-          <h5 class="mb-3">Computadoras Registradas</h5>
-
-          <div class="table-responsive shadow-sm">
-            <table id="computadoras-table" class="table table-hover table-bordered align-middle nowrap" style="width:100%;">
-              <thead class="table-dark">
-                <tr>
-                  <th>ID</th>
-                  <th>Asset ID</th>
-                  <th>Modelo</th>
-                  <th>Serie</th>
-                  <th>IP</th>
-                  <th>Asignado a</th>
-                  <th>Área</th>
-                  <th>Grado</th>
-                  <th>Fecha Inst.</th>
-                  <th>Observaciones</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {% for pc in computadoras %}
-                <tr>
-                  <td>{{ pc.id }}</td>
-                  <td>{{ pc.asset_id }}</td>
-                  <td>{{ pc.modelo }}</td>
-                  <td>{{ pc.serie }}</td>
-                  <td>{{ pc.ip }}</td>
-                  <td>{{ pc.asignado_a }}</td>
-                  <td>{{ pc.area }}</td>
-                  <td>{{ pc.grado }}</td>
-                  <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
-                  <td>{{ pc.observaciones }}</td>
-
-                  <td>
-                    <button class="btn btn-sm btn-primary editar-computadora"
-                            data-id="{{ pc.id }}">
-                      Editar
-                    </button>
-
-                    <button class="btn btn-sm btn-danger eliminar-computadora"
-                            data-id="{{ pc.id }}">
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-
-            </table>
-          </div>
-
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-device-desktop me-2"></i>Computadoras Registradas</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="computadoras-table" class="table table-vcenter table-hover card-table nowrap" style="width:100%;">
+            <thead>
+              <tr>
+                <th>ID</th><th>Asset ID</th><th>Modelo</th><th>Serie</th><th>IP</th>
+                <th>Asignado a</th><th>Área</th><th>Grado</th><th>Fecha Inst.</th>
+                <th>Observaciones</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pc in computadoras %}
+              <tr>
+                <td>{{ pc.id }}</td><td>{{ pc.asset_id }}</td><td>{{ pc.modelo }}</td>
+                <td>{{ pc.serie }}</td><td>{{ pc.ip }}</td><td>{{ pc.asignado_a }}</td>
+                <td>{{ pc.area }}</td><td>{{ pc.grado }}</td>
+                <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
+                <td>{{ pc.observaciones }}</td>
+                <td>
+                  <button class="btn btn-sm btn-ghost-primary editar-computadora" data-id="{{ pc.id }}" title="Editar">
+                    <i class="ti ti-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-ghost-danger eliminar-computadora" data-id="{{ pc.id }}" title="Eliminar">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <div class="footer">© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer</div>
     </div>
   </div>
 </div>
 
-<!-- MODAL -->
-<div class="modal fade" id="modalEditarComputadora" tabindex="-1">
+<div class="modal modal-blur fade" id="modalEditarComputadora" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">Editar Computadora</h5>
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-pencil me-2"></i>Editar Computadora</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-
-      <div class="modal-body" id="modal-computadora-body">
-        <!-- Se carga por AJAX -->
-      </div>
-
+      <div class="modal-body" id="modal-computadora-body"></div>
     </div>
   </div>
 </div>
+{% endblock %}
 
-<!-- JS -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-
+{% block extra_js %}
 <script>
-  $(function() {
-    $('#computadoras-table').DataTable({
-      pageLength: 10,
-      scrollX: true,
-      order: [[0, 'desc']],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
-    });
+$(function(){
+  $('#computadoras-table').DataTable({
+    pageLength: 10, scrollX: true, order: [[0,'desc']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
+});
 </script>
-
 <script src="{% static 'inventario/js/computadoras_edit.js' %}"></script>
-
-</body>
-</html>
+{% endblock %}

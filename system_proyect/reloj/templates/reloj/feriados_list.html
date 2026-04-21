@@ -1,0 +1,86 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Feriados{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Feriados{% endblock %}
+{% block nav_feriados %}active{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'reloj_feriado_new' %}" class="btn btn-primary">
+    <i class="ti ti-plus me-1"></i> Agregar Feriado
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Creado por</th>
+            <th>Creado en</th>
+            <th style="width:120px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in feriados %}
+          <tr>
+            <td>{{ forloop.counter0|add:feriados.start_index }}</td>
+            <td><strong>{{ f.fecha|date:"Y-m-d" }}</strong></td>
+            <td>{{ f.descripcion|default:"—" }}</td>
+            <td>{{ f.creado_por|default:"—" }}</td>
+            <td>{% if f.creado_en %}{{ f.creado_en|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{% url 'reloj_feriado_edit' f.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
+                  <i class="ti ti-pencil"></i>
+                </a>
+                <a href="{% url 'reloj_feriado_delete' f.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
+                  <i class="ti ti-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No hay feriados registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer d-flex align-items-center">
+    <nav>
+      <ul class="pagination mb-0">
+        {% if feriados.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ feriados.previous_page_number }}">«</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">«</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ feriados.number }} de {{ feriados.paginator.num_pages }}</span>
+        </li>
+        {% if feriados.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ feriados.next_page_number }}">»</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">»</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
+{% endblock %}

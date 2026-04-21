@@ -1,201 +1,144 @@
+{% extends 'tickets/base_tickets.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Chat Técnico del Ticket – {{ ticket.ticket_id }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
+{% block title %}Chat Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block page_pretitle %}Tickets – Técnico{% endblock %}
+{% block page_title %}Chat Técnico – Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block nav_tickets %}active{% endblock %}
 
-    <!-- CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'tickets/css/comments.css' %}">
-    <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% block extra_head %}
+<style>
+  .chat-box { max-height:380px; overflow-y:auto; background:#f8fafc; border-radius:8px; padding:16px; }
+  .chat-bubble { background:#fff; border-radius:10px; padding:10px 16px; margin-bottom:10px; max-width:80%; box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .chat-bubble.mine { background:#e1f0fc; margin-left:auto; }
+  .chat-meta { font-size:.82rem; color:#adb5bd; margin-top:5px; }
+</style>
+{% endblock %}
 
-    <style>
-        .form-update-status {
-            background: #f8f9fa;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,.07);
-            padding: 18px 24px;
-            margin-bottom: 24px;
-            max-width: 480px;
-        }
-        .chat-bubble {
-            background: #fff;
-            border-radius: 10px;
-            padding: 10px 16px;
-            margin-bottom: 12px;
-            max-width: 80%;
-            box-shadow: 0 2px 8px #e6e6e6;
-        }
-        .chat-bubble.mine {
-            background: #e1f0fc;
-            margin-left: auto;
-        }
-        .chat-meta {
-            font-size: 0.9em;
-            color: #888;
-            margin-top: 6px;
-        }
-        .main-content {
-            max-width: 780px;
-            margin: 40px auto;
-        }
-    </style>
-</head>
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'technician_dashboard' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver al Panel
+  </a>
+</div>
+{% endblock %}
 
-<body>
-
-<div class="d-flex" id="wrapper">
-
-    <!-- Sidebar Técnico -->
-    <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:230px;">
-        <div class="d-flex align-items-center mb-3">
-            <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-            <span class="fs-5 fw-bold">TechCare</span>
+{% block content %}
+{# Info del ticket #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-start">
+      <div class="col-md-8">
+        <div class="d-flex flex-wrap gap-3">
+          <div><span class="text-muted small">Ticket:</span> <strong>{{ ticket.ticket_id }}</strong></div>
+          <div><span class="text-muted small">Nombre:</span> {{ ticket.name }}</div>
+          <div><span class="text-muted small">Correo:</span> {{ ticket.email }}</div>
+          <div>
+            <span class="text-muted small">Estado:</span>
+            <span id="badge-status" class="badge
+              {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
+              {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
+              {% else %}bg-warning-lt text-warning{% endif %}">
+              {{ ticket.status }}
+            </span>
+          </div>
         </div>
-
-        <hr class="text-secondary">
-
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li>
-                <a href="{% url 'technician_dashboard' %}" class="nav-link text-white">
-                    <i class="bi bi-tools me-2 text-warning"></i> Panel Técnico
-                </a>
-            </li>
-        </ul>
-
-        <hr class="text-secondary">
-
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-              <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
-              <strong>{{ request.user.username }}</strong>
-            </a>
-
-            <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-              <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión</a></li>
-            </ul>
+        <div class="mt-2 text-muted small">{{ ticket.description }}</div>
+        {% if ticket.attachment %}
+        <div class="mt-1">
+          <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-ghost-secondary" target="_blank">
+            <i class="ti ti-paperclip me-1"></i> Ver adjunto
+          </a>
         </div>
-    </nav>
-
-    <!-- Main content -->
-    <div class="flex-grow-1">
-        <div class="main-content">
-
-            <a href="{% url 'technician_dashboard' %}" class="btn btn-outline-secondary mb-3">
-                ← Volver al Panel Técnico
-            </a>
-
-            <!-- Panel info ticket -->
-            <div class="ticket-info mb-2 bg-primary text-white p-3 rounded">
-                <b>Ticket:</b> {{ ticket.ticket_id }}<br>
-                <b>Estado:</b>
-                <span class="badge bg-light text-dark" id="badge-status">{{ ticket.status }}</span>
-                <b>| Nombre:</b> {{ ticket.name }}
-                <b>| Correo:</b> {{ ticket.email }}
-            </div>
-
-            <div class="mb-2"><b>Descripción:</b> {{ ticket.description }}</div>
-
-            {% if ticket.attachment %}
-            <div><b>Adjunto:</b>
-                <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-outline-primary ms-1" target="_blank">
-                    <i class="bi bi-paperclip"></i> Ver archivo
-                </a>
-            </div>
-            {% endif %}
-
-            <!-- Mensaje especial si IA está bloqueada -->
-            {% if ticket.ia_bloqueada %}
-            <div class="alert alert-warning mt-3">
-                <i class="bi bi-robot"></i>
-                La IA dejó de responder en este ticket. Ahora solo soporte técnico continúa la atención.
-            </div>
-            {% endif %}
-
-            <!-- FORM ESTADO TICKET -->
-            <form id="form-status-ticket" class="form-update-status mt-3">
-                {% csrf_token %}
-
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-6">
-                        <label for="chat-status-select" class="form-label">Estado del Ticket:</label>
-
-                        <select class="form-select" id="chat-status-select" name="status">
-                            <option value="Pendiente" {% if ticket.status == "Pendiente" %}selected{% endif %}>Pendiente</option>
-                            <option value="En Proceso" {% if ticket.status == "En Proceso" %}selected{% endif %}>En Proceso</option>
-                            <option value="Resuelto" {% if ticket.status == "Resuelto" %}selected{% endif %}>Resuelto</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="ticket-comments" class="form-label">Comentarios Generales:</label>
-                        <textarea class="form-control" name="comments" id="ticket-comments" rows="2">{{ ticket.comments }}</textarea>
-                    </div>
-                </div>
-
-                <div class="text-end mt-3">
-                    <button type="submit" class="btn btn-outline-primary btn-sm">Actualizar Estado</button>
-                </div>
-            </form>
-
-            <hr>
-
-            <!-- Chat técnico -->
-            <h5 class="mb-2">
-                <i class="bi bi-chat-left-text"></i> Conversación Técnica del Ticket
-            </h5>
-
-            <div id="chat-mensajes" style="max-height: 340px; overflow-y:auto; background:#f9fafb; border-radius:9px; padding: 16px;">
-                {% for c in comentarios %}
-                    <div class="chat-bubble{% if c.usuario == request.user %} mine{% endif %}">
-                        {{ c.mensaje|linebreaksbr }}
-
-                        <div class="chat-meta">
-                            <i class="bi bi-person-badge"></i>
-                            <span class="fw-semibold">{{ c.usuario.username }}</span>
-                            <span class="text-secondary">{{ c.fecha|date:"d/m/Y H:i" }}</span>
-                        </div>
-                    </div>
-                {% empty %}
-                    <div class="alert alert-light text-center py-3">
-                        <i class="bi bi-chat-left-dots"></i> No hay comentarios en este ticket.
-                    </div>
-                {% endfor %}
-            </div>
-
-            <!-- Form comentario técnico -->
-            {% if ticket.status != "Resuelto" %}
-            <div class="chat-footer mt-2">
-                <form id="formComentarioTech" method="post" autocomplete="off">
-                    {% csrf_token %}
-                    <div class="input-group">
-                        {{ form.mensaje }}
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send"></i> Enviar
-                        </button>
-                    </div>
-                </form>
-            </div>
-            {% else %}
-            <div class="alert alert-success text-center mt-2">
-                <i class="bi bi-check2-circle"></i> El ticket está resuelto. Ya no se pueden agregar comentarios.
-            </div>
-            {% endif %}
+        {% endif %}
+      </div>
+      <div class="col-md-4">
+        {% if ticket.ia_bloqueada %}
+        <div class="alert alert-warning py-2 small mb-0">
+          <i class="ti ti-robot me-1"></i> La IA dejó de responder. Solo soporte técnico continúa.
         </div>
+        {% endif %}
+      </div>
     </div>
+  </div>
 </div>
 
-<div class="footer">
-    <p>© {{ year|default:"2025" }} Soporte Técnico - Asociación Nuevo Amanecer. Todos los derechos reservados.</p>
+{# Actualizar estado #}
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-settings me-2"></i>Actualizar Estado</h3>
+  </div>
+  <div class="card-body">
+    <form id="form-status-ticket">
+      {% csrf_token %}
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Estado del Ticket</label>
+          <select class="form-select" id="chat-status-select" name="status">
+            <option value="Pendiente" {% if ticket.status == "Pendiente" %}selected{% endif %}>Pendiente</option>
+            <option value="En Proceso" {% if ticket.status == "En Proceso" %}selected{% endif %}>En Proceso</option>
+            <option value="Resuelto" {% if ticket.status == "Resuelto" %}selected{% endif %}>Resuelto</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Comentarios Generales</label>
+          <textarea class="form-control" name="comments" id="ticket-comments" rows="2">{{ ticket.comments }}</textarea>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="ti ti-device-floppy me-1"></i> Guardar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- JS -->
+{# Chat #}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-message-circle me-2"></i>Conversación Técnica</h3>
+  </div>
+  <div class="card-body">
+    <div id="chat-mensajes" class="chat-box mb-3">
+      {% for c in comentarios %}
+      <div class="chat-bubble{% if c.usuario == request.user %} mine{% endif %}">
+        {{ c.mensaje|linebreaksbr }}
+        <div class="chat-meta">
+          <i class="bi bi-person-badge"></i>
+          <span class="fw-semibold">{{ c.usuario.username }}</span>
+          {{ c.fecha|date:"d/m/Y H:i" }}
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center text-muted py-3"><i class="ti ti-message-off me-1"></i>No hay comentarios aún.</div>
+      {% endfor %}
+    </div>
+
+    {% if ticket.status != "Resuelto" %}
+    <form id="formComentarioTech" method="post" autocomplete="off">
+      {% csrf_token %}
+      <div class="input-group">
+        {{ form.mensaje }}
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-send me-1"></i> Enviar
+        </button>
+      </div>
+    </form>
+    {% else %}
+    <div class="alert alert-success mb-0">
+      <i class="ti ti-circle-check me-1"></i> Ticket resuelto — ya no se pueden agregar comentarios.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script src="{% static 'tickets/js/comments.js' %}"></script>
-
-</body>
-</html>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const inp = document.querySelector('textarea[name="mensaje"], input[name="mensaje"]');
+  if (inp && !inp.classList.contains('form-control')) inp.classList.add('form-control');
+});
+</script>
+{% endblock %}

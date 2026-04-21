@@ -1,142 +1,88 @@
+{% extends 'enfermeria/base_enfermeria.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>{% if edit_id %}Editar Atención{% else %}Nueva Atención Médica{% endif %}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Select2 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
-  <!-- DataTables CSS -->
-  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
-  <style>
-    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 14px; }
-    .select2-container .select2-selection--single { height: calc(1.5em + .75rem + 2px) !important; padding: .375rem .75rem !important; }
-    #atenciones-table .btn { margin-right: .25rem; }
-    @media (max-width: 768px) {
-      .sidebar { min-width: 100px !important; max-width: 160px !important; }
-    }
-  </style>
-</head>
-<body>
-<div class="d-flex" id="wrapper">
-  <!-- Sidebar de Enfermería -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:230px;">
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
-    </div>
-    <hr class="text-secondary">
-    <ul class="nav nav-pills flex-column mb-auto">
-      <li>
-        <a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="nav-link text-white">
-          <i class="fa-solid fa-briefcase-medical me-2 text-primary"></i> Dashboard Enfermería
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'enfermeria:uso_create' %}" class="nav-link text-white">
-          <i class="fa-solid fa-pills me-2 text-warning"></i> Registrar Uso
-        </a>
-      </li>
-      <li>
-        <a href="{% url 'enfermeria:atencion_form' %}" class="nav-link text-white active">
-          <i class="fa-solid fa-user-injured me-2 text-success"></i> Atenciones Médicas
-        </a>
-      </li>
-      <!-- Puedes agregar más módulos aquí si deseas -->
-    </ul>
-    <hr class="text-secondary">
-    <div class="dropdown">
-      <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-        
-        <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /Sidebar -->
+{% block title %}{% if edit_id %}Editar Atención{% else %}Nueva Atención{% endif %}{% endblock %}
+{% block page_pretitle %}Enfermería{% endblock %}
+{% block page_title %}{% if edit_id %}Editar Atención Médica{% else %}Nueva Atención Médica{% endif %}{% endblock %}
+{% block nav_atencion %}active{% endblock %}
 
-  <!-- Main content -->
-  <div class="flex-grow-1">
-    <div class="container py-4">
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Dashboard
+  </a>
+</div>
+{% endblock %}
 
-      {% if form.errors %}
-        <div class="alert alert-danger">
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-user-heart me-2 text-blue"></i>{% if edit_id %}Editar Atención{% else %}Registrar Atención{% endif %}</h3>
+      </div>
+      <div class="card-body">
+        {% if form.errors %}
+        <div class="alert alert-danger mb-3">
           <strong>Errores de validación:</strong>
-          <ul class="mb-0">
+          <ul class="mb-0 mt-1">
             {% for field, errs in form.errors.items %}
               <li><strong>{{ field }}:</strong> {{ errs|join:", " }}</li>
             {% endfor %}
           </ul>
         </div>
-      {% endif %}
-
-      <h2 class="mb-4">{% if edit_id %}Editar Atención{% else %}Nueva Atención Médica{% endif %}</h2>
-
-      <form method="post" class="row g-3 mb-5">
-        {% csrf_token %}
-        <input type="hidden" name="pk" value="{{ edit_id }}">
-        <!-- Selector de estudiante -->
-        <div class="col-md-6">
-          <label for="student-select" class="form-label">Estudiante:</label>
-          <select id="student-select"
-                  name="estudiante"
-                  class="form-select"
-                  required>
-            <option value="">-- Selecciona un alumno --</option>
-            {% for s in students %}
-              <option
-                value="{{ s.id }}"
-                data-grado="{{ s.grado }}"
-                {% if form.instance.estudiante == s.label %}selected{% endif %}>
-                {{ s.label }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <!-- Grado (solo lectura) -->
-        <div class="col-md-6">
-          <label for="grade-display" class="form-label">Grado:</label>
-          <input type="text"
-                 id="grade-display"
-                 class="form-control"
-                 readonly
-                 value="{% if form.instance.grado %}{{ form.instance.grado.nombre }}{% endif %}">
-          <input type="hidden"
-                 name="grado"
-                 id="student_grade"
-                 value="{% if form.instance.grado %}{{ form.instance.grado.nombre }}{% endif %}">
-        </div>
-        <!-- Resto de campos -->
-        <div class="col-md-6">
-          {{ form.fecha_hora.label_tag }}{{ form.fecha_hora }}
-        </div>
-        <div class="col-md-6">
-          {{ form.atendido_por.label_tag }}{{ form.atendido_por }}
-        </div>
-        <div class="col-12">
-          {{ form.motivo.label_tag }}{{ form.motivo }}
-        </div>
-        <div class="col-12">
-          {{ form.tratamiento.label_tag }}{{ form.tratamiento }}
-        </div>
-        <div class="col-12 text-end">
-          <button type="submit" class="btn btn-primary">
-            {% if edit_id %}Actualizar{% else %}Guardar{% endif %}
-          </button>
+        {% endif %}
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="pk" value="{{ edit_id }}">
+          <div class="col-md-6">
+            <label class="form-label">Estudiante</label>
+            <select id="student-select" name="estudiante" class="form-select" required>
+              <option value="">-- Selecciona un alumno --</option>
+              {% for s in students %}
+                <option value="{{ s.id }}" data-grado="{{ s.grado }}"
+                  {% if form.instance.estudiante == s.label %}selected{% endif %}>{{ s.label }}</option>
+              {% endfor %}
+            </select>
           </div>
-      </form>
+          <div class="col-md-6">
+            <label class="form-label">Grado</label>
+            <input type="text" id="grade-display" class="form-control" readonly
+                   value="{% if form.instance.grado %}{{ form.instance.grado.nombre }}{% endif %}">
+            <input type="hidden" name="grado" id="student_grade"
+                   value="{% if form.instance.grado %}{{ form.instance.grado.nombre }}{% endif %}">
+          </div>
+          <div class="col-md-6">
+            {{ form.fecha_hora.label_tag }}{{ form.fecha_hora }}
+          </div>
+          <div class="col-md-6">
+            {{ form.atendido_por.label_tag }}{{ form.atendido_por }}
+          </div>
+          <div class="col-12">
+            {{ form.motivo.label_tag }}{{ form.motivo }}
+          </div>
+          <div class="col-12">
+            {{ form.tratamiento.label_tag }}{{ form.tratamiento }}
+          </div>
+          <div class="col-12 text-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="ti ti-device-floppy me-1"></i>
+              {% if edit_id %}Actualizar{% else %}Guardar{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-      <!-- Listado de Atenciones -->
-      <h3 class="mb-3">Listado de Atenciones</h3>
-      <table id="atenciones-table" class="table table-striped table-hover">
-        <thead class="table-dark">
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-list me-2"></i>Listado de Atenciones</h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table id="atenciones-table" class="table table-vcenter table-hover card-table">
+        <thead>
           <tr>
             <th>Estudiante</th>
             <th>Grado</th>
@@ -155,79 +101,46 @@
             </td>
             <td>{{ r.atendido_por.nombre }}</td>
             <td>
-              <button onclick="confirmDelete({{ r.pk }})"
-                      class="btn btn-sm btn-danger">🗑</button>
-              <a href="?edit={{ r.pk }}" class="btn btn-sm btn-warning">✎</a>
-              <a href="{% url 'enfermeria:enviar_correo' r.pk %}"
-                 class="btn btn-sm btn-secondary">✉️</a>
+              <button onclick="confirmDelete({{ r.pk }})" class="btn btn-sm btn-ghost-danger" title="Eliminar">
+                <i class="ti ti-trash"></i>
+              </button>
+              <a href="?edit={{ r.pk }}" class="btn btn-sm btn-ghost-warning" title="Editar">
+                <i class="ti ti-pencil"></i>
+              </a>
+              <a href="{% url 'enfermeria:enviar_correo' r.pk %}" class="btn btn-sm btn-ghost-secondary" title="Enviar correo">
+                <i class="ti ti-mail"></i>
+              </a>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-
-      <div class="footer">
-        © {{ year }} Soporte Técnico – Asociación Nuevo Amanecer.
-      </div>
     </div>
   </div>
 </div>
+{% endblock %}
 
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Bootstrap Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<!-- DataTables JS -->
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% block extra_js %}
 <script>
-  $(function(){
-    // Inicializar Select2
-    $('#student-select').select2({
-      placeholder: '-- Selecciona un alumno --',
-      width: '100%'
-    });
-
-    // Actualizar grado al cambiar estudiante
-    $('#student-select').on('change', function(){
-      var grado = $(this).find('option:selected').data('grado') || '';
-      $('#grade-display').val(grado);
-      $('#student_grade').val(grado);
-    });
-
-    // Inicializar DataTable con orden por Fecha desc
-    var table = $('#atenciones-table').DataTable({
-      order: [[2, 'desc']],
-      pageLength: 15,
-      lengthChange: false,
-      language: {
-        search: "Buscar:",
-        paginate: { previous: "Anterior", next: "Siguiente" },
-        zeroRecords: "No hay registros coincidentes",
-        info: "Mostrando _START_ a _END_ de _TOTAL_ atenciones",
-        infoEmpty: "Mostrando 0 a 0 de 0 atenciones"
-      }
-    });
-
-    // Confirmación de eliminación
-    window.confirmDelete = function(id) {
-      Swal.fire({
-        title: '¿Eliminar esta atención?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-      }).then(result => {
-        if (result.isConfirmed) {
-          window.location.href = '?delete=' + id;
-        }
-      });
-    };
+$(function(){
+  $('#student-select').select2({ placeholder: '-- Selecciona un alumno --', width: '100%' });
+  $('#student-select').on('change', function(){
+    var grado = $(this).find('option:selected').data('grado') || '';
+    $('#grade-display').val(grado);
+    $('#student_grade').val(grado);
   });
+  $('#atenciones-table').DataTable({
+    order: [[2, 'desc']],
+    pageLength: 15,
+    lengthChange: false,
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+  });
+  window.confirmDelete = function(id) {
+    Swal.fire({
+      title: '¿Eliminar esta atención?', icon: 'warning',
+      showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+    }).then(result => { if (result.isConfirmed) window.location.href = '?delete=' + id; });
+  };
+});
 </script>
-</body>
-</html>
+{% endblock %}

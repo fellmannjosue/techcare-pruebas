@@ -7,6 +7,9 @@ urlpatterns = [
 
     # Reportes
     path('reporte/', views.reporte, name='reloj_reporte'),
+    path('reporte/nota/', views.reporte_nota_ajax, name='reloj_reporte_nota_ajax'),
+    path('reporte/comentario/add/', views.comentario_add_ajax, name='reloj_comentario_add'),
+    path('reporte/comentario/<int:pk>/delete/', views.comentario_delete_ajax, name='reloj_comentario_delete'),
     path('pdf/', views.exportar_pdf, name='reloj_exportar_pdf'),
 
     # Gráfica (pie) + detalle para modal

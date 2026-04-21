@@ -34,6 +34,8 @@ from .models import (
     SabadoEspecial,
     TiempoCompensatorio,
     PermisoEmpleado,
+    ReporteNota,
+    ReporteComentario,
 )
 
 # Formularios
@@ -119,12 +121,24 @@ def exportar_pdf(request):
             columnas = [col[0] for col in cursor.description]
             for r in rows:
                 row = dict(zip(columnas, r))
-                # Aplica filtro emp_code si corresponde
                 if emp_code_f and str(row.get('ID_Empleado') or "").strip() != emp_code_f:
                     continue
                 datos.append(row)
     except Exception as e:
         return HttpResponse(f"Error al generar PDF: {str(e)}")
+
+    # Cargar comentarios del rango para incluir en PDF
+    from datetime import date as date_type
+    try:
+        fi_d = date_type.fromisoformat(fecha_inicio)
+        ff_d = date_type.fromisoformat(fecha_fin)
+    except ValueError:
+        fi_d = ff_d = date_type.today()
+
+    pdf_comentarios_map = {}
+    for c in ReporteComentario.objects.filter(fecha__range=(fi_d, ff_d)):
+        key = (str(c.emp_code).strip(), c.fecha)
+        pdf_comentarios_map.setdefault(key, []).append(c.texto)
 
     # ----- PDF GENERATION -----
     response = HttpResponse(content_type="application/pdf")
@@ -132,6 +146,8 @@ def exportar_pdf(request):
 
     doc = SimpleDocTemplate(response, pagesize=landscape(letter), leftMargin=20, rightMargin=20, topMargin=20, bottomMargin=20)
     styles = getSampleStyleSheet()
+    small_style = styles["Normal"].clone('small_style')
+    small_style.fontSize = 8
     elements = []
 
     elements.append(Paragraph("Reporte de Asistencia", styles["Title"]))
@@ -139,20 +155,24 @@ def exportar_pdf(request):
     elements.append(Paragraph(f"Desde: {fecha_inicio} &nbsp;&nbsp;&nbsp; Hasta: {fecha_fin}", styles["Normal"]))
     elements.append(Spacer(1, 8))
 
-    # Encabezados (los mismos que en la tabla)
-    data = [columnas]
-    # Filas de datos
+    pdf_columnas = columnas + ["Comentarios"]
+    data = [pdf_columnas]
     for row in datos:
-        data.append([row[c] for c in columnas])
+        emp_code_r = str(row.get('ID_Empleado') or "").strip()
+        fecha_r    = row.get('Fecha')
+        comentarios_txt = " | ".join(pdf_comentarios_map.get((emp_code_r, fecha_r), []))
+        data.append([str(row[c]) if row.get(c) is not None else "" for c in columnas] + [comentarios_txt])
 
+    col_count = len(pdf_columnas)
     table = Table(data, repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#2C3E50")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTSIZE', (0,0), (-1,0), 11),
-        ('FONTSIZE', (0,1), (-1,-1), 10),
+        ('ALIGN', (col_count-1,1), (col_count-1,-1), 'LEFT'),
+        ('FONTSIZE', (0,0), (-1,0), 10),
+        ('FONTSIZE', (0,1), (-1,-1), 9),
         ('BOTTOMPADDING', (0,0), (-1,0), 8),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#34495E")),
         ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.whitesmoke, colors.lightgrey]),
@@ -542,9 +562,9 @@ def get_empleado_options():
 @login_required
 def reporte(request):
     """
-    (Vista) Reporte principal de marcas:
-    - Filtros: fecha_inicio, fecha_fin, y (opcional) emp_code
-    - Muestra por empleado/día: marcas (STRING_AGG) y estado (PRESENTE/AUSENTE)
+    Reporte principal de marcas con horario programado, chips coloreados y comentarios.
+    Columnas: ID Empleado | Empleado | Horario Programado | Fecha |
+              Marcas del Día | Cantidad Marcas | Comentario | Estado
     """
     hoy = datetime.today()
     fecha_inicio_default = hoy.replace(day=1).strftime('%Y-%m-%d')
@@ -558,6 +578,7 @@ def reporte(request):
     error = None
 
     if request.GET.get('fecha_inicio') and request.GET.get('fecha_fin'):
+        # SQL simplificado: sin Cargo, solo datos base por empleado/día
         query = f"""
 DECLARE @fechaInicio DATE = '{fecha_inicio}';
 DECLARE @fechaFin    DATE = '{fecha_fin}';
@@ -568,50 +589,122 @@ DECLARE @fechaFin    DATE = '{fecha_fin}';
     SELECT DATEADD(DAY, 1, Fecha)
     FROM fechas
     WHERE Fecha < @fechaFin
-),
-marcas AS (
-    SELECT
-        CAST(t.emp_code AS VARCHAR(20)) AS emp_code,
-        CONVERT(DATE, t.punch_time)     AS fecha,
-        CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108) AS hora,
-        t.punch_time
-    FROM dbo.iclock_transaction t
-    WHERE t.punch_time IS NOT NULL
 )
-SELECT 
-    e.emp_code                               AS ID_Empleado,
-    e.first_name + ' ' + e.last_name         AS Empleado,
-    ISNULL(p.position_name, '-')             AS Cargo,
+SELECT
+    e.emp_code                        AS ID_Empleado,
+    e.first_name + ' ' + e.last_name  AS Empleado,
     f.Fecha,
-    ISNULL((
-        SELECT STRING_AGG(m2.hora, ', ') WITHIN GROUP (ORDER BY m2.punch_time)
-        FROM marcas m2
-        WHERE m2.emp_code = CAST(e.emp_code AS VARCHAR(20))
-          AND m2.fecha    = f.Fecha
-    ), '')                                   AS Marcas,
-    COUNT(m.hora)                             AS Cantidad_Marcas,
-    CASE WHEN COUNT(m.hora) = 0 THEN 'AUSENTE' ELSE 'PRESENTE' END AS Estado
+    MIN(t.punch_time)                  AS Hora_Entrada,
+    MAX(t.punch_time)                  AS Hora_Salida,
+    COUNT(t.punch_time)                AS Cantidad_Marcas,
+    CASE WHEN COUNT(t.punch_time) = 0 THEN 'AUSENTE' ELSE 'PRESENTE' END AS Estado
 FROM fechas f
 CROSS JOIN dbo.personnel_employee e
-LEFT JOIN dbo.personnel_position p ON p.id = TRY_CONVERT(INT, e.position_id)
-LEFT JOIN marcas m
-       ON m.emp_code = CAST(e.emp_code AS VARCHAR(20))
-      AND m.fecha    = f.Fecha
-GROUP BY e.emp_code, e.first_name, e.last_name, p.position_name, f.Fecha
+LEFT JOIN dbo.iclock_transaction t
+       ON t.emp_code = e.emp_code
+      AND CONVERT(DATE, t.punch_time) = f.Fecha
+GROUP BY e.emp_code, e.first_name, e.last_name, f.Fecha
 ORDER BY e.emp_code, f.Fecha
 OPTION (MAXRECURSION 0);
 """
         try:
             with connections['zkbio_sqlserver'].cursor() as cursor:
                 cursor.execute(query)
-                rows = cursor.fetchall()
-                columnas = [col[0] for col in cursor.description]
+                rows      = cursor.fetchall()
+                columnas  = [col[0] for col in cursor.description]
 
-                for r in rows:
-                    row = dict(zip(columnas, r))
-                    if emp_code_f and str(row.get('ID_Empleado') or "").strip() != emp_code_f:
-                        continue
-                    datos.append(row)
+            # Marcas individuales por empleado/día (para chips coloreados)
+            marcas_map = {}
+            try:
+                with connections['zkbio_sqlserver'].cursor() as cur2:
+                    cur2.execute(f"""
+                        SELECT
+                            CAST(t.emp_code AS VARCHAR(20)) AS emp_code,
+                            CONVERT(DATE, t.punch_time)     AS fecha,
+                            CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108) AS hhmm
+                        FROM dbo.iclock_transaction t
+                        WHERE CONVERT(DATE, t.punch_time) BETWEEN '{fecha_inicio}' AND '{fecha_fin}'
+                        ORDER BY t.emp_code, t.punch_time
+                    """)
+                    for emp_m, fecha_m, hhmm in cur2.fetchall():
+                        marcas_map.setdefault((str(emp_m).strip(), fecha_m), []).append(hhmm)
+            except Exception as ex:
+                print(f"[WARN] marcas_map reporte: {ex}")
+
+            # Notas/comentarios en bulk para el rango
+            from datetime import date as date_type
+            try:
+                fi_d = date_type.fromisoformat(fecha_inicio)
+                ff_d = date_type.fromisoformat(fecha_fin)
+            except ValueError:
+                fi_d = ff_d = hoy.date()
+
+            comentarios_map = {}
+            for c in ReporteComentario.objects.filter(fecha__range=(fi_d, ff_d)):
+                comentarios_map.setdefault((c.emp_code, c.fecha), []).append(
+                    {'pk': c.pk, 'texto': c.texto}
+                )
+
+            DEF_IN, DEF_OUT = "07:00", "16:48"
+
+            for r in rows:
+                row      = dict(zip(columnas, r))
+                emp_code = str(row.get('ID_Empleado') or "").strip()
+                fecha_d  = row.get('Fecha')
+
+                # Filtro por empleado
+                if emp_code_f and emp_code != emp_code_f:
+                    continue
+
+                # Horario programado
+                segs = _segmentos_programados(emp_code, fecha_d)
+                if segs:
+                    prog_first_in, prog_last_out = _first_in_last_out(segs)
+                    no_programado = False
+                else:
+                    prog_first_in, prog_last_out = DEF_IN, DEF_OUT
+                    no_programado = True
+
+                # Colores de entrada / salida
+                h_in_real  = _to_hhmm(row.get('Hora_Entrada'))
+                h_out_real = _to_hhmm(row.get('Hora_Salida'))
+
+                color_in_class  = ""
+                color_out_class = ""
+                try:
+                    if h_in_real and prog_first_in:
+                        tin_real = _parse_hhmm_to_dt(h_in_real)
+                        tin_prog = _parse_hhmm_to_dt(prog_first_in)
+                        color_in_class = "hora-verde" if tin_real <= tin_prog else "hora-rojo"
+                    if h_out_real and prog_last_out:
+                        tout_real = _parse_hhmm_to_dt(h_out_real)
+                        tout_prog = _parse_hhmm_to_dt(prog_last_out)
+                        if tout_real > tout_prog:
+                            color_out_class = "hora-azul"
+                        elif tout_real == tout_prog:
+                            color_out_class = "hora-verde"
+                        else:
+                            color_out_class = "hora-rojo"
+                except Exception:
+                    pass
+
+                # Chips coloreados
+                key = (emp_code, fecha_d)
+                marcas_list = marcas_map.get(key, [])
+                marcas_coloreadas = []
+                for idx, t_mark in enumerate(marcas_list):
+                    cls = ""
+                    if idx == 0:
+                        cls = color_in_class
+                    elif idx == len(marcas_list) - 1:
+                        cls = color_out_class
+                    marcas_coloreadas.append({'t': t_mark, 'cls': cls})
+
+                row['No_Programado']    = no_programado
+                row['Horario_Prog']     = f"{prog_first_in} → {prog_last_out}" if not no_programado else ""
+                row['Marcas_Dia']       = marcas_coloreadas
+                row['Comentarios']      = comentarios_map.get((emp_code, fecha_d), [])
+                datos.append(row)
 
         except Exception as e:
             error = f"Error al consultar la base de datos: {str(e)}"
@@ -625,6 +718,49 @@ OPTION (MAXRECURSION 0);
         'emp_code_f': emp_code_f,
     }
     return render(request, 'reloj/reporte.html', contexto)
+
+
+# ──────────────────────────────────────────────────────────────
+# AJAX → Comentarios múltiples en Generar Reporte (máx. 5)
+# ──────────────────────────────────────────────────────────────
+@require_POST
+@login_required
+def comentario_add_ajax(request):
+    from datetime import date as date_type
+    emp_code  = request.POST.get('emp_code', '').strip()
+    fecha_str = request.POST.get('fecha', '').strip()
+    texto     = request.POST.get('texto', '').strip()
+
+    if not emp_code or not fecha_str or not texto:
+        return JsonResponse({'ok': False, 'error': 'Datos incompletos'}, status=400)
+
+    try:
+        fecha = date_type.fromisoformat(fecha_str)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    if ReporteComentario.objects.filter(emp_code=emp_code, fecha=fecha).count() >= 5:
+        return JsonResponse({'ok': False, 'error': 'Máximo 5 comentarios por registro'}, status=400)
+
+    obj = ReporteComentario.objects.create(
+        emp_code=emp_code, fecha=fecha, texto=texto, creado_por=request.user
+    )
+    return JsonResponse({'ok': True, 'pk': obj.pk, 'texto': obj.texto})
+
+
+@require_POST
+@login_required
+def comentario_delete_ajax(request, pk):
+    obj = get_object_or_404(ReporteComentario, pk=pk)
+    obj.delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+@login_required
+def reporte_nota_ajax(request):
+    """Endpoint legacy — conservado para compatibilidad."""
+    return JsonResponse({'ok': False, 'error': 'Usar comentario_add_ajax'}, status=410)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -847,6 +983,13 @@ def horarios_edit(request, pk):
         form = _AsignacionCustomForm(instance=asignacion)
         # Preselección del empleado actual
         form.fields['emp_code'].initial = str(asignacion.emp_code)
+
+    # AJAX GET → retorna solo el contenido del modal (parcial)
+    if _is_ajax(request):
+        return render(request, 'reloj/_asignacion_edit_modal.html', {
+            'form': form,
+            'asignacion': asignacion,
+        })
 
     return render(request, 'reloj/asignacion_form.html', {
         'form': form,

@@ -23,7 +23,6 @@ def maintenance_dashboard(request):
         form = MaintenanceRecordForm(request.POST)
         if form.is_valid():
             form.save()
-            # ← redirige usando el namespace 'mantenimiento'
             return redirect('mantenimiento:maintenance_dashboard')
     else:
         form = MaintenanceRecordForm()
@@ -32,6 +31,10 @@ def maintenance_dashboard(request):
     return render(request, 'mantenimiento/maintenance_dashboard.html', {
         'form': form,
         'records': records,
+        'total':      records.count(),
+        'pendiente':  records.filter(status='Pendiente').count(),
+        'en_proceso': records.filter(status='En Proceso').count(),
+        'completado': records.filter(status='Completado').count(),
     })
 
 

@@ -1,268 +1,261 @@
+{% extends 'reloj/base_reloj.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Reporte de Asistencia</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Bootstrap / Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-  <!-- DataTables -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
-  <!-- Select2 (opcional, para buscar en el combo) -->
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'reloj/css/reloj.css' %}">
-  <style>
-    .select2-container .select2-selection--single { height: 38px; }
-    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 38px; }
-    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 38px; }
-  </style>
-</head>
-<body class="bg-light">
+{% block title %}Reporte de Asistencia{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Reporte de Asistencia{% endblock %}
+{% block nav_reporte %}active{% endblock %}
 
-<div class="d-flex" id="wrapper">
-   <!-- Sidebar principal estilo TechCare -->
-    <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:230px;">
-        <div class="d-flex align-items-center mb-3">
-            <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-            <span class="fs-5 fw-bold">TechCare</span>
-        </div>
-        <hr class="text-secondary">
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li>
-                <a href="{% url 'reloj_dashboard' %}" class="nav-link text-white active">
-                    <i class="fa-solid fa-clock me-2"></i> Reloj (Asistencia)
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_reporte' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-table me-2"></i> Generar Reporte
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_grafica' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-chart-bar me-2"></i> Ver Gráfica
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_plantilla_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-layer-group me-2"></i> Plantillas de Horario
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'horarios_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-user-clock me-2"></i> Asignaciones de Horario
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'tiempo_por_hora' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-hourglass-half me-2"></i> Tiempo por Hora
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_compensatorio_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-stopwatch me-2"></i> Tiempo Compensatorio
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_feriados_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-calendar-days me-2"></i> Feriados
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_sabados_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-calendar-week me-2"></i> Sábados Especiales
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'reloj_permisos_list' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-clipboard-list me-2"></i> Permisos
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'menu' %}" class="nav-link text-white">
-                    <i class="fa-solid fa-arrow-left me-2"></i> Volver al Menú
-                </a>
-            </li>
-        </ul>
-        <hr class="text-secondary">
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
-                data-bs-toggle="dropdown">
-                <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32"
-                    class="rounded-circle me-2">
-                <strong>{{ request.user.username }}</strong>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-                <li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fa fa-cog me-2"></i> Admin</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
-            </ul>
-        </div>
-    </nav>
-    <!-- /Sidebar -->
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+<style>
+  .select2-container .select2-selection--single { height: 36px; }
+  .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+  .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+  .hora-rojo  { background:#f8d7da !important; color:#842029 !important; font-weight:600; }
+  .hora-verde { background:#d1e7dd !important; color:#0f5132 !important; font-weight:600; }
+  .hora-azul  { background:#3b8eea !important; color:#fff    !important; font-weight:600; }
+  .chip       { padding:2px 7px; border-radius:.25rem; display:inline-block; font-size:.82rem; }
+  .cmts-wrap { min-width:200px; max-width:280px; }
+  .cmts-list { list-style:none; padding:0; margin:0 0 4px 0; }
+  .cmts-list li { display:flex; align-items:flex-start; gap:4px; font-size:.8rem; padding:2px 0; border-bottom:1px solid #f0f0f0; }
+  .cmts-list li:last-child { border-bottom:none; }
+  .cmts-list li span { flex:1; word-break:break-word; }
+  .btn-del-cmt { flex-shrink:0; padding:0 3px; border:none; background:none; color:#aaa; line-height:1; cursor:pointer; }
+  .btn-del-cmt:hover { color:#dc3545; }
+  .cmt-add-row { display:flex; gap:4px; align-items:center; }
+  .cmt-add-row input { flex:1; font-size:.8rem; border:1px solid #dee2e6; border-radius:.375rem; padding:3px 6px; background:#fff; min-width:0; }
+  .cmt-add-row input:focus { outline:none; border-color:#86b7fe; box-shadow:0 0 0 2px rgba(13,110,253,.15); }
+  .cmt-add-row input:disabled, .btn-add-cmt:disabled { opacity:.45; cursor:not-allowed; }
+  .cmt-limit { font-size:.75rem; color:#6c757d; }
+</style>
+{% endblock %}
 
-  <!-- Main content -->
-  <div class="flex-grow-1 d-flex flex-column min-vh-100">
-    <!-- Header -->
-    <nav class="navbar navbar-light bg-white shadow-sm px-3">
-      <div class="container-fluid">
-        <div class="navbar-brand d-flex align-items-center gap-3">
-          <i class="fa-solid fa-table text-success"></i>
-          <span class="fs-4">Reporte de Asistencia</span>
-          <div data-autorefresh-host></div>
-        </div>
-        <div>
-          <a href="{% url 'reloj_dashboard' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="fa fa-arrow-left"></i> Volver
-          </a>
-        </div>
+{% block page_actions %}
+<div class="col-auto ms-auto d-flex gap-2">
+  <div data-autorefresh-host></div>
+  <a href="{% url 'reloj_exportar_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&emp_code={{ emp_code_f }}"
+     class="btn btn-ghost-danger">
+    <i class="ti ti-file-type-pdf me-1"></i> PDF
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger mb-3">{{ error }}</div>
+{% endif %}
+
+<div class="alert alert-secondary py-2 mb-3 d-flex flex-wrap gap-3 align-items-center">
+  <span><span class="chip hora-verde">HH:MM</span> A tiempo</span>
+  <span><span class="chip hora-rojo">HH:MM</span> Tarde / salida antes</span>
+  <span><span class="chip hora-azul">HH:MM</span> Se quedó más</span>
+  <span><span class="badge bg-dark">No programado</span> Sin plantilla asignada</span>
+</div>
+
+<form method="get" class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-auto">
+        <label class="form-label">Fecha inicio</label>
+        <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" required class="form-control">
       </div>
-    </nav>
-    <!-- /Header -->
-
-    <div class="container py-4">
-      {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-      {% endif %}
-
-      <!-- Filtros -->
-      <form method="get" class="row g-3 align-items-end mb-4">
-        <div class="col-auto">
-          <label for="fecha_inicio" class="form-label mb-0">Fecha inicio</label>
-          <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}" required class="form-control">
-        </div>
-        <div class="col-auto">
-          <label for="fecha_fin" class="form-label mb-0">Fecha fin</label>
-          <input type="date" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}" required class="form-control">
-        </div>
-        <div class="col-auto" style="min-width:280px;">
-          <label for="emp_code" class="form-label mb-0">Empleado</label>
-          <select id="emp_code" name="emp_code" class="form-select">
-            <option value="">Todos</option>
-            {% for code,label in empleados_opts %}
-              <option value="{{ code }}" {% if code == emp_code_f %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-search"></i> Consultar
-          </button>
-        </div>
-        <div class="col-auto">
-          <a href="{% url 'reloj_exportar_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&emp_code={{ emp_code_f }}" class="btn btn-danger">
-            <i class="fa-solid fa-file-pdf"></i> Exportar PDF
-          </a>
-        </div>
-      </form>
-
-      {% if datos %}
-      <div class="table-responsive">
-        <table id="tablaAsistencia" class="table table-bordered table-striped align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>ID Empleado</th>
-              <th>Empleado</th>
-              <th>Cargo</th>
-              <th>Fecha</th>
-              <th>Marcas</th>
-              <th>Cantidad Marcas</th>
-              <th>Estado</th>
-            </tr>
-            <tr>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-              <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar" /></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in datos %}
-            <tr {% if row.Estado == "AUSENTE" %} style="background-color: #f8d7da;" {% endif %}>
-              <td>{{ row.ID_Empleado }}</td>
-              <td>{{ row.Empleado }}</td>
-              <td>{{ row.Cargo }}</td>
-              <td>{{ row.Fecha|date:"Y-m-d" }}</td>
-              <td>
-                {% if row.Marcas %}
-                  {{ row.Marcas }}
-                {% else %}
-                  —
-                {% endif %}
-              </td>
-              <td>{{ row.Cantidad_Marcas }}</td>
-              <td>
-                {% if row.Estado == "AUSENTE" %}
-                  <span class="badge bg-danger">{{ row.Estado }}</span>
-                {% else %}
-                  <span class="badge bg-success">{{ row.Estado }}</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="col-auto">
+        <label class="form-label">Fecha fin</label>
+        <input type="date" name="fecha_fin" value="{{ fecha_fin }}" required class="form-control">
       </div>
-      {% elif not error %}
-        <p class="text-muted mt-4">No hay datos para mostrar en el rango seleccionado.</p>
-      {% endif %}
+      <div class="col-auto" style="min-width:280px;">
+        <label class="form-label">Empleado</label>
+        <select id="emp_code" name="emp_code" class="form-select">
+          <option value="">Todos</option>
+          {% for code, label in empleados_opts %}
+            <option value="{{ code }}" {% if code == emp_code_f %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-search me-1"></i> Consultar
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% if datos %}
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table id="tablaAsistencia" class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>ID Empleado</th><th>Empleado</th><th>Horario Programado</th>
+            <th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
+            <th>Comentario</th><th>Estado</th>
+          </tr>
+          <tr>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th></th>
+            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in datos %}
+          <tr {% if row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
+            <td>{{ row.ID_Empleado }}</td>
+            <td>{{ row.Empleado }}</td>
+            <td>
+              {% if row.No_Programado %}
+                <span class="badge bg-dark">No programado</span>
+              {% else %}
+                <span class="text-nowrap">{{ row.Horario_Prog }}</span>
+              {% endif %}
+            </td>
+            <td>{{ row.Fecha|date:"Y-m-d" }}</td>
+            <td>
+              {% if row.Marcas_Dia %}
+                {% for m in row.Marcas_Dia %}
+                  {% if m.cls %}<span class="chip {{ m.cls }}">{{ m.t }}</span>
+                  {% else %}<span class="badge text-bg-secondary">{{ m.t }}</span>{% endif %}
+                  {% if not forloop.last %} {% endif %}
+                {% endfor %}
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center">{{ row.Cantidad_Marcas }}</td>
+            <td>
+              <div class="cmts-wrap"
+                   data-emp="{{ row.ID_Empleado }}"
+                   data-fecha="{{ row.Fecha|date:'Y-m-d' }}">
+                <ul class="cmts-list">
+                  {% for c in row.Comentarios %}
+                  <li data-pk="{{ c.pk }}">
+                    <span>{{ c.texto }}</span>
+                    <button class="btn-del-cmt" title="Eliminar"><i class="ti ti-x" style="font-size:.75rem;"></i></button>
+                  </li>
+                  {% endfor %}
+                </ul>
+                {% with total=row.Comentarios|length %}
+                <div class="cmt-add-row">
+                  <input type="text" class="input-new-cmt" placeholder="Nuevo comentario…"
+                         maxlength="200" {% if total >= 5 %}disabled{% endif %}>
+                  <button type="button" class="btn btn-sm btn-ghost-primary btn-add-cmt"
+                          title="Agregar" {% if total >= 5 %}disabled{% endif %}>
+                    <i class="ti ti-plus"></i>
+                  </button>
+                </div>
+                <div class="cmt-limit">{{ total }}/5</div>
+                {% endwith %}
+              </div>
+            </td>
+            <td>
+              {% if row.Estado == "AUSENTE" %}
+                <span class="badge bg-danger-lt text-danger">{{ row.Estado }}</span>
+              {% else %}
+                <span class="badge bg-success-lt text-success">{{ row.Estado }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
+{% elif not error %}
+<div class="alert alert-secondary">No hay datos para mostrar en el rango seleccionado.</div>
+{% endif %}
+{% endblock %}
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- DataTables -->
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<!-- Select2 (opcional) -->
+{% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<script>
-  $(document).ready(function() {
-    // DataTable + filtros por columna
-    var table = $('#tablaAsistencia').DataTable({
-      language: {
-        "lengthMenu": "Mostrar _MENU_ registros",
-        "zeroRecords": "No hay registros",
-        "info": "Mostrando _START_ a _END_ de _TOTAL_",
-        "infoEmpty": "No hay registros disponibles",
-        "infoFiltered": "(filtrado de _MAX_ registros totales)",
-        "search": "Buscar:",
-        "paginate": { "first":"Primero","last":"Último","next":"Siguiente","previous":"Anterior" }
-      },
-      pageLength: 10,
-      orderCellsTop: true,
-      fixedHeader: true,
-      order: [[0, 'asc'], [3, 'asc']]
-    });
-
-    $('#tablaAsistencia thead tr:eq(1) th').each(function(i) {
-      $('input', this).on('keyup change', function() {
-        if (table.column(i).search() !== this.value) {
-          table.column(i).search(this.value).draw();
-        }
-      });
-    });
-
-    // Select2 en el combo de empleado (opcional)
-    if (window.jQuery && $.fn.select2) {
-      $('#emp_code').select2({
-        width: '100%',
-        placeholder: 'Todos',
-        allowClear: true
-      });
-    }
-  });
-</script>
-
 <script src="{% static 'reloj/js/autorefresh.js' %}"></script>
-</body>
-</html>
+<script>
+const CSRF_TOKEN  = '{{ csrf_token }}';
+const ADD_URL     = '{% url "reloj_comentario_add" %}';
+const DELETE_BASE = '{% url "reloj_comentario_delete" pk=99999 %}';
+
+$(function(){
+  var table = $('#tablaAsistencia').DataTable({
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+    pageLength: 25, orderCellsTop: true, fixedHeader: true,
+    order: [[0,'asc'],[3,'asc']],
+    columnDefs: [{ orderable: false, targets: 6 }]
+  });
+
+  $('#tablaAsistencia thead tr:eq(1) th').each(function(i){
+    $('input', this).on('keyup change', function(){
+      if (table.column(i).search() !== this.value) table.column(i).search(this.value).draw();
+    });
+  });
+
+  if ($.fn.select2) {
+    $('#emp_code').select2({ width:'100%', placeholder:'Todos', allowClear:true });
+  }
+
+  function actualizarLimite($wrap){
+    const count = $wrap.find('.cmts-list li').length;
+    $wrap.find('.cmt-limit').text(count + '/5');
+    const lleno = count >= 5;
+    $wrap.find('.input-new-cmt').prop('disabled', lleno);
+    $wrap.find('.btn-add-cmt').prop('disabled', lleno);
+  }
+
+  function agregarComentario($wrap){
+    const $input = $wrap.find('.input-new-cmt');
+    const texto  = $input.val().trim();
+    if (!texto) return;
+    const emp   = $wrap.data('emp');
+    const fecha = $wrap.data('fecha');
+
+    $wrap.find('.btn-add-cmt').prop('disabled', true);
+    $.ajax({
+      url: ADD_URL, method: 'POST',
+      headers: {'X-CSRFToken': CSRF_TOKEN},
+      data: { emp_code: emp, fecha: fecha, texto: texto },
+      success: function(res){
+        if (res.ok){
+          $wrap.find('.cmts-list').append(
+            `<li data-pk="${res.pk}"><span>${$('<div>').text(res.texto).html()}</span>` +
+            `<button class="btn-del-cmt" title="Eliminar"><i class="ti ti-x" style="font-size:.75rem;"></i></button></li>`
+          );
+          $input.val('');
+          actualizarLimite($wrap);
+        } else {
+          Swal.fire({icon:'warning', title:'Aviso', text: res.error || 'No se pudo agregar.'});
+          $wrap.find('.btn-add-cmt').prop('disabled', false);
+        }
+      },
+      error: function(){
+        Swal.fire({icon:'error', title:'Error', text:'Error de red.'});
+        $wrap.find('.btn-add-cmt').prop('disabled', false);
+      }
+    });
+  }
+
+  $(document).on('click', '.btn-add-cmt', function(){
+    agregarComentario($(this).closest('.cmts-wrap'));
+  });
+
+  $(document).on('keydown', '.input-new-cmt', function(e){
+    if (e.key === 'Enter'){ e.preventDefault(); agregarComentario($(this).closest('.cmts-wrap')); }
+  });
+
+  $(document).on('click', '.btn-del-cmt', function(){
+    const $li   = $(this).closest('li');
+    const pk    = $li.data('pk');
+    const $wrap = $li.closest('.cmts-wrap');
+    $.ajax({
+      url: DELETE_BASE.replace('99999', pk), method: 'POST',
+      headers: {'X-CSRFToken': CSRF_TOKEN},
+      success: function(res){
+        if (res.ok){ $li.remove(); actualizarLimite($wrap); }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

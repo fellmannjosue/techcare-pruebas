@@ -1,0 +1,139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Inventario{% endblock %} – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet"/>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="wrapper">
+
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <h1 class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'inventario:dashboard' %}">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" width="110" alt="TechCare" class="navbar-brand-image">
+        </a>
+      </h1>
+      <div class="collapse navbar-collapse" id="sidebar-menu">
+        <ul class="navbar-nav pt-lg-3">
+          <li class="nav-item">
+            <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'inventario:dashboard' %}">
+              <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+              <span class="nav-link-title">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_computadoras %}{% endblock %}" href="{% url 'inventario:inventario_computadoras' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-desktop"></i></span>
+              <span class="nav-link-title">Computadoras</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_televisores %}{% endblock %}" href="{% url 'inventario:inventario_televisores' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-tv"></i></span>
+              <span class="nav-link-title">Televisores</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_impresoras %}{% endblock %}" href="{% url 'inventario:inventario_impresoras' %}">
+              <span class="nav-link-icon"><i class="ti ti-printer"></i></span>
+              <span class="nav-link-title">Impresoras</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_routers %}{% endblock %}" href="{% url 'inventario:inventario_routers' %}">
+              <span class="nav-link-icon"><i class="ti ti-wifi"></i></span>
+              <span class="nav-link-title">Routers</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_datashows %}{% endblock %}" href="{% url 'inventario:inventario_datashows' %}">
+              <span class="nav-link-icon"><i class="ti ti-video"></i></span>
+              <span class="nav-link-title">DataShows</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_monitores %}{% endblock %}" href="{% url 'inventario:inventario_monitores' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-imac"></i></span>
+              <span class="nav-link-title">Monitores</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_categoria %}{% endblock %}" href="{% url 'inventario:inventario_por_categoria' %}">
+              <span class="nav-link-icon"><i class="ti ti-category"></i></span>
+              <span class="nav-link-title">Por Categoría</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_registros %}{% endblock %}" href="{% url 'inventario:inventario_registros' %}">
+              <span class="nav-link-icon"><i class="ti ti-clipboard-list"></i></span>
+              <span class="nav-link-title">Ver Registros</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'menu' %}">
+              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+              <span class="nav-link-title">Menú Principal</span>
+            </a>
+          </li>
+        </ul>
+        <div class="mt-auto pt-3 border-top border-secondary-subtle">
+          <div class="d-flex align-items-center px-3 py-2">
+            <img src="{% static 'accounts/img/user.png' %}" width="36" height="36" class="rounded-circle me-2">
+            <div class="flex-grow-1 overflow-hidden">
+              <div class="text-white fw-bold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+            </div>
+            <a href="{% url 'logout' %}" class="btn btn-sm btn-ghost-danger ms-2" title="Cerrar sesión">
+              <i class="ti ti-logout"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-xl">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <div class="page-pretitle">{% block page_pretitle %}Inventario{% endblock %}</div>
+            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+          </div>
+          {% block page_actions %}{% endblock %}
+        </div>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="container-xl">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+    <footer class="footer footer-transparent d-print-none">
+      <div class="container-xl text-center">
+        <p class="text-muted mb-0 small">© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer.</p>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

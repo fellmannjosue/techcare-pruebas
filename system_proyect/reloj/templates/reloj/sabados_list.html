@@ -1,0 +1,92 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Sábados Especiales{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Sábados Especiales{% endblock %}
+{% block nav_sabados %}active{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'reloj_sabado_new' %}" class="btn btn-primary">
+    <i class="ti ti-plus me-1"></i> Agregar Sábado Especial
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="alert alert-info d-flex align-items-start mb-4">
+  <i class="ti ti-info-circle me-2 mt-1"></i>
+  Los <b>Sábados Especiales</b> son sábados que cuentan como día laborable (se marcan presentes/ausentes).
+  El sistema los reconoce automáticamente al generar reportes.
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Creado por</th>
+            <th>Creado en</th>
+            <th style="width:120px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sabados %}
+          <tr>
+            <td>{{ forloop.counter0|add:sabados.start_index }}</td>
+            <td><strong>{{ s.fecha|date:"Y-m-d" }}</strong></td>
+            <td>{{ s.descripcion|default:"—" }}</td>
+            <td>{{ s.creado_por|default:"—" }}</td>
+            <td>{% if s.creado_en %}{{ s.creado_en|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{% url 'reloj_sabado_edit' s.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
+                  <i class="ti ti-pencil"></i>
+                </a>
+                <a href="{% url 'reloj_sabado_delete' s.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
+                  <i class="ti ti-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No hay sábados especiales registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer d-flex align-items-center">
+    <nav>
+      <ul class="pagination mb-0">
+        {% if sabados.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ sabados.previous_page_number }}">«</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">«</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ sabados.number }} de {{ sabados.paginator.num_pages }}</span>
+        </li>
+        {% if sabados.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ sabados.next_page_number }}">»</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">»</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
+{% endblock %}

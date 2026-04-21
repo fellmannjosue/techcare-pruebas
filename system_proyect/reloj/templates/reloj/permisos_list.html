@@ -1,0 +1,169 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Permisos de Empleados{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Permisos de Empleados{% endblock %}
+{% block nav_permisos %}active{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto ms-auto">
+  <a href="{% url 'reloj_permiso_new' %}" class="btn btn-primary">
+    <i class="ti ti-plus me-1"></i> Agregar Permiso
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="get" class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-auto">
+        <label class="form-label">Filtrar por emp_code</label>
+        <input type="text" class="form-control" name="emp_code" value="{{ emp_code_f }}" placeholder="Ej. 2">
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button class="btn btn-primary" type="submit"><i class="ti ti-filter me-1"></i> Filtrar</button>
+        <a class="btn btn-ghost-secondary" href="{% url 'reloj_permisos_list' %}">Limpiar</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% if messages %}
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>emp_code</th>
+            <th>Nombre</th>
+            <th>Fecha Inicio</th>
+            <th>Fecha Fin</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+            <th>Autorizado por</th>
+            <th style="width:140px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in items %}
+          <tr>
+            <td>{{ forloop.counter0|add:items.start_index }}</td>
+            <td><code>{{ p.emp_code }}</code></td>
+            <td>{{ p.nombre_empleado|default:"—" }}</td>
+            <td>{{ p.fecha_inicio|date:"Y-m-d" }}</td>
+            <td>{{ p.fecha_fin|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ p.motivo|truncatechars:40|default:"—" }}</td>
+            <td>
+              {% if p.aprobado is None %}
+                <span class="badge bg-warning-lt text-warning">Pendiente</span>
+              {% elif p.aprobado %}
+                <span class="badge bg-success-lt text-success">Aprobado</span>
+              {% else %}
+                <span class="badge bg-danger-lt text-danger">Rechazado</span>
+              {% endif %}
+            </td>
+            <td>{{ p.autorizado_por|default:"—" }}</td>
+            <td>
+              <div class="d-flex gap-1 flex-wrap">
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if p.aprobado is None %}
+                    <button class="btn btn-sm btn-ghost-success btn-aprobar" data-id="{{ p.pk }}" title="Aprobar">
+                      <i class="ti ti-check"></i>
+                    </button>
+                    <button class="btn btn-sm btn-ghost-danger btn-rechazar" data-id="{{ p.pk }}" title="Rechazar">
+                      <i class="ti ti-x"></i>
+                    </button>
+                  {% endif %}
+                  <a href="{% url 'reloj_permiso_edit' p.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
+                    <i class="ti ti-pencil"></i>
+                  </a>
+                  <a href="{% url 'reloj_permiso_delete' p.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
+                    <i class="ti ti-trash"></i>
+                  </a>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="text-center text-muted py-3">Sin permisos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer d-flex align-items-center">
+    <nav>
+      <ul class="pagination mb-0">
+        {% if items.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ items.previous_page_number }}&emp_code={{ emp_code_f }}">«</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">«</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ items.number }} de {{ items.paginator.num_pages }}</span>
+        </li>
+        {% if items.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ items.next_page_number }}&emp_code={{ emp_code_f }}">»</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">»</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+function aprobarRechazar(pk, action){
+  Swal.fire({
+    title: action === 'aprobar' ? '¿Aprobar este permiso?' : '¿Rechazar este permiso?',
+    icon: action === 'aprobar' ? 'question' : 'warning',
+    showCancelButton: true,
+    confirmButtonText: action === 'aprobar' ? 'Sí, aprobar' : 'Sí, rechazar',
+    cancelButtonText: 'Cancelar',
+  }).then(function(res){
+    if (!res.isConfirmed) return;
+    fetch(`/reloj/permisos/${pk}/aprobar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'},
+      body: `action=${action}`
+    }).then(r => r.json()).then(function(data){
+      if (data.success){
+        Swal.fire({icon:'success', title:'Listo', timer:1500, showConfirmButton:false})
+          .then(() => location.reload());
+      } else {
+        Swal.fire({icon:'error', title:'Error', text:'No se pudo actualizar el permiso.'});
+      }
+    }).catch(function(){
+      Swal.fire({icon:'error', title:'Error', text:'Error de red.'});
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.btn-aprobar').forEach(function(btn){
+    btn.addEventListener('click', function(){ aprobarRechazar(this.dataset.id, 'aprobar'); });
+  });
+  document.querySelectorAll('.btn-rechazar').forEach(function(btn){
+    btn.addEventListener('click', function(){ aprobarRechazar(this.dataset.id, 'rechazar'); });
+  });
+});
+</script>
+{% endblock %}

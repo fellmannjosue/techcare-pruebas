@@ -1,163 +1,118 @@
+{% extends 'conducta/base_conducta.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Dashboard Maestro – {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon" />
-  <!-- Bootstrap & FontAwesome -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'accounts/css/dashboard.css' %}">
-</head>
-<body class="bg-light">
 
-<div class="d-flex" id="wrapper">
-  <!-- Sidebar -->
-  <nav class="bg-dark text-white sidebar flex-shrink-0 p-3" style="min-width:220px;">
-    <div class="d-flex align-items-center mb-3">
-      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" style="width:42px;" class="me-2">
-      <span class="fs-5 fw-bold">TechCare</span>
-    </div>
-    <hr class="text-secondary">
-    <ul class="nav nav-pills flex-column mb-auto">
-      <li>
-        <a href="/tickets/submit_ticket/" class="nav-link text-white">
-          <i class="fa-solid fa-ticket-alt me-2"></i> Generar Ticket
-        </a>
-      </li>
-      <li>
-        <a href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}" class="nav-link text-white">
-          <i class="fa-solid fa-circle-info me-2"></i> Reporte Informativo
-        </a>
-      </li>
-      <li>
-        <a href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}" class="nav-link text-white">
-          <i class="fa-solid fa-user-shield me-2"></i> Reporte Conductual
-        </a>
-      </li>
-      {% if area == "bilingue" %}
-      <li>
-        <a href="{% url 'progress_report_bilingue' %}" class="nav-link text-white">
-          <i class="fa-solid fa-chart-line me-2"></i> Progress Report
-        </a>
-      </li>
-      {% endif %}
-      <li>
-        <a href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}" class="nav-link text-white">
-          <i class="fa-solid fa-clock-rotate-left me-2"></i> Ver Historial
-        </a>
-      </li>
-    
-    </ul>
-    <hr class="text-secondary">
-    <div class="dropdown">
-      <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-        <img src="{% static 'accounts/img/user.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
-        <strong>{{ request.user.username }}</strong>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-        
-        <li><a class="dropdown-item" href="{% url 'maestro_logout' %}"><i class="fa fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
-      </ul>
-    </div>
-  </nav>
-  <!-- /Sidebar -->
+{% block title %}Dashboard Maestro – {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}{% endblock %}
+{% block page_pretitle %}Bienvenido{% endblock %}
+{% block page_title %}Dashboard Maestro – {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}{% endblock %}
+{% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
 
-  <!-- Main content -->
-  <div class="flex-grow-1 d-flex flex-column min-vh-100">
-    <!-- Header -->
-    <nav class="navbar navbar-light bg-white shadow-sm px-3">
-      <div class="container-fluid d-flex justify-content-between align-items-center">
-        <div class="navbar-brand d-flex align-items-center gap-3">
-          <span class="fs-4 fw-bold">Dashboard Maestro – {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}</span>
-        </div>
-        <div class="dropdown">
-          <a href="#" class="btn btn-light dropdown-toggle d-flex align-items-center user-info"
-            id="userDropdownToggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <img src="{% static 'accounts/img/user.png' %}" width="28" height="28" alt="Usuario"
-              class="rounded-circle me-2">
-            {{ request.user.username }}
-          </a>
-          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownToggle">
-            <li>
-              <a class="dropdown-item" href="{% url 'maestro_logout' %}">🚪 Cerrar Sesión</a>
-            </li>
-          </ul>
+{% block sidebar_nav %}
+  <li class="nav-item">
+    <a class="nav-link active" href="/conducta/dashboard/maestro/">
+      <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+      <span class="nav-link-title">Dashboard</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="/tickets/submit_ticket/">
+      <span class="nav-link-icon"><i class="ti ti-ticket"></i></span>
+      <span class="nav-link-title">Generar Ticket</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}">
+      <span class="nav-link-icon"><i class="ti ti-info-circle"></i></span>
+      <span class="nav-link-title">Reporte Informativo</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}">
+      <span class="nav-link-icon"><i class="ti ti-shield-check"></i></span>
+      <span class="nav-link-title">Reporte Conductual</span>
+    </a>
+  </li>
+  {% if area == "bilingue" %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'progress_report_bilingue' %}">
+      <span class="nav-link-icon"><i class="ti ti-chart-line"></i></span>
+      <span class="nav-link-title">Progress Report</span>
+    </a>
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}">
+      <span class="nav-link-icon"><i class="ti ti-history"></i></span>
+      <span class="nav-link-title">Ver Historial</span>
+    </a>
+  </li>
+{% endblock %}
+
+{% block content %}
+<p class="text-muted mb-4">Selecciona una opción para gestionar tus reportes y tickets.</p>
+
+<div class="row row-cards g-4 justify-content-center">
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="/tickets/submit_ticket/" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-ticket text-warning" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Generar Ticket</div>
+          <div class="text-muted small mt-1">Reportar un problema técnico</div>
         </div>
       </div>
-    </nav>
-    <!-- /Header -->
-
-    <div class="container py-4">
-      <div class="text-center mb-4">
-        <p class="lead">Seleccione una opción para gestionar sus reportes y tickets</p>
-      </div>
-      <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-3 g-4 justify-content-center">
-
-        <div class="col">
-          <a href="/tickets/submit_ticket/" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center menu-item">
-              <div class="card-body">
-                <i class="fa-solid fa-ticket-alt fa-3x text-warning"></i>
-                <div class="fw-bold mt-2">Generar Ticket</div>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col">
-          <a href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center menu-item">
-              <div class="card-body">
-                <i class="fa-solid fa-circle-info fa-3x text-info"></i>
-                <div class="fw-bold mt-2">Reporte Informativo</div>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col">
-          <a href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center menu-item">
-              <div class="card-body">
-                <i class="fa-solid fa-user-shield fa-3x text-success"></i>
-                <div class="fw-bold mt-2">Reporte Conductual</div>
-              </div>
-            </div>
-          </a>
-        </div>
-        {% if area == "bilingue" %}
-        <div class="col">
-          <a href="{% url 'progress_report_bilingue' %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center menu-item">
-              <div class="card-body">
-                <i class="fa-solid fa-chart-line fa-3x text-primary"></i>
-                <div class="fw-bold mt-2">Progress Report</div>
-              </div>
-            </div>
-          </a>
-        </div>
-        {% endif %}
-        <div class="col">
-          <a href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}" class="card-link text-decoration-none">
-            <div class="card shadow-sm h-100 text-center menu-item">
-              <div class="card-body">
-                <i class="fa-solid fa-clock-rotate-left fa-3x text-secondary"></i>
-                <div class="fw-bold mt-2">Ver Historial</div>
-              </div>
-            </div>
-          </a>
-        </div>
-       
-      </div>
-    </div>
-    <footer class="footer mt-auto py-3 bg-white text-center small border-top">
-      © {{ year }} Soporte Técnico – Asociación Nuevo Amanecer. Todos los derechos reservados.
-    </footer>
+    </a>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" defer></script>
-</body>
-</html>
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-info-circle text-cyan" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Reporte Informativo</div>
+          <div class="text-muted small mt-1">Registro de conducta informativa</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-shield-check text-green" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Reporte Conductual</div>
+          <div class="text-muted small mt-1">Registro de incidencias conductuales</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  {% if area == "bilingue" %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'progress_report_bilingue' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-chart-line text-blue" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Progress Report</div>
+          <div class="text-muted small mt-1">Informe de progreso académico</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-history text-secondary" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Ver Historial</div>
+          <div class="text-muted small mt-1">Consulta tus reportes anteriores</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}
