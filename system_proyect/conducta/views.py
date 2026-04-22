@@ -11,11 +11,16 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 import datetime as _dt_module
 
-COORDINADORES_EMAILS = [
+COORDINADORES_EMAILS_BILINGUE = [
     'ialcerro@ana-hn.org',
     'druiz@ana-hn.org',
     'jmartinez@ana-hn.org',
     'acruz@ana-hn.org',
+]
+COORDINADORES_EMAILS_COLEGIO = [
+    'flicona@ana-hn.org',
+    'kgarcia@ana-hn.org',
+    'fvalladares@ana-hn.org',
 ]
 SITE_URL = 'https://servicios.ana-hn.org:437'
 
@@ -95,9 +100,13 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area):
         f"Maestro : {nombre}\nAlumno  : {alumno}\nGrado   : {grado}\n"
         f"Materia : {materia}\nÁrea    : {area}\n\nRevisa: {SITE_URL}"
     )
+    destinatarios = (
+        COORDINADORES_EMAILS_COLEGIO if area == 'colegio'
+        else COORDINADORES_EMAILS_BILINGUE
+    )
     try:
         msg = EmailMultiAlternatives(
-            asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, COORDINADORES_EMAILS
+            asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, destinatarios
         )
         msg.attach_alternative(html_cuerpo, "text/html")
         msg.send(fail_silently=True)
