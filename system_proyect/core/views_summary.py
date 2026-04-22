@@ -113,15 +113,21 @@ def summary_coordinacion_bl(request):
     Solo envía un resumen simple para el dashboard principal.
     """
 
-    info = ReporteInformativo.objects.filter(area="bilingue").order_by("-fecha")[:5]
+    total = (
+        ReporteInformativo.objects.filter(area="bilingue", estado="enviado").count() +
+        ReporteConductual.objects.filter(area="bilingue", estado="enviado").count() +
+        ProgressReport.objects.filter(estado="enviado").count()
+    )
+
+    info     = ReporteInformativo.objects.filter(area="bilingue").order_by("-fecha")[:5]
     conducta = ReporteConductual.objects.filter(area="bilingue").order_by("-fecha")[:5]
     progress = ProgressReport.objects.all().order_by("-fecha")[:5]
 
-    recientes = list(info) + list(conducta) + list(progress)
-    recientes.sort(key=lambda x: x.fecha, reverse=True)
+    recientes = sorted(list(info) + list(conducta) + list(progress),
+                       key=lambda x: x.fecha, reverse=True)
 
     return JsonResponse({
-        "total": len(recientes),
+        "total": total,
         "items": [
             {
                 "id": r.id,
@@ -140,14 +146,19 @@ def summary_coordinacion_bl(request):
 @require_GET
 @login_required
 def summary_coordinacion_col(request):
-    info = ReporteInformativo.objects.filter(area="colegio").order_by("-fecha")[:5]
+    total = (
+        ReporteInformativo.objects.filter(area="colegio", estado="enviado").count() +
+        ReporteConductual.objects.filter(area="colegio", estado="enviado").count()
+    )
+
+    info     = ReporteInformativo.objects.filter(area="colegio").order_by("-fecha")[:5]
     conducta = ReporteConductual.objects.filter(area="colegio").order_by("-fecha")[:5]
 
-    recientes = list(info) + list(conducta)
-    recientes.sort(key=lambda x: x.fecha, reverse=True)
+    recientes = sorted(list(info) + list(conducta),
+                       key=lambda x: x.fecha, reverse=True)
 
     return JsonResponse({
-        "total": len(recientes),
+        "total": total,
         "items": [
             {
                 "id": r.id,
