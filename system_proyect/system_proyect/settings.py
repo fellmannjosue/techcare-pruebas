@@ -191,7 +191,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'es-hn'
 TIME_ZONE = 'America/Tegucigalpa'
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 
 
 # ─────────────────────────────────────────────────────────────
