@@ -134,7 +134,7 @@ def register_maestro(request):
               </td>
             </tr>
             <tr><td style="border-top:1px solid #e9ecef;padding-top:12px;margin-top:12px;">
-              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Contraseña temporal</span><br>
+              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Contraseña</span><br>
               <span style="font-size:15px;font-weight:600;color:#1a1a2e;font-family:monospace;">{password}</span>
             </td></tr>
           </table>
@@ -351,11 +351,6 @@ def reenviar_bienvenida(request):
     else:
         usuarios = User.objects.filter(is_active=True).exclude(email='')
 
-    import secrets, string as _string
-    def _generar_password(n=10):
-        chars = _string.ascii_letters + _string.digits + '!@#$'
-        return ''.join(secrets.choice(chars) for _ in range(n))
-
     enviados = 0
     errores = []
     anio = datetime.datetime.now().year
@@ -363,17 +358,12 @@ def reenviar_bienvenida(request):
         if not u.email:
             continue
         nombre = u.get_full_name() or u.username
-        nueva_pass = _generar_password()
-        u.set_password(nueva_pass)
-        u.save(update_fields=['password'])
-
         texto_plano = (
             f'Hola {nombre},\n\n'
-            f'Se ha restablecido tu acceso al Sistema TechCare.\n\n'
-            f'Usuario    : {u.email}\n'
-            f'Contraseña : {nueva_pass}\n\n'
-            f'Accede en: {SITE_URL}\n\n'
-            f'Por seguridad, cambia tu contraseña después de iniciar sesión.'
+            f'Este es un recordatorio de tu acceso al Sistema TechCare.\n\n'
+            f'Usuario : {u.email}\n\n'
+            f'Si no recuerdas tu contraseña, usa el enlace "¿Olvidaste tu contraseña?" en la página de inicio de sesión o contacta al administrador.\n\n'
+            f'Accede en: {SITE_URL}'
         )
         html_recordatorio = f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
@@ -390,7 +380,7 @@ def reenviar_bienvenida(request):
       <tr>
         <td style="padding:36px 40px 24px;">
           <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a2e;">Hola, {nombre}</p>
-          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Se han restablecido tus credenciales de acceso al Sistema TechCare.</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Este es un recordatorio de tu acceso al Sistema TechCare.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:24px;">
             <tr>
               <td style="padding:6px 0;">
@@ -398,11 +388,10 @@ def reenviar_bienvenida(request):
                 <span style="font-size:15px;font-weight:600;color:#1a1a2e;">{u.email}</span>
               </td>
             </tr>
-            <tr><td style="border-top:1px solid #e9ecef;padding-top:12px;margin-top:12px;">
-              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Contraseña temporal</span><br>
-              <span style="font-size:15px;font-weight:600;color:#1a1a2e;font-family:monospace;">{nueva_pass}</span>
-            </td></tr>
           </table>
+          <p style="margin:0 0 20px;font-size:13px;color:#6c757d;">
+            Si no recuerdas tu contraseña, usa el enlace <strong>"¿Olvidaste tu contraseña?"</strong> en la página de inicio de sesión o contacta al administrador.
+          </p>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td align="center">
               <a href="{SITE_URL}"
@@ -411,9 +400,6 @@ def reenviar_bienvenida(request):
               </a>
             </td></tr>
           </table>
-          <p style="margin:20px 0 0;font-size:12px;color:#adb5bd;text-align:center;">
-            Por seguridad, cambia tu contraseña después de iniciar sesión.
-          </p>
         </td>
       </tr>
       <tr>
@@ -429,7 +415,7 @@ def reenviar_bienvenida(request):
 </body></html>"""
         try:
             msg = EmailMultiAlternatives(
-                'Acceso al Sistema TechCare – Credenciales',
+                'Recordatorio de acceso – Sistema TechCare',
                 texto_plano,
                 settings.DEFAULT_FROM_EMAIL,
                 [u.email],
