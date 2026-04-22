@@ -17,7 +17,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ─────────────────────────────────────────────────────────────
 # 3. SEGURIDAD
 # ─────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-b(q9vw0wc#j2@pxe-kl4+(nbi0p4lth&t&nc7vy2a-*m01v!fq')
+_secret_key = os.getenv('DJANGO_SECRET_KEY')
+if not _secret_key:
+    raise ValueError("DJANGO_SECRET_KEY no está definida en el archivo .env")
+SECRET_KEY = _secret_key
 DEBUG = (os.getenv('DJANGO_DEBUG', 'false') == 'true')
 
 
@@ -124,7 +127,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME', 'sponsors2'),
         'USER': os.getenv('DB_USER', 'admin3'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'Test-12345'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', '192.168.10.6'),
         'PORT': os.getenv('DB_PORT', '3306'),
     },
@@ -134,7 +137,7 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
     'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD', '121800-Jfellmann'),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD', ''),
     'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
     'OPTIONS': {
@@ -147,7 +150,7 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
     'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
-    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', 'biotime-2026'),
+    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', ''),
     'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
     'OPTIONS': {
@@ -173,7 +176,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # 10. INTERNACIONALIZACIÓN
 # ─────────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'es-hn'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Tegucigalpa'
 USE_I18N = True
 USE_TZ = True
 
@@ -219,7 +222,7 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/menu/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# Duración de la sesión: 1 hora (en segundos)
+# Duración de la sesión: 4 horas (en segundos)
 SESSION_COOKIE_AGE = 60 * 60 * 4  # 3600 segundos
 
 # Renovar la sesión con cada request (se reinicia si el usuario navega)
@@ -235,6 +238,13 @@ CSRF_COOKIE_SECURE = True
 # Motor de sesiones recomendado (usa la base de datos cacheada)
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}
+
 # Opcional: Si usas subdominios y quieres que la cookie funcione en todos, descomenta:
 # SESSION_COOKIE_DOMAIN = '.ana-hn.org'
 # CSRF_COOKIE_DOMAIN = '.ana-hn.org'
@@ -248,7 +258,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'techcare.app2024@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'dvex nxbf quaj nxtc')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
@@ -271,8 +281,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ─────────────────────────────────────────────────────────────
 ADMIN_SITE_URL = '/accounts/login/'
 
-print("DEBUG =", DEBUG)
-print("ALLOWED_HOSTS =", ALLOWED_HOSTS)
 
 # ─────────────────────────────────────────────────────────────
 # 16. INTEGRACIÓN OPENAI / IA
