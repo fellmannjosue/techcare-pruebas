@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.models import User, Group
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 import datetime
 
@@ -100,18 +100,74 @@ def register_maestro(request):
 
             # Enviar correo
             try:
-                send_mail(
+                nombre_completo = f"{first_name} {last_name}".strip()
+                texto_plano = (
+                    f'Hola {nombre_completo},\n\n'
+                    f'Se ha creado una cuenta para ti en el Sistema TechCare.\n\n'
+                    f'Usuario    : {email}\n'
+                    f'Contraseña : {password}\n\n'
+                    f'Accede al sistema en:\n'
+                    f'https://servicios.ana-hn.org\n\n'
+                    f'Por seguridad, cambia tu contraseña en el primer inicio de sesión.'
+                )
+                html_bienvenida = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,#228be6);padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">TechCare</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 40px 24px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a2e;">¡Bienvenido/a, {nombre_completo}!</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Tu cuenta en el Sistema TechCare ha sido creada exitosamente.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:24px;">
+            <tr>
+              <td style="padding:6px 0;">
+                <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Usuario</span><br>
+                <span style="font-size:15px;font-weight:600;color:#1a1a2e;">{email}</span>
+              </td>
+            </tr>
+            <tr><td style="border-top:1px solid #e9ecef;padding-top:12px;margin-top:12px;">
+              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Contraseña temporal</span><br>
+              <span style="font-size:15px;font-weight:600;color:#1a1a2e;font-family:monospace;">{password}</span>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="https://servicios.ana-hn.org"
+                 style="display:inline-block;background:#228be6;color:#ffffff;text-decoration:none;padding:13px 36px;border-radius:8px;font-size:15px;font-weight:600;">
+                Acceder al sistema
+              </a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#adb5bd;">
+            Por seguridad, cambia tu contraseña en el primer inicio de sesión.<br>
+            © {datetime.datetime.now().year} Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+                msg = EmailMultiAlternatives(
                     'Bienvenido al Sistema TechCare',
-                    (
-                        f'Se ha creado una cuenta para ti.\n\n'
-                        f'Usuario: {email}\n'
-                        f'Contraseña: {password}\n\n'
-                        'Cambia tu contraseña en el primer inicio de sesión.'
-                    ),
+                    texto_plano,
                     settings.DEFAULT_FROM_EMAIL,
                     [email],
-                    fail_silently=False,
                 )
+                msg.attach_alternative(html_bienvenida, "text/html")
+                msg.send(fail_silently=False)
             except Exception as e:
                 messages.warning(request, f"Cuenta creada, pero no se envió el correo: {e}")
 
@@ -122,7 +178,12 @@ def register_maestro(request):
         form = MaestroRegisterForm()
 
     year = datetime.datetime.now().year
-    return render(request, 'accounts/register.html', {'form': form, 'year': year})
+    todos_usuarios = User.objects.filter(is_active=True).exclude(email='').order_by('first_name', 'last_name')
+    return render(request, 'accounts/register.html', {
+        'form': form,
+        'year': year,
+        'todos_usuarios': todos_usuarios,
+    })
 
 
 # =====================================================
@@ -229,8 +290,11 @@ def menu_view(request):
     # =====================================================
     # CONTEXTO FINAL PARA EL HTML
     # =====================================================
+    todos_usuarios = User.objects.filter(is_active=True).exclude(email='').order_by('first_name', 'last_name')
+
     context = {
         'year': year,
+        'todos_usuarios': todos_usuarios,
 
         # ---------- Tarjetas del dashboard ----------
         'tickets_pendientes': tickets_pendientes,
@@ -267,6 +331,116 @@ def menu_view(request):
     return render(request, 'accounts/menu.html', context)
 
 
+
+
+# =====================================================
+# 📧 REENVÍO DE CORREO DE BIENVENIDA (solo superuser)
+# =====================================================
+@login_required
+def reenviar_bienvenida(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+
+    modo = request.POST.get('modo', 'todos')  # 'todos' o 'uno'
+    email_destino = request.POST.get('email', '').strip()
+
+    SITE_URL = 'https://servicios.ana-hn.org'
+
+    if modo == 'uno':
+        usuarios = User.objects.filter(email=email_destino, is_active=True)
+    else:
+        usuarios = User.objects.filter(is_active=True).exclude(email='')
+
+    import secrets, string as _string
+    def _generar_password(n=10):
+        chars = _string.ascii_letters + _string.digits + '!@#$'
+        return ''.join(secrets.choice(chars) for _ in range(n))
+
+    enviados = 0
+    errores = []
+    anio = datetime.datetime.now().year
+    for u in usuarios:
+        if not u.email:
+            continue
+        nombre = u.get_full_name() or u.username
+        nueva_pass = _generar_password()
+        u.set_password(nueva_pass)
+        u.save(update_fields=['password'])
+
+        texto_plano = (
+            f'Hola {nombre},\n\n'
+            f'Se ha restablecido tu acceso al Sistema TechCare.\n\n'
+            f'Usuario    : {u.email}\n'
+            f'Contraseña : {nueva_pass}\n\n'
+            f'Accede en: {SITE_URL}\n\n'
+            f'Por seguridad, cambia tu contraseña después de iniciar sesión.'
+        )
+        html_recordatorio = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,#228be6);padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:26px;font-weight:700;color:#fff;letter-spacing:-.5px;">TechCare</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,.75);">Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 40px 24px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a2e;">Hola, {nombre}</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Se han restablecido tus credenciales de acceso al Sistema TechCare.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:24px;">
+            <tr>
+              <td style="padding:6px 0;">
+                <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Usuario</span><br>
+                <span style="font-size:15px;font-weight:600;color:#1a1a2e;">{u.email}</span>
+              </td>
+            </tr>
+            <tr><td style="border-top:1px solid #e9ecef;padding-top:12px;margin-top:12px;">
+              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Contraseña temporal</span><br>
+              <span style="font-size:15px;font-weight:600;color:#1a1a2e;font-family:monospace;">{nueva_pass}</span>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="{SITE_URL}"
+                 style="display:inline-block;background:#228be6;color:#fff;text-decoration:none;padding:13px 36px;border-radius:8px;font-size:15px;font-weight:600;">
+                Acceder al sistema
+              </a>
+            </td></tr>
+          </table>
+          <p style="margin:20px 0 0;font-size:12px;color:#adb5bd;text-align:center;">
+            Por seguridad, cambia tu contraseña después de iniciar sesión.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#adb5bd;">
+            © {anio} Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+        try:
+            msg = EmailMultiAlternatives(
+                'Acceso al Sistema TechCare – Credenciales',
+                texto_plano,
+                settings.DEFAULT_FROM_EMAIL,
+                [u.email],
+            )
+            msg.attach_alternative(html_recordatorio, "text/html")
+            msg.send(fail_silently=False)
+            enviados += 1
+        except Exception:
+            errores.append(u.email)
+
+    return JsonResponse({'ok': True, 'enviados': enviados, 'errores': errores})
 
 
 # =====================================================

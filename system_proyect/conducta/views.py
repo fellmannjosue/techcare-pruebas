@@ -8,6 +8,101 @@ from django.db import connections
 from django.db.models import Count
 from django.utils import timezone
 from django.conf import settings
+from django.core.mail import send_mail, EmailMultiAlternatives
+import datetime as _dt_module
+
+COORDINADORES_EMAILS = [
+    'ialcerro@ana-hn.org',
+    'druiz@ana-hn.org',
+    'jmartinez@ana-hn.org',
+    'acruz@ana-hn.org',
+]
+SITE_URL = 'https://servicios.ana-hn.org'
+
+_TIPO_COLOR = {
+    'Reporte Informativo': '#1971c2',
+    'Reporte Conductual':  '#f59f00',
+    'Progress Report':     '#0ca678',
+}
+_TIPO_ICON = {
+    'Reporte Informativo': '&#8505;',
+    'Reporte Conductual':  '&#9888;',
+    'Progress Report':     '&#128200;',
+}
+
+
+def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area):
+    nombre = maestro.get_full_name() or maestro.username
+    asunto = f"[TechCare] Nuevo {tipo} registrado – {alumno}"
+    color = _TIPO_COLOR.get(tipo, '#1971c2')
+    icon  = _TIPO_ICON.get(tipo, '&#128203;')
+    anio  = _dt_module.datetime.now().year
+    filas_html = ""
+    for etiqueta, valor in [("Tipo", tipo), ("Maestro", nombre), ("Alumno", alumno),
+                             ("Grado", grado), ("Materia", materia), ("Área", area)]:
+        if valor:
+            filas_html += (
+                f'<tr><td style="padding:8px 0;font-size:12px;color:#6c757d;'
+                f'text-transform:uppercase;letter-spacing:.4px;width:90px;">{etiqueta}</td>'
+                f'<td style="padding:8px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{valor}</td></tr>'
+            )
+    html_cuerpo = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,{color});padding:28px 40px;text-align:center;">
+          <p style="margin:0;font-size:24px;font-weight:700;color:#fff;letter-spacing:-.5px;">TechCare</p>
+          <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,.75);">Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 40px 20px;">
+          <p style="margin:0 0 4px;font-size:18px;font-weight:700;color:#1a1a2e;">
+            {icon} Nuevo reporte registrado
+          </p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Se ha registrado un nuevo reporte en el sistema.</p>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="background:#f8f9fa;border-radius:8px;padding:16px 20px;margin-bottom:24px;border-left:4px solid {color};">
+            {filas_html}
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="{SITE_URL}"
+                 style="display:inline-block;background:{color};color:#fff;text-decoration:none;
+                        padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
+                Ver en el sistema
+              </a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8f9fa;padding:14px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0;font-size:11px;color:#adb5bd;">
+            © {anio} Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+    texto_plano = (
+        f"Nuevo {tipo} registrado.\n\n"
+        f"Maestro : {nombre}\nAlumno  : {alumno}\nGrado   : {grado}\n"
+        f"Materia : {materia}\nÁrea    : {area}\n\nRevisa: {SITE_URL}"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, COORDINADORES_EMAILS
+        )
+        msg.attach_alternative(html_cuerpo, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as _e:
+        print(f"[WARN] email coordinadores: {_e}")
 
 # PDF y PowerPoint
 from reportlab.lib.pagesizes import letter
@@ -162,6 +257,7 @@ def reporte_informativo_bilingue(request):
             docente=docente,
             comentario=comentario
         )
+        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area)
         messages.success(request, "¡Reporte registrado correctamente!")
         return redirect('reporte_informativo_bilingue')
 
@@ -202,6 +298,7 @@ def reporte_informativo_colegio(request):
             docente=docente,
             comentario=comentario
         )
+        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area)
         messages.success(request, "¡Reporte registrado correctamente!")
         return redirect('reporte_informativo_colegio')
 
@@ -257,7 +354,6 @@ def reporte_conductual_bilingue(request):
             fecha=fecha_val,
             comentario=comentario,
         )
-        # Asocia los incisos ManyToMany
         if ids_leve:
             reporte.incisos_leve.set(ids_leve)
         if ids_grave:
@@ -265,6 +361,7 @@ def reporte_conductual_bilingue(request):
         if ids_muygrave:
             reporte.incisos_muygrave.set(ids_muygrave)
 
+        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area)
         messages.success(request, "¡Reporte conductual registrado correctamente!")
         return redirect('reporte_conductual_bilingue')
 
@@ -326,6 +423,7 @@ def reporte_conductual_colegio(request):
         if ids_muygrave:
             reporte.incisos_muygrave.set(ids_muygrave)
 
+        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area)
         messages.success(request, "¡Reporte conductual registrado correctamente!")
         return redirect('reporte_conductual_colegio')
 
@@ -414,8 +512,9 @@ def progress_report_bilingue(request):
                 semana_inicio=semana_inicio,
                 semana_fin=semana_fin,
                 comentario_general=comentario_general,
-                materias_json=materias_list  # <-- SE GUARDA EL JSON AQUÍ
+                materias_json=materias_list
             )
+            _notificar_coordinadores("Progress Report", request.user, alumno_label, grado, "", "bilingue")
             messages.success(request, "¡Progress report registrado correctamente!")
             return redirect('progress_report_bilingue')
     else:
@@ -452,6 +551,7 @@ def historial_maestro_bilingue(request):
         'tickets_usuario': tickets_usuario,
         'area': 'bilingue',
         'back_url': back_url,
+        'today': timezone.now().strftime('%Y-%m-%d'),
     })
 
 
@@ -473,7 +573,40 @@ def historial_maestro_colegio(request):
         'tickets_usuario': tickets_usuario,
         'area': 'colegio',
         'back_url': back_url,
+        'today': timezone.now().strftime('%Y-%m-%d'),
     })
+
+# ────────────────────────────────────────────────────────────
+# REENVIAR NOTIFICACIONES A COORDINADORES (solo superuser)
+# ────────────────────────────────────────────────────────────
+@login_required
+def reenviar_reportes_coordinadores(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+
+    fecha_str = request.POST.get('fecha', '').strip()
+    if not fecha_str:
+        return JsonResponse({'ok': False, 'error': 'Fecha requerida'}, status=400)
+
+    from datetime import date as _date_type
+    try:
+        fecha = _date_type.fromisoformat(fecha_str)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    enviados = 0
+    for r in ReporteInformativo.objects.filter(fecha__date=fecha):
+        _notificar_coordinadores("Reporte Informativo", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area)
+        enviados += 1
+    for r in ReporteConductual.objects.filter(fecha=fecha):
+        _notificar_coordinadores("Reporte Conductual", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area)
+        enviados += 1
+    for r in ProgressReport.objects.filter(semana_inicio__lte=fecha, semana_fin__gte=fecha):
+        _notificar_coordinadores("Progress Report", r.usuario, r.alumno_nombre, r.grado, "", "bilingue")
+        enviados += 1
+
+    return JsonResponse({'ok': True, 'enviados': enviados})
+
 
 # ────────────────
 # EDITAR CONDUCTUAL
@@ -1271,6 +1404,7 @@ def dashboard_coordinador(request, area):
         'reportes_conductual': reportes_conductual,
         'reportes_progress': reportes_progress,
         'strikes': strikes,
+        'today': timezone.now().strftime('%Y-%m-%d'),
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 

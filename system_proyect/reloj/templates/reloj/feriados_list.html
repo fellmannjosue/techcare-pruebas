@@ -17,8 +17,7 @@
 {% if messages %}
   {% for m in messages %}
   <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
-    {{ m }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
   {% endfor %}
 {% endif %}
@@ -26,28 +25,34 @@
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-vcenter table-hover card-table">
+      <table id="tblFeriados" class="table table-vcenter table-hover card-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Fecha</th>
+            <th>Fecha(s)</th>
             <th>Descripción</th>
+            <th class="text-center">Empleados asignados</th>
             <th>Creado por</th>
-            <th>Creado en</th>
             <th style="width:120px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for f in feriados %}
           <tr>
-            <td>{{ forloop.counter0|add:feriados.start_index }}</td>
-            <td><strong>{{ f.fecha|date:"Y-m-d" }}</strong></td>
-            <td>{{ f.descripcion|default:"—" }}</td>
+            <td>
+              <strong>{{ f.fecha_inicio|date:"Y-m-d" }}</strong>
+              {% if f.fecha_fin != f.fecha_inicio %}
+                <span class="text-muted mx-1">→</span>
+                <strong>{{ f.fecha_fin|date:"Y-m-d" }}</strong>
+              {% endif %}
+            </td>
+            <td>{{ f.descripcion }}</td>
+            <td class="text-center">
+              <span class="badge bg-blue-lt text-blue">{{ f.total_asignados }}</span>
+            </td>
             <td>{{ f.creado_por|default:"—" }}</td>
-            <td>{% if f.creado_en %}{{ f.creado_en|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td>
               <div class="d-flex gap-1">
-                <a href="{% url 'reloj_feriado_edit' f.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
+                <a href="{% url 'reloj_feriado_edit' f.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar / Asignar empleados">
                   <i class="ti ti-pencil"></i>
                 </a>
                 <a href="{% url 'reloj_feriado_delete' f.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
@@ -57,30 +62,22 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="text-center text-muted py-3">No hay feriados registrados.</td></tr>
+          <tr><td colspan="5" class="text-center text-muted py-3">No hay feriados registrados.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-  <div class="card-footer d-flex align-items-center">
-    <nav>
-      <ul class="pagination mb-0">
-        {% if feriados.has_previous %}
-          <li class="page-item"><a class="page-link" href="?page={{ feriados.previous_page_number }}">«</a></li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">«</span></li>
-        {% endif %}
-        <li class="page-item disabled">
-          <span class="page-link">Página {{ feriados.number }} de {{ feriados.paginator.num_pages }}</span>
-        </li>
-        {% if feriados.has_next %}
-          <li class="page-item"><a class="page-link" href="?page={{ feriados.next_page_number }}">»</a></li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">»</span></li>
-        {% endif %}
-      </ul>
-    </nav>
-  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+  $('#tblFeriados').DataTable({
+    pageLength: 25, order: [[0,'desc']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' }
+  });
+});
+</script>
 {% endblock %}

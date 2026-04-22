@@ -49,6 +49,7 @@ urlpatterns = [
     path('feriados/nuevo/', views.feriado_new, name='reloj_feriado_new'),
     path('feriados/<int:pk>/editar/', views.feriado_edit, name='reloj_feriado_edit'),
     path('feriados/<int:pk>/eliminar/', views.feriado_delete, name='reloj_feriado_delete'),
+    path('feriados/<int:pk>/asignacion/bulk/', views.feriado_asignacion_bulk, name='reloj_feriado_asignacion_bulk'),
 
     # ─────────────────────────────────────────────
     # Sábados especiales

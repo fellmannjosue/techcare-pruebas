@@ -36,6 +36,7 @@ from .models import (
     PermisoEmpleado,
     ReporteNota,
     ReporteComentario,
+    FeriadoAsignacion,
 )
 
 # Formularios
@@ -645,16 +646,61 @@ OPTION (MAXRECURSION 0);
                     {'pk': c.pk, 'texto': c.texto}
                 )
 
+            # Mapa de feriados: (emp_code, date) -> descripcion
+            from datetime import timedelta as _td2
+            feriados_map_r = {}
+            try:
+                for asig in FeriadoAsignacion.objects.filter(
+                    feriado__fecha_inicio__lte=ff_d,
+                    feriado__fecha_fin__gte=fi_d,
+                ).select_related("feriado"):
+                    d = asig.feriado.fecha_inicio
+                    while d <= asig.feriado.fecha_fin:
+                        if fi_d <= d <= ff_d:
+                            feriados_map_r[(asig.emp_code.strip(), d)] = asig.feriado.descripcion
+                        d += _td2(days=1)
+            except Exception as _ex:
+                print(f"[WARN] feriados_map reporte: {_ex}")
+
             DEF_IN, DEF_OUT = "07:00", "16:48"
+
+            # Diagnóstico: tipo de fecha_d (temporal)
+            if rows:
+                _muestra = dict(zip(columnas, rows[0]))
+                _fd_muestra = _muestra.get('Fecha')
+                print(f"[DIAG reporte] tipo fecha_d={type(_fd_muestra)} valor={_fd_muestra} "
+                      f"total_rows={len(rows)} feriados_map_size={len(feriados_map_r)}")
 
             for r in rows:
                 row      = dict(zip(columnas, r))
                 emp_code = str(row.get('ID_Empleado') or "").strip()
                 fecha_d  = row.get('Fecha')
 
+                # Normalizar a datetime.date para comparaciones seguras
+                from datetime import datetime as _dt_cls, date as _date_cls
+                if isinstance(fecha_d, _dt_cls):
+                    fecha_d = fecha_d.date()
+
                 # Filtro por empleado
                 if emp_code_f and emp_code != emp_code_f:
                     continue
+
+                # Feriado asignado
+                es_feriado = feriados_map_r.get((emp_code, fecha_d)) if fecha_d else None
+
+                # Filtro por horario: omitir días que el empleado no trabaja
+                # (excepto si marcó físicamente ese día o es feriado asignado)
+                cantidad_marcas = int(row.get('Cantidad_Marcas') or 0)
+                if cantidad_marcas == 0 and not es_feriado:
+                    tpl_id = _plantilla_para_fecha(emp_code, fecha_d)
+                    if tpl_id:
+                        rule = _reglas_del_dia(tpl_id, fecha_d.weekday())
+                        if not rule or not rule.trabaja:
+                            continue
+                    else:
+                        # Sin plantilla → solo omitir fines de semana
+                        if fecha_d.weekday() >= 5:
+                            continue
 
                 # Horario programado
                 segs = _segmentos_programados(emp_code, fecha_d)
@@ -704,6 +750,8 @@ OPTION (MAXRECURSION 0);
                 row['Horario_Prog']     = f"{prog_first_in} → {prog_last_out}" if not no_programado else ""
                 row['Marcas_Dia']       = marcas_coloreadas
                 row['Comentarios']      = comentarios_map.get((emp_code, fecha_d), [])
+                row['Es_Feriado']       = bool(es_feriado)
+                row['Feriado_Desc']     = es_feriado or ""
                 datos.append(row)
 
         except Exception as e:
@@ -1049,10 +1097,29 @@ def tiempo_por_hora(request):
 
     fecha_inicio = request.GET.get('fecha_inicio', fecha_inicio_default)
     fecha_fin    = request.GET.get('fecha_fin', fecha_fin_default)
-    q            = (request.GET.get('q') or "").strip()
+    emp_code_f   = (request.GET.get('emp_code') or "").strip()
 
     datos = []
     error = None
+
+    # Mapa de feriados: (emp_code, date) -> descripcion
+    from datetime import timedelta as _td
+    feriados_map = {}
+    try:
+        fi_date = parse_date(fecha_inicio)
+        ff_date = parse_date(fecha_fin)
+        if fi_date and ff_date:
+            for asig in FeriadoAsignacion.objects.filter(
+                feriado__fecha_inicio__lte=ff_date,
+                feriado__fecha_fin__gte=fi_date,
+            ).select_related("feriado"):
+                d = asig.feriado.fecha_inicio
+                while d <= asig.feriado.fecha_fin:
+                    if fi_date <= d <= ff_date:
+                        feriados_map[(asig.emp_code.strip(), d)] = asig.feriado.descripcion
+                    d += _td(days=1)
+    except Exception as _ex:
+        print(f"[WARN] feriados_map: {_ex}")
 
     # SQL: MIN/MAX y conteo por empleado/día (tu SQL intacto)
     query = f"""
@@ -1113,6 +1180,67 @@ OPTION (MAXRECURSION 0);
             except Exception as ex:
                 print(f"[WARN] Consulta de marcas por día falló: {ex}")
 
+            # ── Pre-cargar datos en memoria para evitar N+1 queries ──────
+            from django.db.models import Q as _Q
+
+            fi_date_obj = parse_date(fecha_inicio)
+            ff_date_obj = parse_date(fecha_fin)
+
+            # 1. Asignaciones de horario activas
+            _asig_list = list(
+                EmployeeScheduleAssignment.objects
+                .filter(activo=True, fecha_inicio__lte=ff_date_obj)
+                .filter(_Q(fecha_fin__isnull=True) | _Q(fecha_fin__gte=fi_date_obj))
+                .order_by("emp_code", "-fecha_inicio")
+            )
+            _asig_por_emp = {}
+            for _a in _asig_list:
+                _asig_por_emp.setdefault(_a.emp_code, []).append(_a)
+
+            # 2. Reglas de horario para todas las plantillas relevantes
+            _tpl_ids = {_a.template_id for _a in _asig_list}
+            _reglas_dict = {
+                (r.template_id, r.weekday): r
+                for r in ScheduleRule.objects.filter(template_id__in=_tpl_ids)
+            } if _tpl_ids else {}
+
+            # 3. OvertimeRequest existentes para el rango
+            _ot_map = {
+                (ot.emp_code, ot.fecha): ot
+                for ot in OvertimeRequest.objects.filter(
+                    fecha__range=(fi_date_obj, ff_date_obj)
+                ).select_related("approved_by")
+            }
+            _ot_nuevos  = []   # OT a crear en bulk al final
+            _ot_cambios = []   # OT a actualizar en bulk al final
+
+            # Funciones fast (sin DB)
+            def _tpl_fast(ec, fd):
+                for _a in _asig_por_emp.get(ec, []):
+                    if _a.fecha_inicio <= fd:
+                        if _a.fecha_fin is None or _a.fecha_fin >= fd:
+                            return _a.template_id
+                return None
+
+            def _segs_fast(ec, fd):
+                tid = _tpl_fast(ec, fd)
+                if not tid:
+                    return []
+                rule = _reglas_dict.get((tid, fd.weekday()))
+                if not rule or not rule.trabaja:
+                    return []
+                segs = []
+                if rule.entrada_manana and rule.salida_manana:
+                    segs.append((_to_hhmm(rule.entrada_manana), _to_hhmm(rule.salida_manana)))
+                if rule.entrada_tarde and rule.salida_tarde:
+                    segs.append((_to_hhmm(rule.entrada_tarde), _to_hhmm(rule.salida_tarde)))
+                return segs
+
+            can_authorize = bool(
+                getattr(request.user, "is_staff", False) or
+                getattr(request.user, "is_superuser", False)
+            )
+
             # Defaults si no hay plantilla vigente ese día
             DEF_IN, DEF_OUT = "07:00", "16:48"
 
@@ -1125,12 +1253,17 @@ OPTION (MAXRECURSION 0);
                 cargo    = (row.get('Cargo') or "").strip()
                 fecha_d  = row.get('Fecha')
 
+                # Normalizar a datetime.date para comparaciones seguras
+                from datetime import datetime as _dt_cls2
+                if isinstance(fecha_d, _dt_cls2):
+                    fecha_d = fecha_d.date()
+
                 # Normaliza horas reales a HH:MM
                 h_in_real  = _to_hhmm(row.get('Hora_Entrada'))
                 h_out_real = _to_hhmm(row.get('Hora_Salida'))
 
-                # Segmentos programados desde PLANTILLA/ASIGNACIÓN
-                segs = _segmentos_programados(emp_code, fecha_d)
+                # Segmentos programados desde memoria (sin DB)
+                segs = _segs_fast(emp_code, fecha_d)
                 if not segs:
                     segs = [(DEF_IN, DEF_OUT)]  # fallback
                     no_programado = True
@@ -1180,11 +1313,24 @@ OPTION (MAXRECURSION 0);
                 except Exception as ex:
                     print(f"[WARN] Cálculo fila #{i}: {ex}")
 
-                # Filtro de búsqueda 'q' (código, nombre, cargo)
-                if q:
-                    qlow = q.lower()
-                    if not (qlow in emp_code.lower() or qlow in empleado.lower() or qlow in cargo.lower()):
-                        continue
+                # Filtro por empleado
+                if emp_code_f and emp_code != emp_code_f:
+                    continue
+
+                # Feriado asignado a este empleado para esta fecha
+                es_feriado = feriados_map.get((emp_code, fecha_d)) if fecha_d else None
+
+                # Filtro por horario: omitir días no laborables sin marcas reales
+                cantidad_marcas = int(row.get('Cantidad_Marcas') or 0)
+                if cantidad_marcas == 0 and not es_feriado:
+                    tpl_id = _tpl_fast(emp_code, fecha_d)
+                    if tpl_id:
+                        rule = _reglas_dict.get((tpl_id, fecha_d.weekday()))
+                        if not rule or not rule.trabaja:
+                            continue
+                    else:
+                        if fecha_d.weekday() >= 5:
+                            continue
 
                 # Marcas del día y coloreado de 1ª y última
                 key = (emp_code, fecha_d)
@@ -1199,27 +1345,24 @@ OPTION (MAXRECURSION 0);
                             cls = color_out_class
                         marcas_coloreadas.append({'t': tmark, 'cls': cls})
 
-                # --- Sincronizar con OvertimeRequest (minutos calculados) ---
-                try:
-                    ot, _ = OvertimeRequest.objects.get_or_create(
+                # --- Sincronizar con OvertimeRequest (desde memoria, sin DB por fila) ---
+                ot = _ot_map.get((emp_code, fecha_d))
+                if ot is None:
+                    _ot_nuevos.append(OvertimeRequest(
                         emp_code=emp_code, fecha=fecha_d,
-                        defaults={"minutos_calculados": int(extra_calc_min)}
-                    )
+                        minutos_calculados=int(extra_calc_min)
+                    ))
+                    aprobado_por = ""
+                    aprobado_en  = ""
+                    ot = None
+                else:
                     if ot.minutos_calculados != int(extra_calc_min):
                         ot.minutos_calculados = int(extra_calc_min)
-                        ot.save(update_fields=["minutos_calculados"])
-                    # Campos para UI
+                        _ot_cambios.append(ot)
                     aprobado_por = ""
                     if ot.approved_by:
                         aprobado_por = (ot.approved_by.get_full_name() or ot.approved_by.username)
                     aprobado_en = ot.approved_at.strftime("%Y-%m-%d %H:%M") if ot.approved_at else ""
-                    can_authorize = bool(getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False))
-                except Exception as ex:
-                    print(f"[WARN] Overtime sync #{i}: {ex}")
-                    aprobado_por = ""
-                    aprobado_en = ""
-                    can_authorize = False
-                    ot = None
 
                 # Ensamble de salida (manteniendo tus claves + nuevas)
                 row['Cargo']                    = cargo
@@ -1248,8 +1391,22 @@ OPTION (MAXRECURSION 0);
                 row['Horario_Ultima_Salida']   = prog_last_out or DEF_OUT
                 row['Marcas_Dia_Texto']        = ", ".join(marcas_list) if marcas_list else ""
                 row['Marcas_Dia']              = marcas_coloreadas
+                row['Es_Feriado']              = bool(es_feriado)
+                row['Feriado_Desc']            = es_feriado or ""
 
                 datos.append(row)
+
+            # Bulk create/update OvertimeRequest fuera del loop (1 query cada uno)
+            if _ot_nuevos:
+                try:
+                    OvertimeRequest.objects.bulk_create(_ot_nuevos, ignore_conflicts=True)
+                except Exception as _ex:
+                    print(f"[WARN] OT bulk_create: {_ex}")
+            if _ot_cambios:
+                try:
+                    OvertimeRequest.objects.bulk_update(_ot_cambios, ["minutos_calculados"])
+                except Exception as _ex:
+                    print(f"[WARN] OT bulk_update: {_ex}")
 
             # Logs de depuración
             print(f"Total filas procesadas (vista): {len(datos)}")
@@ -1269,12 +1426,18 @@ OPTION (MAXRECURSION 0);
         error = f"Error al consultar la base de datos: {str(e)}"
         print(f"[ERROR] tiempo_por_hora: {error}")
 
+    try:
+        empleados_opts = get_empleado_options()
+    except Exception:
+        empleados_opts = []
+
     contexto = {
         'datos': datos,
         'error': error,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
-        'q': q,
+        'emp_code_f': emp_code_f,
+        'empleados_opts': empleados_opts,
         'total_filas': len(datos),
     }
     return render(request, 'reloj/tiempo_por_hora.html', contexto)
@@ -1461,10 +1624,8 @@ def compensatorio_google_hook(request):
 
 @staff_required
 def feriados_list(request):
-    qs = Feriado.objects.all().order_by("-fecha")
-    paginator = Paginator(qs, 20)
-    page = request.GET.get("page")
-    feriados = paginator.get_page(page)
+    from django.db.models import Count
+    feriados = Feriado.objects.annotate(total_asignados=Count("asignaciones")).order_by("-fecha_inicio")
     return render(request, "reloj/feriados_list.html", {"feriados": feriados})
 
 
@@ -1477,7 +1638,7 @@ def feriado_new(request):
             obj.creado_por = request.user
             obj.save()
             messages.success(request, "Feriado creado.")
-            return redirect("reloj_feriados_list")
+            return redirect("reloj_feriado_edit", pk=obj.pk)
     else:
         form = FeriadoForm()
     return render(request, "reloj/feriado_form.html", {"form": form, "modo": "Agregar"})
@@ -1491,10 +1652,26 @@ def feriado_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "Feriado actualizado.")
-            return redirect("reloj_feriados_list")
+            return redirect("reloj_feriado_edit", pk=obj.pk)
     else:
         form = FeriadoForm(instance=obj)
-    return render(request, "reloj/feriado_form.html", {"form": form, "modo": "Editar", "obj": obj})
+    asignados_codes = set(
+        FeriadoAsignacion.objects.filter(feriado=obj).values_list("emp_code", flat=True)
+    )
+    try:
+        empleados_opts = get_empleado_options()
+    except Exception:
+        empleados_opts = []
+    # Marcar cuáles ya están asignados para los checkboxes
+    empleados_check = [
+        {"code": code, "label": label, "checked": code in asignados_codes}
+        for code, label in empleados_opts
+    ]
+    return render(request, "reloj/feriado_form.html", {
+        "form": form, "modo": "Editar", "obj": obj,
+        "empleados_check": empleados_check,
+        "total_asignados": len(asignados_codes),
+    })
 
 
 @staff_required
@@ -1505,6 +1682,52 @@ def feriado_delete(request, pk):
         messages.success(request, "Feriado eliminado.")
         return redirect("reloj_feriados_list")
     return render(request, "reloj/confirm_delete.html", {"obj": obj, "titulo": "Eliminar feriado"})
+
+
+@staff_required
+@require_POST
+def feriado_asignacion_bulk(request, pk):
+    """Guarda la selección completa de checkboxes: agrega los nuevos, quita los desmarcados."""
+    feriado = get_object_or_404(Feriado, pk=pk)
+    selected = set(filter(None, (c.strip() for c in request.POST.getlist("emp_codes"))))
+    existing = set(FeriadoAsignacion.objects.filter(feriado=feriado).values_list("emp_code", flat=True))
+
+    to_add    = selected - existing
+    to_remove = existing - selected
+
+    # Quitar desmarcados
+    FeriadoAsignacion.objects.filter(feriado=feriado, emp_code__in=to_remove).delete()
+
+    # Obtener nombres de nuevos en una sola consulta
+    nombres = {}
+    if to_add:
+        try:
+            placeholders = ",".join(["%s"] * len(to_add))
+            with connections["zkbio_sqlserver"].cursor() as c:
+                c.execute(
+                    f"SELECT CAST(emp_code AS VARCHAR(20)), first_name + ' ' + last_name "
+                    f"FROM dbo.personnel_employee WHERE CAST(emp_code AS VARCHAR(20)) IN ({placeholders})",
+                    list(to_add)
+                )
+                for code, nombre in c.fetchall():
+                    nombres[(code or "").strip()] = (nombre or "").strip()
+        except Exception:
+            pass
+
+    for emp_code in to_add:
+        FeriadoAsignacion.objects.create(
+            feriado=feriado,
+            emp_code=emp_code,
+            nombre_empleado=nombres.get(emp_code, ""),
+            asignado_por=request.user,
+        )
+
+    return JsonResponse({
+        "ok": True,
+        "added": len(to_add),
+        "removed": len(to_remove),
+        "total": len(selected),
+    })
 
 
 # ─────────────────────────────────────────────────────────────

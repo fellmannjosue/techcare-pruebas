@@ -53,10 +53,9 @@ class OvertimeRequestAdmin(admin.ModelAdmin):
 
 @admin.register(Feriado)
 class FeriadoAdmin(admin.ModelAdmin):
-    list_display  = ("fecha", "descripcion", "creado_por", "creado_en")
+    list_display  = ("fecha_inicio", "fecha_fin", "descripcion", "creado_por", "creado_en")
     search_fields = ("descripcion",)
-    date_hierarchy = "fecha"
-    ordering      = ("-fecha",)
+    ordering      = ("-fecha_inicio",)
 
 
 @admin.register(SabadoEspecial)

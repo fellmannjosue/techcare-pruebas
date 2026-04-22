@@ -140,9 +140,10 @@ class OvertimeRequest(models.Model):
 # ─────────────────────────────────────────────────────────────
 
 class Feriado(models.Model):
-    fecha = models.DateField("Fecha de feriado", unique=True)
-    descripcion = models.CharField("Descripción", max_length=255)
-    creado_por = models.ForeignKey(
+    fecha_inicio = models.DateField("Fecha inicio")
+    fecha_fin    = models.DateField("Fecha fin")
+    descripcion  = models.CharField("Descripción", max_length=255)
+    creado_por   = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="feriados_creados", verbose_name="Creado por"
     )
@@ -152,10 +153,34 @@ class Feriado(models.Model):
         db_table = "reloj_feriado"
         verbose_name = "Feriado"
         verbose_name_plural = "Feriados"
-        ordering = ["-fecha"]
+        ordering = ["-fecha_inicio"]
 
     def __str__(self):
-        return f"{self.fecha} - {self.descripcion}"
+        if self.fecha_inicio == self.fecha_fin:
+            return f"{self.fecha_inicio} - {self.descripcion}"
+        return f"{self.fecha_inicio} → {self.fecha_fin} - {self.descripcion}"
+
+
+class FeriadoAsignacion(models.Model):
+    """Asignación de un feriado a un empleado específico."""
+    feriado        = models.ForeignKey(Feriado, on_delete=models.CASCADE, related_name="asignaciones")
+    emp_code       = models.CharField("Código empleado", max_length=20, db_index=True)
+    nombre_empleado = models.CharField("Nombre empleado", max_length=200, blank=True)
+    asignado_por   = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="feriados_asignados", verbose_name="Asignado por"
+    )
+    asignado_en = models.DateTimeField("Asignado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_feriado_asignacion"
+        verbose_name = "Asignación de feriado"
+        verbose_name_plural = "Asignaciones de feriado"
+        unique_together = ("feriado", "emp_code")
+        ordering = ["emp_code"]
+
+    def __str__(self):
+        return f"{self.feriado} → {self.emp_code}"
 
 
 class SabadoEspecial(models.Model):

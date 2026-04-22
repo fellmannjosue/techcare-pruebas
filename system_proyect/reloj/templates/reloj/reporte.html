@@ -15,6 +15,7 @@
   .hora-verde { background:#d1e7dd !important; color:#0f5132 !important; font-weight:600; }
   .hora-azul  { background:#3b8eea !important; color:#fff    !important; font-weight:600; }
   .chip       { padding:2px 7px; border-radius:.25rem; display:inline-block; font-size:.82rem; }
+  .hora-feriado { background:#fff3cd !important; color:#664d03 !important; font-weight:600; }
   .cmts-wrap { min-width:200px; max-width:280px; }
   .cmts-list { list-style:none; padding:0; margin:0 0 4px 0; }
   .cmts-list li { display:flex; align-items:flex-start; gap:4px; font-size:.8rem; padding:2px 0; border-bottom:1px solid #f0f0f0; }
@@ -89,13 +90,14 @@
         <thead>
           <tr>
             <th>ID Empleado</th><th>Empleado</th><th>Horario Programado</th>
-            <th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
+            <th>Feriado</th><th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
             <th>Comentario</th><th>Estado</th>
           </tr>
           <tr>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
+            <th></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
@@ -105,7 +107,7 @@
         </thead>
         <tbody>
           {% for row in datos %}
-          <tr {% if row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
+          <tr {% if row.Es_Feriado %}class="table-warning"{% elif row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
             <td>{{ row.ID_Empleado }}</td>
             <td>{{ row.Empleado }}</td>
             <td>
@@ -113,6 +115,13 @@
                 <span class="badge bg-dark">No programado</span>
               {% else %}
                 <span class="text-nowrap">{{ row.Horario_Prog }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.Es_Feriado %}
+                <span class="chip hora-feriado"><i class="ti ti-sun me-1"></i>{{ row.Feriado_Desc|default:"Feriado" }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td>{{ row.Fecha|date:"Y-m-d" }}</td>
@@ -182,8 +191,8 @@ $(function(){
   var table = $('#tablaAsistencia').DataTable({
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
     pageLength: 25, orderCellsTop: true, fixedHeader: true,
-    order: [[0,'asc'],[3,'asc']],
-    columnDefs: [{ orderable: false, targets: 6 }]
+    order: [[0,'asc'],[4,'asc']],
+    columnDefs: [{ orderable: false, targets: [3, 7] }]
   });
 
   $('#tablaAsistencia thead tr:eq(1) th').each(function(i){

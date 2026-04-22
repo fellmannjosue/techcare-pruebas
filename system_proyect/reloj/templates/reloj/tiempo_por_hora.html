@@ -2,15 +2,26 @@
 {% load static %}
 {% block title %}Tiempo por Hora{% endblock %}
 {% block page_pretitle %}Reloj{% endblock %}
-{% block page_title %}Reporte Tiempo por Hora{% endblock %}
+{% block page_title %}Tiempo por Hora{% endblock %}
 {% block nav_tiempo_hora %}active{% endblock %}
 
 {% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
 <style>
+  .select2-container .select2-selection--single { height: 36px; }
+  .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+  .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
   .hora-rojo  { background:#f8d7da !important; color:#842029 !important; font-weight:600; }
   .hora-verde { background:#d1e7dd !important; color:#0f5132 !important; font-weight:600; }
   .hora-azul  { background:#3b8eea !important; color:#fff    !important; font-weight:600; }
-  .chip       { padding:2px 6px; border-radius:.25rem; display:inline-block; }
+  .chip       { padding:2px 7px; border-radius:.25rem; display:inline-block; font-size:.82rem; }
+  .hora-feriado { background:#fff3cd !important; color:#664d03 !important; font-weight:600; }
+  /* Columnas especiales */
+  .th-compensatorio, .td-compensatorio { background:#fde8e8 !important; color:#7f1d1d; }
+  .th-ausencias,     .td-ausencias     { background:#e0f2fe !important; color:#0c4a6e; }
+  .th-otro-pagado,   .td-otro-pagado   { background:#f1f1f1 !important; color:#444; }
+  .th-vacaciones,    .td-vacaciones    { background:#d1fae5 !important; color:#065f46; }
+  .th-enfermedad,    .td-enfermedad    { background:#fce7f3 !important; color:#831843; }
 </style>
 {% endblock %}
 
@@ -25,11 +36,12 @@
 <div class="alert alert-danger mb-3">{{ error }}</div>
 {% endif %}
 
-<div class="alert alert-secondary py-2 mb-3 d-flex flex-wrap gap-3">
+<div class="alert alert-secondary py-2 mb-3 d-flex flex-wrap gap-3 align-items-center">
   <span><span class="chip hora-verde">HH:MM</span> A tiempo</span>
-  <span><span class="chip hora-rojo">HH:MM</span> Tarde/Salida antes</span>
+  <span><span class="chip hora-rojo">HH:MM</span> Tarde / salida antes</span>
   <span><span class="chip hora-azul">HH:MM</span> Se quedó más</span>
-  <span><span class="badge bg-dark">No programado</span> sin plantilla/regla ese día</span>
+  <span><span class="badge bg-dark">No programado</span> Sin plantilla asignada</span>
+  <span><span class="chip hora-feriado">Feriado</span> Día feriado asignado</span>
 </div>
 
 <form method="get" class="card mb-4">
@@ -43,166 +55,115 @@
         <label class="form-label">Fecha fin</label>
         <input type="date" name="fecha_fin" value="{{ fecha_fin }}" required class="form-control">
       </div>
-      <div class="col-auto">
-        <label class="form-label">Buscar</label>
-        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Empleado, Código o Cargo">
+      <div class="col-auto" style="min-width:280px;">
+        <label class="form-label">Empleado</label>
+        <select id="emp_code" name="emp_code" class="form-select">
+          <option value="">Todos</option>
+          {% for code, label in empleados_opts %}
+            <option value="{{ code }}" {% if code == emp_code_f %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="col-auto d-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i> Aplicar</button>
-        <a href="{% url 'tiempo_por_hora' %}" class="btn btn-ghost-secondary">Limpiar</a>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-search me-1"></i> Consultar
+        </button>
       </div>
     </div>
   </div>
 </form>
 
+{% if datos %}
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table id="tablaTiempoPorHora" class="table table-vcenter table-hover card-table">
         <thead>
           <tr>
-            <th>ID Empleado</th><th>Empleado</th><th>Fecha</th><th>Horario Prog.</th>
-            <th>Hora Entrada</th><th>Hora Salida</th><th>Marcas del Día</th>
-            <th>Cant. Marcas</th><th>Tiempo Extra</th><th>Autorizado por</th><th>Tiempo Faltante</th>
+            <th>ID Empleado</th>
+            <th>Empleado</th>
+            <th>Fecha</th>
+            <th>Horario Programado</th>
+            <th>Feriado</th>
+            <th>Marcas del Día</th>
+            <th class="text-center th-compensatorio">Compensatorio</th>
+            <th class="text-center th-ausencias">Ausencias</th>
+            <th class="text-center th-otro-pagado">Otro Pagado</th>
+            <th class="text-center th-vacaciones">Vacaciones</th>
+            <th class="text-center th-enfermedad">Enfermedad</th>
           </tr>
           <tr>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="AAAA-MM-DD"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="HH:MM → HH:MM"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="HH:MM"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="HH:MM"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="marcas..."/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="N°"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="Calc/Aut/Estado"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="Nombre/Fecha"/></th>
-            <th><input type="text" class="form-control form-control-sm" placeholder="-min / -h"/></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {% if datos %}
-            {% for row in datos %}
-            <tr class="data-row">
-              <td>{{ row.ID_Empleado }}</td>
-              <td>{{ row.Empleado }}</td>
-              <td>{{ row.Fecha|date:"Y-m-d" }}</td>
-              <td>
-                {% if row.No_Programado %}
-                  <span class="badge bg-dark">No programado</span>
-                {% else %}
-                  {{ row.Horario_Primera_Entrada }} &rarr; {{ row.Horario_Ultima_Salida }}
-                {% endif %}
-              </td>
-              <td class="{{ row.Color_Entrada_Class }}">{{ row.Hora_Entrada }}</td>
-              <td class="{{ row.Color_Salida_Class }}">{{ row.Hora_Salida }}</td>
-              <td>
-                {% if row.Marcas_Dia and row.Marcas_Dia|length > 0 %}
-                  {% for m in row.Marcas_Dia %}
-                    {% if m.cls %}<span class="chip {{ m.cls }}">{{ m.t }}</span>
-                    {% else %}<span class="badge text-bg-secondary">{{ m.t }}</span>{% endif %}
-                    {% if not forloop.last %}, {% endif %}
-                  {% endfor %}
-                {% else %}—{% endif %}
-              </td>
-              <td>{{ row.Cantidad_Marcas|default:"0" }}</td>
-              <td>
-                <div class="small">
-                  <div><strong>Calc:</strong> {{ row.Extra_Min_Calculado }} min</div>
-                  <div><strong>Aut:</strong> {{ row.Extra_Min_Autorizado }} min</div>
-                  <div>
-                    <strong>Estado:</strong>
-                    {% if row.Extra_Status == "APPR" %}<span class="badge bg-success-lt text-success">Aprobado</span>
-                    {% elif row.Extra_Status == "REJC" %}<span class="badge bg-danger-lt text-danger">Rechazado</span>
-                    {% else %}<span class="badge bg-secondary-lt text-secondary">Pendiente</span>{% endif %}
-                  </div>
-                </div>
-                {% if row.Can_Authorize %}
-                <button class="btn btn-sm btn-ghost-primary mt-1"
-                        data-bs-toggle="modal" data-bs-target="#modalOvertime"
-                        data-emp="{{ row.ID_Empleado }}"
-                        data-fecha="{{ row.Fecha|date:'Y-m-d' }}"
-                        data-calc="{{ row.Extra_Min_Calculado }}"
-                        data-aut="{{ row.Extra_Min_Autorizado }}"
-                        data-status="{{ row.Extra_Status }}">
-                  Autorizar
-                </button>
-                {% endif %}
-              </td>
-              <td>
-                {% if row.Extra_Status == "APPR" %}
-                  <div class="small">
-                    <div><strong>{{ row.Extra_Autorizado_Por|default:"—" }}</strong></div>
-                    <div class="text-muted">{{ row.Extra_Autorizado_En|default:"" }}</div>
-                  </div>
-                {% else %}—{% endif %}
-              </td>
-              <td>
-                {% if row.Tiempo_Faltante %}
-                  <span class="badge bg-danger-lt text-danger">{{ row.Tiempo_Faltante }}</span>
-                {% else %}—{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          {% else %}
-          <tr><td colspan="11" class="text-center text-muted py-3">No hay registros disponibles.</td></tr>
-          {% endif %}
+          {% for row in datos %}
+          <tr {% if row.Es_Feriado %}class="table-warning"{% endif %}>
+            <td>{{ row.ID_Empleado }}</td>
+            <td>{{ row.Empleado }}</td>
+            <td>{{ row.Fecha|date:"Y-m-d" }}</td>
+            <td>
+              {% if row.No_Programado %}
+                <span class="badge bg-dark">No programado</span>
+              {% else %}
+                <span class="text-nowrap">{{ row.Horario_Primera_Entrada }} &rarr; {{ row.Horario_Ultima_Salida }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.Es_Feriado %}
+                <span class="chip hora-feriado"><i class="ti ti-sun me-1"></i>{{ row.Feriado_Desc|default:"Feriado" }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.Marcas_Dia %}
+                {% for m in row.Marcas_Dia %}
+                  {% if m.cls %}<span class="chip {{ m.cls }}">{{ m.t }}</span>
+                  {% else %}<span class="badge text-bg-secondary">{{ m.t }}</span>{% endif %}
+                  {% if not forloop.last %} {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center td-compensatorio"><span class="text-muted">—</span></td>
+            <td class="text-center td-ausencias"><span class="text-muted">—</span></td>
+            <td class="text-center td-otro-pagado"><span class="text-muted">—</span></td>
+            <td class="text-center td-vacaciones"><span class="text-muted">—</span></td>
+            <td class="text-center td-enfermedad"><span class="text-muted">—</span></td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 </div>
-
-<div class="modal modal-blur fade" id="modalOvertime" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <form id="formOvertime">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="ti ti-clock-check me-2"></i>Autorizar tiempo extra</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" name="emp_code" id="otEmp">
-          <input type="hidden" name="fecha" id="otFecha">
-          <div class="mb-3">
-            <label class="form-label">Minutos calculados</label>
-            <input class="form-control" id="otCalc" readonly>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Minutos autorizados</label>
-            <input class="form-control" name="minutos_autorizados" id="otAut" type="number" min="0" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Estado</label>
-            <select class="form-select" name="status" id="otStatus">
-              <option value="APPR">Aprobado</option>
-              <option value="REJC">Rechazado</option>
-              <option value="PEND">Pendiente</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Comentario</label>
-            <input class="form-control" name="comentario" id="otComentario" placeholder="Comentario (opcional)">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" type="submit"><i class="ti ti-device-floppy me-1"></i> Guardar</button>
-          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+{% elif not error %}
+<div class="alert alert-secondary">No hay datos para mostrar en el rango seleccionado.</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'reloj/js/autorefresh.js' %}"></script>
 <script>
 $(function(){
   var table = $('#tablaTiempoPorHora').DataTable({
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-    pageLength: 10, orderCellsTop: true, fixedHeader: true,
-    order: [[0,'asc'],[2,'asc']]
+    pageLength: 25, orderCellsTop: true, fixedHeader: true,
+    order: [[0,'asc'],[2,'asc']],
+    columnDefs: [{ orderable: false, targets: [4, 5, 6, 7, 8, 9, 10] }]
   });
 
   $('#tablaTiempoPorHora thead tr:eq(1) th').each(function(i){
@@ -211,28 +172,9 @@ $(function(){
     });
   });
 
-  var modal = document.getElementById('modalOvertime');
-  modal.addEventListener('show.bs.modal', function(ev){
-    var b = ev.relatedTarget;
-    document.getElementById('otEmp').value    = b.dataset.emp;
-    document.getElementById('otFecha').value  = b.dataset.fecha;
-    document.getElementById('otCalc').value   = b.dataset.calc || 0;
-    document.getElementById('otAut').value    = b.dataset.aut  || 0;
-    document.getElementById('otStatus').value = b.dataset.status || 'APPR';
-    document.getElementById('otComentario').value = '';
-  });
-
-  document.getElementById('formOvertime').addEventListener('submit', async function(e){
-    e.preventDefault();
-    const resp = await fetch("{% url 'reloj_overtime_authorize' %}", {
-      method: 'POST',
-      headers: {'X-Requested-With':'XMLHttpRequest'},
-      body: new FormData(e.target)
-    });
-    const data = await resp.json();
-    if (data.ok) location.reload();
-    else alert(data.msg || 'Error al autorizar.');
-  });
+  if ($.fn.select2){
+    $('#emp_code').select2({ width:'100%', placeholder:'Todos', allowClear:true });
+  }
 });
 </script>
 {% endblock %}

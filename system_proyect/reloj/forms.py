@@ -190,11 +190,20 @@ class EmployeeScheduleAssignmentForm(forms.ModelForm):
 class FeriadoForm(forms.ModelForm):
     class Meta:
         model = Feriado
-        fields = ["fecha", "descripcion"]
+        fields = ["fecha_inicio", "fecha_fin", "descripcion"]
         widgets = {
-            "fecha": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "descripcion": forms.TextInput(attrs={"class": "form-control"}),
+            "fecha_inicio": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "fecha_fin":    forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "descripcion":  forms.TextInput(attrs={"class": "form-control"}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        fi = cleaned.get("fecha_inicio")
+        ff = cleaned.get("fecha_fin")
+        if fi and ff and ff < fi:
+            self.add_error("fecha_fin", "La fecha fin no puede ser anterior a la fecha inicio.")
+        return cleaned
 
 
 class SabadoEspecialForm(forms.ModelForm):

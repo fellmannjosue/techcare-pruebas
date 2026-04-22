@@ -10,6 +10,13 @@
 {% endblock %}
 
 {% block page_actions %}
+  {% if request.user.is_superuser %}
+  <button type="button" class="btn btn-ghost-warning me-2"
+          data-bs-toggle="modal" data-bs-target="#modalReenviarReportes"
+          title="Reenviar notificaciones a coordinadores">
+    <i class="ti ti-send me-1"></i>Reenviar reportes
+  </button>
+  {% endif %}
   <a href="{% url 'menu' %}" class="btn btn-ghost-secondary">
     <i class="ti ti-arrow-left me-1"></i> Menú Principal
   </a>
@@ -31,6 +38,8 @@
 {% endblock %}
 
 {% block content %}
+
+
 <div class="card">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-list-check me-2 text-blue"></i>Reportes del Área</h3>
@@ -203,6 +212,33 @@
 {% endblock %}
 
 {% block modals %}
+
+{% if request.user.is_superuser %}
+{# Modal Reenviar Reportes a Coordinadores — solo superuser #}
+<div class="modal modal-blur fade" id="modalReenviarReportes" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-send me-2 text-warning"></i>Reenviar reportes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Selecciona la fecha de los reportes que deseas reenviar a los coordinadores.</p>
+        <label class="form-label fw-bold">Fecha</label>
+        <input type="date" id="inputFechaReenvio" class="form-control">
+        <div id="reenvioMsg" class="d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="btnConfirmarReenvio">
+          <i class="ti ti-send me-1"></i>Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {# Modal Historial #}
 <div class="modal modal-blur fade" id="modalHistorial" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -290,4 +326,31 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <script src="{% static 'conducta/js/coordinador.js' %}"></script>
+  {% if request.user.is_superuser %}
+  <script>
+  (function(){
+    const CSRF = "{{ csrf_token }}";
+    const URL_REENVIAR = "{% url 'reenviar_reportes_coordinadores' %}";
+    document.getElementById('btnConfirmarReenvio')?.addEventListener('click', async function(){
+      const fecha = document.getElementById('inputFechaReenvio').value;
+      if (!fecha) { alert('Selecciona una fecha.'); return; }
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+      const body = new URLSearchParams({ fecha });
+      const res = await fetch(URL_REENVIAR, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+      const data = await res.json();
+      this.disabled = false;
+      this.innerHTML = '<i class="ti ti-send me-1"></i>Enviar';
+      const msgEl = document.getElementById('reenvioMsg');
+      msgEl.className = `alert mt-2 alert-${data.ok ? 'success' : 'danger'}`;
+      msgEl.textContent = data.ok ? `Enviados: ${data.enviados} notificaciones` : `Error: ${data.error}`;
+      msgEl.classList.remove('d-none');
+    });
+  })();
+  </script>
+  {% endif %}
 {% endblock %}

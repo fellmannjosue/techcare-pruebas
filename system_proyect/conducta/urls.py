@@ -17,6 +17,7 @@ urlpatterns = [
     # Historial
     path('historial/maestro/bilingue/', views.historial_maestro_bilingue, name='historial_maestro_bilingue'),
     path('historial/maestro/colegio/', views.historial_maestro_colegio, name='historial_maestro_colegio'),
+    path('reenviar-reportes/', views.reenviar_reportes_coordinadores, name='reenviar_reportes_coordinadores'),
 
     # -------------------------------
     # EDICIÓN Y PDF AGRUPADOS
