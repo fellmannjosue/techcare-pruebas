@@ -54,3 +54,7 @@ weasyprint==66.0
 webencodings==0.5.1
 xlsxwriter==3.2.9
 zopfli==0.2.3.post1
+django-constance==4.3.5
+django-guardian==3.3.1
+django-import-export==4.4.0
+django-simple-history==3.11.0

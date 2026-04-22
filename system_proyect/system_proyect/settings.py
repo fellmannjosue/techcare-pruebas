@@ -49,6 +49,12 @@ INSTALLED_APPS = [
     'unfold.contrib.filters',
     'unfold.contrib.forms',
     'unfold.contrib.inlines',
+    'unfold.contrib.import_export',
+    'unfold.contrib.simple_history',
+    'unfold.contrib.constance',
+    # guardian y location_field requieren configuración adicional
+    # 'unfold.contrib.guardian',
+    # 'unfold.contrib.location_field',
 
     # Apps de Django
     'django.contrib.admin',
@@ -58,6 +64,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'widget_tweaks',
+
+    # Paquetes de terceros requeridos por unfold contrib
+    'import_export',
+    'simple_history',
+    'constance',
+    'constance.backends.database',
 
     # Apps personalizadas
     'accounts',
@@ -250,6 +262,12 @@ CACHES = {
 # SESSION_COOKIE_DOMAIN = '.ana-hn.org'
 # CSRF_COOKIE_DOMAIN = '.ana-hn.org'
 
+
+# ─────────────────────────────────────────────────────────────
+# CONSTANCE (configuración dinámica desde el admin)
+# ─────────────────────────────────────────────────────────────
+CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
+CONSTANCE_CONFIG = {}
 
 # ─────────────────────────────────────────────────────────────
 # 13. CORREO ELECTRÓNICO (SMTP)
