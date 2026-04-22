@@ -1,142 +1,259 @@
-# TechCare Project
+# TechCare – Sistema de Gestión Institucional
 
-Este repositorio contiene un conjunto de aplicaciones Django para gestionar servicios en un centro educativo. El directorio principal `system_proyect` incluye la configuración de producción y todas las apps, mientras que `django_test` es una copia de pruebas. En `datos/` se encuentran archivos CSV y SQL para poblar la base de datos.
+Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, seguridad y más.
 
-## Estructura general
-- **system_proyect/** – Proyecto Django utilizado en despliegue.
-- **django_test/** – Entorno de pruebas con un proyecto homónimo.
-- **datos/** – Scripts y datos de ejemplo para alimentar las tablas.
+- **URL de producción:** https://servicios.ana-hn.org
+- **Servidor:** Apache + mod_wsgi · Django 5.0.14 · Python 3.11
+- **Base de datos principal:** MySQL (`sponsors2` en `192.168.10.6`)
+- **Base de datos secundaria:** SQL Server (módulo Reloj)
+- **UI:** Tabler UI v1.0.0-beta19
 
-## Aplicaciones
-### Accounts
-Gestión de autenticación y menú principal. Rutas relevantes:
-- `/accounts/login/` – inicio de sesión.
-- `/accounts/user-login/` – acceso directo a tickets.
-- `/accounts/menu/` – menú principal.
-- `/accounts/logout/` – cierre de sesión.
+---
 
-### Tickets
-Permite crear tickets de soporte y notificar por correo.
-- `/tickets/submit_ticket/` – formulario de creación.
-- `/tickets/technician_dashboard/` – panel para técnicos.
+## Estructura del repositorio
 
-### Inventario
-Control de equipos y materiales con exportación en PDF y vistas por tipo.
-- `/inventario/` – panel general y acceso por categorías.
-- `/inventario/download_item_pdf/<id>/` – descarga de registros.
-- `/inventario/computadoras/` – listado de computadoras.
-- `/inventario/televisores/` – listado de televisores.
-- `/inventario/impresoras/` – listado de impresoras.
-- `/inventario/routers/` – listado de routers.
-- `/inventario/datashows/` – listado de datashows.
-- `/inventario/por_categoria/` – consulta unificada por categoría.
-- `/inventario/registros/` – registro global de equipos.
-- `/registros/qr/<tipo>/<pk>/` – código QR del registro.
-- `/download/<tipo>/<pk>/` – descarga individual en PDF.
+```
+techcare_project/
+├── system_proyect/       # Proyecto Django de producción
+│   ├── accounts/         # Autenticación, menú principal, registro
+│   ├── tickets/          # Sistema de tickets de soporte
+│   ├── conducta/         # Reportes conductuales y académicos
+│   ├── reloj/            # Control de asistencia (SQL Server)
+│   ├── inventario/       # Inventario de equipos y activos
+│   ├── mantenimiento/    # Registro de mantenimientos
+│   ├── citas_billingue/  # Citas – departamento bilingüe
+│   ├── citas_colegio/    # Citas – colegio/vocacional
+│   ├── enfermeria/       # Atención médica e inventario medicamentos
+│   ├── sponsors/         # Gestión de patrocinadores
+│   ├── seguridad/        # Control de cámaras y contabilidad
+│   └── core/             # Utilidades compartidas y notificaciones
+├── django_test/          # Entorno de pruebas (copia del proyecto)
+└── datos/                # Scripts SQL y CSV de datos de ejemplo
+```
+
+---
+
+## Módulos
+
+### Accounts — Autenticación y Panel Principal
+Login unificado con redirección automática según rol (maestro, técnico, coordinador, admin).
+
+| Ruta | Descripción |
+|------|-------------|
+| `/accounts/login/` | Inicio de sesión |
+| `/accounts/logout/` | Cierre de sesión |
+| `/accounts/register/` | Registro de usuarios (maestros / staff) |
+| `/accounts/menu/` | Panel principal con tarjetas por módulo |
+| `/accounts/password_reset/` | Recuperar contraseña (envío de enlace) |
+| `/accounts/reenviar-bienvenida/` | Reenvío de correo de bienvenida (solo superuser) |
+
+**Roles y grupos:**
+- `maestros_bilingue` / `maestros_colegio` → dashboard de maestro
+- `coordinador_bilingue` / `coordinador_colegio` → dashboard de coordinador
+- `admin_bilingue` / `admin_colegio` / `administracion` → acceso administrativo
+- `tecnicos` → dashboard de tickets
+- Superusuario → acceso completo + herramientas de admin
+
+---
+
+### Tickets — Soporte Técnico
+Gestión de solicitudes de soporte con seguimiento, comentarios y notificaciones por correo.
+
+| Ruta | Descripción |
+|------|-------------|
+| `/tickets/submit_ticket/` | Crear ticket |
+| `/tickets/technician_dashboard/` | Panel para técnicos |
+| `/tickets/<id>/comments/` | Conversación / chat del ticket |
+
+---
+
+### Conducta — Reportes Académicos y de Conducta
+Sistema de reportes para maestros con revisión por coordinadores.
+
+**Tipos de reportes:**
+- **Reporte Informativo** — comunicación académica general
+- **Reporte Conductual** — faltas de conducta (genera PDF individual y "3 Strikes")
+- **Progress Report** — seguimiento académico (solo área bilingüe)
+
+**Áreas:** Bilingüe y Colegio/CFP (flujos independientes)
+
+| Ruta | Descripción |
+|------|-------------|
+| `/conducta/dashboard/maestro/` | Dashboard del maestro |
+| `/conducta/historial/bilingue/` | Historial de reportes – maestro bilingüe |
+| `/conducta/historial/colegio/` | Historial de reportes – maestro colegio |
+| `/conducta/coordinador/<area>/` | Dashboard del coordinador |
+| `/conducta/reenviar-reportes/` | Reenviar notificaciones a coordinadores (solo superuser) |
+| `/conducta/pdf/informativo/<id>/` | Descargar PDF informativo |
+| `/conducta/pdf/conductual/<id>/` | Descargar PDF conductual |
+| `/conducta/pdf/conductual/3strikes/<id>/` | Descargar PDF 3 Strikes |
+
+**Notificaciones automáticas:** Al crear cualquier reporte, se envía correo HTML a los 4 coordinadores (`ialcerro`, `druiz`, `jmartinez`, `acruz` @ana-hn.org).
+
+**Evidencias:** Cada reporte admite hasta 2 imágenes de evidencia.
+
+---
+
+### Reloj — Control de Asistencia
+Conecta con SQL Server para leer marcas del reloj biométrico. Gestiona horarios, compensatorios, permisos, feriados y genera reportes.
+
+| Ruta | Descripción |
+|------|-------------|
+| `/reloj/` | Dashboard principal |
+| `/reloj/tiempo-por-hora/` | Tabla detallada de marcas por empleado/día |
+| `/reloj/reporte/` | Reporte de asistencia con filtros |
+| `/reloj/feriados/` | Listado de feriados |
+| `/reloj/feriados/nuevo/` | Crear feriado (rango de fechas) |
+| `/reloj/feriados/<id>/editar/` | Editar feriado y asignar empleados |
+| `/reloj/feriados/asignacion/bulk/` | Guardar asignación masiva de empleados |
+| `/reloj/solicitudes/` | Solicitudes de compensatorio / permiso |
+
+**Feriados:** Soportan rango de fechas (`fecha_inicio` → `fecha_fin`) y asignación individual por empleado mediante checkboxes.
+
+**Columnas en Tiempo por Hora:** Horario Programado · Feriado · Marcas del Día · Compensatorio · Ausencias · Otro Pagado · Vacaciones · Enfermedad.
+
+---
+
+### Inventario — Activos y Equipos
+Control de equipos institucionales con QR, PDF y categorías.
+
+| Ruta | Descripción |
+|------|-------------|
+| `/inventario/` | Panel general |
+| `/inventario/computadoras/` | Listado de computadoras |
+| `/inventario/televisores/` | Listado de televisores |
+| `/inventario/impresoras/` | Listado de impresoras |
+| `/inventario/routers/` | Listado de routers |
+| `/inventario/datashows/` | Listado de datashows |
+| `/inventario/por_categoria/` | Consulta unificada por categoría |
+| `/inventario/download_item_pdf/<id>/` | Ficha en PDF |
+| `/registros/qr/<tipo>/<pk>/` | Código QR del equipo |
+
+---
 
 ### Mantenimiento
-Registro y reporte de mantenimientos.
-- `/mantenimiento/` – listado y formulario unificado.
-- `/mantenimiento/download/<id>/` – reporte en PDF.
+Registro y descarga de reportes de mantenimiento.
 
-### Citas (Bilingüe)
-Agendamiento de citas para el departamento bilingüe.
-- `/citas_billingue/user-data_bl/` – datos del usuario.
-- `/citas_billingue/dashboard_bl/` – gestión de citas.
+| Ruta | Descripción |
+|------|-------------|
+| `/mantenimiento/` | Listado y formulario |
+| `/mantenimiento/download/<id>/` | Reporte en PDF |
 
-### Citas (Colegio)
-Sistema similar de citas para el colegio.
-- `/citas_colegio/user-data_col/` – datos del usuario.
-- `/citas_colegio/dashboard_col/` – gestión de citas.
+---
+
+### Citas Bilingüe / Colegio
+Agendamiento de citas para padres de familia.
+
+| Ruta | Descripción |
+|------|-------------|
+| `/citas_billingue/dashboard_bl/` | Gestión de citas bilingüe |
+| `/citas_colegio/dashboard_col/` | Gestión de citas colegio |
+
+---
 
 ### Enfermería
 Atención médica, inventario de medicamentos e historial en PDF o correo.
-- `/enfermeria/` – dashboard principal.
-- `/enfermeria/atencion/` – registrar atención médica.
-- `/enfermeria/inventario/` – listado de medicamentos.
-- `/inventario/nuevo/` – agregar medicamento.
-- `/inventario/<pk>/editar/` – editar medicamento.
-- `/inventario/uso/` – registrar consumo.
-- `/inventario/pdf/<pk>/` – ficha en PDF.
-- `/inventario/<pk>/historial/` – historial de uso.
-- `/enviar-correo/<atencion_id>/` – envío de atención por correo.
-- `/historial/` – consulta de historial médico.
-- `/historial/data/` – datos detallados del historial.
 
-### Sponsors
-Manejo de padrinos y patrocinadores.
-- `/sponsors/dashboard/` – vista principal de patrocinadores.
-- Formularios de ciudades, países y registros adicionales.
+| Ruta | Descripción |
+|------|-------------|
+| `/enfermeria/` | Dashboard principal |
+| `/enfermeria/atencion/` | Registrar atención médica |
+| `/enfermeria/inventario/` | Inventario de medicamentos |
+| `/enfermeria/historial/` | Historial médico |
+
+---
+
+### Sponsors — Patrocinadores
+Gestión de padrinos y patrocinadores institucionales.
+
+| Ruta | Descripción |
+|------|-------------|
+| `/sponsors/dashboard/` | Vista principal |
+
+---
 
 ### Seguridad
-Control de cámaras y registros contables.
-- `/seguridad/` – dashboard de seguridad.
-- Rutas para inventario, contabilidad e identificación de equipos.
+Control de cámaras, registros contables e identificación de equipos.
 
-### Menu
-Muestra un menú básico para usuarios.
-- `/menu/` – menú principal tras iniciar sesión.
+| Ruta | Descripción |
+|------|-------------|
+| `/seguridad/` | Dashboard de seguridad |
 
-### Core
-Incluye utilidades compartidas como `context_processors.py` para mostrar el año actual en las plantillas.
+---
 
-## Entorno virtual
-1. Crear el entorno si no existe:
-   ```bash
-   python -m venv venv
-   ```
-2. Activarlo antes de trabajar:
-   ```bash
-   source venv/bin/activate
-   ```
-3. Instalar dependencias:
-   ```bash
-   pip install -r system_proyect/requirements.txt
-   ```
+## Variables de entorno (`.env`)
 
-## Variables de entorno
-El archivo `.env` en la raíz define claves y credenciales utilizadas en `system_proyect/system_proyect/settings.py`. Algunos valores esperados son:
-- `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`
-- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
-- `MSSQL_DB_NAME`, `MSSQL_DB_USER`, `MSSQL_DB_PASSWORD`, `MSSQL_DB_HOST`, `MSSQL_DB_PORT`
-- `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+```env
+DJANGO_SECRET_KEY=...
+DJANGO_DEBUG=False
 
-## Guía para el Despliegue y Gestión del Proyecto Django
+# MySQL (base de datos principal)
+DB_NAME=sponsors2
+DB_USER=admin3
+DB_PASSWORD=...
+DB_HOST=192.168.10.6
+DB_PORT=3306
 
-## Acceso al Servidor mediante SSH
-  ### "ssh admin2@192.168.10.6"
-  - Inicie sesión de forma remota en el servidor utilizando el usuario admin2.
-## Obtener Permisos de Root
-  ### "sudo su"
-  - Adquiera privilegios de administrador (root) para ejecutar comandos del sistema.
-## Recopilar Archivos Estáticos
-  ### "python manage.py collectstatic --noinput"
-  - Transfiera todos los recursos estáticos (CSS, JS, imágenes) al directorio configurado sin solicitar confirmación.
-## Reiniciar Apache
-  ### "sudo systemctl restart apache2"
-  - Reinicie el servidor web Apache para que reconozca los nuevos archivos estáticos y cambios de configuración.
-## Acceder al Directorio del Proyecto
-  ### "cd techcare_project"
-  - Ingrese al directorio raíz de su proyecto Django.
-## Activar el Entorno Virtual
-  ### "source venv/bin/activate"
-  - Acceda al entorno virtual para utilizar las dependencias aisladas del proyecto.
-## Navegar a la Carpeta de Pruebas y Luego a la de Producción
-  ### "cd django_test"
-  ### "cd system_proyect"
-  - Dirígete primero al subproyecto de pruebas y luego al despliegue principal.
-## Iniciar el Servidor de Desarrollo
-  ### "python manage.py runserver" 
-  - Lance el servidor local de Django en la IP y puerto especificados para pruebas en red.
-## Abrir la Consola Interactiva de Django
-  ### "python manage.py shell"
-  - Inicie una shell de Python con todo el contexto de su proyecto cargado (modelos, configuraciones, etc.).
-## Generar Archivos de Migración
-  ### "python manage.py makemigrations"
-  - Identifique cambios en los modelos y prepare las migraciones necesarias.
-## Ejecutar Migraciones en la Base de Datos
-  ### "python manage.py migrate"
-  - Realice las migraciones pendientes, creando o modificando tablas de acuerdo a sus modelos.
-## Crear un Superusuario
-  ### "python manage.py createsuperuser"
-  - Establezca un usuario administrador que podrá acceder al panel de administración de Django.
+# SQL Server (módulo Reloj)
+MSSQL_DB_NAME=...
+MSSQL_DB_USER=...
+MSSQL_DB_PASSWORD=...
+MSSQL_DB_HOST=...
+MSSQL_DB_PORT=1433
+
+# Correo (Gmail SMTP)
+EMAIL_HOST_USER=techcare.app2024@gmail.com
+EMAIL_HOST_PASSWORD=...
+```
+
+---
+
+## Comandos frecuentes
+
+```bash
+# Conectar al servidor
+ssh admin2@192.168.10.6
+
+# Activar entorno virtual
+cd techcare_project
+source venv/bin/activate
+cd system_proyect
+
+# Aplicar cambios en producción
+python manage.py collectstatic --noinput
+sudo systemctl restart apache2
+
+# Migraciones
+python manage.py makemigrations
+python manage.py migrate
+
+# Servidor de desarrollo
+python manage.py runserver
+
+# Shell interactiva
+python manage.py shell
+
+# Crear superusuario
+python manage.py createsuperuser
+```
+
+---
+
+## Despliegue
+
+El proyecto corre con **Apache + mod_wsgi**. Después de cualquier cambio en código Python o archivos estáticos:
+
+```bash
+sudo systemctl restart apache2
+```
+
+Si se modifican templates o archivos estáticos:
+
+```bash
+python manage.py collectstatic --noinput
+sudo systemctl restart apache2
+```
+
+---
+
+*© 2025 Soporte Técnico – Asociación Nuevo Amanecer*
