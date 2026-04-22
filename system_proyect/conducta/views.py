@@ -17,7 +17,7 @@ COORDINADORES_EMAILS = [
     'jmartinez@ana-hn.org',
     'acruz@ana-hn.org',
 ]
-SITE_URL = 'https://servicios.ana-hn.org'
+SITE_URL = 'https://servicios.ana-hn.org:437'
 
 _TIPO_COLOR = {
     'Reporte Informativo': '#1971c2',

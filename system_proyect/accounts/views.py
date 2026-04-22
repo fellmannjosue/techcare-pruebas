@@ -107,7 +107,7 @@ def register_maestro(request):
                     f'Usuario    : {email}\n'
                     f'Contraseña : {password}\n\n'
                     f'Accede al sistema en:\n'
-                    f'https://servicios.ana-hn.org\n\n'
+                    f'https://servicios.ana-hn.org:437\n\n'
                     f'Por seguridad, cambia tu contraseña en el primer inicio de sesión.'
                 )
                 html_bienvenida = f"""<!DOCTYPE html>
@@ -140,7 +140,7 @@ def register_maestro(request):
           </table>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td align="center">
-              <a href="https://servicios.ana-hn.org"
+              <a href="https://servicios.ana-hn.org:437"
                  style="display:inline-block;background:#228be6;color:#ffffff;text-decoration:none;padding:13px 36px;border-radius:8px;font-size:15px;font-weight:600;">
                 Acceder al sistema
               </a>
@@ -344,7 +344,7 @@ def reenviar_bienvenida(request):
     modo = request.POST.get('modo', 'todos')  # 'todos' o 'uno'
     email_destino = request.POST.get('email', '').strip()
 
-    SITE_URL = 'https://servicios.ana-hn.org'
+    SITE_URL = 'https://servicios.ana-hn.org:437'
 
     if modo == 'uno':
         usuarios = User.objects.filter(email=email_destino, is_active=True)

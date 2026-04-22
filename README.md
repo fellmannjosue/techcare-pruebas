@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, seguridad y más.
 
-- **URL de producción:** https://servicios.ana-hn.org
+- **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi · Django 5.0.14 · Python 3.11
 - **Base de datos principal:** MySQL (`sponsors2` en `192.168.10.6`)
 - **Base de datos secundaria:** SQL Server (módulo Reloj)
