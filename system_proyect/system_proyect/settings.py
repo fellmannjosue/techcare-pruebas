@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'unfold',
     'unfold.contrib.filters',
     'unfold.contrib.forms',
+    'unfold.contrib.inlines',
 
     # Apps de Django
     'django.contrib.admin',
