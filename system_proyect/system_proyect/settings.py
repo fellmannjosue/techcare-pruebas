@@ -100,6 +100,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.MaintenanceModeMiddleware',
 ]
 
 
@@ -140,7 +141,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME', 'sponsors2'),
         'USER': os.getenv('DB_USER', 'admin3'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Test-12345'),
         'HOST': os.getenv('DB_HOST', '192.168.10.6'),
         'PORT': os.getenv('DB_PORT', '3306'),
     },
@@ -150,7 +151,7 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
     'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD', ''),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD', '121800-Jfellmann'),
     'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
     'OPTIONS': {
@@ -163,7 +164,7 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
     'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
-    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', ''),
+    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', 'biotime-2026'),
     'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
     'OPTIONS': {
@@ -267,7 +268,9 @@ CACHES = {
 # CONSTANCE (configuración dinámica desde el admin)
 # ─────────────────────────────────────────────────────────────
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
-CONSTANCE_CONFIG = {}
+CONSTANCE_CONFIG = {
+    'MAINTENANCE_MODE': (False, 'Activar modo mantenimiento — bloquea el acceso a usuarios no administradores', bool),
+}
 
 # ─────────────────────────────────────────────────────────────
 # 13. CORREO ELECTRÓNICO (SMTP)

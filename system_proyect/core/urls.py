@@ -1,4 +1,5 @@
 from django.urls import path
+from .views_maintenance import toggle_mantenimiento, estado_mantenimiento
 
 # Notificaciones
 from .views_notifications import (
@@ -31,4 +32,10 @@ urlpatterns = [
     path("api/summary/citas_col/", summary_citas_col, name="summary_citas_col"),
     path("api/summary/coordinacion_bl/", summary_coordinacion_bl, name="summary_coordinacion_bl"),
     path("api/summary/coordinacion_col/", summary_coordinacion_col, name="summary_coordinacion_col"),
+
+    # ============================
+    # 🔧 MODO MANTENIMIENTO
+    # ============================
+    path("api/mantenimiento/toggle/", toggle_mantenimiento, name="toggle_mantenimiento"),
+    path("api/mantenimiento/estado/", estado_mantenimiento, name="estado_mantenimiento"),
 ]

@@ -11,6 +11,14 @@
 
 {% block page_actions %}
   {% if request.user.is_superuser %}
+  <div class="d-flex align-items-center me-3 gap-2">
+    <span class="text-muted small" id="mant-label">Sistema activo</span>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" id="toggleMantenimiento"
+             style="width:2.5em;height:1.3em;cursor:pointer;" title="Modo mantenimiento">
+    </div>
+    <span class="badge" id="mant-badge" style="display:none;"></span>
+  </div>
   <button type="button" class="btn btn-ghost-warning me-2"
           data-bs-toggle="modal" data-bs-target="#modalReenviarReportes"
           title="Reenviar notificaciones a coordinadores">
@@ -327,6 +335,42 @@
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <script src="{% static 'conducta/js/coordinador.js' %}"></script>
   {% if request.user.is_superuser %}
+  <script>
+  (function(){
+    const CSRF = "{{ csrf_token }}";
+    const toggle = document.getElementById('toggleMantenimiento');
+    const label  = document.getElementById('mant-label');
+    const badge  = document.getElementById('mant-badge');
+
+    function aplicarEstado(activo) {
+      toggle.checked = activo;
+      if (activo) {
+        label.textContent = 'Mantenimiento ACTIVO';
+        label.className = 'text-danger small fw-bold';
+        badge.textContent = '🔒 Usuarios bloqueados';
+        badge.className = 'badge bg-danger-lt text-danger';
+        badge.style.display = '';
+      } else {
+        label.textContent = 'Sistema activo';
+        label.className = 'text-muted small';
+        badge.style.display = 'none';
+      }
+    }
+
+    fetch("{% url 'estado_mantenimiento' %}").then(r => r.json()).then(d => aplicarEstado(d.activo));
+
+    toggle.addEventListener('change', async function() {
+      this.disabled = true;
+      const res = await fetch("{% url 'toggle_mantenimiento' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+      });
+      const data = await res.json();
+      this.disabled = false;
+      if (data.ok) aplicarEstado(data.activo);
+    });
+  })();
+  </script>
   <script>
   (function(){
     const CSRF = "{{ csrf_token }}";
