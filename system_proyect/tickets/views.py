@@ -22,13 +22,43 @@ PUBLIC_IMAGE_URL = ""
 
 
 # ======================================================
+# HELPER: notificar nuevo ticket a técnicos y superusers
+# ======================================================
+def _notificar_nuevo_ticket(ticket, usuario_solicitante=None):
+    User = get_user_model()
+    mensaje_staff = f"Nuevo ticket #{ticket.ticket_id} de {ticket.name} — {ticket.grade}"
+
+    # Técnicos
+    tecnicos = User.objects.filter(groups__name__icontains="tecnico")
+    for tech in tecnicos:
+        crear_notificacion(usuario=tech, mensaje=mensaje_staff, modulo="tickets", tipo="info", enviar_correo=False)
+
+    # Superusuarios (excluyendo técnicos ya notificados)
+    ids_tecnicos = set(tecnicos.values_list('id', flat=True))
+    for su in User.objects.filter(is_superuser=True):
+        if su.id not in ids_tecnicos:
+            crear_notificacion(usuario=su, mensaje=mensaje_staff, modulo="tickets", tipo="info", enviar_correo=False)
+
+    # Confirmación al solicitante
+    if usuario_solicitante and usuario_solicitante.is_authenticated:
+        crear_notificacion(
+            usuario=usuario_solicitante,
+            mensaje=f"Tu ticket #{ticket.ticket_id} ha sido recibido. Te atenderemos pronto.",
+            modulo="tickets",
+            tipo="exito",
+            enviar_correo=False,
+        )
+
+
+# ======================================================
 # ASYNC EMAIL
 # ======================================================
 def send_email_async(subject, message, recipient_list):
     Thread(
         target=send_mail,
         args=(subject, '', 'techcare.app2024@gmail.com', recipient_list),
-        kwargs={'html_message': message, 'fail_silently': False}
+        kwargs={'html_message': message, 'fail_silently': True},
+        daemon=True,
     ).start()
 
 
@@ -81,24 +111,8 @@ def submit_ticket(request):
                     usuario=request.user if request.user.is_authenticated else None
                 )
 
-                # 🔔 Notificar a técnicos
-                tecnicos = User.objects.filter(groups__name__icontains="tecnico")
-                for tech in tecnicos:
-                    crear_notificacion(
-                        usuario=tech,
-                        mensaje=f"Nuevo ticket #{ticket.ticket_id} creado por {ticket.name}.",
-                        modulo="tickets",
-                        tipo="info"
-                    )
-
-                # 🔔 Notificar al usuario
-                if request.user.is_authenticated:
-                    crear_notificacion(
-                        usuario=request.user,
-                        mensaje=f"Tu ticket #{ticket.ticket_id} ha sido recibido.",
-                        modulo="tickets",
-                        tipo="exito"
-                    )
+                # 🔔 Notificaciones
+                _notificar_nuevo_ticket(ticket, request.user)
 
                 # 📧 Correos
                 subject_technician = f'Nuevo Ticket #{ticket.ticket_id} - {ticket.name}'
@@ -128,22 +142,7 @@ def submit_ticket(request):
             ticket.save()
 
             # 🔔 Notificaciones
-            tecnicos = User.objects.filter(groups__name__icontains="tecnico")
-            for tech in tecnicos:
-                crear_notificacion(
-                    usuario=tech,
-                    mensaje=f"Nuevo ticket #{ticket.ticket_id} creado por {ticket.name}.",
-                    modulo="tickets",
-                    tipo="info"
-                )
-
-            if request.user.is_authenticated:
-                crear_notificacion(
-                    usuario=request.user,
-                    mensaje=f"Tu ticket #{ticket.ticket_id} ha sido recibido.",
-                    modulo="tickets",
-                    tipo="exito"
-                )
+            _notificar_nuevo_ticket(ticket, request.user)
 
             # 📧 Correos
             subject = f'Nuevo Ticket #{ticket.ticket_id} - {ticket.name}'
@@ -163,6 +162,22 @@ def submit_ticket(request):
         'form': form,
         'user_email': request.user.email if request.user.is_authenticated else ""
     })
+
+
+# ======================================================
+# DASHBOARD ADMINISTRACIÓN (tickets únicamente)
+# ======================================================
+@login_required
+def dashboard_administracion(request):
+    request.session['modo_tickets'] = 'admin'
+    return render(request, 'tickets/dashboard_administracion.html')
+
+
+@login_required
+def mis_tickets(request):
+    request.session['modo_tickets'] = 'admin'
+    tickets = Ticket.objects.filter(usuario=request.user).order_by('-id')
+    return render(request, 'tickets/mis_tickets.html', {'tickets': tickets})
 
 
 # ======================================================
@@ -211,7 +226,8 @@ def ticket_comments(request, ticket_id):
                     usuario=ticket.usuario,
                     mensaje=f"Tu ticket #{ticket.ticket_id} está en proceso.",
                     modulo="tickets",
-                    tipo="info"
+                    tipo="info",
+                    enviar_correo=False,
                 )
 
             if new_status.lower() == "resuelto":
@@ -220,7 +236,8 @@ def ticket_comments(request, ticket_id):
                         usuario=ticket.usuario,
                         mensaje=f"Tu ticket #{ticket.ticket_id} ha sido resuelto.",
                         modulo="tickets",
-                        tipo="exito"
+                        tipo="exito",
+                        enviar_correo=False,
                     )
 
                 for tech in User.objects.filter(groups__name__icontains="tecnico"):
@@ -228,7 +245,8 @@ def ticket_comments(request, ticket_id):
                         usuario=tech,
                         mensaje=f"El ticket #{ticket.ticket_id} fue marcado como resuelto.",
                         modulo="tickets",
-                        tipo="info"
+                        tipo="info",
+                        enviar_correo=False,
                     )
 
                 enviar_correo_ticket_resuelto(ticket)
@@ -249,7 +267,8 @@ def ticket_comments(request, ticket_id):
                         usuario=tech,
                         mensaje=f"Nuevo mensaje en ticket #{ticket.ticket_id} por {request.user.username}.",
                         modulo="tickets",
-                        tipo="info"
+                        tipo="info",
+                        enviar_correo=False,
                     )
             else:
                 if ticket.usuario:
@@ -257,7 +276,8 @@ def ticket_comments(request, ticket_id):
                         usuario=ticket.usuario,
                         mensaje=f"Un técnico respondió en tu ticket #{ticket.ticket_id}.",
                         modulo="tickets",
-                        tipo="info"
+                        tipo="info",
+                        enviar_correo=False,
                     )
 
         return redirect('ticket_comments', ticket_id=ticket.id)
@@ -354,7 +374,8 @@ def ticket_status_update_ajax(request, ticket_id):
             usuario=ticket.usuario,
             mensaje=f"Tu ticket #{ticket.ticket_id} está en proceso.",
             modulo="tickets",
-            tipo="info"
+            tipo="info",
+            enviar_correo=False,
         )
 
     if new_status == "Resuelto":
@@ -363,7 +384,8 @@ def ticket_status_update_ajax(request, ticket_id):
                 usuario=ticket.usuario,
                 mensaje=f"Tu ticket #{ticket.ticket_id} ha sido resuelto.",
                 modulo="tickets",
-                tipo="exito"
+                tipo="exito",
+                enviar_correo=False,
             )
         enviar_correo_ticket_resuelto(ticket)
 

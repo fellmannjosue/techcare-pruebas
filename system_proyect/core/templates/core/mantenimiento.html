@@ -18,31 +18,175 @@
     }
     .maint-card {
       border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      max-width: 520px;
       width: 100%;
+    }
+
+    /* ── Animación de engranajes ── */
+    .gear-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 8px;
+    }
+    .gear {
+      position: absolute;
+      border-radius: 50%;
+      border: 8px solid;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gear::before {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+    }
+    /* Dientes via SVG inline como background */
+    .gear-big {
+      width: 80px;
+      height: 80px;
+      top: 10px;
+      left: 5px;
+      border-color: #f59f00;
+      animation: spin-cw 3s linear infinite;
+    }
+    .gear-small {
+      width: 50px;
+      height: 50px;
+      top: 4px;
+      right: 2px;
+      border-color: #fd7e14;
+      animation: spin-ccw 2s linear infinite;
+    }
+    .gear-center {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff3cd;
+      position: absolute;
+    }
+    .gear-big .gear-center { top: 22px; left: 22px; }
+    .gear-small .gear-center { top: 11px; left: 11px; }
+
+    /* Dientes: superposición de rectángulos rotados */
+    .gear-big::after,
+    .gear-small::after {
+      content: '';
+      position: absolute;
+      background: inherit;
+      border-radius: 3px;
+    }
+
+    @keyframes spin-cw  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+    @keyframes spin-ccw { from { transform: rotate(0deg); }   to { transform: rotate(-360deg); } }
+
+    /* Wrench que oscila */
+    .wrench-icon {
+      font-size: 3.2rem;
+      display: inline-block;
+      animation: wrench-swing 1.4s ease-in-out infinite;
+      transform-origin: bottom center;
+      color: #f59f00;
+    }
+    @keyframes wrench-swing {
+      0%   { transform: rotate(-20deg); }
+      50%  { transform: rotate(20deg); }
+      100% { transform: rotate(-20deg); }
+    }
+
+    /* Barra de progreso pulsante */
+    .maint-progress {
+      height: 6px;
+      border-radius: 3px;
+      background: #e9ecef;
+      overflow: hidden;
+    }
+    .maint-progress-bar {
+      height: 100%;
+      width: 40%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #f59f00, #fd7e14);
+      animation: progress-pulse 2s ease-in-out infinite;
+    }
+    @keyframes progress-pulse {
+      0%   { width: 20%; margin-left: 0%; }
+      50%  { width: 50%; margin-left: 25%; }
+      100% { width: 20%; margin-left: 80%; }
+    }
+
+    /* Puntos animados */
+    .dots span {
+      display: inline-block;
+      animation: dot-bounce 1.4s infinite;
+      font-weight: bold;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40%            { transform: translateY(-6px); opacity: 1; }
     }
   </style>
 </head>
 <body>
   <div class="maint-card card mx-3">
     <div class="card-body p-5 text-center">
-      <div class="mb-4">
+
+      <!-- Logo -->
+      <div class="mb-3">
         <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo"
-             style="width:72px;height:72px;object-fit:contain;">
+             style="width:60px;height:60px;object-fit:contain;">
       </div>
-      <div class="avatar avatar-xl bg-warning-lt mb-4" style="margin:0 auto;">
-        <i class="ti ti-tools text-warning" style="font-size:2.5rem;"></i>
+
+      <!-- Animación principal: llave inglesa oscilando -->
+      <div class="mb-2">
+        <i class="ti ti-tool wrench-icon"></i>
       </div>
-      <h2 class="fw-bold mb-2">Sistema en Mantenimiento</h2>
-      <p class="text-muted mb-4">
-        El sistema se encuentra temporalmente fuera de servicio por tareas de mantenimiento.<br>
-        Por favor, intenta de nuevo más tarde.
-      </p>
+
+      <!-- Engranajes girando -->
+      <div class="gear-wrapper mb-1">
+        <div class="gear gear-big">
+          <div class="gear-center"></div>
+        </div>
+        <div class="gear gear-small">
+          <div class="gear-center"></div>
+        </div>
+      </div>
+
+      <h2 class="fw-bold mb-1">Sistema en Mantenimiento</h2>
+      <p class="text-muted small mb-3">Asociación Nuevo Amanecer — TechCare</p>
+
+      <!-- Barra de progreso animada -->
+      <div class="maint-progress mb-4">
+        <div class="maint-progress-bar"></div>
+      </div>
+
+      <!-- Comunicado -->
+      <div class="text-start mb-4" style="border-left:4px solid #1971c2;padding-left:14px;">
+        <p class="mb-2" style="font-size:13px;color:#495057;">
+          Estimados maestros, el sistema se encuentra temporalmente bloqueado
+          mientras se realizan modificaciones en la plataforma.
+        </p>
+        <p class="mb-2" style="font-size:13px;color:#495057;">
+          <strong>¿Qué cambió?</strong> A partir de hoy, cuando registren un reporte,
+          la notificación llegará únicamente al coordinador que supervisa su área —
+          ya no a todos al mismo tiempo. No es necesario hacer nada diferente,
+          el sistema lo maneja automáticamente.
+        </p>
+        <p class="mb-0" style="font-size:13px;color:#495057;">
+          El sistema estará habilitado nuevamente <strong>después del mediodía</strong>.
+          Disculpen los inconvenientes.
+        </p>
+      </div>
+
       <div class="alert alert-warning py-2 small mb-4">
         <i class="ti ti-clock me-1"></i>
-        Estaremos de vuelta pronto. Gracias por tu paciencia.
+        Trabajando en ello<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        Estaremos de vuelta pronto.
       </div>
+
       <a href="{% url 'login' %}" class="btn btn-ghost-secondary btn-sm">
         <i class="ti ti-login me-1"></i>Soy administrador
       </a>

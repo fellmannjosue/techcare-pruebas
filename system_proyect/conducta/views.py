@@ -2,6 +2,8 @@ import io, os, json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from core.utils_notifications import crear_notificacion
 from django.template.loader import render_to_string
 from django.contrib import messages
 from django.db import connections
@@ -11,12 +13,12 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 import datetime as _dt_module
 
-COORDINADORES_EMAILS_BILINGUE = [
-    'ialcerro@ana-hn.org',
-    'druiz@ana-hn.org',
-    'jmartinez@ana-hn.org',
-    'acruz@ana-hn.org',
-]
+_COORD_BL_EMAIL = {
+    'C1': 'coordinacion_bl@ana-hn.org',  # temporal — real: cvarela@ana-hn.org (pendiente)
+    'C2': 'druiz@ana-hn.org',
+    'C3': 'ialcerro@ana-hn.org',
+    'C4': 'jmartinez@ana-hn.org',
+}
 COORDINADORES_EMAILS_COLEGIO = [
     'flicona@ana-hn.org',
     'kgarcia@ana-hn.org',
@@ -36,7 +38,7 @@ _TIPO_ICON = {
 }
 
 
-def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area):
+def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordinador_bl=None):
     nombre = maestro.get_full_name() or maestro.username
     asunto = f"[TechCare] Nuevo {tipo} registrado – {alumno}"
     color = _TIPO_COLOR.get(tipo, '#1971c2')
@@ -100,10 +102,15 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area):
         f"Maestro : {nombre}\nAlumno  : {alumno}\nGrado   : {grado}\n"
         f"Materia : {materia}\nÁrea    : {area}\n\nRevisa: {SITE_URL}"
     )
-    destinatarios = (
-        COORDINADORES_EMAILS_COLEGIO if area == 'colegio'
-        else COORDINADORES_EMAILS_BILINGUE
-    )
+    if area == 'colegio':
+        destinatarios = COORDINADORES_EMAILS_COLEGIO
+    elif tipo == 'Reporte Conductual':
+        destinatarios = [_COORD_BL_EMAIL['C3']]
+    elif coordinador_bl:
+        codigos = [c.strip() for c in coordinador_bl.split(',') if c.strip() in _COORD_BL_EMAIL]
+        destinatarios = list(dict.fromkeys(_COORD_BL_EMAIL[c] for c in codigos))
+    else:
+        destinatarios = list(_COORD_BL_EMAIL.values())
     try:
         msg = EmailMultiAlternatives(
             asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, destinatarios
@@ -112,6 +119,24 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area):
         msg.send(fail_silently=True)
     except Exception as _e:
         print(f"[WARN] email coordinadores: {_e}")
+
+    # Notificación en campanita para cada coordinador
+    mensaje_noti = f"Nuevo {tipo} — {alumno} ({grado})"
+    if materia:
+        mensaje_noti += f" · {materia}"
+    tipo_noti = 'alerta' if tipo == 'Reporte Conductual' else 'info'
+    for email in destinatarios:
+        try:
+            coord_user = User.objects.get(email=email)
+            crear_notificacion(
+                coord_user,
+                mensaje_noti,
+                modulo='conducta',
+                tipo=tipo_noti,
+                enviar_correo=False,
+            )
+        except User.DoesNotExist:
+            pass
 
 # PDF y PowerPoint
 from reportlab.lib.pagesizes import letter
@@ -225,14 +250,22 @@ def get_materia_docente_choices(area):
 # ---------------------------
 # DASHBOARDS Y FORMULARIOS
 # ---------------------------
+_USUARIOS_MULTI_AREA = {'druiz@ana-hn.org', 'admin2@ana-hn.org'}
+
 @login_required
 def dashboard_maestro(request):
     user = request.user
-    area = None
-    if user.groups.filter(name='maestros_bilingue').exists():
-        area = 'bilingue'
-    elif user.groups.filter(name='maestros_colegio').exists():
-        area = 'colegio'
+    area = request.GET.get('area')
+    if user.username in _USUARIOS_MULTI_AREA:
+        if area:
+            request.session['maestro_area'] = area
+        else:
+            area = request.session.get('maestro_area')
+    if not area:
+        if user.groups.filter(name='maestros_bilingue').exists():
+            area = 'bilingue'
+        elif user.groups.filter(name='maestros_colegio').exists():
+            area = 'colegio'
     return render(request, 'conducta/dashboard_maestros.html', {'area': area})
 
 # ------------ REPORTE INFORMATIVO  ------------
@@ -250,12 +283,13 @@ def reporte_informativo_bilingue(request):
         comentario = request.POST.get('comentario', "")
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
-        materia = docente = ""
+        materia = docente = coord_bl = ""
         if materia_docente_id:
             md_obj = MateriaDocenteBilingue.objects.filter(pk=materia_docente_id).first()
             if md_obj:
                 materia = md_obj.materia
                 docente = md_obj.docente
+                coord_bl = md_obj.coordinador
         ReporteInformativo.objects.create(
             usuario=request.user,
             area=area,
@@ -266,7 +300,7 @@ def reporte_informativo_bilingue(request):
             docente=docente,
             comentario=comentario
         )
-        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area)
+        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area, coordinador_bl=coord_bl)
         messages.success(request, "¡Reporte registrado correctamente!")
         return redirect('reporte_informativo_bilingue')
 
@@ -344,12 +378,13 @@ def reporte_conductual_bilingue(request):
 
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
-        materia = docente = ""
+        materia = docente = coord_bl = ""
         if materia_docente_id:
             md_obj = MateriaDocenteBilingue.objects.filter(pk=materia_docente_id).first()
             if md_obj:
                 materia = md_obj.materia
                 docente = md_obj.docente
+                coord_bl = md_obj.coordinador
 
         # Crea el reporte sin los ManyToMany
         reporte = ReporteConductual.objects.create(
@@ -370,7 +405,7 @@ def reporte_conductual_bilingue(request):
         if ids_muygrave:
             reporte.incisos_muygrave.set(ids_muygrave)
 
-        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area)
+        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area, coordinador_bl=coord_bl)
         messages.success(request, "¡Reporte conductual registrado correctamente!")
         return redirect('reporte_conductual_bilingue')
 
@@ -957,7 +992,11 @@ def descargar_pdf_informativo(request, pk):
 
     pdf.save()
     buf.seek(0)
-    return HttpResponse(buf, content_type="application/pdf")
+    grado_slug = reporte.grado.replace(' ', '_').replace('/', '-')
+    nombre_archivo = f"informativo_{reporte.alumno_nombre.replace(' ', '_')}_{grado_slug}.pdf"
+    response = HttpResponse(buf, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    return response
 
 
 @login_required
@@ -1077,7 +1116,11 @@ def descargar_pdf_conductual(request, pk):
 
     pdf.save()
     buf.seek(0)
-    return HttpResponse(buf, content_type="application/pdf")
+    grado_slug = reporte.grado.replace(' ', '_').replace('/', '-')
+    nombre_archivo = f"conductual_{reporte.alumno_nombre.replace(' ', '_')}_{grado_slug}.pdf"
+    response = HttpResponse(buf, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    return response
 
 
 @login_required
@@ -1379,7 +1422,11 @@ def descargar_pdf_conductual_3_strikes(request, pk):
 
     pdf.save()
     buf.seek(0)
-    return HttpResponse(buf, content_type="application/pdf")
+    grado_slug = reporte.grado.replace(' ', '_').replace('/', '-')
+    nombre_archivo = f"3strikes_{reporte.alumno_nombre.replace(' ', '_')}_{grado_slug}.pdf"
+    response = HttpResponse(buf, content_type="application/pdf")
+    response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    return response
 
 #--------------  DASHBOARD COORDINADOR -----------------
 @login_required

@@ -1,57 +1,115 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Notificación de Ticket</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
-    <table cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f4f4; padding: 20px;">
-        <tr>
-            <td align="center">
-                <table cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
-                    <tr>
-                        <td style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
-                            <h1 style="margin: 0; font-size: 24px; color: #333;">Soporte Técnico de Nuevo Amanecer</h1>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 20px; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #555;">
-                            <p><strong>Estimado Usuario:</strong></p>
-                            <p>Su ticket ha sido actualizado con el siguiente estado:</p>
-                            <p><strong>Nuevo Estado:</strong> {{ ticket.status }}</p>
-                            <p><strong>Comentarios del Técnico:</strong> {{ ticket.comments|default:"(Sin comentarios adicionales)" }}</p>
-                            <p>Gracias por su paciencia. Estamos trabajando en su solicitud.</p>
-                        </td>
-                    </tr>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+           style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
 
-                    {# ----- HISTORIAL DE CONVERSACIÓN (solo si existe) ----- #}
-                    {% if chat_conversacion %}
-                    <tr>
-                        <td style="padding: 16px 20px 10px 20px;">
-                            <h3 style="font-size:18px; color:#333; margin-bottom:8px;">Historial de Conversación</h3>
-                            <table width="100%" style="border-collapse: collapse; background: #f9fafb; border-radius:7px;">
-                              {% for c in chat_conversacion %}
-                                <tr>
-                                    <td style="border-bottom:1px solid #eee; padding:8px 0;">
-                                        <b style="color:#1976d2;">{{ c.autor }}</b>
-                                        <span style="color:#999; font-size:12px;">{{ c.fecha }}</span><br>
-                                        <span style="font-size:15px; color:#222;">{{ c.mensaje|linebreaksbr }}</span>
-                                    </td>
-                                </tr>
-                              {% endfor %}
-                            </table>
-                        </td>
-                    </tr>
-                    {% endif %}
+      <!-- HEADER -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,#228be6);padding:28px 40px;text-align:center;">
+          <p style="margin:0 0 2px;font-size:26px;font-weight:700;color:#fff;letter-spacing:-.5px;">TechCare</p>
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,.75);">Soporte Técnico – Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
 
-                    <tr>
-                        <td style="padding: 20px; text-align: center; font-family: Arial, sans-serif; font-size: 14px; color: #777;">
-                            <p>Atentamente,<br>Equipo de Soporte Técnico de Nuevo Amanecer</p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
+      <!-- TICKET ID + ESTADO -->
+      <tr>
+        <td style="padding:28px 40px 8px;text-align:center;">
+          <span style="display:inline-block;background:#e7f5ff;color:#1971c2;font-size:13px;
+                       font-weight:700;padding:6px 18px;border-radius:20px;letter-spacing:.5px;">
+            TICKET #{{ ticket.ticket_id }}
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 40px 20px;text-align:center;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a2e;">
+            🎉 Tu ticket ha sido resuelto
+          </p>
+          <p style="margin:6px 0 0;font-size:14px;color:#6c757d;">
+            Estado actual:
+            <span style="display:inline-block;background:#d3f9d8;color:#2f9e44;font-size:12px;
+                         font-weight:700;padding:3px 12px;border-radius:12px;">
+              {{ ticket.status }}
+            </span>
+          </p>
+        </td>
+      </tr>
+
+      <!-- SEPARADOR -->
+      <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e9ecef;margin:0;"></td></tr>
+
+      <!-- DETALLES DEL TICKET -->
+      <tr>
+        <td style="padding:24px 40px 16px;">
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="background:#f8f9fa;border-radius:8px;padding:16px 20px;border-left:4px solid #2f9e44;">
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#6c757d;text-transform:uppercase;
+                         letter-spacing:.4px;width:110px;">Nombre</td>
+              <td style="padding:6px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{{ ticket.name }}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:.4px;">Grado</td>
+              <td style="padding:6px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{{ ticket.grade }}</td>
+            </tr>
+            {% if ticket.comments %}
+            <tr>
+              <td style="padding:6px 0;font-size:12px;color:#6c757d;text-transform:uppercase;
+                         letter-spacing:.4px;vertical-align:top;">Comentarios</td>
+              <td style="padding:6px 0;font-size:14px;color:#1a1a2e;">{{ ticket.comments }}</td>
+            </tr>
+            {% endif %}
+          </table>
+        </td>
+      </tr>
+
+      <!-- HISTORIAL DE CONVERSACIÓN -->
+      {% if chat_conversacion %}
+      <tr>
+        <td style="padding:0 40px 24px;">
+          <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#1a1a2e;">
+            💬 Historial de conversación
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="border-radius:8px;overflow:hidden;border:1px solid #e9ecef;">
+            {% for c in chat_conversacion %}
+            <tr style="background:{% if forloop.counter|divisibleby:2 %}#f8f9fa{% else %}#ffffff{% endif %};">
+              <td style="padding:12px 16px;border-bottom:1px solid #e9ecef;">
+                <p style="margin:0 0 4px;">
+                  <span style="font-size:13px;font-weight:700;color:#1971c2;">{{ c.autor }}</span>
+                  <span style="font-size:11px;color:#adb5bd;margin-left:8px;">{{ c.fecha }}</span>
+                </p>
+                <p style="margin:0;font-size:13px;color:#495057;line-height:1.5;">{{ c.mensaje }}</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </td>
+      </tr>
+      {% endif %}
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0 0 2px;font-size:12px;color:#6c757d;">Atentamente,</p>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1971c2;">
+            Equipo de Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+          <p style="margin:8px 0 0;font-size:11px;color:#adb5bd;">
+            © 2025 TechCare · Este es un correo automático, por favor no responda.
+          </p>
+        </td>
+      </tr>
+
     </table>
+  </td></tr>
+</table>
 </body>
 </html>

@@ -54,9 +54,11 @@ class IncisoConductual(AuditModel):
 # Materia-Docente (Bilingüe)
 # ────────────────
 class MateriaDocenteBilingue(AuditModel):
-    materia = models.CharField(max_length=100, verbose_name="Materia")
-    docente = models.CharField(max_length=100, verbose_name="Docente")
-    activo = models.BooleanField(default=True, verbose_name="¿Activo?")
+    materia     = models.CharField(max_length=100, verbose_name="Materia")
+    docente     = models.CharField(max_length=100, verbose_name="Docente")
+    coordinador = models.CharField(max_length=20, default='C2', verbose_name="Coordinador(es)",
+                                   help_text="Códigos separados por coma: C1,C2,C3,C4")
+    activo      = models.BooleanField(default=True, verbose_name="¿Activo?")
 
     def __str__(self):
         return f"{self.materia} – {self.docente}"

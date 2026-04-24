@@ -25,6 +25,7 @@ def login_view(request):
     - Técnicos → dashboard tickets
     - Superuser → menú principal
     """
+    year = datetime.datetime.now().year
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -33,29 +34,75 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user:
-            login(request, user)
-            # <--- hecho por claude code: welcome se maneja solo con session para que
-            # no aparezca en la página de login cuando el menú no consume el mensaje.
-            request.session['show_welcome'] = True
+            # Superuser: checkbox false → menú, checkbox true → dashboard maestro
+            if user.is_superuser:
+                login(request, user)
+                request.session['show_welcome'] = True
+                return redirect('dashboard_maestro' if is_maestro else 'menu')
 
-            # Redirecciones
-            if is_maestro or user.groups.filter(name__in=[
-                'maestros_bilingue', 'maestros_colegio'
-            ]).exists():
-                return redirect('dashboard_maestro')
+            # Staff: redirección según usuario/grupo
+            if user.is_staff:
+                login(request, user)
+                request.session['show_welcome'] = True
+                if user.username == 'druiz@ana-hn.org':
+                    return redirect('seleccion_rol')
+                if user.username == 'glorenzo@ana-hn.org':
+                    return redirect('seleccion_rol')
+                if user.username == 'yzavala@ana-hn.org':
+                    return redirect('reloj_dashboard')
+                # Cualquier usuario del área Administración → solo tickets
+                if user.groups.filter(name='administracion').exists():
+                    return redirect('dashboard_administracion')
+                if is_maestro:
+                    return redirect('dashboard_maestro')
+                return redirect('dashboard_coordinador', area='bilingue')
 
+            # Técnicos
             if user.groups.filter(name='tecnicos').exists():
+                login(request, user)
+                request.session['show_welcome'] = True
                 return redirect('tickets_dashboard')
 
-            if user.is_superuser:
-                return redirect('menu')
+            # Usuario regular: debe marcar "Soy maestro"
+            if not is_maestro:
+                messages.error(request, 'checkbox_hint')
+                return render(request, 'accounts/login.html', {'year': year})
 
-            return redirect('menu')
+            login(request, user)
+            request.session['show_welcome'] = True
+            # Caso especial: usuario con ambas áreas (BL + Colegio)
+            if user.username == 'admin2@ana-hn.org':
+                return redirect('seleccion_rol')
+            return redirect('dashboard_maestro')
 
         messages.error(request, 'Credenciales inválidas.')
 
-    year = datetime.datetime.now().year
     return render(request, 'accounts/login.html', {'year': year})
+
+
+# =====================================================
+# 🎭 SELECCIÓN DE ROL (usuarios con múltiples roles)
+# =====================================================
+_ROLES_POR_USUARIO = {
+    'druiz@ana-hn.org': [
+        {'titulo': 'Coordinador Bilingüe',  'subtitulo': 'Ver reportes del área BL · gestionar incidencias',  'icon': 'ti-users-group',     'clase': 'icon-coord', 'url': '/conducta/coordinador/bilingue/'},
+        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/conducta/dashboard/maestro/?area=bilingue'},
+        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/conducta/dashboard/maestro/?area=colegio'},
+    ],
+    'admin2@ana-hn.org': [
+        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/conducta/dashboard/maestro/?area=bilingue'},
+        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/conducta/dashboard/maestro/?area=colegio'},
+    ],
+    'glorenzo@ana-hn.org': [
+        {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
+        {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
+    ],
+}
+
+@login_required
+def seleccion_rol(request):
+    roles = _ROLES_POR_USUARIO.get(request.user.username, [])
+    return render(request, 'accounts/seleccion_rol.html', {'roles': roles})
 
 
 # =====================================================

@@ -5,7 +5,7 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
-from django.utils.timezone import localtime
+import datetime
 
 from .models import Notificacion
 import json
@@ -15,11 +15,9 @@ import json
 #  🧩 FORMATEADOR DE FECHAS
 # ============================================================
 def format_fecha(dt):
-    """Convierte fecha datetime a formato legible."""
     if dt is None:
         return ""
-    dt_local = localtime(dt)
-    return dt_local.strftime("%d/%m/%Y %H:%M")
+    return dt.strftime("%d/%m/%Y %H:%M")
 
 
 # ============================================================

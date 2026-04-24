@@ -49,11 +49,17 @@
 <script>
 document.getElementById('ticketForm').addEventListener('submit', function(e){
   e.preventDefault();
-  const formData = new FormData(this);
+
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Enviando…';
+
   document.getElementById('spinnerBox').style.display = 'block';
+
   fetch("{% url 'submit_ticket' %}", {
     method: 'POST',
-    body: formData,
+    body: new FormData(this),
     headers: { 'X-CSRFToken': '{{ csrf_token }}' }
   })
   .then(r => r.json())
@@ -61,13 +67,21 @@ document.getElementById('ticketForm').addEventListener('submit', function(e){
     document.getElementById('spinnerBox').style.display = 'none';
     if (data.message){
       Swal.fire({ title:'¡Éxito!', text: data.message, icon:'success', confirmButtonText:'Aceptar' })
-        .then(() => { this.reset(); });
+        .then(() => {
+          this.reset();
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ti ti-send me-1"></i> Enviar Ticket';
+        });
     } else if (data.error){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-send me-1"></i> Enviar Ticket';
       Swal.fire({ title:'Error', text: data.error, icon:'error', confirmButtonText:'Intentar de nuevo' });
     }
   })
   .catch(() => {
     document.getElementById('spinnerBox').style.display = 'none';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send me-1"></i> Enviar Ticket';
     Swal.fire({ title:'Error', text:'Hubo un problema al enviar el ticket. Inténtalo nuevamente.', icon:'error' });
   });
 });

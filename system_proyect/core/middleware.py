@@ -6,6 +6,7 @@ _RUTAS_PERMITIDAS = (
     '/accounts/login/',
     '/accounts/logout/',
     '/mantenimiento-sistema/',
+    '/reloj/',
 )
 
 
@@ -22,12 +23,12 @@ class MaintenanceModeMiddleware:
 
         if en_mantenimiento:
             user = getattr(request, 'user', None)
-            es_superuser = user and user.is_authenticated and user.is_superuser
+            es_privilegiado = user and user.is_authenticated and (user.is_superuser or user.is_staff)
 
             ruta = request.path_info
             permitida = any(ruta.startswith(p) for p in _RUTAS_PERMITIDAS)
 
-            if not es_superuser and not permitida:
+            if not es_privilegiado and not permitida:
                 return render(request, 'core/mantenimiento.html', status=503)
 
         return self.get_response(request)

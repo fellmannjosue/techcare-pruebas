@@ -22,7 +22,7 @@
             <td><span class="badge bg-success">Activo</span></td>
             <td>
                 <a href="{% url 'descargar_pdf_informativo' r.pk %}" class="btn btn-secondary btn-sm" title="PDF Informativo" target="_blank">
-                    <i class="bi bi-file-earmark-text"></i>
+                    <i class="ti ti-file-text"></i>
                 </a>
             </td>
         </tr>
@@ -37,12 +37,12 @@
             <td><span class="badge bg-success">Activo</span></td>
             <td>
                 <a href="{% url 'descargar_pdf_conductual' r.pk %}" class="btn btn-secondary btn-sm" title="PDF Conductual Individual" target="_blank">
-                    <i class="bi bi-file-earmark"></i>
+                    <i class="ti ti-file-alert"></i>
                 </a>
                 {# Botón 3 strikes SOLO en la última fila si hay 3 o más #}
                 {% if forloop.last and conductuales|length >= 3 %}
                 <a href="{% url 'descargar_pdf_conductual_3_strikes' r.pk %}" class="btn btn-warning btn-sm" title="PDF 3 Strikes" target="_blank">
-                    <i class="bi bi-files"></i>
+                    <i class="ti ti-files"></i>
                 </a>
                 {% endif %}
             </td>
@@ -58,7 +58,7 @@
             <td><span class="badge bg-success">Activo</span></td>
             <td>
                 <a href="{% url 'descargar_pdf_progress' r.pk %}" class="btn btn-secondary btn-sm" title="PDF Progress" target="_blank">
-                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <i class="ti ti-chart-bar"></i>
                 </a>
             </td>
         </tr>

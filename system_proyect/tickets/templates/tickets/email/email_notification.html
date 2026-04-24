@@ -1,66 +1,96 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
-        .email-container {
-            background-color: #ffffff;
-            padding: 20px;
-            margin: 20px auto;
-            max-width: 600px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            color: #007bff;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .content {
-            font-size: 16px;
-            line-height: 1.5;
-            color: #333;
-        }
-        .footer {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #777;
-            text-align: center;
-        }
-        .footer p {
-            margin: 0;
-        }
-        .highlight {
-            font-weight: bold;
-            color: #007bff;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-    <div class="email-container">
-        <div class="header">
-            Soporte Técnico de Nuevo Amanecer
-        </div>
-        <div class="content">
-            <p><strong>Estimado Usuario:</strong></p>
-            <p>Se ha recibido su solicitud de soporte con éxito. Pronto será atendido por nuestro equipo técnico.</p>
-            <p><strong>Nombre:</strong> {{ ticket.name }}</p>
-            <p><strong>Grado:</strong> {{ ticket.grade }}</p>
-            <p><strong>Descripción del Problema:</strong> {{ ticket.description }}</p>
-        </div>
-        <div class="footer">
-            <p>Atentamente,</p>
-            <p class="highlight">Equipo de Soporte Técnico de Nuevo Amanecer</p>
-        </div>
-    </div>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+           style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+
+      <!-- HEADER -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,#228be6);padding:28px 40px;text-align:center;">
+          <p style="margin:0 0 2px;font-size:26px;font-weight:700;color:#fff;letter-spacing:-.5px;">TechCare</p>
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,.75);">Soporte Técnico – Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
+
+      <!-- TICKET ID BADGE -->
+      <tr>
+        <td style="padding:28px 40px 8px;text-align:center;">
+          <span style="display:inline-block;background:#e7f5ff;color:#1971c2;font-size:13px;
+                       font-weight:700;padding:6px 18px;border-radius:20px;letter-spacing:.5px;">
+            TICKET #{{ ticket.ticket_id }}
+          </span>
+        </td>
+      </tr>
+
+      <!-- TÍTULO -->
+      <tr>
+        <td style="padding:8px 40px 20px;text-align:center;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a2e;">
+            ✅ Solicitud recibida con éxito
+          </p>
+          <p style="margin:6px 0 0;font-size:14px;color:#6c757d;">
+            Pronto será atendido por nuestro equipo técnico.
+          </p>
+        </td>
+      </tr>
+
+      <!-- SEPARADOR -->
+      <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e9ecef;margin:0;"></td></tr>
+
+      <!-- DETALLES -->
+      <tr>
+        <td style="padding:24px 40px;">
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="background:#f8f9fa;border-radius:8px;padding:16px 20px;border-left:4px solid #1971c2;">
+            <tr>
+              <td style="padding:7px 0;font-size:12px;color:#6c757d;text-transform:uppercase;
+                         letter-spacing:.4px;width:110px;">Nombre</td>
+              <td style="padding:7px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{{ ticket.name }}</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 0;font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:.4px;">Grado</td>
+              <td style="padding:7px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{{ ticket.grade }}</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 0;font-size:12px;color:#6c757d;text-transform:uppercase;
+                         letter-spacing:.4px;vertical-align:top;">Descripción</td>
+              <td style="padding:7px 0;font-size:14px;color:#1a1a2e;">{{ ticket.description }}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- MENSAJE -->
+      <tr>
+        <td style="padding:0 40px 28px;">
+          <p style="margin:0;font-size:13px;color:#495057;line-height:1.6;">
+            Hemos registrado su solicitud y un técnico la revisará a la brevedad posible.
+            Recibirá una notificación cuando haya una actualización.
+          </p>
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0 0 2px;font-size:12px;color:#6c757d;">Atentamente,</p>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1971c2;">
+            Equipo de Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+          <p style="margin:8px 0 0;font-size:11px;color:#adb5bd;">
+            © 2025 TechCare · Este es un correo automático, por favor no responda.
+          </p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>

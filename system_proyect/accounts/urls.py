@@ -10,6 +10,7 @@ urlpatterns = [
     path('register/', views.register_maestro, name='register_maestro'),
     path('reenviar-bienvenida/', views.reenviar_bienvenida, name='reenviar_bienvenida'),
     path('menu/', views.menu_view, name='menu'),
+    path('seleccion-rol/', views.seleccion_rol, name='seleccion_rol'),
 
     # Notificaciones para dashboard
   

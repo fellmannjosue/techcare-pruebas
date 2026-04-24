@@ -7,6 +7,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('submit_ticket/', views.submit_ticket, name='submit_ticket'),
+    path('dashboard/administracion/', views.dashboard_administracion, name='dashboard_administracion'),
+    path('mis-tickets/', views.mis_tickets, name='mis_tickets'),
     path('technician_dashboard/', views.technician_dashboard, name='technician_dashboard'),
     path('ticket/<int:ticket_id>/comentarios/', views.ticket_comments, name='ticket_comments'),
     path('ticket_comments/ajax/<int:ticket_id>/', views.ticket_comments_ajax, name='ticket_comments_ajax'),

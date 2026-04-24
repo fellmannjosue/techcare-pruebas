@@ -1,0 +1,33 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
+{% block title %}Dashboard Administración{% endblock %}
+{% block page_pretitle %}Bienvenido{% endblock %}
+{% block page_title %}Dashboard Administración{% endblock %}
+
+{% block content %}
+<p class="text-muted mb-4">Gestiona tus solicitudes de soporte técnico.</p>
+
+<div class="row g-3" style="max-width:640px;">
+
+  <div class="col-6">
+    <a href="{% url 'submit_ticket' %}" class="card card-link text-decoration-none h-100 text-center p-4">
+      <div class="mb-3">
+        <i class="ti ti-ticket" style="font-size:2.4rem;color:#f76707;"></i>
+      </div>
+      <div class="fw-semibold text-primary">Generar Ticket</div>
+      <div class="text-muted small mt-1">Reportar un problema técnico</div>
+    </a>
+  </div>
+
+  <div class="col-6">
+    <a href="{% url 'mis_tickets' %}" class="card card-link text-decoration-none h-100 text-center p-4">
+      <div class="mb-3">
+        <i class="ti ti-history" style="font-size:2.4rem;color:#1971c2;"></i>
+      </div>
+      <div class="fw-semibold text-primary">Ver Historial</div>
+      <div class="text-muted small mt-1">Consulta tus tickets anteriores</div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

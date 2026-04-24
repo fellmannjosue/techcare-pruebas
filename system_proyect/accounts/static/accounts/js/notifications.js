@@ -6,13 +6,32 @@ const URL_MARCAR = "/core/api/notificaciones/marcar/";
 
 let notisPrevias = new Set();
 let dropdownAbierto = false;
+let audioDesbloqueado = false;
+
+// =======================================
+// Desbloquear audio en primer clic
+// =======================================
+function desbloquearAudio() {
+    if (audioDesbloqueado) return;
+    let audio = document.getElementById("notifSound");
+    if (audio) {
+        audio.volume = 0;
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 0.5;
+            audioDesbloqueado = true;
+        }).catch(() => {});
+    }
+}
 
 // =======================================
 // Reproducir sonido
 // =======================================
 function playNotifSound() {
     let audio = document.getElementById("notifSound");
-    if (audio) {
+    if (audio && audioDesbloqueado) {
+        audio.currentTime = 0;
         audio.volume = 0.5;
         audio.play().catch(() => {});
     }
@@ -47,7 +66,12 @@ function renderizarLista(notis) {
     if (notis.length === 0) {
         lista.innerHTML = `
             <li class="p-3 text-center text-muted">
-                <i class="fa-regular fa-bell-slash fa-lg mb-2"></i><br>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                     stroke-linejoin="round" class="mb-2 d-block mx-auto">
+                  <path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6"/>
+                  <path d="M9 17v1a3 3 0 0 0 6 0v-1"/><path d="M3 3l18 18"/>
+                </svg>
                 Sin notificaciones
             </li>`;
         return;
@@ -123,13 +147,16 @@ function marcarNotificacionesLeidas() {
 // Detectar apertura del dropdown
 // =======================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Desbloquear audio en primera interacción del usuario
+    ["click", "keydown", "touchstart"].forEach(evt =>
+        document.addEventListener(evt, desbloquearAudio, { once: true })
+    );
+
     let dropdown = document.getElementById("notifDropdownToggle");
 
     if (dropdown) {
         dropdown.addEventListener("click", () => {
             dropdownAbierto = true;
-
-            // Cargar inmediatamente lo más reciente
             fetch(URL_NOTIS)
             .then(r => r.json())
             .then(data => {
@@ -138,6 +165,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     marcarNotificacionesLeidas();
                 }
             });
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!dropdown.closest(".dropdown").contains(e.target)) {
+                dropdownAbierto = false;
+            }
         });
     }
 

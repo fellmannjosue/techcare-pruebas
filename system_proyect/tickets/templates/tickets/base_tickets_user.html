@@ -32,7 +32,7 @@
         <ul class="navbar-nav pt-lg-3">
 
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard_maestro' %}">
+            <a class="nav-link" href="{% if request.session.modo_tickets == 'admin' %}{% url 'dashboard_administracion' %}{% else %}{% url 'dashboard_maestro' %}{% endif %}">
               <span class="nav-link-icon d-md-none d-lg-inline-block">
                 <i class="ti ti-home"></i>
               </span>
@@ -50,7 +50,7 @@
           </li>
 
           <li class="nav-item">
-            <a class="nav-link {% block nav_historial %}{% endblock %}" href="{% url 'historial_maestro_bilingue' %}">
+            <a class="nav-link {% block nav_historial %}{% endblock %}" href="{% if request.session.modo_tickets == 'admin' %}{% url 'mis_tickets' %}{% else %}{% url 'historial_maestro_bilingue' %}{% endif %}">
               <span class="nav-link-icon d-md-none d-lg-inline-block">
                 <i class="ti ti-history"></i>
               </span>
