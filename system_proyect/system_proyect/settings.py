@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     'enfermeria',
     'seguridad',
     'conducta',
+    'agendas',
     'core',
     'reloj',
 
@@ -126,6 +127,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.current_year',
+                'core.context_processors.nav_context',
             ],
         },
     },
@@ -387,6 +389,16 @@ UNFOLD = {
                     {"title": _("Reportes Informativos"), "icon": "info", "link": reverse_lazy("admin:conducta_reporteinformativo_changelist")},
                     {"title": _("Progress Reports"), "icon": "bar_chart", "link": reverse_lazy("admin:conducta_progressreport_changelist")},
                     {"title": _("Evidencias"), "icon": "photo_camera", "link": reverse_lazy("admin:conducta_evidenciareporte_changelist")},
+                ],
+            },
+            {
+                "title": _("Agendas"),
+                "separator": True,
+                "items": [
+                    {"title": _("Dashboard Agendas"), "icon": "dashboard", "link": "/agendas/coordinador/"},
+                    {"title": _("Grados (Agenda)"), "icon": "grade", "link": reverse_lazy("admin:agendas_gradoagenda_changelist")},
+                    {"title": _("Agendas"), "icon": "calendar_month", "link": reverse_lazy("admin:agendas_agenda_changelist")},
+                    {"title": _("Imágenes Agenda"), "icon": "photo_library", "link": reverse_lazy("admin:agendas_imagenagenda_changelist")},
                 ],
             },
             {

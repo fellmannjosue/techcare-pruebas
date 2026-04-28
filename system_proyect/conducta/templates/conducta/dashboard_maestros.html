@@ -45,6 +45,14 @@
       <span class="nav-link-title">Ver Historial</span>
     </a>
   </li>
+  {% if area == 'bilingue' %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'agendas:form_agenda' %}">
+      <span class="nav-link-icon"><i class="ti ti-calendar-week"></i></span>
+      <span class="nav-link-title">Agendas</span>
+    </a>
+  </li>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -113,6 +121,20 @@
       </div>
     </a>
   </div>
+
+  {% if area == 'bilingue' %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'agendas:form_agenda' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-calendar-week text-purple" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Agendas</div>
+          <div class="text-muted small mt-1">Agendas semanales</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

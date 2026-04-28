@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
     "mcarias@ana-hn.org",
     "mcastro@ana-hn.org",
     "mrodriguez@ana-hn.org",
+    "nalvarado@ana-hn.org",
     "ogonzalez@ana-hn.org",
     "pserrano@ana-hn.org",
     "rdiaz@ana-hn.org",
