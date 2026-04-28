@@ -32,151 +32,7 @@
       </h1>
 
       <div class="collapse navbar-collapse" id="navbar-menu">
-        <ul class="navbar-nav pt-lg-3">
-
-          <li class="nav-item">
-            <a class="nav-link active" href="{% url 'menu' %}">
-              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
-              <span class="nav-link-title">Panel Principal</span>
-            </a>
-          </li>
-
-          {% if show_tickets %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'technician_dashboard' %}">
-              <span class="nav-link-icon"><i class="ti ti-ticket"></i></span>
-              <span class="nav-link-title">Tickets</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_reloj %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'reloj_dashboard' %}">
-              <span class="nav-link-icon"><i class="ti ti-clock"></i></span>
-              <span class="nav-link-title">Reloj</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_inventory %}
-          <li class="nav-item">
-            <a class="nav-link collapsed" href="#submenuInventario" data-bs-toggle="collapse">
-              <span class="nav-link-icon"><i class="ti ti-package"></i></span>
-              <span class="nav-link-title">Inventario</span>
-              <span class="nav-link-arrow"></span>
-            </a>
-            <ul class="navbar-nav collapse ps-4" id="submenuInventario">
-              <li class="nav-item">
-                <a class="nav-link" href="{% url 'inventario:dashboard' %}">
-                  <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-                  <span class="nav-link-title">Dashboard</span>
-                </a>
-              </li>
-            </ul>
-          </li>
-          {% endif %}
-
-          {% if show_sponsors %}
-          <li class="nav-item">
-            <a class="nav-link collapsed" href="#submenuSponsors" data-bs-toggle="collapse">
-              <span class="nav-link-icon"><i class="ti ti-heart-handshake"></i></span>
-              <span class="nav-link-title">Sponsors</span>
-              <span class="nav-link-arrow"></span>
-            </a>
-            <ul class="navbar-nav collapse ps-4" id="submenuSponsors">
-              <li class="nav-item">
-                <a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}">
-                  <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-                  <span class="nav-link-title">Dashboard</span>
-                </a>
-              </li>
-            </ul>
-          </li>
-          {% endif %}
-
-          {% if show_seguridad %}
-          <li class="nav-item">
-            <a class="nav-link collapsed" href="#submenuSeguridad" data-bs-toggle="collapse">
-              <span class="nav-link-icon"><i class="ti ti-shield-half"></i></span>
-              <span class="nav-link-title">Seguridad</span>
-              <span class="nav-link-arrow"></span>
-            </a>
-            <ul class="navbar-nav collapse ps-4" id="submenuSeguridad">
-              <li class="nav-item">
-                <a class="nav-link" href="{% url 'seguridad:dashboard' %}">
-                  <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-                  <span class="nav-link-title">Dashboard</span>
-                </a>
-              </li>
-            </ul>
-          </li>
-          {% endif %}
-
-          {% if show_enfermeria %}
-          <li class="nav-item">
-            <a class="nav-link collapsed" href="#submenuEnfermeria" data-bs-toggle="collapse">
-              <span class="nav-link-icon"><i class="ti ti-stethoscope"></i></span>
-              <span class="nav-link-title">Enfermería</span>
-              <span class="nav-link-arrow"></span>
-            </a>
-            <ul class="navbar-nav collapse ps-4" id="submenuEnfermeria">
-              <li class="nav-item">
-                <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
-                  <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-                  <span class="nav-link-title">Panel</span>
-                </a>
-              </li>
-            </ul>
-          </li>
-          {% endif %}
-
-          {% if show_maintenance %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}">
-              <span class="nav-link-icon"><i class="ti ti-tool"></i></span>
-              <span class="nav-link-title">Mantenimiento</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_citas_bl %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard_bl' %}">
-              <span class="nav-link-icon"><i class="ti ti-calendar-check"></i></span>
-              <span class="nav-link-title">Citas BL</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_citas_col %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard_col' %}">
-              <span class="nav-link-icon"><i class="ti ti-calendar-event"></i></span>
-              <span class="nav-link-title">Citas COL/VOC</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_coordinador_bilingue %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}">
-              <span class="nav-link-icon"><i class="ti ti-chalkboard"></i></span>
-              <span class="nav-link-title">Coord. BL</span>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if show_coordinador_colegio %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}">
-              <span class="nav-link-icon"><i class="ti ti-user-tie"></i></span>
-              <span class="nav-link-title">Coord. Colegio</span>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
+        {% include 'accounts/_sidebar.html' %}
 
         <div class="mt-auto pt-3 border-top border-secondary-subtle">
           <div class="d-flex align-items-center px-3 py-2">
@@ -529,6 +385,34 @@
                   <div class="mb-2"><i class="ti ti-user-check text-orange" style="font-size:2.5rem;"></i></div>
                   <div class="fw-bold">Coord. Colegio</div>
                   <div class="text-muted small mt-1">Coordinador Colegio</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if show_agendas %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'agendas:form_agenda' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-calendar-week text-purple" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Agendas</div>
+                  <div class="text-muted small mt-1">Agendas semanales</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if show_directorio %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'enfermeria:directorio_telefonos' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-address-book text-green" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Directorio</div>
+                  <div class="text-muted small mt-1">Teléfonos de alumnos</div>
                 </div>
               </div>
             </a>

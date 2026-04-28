@@ -17,85 +17,25 @@
 
   <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-inventario">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <h1 class="navbar-brand navbar-brand-autodark">
-        <a href="{% url 'inventario:dashboard' %}">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" width="110" alt="TechCare" class="navbar-brand-image">
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
-      </h1>
-      <div class="collapse navbar-collapse" id="sidebar-menu">
-        <ul class="navbar-nav pt-lg-3">
-          <li class="nav-item">
-            <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'inventario:dashboard' %}">
-              <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-              <span class="nav-link-title">Dashboard</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_computadoras %}{% endblock %}" href="{% url 'inventario:inventario_computadoras' %}">
-              <span class="nav-link-icon"><i class="ti ti-device-desktop"></i></span>
-              <span class="nav-link-title">Computadoras</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_televisores %}{% endblock %}" href="{% url 'inventario:inventario_televisores' %}">
-              <span class="nav-link-icon"><i class="ti ti-device-tv"></i></span>
-              <span class="nav-link-title">Televisores</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_impresoras %}{% endblock %}" href="{% url 'inventario:inventario_impresoras' %}">
-              <span class="nav-link-icon"><i class="ti ti-printer"></i></span>
-              <span class="nav-link-title">Impresoras</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_routers %}{% endblock %}" href="{% url 'inventario:inventario_routers' %}">
-              <span class="nav-link-icon"><i class="ti ti-wifi"></i></span>
-              <span class="nav-link-title">Routers</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_datashows %}{% endblock %}" href="{% url 'inventario:inventario_datashows' %}">
-              <span class="nav-link-icon"><i class="ti ti-video"></i></span>
-              <span class="nav-link-title">DataShows</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_monitores %}{% endblock %}" href="{% url 'inventario:inventario_monitores' %}">
-              <span class="nav-link-icon"><i class="ti ti-device-imac"></i></span>
-              <span class="nav-link-title">Monitores</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_categoria %}{% endblock %}" href="{% url 'inventario:inventario_por_categoria' %}">
-              <span class="nav-link-icon"><i class="ti ti-category"></i></span>
-              <span class="nav-link-title">Por Categoría</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_registros %}{% endblock %}" href="{% url 'inventario:inventario_registros' %}">
-              <span class="nav-link-icon"><i class="ti ti-clipboard-list"></i></span>
-              <span class="nav-link-title">Ver Registros</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'menu' %}">
-              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
-              <span class="nav-link-title">Menú Principal</span>
-            </a>
-          </li>
-        </ul>
-        <div class="mt-auto pt-3 border-top border-secondary-subtle">
-          <div class="d-flex align-items-center px-3 py-2">
-            <img src="{% static 'accounts/img/user.png' %}" width="36" height="36" class="rounded-circle me-2">
-            <div class="flex-grow-1 overflow-hidden">
-              <div class="text-white fw-bold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-inventario">
+        {% include 'accounts/_sidebar.html' %}
+        <div class="mt-auto pt-3 border-top border-secondary">
+          <div class="d-flex align-items-center gap-2 px-2 py-1">
+            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
+            <div class="flex-fill">
+              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
             </div>
-            <a href="{% url 'logout' %}" class="btn btn-sm btn-ghost-danger ms-2" title="Cerrar sesión">
-              <i class="ti ti-logout"></i>
+            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
+              <i class="ti ti-logout fs-5"></i>
             </a>
           </div>
         </div>

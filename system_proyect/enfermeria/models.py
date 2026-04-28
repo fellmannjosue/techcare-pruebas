@@ -168,6 +168,8 @@ class TblPrsDtosGen(models.Model):
     Nombre2   = models.CharField(max_length=100, blank=True, null=True)
     Apellido1 = models.CharField(max_length=100, blank=True, null=True)
     Apellido2 = models.CharField(max_length=100, blank=True, null=True)
+    Tel1      = models.CharField(max_length=50,  blank=True, null=True)
+    Tel2      = models.CharField(max_length=50,  blank=True, null=True)
     Email     = models.CharField(max_length=254, blank=True, null=True)
     Email2    = models.CharField(max_length=254, blank=True, null=True)
     Email3    = models.CharField(max_length=254, blank=True, null=True)

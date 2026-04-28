@@ -20,3 +20,4 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'system_proyect.settings')
 
 application = get_wsgi_application()
+# reload: 2026-04-28T16:23

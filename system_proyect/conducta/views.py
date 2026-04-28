@@ -7,14 +7,14 @@ from core.utils_notifications import crear_notificacion
 from django.template.loader import render_to_string
 from django.contrib import messages
 from django.db import connections
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 import datetime as _dt_module
 
 _COORD_BL_EMAIL = {
-    'C1': 'coordinacion_bl@ana-hn.org',  # temporal — real: cvarela@ana-hn.org (pendiente)
+    'C1': 'cvarela@ana-hn.org',
     'C2': 'druiz@ana-hn.org',
     'C3': 'ialcerro@ana-hn.org',
     'C4': 'jmartinez@ana-hn.org',
@@ -25,6 +25,29 @@ COORDINADORES_EMAILS_COLEGIO = [
     'fvalladares@ana-hn.org',
 ]
 SITE_URL = 'https://servicios.ana-hn.org:437'
+
+_EMAIL_COORDI_BL = 'coordinacion_bl@ana-hn.org'
+
+_C1_GRADOS   = ['1ero', '2do', '3ero']
+_C2_GRADOS   = ['4to', '5to', '6to', '7mo', '8vo', '9no']
+_C3_MATERIAS = [
+    'español', 'estudios sociales', 'eess', 'cívica', 'civica',
+    'computacion', 'computación', 'penmanship', 'arte',
+    'educacion fisica', 'educación física', 'biblia',
+    'inteligencia emocional',
+]
+
+def _q_grados(grados):
+    q = Q()
+    for g in grados:
+        q |= Q(grado__icontains=g)
+    return q
+
+def _q_materias(materias):
+    q = Q()
+    for m in materias:
+        q |= Q(materia__icontains=m)
+    return q
 
 _TIPO_COLOR = {
     'Reporte Informativo': '#1971c2',
@@ -485,7 +508,7 @@ def reporte_conductual_colegio(request):
 @login_required
 def progress_report_bilingue(request):
     MATERIAS_PRIMARIA = [
-        "Math", "Phonics", "Spelling", "Reading", "Language",
+        "Math", "Phonics", "Reading", "Language",
         "Science", "Español", "CCSS", "Asociadas"
     ]
     MATERIAS_COLEGIO = [
@@ -737,7 +760,7 @@ def editar_progress_report(request, pk):
     # Bug 3: Solo se guardaba UNA fila de Asociadas (la última). Fix: loop correcto.
     # Extra: json.dumps() en un JSONField causaba doble serialización. Fix: lista directa.
 
-    COORDINADORES_BL = ["Mr. Martinez", "Miss Alcerro", "Mr. Ruiz"]
+    COORDINADORES_BL = ["Mr. Martinez", "Miss Alcerro", "Mr. Ruiz" , "Mrs. Varela"]
 
     reporte = get_object_or_404(ProgressReport, pk=pk)
     es_coord = es_coordinador(request.user)
@@ -1125,133 +1148,481 @@ def descargar_pdf_conductual(request, pk):
 
 @login_required
 def descargar_pdf_progress(request, pk):
-    reporte = get_object_or_404(ProgressReport, pk=pk)
-    materias = reporte.materias_json or []
+    from pptx.oxml.ns import qn
+    from lxml import etree
+    from pptx.util import Emu
 
-    # Ruta correcta
+    # ── helpers ──────────────────────────────────────────────────────────────
+    def _add_shadow(run):
+        rPr = run._r.get_or_add_rPr()
+        for ex in rPr.findall(qn('a:effectLst')):
+            rPr.remove(ex)
+        effectLst = etree.SubElement(rPr, qn('a:effectLst'))
+        outer = etree.SubElement(effectLst, qn('a:outerShdw'),
+                                 attrib={'blurRad': '40000', 'dist': '23000',
+                                         'dir': '5400000', 'rotWithShape': '0'})
+        clr = etree.SubElement(outer, qn('a:srgbClr'), val='000000')
+        etree.SubElement(clr, qn('a:alpha'), val='40000')
+
+    def _run_titulo(para, texto):
+        run = para.add_run()
+        run.text = texto
+        run.font.name = 'Book Antiqua'
+        run.font.size = Pt(40)
+        run.font.bold = True
+        run.font.italic = True
+        run.font.underline = True
+        _add_shadow(run)
+        return run
+
+    def _run_label(para, texto, size=28):
+        run = para.add_run()
+        run.text = texto
+        run.font.name = 'Book Antiqua'
+        run.font.size = Pt(size)
+        run.font.bold = True
+        run.font.italic = True
+        run.font.underline = True
+        _add_shadow(run)
+        return run
+
+    def _run_value(para, texto, size=28):
+        run = para.add_run()
+        run.text = texto
+        run.font.name = 'Book Antiqua'
+        run.font.size = Pt(size)
+        run.font.italic = True
+        _add_shadow(run)
+        return run
+
+    def _clear_table_style(tbl_obj):
+        # Elimina el estilo de tabla predeterminado (causa el fondo gris y quita los bordes)
+        tblPr = tbl_obj._tbl.find(qn('a:tblPr'))
+        if tblPr is None:
+            tblPr = etree.SubElement(tbl_obj._tbl, qn('a:tblPr'))
+        for attr in ('bandRow', 'bandCol', 'firstRow', 'firstCol', 'lastRow', 'lastCol'):
+            tblPr.set(attr, '0')
+        for el in tblPr.findall(qn('a:tableStyleId')):
+            tblPr.remove(el)
+        # GUID "No Style, No Grid" — tabla limpia sin tema
+        etree.SubElement(tblPr, qn('a:tableStyleId')).text = '{2D5ABB26-0587-4C30-8999-92F81FD0307C}'
+
+    def _set_borders(cell, w=19050):
+        # Los bordes deben ir ANTES del fill en tcPr (orden OOXML)
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        for tag in ('lnL', 'lnR', 'lnT', 'lnB'):
+            for ex in tcPr.findall(qn(f'a:{tag}')):
+                tcPr.remove(ex)
+        for i, tag in enumerate(('lnL', 'lnR', 'lnT', 'lnB')):
+            ln = etree.Element(qn(f'a:{tag}'), attrib={'w': str(w), 'cap': 'flat', 'cmpd': 'sng'})
+            sf = etree.SubElement(ln, qn('a:solidFill'))
+            etree.SubElement(sf, qn('a:srgbClr'), val='000000')
+            tcPr.insert(i, ln)   # insertar antes del fill
+
+    def _ordinal(d):
+        if 11 <= d <= 13:
+            return f"{d}th"
+        return f"{d}{['th','st','nd','rd','th'][min(d % 10, 4)]}"
+
+    def _clean_grado(grado):
+        import re
+        _map = {'1':'1st','2':'2nd','3':'3rd','4':'4th',
+                '5':'5th','6':'6th','7':'7th','8':'8th','9':'9th'}
+        m = re.search(r'(\d+)', grado or '')
+        if m:
+            return _map.get(m.group(1), grado)
+        if 'kinder' in (grado or '').lower():
+            return 'Kinder'
+        return grado
+
+    # ── datos ─────────────────────────────────────────────────────────────────
+    reporte  = get_object_or_404(ProgressReport, pk=pk)
+    materias = reporte.materias_json or []
     fondo_path = '/home/admin2/techcare_project/system_proyect/conducta/static/conducta/img/plantilla.jpg'
 
+    # ── slide widescreen 13.33" × 7.5" ───────────────────────────────────────
     prs = Presentation()
-    slide_layout = prs.slide_layouts[6]  # Slide en blanco
-    slide = prs.slides.add_slide(slide_layout)
-
-    # Fondo completo
+    prs.slide_width  = Emu(12192000)
+    prs.slide_height = Emu(6858000)
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.shapes.add_picture(fondo_path, 0, 0, width=prs.slide_width, height=prs.slide_height)
 
-    # -- TÍTULO "Progress Report"
-    titulo = slide.shapes.add_textbox(Inches(0.7), Inches(0.1), Inches(5), Inches(0.7)).text_frame
-    p = titulo.paragraphs[0]
-    p.text = "Progress Report"
-    p.font.size = Pt(40)
-    p.font.bold = True
-    p.font.name = "French Script MT"  # Usa Arial Black o una fuente bien visible
-    p.alignment = PP_ALIGN.LEFT
+    # Constantes de layout
+    LEFT_X = Inches(0.2)
+    TAB_X  = Inches(4.7)
+    LEFT_W = TAB_X - LEFT_X          # nombre envuelve exactamente al borde de la tabla
+    TAB_W  = Inches(8.5)             # tabla más ancha; total 4.7+8.5=13.2" ≈ slide
 
-    # -- Name: <cursiva>   (en la misma línea)
-    nombre_textbox = slide.shapes.add_textbox(Inches(0.7), Inches(0.7), Inches(7.5), Inches(0.7))
-    tf = nombre_textbox.text_frame
+    # ── TÍTULO (encima de la tabla, derecha) ──────────────────────────────────
+    tb = slide.shapes.add_textbox(TAB_X, Inches(0.05), TAB_W, Inches(0.9))
+    tf = tb.text_frame
     tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    _run_titulo(p, 'Progress Report.')
 
-    # "Name: " en negrita
-    run1 = tf.paragraphs[0].add_run()
-    run1.text = "Name: "
-    run1.font.bold = True
-    run1.font.size = Pt(18)
-    run1.font.name = "Arial (Cuerpo) "
-
-    # El nombre en cursiva/script (usa "Brush Script MT", o prueba con "Segoe Script" o similar)
-    run2 = tf.paragraphs[0].add_run()
-    run2.text = reporte.alumno_nombre
-    run2.font.size = Pt(28)
-    run2.font.bold = True
-    run2.font.name = "Edwardian Script ITC"  # Cambia aquí si no tienes esta fuente
-
-    tf.paragraphs[0].alignment = PP_ALIGN.LEFT
-
-    # -- Weeks: <rango> (a la derecha)
-    semanas_textbox = slide.shapes.add_textbox(Inches(6), Inches(0.7), Inches(4), Inches(0.5))
-    semanas_tf = semanas_textbox.text_frame
-    semanas_tf.clear()
-    semanas_tf.word_wrap = True
-    p = semanas_tf.paragraphs[0]
-    p.text = f"Weeks: {reporte.semana_inicio.strftime('%b %d')} - {reporte.semana_fin.strftime('%b %d, %Y')}"
-    p.font.italic = True
-    p.font.size = Pt(18)
-    p.font.name = "Bahnschrift Light SemiCondensed"
-    p.alignment = PP_ALIGN.RIGHT
-
-    # -- Grado
-    grado_textbox = slide.shapes.add_textbox(Inches(0.7), Inches(1.2), Inches(5), Inches(0.5))
-    grado_tf = grado_textbox.text_frame
-    grado_tf.clear()
-    p = grado_tf.paragraphs[0]
-    p.text = f"Grade: {reporte.grado}"
-    p.font.size = Pt(18)
-    p.font.name = "Bahnschrift SemiBold SemiConden"
+    # ── WEEKS ─────────────────────────────────────────────────────────────────
+    semana_str = (f"{_ordinal(reporte.semana_inicio.day)} to "
+                  f"{_ordinal(reporte.semana_fin.day)} {reporte.semana_fin.strftime('%B')}")
+    tb = slide.shapes.add_textbox(LEFT_X, Inches(0.1), LEFT_W, Inches(1.5))
+    tf = tb.text_frame
+    tf.clear()
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.LEFT
+    _run_label(p, 'Weeks:')
+    p2 = tf.add_paragraph()
+    p2.alignment = PP_ALIGN.LEFT
+    _run_value(p2, semana_str)
 
-    # -- TABLA de materias (fondos blancos, cabecera en negrita)
+    # ── GRADE ─────────────────────────────────────────────────────────────────
+    tb = slide.shapes.add_textbox(LEFT_X, Inches(1.75), LEFT_W, Inches(0.75))
+    tf = tb.text_frame
+    tf.clear()
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    _run_value(p, f'Grade: {_clean_grado(reporte.grado)}')
+
+    # ── NAME label + nombre alumno ────────────────────────────────────────────
+    tb = slide.shapes.add_textbox(LEFT_X, Inches(2.6), LEFT_W, Inches(1.4))
+    tf = tb.text_frame
+    tf.clear()
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    _run_label(p, 'Name:')
+    p2 = tf.add_paragraph()
+    p2.alignment = PP_ALIGN.LEFT
+    rn = p2.add_run()
+    rn.text = reporte.alumno_nombre
+    rn.font.name = 'Book Antiqua'
+    rn.font.size = Pt(20)
+    rn.font.italic = True
+
+    # ── TABLA ─────────────────────────────────────────────────────────────────
     num_rows = len(materias) + 1
-    num_cols = 3
-    left = Inches(3.15)
-    top = Inches(1.57)
-    width = Inches(6.496063)
-    height = Inches(5.11811)
+    tbl_top  = Inches(0.95)
+    tbl_h    = Inches(6.55)   # ocupa casi toda la altura
 
-    table = slide.shapes.add_table(num_rows, num_cols, left, top, width, height).table
+    tbl = slide.shapes.add_table(num_rows, 3, TAB_X, tbl_top, TAB_W, tbl_h).table
+    _clear_table_style(tbl)
 
-    # Cabecera
-    headers = ["Materia", "Asignación", "Comentario/Observación"]
-    for idx, title in enumerate(headers):
-        cell = table.cell(0, idx)
-        cell.text = title
-        # --- ESTILO DE CABECERA ---
+    # anchos de columna: ~24% / ~19% / ~57%
+    tbl.columns[0].width = Inches(2.0)
+    tbl.columns[1].width = Inches(1.7)
+    tbl.columns[2].width = Inches(4.8)
+
+    def _cell_style(cell, texto, bold=False, align=PP_ALIGN.CENTER):
+        cell.text = texto
+        _set_borders(cell)         # bordes ANTES del fill (orden correcto en OOXML)
         cell.fill.solid()
-        cell.fill.fore_color.rgb = RGBColor(220, 220, 220)  # Gris claro
-        p = cell.text_frame.paragraphs[0]
-        p.font.bold = False
-        p.font.size = Pt(18)
-        p.font.name = "Arial (Cuerpo)"
-        p.font.color.rgb = RGBColor(0, 0, 0)  # NEGRO
-        p.alignment = PP_ALIGN.CENTER
+        cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        para = cell.text_frame.paragraphs[0]
+        para.font.name  = 'Arial'
+        para.font.size  = Pt(18)
+        para.font.bold  = bold
+        para.font.color.rgb = RGBColor(0, 0, 0)
+        para.alignment  = align
 
-        # Fondo blanco y bordes (no azul)
-        cell.fill.solid()
-        cell.fill.fore_color.rgb = RGBColor(236, 236, 233)
-        for border in cell._tc.xpath('.//a:tcPr/a:ln'):
-            border.set('w', '12700')  # Ajusta borde si deseas más grueso
+    # cabecera
+    for idx, hdr in enumerate(['Materia', 'Asignación', 'Comentario/Observación']):
+        _cell_style(tbl.cell(0, idx), hdr, bold=True, align=PP_ALIGN.CENTER)
 
-    # Filas de materias
+    # filas de materias
     for row, mat in enumerate(materias, start=1):
-        # Materia en negrita
-        cell_materia = table.cell(row, 0)
-        cell_materia.text = mat.get("materia", "")
-        cell_materia.text_frame.paragraphs[0].font.bold = False
-        cell_materia.text_frame.paragraphs[0].font.size = Pt(17)
-        cell_materia.fill.solid()
-        cell_materia.fill.fore_color.rgb = RGBColor(236, 236, 233)
-        # Asignación
-        cell_asignacion = table.cell(row, 1)
-        cell_asignacion.text = mat.get("asignacion", "")
-        cell_asignacion.text_frame.paragraphs[0].font.size = Pt(17)
-        cell_asignacion.fill.solid()
-        cell_asignacion.fill.fore_color.rgb = RGBColor(236, 236, 233)
-        # Comentario
-        cell_comentario = table.cell(row, 2)
-        cell_comentario.text = mat.get("comentario", "")
-        cell_comentario.text_frame.paragraphs[0].font.size = Pt(17)
-        cell_comentario.fill.solid()
-        cell_comentario.fill.fore_color.rgb = RGBColor(236, 236, 233)
-        # Quitar bordes azules si aparecen (PowerPoint suele ponerlos por defecto)
-        for cell in [cell_materia, cell_asignacion, cell_comentario]:
-            for border in cell._tc.xpath('.//a:tcPr/a:ln'):
-                border.set('w', '12700')  # Ajusta borde si deseas más grueso
+        _cell_style(tbl.cell(row, 0), mat.get('materia', ''),    bold=True,  align=PP_ALIGN.CENTER)
+        _cell_style(tbl.cell(row, 1), mat.get('asignacion', ''), bold=False, align=PP_ALIGN.LEFT)
+        _cell_style(tbl.cell(row, 2), mat.get('comentario', ''), bold=False, align=PP_ALIGN.LEFT)
 
-    # DESCARGA el archivo
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    # ── descarga ──────────────────────────────────────────────────────────────
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
     filename = f'progress_{reporte.alumno_nombre.replace(" ", "_")}.pptx'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     prs.save(response)
+    return response
+
+
+@login_required
+def descargar_zip_reportes(request):
+    """Genera un ZIP con todos los reportes (PDF + PPTX) para coordinadores y admin."""
+    import zipfile
+    from reportlab.lib.pagesizes import letter as rl_letter
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.units import mm as rl_mm
+    from reportlab.lib import colors as rl_colors
+    from pptx import Presentation as PPTXPres
+    from pptx.util import Inches as PPTXInches, Pt as PPTXPt, Emu as PPTXEmu
+    from pptx.enum.text import PP_ALIGN as PPTXAlign
+    from pptx.dml.color import RGBColor as PPTXColor
+    from pptx.oxml.ns import qn as pptx_qn
+    from lxml import etree as pptx_etree
+
+    # Solo coordinadores y superusuario
+    es_coord = request.user.groups.filter(
+        name__in=['coordinador_bilingue', 'coordinadores_colegio', 'coordinadores']
+    ).exists()
+    if not (request.user.is_superuser or es_coord):
+        return HttpResponseForbidden()
+
+    logo_path = os.path.join(settings.STATIC_ROOT, 'conducta/img/ana-transformed.png')
+    fondo_path = '/home/admin2/techcare_project/system_proyect/conducta/static/conducta/img/plantilla.jpg'
+
+    # ── generador PDF informativo ─────────────────────────────────────────────
+    def _pdf_informativo(r):
+        buf = io.BytesIO()
+        w, h = rl_letter
+        pdf = rl_canvas.Canvas(buf, pagesize=rl_letter)
+        if os.path.exists(logo_path):
+            pdf.drawImage(logo_path, x=(w-35*rl_mm)/2, y=h-40*rl_mm,
+                          width=35*rl_mm, height=35*rl_mm, mask='auto')
+        y = h - 52*rl_mm
+        pdf.setFont('Helvetica-Bold', 16)
+        pdf.drawCentredString(w/2, y, 'Nuevo Amanecer School' if r.area == 'bilingue' else 'C.E.M.N.G Nuevo Amanecer')
+        y -= 14*rl_mm
+        pdf.setFont('Helvetica', 13)
+        pdf.drawCentredString(w/2, y, 'Reporte informativo')
+        y -= 14*rl_mm
+
+        def lv(x, yy, lbl, val, ls=11, vs=10):
+            pdf.setFont('Helvetica-Bold', ls); pdf.drawString(x, yy, lbl)
+            aw = pdf.stringWidth(lbl, 'Helvetica-Bold', ls)
+            pdf.setFont('Helvetica', vs); pdf.drawString(x+aw+2, yy, val)
+
+        lv(32*rl_mm, y, 'Nombre:', r.alumno_nombre)
+        lv(118*rl_mm, y, 'Grado:', r.grado); y -= 8*rl_mm
+        lv(32*rl_mm, y, 'Docente:', r.docente or '')
+        lv(100*rl_mm, y, 'Fecha:', r.fecha.strftime('%d/%m/%Y') if r.fecha else ''); y -= 12*rl_mm
+        pdf.setFont('Helvetica-Bold', 11); pdf.drawString(32*rl_mm, y, 'Comentario del Docente:'); y -= 8*rl_mm
+        y = draw_paragraph(pdf, r.comentario or '-', x=38*rl_mm, y=y,
+                            max_width=w-65*rl_mm, font='Helvetica', font_size=10, italic=True, leading=12)
+        y -= 10*rl_mm
+        if getattr(r, 'comentario_coordinador', None):
+            pdf.setFont('Helvetica-Bold', 11); pdf.drawString(32*rl_mm, y, 'Comentario del Coordinador:'); y -= 8*rl_mm
+            y = draw_paragraph(pdf, r.comentario_coordinador, x=38*rl_mm, y=y,
+                                max_width=w-65*rl_mm, font='Helvetica', font_size=10, italic=True, leading=12)
+            y -= 8*rl_mm
+        y_f = min(y-15*rl_mm, 28*rl_mm); lf = 58*rl_mm
+        pdf.setStrokeColor(rl_colors.black); pdf.setLineWidth(0.7)
+        for xc, lbl, nom in [(15*rl_mm,'Firma:',r.docente or ''),
+                              (78*rl_mm,'Firma:',getattr(r,'coordinador_firma','')),
+                              (141*rl_mm,'Firma Pariente:','')]:
+            pdf.setFont('Helvetica-Bold',10); pdf.drawString(xc, y_f+5*rl_mm, lbl)
+            aw = pdf.stringWidth(lbl,'Helvetica-Bold',10)
+            pdf.setFont('Helvetica',10); pdf.drawString(xc+aw+2, y_f+5*rl_mm, nom or '')
+            pdf.line(xc, y_f, xc+lf, y_f)
+        pdf.save(); buf.seek(0); return buf
+
+    # ── generador PDF conductual ──────────────────────────────────────────────
+    def _pdf_conductual(r):
+        buf = io.BytesIO()
+        w, h = rl_letter
+        pdf = rl_canvas.Canvas(buf, pagesize=rl_letter)
+        if os.path.exists(logo_path):
+            pdf.drawImage(logo_path, x=(w-22*rl_mm)/2, y=h-28*rl_mm,
+                          width=22*rl_mm, height=22*rl_mm, mask='auto')
+        y = h - 33*rl_mm
+        pdf.setFont('Helvetica-Bold', 16)
+        pdf.drawCentredString(w/2, y, 'Nuevo Amanecer School' if getattr(r,'area',None)=='bilingue' else 'C.E.M.N.G Nuevo Amanecer')
+        y -= 9*rl_mm; pdf.setFont('Helvetica',13)
+        pdf.drawCentredString(w/2, y, 'Reporte conductual'); y -= 10*rl_mm
+
+        def lv(x, yy, lbl, val, s=11):
+            pdf.setFont('Helvetica-Bold',s); pdf.drawString(x,yy,lbl)
+            aw=pdf.stringWidth(lbl,'Helvetica-Bold',s)
+            pdf.setFont('Helvetica',s); pdf.drawString(x+aw+2,yy,val)
+
+        lv(32*rl_mm,y,'Nombre:',r.alumno_nombre); y-=7*rl_mm
+        lv(32*rl_mm,y,'Grado:',r.grado)
+        lv(118*rl_mm,y,'Fecha:',r.fecha.strftime('%d/%m/%Y') if r.fecha else ''); y-=7*rl_mm
+        lv(32*rl_mm,y,'Docente:',r.docente or ''); y-=9*rl_mm
+        mw = w-65*rl_mm
+        for tipo, lbl in [('incisos_leve','Leve'),('incisos_grave','Grave'),('incisos_muygrave','Muy Grave')]:
+            incs = getattr(r,tipo).all()
+            pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*rl_mm,y,f'Incisos {lbl}:'); y-=6*rl_mm
+            if incs:
+                for i in incs:
+                    y=draw_paragraph(pdf,i.descripcion,x=38*rl_mm,y=y,max_width=mw,
+                                     font='Helvetica',font_size=10,bold=True,italic=True,leading=12)
+            else:
+                pdf.setFont('Helvetica-Oblique',10); pdf.drawString(38*rl_mm,y,'-'); y-=6*rl_mm
+            y-=4*rl_mm
+        pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*rl_mm,y,'Comentario del Docente:'); y-=6*rl_mm
+        y=draw_paragraph(pdf,r.comentario or '-',x=38*rl_mm,y=y,max_width=mw,
+                          font='Helvetica',font_size=10,italic=True,leading=12); y-=7*rl_mm
+        if getattr(r,'comentario_coordinador',None):
+            pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*rl_mm,y,'Comentario del Coordinador:'); y-=6*rl_mm
+            y=draw_paragraph(pdf,r.comentario_coordinador,x=38*rl_mm,y=y,max_width=mw,
+                              font='Helvetica',font_size=10,italic=True,leading=12); y-=6*rl_mm
+        y_f=min(y-15*rl_mm,28*rl_mm); lf=58*rl_mm
+        pdf.setStrokeColor(rl_colors.black); pdf.setLineWidth(0.7)
+        for xc,lbl,nom in [(15*rl_mm,'Firma:',r.docente or ''),
+                            (78*rl_mm,'Firma:',getattr(r,'coordinador_firma','') or ''),
+                            (141*rl_mm,'Firma Pariente:','')]:
+            pdf.setFont('Helvetica-Bold',10); pdf.drawString(xc,y_f+5*rl_mm,lbl)
+            aw=pdf.stringWidth(lbl,'Helvetica-Bold',10)
+            pdf.setFont('Helvetica',10); pdf.drawString(xc+aw+2,y_f+5*rl_mm,nom)
+            pdf.line(xc,y_f,xc+lf,y_f)
+        pdf.save(); buf.seek(0); return buf
+
+    # ── generador PPTX progress ───────────────────────────────────────────────
+    def _pptx_progress(r):
+        def _shadow(run):
+            rPr=run._r.get_or_add_rPr()
+            for ex in rPr.findall(pptx_qn('a:effectLst')): rPr.remove(ex)
+            ef=pptx_etree.SubElement(rPr,pptx_qn('a:effectLst'))
+            os_=pptx_etree.SubElement(ef,pptx_qn('a:outerShdw'),attrib={'blurRad':'40000','dist':'23000','dir':'5400000','rotWithShape':'0'})
+            cl=pptx_etree.SubElement(os_,pptx_qn('a:srgbClr'),val='000000')
+            pptx_etree.SubElement(cl,pptx_qn('a:alpha'),val='40000')
+        def _run(para,txt,size,bold=False,italic=False,underline=False,shadow=False):
+            run=para.add_run(); run.text=txt
+            run.font.name='Book Antiqua'; run.font.size=PPTXPt(size)
+            run.font.bold=bold; run.font.italic=italic; run.font.underline=underline
+            if shadow: _shadow(run)
+            return run
+        def _borders(cell,w=19050):
+            tc=cell._tc; tcPr=tc.get_or_add_tcPr()
+            for tag in ('lnL','lnR','lnT','lnB'):
+                for ex in tcPr.findall(pptx_qn(f'a:{tag}')): tcPr.remove(ex)
+            for i,tag in enumerate(('lnL','lnR','lnT','lnB')):
+                ln=pptx_etree.Element(pptx_qn(f'a:{tag}'),attrib={'w':str(w),'cap':'flat','cmpd':'sng'})
+                sf=pptx_etree.SubElement(ln,pptx_qn('a:solidFill'))
+                pptx_etree.SubElement(sf,pptx_qn('a:srgbClr'),val='000000')
+                tcPr.insert(i,ln)
+        def _ordinal(d):
+            if 11<=d<=13: return f'{d}th'
+            return f'{d}{["th","st","nd","rd","th"][min(d%10,4)]}'
+        def _clean_g(g):
+            import re; m=re.search(r'(\d+)',g or '')
+            mp={'1':'1st','2':'2nd','3':'3rd','4':'4th','5':'5th','6':'6th','7':'7th','8':'8th','9':'9th'}
+            if m: return mp.get(m.group(1),g)
+            return 'Kinder' if 'kinder' in (g or '').lower() else g
+
+        prs=PPTXPres(); prs.slide_width=PPTXEmu(12192000); prs.slide_height=PPTXEmu(6858000)
+        slide=prs.slides.add_slide(prs.slide_layouts[6])
+        slide.shapes.add_picture(fondo_path,0,0,width=prs.slide_width,height=prs.slide_height)
+        LX=PPTXInches(0.2); TX=PPTXInches(4.7); LW=TX-LX; TW=PPTXInches(8.5)
+        # título
+        tb=slide.shapes.add_textbox(TX,PPTXInches(0.05),TW,PPTXInches(0.9))
+        tf=tb.text_frame; tf.clear(); p=tf.paragraphs[0]; p.alignment=PPTXAlign.CENTER
+        _run(p,'Progress Report.',40,bold=True,italic=True,underline=True,shadow=True)
+        # weeks
+        sem=f"{_ordinal(r.semana_inicio.day)} to {_ordinal(r.semana_fin.day)} {r.semana_fin.strftime('%B')}"
+        tb=slide.shapes.add_textbox(LX,PPTXInches(0.1),LW,PPTXInches(1.5))
+        tf=tb.text_frame; tf.clear(); tf.word_wrap=True
+        p=tf.paragraphs[0]; p.alignment=PPTXAlign.LEFT
+        _run(p,'Weeks:',28,bold=True,italic=True,underline=True,shadow=True)
+        p2=tf.add_paragraph(); p2.alignment=PPTXAlign.LEFT
+        _run(p2,sem,28,italic=True,shadow=True)
+        # grade
+        tb=slide.shapes.add_textbox(LX,PPTXInches(1.75),LW,PPTXInches(0.75))
+        tf=tb.text_frame; tf.clear(); tf.word_wrap=True
+        p=tf.paragraphs[0]; p.alignment=PPTXAlign.LEFT
+        _run(p,f'Grade: {_clean_g(r.grado)}',28,italic=True,shadow=True)
+        # name
+        tb=slide.shapes.add_textbox(LX,PPTXInches(2.6),LW,PPTXInches(1.4))
+        tf=tb.text_frame; tf.clear(); tf.word_wrap=True
+        p=tf.paragraphs[0]; p.alignment=PPTXAlign.LEFT
+        _run(p,'Name:',28,bold=True,italic=True,underline=True,shadow=True)
+        p2=tf.add_paragraph(); p2.alignment=PPTXAlign.LEFT
+        _run(p2,r.alumno_nombre,20,italic=True)
+        # tabla
+        mats=r.materias_json or []
+        tbl=slide.shapes.add_table(len(mats)+1,3,TX,PPTXInches(0.95),TW,PPTXInches(6.55)).table
+        tblPr=tbl._tbl.find(pptx_qn('a:tblPr'))
+        if tblPr is None: tblPr=pptx_etree.SubElement(tbl._tbl,pptx_qn('a:tblPr'))
+        for at in ('bandRow','bandCol','firstRow','firstCol','lastRow','lastCol'): tblPr.set(at,'0')
+        for el in tblPr.findall(pptx_qn('a:tableStyleId')): tblPr.remove(el)
+        pptx_etree.SubElement(tblPr,pptx_qn('a:tableStyleId')).text='{2D5ABB26-0587-4C30-8999-92F81FD0307C}'
+        tbl.columns[0].width=PPTXInches(2.0); tbl.columns[1].width=PPTXInches(1.7); tbl.columns[2].width=PPTXInches(4.8)
+        def _cs(cell,txt,bold=False,align=PPTXAlign.CENTER):
+            cell.text=txt; _borders(cell)
+            cell.fill.solid(); cell.fill.fore_color.rgb=PPTXColor(255,255,255)
+            p=cell.text_frame.paragraphs[0]; p.font.name='Arial'
+            p.font.size=PPTXPt(18); p.font.bold=bold
+            p.font.color.rgb=PPTXColor(0,0,0); p.alignment=align
+        for i,h_ in enumerate(['Materia','Asignación','Comentario/Observación']):
+            _cs(tbl.cell(0,i),h_,bold=True)
+        for row,mat in enumerate(mats,start=1):
+            _cs(tbl.cell(row,0),mat.get('materia',''),bold=True,align=PPTXAlign.CENTER)
+            _cs(tbl.cell(row,1),mat.get('asignacion',''),bold=False,align=PPTXAlign.LEFT)
+            _cs(tbl.cell(row,2),mat.get('comentario',''),bold=False,align=PPTXAlign.LEFT)
+        buf=io.BytesIO(); prs.save(buf); buf.seek(0); return buf
+
+    # ── determinar scope según coordinador ───────────────────────────────────
+    email = request.user.email
+    if request.user.is_superuser:
+        qs_info = ReporteInformativo.objects.all()
+        qs_cond = ReporteConductual.objects.all()
+        qs_prog = ProgressReport.objects.all()
+    elif email == 'cvarela@ana-hn.org':
+        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+        qs_prog = ProgressReport.objects.none()
+    elif email == 'druiz@ana-hn.org':
+        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C2_GRADOS)).exclude(_q_materias(_C3_MATERIAS))
+        qs_cond = ReporteConductual.objects.none()
+        qs_prog = ProgressReport.objects.none()
+    elif email == 'ialcerro@ana-hn.org':
+        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_materias(_C3_MATERIAS))
+        qs_cond = ReporteConductual.objects.filter(area='bilingue')
+        qs_prog = ProgressReport.objects.none()
+    elif email == 'jmartinez@ana-hn.org':
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', materia__icontains='math')
+        qs_cond = ReporteConductual.objects.filter(area='bilingue', materia__icontains='math')
+        qs_prog = ProgressReport.objects.all()
+    elif email == 'coordinacion_bl@ana-hn.org':
+        qs_info = ReporteInformativo.objects.none()
+        qs_cond = ReporteConductual.objects.none()
+        qs_prog = ProgressReport.objects.all()
+    elif request.user.groups.filter(name='coordinadores_colegio').exists():
+        qs_info = ReporteInformativo.objects.filter(area='colegio')
+        qs_cond = ReporteConductual.objects.filter(area='colegio')
+        qs_prog = ProgressReport.objects.none()
+    else:
+        qs_info = ReporteInformativo.objects.filter(area='bilingue')
+        qs_cond = ReporteConductual.objects.filter(area='bilingue')
+        qs_prog = ProgressReport.objects.all()
+
+    # ── construir ZIP ─────────────────────────────────────────────────────────
+    mem = io.BytesIO()
+    fecha = timezone.now().strftime('%Y%m%d_%H%M')
+    with zipfile.ZipFile(mem, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for r in qs_info.order_by('area', 'alumno_nombre'):
+            try:
+                nombre = r.alumno_nombre.replace(' ', '_')
+                grado  = r.grado.replace(' ', '_').replace('/', '-')
+                fname  = f'informativo_{nombre}_{grado}.pdf'
+                zf.writestr(f'Informativos/{r.area.capitalize()}/{fname}',
+                            _pdf_informativo(r).getvalue())
+            except Exception:
+                pass
+        for r in qs_cond.prefetch_related(
+                'incisos_leve', 'incisos_grave', 'incisos_muygrave'
+        ).order_by('area', 'alumno_nombre'):
+            try:
+                nombre = r.alumno_nombre.replace(' ', '_')
+                grado  = r.grado.replace(' ', '_').replace('/', '-')
+                fname  = f'conductual_{nombre}_{grado}.pdf'
+                zf.writestr(f'Conductuales/{r.area.capitalize()}/{fname}',
+                            _pdf_conductual(r).getvalue())
+            except Exception:
+                pass
+        for r in qs_prog.order_by('alumno_nombre'):
+            try:
+                nombre = r.alumno_nombre.replace(' ', '_')
+                grado  = r.grado.replace(' ', '_').replace('/', '-')
+                fname  = f'progress_{nombre}_{grado}.pptx'
+                zf.writestr(f'ProgressReports/{fname}',
+                            _pptx_progress(r).getvalue())
+            except Exception:
+                pass
+
+    mem.seek(0)
+    response = HttpResponse(mem.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="reportes_{fecha}.zip"'
     return response
 
 
@@ -1428,27 +1799,45 @@ def descargar_pdf_conductual_3_strikes(request, pk):
     response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
     return response
 
+_REDIRECT_COORD_BL = {
+    'cvarela@ana-hn.org':         'dashboard_c1',
+    'druiz@ana-hn.org':           'dashboard_c2',
+    'ialcerro@ana-hn.org':        'dashboard_c3',
+    'jmartinez@ana-hn.org':       'dashboard_c4',
+    'coordinacion_bl@ana-hn.org': 'dashboard_coordi_bl',
+}
+
 #--------------  DASHBOARD COORDINADOR -----------------
 @login_required
 def dashboard_coordinador(request, area):
-    """
-    Dashboard coordinador: muestra todos los reportes de Informativo, Conductual y Progress
-    según el área.
-    """
-    # Traer todos los reportes por área
     if area == 'bilingue':
+        destino = _REDIRECT_COORD_BL.get(request.user.email)
+        if destino:
+            return redirect(destino)
+
+        # coordi_bl: solo ve Progress Reports
+        if request.user.email == _EMAIL_COORDI_BL:
+            contexto = {
+                'area': area,
+                'reportes_informativo': ReporteInformativo.objects.none(),
+                'reportes_conductual':  ReporteConductual.objects.none(),
+                'reportes_progress':    ProgressReport.objects.all(),
+                'strikes':              {},
+                'today':                timezone.now().strftime('%Y-%m-%d'),
+            }
+            return render(request, 'conducta/dashboard_coordinador.html', contexto)
+
         reportes_informativo = ReporteInformativo.objects.filter(area='bilingue')
-        reportes_conductual = ReporteConductual.objects.filter(area='bilingue')
-        reportes_progress = ProgressReport.objects.all()  # solo bilingüe tiene progress
+        reportes_conductual  = ReporteConductual.objects.filter(area='bilingue')
+        reportes_progress    = ProgressReport.objects.all()
+
     elif area == 'colegio':
         reportes_informativo = ReporteInformativo.objects.filter(area='colegio')
-        reportes_conductual = ReporteConductual.objects.filter(area='colegio')
-        reportes_progress = []  # colegio NO tiene progress
+        reportes_conductual  = ReporteConductual.objects.filter(area='colegio')
+        reportes_progress    = []
     else:
-        return redirect('menu')  # área inválida
+        return redirect('menu')
 
-    # Calcula "strikes" (conteo de reportes conductuales por alumno)
-    # Dict { alumno_id: count }
     strikes = {}
     qs = reportes_conductual.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)
     for row in qs:
@@ -1457,12 +1846,90 @@ def dashboard_coordinador(request, area):
     contexto = {
         'area': area,
         'reportes_informativo': reportes_informativo,
-        'reportes_conductual': reportes_conductual,
-        'reportes_progress': reportes_progress,
-        'strikes': strikes,
-        'today': timezone.now().strftime('%Y-%m-%d'),
+        'reportes_conductual':  reportes_conductual,
+        'reportes_progress':    reportes_progress,
+        'strikes':              strikes,
+        'today':                timezone.now().strftime('%Y-%m-%d'),
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
+
+def _docentes_de_coord(codigo):
+    docentes = set()
+    for md in MateriaDocenteBilingue.objects.filter(activo=True):
+        codigos = [c.strip() for c in md.coordinador.split(',')]
+        if codigo in codigos:
+            docentes.add(md.docente)
+    return list(docentes)
+
+@login_required
+def dashboard_c1(request):
+    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+    qs_prog = ProgressReport.objects.all()
+    strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    reportes_nuevos_bl = (
+        ReporteInformativo.objects.filter(area='bilingue', estado='enviado').count() +
+        ReporteConductual.objects.filter(area='bilingue', estado='enviado').count() +
+        ProgressReport.objects.filter(estado='enviado').count()
+    )
+    return render(request, 'conducta/dashboard_coordinador.html', {
+        'area': 'bilingue', 'reportes_informativo': qs_info,
+        'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
+        'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
+    })
+
+@login_required
+def dashboard_c2(request):
+    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C2_GRADOS)).exclude(_q_materias(_C3_MATERIAS))
+    qs_cond = ReporteConductual.objects.none()
+    qs_prog = ProgressReport.objects.all()
+    strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    return render(request, 'conducta/dashboard_coordinador.html', {
+        'area': 'bilingue', 'reportes_informativo': qs_info,
+        'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
+        'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+    })
+
+@login_required
+def dashboard_c3(request):
+    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_materias(_C3_MATERIAS))
+    qs_cond = ReporteConductual.objects.filter(area='bilingue')
+    qs_prog = ProgressReport.objects.all()
+    strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    return render(request, 'conducta/dashboard_coordinador.html', {
+        'area': 'bilingue', 'reportes_informativo': qs_info,
+        'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
+        'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+    })
+
+@login_required
+def dashboard_c4(request):
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', materia__icontains='math')
+    qs_cond = ReporteConductual.objects.filter(area='bilingue', materia__icontains='math')
+    qs_prog = ProgressReport.objects.all()
+    strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    return render(request, 'conducta/dashboard_coordinador.html', {
+        'area': 'bilingue', 'reportes_informativo': qs_info,
+        'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
+        'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+    })
+
+@login_required
+def dashboard_coordi_bl(request):
+    reportes_nuevos_bl = (
+        ReporteInformativo.objects.filter(area='bilingue', estado='enviado').count() +
+        ReporteConductual.objects.filter(area='bilingue', estado='enviado').count() +
+        ProgressReport.objects.filter(estado='enviado').count()
+    )
+    return render(request, 'conducta/dashboard_coordinador.html', {
+        'area': 'bilingue',
+        'reportes_informativo': ReporteInformativo.objects.none(),
+        'reportes_conductual':  ReporteConductual.objects.none(),
+        'reportes_progress':    ProgressReport.objects.all(),
+        'strikes': {}, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
+    })
 
 @login_required
 def historial_alumno_coordinador(request, alumno_id):
@@ -1488,12 +1955,16 @@ def es_coordinador(user):
 
 # Cambia estos según tu lógica o roles
 COORDINADORES_BL = [
-    ( "Mr. Martinez"),
-    ( "Miss Alcerro"),
-    ( "Mr. Ruiz"),
+     "Mr. Martinez",
+     "Miss Alcerro",
+     "Mr. Ruiz",
+    "Mrs. Varela"
+
 ]
 COORDINADORES_COLEGIO = [
-    "Profe. Licona", "Profe. Felipe", "Profe. Gabriela"
+    "Profe. Licona", 
+    "Profe. Felipe", 
+    "Profe. Gabriela"
     ]
 
 
@@ -1568,3 +2039,87 @@ def subir_evidencia(request):
 
     # Si alguien accede por GET, redirigir al inicio
     return redirect('dashboard_maestro')
+
+
+# ================= DIRECTORIO DE TELÉFONOS =================
+@login_required
+def directorio_telefonos(request):
+    user = request.user
+    is_admin     = user.is_superuser
+    is_coord_bl  = user.groups.filter(name='coordinador_bilingue').exists()
+    is_coord_col = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+
+    if is_admin:
+        areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
+        titulo = 'Todos los Alumnos'
+        area_dashboard = 'bilingue'
+    elif is_coord_bl:
+        areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL'"
+        titulo = 'Alumnos Bilingüe'
+        area_dashboard = 'bilingue'
+    elif is_coord_col:
+        areas  = "N'Colegio', N'Bachillerato'"
+        titulo = 'Alumnos Colegio'
+        area_dashboard = 'colegio'
+    else:
+        areas  = "N''"
+        titulo = ''
+        area_dashboard = 'bilingue'
+
+    sql = f"""
+      SELECT
+        ISNULL(d.Apellido1,'')
+          + CASE WHEN d.Apellido2 IS NOT NULL AND d.Apellido2 <> '' THEN ' ' + d.Apellido2 ELSE '' END
+          + ', '
+          + ISNULL(d.Nombre1,'')
+          + CASE WHEN d.Nombre2 IS NOT NULL AND d.Nombre2 <> '' THEN ' ' + d.Nombre2 ELSE '' END AS Nombre,
+        da.Descripcion AS Area,
+        c.CrsoNumero,
+        c.GrupoNumero,
+        ISNULL(d.Tel1, '') AS Tel1,
+        ISNULL(d.Tel2, '') AS Tel2
+      FROM dbo.tblPrsDtosGen AS d
+      JOIN dbo.tblPrsTipo           AS t  ON d.PersonaID = t.PersonaID
+      JOIN dbo.tblEdcArea           AS a  ON t.IngrEgrID  = a.IngrEgrID
+      JOIN dbo.tblEdcEjecCrso       AS ec ON a.AreaID     = ec.AreaID
+      JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
+      JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
+      WHERE d.Alum = 1
+        AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
+        AND da.Descripcion IN ({areas})
+        AND ec.Desertor    = 0
+        AND ec.TrasladoPer = 0
+      ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, Nombre
+    """
+
+    def _wa(tel):
+        digits = ''.join(c for c in (tel or '') if c.isdigit())
+        if not digits:
+            return ''
+        if not digits.startswith('504'):
+            digits = '504' + digits
+        return f'https://wa.me/{digits}'
+
+    alumnos = []
+    try:
+        with connections['padres_sqlserver'].cursor() as cursor:
+            cursor.execute(sql)
+            for nombre, area, crso, grupo, tel1, tel2 in cursor.fetchall():
+                alumnos.append({
+                    'nombre': nombre.strip(),
+                    'grado':  f'{area} {crso}-{grupo}',
+                    'tel1':   tel1.strip(),
+                    'tel2':   tel2.strip(),
+                    'wa1':    _wa(tel1),
+                    'wa2':    _wa(tel2),
+                })
+    except Exception:
+        alumnos = []
+
+    return render(request, 'conducta/directorio_telefonos.html', {
+        'alumnos':         alumnos,
+        'total':           len(alumnos),
+        'titulo':          titulo,
+        'area_dashboard':  area_dashboard,
+    })
+

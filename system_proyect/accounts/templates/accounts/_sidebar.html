@@ -1,0 +1,354 @@
+{% load static %}
+{# Sidebar unificado – incluido en todos los base templates #}
+<ul class="navbar-nav pt-lg-3">
+
+  {# ── Panel Principal ─────────────────────────────────── #}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'menu' %}">
+      <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+      <span class="nav-link-title">Panel Principal</span>
+    </a>
+  </li>
+
+  {# ── Tickets ──────────────────────────────────────────── #}
+  {% if nav_tickets %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navTickets" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-ticket"></i></span>
+      <span class="nav-link-title">Tickets</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navTickets">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'technician_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/tickets/submit_ticket/">
+          <span class="nav-link-icon"><i class="ti ti-plus"></i></span>
+          <span class="nav-link-title">Nuevo Ticket</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Reloj ───────────────────────────────────────────── #}
+  {% if nav_reloj %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navReloj" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-clock"></i></span>
+      <span class="nav-link-title">Reloj</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navReloj">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'reloj_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Inventario ──────────────────────────────────────── #}
+  {% if nav_inventory %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navInventario" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-package"></i></span>
+      <span class="nav-link-title">Inventario</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navInventario">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'inventario:dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Sponsors ────────────────────────────────────────── #}
+  {% if nav_sponsors %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navSponsors" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-heart-handshake"></i></span>
+      <span class="nav-link-title">Sponsors</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navSponsors">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Seguridad ───────────────────────────────────────── #}
+  {% if nav_seguridad %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navSeguridad" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-shield-half"></i></span>
+      <span class="nav-link-title">Seguridad</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navSeguridad">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'seguridad:dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Mantenimiento ───────────────────────────────────── #}
+  {% if nav_maintenance %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navMantenimiento" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-tool"></i></span>
+      <span class="nav-link-title">Mantenimiento</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navMantenimiento">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Enfermería (grupo enfermería, no coordinadores) ─── #}
+  {% if nav_enfermeria %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navEnfermeria" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
+      <span class="nav-link-title">Enfermería</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navEnfermeria">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Panel</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'enfermeria:directorio_telefonos' %}">
+          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+          <span class="nav-link-title">Directorio</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Citas BL ────────────────────────────────────────── #}
+  {% if nav_citas_bl %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navCitasBL" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-calendar-check text-green"></i></span>
+      <span class="nav-link-title">Citas BL</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navCitasBL">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_bl' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Citas COL/VOC ───────────────────────────────────── #}
+  {% if nav_citas_col %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navCitasCol" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-calendar-event text-yellow"></i></span>
+      <span class="nav-link-title">Citas COL/VOC</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navCitasCol">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_col' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Coordinador BL ──────────────────────────────────── #}
+  {% if nav_coord_bl %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navCoordBL" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-chalkboard text-cyan"></i></span>
+      <span class="nav-link-title">Coordinador BL</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navCoordBL">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'directorio_telefonos' %}">
+          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+          <span class="nav-link-title">Directorio</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
+          <span class="nav-link-title">Enfermería</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
+          <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
+          <span class="nav-link-title">Agendas BL</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Coordinador Colegio ─────────────────────────────── #}
+  {% if nav_coord_col %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navCoordCol" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-user-cog text-orange"></i></span>
+      <span class="nav-link-title">Coordinador Colegio</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navCoordCol">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'directorio_telefonos' %}">
+          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+          <span class="nav-link-title">Directorio</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Maestro BL ──────────────────────────────────────── #}
+  {% if nav_maestro_bl %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navMaestroBL" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-school text-blue"></i></span>
+      <span class="nav-link-title">Maestro BL</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navMaestroBL">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_maestro' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'reporte_informativo_bilingue' %}">
+          <span class="nav-link-icon"><i class="ti ti-info-circle text-cyan"></i></span>
+          <span class="nav-link-title">R. Informativo</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'reporte_conductual_bilingue' %}">
+          <span class="nav-link-icon"><i class="ti ti-shield-check text-green"></i></span>
+          <span class="nav-link-title">R. Conductual</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'progress_report_bilingue' %}">
+          <span class="nav-link-icon"><i class="ti ti-chart-line text-blue"></i></span>
+          <span class="nav-link-title">Progress Report</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'historial_maestro_bilingue' %}">
+          <span class="nav-link-icon"><i class="ti ti-history"></i></span>
+          <span class="nav-link-title">Historial</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'agendas:historial_maestro' %}">
+          <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
+          <span class="nav-link-title">Agendas</span>
+        </a>
+      </li>
+      {% if nav_es_coord_maestro %}
+      <li class="nav-item">
+        <a class="nav-link text-warning" href="{% url 'agendas:toggle_modo' %}">
+          <span class="nav-link-icon"><i class="ti ti-switch-horizontal"></i></span>
+          <span class="nav-link-title">
+            {% if nav_modo_maestro %}Cambiar a Coordinador{% else %}Cambiar a Maestro{% endif %}
+          </span>
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </li>
+  {% endif %}
+
+  {# ── Maestro Colegio ─────────────────────────────────── #}
+  {% if nav_maestro_col %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navMaestroCol" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-book text-orange"></i></span>
+      <span class="nav-link-title">Maestro Colegio</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navMaestroCol">
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard_maestro' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'reporte_informativo_colegio' %}">
+          <span class="nav-link-icon"><i class="ti ti-info-circle text-cyan"></i></span>
+          <span class="nav-link-title">R. Informativo</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'reporte_conductual_colegio' %}">
+          <span class="nav-link-icon"><i class="ti ti-shield-check text-green"></i></span>
+          <span class="nav-link-title">R. Conductual</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'historial_maestro_colegio' %}">
+          <span class="nav-link-icon"><i class="ti ti-history"></i></span>
+          <span class="nav-link-title">Historial</span>
+        </a>
+      </li>
+    </ul>
+  </li>
+  {% endif %}
+
+</ul>

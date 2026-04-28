@@ -411,6 +411,84 @@ def historial_uso(request, pk):
     })
 
 
+# ================= DIRECTORIO DE TELÉFONOS =================
+@login_required
+def directorio_telefonos(request):
+    user = request.user
+    is_admin      = user.is_superuser
+    is_coord_bl   = user.groups.filter(name='coordinador_bilingue').exists()
+    is_coord_col  = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+
+    if is_admin:
+        areas = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
+        titulo = 'Todos los Alumnos'
+    elif is_coord_bl:
+        areas = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL'"
+        titulo = 'Alumnos Bilingüe'
+    elif is_coord_col:
+        areas = "N'Colegio', N'Bachillerato'"
+        titulo = 'Alumnos Colegio'
+    else:
+        areas = "N''"
+        titulo = ''
+
+    sql = f"""
+      SELECT
+        ISNULL(d.Apellido1,'')
+          + CASE WHEN d.Apellido2 IS NOT NULL AND d.Apellido2 <> '' THEN ' ' + d.Apellido2 ELSE '' END
+          + ', '
+          + ISNULL(d.Nombre1,'')
+          + CASE WHEN d.Nombre2 IS NOT NULL AND d.Nombre2 <> '' THEN ' ' + d.Nombre2 ELSE '' END AS Nombre,
+        da.Descripcion AS Area,
+        c.CrsoNumero,
+        c.GrupoNumero,
+        ISNULL(d.Tel1, '') AS Tel1,
+        ISNULL(d.Tel2, '') AS Tel2
+      FROM dbo.tblPrsDtosGen AS d
+      JOIN dbo.tblPrsTipo           AS t  ON d.PersonaID = t.PersonaID
+      JOIN dbo.tblEdcArea           AS a  ON t.IngrEgrID  = a.IngrEgrID
+      JOIN dbo.tblEdcEjecCrso       AS ec ON a.AreaID     = ec.AreaID
+      JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
+      JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
+      WHERE d.Alum = 1
+        AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
+        AND da.Descripcion IN ({areas})
+        AND ec.Desertor    = 0
+        AND ec.TrasladoPer = 0
+      ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, Nombre
+    """
+
+    def _wa(tel):
+        digits = ''.join(c for c in (tel or '') if c.isdigit())
+        if not digits:
+            return ''
+        if not digits.startswith('504'):
+            digits = '504' + digits
+        return f'https://wa.me/{digits}'
+
+    alumnos = []
+    try:
+        with connections['padres_sqlserver'].cursor() as cursor:
+            cursor.execute(sql)
+            for nombre, area, crso, grupo, tel1, tel2 in cursor.fetchall():
+                alumnos.append({
+                    'nombre': nombre.strip(),
+                    'grado':  f'{area} {crso}-{grupo}',
+                    'tel1':   tel1.strip(),
+                    'tel2':   tel2.strip(),
+                    'wa1':    _wa(tel1),
+                    'wa2':    _wa(tel2),
+                })
+    except Exception as e:
+        alumnos = []
+
+    return render(request, 'enfermeria/directorio_telefonos.html', {
+        'alumnos': alumnos,
+        'total':   len(alumnos),
+        'titulo':  titulo,
+    })
+
+
 # ================= HISTORIAL MÉDICO =================
 @login_required
 def medical_history(request):

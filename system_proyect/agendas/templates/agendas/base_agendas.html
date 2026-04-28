@@ -3,13 +3,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}Enfermería{% endblock %} – TechCare</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>{% block title %}Agendas – TechCare{% endblock %}</title>
+  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
   {% block extra_head %}{% endblock %}
 </head>
 <body class="antialiased">
@@ -17,22 +15,24 @@
 
   <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-enfermeria">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-agendas">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="navbar-brand navbar-brand-autodark">
-        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+        <a href="{% if es_coord %}{% url 'menu' %}{% else %}{% url 'dashboard_maestro' %}{% endif %}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
       </div>
-      <div class="collapse navbar-collapse" id="sidebar-enfermeria">
+      <div class="collapse navbar-collapse" id="sidebar-agendas">
         {% include 'accounts/_sidebar.html' %}
+
         <div class="mt-auto pt-3 border-top border-secondary">
           <div class="d-flex align-items-center gap-2 px-2 py-1">
             <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
             <div class="flex-fill">
               <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
+              <div class="text-muted" style="font-size:.75rem;">Agendas</div>
             </div>
             <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
               <i class="ti ti-logout fs-5"></i>
@@ -46,34 +46,45 @@
   <div class="page-wrapper">
     <div class="page-header d-print-none">
       <div class="container-xl">
-        <div class="row g-2 align-items-center">
+        <div class="row align-items-center">
           <div class="col">
-            <div class="page-pretitle">{% block page_pretitle %}Enfermería{% endblock %}</div>
+            <div class="page-pretitle">Agendas</div>
             <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
           </div>
-          {% block page_actions %}{% endblock %}
+          <div class="col-auto ms-auto d-flex gap-2">
+            {% block page_actions %}{% endblock %}
+          </div>
         </div>
       </div>
     </div>
+
     <div class="page-body">
       <div class="container-xl">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible mb-3" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
         {% block content %}{% endblock %}
       </div>
     </div>
+
     <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl text-center">
-        <p class="text-muted mb-0 small">© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer.</p>
+      <div class="container-xl">
+        <div class="text-center text-muted small py-2">
+          © {% now "Y" %} Sistema TechCare – Asociación Nuevo Amanecer
+        </div>
       </div>
     </footer>
   </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+{% block modals %}{% endblock %}
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

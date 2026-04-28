@@ -20,49 +20,25 @@
   <!-- Sidebar -->
   <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-tickets">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <h1 class="navbar-brand navbar-brand-autodark">
-        <a href="{% url 'menu' %}">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="TechCare" class="navbar-brand-image" style="height:32px;">
-          <span class="ms-2 text-white fw-bold" style="font-size:1rem;">TechCare</span>
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
-      </h1>
-
-      <div class="collapse navbar-collapse" id="sidebarMenu">
-        <ul class="navbar-nav pt-lg-3">
-
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'menu' %}">
-              <span class="nav-link-icon d-md-none d-lg-inline-block">
-                <i class="ti ti-home"></i>
-              </span>
-              <span class="nav-link-title">Menú Principal</span>
-            </a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link {% block nav_tickets %}{% endblock %}" href="{% url 'technician_dashboard' %}">
-              <span class="nav-link-icon d-md-none d-lg-inline-block">
-                <i class="ti ti-ticket"></i>
-              </span>
-              <span class="nav-link-title">Panel Técnico</span>
-            </a>
-          </li>
-
-        </ul>
-
-        <div class="mt-auto pt-3 pb-2 border-top border-secondary">
-          <div class="d-flex align-items-center px-2 gap-2">
-            <div class="avatar avatar-sm bg-secondary-lt text-secondary rounded-circle" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
-              <i class="ti ti-user"></i>
-            </div>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-tickets">
+        {% include 'accounts/_sidebar.html' %}
+        <div class="mt-auto pt-3 border-top border-secondary">
+          <div class="d-flex align-items-center gap-2 px-2 py-1">
+            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
             <div class="flex-fill">
-              <div class="fw-semibold text-white small">{{ request.user.username }}</div>
+              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
             </div>
-            <a href="{% url 'logout' %}" class="text-secondary" title="Cerrar sesión">
-              <i class="ti ti-logout"></i>
+            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
+              <i class="ti ti-logout fs-5"></i>
             </a>
           </div>
         </div>

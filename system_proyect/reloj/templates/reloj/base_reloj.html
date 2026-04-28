@@ -19,88 +19,22 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-reloj">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <h1 class="navbar-brand navbar-brand-autodark">
-        <a href="{% url 'reloj_dashboard' %}">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" width="110" alt="TechCare" class="navbar-brand-image">
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
-      </h1>
+      </div>
       <div class="collapse navbar-collapse" id="sidebar-reloj">
-        <ul class="navbar-nav pt-lg-3">
-          <li class="nav-item">
-            <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'reloj_dashboard' %}">
-              <span class="nav-link-icon"><i class="ti ti-clock"></i></span>
-              <span class="nav-link-title">Reloj (Asistencia)</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_reporte %}{% endblock %}" href="{% url 'reloj_reporte' %}">
-              <span class="nav-link-icon"><i class="ti ti-table"></i></span>
-              <span class="nav-link-title">Generar Reporte</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_grafica %}{% endblock %}" href="{% url 'reloj_grafica' %}">
-              <span class="nav-link-icon"><i class="ti ti-chart-bar"></i></span>
-              <span class="nav-link-title">Ver Gráfica</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_plantillas %}{% endblock %}" href="{% url 'reloj_plantilla_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-stack"></i></span>
-              <span class="nav-link-title">Plantillas de Horario</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_asignaciones %}{% endblock %}" href="{% url 'horarios_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-calendar-user"></i></span>
-              <span class="nav-link-title">Asignaciones de Horario</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_tiempo_hora %}{% endblock %}" href="{% url 'tiempo_por_hora' %}">
-              <span class="nav-link-icon"><i class="ti ti-hourglass"></i></span>
-              <span class="nav-link-title">Tiempo por Hora</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_compensatorio %}{% endblock %}" href="{% url 'reloj_compensatorio_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-clock-check"></i></span>
-              <span class="nav-link-title">Tiempo Compensatorio</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_feriados %}{% endblock %}" href="{% url 'reloj_feriados_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-calendar"></i></span>
-              <span class="nav-link-title">Feriados</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_sabados %}{% endblock %}" href="{% url 'reloj_sabados_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-calendar-week"></i></span>
-              <span class="nav-link-title">Sábados Especiales</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% block nav_permisos %}{% endblock %}" href="{% url 'reloj_permisos_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-clipboard-list"></i></span>
-              <span class="nav-link-title">Permisos</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'menu' %}">
-              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
-              <span class="nav-link-title">Menú Principal</span>
-            </a>
-          </li>
-        </ul>
-        <div class="mt-auto pt-3 border-top border-secondary-subtle">
-          <div class="d-flex align-items-center px-3 py-2">
-            <img src="{% static 'accounts/img/user.png' %}" width="36" height="36" class="rounded-circle me-2">
-            <div class="flex-grow-1 overflow-hidden">
-              <div class="text-white fw-bold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+        {% include 'accounts/_sidebar.html' %}
+        <div class="mt-auto pt-3 border-top border-secondary">
+          <div class="d-flex align-items-center gap-2 px-2 py-1">
+            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
+            <div class="flex-fill">
+              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
             </div>
-            <a href="{% url 'logout' %}" class="btn btn-sm btn-ghost-danger ms-2" title="Cerrar sesión">
-              <i class="ti ti-logout"></i>
+            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
+              <i class="ti ti-logout fs-5"></i>
             </a>
           </div>
         </div>

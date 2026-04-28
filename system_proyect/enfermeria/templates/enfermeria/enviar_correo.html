@@ -37,15 +37,19 @@
             <select id="email" name="email" class="form-select select2" required>
               <option value="">-- Elige un correo --</option>
               {% for p in personas %}
-                {% if p.Email %}
-                  <option value="{{ p.Email }}">{{ p.Nombre1 }}{% if p.Nombre2 %} {{ p.Nombre2 }}{% endif %} {{ p.Apellido1 }}{% if p.Apellido2 %} {{ p.Apellido2 }}{% endif %} — {{ p.Email }}</option>
-                {% endif %}
-                {% if p.Email2 %}
-                  <option value="{{ p.Email2 }}">{{ p.Nombre1 }}{% if p.Nombre2 %} {{ p.Nombre2 }}{% endif %} {{ p.Apellido1 }}{% if p.Apellido2 %} {{ p.Apellido2 }}{% endif %} — {{ p.Email2 }}</option>
-                {% endif %}
-                {% if p.Email3 %}
-                  <option value="{{ p.Email3 }}">{{ p.Nombre1 }}{% if p.Nombre2 %} {{ p.Nombre2 }}{% endif %} {{ p.Apellido1 }}{% if p.Apellido2 %} {{ p.Apellido2 }}{% endif %} — {{ p.Email3 }}</option>
-                {% endif %}
+                {% with nombre=p.Nombre1|default:'' nombre2=p.Nombre2|default:'' ap1=p.Apellido1|default:'' ap2=p.Apellido2|default:'' tel="" %}
+                  {% with tel_txt=p.Tel1|default:p.Tel2|default:"Sin teléfono" %}
+                    {% if p.Email %}
+                      <option value="{{ p.Email }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email }} | Tel: {{ tel_txt }}</option>
+                    {% endif %}
+                    {% if p.Email2 %}
+                      <option value="{{ p.Email2 }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email2 }} | Tel: {{ tel_txt }}</option>
+                    {% endif %}
+                    {% if p.Email3 %}
+                      <option value="{{ p.Email3 }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email3 }} | Tel: {{ tel_txt }}</option>
+                    {% endif %}
+                  {% endwith %}
+                {% endwith %}
               {% empty %}
                 <option value="">No se encontraron registros</option>
               {% endfor %}

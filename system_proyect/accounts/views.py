@@ -315,8 +315,10 @@ def menu_view(request):
     is_group_inventario = user.groups.filter(name='inventario').exists()
     is_group_reloj      = user.groups.filter(name='reloj').exists()
 
-    is_coord_bilingue = user.groups.filter(name='coordinador_bilingue').exists()
-    is_coord_colegio  = user.groups.filter(name='coordinador_colegio').exists()
+    is_coord_bilingue   = user.groups.filter(name='coordinador_bilingue').exists()
+    is_coord_colegio    = user.groups.filter(name='coordinador_colegio').exists()
+    is_maestro_bilingue = user.groups.filter(name='maestros_bilingue').exists()
+    is_maestro_colegio  = user.groups.filter(name='maestros_colegio').exists()
 
     # =====================================================
     # 🔐 PERMISOS
@@ -364,11 +366,13 @@ def menu_view(request):
         'show_seguridad':   is_admin or can_view_seguridad,
         'show_citas_bl':    is_admin or is_group_citas_bl,
         'show_citas_col':   is_admin or is_group_citas_col,
-        'show_enfermeria':  is_admin or is_group_enfermeria,
+        'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
 
         'show_coordinador_bilingue': is_admin or is_coord_bilingue,
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
+        'show_agendas':      is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
+        'show_directorio':   is_admin or is_coord_bilingue or is_coord_colegio,
     }
 
     # <--- hecho por claude code: limpiar session welcome después de renderizar

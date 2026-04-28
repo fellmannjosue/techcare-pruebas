@@ -7,6 +7,13 @@ urlpatterns = [
     path('coordinador/<str:area>/', views.dashboard_coordinador, name='dashboard_coordinador'),
     path('coordinador/historial/alumno/<str:alumno_id>/', views.historial_alumno_coordinador, name='historial_alumno_coordinador'),
 
+    # Dashboards individuales por coordinador bilingüe
+    path('coordinador/bl/c1/', views.dashboard_c1, name='dashboard_c1'),
+    path('coordinador/bl/c2/', views.dashboard_c2, name='dashboard_c2'),
+    path('coordinador/bl/c3/', views.dashboard_c3, name='dashboard_c3'),
+    path('coordinador/bl/c4/', views.dashboard_c4, name='dashboard_c4'),
+    path('coordinador/bl/progress/', views.dashboard_coordi_bl, name='dashboard_coordi_bl'),
+
     # Formularios de reportes
     path('reporte/conductual/bilingue/', views.reporte_conductual_bilingue, name='reporte_conductual_bilingue'),
     path('reporte/conductual/colegio/', views.reporte_conductual_colegio, name='reporte_conductual_colegio'),
@@ -40,4 +47,6 @@ urlpatterns = [
     # Recibe el POST del modal del dashboard coordinador.
     # Acepta imagen + comentario + tipo + reporte_id y guarda EvidenciaReporte.
     path('evidencia/subir/', views.subir_evidencia, name='subir_evidencia'),
+    path('descargar/zip/', views.descargar_zip_reportes, name='descargar_zip_reportes'),
+    path('directorio/', views.directorio_telefonos, name='directorio_telefonos'),
 ]

@@ -27,4 +27,7 @@ urlpatterns = [
     # Historial Médico
     path('historial/',                 views.medical_history,           name='medical_history'),
     path('historial/data/',            views.get_medical_history_data,  name='get_medical_history_data'),
+
+    # Directorio de teléfonos
+    path('directorio/',                views.directorio_telefonos,      name='directorio_telefonos'),
 ]
