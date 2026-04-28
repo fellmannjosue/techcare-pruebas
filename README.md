@@ -1,11 +1,11 @@
 # TechCare – Sistema de Gestión Institucional
 
-Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, seguridad y más.
+Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, seguridad, agendas docentes y más.
 
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi · Django 5.0.14 · Python 3.11
 - **Base de datos principal:** MySQL (`sponsors2` en `192.168.10.6`)
-- **Base de datos secundaria:** SQL Server (módulo Reloj)
+- **Bases de datos secundarias:** SQL Server (módulo Reloj y datos de alumnos/padres)
 - **UI:** Tabler UI v1.0.0-beta19
 
 ---
@@ -23,7 +23,8 @@ techcare_project/
 │   ├── mantenimiento/    # Registro de mantenimientos
 │   ├── citas_billingue/  # Citas – departamento bilingüe
 │   ├── citas_colegio/    # Citas – colegio/vocacional
-│   ├── enfermeria/       # Atención médica e inventario medicamentos
+│   ├── enfermeria/       # Atención médica, medicamentos y directorio
+│   ├── agendas/          # Agendas semanales docentes (BL y Colegio)
 │   ├── sponsors/         # Gestión de patrocinadores
 │   ├── seguridad/        # Control de cámaras y contabilidad
 │   └── core/             # Utilidades compartidas y notificaciones
@@ -36,7 +37,7 @@ techcare_project/
 ## Módulos
 
 ### Accounts — Autenticación y Panel Principal
-Login unificado con redirección automática según rol (maestro, técnico, coordinador, admin).
+Login unificado con redirección automática según rol (maestro, técnico, coordinador, admin). Sidebar unificado compartido por todos los módulos vía `accounts/templates/accounts/_sidebar.html`.
 
 | Ruta | Descripción |
 |------|-------------|
@@ -49,10 +50,13 @@ Login unificado con redirección automática según rol (maestro, técnico, coor
 
 **Roles y grupos:**
 - `maestros_bilingue` / `maestros_colegio` → dashboard de maestro
-- `coordinador_bilingue` / `coordinador_colegio` → dashboard de coordinador
-- `admin_bilingue` / `admin_colegio` / `administracion` → acceso administrativo
+- `coordinador_bilingue` → dashboard coordinador BL + acceso a enfermería, agendas y directorio BL
+- `coordinadores_colegio` / `coordinadores` → dashboard coordinador Colegio + directorio Colegio
+- `administracion` → acceso administrativo
 - `tecnicos` → dashboard de tickets
 - Superusuario → acceso completo + herramientas de admin
+
+**Sidebar unificado:** todas las apps usan `{% include 'accounts/_sidebar.html' %}`. Los ítems visibles se controlan con variables `nav_*` inyectadas por `core/context_processors.py`.
 
 ---
 
@@ -83,14 +87,42 @@ Sistema de reportes para maestros con revisión por coordinadores.
 | `/conducta/historial/bilingue/` | Historial de reportes – maestro bilingüe |
 | `/conducta/historial/colegio/` | Historial de reportes – maestro colegio |
 | `/conducta/coordinador/<area>/` | Dashboard del coordinador |
+| `/conducta/directorio/` | Directorio de teléfonos (coordinadores) |
 | `/conducta/reenviar-reportes/` | Reenviar notificaciones a coordinadores (solo superuser) |
 | `/conducta/pdf/informativo/<id>/` | Descargar PDF informativo |
 | `/conducta/pdf/conductual/<id>/` | Descargar PDF conductual |
 | `/conducta/pdf/conductual/3strikes/<id>/` | Descargar PDF 3 Strikes |
 
-**Notificaciones automáticas:** Al crear cualquier reporte, se envía correo HTML a los 4 coordinadores (`ialcerro`, `druiz`, `jmartinez`, `acruz` @ana-hn.org).
+**Notificaciones automáticas:** Al crear cualquier reporte, se envía correo HTML a los coordinadores correspondientes (`ialcerro`, `druiz`, `jmartinez`, `cvarela` @ana-hn.org).
 
 **Evidencias:** Cada reporte admite hasta 2 imágenes de evidencia.
+
+---
+
+### Agendas — Agendas Semanales Docentes
+Permite a los maestros registrar y a los coordinadores revisar las agendas semanales de cada grado.
+
+**Áreas y materias:**
+- **Primaria Bilingüe** (`primaria`) → Math, Phonics, Reading, Language, Science, Español, CCSS, Asociadas
+- **Colegio Bilingüe** (`colegio_bl`) → Math, Spelling, Reading, Language, Science, Español, CCSS, Cívica, Asociadas
+- **Colegio 7mo–9no** (`colegio_7_9`) → Matemática, Dibujo Técnico, Español, Ciencias Naturales, Cívica, Estudios Sociales, Inglés, Tecnología, Artística, Computación, Orientación, E. Física
+- **Colegio 10mo** (`colegio_10`) → Matemática, Física Elemental, Robótica, Español, Química, Biología, Sociología, Psicología, Historia de Honduras, Inglés Básico, Inglés Avanzado, Educ. Física, Informática
+- **Colegio 11mo** (`colegio_11`) → Matemática, Física Elemental, Dibujo Téc., Robótica, Química, Biología, Español, Historia Universal, Economía, Antropología, Artística, Filosofía, Inglés, Educ. Física
+
+**Filtrado por rol:** BL (coordinador/maestro) ve solo grados BL; Colegio ve solo grados Colegio.
+
+**Descarga:**
+- Área BL → genera **PPTX** con fondo de plantilla (`plantilla agendas.png`)
+- Área Colegio → genera **DOCX** (Word, A4 horizontal, tabla con cabecera azul)
+
+| Ruta | Descripción |
+|------|-------------|
+| `/agendas/form/` | Registrar agenda (maestros) |
+| `/agendas/historial/` | Historial de agendas propias |
+| `/agendas/coordinador/` | Dashboard coordinador (todas las agendas del área) |
+| `/agendas/<id>/editar/` | Editar agenda |
+| `/agendas/<id>/pptx/` | Descargar agenda (PPTX para BL, DOCX para Colegio) |
+| `/agendas/modo/toggle/` | Alternar modo maestro/coordinador (coord-maestros) |
 
 ---
 
@@ -105,12 +137,7 @@ Conecta con SQL Server para leer marcas del reloj biométrico. Gestiona horarios
 | `/reloj/feriados/` | Listado de feriados |
 | `/reloj/feriados/nuevo/` | Crear feriado (rango de fechas) |
 | `/reloj/feriados/<id>/editar/` | Editar feriado y asignar empleados |
-| `/reloj/feriados/asignacion/bulk/` | Guardar asignación masiva de empleados |
 | `/reloj/solicitudes/` | Solicitudes de compensatorio / permiso |
-
-**Feriados:** Soportan rango de fechas (`fecha_inicio` → `fecha_fin`) y asignación individual por empleado mediante checkboxes.
-
-**Columnas en Tiempo por Hora:** Horario Programado · Feriado · Marcas del Día · Compensatorio · Ausencias · Otro Pagado · Vacaciones · Enfermedad.
 
 ---
 
@@ -127,7 +154,6 @@ Control de equipos institucionales con QR, PDF y categorías.
 | `/inventario/datashows/` | Listado de datashows |
 | `/inventario/por_categoria/` | Consulta unificada por categoría |
 | `/inventario/download_item_pdf/<id>/` | Ficha en PDF |
-| `/registros/qr/<tipo>/<pk>/` | Código QR del equipo |
 
 ---
 
@@ -152,7 +178,7 @@ Agendamiento de citas para padres de familia.
 ---
 
 ### Enfermería
-Atención médica, inventario de medicamentos e historial en PDF o correo.
+Atención médica, inventario de medicamentos, historial y directorio de teléfonos de alumnos.
 
 | Ruta | Descripción |
 |------|-------------|
@@ -160,6 +186,9 @@ Atención médica, inventario de medicamentos e historial en PDF o correo.
 | `/enfermeria/atencion/` | Registrar atención médica |
 | `/enfermeria/inventario/` | Inventario de medicamentos |
 | `/enfermeria/historial/` | Historial médico |
+| `/enfermeria/directorio/` | Directorio de teléfonos con links WhatsApp |
+
+**Directorio de teléfonos:** Consulta SQL Server (`tblPrsDtosGen`) para obtener `Tel1`/`Tel2` de cada alumno. Filtrado por área: coordinador BL ve alumnos BL, coordinador Colegio ve alumnos Colegio, admin ve todos. Genera links directos a WhatsApp (`wa.me/504XXXXXXXX`). También accesible desde conducta en `/conducta/directorio/`.
 
 ---
 
@@ -194,7 +223,7 @@ DB_PASSWORD=...
 DB_HOST=192.168.10.6
 DB_PORT=3306
 
-# SQL Server (módulo Reloj)
+# SQL Server (módulo Reloj y datos de alumnos)
 MSSQL_DB_NAME=...
 MSSQL_DB_USER=...
 MSSQL_DB_PASSWORD=...
@@ -219,9 +248,11 @@ cd techcare_project
 source venv/bin/activate
 cd system_proyect
 
-# Aplicar cambios en producción
+# Recargar sin reiniciar Apache (mod_wsgi)
+touch system_proyect/wsgi.py
+
+# Aplicar cambios estáticos en producción
 python manage.py collectstatic --noinput
-sudo systemctl restart apache2
 
 # Migraciones
 python manage.py makemigrations
@@ -241,17 +272,17 @@ python manage.py createsuperuser
 
 ## Despliegue
 
-El proyecto corre con **Apache + mod_wsgi**. Después de cualquier cambio en código Python o archivos estáticos:
+El proyecto corre con **Apache + mod_wsgi**. Para recargar el código Python sin reiniciar Apache:
 
 ```bash
-sudo systemctl restart apache2
+touch system_proyect/wsgi.py
 ```
 
-Si se modifican templates o archivos estáticos:
+Para cambios en archivos estáticos:
 
 ```bash
 python manage.py collectstatic --noinput
-sudo systemctl restart apache2
+touch system_proyect/wsgi.py
 ```
 
 ---
