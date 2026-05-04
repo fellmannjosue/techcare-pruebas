@@ -1,0 +1,60 @@
+{% extends 'unfold/layouts/unauthenticated.html' %}
+{% load i18n static unfold %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    {{ form.media }}
+{% endblock %}
+
+{% block title %}Iniciar sesión | {{ site_title }}{% endblock %}
+
+{% block content %}
+
+    {# Logo pequeño visible solo en pantallas sin el panel derecho (< xl) #}
+    <div class="flex justify-center mb-8 xl:hidden">
+        <img src="{% static 'accounts/img/ana-transformed.png' %}"
+             alt="ANA" style="height: 72px; object-fit: contain;">
+    </div>
+
+    {# Encabezado #}
+    <div class="mb-8">
+        <p class="text-xs text-base-400 uppercase tracking-widest mb-1">Bienvenido</p>
+        <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Plataforma Admin ANA</h1>
+        <p class="text-sm text-base-500 mt-1">Ingresa tus credenciales para continuar</p>
+    </div>
+
+    {% include "unfold/helpers/messages.html" %}
+
+    {% if form.errors or form.non_field_errors %}
+        <div class="flex flex-col gap-4 mb-6 *:mb-0">
+            {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
+            {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
+            {% if user.is_authenticated %}
+                {% blocktranslate trimmed asvar message %}
+                    You are authenticated as {{ username }}, but are not authorized to
+                    access this page. Would you like to login to a different account?
+                {% endblocktranslate %}
+                {% include "unfold/helpers/messages/error.html" with error=message %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <form action="{{ app_path }}" method="post" id="login-form">
+        {% csrf_token %}
+        {% include "unfold/helpers/field.html" with field=form.username %}
+        {% include "unfold/helpers/field.html" with field=form.password %}
+
+        <div class="mt-6">
+            {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
+                Iniciar sesión
+                <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+            {% endcomponent %}
+        </div>
+    </form>
+
+    {# Pie de página #}
+    <p class="mt-8 text-center text-xs text-base-400">
+        &copy; {% now "Y" %} Asociación Nuevo Amanecer
+    </p>
+
+{% endblock %}

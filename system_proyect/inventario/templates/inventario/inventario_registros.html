@@ -23,6 +23,7 @@
   </div>
   <div class="card-body tab-content p-0">
 
+    {# ── COMPUTADORAS ────────────────────────────────────── #}
     <div class="tab-pane fade show active p-3" id="tabComputadoras">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'computadoras' %}" class="btn btn-sm btn-success">
@@ -30,17 +31,26 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaComputadoras" class="table table-vcenter table-hover">
+        <table id="tablaComputadoras" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Modelo</th><th>Serie</th>
-            <th>Asignado</th><th>Área</th><th>Grupo</th><th>QR</th>
+            <th>Asset ID</th><th>Modelo</th><th>Serie</th><th>IP</th>
+            <th>Asignado</th><th>Área</th><th>Grado</th><th>Grupo</th>
+            <th>Categoría</th><th>Fecha Inst.</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for c in computadoras %}
             <tr>
-              <td>{{ c.asset_id }}</td><td>{{ c.modelo }}</td><td>{{ c.serie }}</td>
-              <td>{{ c.asignado_a }}</td><td>{{ c.area }}</td>
-              <td>{% if c.grupo %}Grupo {{ c.grupo }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td><span class="badge bg-blue-lt text-blue fw-semibold">{{ c.asset_id }}</span></td>
+              <td>{{ c.modelo }}</td>
+              <td class="font-monospace small">{{ c.serie|default:"—" }}</td>
+              <td class="font-monospace small">{{ c.ip }}</td>
+              <td>{{ c.asignado_a }}</td>
+              <td>{{ c.area }}</td>
+              <td>{{ c.grado }}</td>
+              <td>{% if c.grupo %}<span class="badge bg-azure-lt">Grupo {{ c.grupo }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>{{ c.category|default:"—" }}</td>
+              <td>{{ c.fecha_instalado|date:"d/m/Y" }}</td>
+              <td class="small text-muted">{{ c.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'computadora' c.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -53,6 +63,7 @@
       </div>
     </div>
 
+    {# ── IMPRESORAS ──────────────────────────────────────── #}
     <div class="tab-pane fade p-3" id="tabImpresoras">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'impresoras' %}" class="btn btn-sm btn-success">
@@ -60,16 +71,29 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaImpresoras" class="table table-vcenter table-hover">
+        <table id="tablaImpresoras" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Nombre</th><th>Modelo</th>
-            <th>Serie</th><th>Asignado</th><th>Nivel Tinta</th><th>QR</th>
+            <th>Asset ID</th><th>Nombre</th><th>Modelo</th><th>Serie</th>
+            <th>Asignado</th><th>Nivel Tinta</th><th>Últ. Llenado</th>
+            <th>Impresiones</th><th>Color</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for i in impresoras %}
             <tr>
-              <td>{{ i.asset_id }}</td><td>{{ i.nombre }}</td><td>{{ i.modelo }}</td>
-              <td>{{ i.serie }}</td><td>{{ i.asignado_a }}</td><td>{{ i.nivel_tinta }}</td>
+              <td><span class="badge bg-orange-lt text-orange fw-semibold">{{ i.asset_id }}</span></td>
+              <td>{{ i.nombre }}</td>
+              <td>{{ i.modelo }}</td>
+              <td class="font-monospace small">{{ i.serie }}</td>
+              <td>{{ i.asignado_a }}</td>
+              <td>
+                <span class="badge {% if i.nivel_tinta == 'Bajo' %}bg-red-lt text-red{% elif i.nivel_tinta == 'Medio' %}bg-yellow-lt text-yellow{% else %}bg-green-lt text-green{% endif %}">
+                  {{ i.nivel_tinta }}
+                </span>
+              </td>
+              <td>{{ i.ultima_vez_llenado|date:"d/m/Y" }}</td>
+              <td>{{ i.cantidad_impresiones }}</td>
+              <td>{% if i.a_color %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-muted"></i>{% endif %}</td>
+              <td class="small text-muted">{{ i.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'impresora' i.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -82,6 +106,7 @@
       </div>
     </div>
 
+    {# ── TELEVISORES ─────────────────────────────────────── #}
     <div class="tab-pane fade p-3" id="tabTelevisores">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'televisores' %}" class="btn btn-sm btn-success">
@@ -89,16 +114,22 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaTelevisores" class="table table-vcenter table-hover">
+        <table id="tablaTelevisores" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Modelo</th><th>Serie</th>
-            <th>Área</th><th>Grado</th><th>QR</th>
+            <th>Asset ID</th><th>Modelo</th><th>Serie</th><th>IP</th>
+            <th>Área</th><th>Grado</th><th>Categoría</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for t in televisores %}
             <tr>
-              <td>{{ t.asset_id }}</td><td>{{ t.modelo }}</td><td>{{ t.serie }}</td>
-              <td>{{ t.area }}</td><td>{{ t.grado }}</td>
+              <td><span class="badge bg-cyan-lt text-cyan fw-semibold">{{ t.asset_id }}</span></td>
+              <td>{{ t.modelo }}</td>
+              <td class="font-monospace small">{{ t.serie }}</td>
+              <td class="font-monospace small">{{ t.ip }}</td>
+              <td>{{ t.area }}</td>
+              <td>{{ t.grado }}</td>
+              <td>{{ t.category|default:"—" }}</td>
+              <td class="small text-muted">{{ t.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'televisor' t.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -111,6 +142,7 @@
       </div>
     </div>
 
+    {# ── ROUTERS ─────────────────────────────────────────── #}
     <div class="tab-pane fade p-3" id="tabRouters">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'routers' %}" class="btn btn-sm btn-success">
@@ -118,16 +150,22 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaRouters" class="table table-vcenter table-hover">
+        <table id="tablaRouters" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Modelo</th><th>Serie</th>
-            <th>Ubicado</th><th>IP Uso</th><th>QR</th>
+            <th>Asset ID</th><th>Nombre Router</th><th>Modelo</th><th>Serie</th>
+            <th>IP Asignada</th><th>IP Uso</th><th>Ubicado</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for r in routers %}
             <tr>
-              <td>{{ r.asset_id }}</td><td>{{ r.modelo }}</td><td>{{ r.serie }}</td>
-              <td>{{ r.ubicado }}</td><td>{{ r.ip_uso }}</td>
+              <td><span class="badge bg-green-lt text-green fw-semibold">{{ r.asset_id }}</span></td>
+              <td>{{ r.nombre_router }}</td>
+              <td>{{ r.modelo }}</td>
+              <td class="font-monospace small">{{ r.serie }}</td>
+              <td class="font-monospace small">{{ r.ip_asignada }}</td>
+              <td class="font-monospace small">{{ r.ip_uso }}</td>
+              <td>{{ r.ubicado }}</td>
+              <td class="small text-muted">{{ r.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'router' r.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -140,6 +178,7 @@
       </div>
     </div>
 
+    {# ── DATASHOWS ───────────────────────────────────────── #}
     <div class="tab-pane fade p-3" id="tabDataShows">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'datashows' %}" class="btn btn-sm btn-success">
@@ -147,16 +186,24 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaDataShows" class="table table-vcenter table-hover">
+        <table id="tablaDataShows" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Nombre</th><th>Modelo</th>
-            <th>Serie</th><th>Estado</th><th>QR</th>
+            <th>Asset ID</th><th>Nombre</th><th>Modelo</th><th>Serie</th><th>Estado</th>
+            <th>HDMI</th><th>VGA</th><th>Cable</th><th>Extensión</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for d in datashows %}
             <tr>
-              <td>{{ d.asset_id }}</td><td>{{ d.nombre }}</td><td>{{ d.modelo }}</td>
-              <td>{{ d.serie }}</td><td>{{ d.estado }}</td>
+              <td><span class="badge bg-purple-lt text-purple fw-semibold">{{ d.asset_id }}</span></td>
+              <td>{{ d.nombre }}</td>
+              <td>{{ d.modelo }}</td>
+              <td class="font-monospace small">{{ d.serie }}</td>
+              <td><span class="badge {% if d.estado == 'Activo' %}bg-green-lt text-green{% else %}bg-red-lt text-red{% endif %}">{{ d.estado }}</span></td>
+              <td>{% if d.hdmi %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-muted"></i>{% endif %}</td>
+              <td>{% if d.vga %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-muted"></i>{% endif %}</td>
+              <td>{% if d.cable_corriente %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-muted"></i>{% endif %}</td>
+              <td>{% if d.extension %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-muted"></i>{% endif %}</td>
+              <td class="small text-muted">{{ d.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'datashow' d.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -169,6 +216,7 @@
       </div>
     </div>
 
+    {# ── MONITORES ───────────────────────────────────────── #}
     <div class="tab-pane fade p-3" id="tabMonitores">
       <div class="d-flex justify-content-end mb-2">
         <a href="{% url 'inventario:exportar_excel' 'monitores' %}" class="btn btn-sm btn-success">
@@ -176,16 +224,22 @@
         </a>
       </div>
       <div class="table-responsive">
-        <table id="tablaMonitores" class="table table-vcenter table-hover">
+        <table id="tablaMonitores" class="table table-vcenter table-hover table-sm">
           <thead><tr>
-            <th>Asset ID</th><th>Modelo</th><th>Serie</th>
-            <th>Asignado</th><th>QR</th>
+            <th>Asset ID</th><th>Modelo</th><th>Serie</th><th>Tipo Ubic.</th>
+            <th>Laboratorio</th><th>Asignado a</th><th>Categoría</th><th>Observaciones</th><th>QR</th>
           </tr></thead>
           <tbody>
             {% for m in monitores %}
             <tr>
-              <td>{{ m.asset_id }}</td><td>{{ m.modelo }}</td><td>{{ m.serie }}</td>
-              <td>{{ m.asignado_a }}</td>
+              <td><span class="badge bg-secondary-lt fw-semibold">{{ m.asset_id }}</span></td>
+              <td>{{ m.modelo }}</td>
+              <td class="font-monospace small">{{ m.serie }}</td>
+              <td>{{ m.get_ubicacion_tipo_display|default:"—" }}</td>
+              <td>{{ m.laboratorio|default:"—" }}</td>
+              <td>{{ m.asignado_a|default:"—" }}</td>
+              <td>{{ m.category|default:"—" }}</td>
+              <td class="small text-muted">{{ m.observaciones|default:"—"|truncatechars:40 }}</td>
               <td>
                 <a href="{% url 'inventario:descargar_qr' 'monitor' m.id %}" class="btn btn-sm btn-ghost-secondary" title="Descargar QR">
                   <i class="ti ti-qrcode"></i>
@@ -208,7 +262,7 @@
 <script>
 function iniciarTabla(idTabla) {
   $('#' + idTabla).DataTable({
-    pageLength: 25,
+    pageLength: 25, scrollX: true,
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
 }

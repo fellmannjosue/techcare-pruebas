@@ -24,10 +24,30 @@
         <form method="post" novalidate class="row g-3">
           {% csrf_token %}
 
+          {# Laboratorio — checkboxes mutuamente exclusivos #}
+          <div class="col-12">
+            <label class="form-label fw-semibold mb-2">Laboratorio <span class="text-muted fw-normal small">(opcional)</span></label>
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-bl" value="lab_bl">
+                <label class="form-check-label" for="chk-lab-bl">Lab BL</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-col" value="lab_col">
+                <label class="form-check-label" for="chk-lab-col">Lab COL</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-inf" value="informatica">
+                <label class="form-check-label" for="chk-lab-inf">Informática</label>
+              </div>
+            </div>
+            <input type="hidden" name="id_prefix" id="id_prefix" value="estandar">
+          </div>
+
           {# Asset ID auto-generado #}
           <div class="col-md-6">
             <label class="form-label fw-semibold">Asset ID</label>
-            <input type="text" class="form-control bg-light text-muted" value="{{ next_id }}" readonly>
+            <input type="text" id="preview-asset-id" class="form-control bg-light text-muted" value="{{ next_id }}" readonly>
           </div>
 
           {# Modelo — dropdown #}
@@ -192,6 +212,26 @@ $('#chk-ip').on('change', function(){
     inp.removeClass('bg-light text-muted').prop('readonly', false).val('').focus();
   } else {
     inp.addClass('bg-light text-muted').prop('readonly', true).val('0.0.0.0');
+  }
+});
+
+// Checkboxes de laboratorio — mutuamente exclusivos
+var nextIds = {
+  'estandar':   '{{ next_id }}',
+  'lab_bl':     '{{ next_id_bl }}',
+  'lab_col':    '{{ next_id_col }}',
+  'informatica':'{{ next_id_inf }}',
+};
+$('.chk-lab').on('change', function(){
+  var val = $(this).val();
+  if ($(this).is(':checked')) {
+    // Desmarcar los otros
+    $('.chk-lab').not(this).prop('checked', false);
+    $('#id_prefix').val(val);
+    $('#preview-asset-id').val(nextIds[val]);
+  } else {
+    $('#id_prefix').val('estandar');
+    $('#preview-asset-id').val(nextIds['estandar']);
   }
 });
 </script>

@@ -70,7 +70,9 @@ document.addEventListener("DOMContentLoaded", function () {
     "mcarias@ana-hn.org",
     "mcastro@ana-hn.org",
     "mrodriguez@ana-hn.org",
-    "nalvarado@ana-hn.org",
+    "malvarado@ana-hn.org",
+    "nalvarenga@ana-hn.org",
+    "ngonzales@ana-hn.org",
     "ogonzalez@ana-hn.org",
     "pserrano@ana-hn.org",
     "rdiaz@ana-hn.org",
@@ -84,6 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
     "tzuniga@ana-hn.org",
     "vfigueroa@ana-hn.org",
     "yzavala@ana-hn.org",
+    "zraudales@ana-hn.org",
   ];
 
   function filtrarCorreos() {

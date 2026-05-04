@@ -76,8 +76,10 @@ def login_view(request):
 
             login(request, user)
             request.session['show_welcome'] = True
-            # Caso especial: usuario con ambas áreas (BL + Colegio)
-            if user.username == 'admin2@ana-hn.org':
+            # Maestro dual (en ambos grupos) → elige área
+            in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
+            in_mcol = user.groups.filter(name='maestros_colegio').exists()
+            if in_mbl and in_mcol:
                 return redirect('seleccion_rol')
             return redirect('dashboard_maestro')
 
@@ -96,8 +98,8 @@ _ROLES_POR_USUARIO = {
         {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/accounts/aplicar-rol/maestro_col/'},
     ],
     'admin2@ana-hn.org': [
-        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/conducta/dashboard/maestro/?area=bilingue'},
-        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/conducta/dashboard/maestro/?area=colegio'},
+        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/accounts/aplicar-rol/maestro_bl/'},
+        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/accounts/aplicar-rol/maestro_col/'},
     ],
     'glorenzo@ana-hn.org': [
         {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
@@ -105,9 +107,19 @@ _ROLES_POR_USUARIO = {
     ],
 }
 
+_ROLES_MAESTRO_DUAL = [
+    {'titulo': 'Maestro – Bilingüe', 'subtitulo': 'Registrar y ver mis reportes del área BL',      'icon': 'ti-school',          'clase': 'icon-bl',  'url': '/accounts/aplicar-rol/maestro_bl/'},
+    {'titulo': 'Maestro – Colegio',  'subtitulo': 'Registrar y ver mis reportes del área Colegio', 'icon': 'ti-building-school', 'clase': 'icon-col', 'url': '/accounts/aplicar-rol/maestro_col/'},
+]
+
 @login_required
 def seleccion_rol(request):
-    roles = _ROLES_POR_USUARIO.get(request.user.username, [])
+    roles = _ROLES_POR_USUARIO.get(request.user.username)
+    if roles is None:
+        # Maestro dual detectado por grupos (sin entrada en _ROLES_POR_USUARIO)
+        in_mbl  = request.user.groups.filter(name='maestros_bilingue').exists()
+        in_mcol = request.user.groups.filter(name='maestros_colegio').exists()
+        roles = _ROLES_MAESTRO_DUAL if (in_mbl and in_mcol) else []
     return render(request, 'accounts/seleccion_rol.html', {'roles': roles})
 
 

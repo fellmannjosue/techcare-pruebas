@@ -51,8 +51,8 @@ def _areas_para_usuario(user, request=None):
     """Devuelve la lista de areas que el usuario puede ver, o None si ve todo."""
     if user.is_superuser:
         return None
-    # Coord-maestro con área seleccionada en sesión
-    if request and _es_coord_maestro(user) and request.session.get("agenda_modo_maestro"):
+    # Cualquier usuario con área seleccionada explícitamente en sesión
+    if request and request.session.get("agenda_modo_maestro"):
         area = request.session.get("agenda_area_maestro", "bilingue")
         if area == "colegio":
             return ["colegio"]

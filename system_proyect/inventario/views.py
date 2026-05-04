@@ -42,20 +42,60 @@ from .forms import (
 # QR PARA FICHAS
 # ==============================================================
 
-def descargar_qr(request, tipo, pk):
-    path = reverse("inventario:download_model_pdf", args=[tipo.lower(), pk])
-    pdf_url = f"https://servicios.ana-hn.org:437{path}"
+def _get_asset_id(tipo, pk):
+    tipo = tipo.lower()
+    mapa = {
+        'computadora': Computadora,
+        'televisor':   Televisor,
+        'impresora':   Impresora,
+        'router':      Router,
+        'datashow':    DataShow,
+        'monitor':     Monitor,
+    }
+    modelo = mapa.get(tipo)
+    if modelo:
+        obj = modelo.objects.filter(pk=pk).first()
+        if obj:
+            return obj.asset_id
+    return f"{tipo.upper()}-{pk}"
 
-    img = qrcode.make(pdf_url)
-    rgb = img.convert("RGB")
+
+def descargar_qr(request, tipo, pk):
+    from PIL import ImageDraw, ImageFont
+
+    path    = reverse("inventario:download_model_pdf", args=[tipo.lower(), pk])
+    pdf_url = f"https://servicios.ana-hn.org:437{path}"
+    asset_id = _get_asset_id(tipo, pk)
+
+    qr_img = qrcode.make(pdf_url).convert("RGB")
+    qr_w, qr_h = qr_img.size
+
+    # Barra inferior con el asset_id
+    bar_h    = 48
+    total_h  = qr_h + bar_h
+    canvas   = Image.new("RGB", (qr_w, total_h), "white")
+    canvas.paste(qr_img, (0, 0))
+
+    draw = ImageDraw.Draw(canvas)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)
+    except Exception:
+        font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), asset_id, font=font)
+    text_w = bbox[2] - bbox[0]
+    x = (qr_w - text_w) // 2
+    y = qr_h + (bar_h - (bbox[3] - bbox[1])) // 2
+    draw.text((x, y), asset_id, fill="black", font=font)
+
     buffer = io.BytesIO()
-    rgb.save(buffer, format="JPEG", quality=85)
+    canvas.save(buffer, format="JPEG", quality=90)
     buffer.seek(0)
 
     return HttpResponse(
         buffer.read(),
         content_type="image/jpeg",
-        headers={"Content-Disposition": f'attachment; filename="qr_{tipo}_{pk}.jpg"'}
+        headers={"Content-Disposition": f'attachment; filename="qr_{asset_id}.jpg"'}
     )
 
 # ==============================================================
@@ -114,8 +154,15 @@ def inventario_por_categoria(request):
 # INVENTARIOS (CREATE + LIST)
 # ==============================================================
 
-def _siguiente_asset_id_computadora():
-    prefix = 'IDANACOMP'
+_PREFIJOS_COMP = {
+    'estandar': 'IDANACOMP',
+    'lab_bl':   'IDANALABBL',
+    'lab_col':  'IDANALABCOL',
+    'informatica': 'IDCFPLAB',
+}
+
+def _siguiente_asset_id_computadora(prefijo_key='estandar'):
+    prefix = _PREFIJOS_COMP.get(prefijo_key, 'IDANACOMP')
     ultimo = Computadora.objects.filter(
         asset_id__startswith=prefix
     ).order_by('-asset_id').values_list('asset_id', flat=True).first()
@@ -135,7 +182,10 @@ def inventario_computadoras(request):
         form = ComputadoraForm(request.POST)
         if form.is_valid():
             comp = form.save(commit=False)
-            comp.asset_id = _siguiente_asset_id_computadora()
+            prefijo_key = request.POST.get('id_prefix', 'estandar')
+            if prefijo_key not in _PREFIJOS_COMP:
+                prefijo_key = 'estandar'
+            comp.asset_id = _siguiente_asset_id_computadora(prefijo_key)
             ip_post = request.POST.get('ip', '').strip()
             comp.ip = ip_post if ip_post and ip_post != '0.0.0.0' else '0.0.0.0'
             serie_post = request.POST.get('serie', '').strip()
@@ -147,7 +197,10 @@ def inventario_computadoras(request):
 
     return render(request, "inventario/inventario_computadoras.html", {
         "form":         form,
-        "next_id":      _siguiente_asset_id_computadora(),
+        "next_id":      _siguiente_asset_id_computadora('estandar'),
+        "next_id_bl":   _siguiente_asset_id_computadora('lab_bl'),
+        "next_id_col":  _siguiente_asset_id_computadora('lab_col'),
+        "next_id_inf":  _siguiente_asset_id_computadora('informatica'),
         "computadoras": Computadora.objects.order_by("-id"),
     })
 

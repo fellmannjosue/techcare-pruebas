@@ -339,16 +339,32 @@ UNFOLD = {
     "SITE_TITLE": "Plataforma Admin ANA",
     "SITE_HEADER": "Plataforma Admin ANA",
     "SITE_SUBHEADER": "Asociación Nuevo Amanecer",
-    "SITE_URL": "/",
+    "SITE_URL": "/menu/",
     "SITE_ICON": lambda request: "/static/accounts/img/nuevo.ico",
     "SITE_LOGO": lambda request: "/static/accounts/img/ana-transformed.png",
     "SITE_SYMBOL": "settings",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
+    "DASHBOARD_CALLBACK": "core.admin_dashboard.dashboard_callback",
+    "COLORS": {
+        "primary": {
+            "50":  "oklch(98.1% 0.019 75)",
+            "100": "oklch(95.4% 0.050 76)",
+            "200": "oklch(90.1% 0.100 75)",
+            "300": "oklch(83.7% 0.152 69)",
+            "400": "oklch(75.6% 0.183 55)",
+            "500": "oklch(67.6% 0.189 43)",
+            "600": "oklch(60.1% 0.176 38)",
+            "700": "oklch(50.3% 0.150 35)",
+            "800": "oklch(41.5% 0.122 34)",
+            "900": "oklch(34.7% 0.102 33)",
+            "950": "oklch(25.7% 0.083 33)",
+        },
+    },
     "ENVIRONMENT": None,
     # Sin THEME fijo → aparece el toggle claro/oscuro/automático en la barra superior
     "LOGIN": {
-        "image": lambda request: "/static/accounts/img/ana-transformed.png",
+        "redirect_after_login": "/admin/",
     },
     "SIDEBAR": {
         "show_search": True,
@@ -429,6 +445,20 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {"title": _("Cámaras"), "icon": "videocam", "link": reverse_lazy("admin:seguridad_inventariocamara_changelist")},
+                ],
+            },
+            {
+                "title": _("Control de Accesos"),
+                "separator": True,
+                "items": [
+                    {"title": _("Registros de Acceso"), "icon": "manage_accounts", "link": reverse_lazy("admin:accounts_registroacceso_changelist")},
+                ],
+            },
+            {
+                "title": _("Configuración del Sistema"),
+                "separator": True,
+                "items": [
+                    {"title": _("Ajustes Generales"), "icon": "tune", "link": reverse_lazy("admin:constance_config_changelist")},
                 ],
             },
         ],

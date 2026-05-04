@@ -1,0 +1,55 @@
+{% extends 'unfold/layouts/skeleton.html' %}
+{% load i18n static unfold %}
+
+{% block bodyclass %}{{ block.super }} bg-base-50 login dark:bg-base-900{% endblock %}
+
+{% block nav-global %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block base %}
+<div id="page" class="flex min-h-screen">
+
+    {# ── Panel izquierdo: formulario ── #}
+    <div class="flex grow items-center justify-center px-6 py-12 bg-white dark:bg-base-900 relative">
+        <div class="w-full max-w-sm">
+            {% block content %}{% endblock %}
+        </div>
+        {% include "unfold/helpers/unauthenticated_header.html" %}
+    </div>
+
+    {# ── Panel derecho: branding ── #}
+    <div class="hidden xl:flex xl:flex-col xl:items-center xl:justify-center xl:w-[520px] xl:shrink-0 relative overflow-hidden"
+         style="background: linear-gradient(145deg, #c45d0a 0%, #8b3a00 50%, #2d1200 100%);">
+
+        {# Círculo decorativo fondo #}
+        <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full opacity-10"
+             style="background: radial-gradient(circle, #ffffff 0%, transparent 70%);"></div>
+        <div class="absolute -bottom-32 -left-20 w-96 h-96 rounded-full opacity-10"
+             style="background: radial-gradient(circle, #f97316 0%, transparent 70%);"></div>
+
+        {# Contenido centrado #}
+        <div class="relative z-10 flex flex-col items-center text-center px-10">
+            <img src="{% static 'accounts/img/ana-transformed.png' %}"
+                 alt="ANA"
+                 style="width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4));">
+
+            <h2 class="mt-6 text-white text-2xl font-bold tracking-tight"
+                style="text-shadow: 0 2px 8px rgba(0,0,0,0.4);">
+                Asociación Nuevo Amanecer
+            </h2>
+            <p class="mt-2 text-white text-sm tracking-widest uppercase">
+                Plataforma Administrativa
+            </p>
+
+            <div class="mt-8 w-12 border-t border-orange-400 opacity-60"></div>
+
+            <p class="mt-6 text-white text-xs leading-relaxed max-w-xs">
+                Sistema de gestión interno para coordinadores, maestros y personal administrativo.
+            </p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
