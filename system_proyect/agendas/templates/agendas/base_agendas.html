@@ -48,7 +48,12 @@
       <div class="container-xl">
         <div class="row align-items-center">
           <div class="col">
-            <div class="page-pretitle">Agendas</div>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
+                <li class="breadcrumb-item active">Agendas</li>
+              </ol>
+            </nav>
             <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
           </div>
           <div class="col-auto ms-auto d-flex gap-2">

@@ -34,6 +34,14 @@
             <div class="flex-fill">
               <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
             </div>
+            <a href="{% url 'menu' %}" class="text-muted" title="Menú principal">
+              <i class="ti ti-home fs-5"></i>
+            </a>
+            {% if request.user.is_staff %}
+            <a href="{% url 'admin:index' %}" class="text-muted" title="Panel Admin">
+              <i class="ti ti-layout-grid fs-5"></i>
+            </a>
+            {% endif %}
             <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
               <i class="ti ti-logout fs-5"></i>
             </a>
@@ -48,7 +56,17 @@
       <div class="container-xl">
         <div class="row g-2 align-items-center">
           <div class="col">
-            <div class="page-pretitle">{% block page_pretitle %}Inventario{% endblock %}</div>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item">
+                  <a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Dashboard</a>
+                </li>
+                <li class="breadcrumb-item">
+                  <a href="{% url 'inventario:dashboard' %}">Inventario</a>
+                </li>
+                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
+              </ol>
+            </nav>
             <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
           </div>
           {% block page_actions %}{% endblock %}

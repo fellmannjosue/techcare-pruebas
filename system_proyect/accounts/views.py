@@ -53,8 +53,14 @@ def login_view(request):
                 # Cualquier usuario del área Administración → solo tickets
                 if user.groups.filter(name='administracion').exists():
                     return redirect('dashboard_administracion')
+                # Coord-maestros: el checkbox determina el modo de agendas
+                _coord_maestros = {'cvarela@ana-hn.org', 'ialcerro@ana-hn.org', 'jmartinez@ana-hn.org'}
+                if user.username in _coord_maestros:
+                    request.session['agenda_modo_maestro'] = is_maestro
                 if is_maestro:
                     return redirect('dashboard_maestro')
+                if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
+                    return redirect('dashboard_coordinador', area='colegio')
                 return redirect('dashboard_coordinador', area='bilingue')
 
             # Técnicos
@@ -85,9 +91,9 @@ def login_view(request):
 # =====================================================
 _ROLES_POR_USUARIO = {
     'druiz@ana-hn.org': [
-        {'titulo': 'Coordinador Bilingüe',  'subtitulo': 'Ver reportes del área BL · gestionar incidencias',  'icon': 'ti-users-group',     'clase': 'icon-coord', 'url': '/conducta/coordinador/bilingue/'},
-        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/conducta/dashboard/maestro/?area=bilingue'},
-        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/conducta/dashboard/maestro/?area=colegio'},
+        {'titulo': 'Coordinador Bilingüe',  'subtitulo': 'Ver reportes del área BL · gestionar incidencias',  'icon': 'ti-users-group',     'clase': 'icon-coord', 'url': '/accounts/aplicar-rol/coordinador/'},
+        {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/accounts/aplicar-rol/maestro_bl/'},
+        {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',     'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/accounts/aplicar-rol/maestro_col/'},
     ],
     'admin2@ana-hn.org': [
         {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',          'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/conducta/dashboard/maestro/?area=bilingue'},
@@ -103,6 +109,24 @@ _ROLES_POR_USUARIO = {
 def seleccion_rol(request):
     roles = _ROLES_POR_USUARIO.get(request.user.username, [])
     return render(request, 'accounts/seleccion_rol.html', {'roles': roles})
+
+
+@login_required
+def aplicar_rol(request, rol):
+    """Setea la sesión de agendas según el rol elegido y redirige."""
+    if rol == 'coordinador':
+        request.session['agenda_modo_maestro'] = False
+        request.session.pop('agenda_area_maestro', None)
+        return redirect('dashboard_coordinador', area='bilingue')
+    elif rol == 'maestro_bl':
+        request.session['agenda_modo_maestro'] = True
+        request.session['agenda_area_maestro'] = 'bilingue'
+        return redirect('dashboard_maestro')
+    elif rol == 'maestro_col':
+        request.session['agenda_modo_maestro'] = True
+        request.session['agenda_area_maestro'] = 'colegio'
+        return redirect('dashboard_maestro')
+    return redirect('seleccion_rol')
 
 
 # =====================================================

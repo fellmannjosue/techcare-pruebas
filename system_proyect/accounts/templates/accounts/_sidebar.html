@@ -45,10 +45,49 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navReloj">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'reloj_dashboard' %}">
+        <a class="nav-link collapsed" href="{% url 'reloj_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navRelojModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
+        <ul class="navbar-nav collapse ps-3" id="navRelojModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_reporte' %}">
+              <span class="nav-link-icon"><i class="ti ti-report"></i></span>
+              <span class="nav-link-title">Reporte</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_grafica' %}">
+              <span class="nav-link-icon"><i class="ti ti-chart-bar"></i></span>
+              <span class="nav-link-title">Gráfica</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'horarios_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-calendar-time"></i></span>
+              <span class="nav-link-title">Horarios</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_feriados_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-beach"></i></span>
+              <span class="nav-link-title">Feriados</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_compensatorio_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-clock-plus"></i></span>
+              <span class="nav-link-title">Compensatorios</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_permisos_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-file-check"></i></span>
+              <span class="nav-link-title">Permisos</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -64,10 +103,61 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navInventario">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'inventario:dashboard' %}">
+        <a class="nav-link collapsed" href="{% url 'inventario:dashboard' %}" id="invDashLink" data-bs-toggle="collapse" data-bs-target="#navInventarioModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
+        <ul class="navbar-nav collapse ps-3" id="navInventarioModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_computadoras' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-desktop"></i></span>
+              <span class="nav-link-title">Computadoras</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_televisores' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-tv"></i></span>
+              <span class="nav-link-title">Televisores</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_impresoras' %}">
+              <span class="nav-link-icon"><i class="ti ti-printer"></i></span>
+              <span class="nav-link-title">Impresoras</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_routers' %}">
+              <span class="nav-link-icon"><i class="ti ti-wifi"></i></span>
+              <span class="nav-link-title">Routers</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_datashows' %}">
+              <span class="nav-link-icon"><i class="ti ti-movie"></i></span>
+              <span class="nav-link-title">DataShows</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_monitores' %}">
+              <span class="nav-link-icon"><i class="ti ti-device-imac"></i></span>
+              <span class="nav-link-title">Monitores</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_por_categoria' %}">
+              <span class="nav-link-icon"><i class="ti ti-layout-grid"></i></span>
+              <span class="nav-link-title">Por Categoría</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_registros' %}">
+              <span class="nav-link-icon"><i class="ti ti-clipboard-list"></i></span>
+              <span class="nav-link-title">Ver Registros</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -83,10 +173,19 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navSponsors">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}">
+        <a class="nav-link collapsed" href="{% url 'sponsors:sponsors_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navSponsorsModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
+        <ul class="navbar-nav collapse ps-3" id="navSponsorsModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'sponsors:sponsor_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-list"></i></span>
+              <span class="nav-link-title">Lista de Sponsors</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -102,10 +201,31 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navSeguridad">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'seguridad:dashboard' %}">
+        <a class="nav-link collapsed" href="{% url 'seguridad:dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navSeguridadModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
+        <ul class="navbar-nav collapse ps-3" id="navSeguridadModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'seguridad:inventario_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-package"></i></span>
+              <span class="nav-link-title">Inventario</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'seguridad:contable_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-receipt"></i></span>
+              <span class="nav-link-title">Contable</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'seguridad:identificacion_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-id-badge"></i></span>
+              <span class="nav-link-title">Identificación</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -140,16 +260,19 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navEnfermeria">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
+        <a class="nav-link collapsed" href="{% url 'enfermeria:enfermeria_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navEnfermeriaModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Panel</span>
+          <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'enfermeria:directorio_telefonos' %}">
-          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
-          <span class="nav-link-title">Directorio</span>
-        </a>
+        <ul class="navbar-nav collapse ps-3" id="navEnfermeriaModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'enfermeria:directorio_telefonos' %}">
+              <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+              <span class="nav-link-title">Directorio</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -203,28 +326,31 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navCoordBL">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}">
+        <a class="nav-link collapsed" href="{% url 'dashboard_coordinador' area='bilingue' %}" data-bs-toggle="collapse" data-bs-target="#navCoordBLModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'directorio_telefonos' %}">
-          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
-          <span class="nav-link-title">Directorio</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
-          <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
-          <span class="nav-link-title">Enfermería</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
-          <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
-          <span class="nav-link-title">Agendas BL</span>
-        </a>
+        <ul class="navbar-nav collapse ps-3" id="navCoordBLModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'directorio_telefonos' %}">
+              <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+              <span class="nav-link-title">Directorio</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
+              <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
+              <span class="nav-link-title">Enfermería</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
+              <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
+              <span class="nav-link-title">Agendas BL</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -240,16 +366,25 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navCoordCol">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}">
+        <a class="nav-link collapsed" href="{% url 'dashboard_coordinador' area='colegio' %}" data-bs-toggle="collapse" data-bs-target="#navCoordColModulos">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-arrow"></span>
         </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'directorio_telefonos' %}">
-          <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
-          <span class="nav-link-title">Directorio</span>
-        </a>
+        <ul class="navbar-nav collapse ps-3" id="navCoordColModulos">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'directorio_telefonos' %}">
+              <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
+              <span class="nav-link-title">Directorio</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
+              <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
+              <span class="nav-link-title">Agendas COL</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
   </li>
@@ -300,16 +435,6 @@
           <span class="nav-link-title">Agendas</span>
         </a>
       </li>
-      {% if nav_es_coord_maestro %}
-      <li class="nav-item">
-        <a class="nav-link text-warning" href="{% url 'agendas:toggle_modo' %}">
-          <span class="nav-link-icon"><i class="ti ti-switch-horizontal"></i></span>
-          <span class="nav-link-title">
-            {% if nav_modo_maestro %}Cambiar a Coordinador{% else %}Cambiar a Maestro{% endif %}
-          </span>
-        </a>
-      </li>
-      {% endif %}
     </ul>
   </li>
   {% endif %}
@@ -345,6 +470,12 @@
         <a class="nav-link" href="{% url 'historial_maestro_colegio' %}">
           <span class="nav-link-icon"><i class="ti ti-history"></i></span>
           <span class="nav-link-title">Historial</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'agendas:historial_maestro' %}">
+          <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
+          <span class="nav-link-title">Agendas</span>
         </a>
       </li>
     </ul>

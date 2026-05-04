@@ -33,6 +33,30 @@ def nav_context(request):
     modo_maestro     = es_coord_maestro and bool(
         request.session.get('agenda_modo_maestro', False)
     )
+    area_maestro = request.session.get('agenda_area_maestro', 'bilingue')
+
+    # Para coord-maestros: mostrar solo el nav del rol activo en sesión
+    if es_coord_maestro:
+        if not modo_maestro:
+            nav_coord_bl  = is_coord_bl
+            nav_coord_col = is_coord_col
+            nav_mbl       = False
+            nav_mcol      = False
+        elif area_maestro == 'colegio':
+            nav_coord_bl  = False
+            nav_coord_col = False
+            nav_mbl       = False
+            nav_mcol      = True
+        else:
+            nav_coord_bl  = False
+            nav_coord_col = False
+            nav_mbl       = True
+            nav_mcol      = False
+    else:
+        nav_coord_bl  = is_admin or is_coord_bl
+        nav_coord_col = is_admin or is_coord_col
+        nav_mbl       = is_maestro_bl
+        nav_mcol      = is_maestro_col
 
     return {
         'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
@@ -44,10 +68,10 @@ def nav_context(request):
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_citas_bl':         is_admin or grp('citas bilingue'),
         'nav_citas_col':        is_admin or grp('citas colegio'),
-        'nav_coord_bl':         is_admin or is_coord_bl,
-        'nav_coord_col':        is_admin or is_coord_col,
-        'nav_maestro_bl':       is_maestro_bl,
-        'nav_maestro_col':      is_maestro_col,
+        'nav_coord_bl':         nav_coord_bl,
+        'nav_coord_col':        nav_coord_col,
+        'nav_maestro_bl':       nav_mbl,
+        'nav_maestro_col':      nav_mcol,
         'nav_es_coord_maestro': es_coord_maestro,
         'nav_modo_maestro':     modo_maestro,
     }

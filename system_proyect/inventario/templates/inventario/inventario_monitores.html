@@ -1,7 +1,7 @@
 {% extends 'inventario/base_inventario.html' %}
 {% load static %}
 {% block title %}Monitores{% endblock %}
-{% block page_pretitle %}Inventario{% endblock %}
+{% block page_pretitle %}Monitores{% endblock %}
 {% block page_title %}Inventario – Monitores{% endblock %}
 {% block nav_monitores %}active{% endblock %}
 
@@ -15,13 +15,53 @@
       <div class="card-body">
         <form method="post" class="row g-3">
           {% csrf_token %}
-          {% for field in form %}
+
           <div class="col-md-6">
-            <label class="form-label">{{ field.label }}</label>
-            {{ field }}
-            {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <label class="form-label fw-semibold">{{ form.asset_id.label }}</label>
+            {{ form.asset_id }}
+            {% for e in form.asset_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
-          {% endfor %}
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.modelo.label }}</label>
+            {{ form.modelo }}
+            {% for e in form.modelo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.serie.label }}</label>
+            {{ form.serie }}
+            {% for e in form.serie.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.ubicacion_tipo.label }}</label>
+            {{ form.ubicacion_tipo }}
+            {% for e in form.ubicacion_tipo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6" id="campo-laboratorio" style="display:none;">
+            <label class="form-label fw-semibold">{{ form.laboratorio.label }}</label>
+            {{ form.laboratorio }}
+            {% for e in form.laboratorio.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6" id="campo-asignado" style="display:none;">
+            <label class="form-label fw-semibold">{{ form.asignado_a.label }}</label>
+            {{ form.asignado_a }}
+            {% for e in form.asignado_a.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.category.label }}</label>
+            {{ form.category }}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">{{ form.observaciones.label }}</label>
+            {{ form.observaciones }}
+          </div>
+
           <div class="col-12">
             <button type="submit" class="btn btn-primary w-100">
               <i class="ti ti-device-floppy me-1"></i> Guardar Monitor
@@ -43,8 +83,8 @@
             <thead>
               <tr>
                 <th>ID</th><th>Asset ID</th><th>Modelo</th><th>Serie</th>
-                <th>Pulgadas</th><th>Asignado a</th><th>Categoría</th>
-                <th>Observaciones</th><th>Acciones</th>
+                <th>Tipo Ubic.</th><th>Laboratorio</th><th>Asignado a</th>
+                <th>Categoría</th><th>Observaciones</th><th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -54,9 +94,10 @@
                 <td>{{ mon.asset_id }}</td>
                 <td>{{ mon.modelo }}</td>
                 <td>{{ mon.serie }}</td>
-                <td>{{ mon.pulgadas }}</td>
-                <td>{{ mon.asignado_a }}</td>
-                <td>{{ mon.categoria }}</td>
+                <td>{{ mon.get_ubicacion_tipo_display|default:"—" }}</td>
+                <td>{{ mon.laboratorio|default:"—" }}</td>
+                <td>{{ mon.asignado_a|default:"—" }}</td>
+                <td>{{ mon.category|default:"—" }}</td>
                 <td>{{ mon.observaciones|default:"—" }}</td>
                 <td>
                   <button class="btn btn-sm btn-ghost-primary editar-monitor" data-id="{{ mon.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
@@ -92,6 +133,29 @@ $(function(){
     pageLength: 10, scrollX: true, order: [[0,'desc']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
+
+  function toggleCampos() {
+    var val = $('#id_ubicacion_tipo').val();
+    if (val === 'laboratorio') {
+      $('#campo-laboratorio').show();
+      $('#campo-asignado').hide();
+      $('#id_laboratorio').prop('disabled', false);
+      $('#id_asignado_a').prop('disabled', true).val('');
+    } else if (val === 'persona') {
+      $('#campo-laboratorio').hide();
+      $('#campo-asignado').show();
+      $('#id_asignado_a').prop('disabled', false);
+      $('#id_laboratorio').prop('disabled', true).val('');
+    } else {
+      $('#campo-laboratorio').hide();
+      $('#campo-asignado').hide();
+      $('#id_laboratorio').prop('disabled', true).val('');
+      $('#id_asignado_a').prop('disabled', true).val('');
+    }
+  }
+
+  $('#id_ubicacion_tipo').on('change', toggleCampos);
+  toggleCampos();
 });
 </script>
 <script src="{% static 'inventario/js/monitores_edit.js' %}"></script>

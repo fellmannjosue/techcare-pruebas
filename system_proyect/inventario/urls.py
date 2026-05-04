@@ -22,6 +22,7 @@ urlpatterns = [
     path("monitores/", views.inventario_monitores, name="inventario_monitores"),
 
     path("registros/", views.inventario_registros, name="inventario_registros"),
+    path("registros/excel/<str:categoria>/", views.exportar_excel_inventario, name="exportar_excel"),
 
     # ---------------------------------------------------------
     # PDF + QR

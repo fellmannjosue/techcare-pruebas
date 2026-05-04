@@ -1,7 +1,7 @@
 {% extends 'inventario/base_inventario.html' %}
 {% load static %}
 {% block title %}Registros{% endblock %}
-{% block page_pretitle %}Inventario{% endblock %}
+{% block page_pretitle %}Registros{% endblock %}
 {% block page_title %}Registros de Inventario{% endblock %}
 {% block nav_registros %}active{% endblock %}
 
@@ -24,6 +24,11 @@
   <div class="card-body tab-content p-0">
 
     <div class="tab-pane fade show active p-3" id="tabComputadoras">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'computadoras' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaComputadoras" class="table table-vcenter table-hover">
           <thead><tr>
@@ -49,6 +54,11 @@
     </div>
 
     <div class="tab-pane fade p-3" id="tabImpresoras">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'impresoras' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaImpresoras" class="table table-vcenter table-hover">
           <thead><tr>
@@ -73,6 +83,11 @@
     </div>
 
     <div class="tab-pane fade p-3" id="tabTelevisores">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'televisores' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaTelevisores" class="table table-vcenter table-hover">
           <thead><tr>
@@ -97,6 +112,11 @@
     </div>
 
     <div class="tab-pane fade p-3" id="tabRouters">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'routers' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaRouters" class="table table-vcenter table-hover">
           <thead><tr>
@@ -121,6 +141,11 @@
     </div>
 
     <div class="tab-pane fade p-3" id="tabDataShows">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'datashows' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaDataShows" class="table table-vcenter table-hover">
           <thead><tr>
@@ -145,6 +170,11 @@
     </div>
 
     <div class="tab-pane fade p-3" id="tabMonitores">
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{% url 'inventario:exportar_excel' 'monitores' %}" class="btn btn-sm btn-success">
+          <i class="ti ti-file-spreadsheet me-1"></i> Descargar Excel
+        </a>
+      </div>
       <div class="table-responsive">
         <table id="tablaMonitores" class="table table-vcenter table-hover">
           <thead><tr>

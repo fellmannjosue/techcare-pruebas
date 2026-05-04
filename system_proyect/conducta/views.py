@@ -1864,7 +1864,7 @@ def _docentes_de_coord(codigo):
 @login_required
 def dashboard_c1(request):
     qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
-    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+    qs_cond = ReporteConductual.objects.none()
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     reportes_nuevos_bl = (
@@ -1906,7 +1906,7 @@ def dashboard_c3(request):
 @login_required
 def dashboard_c4(request):
     qs_info = ReporteInformativo.objects.filter(area='bilingue', materia__icontains='math')
-    qs_cond = ReporteConductual.objects.filter(area='bilingue', materia__icontains='math')
+    qs_cond = ReporteConductual.objects.none()
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -2092,26 +2092,43 @@ def directorio_telefonos(request):
       ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, Nombre
     """
 
-    def _wa(tel):
-        digits = ''.join(c for c in (tel or '') if c.isdigit())
-        if not digits:
-            return ''
-        if not digits.startswith('504'):
-            digits = '504' + digits
-        return f'https://wa.me/{digits}'
+    import re as _re
+
+    def _moviles(campo1, campo2):
+        # Extrae (numero_8_digitos, label_pariente) de un campo de texto.
+        # Soporta formatos como "9876-5217 mamá", "8963-1182 papá", "9876/8765".
+        def _extraer(texto):
+            resultado = []
+            patron = r'(?:504[-\s]?)?(\d{4})[-\s./]?(\d{4})\s*([a-zA-ZÀ-ɏ]*)'
+            for m in _re.finditer(patron, texto or ''):
+                num = m.group(1) + m.group(2)
+                label = m.group(3).strip().lower()
+                if len(num) == 8 and not num.startswith('2'):
+                    resultado.append((num, label))
+            return resultado
+
+        vistos = set()
+        resultado = []
+        for num, label in _extraer(campo1) + _extraer(campo2):
+            if num not in vistos:
+                vistos.add(num)
+                resultado.append({
+                    'num':   f'{num[:4]}-{num[4:]}',
+                    'wa':    f'https://wa.me/504{num}',
+                    'label': label,
+                })
+        return resultado
 
     alumnos = []
     try:
         with connections['padres_sqlserver'].cursor() as cursor:
             cursor.execute(sql)
             for nombre, area, crso, grupo, tel1, tel2 in cursor.fetchall():
+                moviles = _moviles(tel1.strip(), tel2.strip())
                 alumnos.append({
-                    'nombre': nombre.strip(),
-                    'grado':  f'{area} {crso}-{grupo}',
-                    'tel1':   tel1.strip(),
-                    'tel2':   tel2.strip(),
-                    'wa1':    _wa(tel1),
-                    'wa2':    _wa(tel2),
+                    'nombre':  nombre.strip(),
+                    'grado':   f'{area} {crso}-{grupo}',
+                    'moviles': moviles,
                 })
     except Exception:
         alumnos = []

@@ -1,47 +1,47 @@
 <form id="form-edit-televisor">
     {% csrf_token %}
-
-    <!-- ID del registro -->
     <input type="hidden" id="televisor-id" name="id" value="{{ obj.id }}">
 
     <div class="row g-3">
 
         <div class="col-md-6">
-            <label>{{ form.asset_id.label }}</label>
-            {{ form.asset_id }}
+            <label class="form-label fw-semibold">ID Televisor</label>
+            <input type="text" class="form-control bg-light text-muted" value="{{ obj.asset_id }}" readonly>
         </div>
 
         <div class="col-md-6">
-            <label>{{ form.modelo.label }}</label>
+            <label class="form-label fw-semibold">{{ form.modelo.label }}</label>
             {{ form.modelo }}
         </div>
 
         <div class="col-md-6">
-            <label>{{ form.serie.label }}</label>
-            {{ form.serie }}
+            <label class="form-label fw-semibold">Serie</label>
+            <input type="text" class="form-control bg-light text-muted" value="{{ obj.serie }}" readonly>
         </div>
 
         <div class="col-md-6">
-            <label>{{ form.ip.label }}</label>
-            {{ form.ip }}
+            <label class="form-label fw-semibold">IP</label>
+            <input type="text" class="form-control bg-light text-muted" value="{{ obj.ip }}" readonly>
         </div>
 
         <div class="col-md-6">
-            <label>{{ form.grado.label }}</label>
+            <label class="form-label fw-semibold">{{ form.grado.label }}</label>
             {{ form.grado }}
         </div>
 
         <div class="col-md-6">
-            <label>{{ form.area.label }}</label>
+            <label class="form-label fw-semibold">{{ form.area.label }}</label>
             {{ form.area }}
         </div>
 
         <div class="col-12">
-            <label>{{ form.observaciones.label }}</label>
+            <label class="form-label fw-semibold">{{ form.observaciones.label }}</label>
             {{ form.observaciones }}
         </div>
 
     </div>
 
-    <button type="submit" class="btn btn-primary w-100 mt-3">Guardar Cambios</button>
+    <button type="submit" class="btn btn-primary w-100 mt-3">
+        <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+    </button>
 </form>

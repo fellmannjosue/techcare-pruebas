@@ -47,10 +47,16 @@ def _materias_para_grado(grado_obj):
     return _MATERIAS_MAP.get(grado_obj.tipo_materias, MATERIAS_PRIMARIA)
 
 
-def _areas_para_usuario(user):
+def _areas_para_usuario(user, request=None):
     """Devuelve la lista de areas que el usuario puede ver, o None si ve todo."""
     if user.is_superuser:
         return None
+    # Coord-maestro con área seleccionada en sesión
+    if request and _es_coord_maestro(user) and request.session.get("agenda_modo_maestro"):
+        area = request.session.get("agenda_area_maestro", "bilingue")
+        if area == "colegio":
+            return ["colegio"]
+        return ["primaria", "colegio_bl"]
     if user.groups.filter(name='coordinador_bilingue').exists():
         return ['primaria', 'colegio_bl']
     if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
@@ -120,7 +126,7 @@ def form_agenda(request):
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
 
-    areas = _areas_para_usuario(request.user)
+    areas = _areas_para_usuario(request.user, request)
     grados_qs = GradoAgenda.objects.filter(activo=True)
     if areas is not None:
         grados_qs = grados_qs.filter(area__in=areas)
@@ -343,7 +349,7 @@ def editar_agenda(request, pk):
 def historial_maestro(request):
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
-    areas = _areas_para_usuario(request.user)
+    areas = _areas_para_usuario(request.user, request)
     agendas_qs = Agenda.objects.select_related('grado', 'usuario').order_by('-semana_inicio', 'grado__nombre')
     if areas is not None:
         agendas_qs = agendas_qs.filter(grado__area__in=areas)
@@ -358,7 +364,7 @@ def historial_maestro(request):
 def dashboard_coordinador(request):
     if not _es_coordinador(request.user):
         return HttpResponseForbidden()
-    areas = _areas_para_usuario(request.user)
+    areas = _areas_para_usuario(request.user, request)
     agendas_qs = Agenda.objects.select_related('grado', 'usuario').order_by('-semana_inicio', 'grado__nombre')
     if areas is not None:
         agendas_qs = agendas_qs.filter(grado__area__in=areas)

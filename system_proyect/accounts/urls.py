@@ -11,6 +11,7 @@ urlpatterns = [
     path('reenviar-bienvenida/', views.reenviar_bienvenida, name='reenviar_bienvenida'),
     path('menu/', views.menu_view, name='menu'),
     path('seleccion-rol/', views.seleccion_rol, name='seleccion_rol'),
+    path('aplicar-rol/<str:rol>/', views.aplicar_rol, name='aplicar_rol'),
 
     # Notificaciones para dashboard
   

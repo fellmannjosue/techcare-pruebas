@@ -7,7 +7,56 @@ from .models import (
     Impresora,
     Router,
     DataShow,
+    ModeloTelevisor,
+    GradoTelevisor,
+    AreaTelevisor,
+    ModeloComputadora,
+    SerieComputadora,
+    AsignadoAComputadora,
+    AreaComputadora,
+    GradoComputadora,
 )
+
+try:
+    from unfold.admin import ModelAdmin as UnfoldModelAdmin
+except ImportError:
+    UnfoldModelAdmin = admin.ModelAdmin
+
+def _catalogo_admin(nombre_desc):
+    """Factory para admins simples de catálogos de computadora."""
+    def inner(cls):
+        cls.list_display  = ('nombre',)
+        cls.search_fields = ('nombre',)
+        cls.ordering      = ('nombre',)
+        cls.fieldsets = ((None, {"fields": ("nombre",), "description": nombre_desc}),)
+        return cls
+    return inner
+
+
+@admin.register(ModeloComputadora)
+@_catalogo_admin("Modelos disponibles (ej: HP EliteBook, Dell Latitude, Lenovo ThinkPad).")
+class ModeloComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(SerieComputadora)
+@_catalogo_admin("Series disponibles (ej: Core i5 10ma Gen, Core i7 12va Gen, Ryzen 5).")
+class SerieComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(AsignadoAComputadora)
+@_catalogo_admin("Personas o departamentos a los que se asignan computadoras.")
+class AsignadoAComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(AreaComputadora)
+@_catalogo_admin("Áreas disponibles (ej: Bilingüe, Colegio, Administración).")
+class AreaComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(GradoComputadora)
+@_catalogo_admin("Grados o ubicaciones disponibles (ej: Kinder, Primero 1, Sala de Maestros).")
+class GradoComputadoraAdmin(UnfoldModelAdmin): pass
+
 
 @admin.register(InventoryItem)
 class InventoryItemAdmin(AuditAdminMixin):
@@ -25,6 +74,45 @@ class ComputadoraAdmin(AuditAdminMixin):
 class TelevisorAdmin(AuditAdminMixin):
     list_display = ('asset_id', 'modelo', 'serie', 'ip', 'grado', 'area')
     search_fields = ('asset_id', 'modelo', 'serie', 'ip', 'grado', 'area')
+
+
+@admin.register(ModeloTelevisor)
+class ModeloTelevisorAdmin(UnfoldModelAdmin):
+    list_display   = ('nombre',)
+    search_fields  = ('nombre',)
+    ordering       = ('nombre',)
+    fieldsets = (
+        (None, {
+            "fields": ("nombre",),
+            "description": "Modelos disponibles para televisores (ej: Samsung 55\", LG 43\").",
+        }),
+    )
+
+
+@admin.register(GradoTelevisor)
+class GradoTelevisorAdmin(UnfoldModelAdmin):
+    list_display  = ('nombre',)
+    search_fields = ('nombre',)
+    ordering      = ('nombre',)
+    fieldsets = (
+        (None, {
+            "fields": ("nombre",),
+            "description": "Grados disponibles (ej: Kinder, Primero 1, Segundo 2).",
+        }),
+    )
+
+
+@admin.register(AreaTelevisor)
+class AreaTelevisorAdmin(UnfoldModelAdmin):
+    list_display  = ('nombre',)
+    search_fields = ('nombre',)
+    ordering      = ('nombre',)
+    fieldsets = (
+        (None, {
+            "fields": ("nombre",),
+            "description": "Áreas disponibles (ej: Bilingüe, Colegio, Vocacional).",
+        }),
+    )
 
 
 @admin.register(Impresora)

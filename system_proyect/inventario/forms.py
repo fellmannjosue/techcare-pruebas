@@ -9,6 +9,14 @@ from .models import (
     Router,
     DataShow,
     Monitor,
+    ModeloTelevisor,
+    GradoTelevisor,
+    AreaTelevisor,
+    ModeloComputadora,
+    SerieComputadora,
+    AsignadoAComputadora,
+    AreaComputadora,
+    GradoComputadora,
 )
 
 # Form para crear o actualizar un ítem de inventario genérico
@@ -25,55 +33,80 @@ class InventoryItemForm(forms.ModelForm):
 
 
 # Formulario para computadoras
+# asset_id e ip se asignan automáticamente en la vista al crear.
+# ip es editable manualmente en el modal de edición (campo manual fuera del form).
 class ComputadoraForm(forms.ModelForm):
+    modelo     = forms.ChoiceField(label="Modelo",      choices=[], widget=forms.Select(attrs={'class': 'form-select'}))
+    asignado_a = forms.ChoiceField(label="Asignado a",  choices=[], widget=forms.Select(attrs={'class': 'form-select'}))
+    area       = forms.ChoiceField(label="Área",        choices=[], widget=forms.Select(attrs={'class': 'form-select'}))
+    grado      = forms.ChoiceField(label="Grado",       choices=[], widget=forms.Select(attrs={'class': 'form-select'}))
+    category   = forms.ChoiceField(label="Categoría",   choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+
     class Meta:
-        model = Computadora
-        fields = [
-            'asset_id',        # Identificador único asignado al equipo
-            'modelo',          # Modelo del equipo
-            'serie',           # Número de serie del hardware
-            'ip',              # Dirección IP asignada
-            'asignado_a',      # Persona o departamento al que está asignado
-            'area',            # Área física o departamento
-            'grado',           # Grado o ubicación académica (si aplica)
-            'fecha_instalado', # Fecha en que se instaló o registró el equipo
-            'observaciones',   # Observaciones adicionales
-        ]
+        model  = Computadora
+        fields = ['modelo', 'asignado_a', 'area', 'grado', 'fecha_instalado', 'observaciones', 'category']
         widgets = {
-            'asset_id':        forms.TextInput(attrs={'class': 'form-control'}),
-            'modelo':          forms.TextInput(attrs={'class': 'form-control'}),
-            'serie':           forms.TextInput(attrs={'class': 'form-control'}),
-            'ip':              forms.TextInput(attrs={'class': 'form-control'}),
-            'asignado_a':      forms.TextInput(attrs={'class': 'form-control'}),
-            'area':            forms.TextInput(attrs={'class': 'form-control'}),
-            'grado':           forms.TextInput(attrs={'class': 'form-control'}),
             'fecha_instalado': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'observaciones':   forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['modelo'].choices     = [('', '— Modelo —')]     + [(m.nombre, m.nombre) for m in ModeloComputadora.objects.all()]
+        self.fields['asignado_a'].choices = [('', '— Asignado a —')] + [(a.nombre, a.nombre) for a in AsignadoAComputadora.objects.all()]
+        self.fields['area'].choices       = [('', '— Área —')]       + [(a.nombre, a.nombre) for a in AreaComputadora.objects.all()]
+        self.fields['grado'].choices      = [('', '— Grado —')]      + [(g.nombre, g.nombre) for g in GradoComputadora.objects.all()]
+        self.fields['category'].choices   = [('', '— Categoría —')]  + list(InventoryItem.CATEGORY_CHOICES)
+        if self.instance and self.instance.pk:
+            self.fields['modelo'].initial     = self.instance.modelo
+            self.fields['asignado_a'].initial = self.instance.asignado_a
+            self.fields['area'].initial       = self.instance.area
+            self.fields['grado'].initial      = self.instance.grado
+            self.fields['category'].initial   = self.instance.category
+
 
 # Formulario para televisores
+# asset_id, serie e ip se generan/fijan automáticamente en la vista.
 class TelevisorForm(forms.ModelForm):
+    modelo = forms.ChoiceField(
+        label="Modelo",
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    grado = forms.ChoiceField(
+        label="Grado",
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    area = forms.ChoiceField(
+        label="Área",
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
     class Meta:
-        model = Televisor
-        fields = [
-            'asset_id',     # ID único del televisor
-            'modelo',       # Modelo del televisor
-            'serie',        # Número de serie
-            'ip',           # IP (si aplica)
-            'grado',        # Ubicación académica
-            'area',         # Área física
-            'observaciones',# Observaciones
-        ]
+        model  = Televisor
+        fields = ['modelo', 'grado', 'area', 'observaciones']
         widgets = {
-            'asset_id':      forms.TextInput(attrs={'class': 'form-control'}),
-            'modelo':        forms.TextInput(attrs={'class': 'form-control'}),
-            'serie':         forms.TextInput(attrs={'class': 'form-control'}),
-            'ip':            forms.TextInput(attrs={'class': 'form-control'}),
-            'grado':         forms.TextInput(attrs={'class': 'form-control'}),
-            'area':          forms.TextInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['modelo'].choices = [('', '— Seleccione modelo —')] + [
+            (m.nombre, m.nombre) for m in ModeloTelevisor.objects.all()
+        ]
+        self.fields['grado'].choices = [('', '— Seleccione grado —')] + [
+            (g.nombre, g.nombre) for g in GradoTelevisor.objects.all()
+        ]
+        self.fields['area'].choices = [('', '— Seleccione área —')] + [
+            (a.nombre, a.nombre) for a in AreaTelevisor.objects.all()
+        ]
+        # Si es instancia existente, preseleccionar el valor actual
+        if self.instance and self.instance.pk:
+            self.fields['modelo'].initial = self.instance.modelo
+            self.fields['grado'].initial  = self.instance.grado
+            self.fields['area'].initial   = self.instance.area
 
 
 # Formulario para impresoras
@@ -288,8 +321,8 @@ class MonitorForm(forms.ModelForm):
 
             "ubicacion_tipo": forms.Select(attrs={"class": "form-select"}),
 
-            "laboratorio": forms.TextInput(attrs={"class": "form-control", "disabled": True}),
-            "asignado_a": forms.TextInput(attrs={"class": "form-control", "disabled": True}),
+            "laboratorio": forms.TextInput(attrs={"class": "form-control"}),
+            "asignado_a": forms.TextInput(attrs={"class": "form-control"}),
 
             "observaciones": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "category": forms.Select(attrs={"class": "form-select"}),

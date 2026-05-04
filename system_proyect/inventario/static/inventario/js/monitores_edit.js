@@ -12,7 +12,7 @@ $(document).ready(function () {
 
         $("#modalEditarMonitor").modal("show");
 
-        $.get(`/inventario/monitor/edit/${id}/`, function (html) {
+        $.get(`/inventario/monitor/get/${id}/`, function (html) {
             $("#modal-monitor-body").html(html);
         });
     });
@@ -22,7 +22,7 @@ $(document).ready(function () {
 
         let id = $("#monitor-id").val();
 
-        $.post(`/inventario/monitor/edit/${id}/`, $(this).serialize(), function (resp) {
+        $.post(`/inventario/monitor/update/${id}/`, $(this).serialize(), function (resp) {
             resp.ok
                 ? Swal.fire("Actualizado", "Monitor actualizado.", "success").then(() => location.reload())
                 : Swal.fire("Error", "Corrige los datos.", "error");
@@ -38,7 +38,7 @@ $(document).ready(function () {
             showCancelButton: true
         }).then((r) => {
             if (r.isConfirmed) {
-                $.post(`/inventario/monitor/delete/${id}/`, function () {
+                $.post(`/inventario/monitor/delete/${id}/`, { csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').first().val() }, function () {
                     Swal.fire("Eliminado", "Registro eliminado.", "success")
                         .then(() => location.reload());
                 });

@@ -24,6 +24,51 @@ class InventoryItem(AuditModel):
         return f"{self.category} - {self.details}"
 
 
+class ModeloComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Modelo de Computadora"
+        verbose_name_plural = "Modelos de Computadora"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
+class SerieComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Serie de Computadora"
+        verbose_name_plural = "Series de Computadora"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
+class AsignadoAComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Asignado a (Computadora)"
+        verbose_name_plural = "Asignados a (Computadora)"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
+class AreaComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Área (Computadora)"
+        verbose_name_plural = "Áreas (Computadora)"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
+class GradoComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Grado (Computadora)"
+        verbose_name_plural = "Grados (Computadora)"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
 class Computadora(AuditModel):
     asset_id        = models.CharField("ID Computadora", max_length=50, unique=True)
     modelo          = models.CharField("Modelo", max_length=100)
@@ -54,6 +99,42 @@ class Computadora(AuditModel):
     def __str__(self):
         return f"{self.asset_id} – {self.modelo}"
 
+
+
+class ModeloTelevisor(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name        = "Modelo de Televisor"
+        verbose_name_plural = "Modelos de Televisor"
+        ordering            = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class GradoTelevisor(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name        = "Grado (Televisor)"
+        verbose_name_plural = "Grados (Televisor)"
+        ordering            = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class AreaTelevisor(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name        = "Área (Televisor)"
+        verbose_name_plural = "Áreas (Televisor)"
+        ordering            = ['nombre']
+
+    def __str__(self):
+        return self.nombre
 
 
 class Televisor(AuditModel):

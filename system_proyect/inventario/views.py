@@ -21,7 +21,10 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.units import cm
 
 from .models import (
-    Computadora, Televisor, Impresora, Router, DataShow, Monitor
+    Computadora, Televisor, Impresora, Router, DataShow, Monitor,
+    ModeloTelevisor, GradoTelevisor, AreaTelevisor,
+    ModeloComputadora, SerieComputadora, AsignadoAComputadora,
+    AreaComputadora, GradoComputadora,
 )
 
 from .forms import (
@@ -111,22 +114,41 @@ def inventario_por_categoria(request):
 # INVENTARIOS (CREATE + LIST)
 # ==============================================================
 
+def _siguiente_asset_id_computadora():
+    prefix = 'IDANACOMP'
+    ultimo = Computadora.objects.filter(
+        asset_id__startswith=prefix
+    ).order_by('-asset_id').values_list('asset_id', flat=True).first()
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
 @login_required
 def inventario_computadoras(request):
-    year = datetime.datetime.now().year
-
     if request.method == "POST":
         form = ComputadoraForm(request.POST)
         if form.is_valid():
-            form.save()
+            comp = form.save(commit=False)
+            comp.asset_id = _siguiente_asset_id_computadora()
+            ip_post = request.POST.get('ip', '').strip()
+            comp.ip = ip_post if ip_post and ip_post != '0.0.0.0' else '0.0.0.0'
+            serie_post = request.POST.get('serie', '').strip()
+            comp.serie = serie_post if serie_post and serie_post != '—' else ''
+            comp.save()
             return redirect("inventario:inventario_computadoras")
     else:
         form = ComputadoraForm()
 
     return render(request, "inventario/inventario_computadoras.html", {
-        "form": form,
-        "year": year,
-        "computadoras": Computadora.objects.order_by("-id")
+        "form":         form,
+        "next_id":      _siguiente_asset_id_computadora(),
+        "computadoras": Computadora.objects.order_by("-id"),
     })
 
 
@@ -149,22 +171,39 @@ def computadoras_list(request):
     })
 
 
+def _siguiente_asset_id_televisor():
+    prefix = 'IDANATV'
+    ultimo = Televisor.objects.filter(
+        asset_id__startswith=prefix
+    ).order_by('-asset_id').values_list('asset_id', flat=True).first()
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
 @login_required
 def inventario_televisores(request):
-    year = datetime.datetime.now().year
-
     if request.method == "POST":
         form = TelevisorForm(request.POST)
         if form.is_valid():
-            form.save()
+            tv = form.save(commit=False)
+            tv.asset_id = _siguiente_asset_id_televisor()
+            tv.serie    = 'Pendiente'
+            tv.ip       = '0.0.0.0'
+            tv.save()
             return redirect("inventario:inventario_televisores")
     else:
         form = TelevisorForm()
 
     return render(request, "inventario/inventario_televisores.html", {
-        "form": form,
-        "year": year,
-        "televisores": Televisor.objects.order_by("-id")
+        "form":       form,
+        "next_id":    _siguiente_asset_id_televisor(),
+        "televisores": Televisor.objects.order_by("-id"),
     })
 
 
@@ -311,7 +350,14 @@ def update_computadora(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
     form = ComputadoraForm(request.POST, instance=obj)
     if form.is_valid():
-        form.save()
+        comp = form.save(commit=False)
+        new_ip = request.POST.get('ip', '').strip()
+        if new_ip:
+            comp.ip = new_ip
+        new_serie = request.POST.get('serie', '').strip()
+        if new_serie:
+            comp.serie = new_serie
+        comp.save()
         return JsonResponse({"ok": True})
     return JsonResponse({"ok": False, "errors": form.errors})
 
@@ -533,3 +579,87 @@ def download_model_pdf(request, tipo, pk):
     buffer.seek(0)
 
     return HttpResponse(buffer.read(), content_type="application/pdf")
+
+
+# ===================== EXPORTAR EXCEL =====================
+@login_required
+def exportar_excel_inventario(request, categoria):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+    header_font = Font(bold=True, color="FFFFFF")
+    center = Alignment(horizontal="center", vertical="center")
+
+    def estilizar_cabecera(ws, cols):
+        ws.append(cols)
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+        ws.row_dimensions[1].height = 22
+
+    if categoria == 'computadoras':
+        ws.title = "Computadoras"
+        estilizar_cabecera(ws, ["Asset ID", "Modelo", "Serie", "IP", "Asignado a", "Área", "Grado", "Grupo", "Fecha Instalación", "Observaciones"])
+        for c in Computadora.objects.all().order_by('asset_id'):
+            ws.append([c.asset_id, c.modelo, c.serie, c.ip, c.asignado_a, c.area, c.grado,
+                        c.grupo or '', str(c.fecha_instalado) if c.fecha_instalado else '', c.observaciones or ''])
+
+    elif categoria == 'impresoras':
+        ws.title = "Impresoras"
+        estilizar_cabecera(ws, ["Asset ID", "Nombre", "Modelo", "Serie", "Asignado a", "Nivel Tinta", "Última vez llenado", "Cant. Impresiones", "A Color", "Observaciones"])
+        for i in Impresora.objects.all().order_by('asset_id'):
+            ws.append([i.asset_id, i.nombre, i.modelo, i.serie, i.asignado_a, i.nivel_tinta,
+                        str(i.ultima_vez_llenado) if i.ultima_vez_llenado else '', i.cantidad_impresiones,
+                        'Sí' if i.a_color else 'No', i.observaciones or ''])
+
+    elif categoria == 'televisores':
+        ws.title = "Televisores"
+        estilizar_cabecera(ws, ["Asset ID", "Modelo", "Serie", "IP", "Grado", "Área", "Observaciones"])
+        for t in Televisor.objects.all().order_by('asset_id'):
+            ws.append([t.asset_id, t.modelo, t.serie, t.ip, t.grado, t.area, t.observaciones or ''])
+
+    elif categoria == 'routers':
+        ws.title = "Routers"
+        estilizar_cabecera(ws, ["Asset ID", "Modelo", "Serie", "Nombre Router", "IP Asignada", "IP Uso", "Ubicado", "Observaciones"])
+        for r in Router.objects.all().order_by('asset_id'):
+            ws.append([r.asset_id, r.modelo, r.serie, r.nombre_router, r.ip_asignada, r.ip_uso, r.ubicado, r.observaciones or ''])
+
+    elif categoria == 'datashows':
+        ws.title = "DataShows"
+        estilizar_cabecera(ws, ["Asset ID", "Nombre", "Modelo", "Serie", "Estado", "Cable Corriente", "HDMI", "VGA", "Extensión", "Observaciones"])
+        for d in DataShow.objects.all().order_by('asset_id'):
+            ws.append([d.asset_id, d.nombre, d.modelo, d.serie, d.estado,
+                        'Sí' if d.cable_corriente else 'No', 'Sí' if d.hdmi else 'No',
+                        'Sí' if d.vga else 'No', 'Sí' if d.extension else 'No', d.observaciones or ''])
+
+    elif categoria == 'monitores':
+        ws.title = "Monitores"
+        estilizar_cabecera(ws, ["Asset ID", "Modelo", "Serie", "Tipo Ubicación", "Laboratorio", "Asignado a", "Observaciones"])
+        for m in Monitor.objects.all().order_by('asset_id'):
+            ws.append([m.asset_id, m.modelo, m.serie,
+                        m.get_ubicacion_tipo_display() if m.ubicacion_tipo else '',
+                        m.laboratorio or '', m.asignado_a or '', m.observaciones or ''])
+    else:
+        return HttpResponse("Categoría no válida", status=400)
+
+    # Ajustar anchos de columna automáticamente
+    for col in ws.columns:
+        max_len = max((len(str(cell.value)) if cell.value else 0) for cell in col)
+        ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 40)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="inventario_{categoria}.xlsx"'
+    return response

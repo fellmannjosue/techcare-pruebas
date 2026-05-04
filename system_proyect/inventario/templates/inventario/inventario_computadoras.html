@@ -1,7 +1,7 @@
 {% extends 'inventario/base_inventario.html' %}
 {% load static %}
 {% block title %}Computadoras{% endblock %}
-{% block page_pretitle %}Inventario{% endblock %}
+{% block page_pretitle %}Computadoras{% endblock %}
 {% block page_title %}Inventario – Computadoras{% endblock %}
 {% block nav_computadoras %}active{% endblock %}
 
@@ -23,15 +23,84 @@
       <div class="card-body">
         <form method="post" novalidate class="row g-3">
           {% csrf_token %}
-          <div class="col-md-6"><label class="form-label">Asset ID</label>{{ form.asset_id }}</div>
-          <div class="col-md-6"><label class="form-label">Modelo</label>{{ form.modelo }}</div>
-          <div class="col-md-6"><label class="form-label">Serie</label>{{ form.serie }}</div>
-          <div class="col-md-6"><label class="form-label">IP</label>{{ form.ip }}</div>
-          <div class="col-md-6"><label class="form-label">Asignado a</label>{{ form.asignado_a }}</div>
-          <div class="col-md-6"><label class="form-label">Área</label>{{ form.area }}</div>
-          <div class="col-md-6"><label class="form-label">Grado</label>{{ form.grado }}</div>
-          <div class="col-md-6"><label class="form-label">Fecha Instalado</label>{{ form.fecha_instalado }}</div>
-          <div class="col-12"><label class="form-label">Observaciones</label>{{ form.observaciones }}</div>
+
+          {# Asset ID auto-generado #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Asset ID</label>
+            <input type="text" class="form-control bg-light text-muted" value="{{ next_id }}" readonly>
+          </div>
+
+          {# Modelo — dropdown #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.modelo.label }}</label>
+            {{ form.modelo }}
+            {% for e in form.modelo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# Serie — display only con checkbox para habilitar #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold d-flex align-items-center gap-2">
+              Serie
+              <span class="form-check form-check-inline mb-0 ms-1">
+                <input class="form-check-input" type="checkbox" id="chk-serie">
+                <label class="form-check-label fw-normal text-muted small" for="chk-serie">Ingresar ahora</label>
+              </span>
+            </label>
+            <input type="text" id="input-serie" name="serie" class="form-control bg-light text-muted" value="—" readonly>
+          </div>
+
+          {# IP — display only con checkbox para habilitar #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold d-flex align-items-center gap-2">
+              IP
+              <span class="form-check form-check-inline mb-0 ms-1">
+                <input class="form-check-input" type="checkbox" id="chk-ip">
+                <label class="form-check-label fw-normal text-muted small" for="chk-ip">Ingresar ahora</label>
+              </span>
+            </label>
+            <input type="text" id="input-ip" name="ip" class="form-control bg-light text-muted" value="0.0.0.0" readonly>
+          </div>
+
+          {# Asignado a — dropdown #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.asignado_a.label }}</label>
+            {{ form.asignado_a }}
+            {% for e in form.asignado_a.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# Área — dropdown #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.area.label }}</label>
+            {{ form.area }}
+            {% for e in form.area.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# Grado — dropdown #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.grado.label }}</label>
+            {{ form.grado }}
+            {% for e in form.grado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# Fecha instalado #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.fecha_instalado.label }}</label>
+            {{ form.fecha_instalado }}
+            {% for e in form.fecha_instalado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          {# Categoría — dropdown #}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ form.category.label }}</label>
+            {{ form.category }}
+          </div>
+
+          {# Observaciones #}
+          <div class="col-12">
+            <label class="form-label fw-semibold">{{ form.observaciones.label }}</label>
+            {{ form.observaciones }}
+          </div>
+
           <div class="col-12">
             <button type="submit" class="btn btn-primary w-100">
               <i class="ti ti-device-floppy me-1"></i> Guardar Computadora
@@ -54,7 +123,7 @@
               <tr>
                 <th>ID</th><th>Asset ID</th><th>Modelo</th><th>Serie</th><th>IP</th>
                 <th>Asignado a</th><th>Área</th><th>Grado</th><th>Fecha Inst.</th>
-                <th>Observaciones</th><th>Acciones</th>
+                <th>Categoría</th><th>Observaciones</th><th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -64,7 +133,8 @@
                 <td>{{ pc.serie }}</td><td>{{ pc.ip }}</td><td>{{ pc.asignado_a }}</td>
                 <td>{{ pc.area }}</td><td>{{ pc.grado }}</td>
                 <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
-                <td>{{ pc.observaciones }}</td>
+                <td>{{ pc.category|default:"—" }}</td>
+                <td>{{ pc.observaciones|default:"—" }}</td>
                 <td>
                   <button class="btn btn-sm btn-ghost-primary editar-computadora" data-id="{{ pc.id }}" title="Editar">
                     <i class="ti ti-pencil"></i>
@@ -106,4 +176,23 @@ $(function(){
 });
 </script>
 <script src="{% static 'inventario/js/computadoras_edit.js' %}"></script>
+<script>
+$('#chk-serie').on('change', function(){
+  var inp = $('#input-serie');
+  if ($(this).is(':checked')) {
+    inp.removeClass('bg-light text-muted').prop('readonly', false).val('').focus();
+  } else {
+    inp.addClass('bg-light text-muted').prop('readonly', true).val('—');
+  }
+});
+
+$('#chk-ip').on('change', function(){
+  var inp = $('#input-ip');
+  if ($(this).is(':checked')) {
+    inp.removeClass('bg-light text-muted').prop('readonly', false).val('').focus();
+  } else {
+    inp.addClass('bg-light text-muted').prop('readonly', true).val('0.0.0.0');
+  }
+});
+</script>
 {% endblock %}

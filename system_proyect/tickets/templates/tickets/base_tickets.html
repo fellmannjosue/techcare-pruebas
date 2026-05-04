@@ -52,7 +52,12 @@
       <div class="container-xl">
         <div class="row g-2 align-items-center">
           <div class="col">
-            <div class="page-pretitle">{% block page_pretitle %}Tickets{% endblock %}</div>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
+                <li class="breadcrumb-item active">{% block page_pretitle %}Tickets{% endblock %}</li>
+              </ol>
+            </nav>
             <h2 class="page-title">{% block page_title %}Panel Técnico{% endblock %}</h2>
           </div>
           {% block page_actions %}{% endblock %}
