@@ -1,0 +1,117 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Grupos{% endblock %}
+
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-users-group me-2 text-purple"></i>Gestión de Grupos</h3>
+    <div class="card-options">
+      <a href="{% url 'settings_grupo_crear' %}" class="btn btn-sm btn-success">
+        <i class="ti ti-plus me-1"></i>Nuevo grupo
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Nombre del grupo</th>
+            <th class="text-center">Usuarios asignados</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grupos %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar avatar-sm bg-purple-lt text-purple">
+                  <i class="ti ti-users-group"></i>
+                </span>
+                <div class="fw-semibold">{{ g.name }}</div>
+              </div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-blue-lt text-blue fs-6 px-3">
+                {{ g.user_set.count }} usuario{{ g.user_set.count|pluralize }}
+              </span>
+            </td>
+            <td class="text-center">
+              <a href="{% url 'settings_grupo_editar' g.pk %}"
+                 class="btn btn-sm btn-ghost-primary" title="Editar nombre">
+                <i class="ti ti-edit"></i>
+              </a>
+              <button class="btn btn-sm btn-ghost-danger btn-del-grupo"
+                      data-pk="{{ g.pk }}"
+                      data-nombre="{{ g.name }}"
+                      title="Eliminar grupo">
+                <i class="ti ti-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="3" class="text-center text-muted py-5">
+              <i class="ti ti-users-off fs-2 d-block mb-2 opacity-50"></i>
+              No hay grupos creados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer text-muted small">
+    {{ grupos|length }} grupo{{ grupos|length|pluralize }}
+  </div>
+</div>
+
+{# Modal confirmar eliminación #}
+<div class="modal modal-blur fade" id="modalDelGrupo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="ti ti-alert-triangle me-2"></i>Eliminar grupo</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="mb-1">¿Eliminar el grupo <strong id="del-grupo-nombre"></strong>?</p>
+        <small class="text-muted">Los usuarios no se eliminarán, solo se quitará la asignación.</small>
+      </div>
+      <div class="modal-footer justify-content-center gap-2">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirm-del-grupo">
+          <i class="ti ti-trash me-1"></i>Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const CSRF = '{{ csrf_token }}';
+  let activePk = null;
+  document.querySelectorAll('.btn-del-grupo').forEach(btn => {
+    btn.addEventListener('click', function () {
+      activePk = this.dataset.pk;
+      document.getElementById('del-grupo-nombre').textContent = this.dataset.nombre;
+      new bootstrap.Modal(document.getElementById('modalDelGrupo')).show();
+    });
+  });
+  document.getElementById('btn-confirm-del-grupo').addEventListener('click', async function () {
+    const res  = await fetch(`/accounts/settings/grupos/${activePk}/eliminar/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
+    });
+    const data = await res.json();
+    if (data.ok) location.reload();
+    else alert(data.error || 'Error al eliminar.');
+  });
+})();
+</script>
+{% endblock %}

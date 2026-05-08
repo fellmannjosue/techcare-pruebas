@@ -1,0 +1,156 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Mi Perfil{% endblock %}
+
+{% block settings_content %}
+
+{# ── Datos del perfil ── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-user-circle me-2 text-blue"></i>Datos del perfil</h3>
+  </div>
+  <div class="card-body">
+
+    {# Avatar #}
+    <div class="d-flex align-items-center gap-4 mb-4 pb-4 border-bottom">
+      {% if perfil.avatar %}
+        <img src="{{ perfil.avatar.url }}" class="avatar avatar-xl rounded-circle" style="width:80px;height:80px;object-fit:cover;" alt="Avatar">
+      {% else %}
+        <span class="avatar avatar-xl bg-blue-lt text-blue fw-bold" style="width:80px;height:80px;font-size:2rem;">
+          {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+        </span>
+      {% endif %}
+      <div>
+        <p class="fw-semibold mb-1">Foto de perfil</p>
+        <p class="text-muted small mb-2">JPG, PNG o GIF. Máximo 2 MB.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <form method="post" enctype="multipart/form-data" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="perfil">
+            <label class="btn btn-sm btn-outline-secondary mb-0 cursor-pointer">
+              <i class="ti ti-upload me-1"></i>Cambiar avatar
+              <input type="file" name="avatar" accept="image/*" class="d-none" onchange="this.form.submit()">
+            </label>
+          </form>
+          {% if perfil.avatar %}
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_avatar">
+            <button class="btn btn-sm btn-outline-danger" type="submit">
+              <i class="ti ti-trash me-1"></i>Eliminar avatar
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Formulario de perfil #}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="perfil">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nombre</label>
+          <input type="text" class="form-control" name="first_name" value="{{ request.user.first_name }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Apellido</label>
+          <input type="text" class="form-control" name="last_name" value="{{ request.user.last_name }}">
+        </div>
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Correo electrónico</label>
+          <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
+          <div class="form-hint">Este correo es tu usuario de acceso al sistema.</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Usuario (login)</label>
+          <input type="text" class="form-control bg-light" value="{{ request.user.username }}" disabled>
+          <div class="form-hint">No se puede modificar.</div>
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">
+          <i class="ti ti-device-floppy me-1"></i>Guardar cambios
+        </button>
+        <a href="{% url 'menu' %}" class="btn btn-ghost-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Información de cuenta ── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-info-circle me-2 text-azure"></i>Información de cuenta</h3>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="text-muted small mb-1">Tipo de cuenta</div>
+        {% if request.user.is_superuser %}
+          <span class="badge bg-red-lt text-red fs-6 px-3"><i class="ti ti-crown me-1"></i>Superusuario</span>
+        {% elif request.user.is_staff %}
+          <span class="badge bg-orange-lt text-orange fs-6 px-3"><i class="ti ti-user-star me-1"></i>Staff</span>
+        {% else %}
+          <span class="badge bg-blue-lt text-blue fs-6 px-3"><i class="ti ti-user me-1"></i>Usuario</span>
+        {% endif %}
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="text-muted small mb-1">Estado</div>
+        {% if request.user.is_active %}
+          <span class="badge bg-green-lt text-green fs-6 px-3"><i class="ti ti-circle-check me-1"></i>Activo</span>
+        {% else %}
+          <span class="badge bg-red-lt text-red fs-6 px-3"><i class="ti ti-circle-x me-1"></i>Inactivo</span>
+        {% endif %}
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="text-muted small mb-1">Grupos asignados</div>
+        {% for g in request.user.groups.all %}
+          <span class="badge bg-purple-lt text-purple me-1">{{ g.name }}</span>
+        {% empty %}
+          <span class="text-muted small">Sin grupos</span>
+        {% endfor %}
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="text-muted small mb-1">Último acceso</div>
+        <span class="small fw-semibold">{{ request.user.last_login|date:"d/m/Y H:i"|default:"—" }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Cambiar contraseña ── #}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-lock me-2 text-red"></i>Cambiar contraseña</h3>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="password">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Contraseña actual <span class="text-red">*</span></label>
+          <input type="password" class="form-control" name="old_password" required autocomplete="current-password">
+        </div>
+        <div class="col-12"></div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nueva contraseña <span class="text-red">*</span></label>
+          <input type="password" class="form-control" name="new_password" required minlength="8" autocomplete="new-password">
+          <div class="form-hint">Mínimo 8 caracteres.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Confirmar nueva contraseña <span class="text-red">*</span></label>
+          <input type="password" class="form-control" name="confirm_password" required autocomplete="new-password">
+        </div>
+      </div>
+      <div class="mt-4">
+        <button class="btn btn-danger" type="submit">
+          <i class="ti ti-lock-open me-1"></i>Actualizar contraseña
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

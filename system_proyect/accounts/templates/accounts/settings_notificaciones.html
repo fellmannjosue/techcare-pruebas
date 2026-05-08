@@ -1,0 +1,51 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Mis Notificaciones{% endblock %}
+
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-bell me-2 text-yellow"></i>Mis Notificaciones</h3>
+    <div class="card-options">
+      <span class="badge bg-blue-lt text-blue fs-6 px-3">{{ notificaciones|length }} en total</span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+
+    {% if notificaciones %}
+    <div class="list-group list-group-flush">
+      {% for n in notificaciones %}
+      <div class="list-group-item {% if not n.leida %}bg-yellow-lt{% endif %} py-3">
+        <div class="d-flex align-items-start gap-3">
+          <div class="mt-1">
+            {% if not n.leida %}
+              <span class="badge bg-yellow text-white rounded-pill" style="width:10px;height:10px;padding:0;display:inline-block;"></span>
+            {% else %}
+              <span class="badge bg-muted-lt rounded-pill" style="width:10px;height:10px;padding:0;display:inline-block;"></span>
+            {% endif %}
+          </div>
+          <div class="flex-fill">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-azure-lt text-azure text-uppercase" style="font-size:.65rem;">{{ n.modulo }}</span>
+              {% if not n.leida %}
+                <span class="badge bg-yellow-lt text-yellow" style="font-size:.65rem;">Nueva</span>
+              {% endif %}
+            </div>
+            <div class="fw-semibold small">{{ n.mensaje }}</div>
+            <div class="text-muted" style="font-size:.8rem;">
+              <i class="ti ti-clock me-1"></i>{{ n.fecha|date:"d/m/Y H:i" }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-5 text-center text-muted">
+      <i class="ti ti-bell-off fs-1 mb-3 d-block opacity-50"></i>
+      <p class="mb-0">No tienes notificaciones registradas.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

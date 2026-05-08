@@ -1,0 +1,274 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Actividad del Sistema{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block settings_content %}
+
+{# ── Tarjetas de resumen ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="bg-blue text-white avatar rounded"><i class="ti ti-users fs-4"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ total_users }}</div>
+            <div class="text-muted small">Total usuarios</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="bg-green text-white avatar rounded"><i class="ti ti-user-check fs-4"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ active_users }}</div>
+            <div class="text-muted small">Usuarios activos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="bg-orange text-white avatar rounded"><i class="ti ti-login fs-4"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ logins_hoy }}</div>
+            <div class="text-muted small">Accesos hoy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="bg-yellow text-white avatar rounded"><i class="ti ti-bell fs-4"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ notifs_no_leidas }}</div>
+            <div class="text-muted small">Notif. sin leer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Gráficas ── #}
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="ti ti-chart-line me-2 text-blue"></i>Inicios de sesión – últimos 30 días
+        </h3>
+      </div>
+      <div class="card-body">
+        <canvas id="chartLoginsDia" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-chart-bar me-2 text-green"></i>Top usuarios (30d)</h3>
+      </div>
+      <div class="card-body d-flex align-items-center">
+        {% if top_usuarios %}
+        <canvas id="chartTopUsuarios"></canvas>
+        {% else %}
+        <div class="w-100 text-center text-muted py-4">
+          <i class="ti ti-chart-off fs-2 mb-2 d-block opacity-50"></i>Sin datos aún.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Estadísticas extras ── #}
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase mb-1">Usuarios Staff</div>
+            <div class="fs-2 fw-bold">{{ staff_users }}</div>
+          </div>
+          <span class="avatar bg-orange-lt text-orange"><i class="ti ti-user-star"></i></span>
+        </div>
+        <div class="progress mb-0" style="height:5px;">
+          {% if total_users > 0 %}
+          <div class="progress-bar bg-orange" style="width:{% widthratio staff_users total_users 100 %}%;"></div>
+          {% endif %}
+        </div>
+        <div class="text-muted small mt-1">de {{ total_users }} usuarios totales</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase mb-1">Superusuarios</div>
+            <div class="fs-2 fw-bold">{{ super_users }}</div>
+          </div>
+          <span class="avatar bg-red-lt text-red"><i class="ti ti-crown"></i></span>
+        </div>
+        <div class="progress mb-0" style="height:5px;">
+          {% if total_users > 0 %}
+          <div class="progress-bar bg-red" style="width:{% widthratio super_users total_users 100 %}%;"></div>
+          {% endif %}
+        </div>
+        <div class="text-muted small mt-1">de {{ total_users }} usuarios totales</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase mb-1">Total accesos registrados</div>
+            <div class="fs-2 fw-bold">{{ total_logins }}</div>
+          </div>
+          <span class="avatar bg-blue-lt text-blue"><i class="ti ti-history"></i></span>
+        </div>
+        <div class="progress mb-0" style="height:5px;">
+          <div class="progress-bar bg-blue" style="width:100%;"></div>
+        </div>
+        <div class="text-muted small mt-1">notificaciones totales: {{ total_notifs }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Tabla de accesos recientes ── #}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-history me-2 text-muted"></i>Accesos recientes</h3>
+    <div class="card-options">
+      <span class="badge bg-blue-lt text-blue">Últimos 50</span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>IP</th>
+            <th>Fecha y hora</th>
+            <th>Navegador / Agente</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in accesos_recientes %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ a.username }}</div>
+              {% if a.usuario %}
+                <div class="text-muted" style="font-size:.75rem;">{{ a.usuario.get_full_name }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-azure-lt text-azure font-monospace">{{ a.ip|default:"—" }}</span>
+            </td>
+            <td class="text-nowrap">
+              <span class="small">{{ a.fecha_hora|date:"d/m/Y H:i:s" }}</span>
+            </td>
+            <td>
+              <span class="text-muted small" style="max-width:240px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                    title="{{ a.agente }}">
+                {{ a.agente|truncatechars:70 }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted py-5">
+              <i class="ti ti-history-off fs-2 d-block mb-2 opacity-50"></i>
+              Sin registros de acceso todavía.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const diasLabels = {{ dias_labels_json|safe }};
+const diasData   = {{ dias_data_json|safe }};
+const topLabels  = {{ top_labels_json|safe }};
+const topData    = {{ top_data_json|safe }};
+
+new Chart(document.getElementById('chartLoginsDia'), {
+  type: 'line',
+  data: {
+    labels: diasLabels,
+    datasets: [{
+      label: 'Inicios de sesión',
+      data: diasData,
+      borderColor: '#206bc4',
+      backgroundColor: 'rgba(32,107,196,0.08)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
+    }
+  }
+});
+
+{% if top_usuarios %}
+new Chart(document.getElementById('chartTopUsuarios'), {
+  type: 'bar',
+  data: {
+    labels: topLabels,
+    datasets: [{
+      label: 'Accesos',
+      data: topData,
+      backgroundColor: 'rgba(32,107,196,0.7)',
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

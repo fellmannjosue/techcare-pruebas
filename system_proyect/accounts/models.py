@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 User = get_user_model()
 
@@ -18,3 +20,25 @@ class RegistroAcceso(models.Model):
 
     def __str__(self):
         return f'{self.username} — {self.fecha_hora:%d/%m/%Y %H:%M}'
+
+
+class PerfilUsuario(models.Model):
+    usuario            = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
+    avatar             = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Avatar')
+    puede_ver_usuarios = models.BooleanField(
+        'Puede gestionar usuarios/grupos', default=False,
+        help_text='Permite a este usuario Staff ver y editar la sección Usuarios y Grupos en Settings.'
+    )
+
+    class Meta:
+        verbose_name = 'Perfil de usuario'
+        verbose_name_plural = 'Perfiles de usuario'
+
+    def __str__(self):
+        return f'Perfil de {self.usuario.username}'
+
+
+@receiver(post_save, sender=User)
+def crear_perfil_usuario(sender, instance, created, **kwargs):
+    if created:
+        PerfilUsuario.objects.get_or_create(usuario=instance)

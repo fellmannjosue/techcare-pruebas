@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Configuración{% endblock %} – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <style>
+    .settings-nav .nav-link { border-radius: 6px; color: #495057; padding: .45rem .75rem; font-size: .875rem; }
+    .settings-nav .nav-link:hover { background: #f1f3f5; color: #206bc4; }
+    .settings-nav .nav-link.active { background: #e8f0fe; color: #206bc4; font-weight: 600; }
+    .settings-nav .nav-section { font-size: .7rem; letter-spacing: .08em; color: #adb5bd; font-weight: 700; padding: .5rem .75rem .2rem; text-transform: uppercase; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="wrapper">
+
+  {# ── Sidebar principal de la app ── #}
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-settings">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-settings">
+        {% include 'accounts/_sidebar.html' %}
+        <div class="mt-auto pt-3 border-top border-secondary">
+          <div class="d-flex align-items-center gap-2 px-2 py-1">
+            {% with perfil=request.user.perfil %}
+              {% if perfil.avatar %}
+                <img src="{{ perfil.avatar.url }}" class="avatar avatar-sm rounded-circle" alt="">
+              {% else %}
+                <span class="avatar avatar-sm bg-blue-lt text-blue fw-bold">
+                  {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+                </span>
+              {% endif %}
+            {% endwith %}
+            <div class="flex-fill">
+              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
+              <div class="text-muted" style="font-size:.7rem;">{{ request.user.email }}</div>
+            </div>
+            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
+              <i class="ti ti-logout fs-5"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  {# ── Page wrapper ── #}
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-xl">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+                <li class="breadcrumb-item active">Configuración</li>
+              </ol>
+            </nav>
+            <h2 class="page-title"><i class="ti ti-settings me-2 text-muted"></i>Configuración de cuenta</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="container-xl">
+
+        {# Mensajes globales #}
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="alert alert-{{ msg.tags }} alert-dismissible mb-3">
+            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+          {% endfor %}
+        {% endif %}
+
+        <div class="row g-4">
+
+          {# ── Panel izquierdo de navegación settings ── #}
+          <div class="col-12 col-md-3 col-lg-2">
+            <div class="card">
+              <div class="card-body p-2 settings-nav">
+
+                <div class="nav-section">Mi cuenta</div>
+                <nav class="nav flex-column gap-1 mb-2">
+                  <a class="nav-link {% if active_tab == 'perfil' %}active{% endif %}" href="{% url 'settings_perfil' %}">
+                    <i class="ti ti-user-circle me-2"></i>Mi Perfil
+                  </a>
+                  <a class="nav-link {% if active_tab == 'notificaciones' %}active{% endif %}" href="{% url 'settings_notificaciones' %}">
+                    <i class="ti ti-bell me-2"></i>Mis Notificaciones
+                  </a>
+                </nav>
+
+                {% if can_manage_users %}
+                <div class="nav-section">Administración</div>
+                <nav class="nav flex-column gap-1 mb-2">
+                  <a class="nav-link {% if active_tab == 'usuarios' %}active{% endif %}" href="{% url 'settings_usuarios' %}">
+                    <i class="ti ti-users me-2"></i>Usuarios
+                  </a>
+                  <a class="nav-link {% if active_tab == 'grupos' %}active{% endif %}" href="{% url 'settings_grupos' %}">
+                    <i class="ti ti-users-group me-2"></i>Grupos
+                  </a>
+                </nav>
+                {% endif %}
+
+                {% if can_see_activity %}
+                <div class="nav-section">Sistema</div>
+                <nav class="nav flex-column gap-1">
+                  <a class="nav-link {% if active_tab == 'actividad' %}active{% endif %}" href="{% url 'settings_actividad' %}">
+                    <i class="ti ti-activity me-2"></i>Actividad
+                  </a>
+                </nav>
+                {% endif %}
+
+              </div>
+            </div>
+          </div>
+
+          {# ── Contenido principal ── #}
+          <div class="col-12 col-md-9 col-lg-10">
+            {% block settings_content %}{% endblock %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

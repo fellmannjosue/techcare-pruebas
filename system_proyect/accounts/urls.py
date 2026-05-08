@@ -13,8 +13,19 @@ urlpatterns = [
     path('seleccion-rol/', views.seleccion_rol, name='seleccion_rol'),
     path('aplicar-rol/<str:rol>/', views.aplicar_rol, name='aplicar_rol'),
 
-    # Notificaciones para dashboard
-  
+    # ── Account Settings ──────────────────────────────────────
+    path('settings/',                                  views.settings_perfil,           name='settings_perfil'),
+    path('settings/notificaciones/',                   views.settings_notificaciones,   name='settings_notificaciones'),
+    path('settings/usuarios/',                         views.settings_usuarios,         name='settings_usuarios'),
+    path('settings/usuarios/crear/',                   views.settings_usuario_crear,    name='settings_usuario_crear'),
+    path('settings/usuarios/<int:pk>/editar/',         views.settings_usuario_editar,   name='settings_usuario_editar'),
+    path('settings/usuarios/<int:pk>/eliminar/',       views.settings_usuario_eliminar,    name='settings_usuario_eliminar'),
+    path('settings/usuarios/<int:pk>/toggle-perms/',  views.settings_usuario_toggle_perms, name='settings_usuario_toggle_perms'),
+    path('settings/grupos/',                           views.settings_grupos,           name='settings_grupos'),
+    path('settings/grupos/crear/',                     views.settings_grupo_crear,      name='settings_grupo_crear'),
+    path('settings/grupos/<int:pk>/editar/',           views.settings_grupo_editar,     name='settings_grupo_editar'),
+    path('settings/grupos/<int:pk>/eliminar/',         views.settings_grupo_eliminar,   name='settings_grupo_eliminar'),
+    path('settings/actividad/',                        views.settings_actividad,        name='settings_actividad'),
 
     # Recuperación de contraseña (vistas estándar de Django)
     path('password_reset/', auth_views.PasswordResetView.as_view(

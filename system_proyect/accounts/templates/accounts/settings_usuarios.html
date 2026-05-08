@@ -1,0 +1,410 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Usuarios{% endblock %}
+
+{% block settings_content %}
+
+{# ── Barra superior ── #}
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap">
+  <form class="d-flex gap-2" method="get">
+    <input type="text" class="form-control" name="q" value="{{ q }}"
+           placeholder="Buscar en todos los usuarios..." style="width:260px;">
+    <button class="btn btn-primary"><i class="ti ti-search me-1"></i>Buscar</button>
+    {% if q %}
+      <a href="{% url 'settings_usuarios' %}" class="btn btn-ghost-secondary">
+        <i class="ti ti-x me-1"></i>Limpiar
+      </a>
+    {% endif %}
+  </form>
+  <a href="{% url 'settings_usuario_crear' %}" class="btn btn-success">
+    <i class="ti ti-user-plus me-1"></i>Nuevo usuario
+  </a>
+</div>
+
+{% if q %}
+<div class="alert alert-info mb-4 py-2">
+  <i class="ti ti-search me-1"></i>
+  Resultados para <strong>"{{ q }}"</strong> —
+  {{ superusers|length|add:staff_users|length|add:reg_users|length }} coincidencia{{ superusers|length|add:staff_users|length|add:reg_users|length|pluralize }}
+</div>
+{% endif %}
+
+
+{# ════════════════════════════════════════════════════════
+   TABLA 1 – SUPERUSUARIOS
+   ════════════════════════════════════════════════════════ #}
+<div class="card mb-4">
+  <div class="card-header bg-red-lt">
+    <h3 class="card-title text-red">
+      <i class="ti ti-crown me-2"></i>Superusuarios
+      <span class="badge bg-red ms-2">{{ superusers|length }}</span>
+    </h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table mb-0">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre completo</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Último acceso</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in superusers %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar avatar-sm bg-red-lt text-red fw-bold">
+                  {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ u.username }}</div>
+                  <div class="text-muted" style="font-size:.73rem;">{{ u.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ u.get_full_name|default:"—" }}</td>
+            <td class="text-center">
+              {% if u.is_active %}
+                <span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Activo</span>
+              {% else %}
+                <span class="badge bg-red-lt text-red"><i class="ti ti-circle-x me-1"></i>Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted small">{{ u.last_login|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td class="text-center">
+              <a href="{% url 'settings_usuario_editar' u.pk %}"
+                 class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              {% if u != request.user %}
+              <button class="btn btn-sm btn-ghost-danger btn-del-user"
+                      data-pk="{{ u.pk }}"
+                      data-nombre="{{ u.get_full_name|default:u.username }}">
+                <i class="ti ti-trash"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-3">
+              Sin superusuarios{% if q %} con ese criterio{% endif %}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+{# ════════════════════════════════════════════════════════
+   TABLA 2 – STAFF
+   ════════════════════════════════════════════════════════ #}
+<div class="card mb-4">
+  <div class="card-header bg-orange-lt">
+    <h3 class="card-title text-orange">
+      <i class="ti ti-user-star me-2"></i>Staff
+      <span class="badge bg-orange ms-2">{{ staff_users|length }}</span>
+    </h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table mb-0">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre completo</th>
+            <th>Grupos</th>
+            <th class="text-center">Gestión usuarios</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Último acceso</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in staff_users %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar avatar-sm bg-orange-lt text-orange fw-bold">
+                  {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ u.username }}</div>
+                  <div class="text-muted" style="font-size:.73rem;">{{ u.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ u.get_full_name|default:"—" }}</td>
+            <td>
+              {% for g in u.groups.all %}
+                <span class="badge bg-blue-lt text-blue me-1 mb-1">{{ g.name }}</span>
+              {% empty %}
+                <span class="text-muted small">—</span>
+              {% endfor %}
+            </td>
+            <td class="text-center">
+              {% if u.puede_ver %}
+                <span class="badge bg-green-lt text-green perm-badge-{{ u.pk }}">
+                  <i class="ti ti-check me-1"></i>Habilitado
+                </span>
+              {% else %}
+                <span class="badge bg-muted-lt text-muted perm-badge-{{ u.pk }}">No</span>
+              {% endif %}
+              {% if request.user.is_superuser %}
+              <button class="btn btn-sm btn-ghost-secondary ms-1 btn-toggle-perms"
+                      data-pk="{{ u.pk }}"
+                      data-nombre="{{ u.get_full_name|default:u.username }}"
+                      data-puede="{{ u.puede_ver|yesno:'true,false' }}"
+                      title="Cambiar permiso">
+                <i class="ti ti-shield-check"></i>
+              </button>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if u.is_active %}
+                <span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Activo</span>
+              {% else %}
+                <span class="badge bg-red-lt text-red"><i class="ti ti-circle-x me-1"></i>Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted small">{{ u.last_login|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td class="text-center">
+              <a href="{% url 'settings_usuario_editar' u.pk %}"
+                 class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              {% if u != request.user %}
+              <button class="btn btn-sm btn-ghost-danger btn-del-user"
+                      data-pk="{{ u.pk }}"
+                      data-nombre="{{ u.get_full_name|default:u.username }}">
+                <i class="ti ti-trash"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-3">
+              Sin usuarios staff{% if q %} con ese criterio{% endif %}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+{# ════════════════════════════════════════════════════════
+   TABLA 3 – USUARIOS REGULARES
+   ════════════════════════════════════════════════════════ #}
+<div class="card mb-4">
+  <div class="card-header bg-blue-lt">
+    <h3 class="card-title text-blue">
+      <i class="ti ti-users me-2"></i>Usuarios
+      <span class="badge bg-blue ms-2">{{ reg_users|length }}</span>
+    </h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table mb-0">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre completo</th>
+            <th>Grupos</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Último acceso</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in reg_users %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar avatar-sm bg-blue-lt text-blue fw-bold">
+                  {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ u.username }}</div>
+                  <div class="text-muted" style="font-size:.73rem;">{{ u.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ u.get_full_name|default:"—" }}</td>
+            <td>
+              {% for g in u.groups.all %}
+                <span class="badge bg-blue-lt text-blue me-1 mb-1">{{ g.name }}</span>
+              {% empty %}
+                <span class="text-muted small">—</span>
+              {% endfor %}
+            </td>
+            <td class="text-center">
+              {% if u.is_active %}
+                <span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Activo</span>
+              {% else %}
+                <span class="badge bg-red-lt text-red"><i class="ti ti-circle-x me-1"></i>Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted small">{{ u.last_login|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td class="text-center">
+              <a href="{% url 'settings_usuario_editar' u.pk %}"
+                 class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              <button class="btn btn-sm btn-ghost-danger btn-del-user"
+                      data-pk="{{ u.pk }}"
+                      data-nombre="{{ u.get_full_name|default:u.username }}">
+                <i class="ti ti-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-3">
+              Sin usuarios{% if q %} con ese criterio{% endif %}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+{# Modal confirmar eliminación #}
+<div class="modal modal-blur fade" id="modalDelUser" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="ti ti-alert-triangle me-2"></i>Eliminar usuario</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="mb-1">¿Eliminar a <strong id="del-user-nombre"></strong>?</p>
+        <small class="text-muted">Esta acción no se puede deshacer.</small>
+      </div>
+      <div class="modal-footer justify-content-center gap-2">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirm-del-user">
+          <i class="ti ti-trash me-1"></i>Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modal toggle permisos gestión usuarios (solo superuser) #}
+{% if request.user.is_superuser %}
+<div class="modal modal-blur fade" id="modalTogglePerms" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-orange text-white">
+        <h5 class="modal-title"><i class="ti ti-shield-check me-2"></i>Permiso de gestión</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="mb-1" id="toggle-perms-msg"></p>
+        <small class="text-muted">Permite ver y editar Usuarios y Grupos en Settings.</small>
+      </div>
+      <div class="modal-footer justify-content-center gap-2">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-orange" id="btn-confirm-toggle-perms">
+          <i class="ti ti-shield-check me-1"></i>Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const CSRF = '{{ csrf_token }}';
+
+  // ── Eliminar usuario ──────────────────────────────────────
+  let activePk = null;
+  document.querySelectorAll('.btn-del-user').forEach(btn => {
+    btn.addEventListener('click', function () {
+      activePk = this.dataset.pk;
+      document.getElementById('del-user-nombre').textContent = this.dataset.nombre;
+      new bootstrap.Modal(document.getElementById('modalDelUser')).show();
+    });
+  });
+  document.getElementById('btn-confirm-del-user').addEventListener('click', async function () {
+    const res  = await fetch(`/accounts/settings/usuarios/${activePk}/eliminar/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
+    });
+    const data = await res.json();
+    if (data.ok) location.reload();
+    else alert(data.error || 'Error al eliminar.');
+  });
+
+  // ── Toggle permisos (solo superuser) ─────────────────────
+  let togglePk = null;
+  document.querySelectorAll('.btn-toggle-perms').forEach(btn => {
+    btn.addEventListener('click', function () {
+      togglePk = this.dataset.pk;
+      const nombre   = this.dataset.nombre;
+      const puedeVer = this.dataset.puede === 'true';
+      const msg = document.getElementById('toggle-perms-msg');
+      if (msg) {
+        msg.innerHTML = puedeVer
+          ? `¿<strong>Quitar</strong> acceso a Usuarios/Grupos de <strong>${nombre}</strong>?`
+          : `¿<strong>Conceder</strong> acceso a Usuarios/Grupos a <strong>${nombre}</strong>?`;
+      }
+      const btnConfirm = document.getElementById('btn-confirm-toggle-perms');
+      if (btnConfirm) {
+        btnConfirm.className = puedeVer
+          ? 'btn btn-danger'
+          : 'btn btn-success';
+        btnConfirm.innerHTML = puedeVer
+          ? '<i class="ti ti-shield-off me-1"></i>Quitar permiso'
+          : '<i class="ti ti-shield-check me-1"></i>Conceder permiso';
+      }
+      new bootstrap.Modal(document.getElementById('modalTogglePerms')).show();
+    });
+  });
+
+  const btnConfirmToggle = document.getElementById('btn-confirm-toggle-perms');
+  if (btnConfirmToggle) {
+    btnConfirmToggle.addEventListener('click', async function () {
+      const res  = await fetch(`/accounts/settings/usuarios/${togglePk}/toggle-perms/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Update badge in-place without reload
+        const badge = document.querySelector(`.perm-badge-${togglePk}`);
+        const toggleBtn = document.querySelector(`.btn-toggle-perms[data-pk="${togglePk}"]`);
+        if (badge) {
+          if (data.puede_ver) {
+            badge.className = `badge bg-green-lt text-green perm-badge-${togglePk}`;
+            badge.innerHTML = '<i class="ti ti-check me-1"></i>Habilitado';
+          } else {
+            badge.className = `badge bg-muted-lt text-muted perm-badge-${togglePk}`;
+            badge.innerHTML = 'No';
+          }
+        }
+        if (toggleBtn) {
+          toggleBtn.dataset.puede = data.puede_ver ? 'true' : 'false';
+        }
+        bootstrap.Modal.getInstance(document.getElementById('modalTogglePerms')).hide();
+      } else {
+        alert(data.error || 'Error al cambiar permiso.');
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -12,6 +12,7 @@ import datetime
 from core.utils_notifications import crear_notificacion
 
 from .forms import MaestroRegisterForm
+from .models import RegistroAcceso, PerfilUsuario
 from tickets.models import Ticket
 
 
@@ -34,15 +35,27 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user:
+            def _registrar_acceso(u):
+                ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+                if ip and ',' in ip:
+                    ip = ip.split(',')[0].strip()
+                RegistroAcceso.objects.create(
+                    usuario=u, username=u.username,
+                    ip=ip or None,
+                    agente=request.META.get('HTTP_USER_AGENT', '')[:500],
+                )
+
             # Superuser: checkbox false → menú, checkbox true → dashboard maestro
             if user.is_superuser:
                 login(request, user)
+                _registrar_acceso(user)
                 request.session['show_welcome'] = True
                 return redirect('dashboard_maestro' if is_maestro else 'menu')
 
             # Staff: redirección según usuario/grupo
             if user.is_staff:
                 login(request, user)
+                _registrar_acceso(user)
                 request.session['show_welcome'] = True
                 if user.username == 'druiz@ana-hn.org':
                     return redirect('seleccion_rol')
@@ -66,6 +79,7 @@ def login_view(request):
             # Técnicos
             if user.groups.filter(name='tecnicos').exists():
                 login(request, user)
+                _registrar_acceso(user)
                 request.session['show_welcome'] = True
                 return redirect('tickets_dashboard')
 
@@ -75,6 +89,7 @@ def login_view(request):
                 return render(request, 'accounts/login.html', {'year': year})
 
             login(request, user)
+            _registrar_acceso(user)
             request.session['show_welcome'] = True
             # Maestro dual (en ambos grupos) → elige área
             in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
@@ -536,3 +551,382 @@ def maestro_logout(request):
     logout(request)
     messages.info(request, 'Sesión cerrada por inactividad.' if inactive else 'Sesión cerrada correctamente.')
     return redirect('login')
+
+
+# =====================================================
+# ⚙ ACCOUNT SETTINGS — helpers
+# =====================================================
+def _settings_ctx(request, tab):
+    perfil = getattr(request.user, 'perfil', None)
+    can_manage = (
+        request.user.is_superuser or
+        (request.user.is_staff and perfil is not None and perfil.puede_ver_usuarios)
+    )
+    return {
+        'active_tab':       tab,
+        'can_manage_users': can_manage,
+        'can_see_activity': request.user.is_superuser,
+    }
+
+
+# ── 1. Mi Perfil ──────────────────────────────────────────────
+@login_required
+def settings_perfil(request):
+    user = request.user
+    perfil, _ = PerfilUsuario.objects.get_or_create(usuario=user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'perfil')
+
+        if action == 'perfil':
+            user.first_name = request.POST.get('first_name', '').strip()
+            user.last_name  = request.POST.get('last_name', '').strip()
+            email = request.POST.get('email', '').strip()
+            if email and email != user.email:
+                if User.objects.filter(email=email).exclude(pk=user.pk).exists():
+                    messages.error(request, 'Ese correo ya está en uso por otro usuario.')
+                    return redirect('settings_perfil')
+                user.email = email
+            user.save()
+            if 'avatar' in request.FILES:
+                if perfil.avatar:
+                    perfil.avatar.delete(save=False)
+                perfil.avatar = request.FILES['avatar']
+                perfil.save()
+            messages.success(request, 'Perfil actualizado correctamente.')
+
+        elif action == 'delete_avatar':
+            if perfil.avatar:
+                perfil.avatar.delete(save=False)
+                perfil.avatar = None
+                perfil.save()
+            messages.success(request, 'Avatar eliminado.')
+
+        elif action == 'password':
+            old_pw  = request.POST.get('old_password', '')
+            new_pw  = request.POST.get('new_password', '')
+            confirm = request.POST.get('confirm_password', '')
+            if not user.check_password(old_pw):
+                messages.error(request, 'Contraseña actual incorrecta.')
+            elif new_pw != confirm:
+                messages.error(request, 'Las contraseñas nuevas no coinciden.')
+            elif len(new_pw) < 8:
+                messages.error(request, 'La contraseña debe tener al menos 8 caracteres.')
+            else:
+                from django.contrib.auth import update_session_auth_hash
+                user.set_password(new_pw)
+                user.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Contraseña actualizada correctamente.')
+
+        return redirect('settings_perfil')
+
+    ctx = _settings_ctx(request, 'perfil')
+    ctx['perfil'] = perfil
+    return render(request, 'accounts/settings_perfil.html', ctx)
+
+
+# ── 2. Mis Notificaciones ─────────────────────────────────────
+@login_required
+def settings_notificaciones(request):
+    from core.models import Notificacion
+    notificaciones = Notificacion.objects.filter(
+        destinatario=request.user
+    ).order_by('-fecha')
+
+    ctx = _settings_ctx(request, 'notificaciones')
+    ctx['notificaciones'] = notificaciones
+    return render(request, 'accounts/settings_notificaciones.html', ctx)
+
+
+# ── 3. Usuarios (staff) ───────────────────────────────────────
+def _can_manage(user):
+    perfil = getattr(user, 'perfil', None)
+    return user.is_superuser or (user.is_staff and perfil is not None and perfil.puede_ver_usuarios)
+
+
+def settings_usuarios(request):
+    if not _can_manage(request.user):
+        messages.error(request, 'No tienes permisos para acceder a esta sección.')
+        return redirect('settings_perfil')
+
+    from django.db.models import Q, Subquery, OuterRef
+
+    q = request.GET.get('q', '').strip()
+
+    def _qs(base):
+        return base.prefetch_related('groups').order_by('first_name', 'last_name', 'username')
+
+    def _filter(qs):
+        if not q:
+            return qs
+        return qs.filter(
+            Q(username__icontains=q) | Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) | Q(email__icontains=q)
+        )
+
+    superusers  = _filter(_qs(User.objects.filter(is_superuser=True)))
+    reg_users   = _filter(_qs(User.objects.filter(is_staff=False, is_superuser=False)))
+
+    # Annotate staff users with puede_ver to avoid u.perfil access in template
+    # (RelatedObjectDoesNotExist if PerfilUsuario doesn't exist for that user)
+    staff_users = _filter(
+        _qs(User.objects.filter(is_staff=True, is_superuser=False)).annotate(
+            puede_ver=Subquery(
+                PerfilUsuario.objects.filter(usuario_id=OuterRef('pk')).values('puede_ver_usuarios')[:1]
+            )
+        )
+    )
+
+    ctx = _settings_ctx(request, 'usuarios')
+    ctx.update({
+        'superusers':  superusers,
+        'staff_users': staff_users,
+        'reg_users':   reg_users,
+        'q': q,
+    })
+    return render(request, 'accounts/settings_usuarios.html', ctx)
+
+
+@login_required
+def settings_usuario_crear(request):
+    if not _can_manage(request.user):
+        return redirect('settings_perfil')
+
+    grupos = Group.objects.all().order_by('name')
+
+    if request.method == 'POST':
+        username   = request.POST.get('username', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name  = request.POST.get('last_name', '').strip()
+        email      = request.POST.get('email', '').strip()
+        password   = request.POST.get('password', '')
+        is_staff   = request.POST.get('is_staff') == 'on'
+        is_active  = request.POST.get('is_active', 'on') == 'on'
+        group_ids  = request.POST.getlist('groups')
+
+        if not username or not password:
+            messages.error(request, 'El usuario y la contraseña son obligatorios.')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, f'El usuario "{username}" ya existe.')
+        else:
+            u = User.objects.create_user(
+                username=username, email=email, password=password,
+                first_name=first_name, last_name=last_name,
+                is_staff=is_staff, is_active=is_active,
+            )
+            if group_ids:
+                u.groups.set(Group.objects.filter(pk__in=group_ids))
+            messages.success(request, f'Usuario "{username}" creado correctamente.')
+            return redirect('settings_usuarios')
+
+    ctx = _settings_ctx(request, 'usuarios')
+    ctx.update({'grupos': grupos, 'modo': 'crear'})
+    return render(request, 'accounts/settings_usuario_form.html', ctx)
+
+
+@login_required
+def settings_usuario_editar(request, pk):
+    if not _can_manage(request.user):
+        return redirect('settings_perfil')
+
+    u      = get_object_or_404(User, pk=pk)
+    grupos = Group.objects.all().order_by('name')
+
+    if request.method == 'POST':
+        u.first_name = request.POST.get('first_name', '').strip()
+        u.last_name  = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        if email and email != u.email:
+            if not User.objects.filter(email=email).exclude(pk=pk).exists():
+                u.email = email
+        u.is_staff  = request.POST.get('is_staff') == 'on'
+        u.is_active = request.POST.get('is_active') == 'on'
+        if request.user.is_superuser:
+            u.is_superuser = request.POST.get('is_superuser') == 'on'
+        new_pw = request.POST.get('password', '').strip()
+        if new_pw:
+            u.set_password(new_pw)
+        group_ids = request.POST.getlist('groups')
+        u.groups.set(Group.objects.filter(pk__in=group_ids))
+        u.save()
+        # Actualizar permiso puede_ver_usuarios (solo superuser puede otorgarlo)
+        if request.user.is_superuser:
+            perfil_u, _ = PerfilUsuario.objects.get_or_create(usuario=u)
+            perfil_u.puede_ver_usuarios = request.POST.get('puede_ver_usuarios') == 'on'
+            perfil_u.save()
+        messages.success(request, f'Usuario "{u.username}" actualizado.')
+        return redirect('settings_usuarios')
+
+    perfil_u, _ = PerfilUsuario.objects.get_or_create(usuario=u)
+    ctx = _settings_ctx(request, 'usuarios')
+    ctx.update({'edit_user': u, 'grupos': grupos, 'modo': 'editar', 'perfil_edit': perfil_u})
+    return render(request, 'accounts/settings_usuario_form.html', ctx)
+
+
+@login_required
+def settings_usuario_eliminar(request, pk):
+    if not _can_manage(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    u = get_object_or_404(User, pk=pk)
+    if u == request.user:
+        return JsonResponse({'ok': False, 'error': 'No puedes eliminarte a ti mismo.'})
+    nombre = u.get_full_name() or u.username
+    u.delete()
+    return JsonResponse({'ok': True, 'nombre': nombre})
+
+
+@login_required
+def settings_usuario_toggle_perms(request, pk):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo superusuarios pueden cambiar este permiso.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    u = get_object_or_404(User, pk=pk)
+    if not u.is_staff or u.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo aplica a usuarios staff.'})
+    perfil, _ = PerfilUsuario.objects.get_or_create(usuario=u)
+    perfil.puede_ver_usuarios = not perfil.puede_ver_usuarios
+    perfil.save()
+    return JsonResponse({'ok': True, 'puede_ver': perfil.puede_ver_usuarios})
+
+
+# ── 4. Grupos (staff) ─────────────────────────────────────────
+@login_required
+def settings_grupos(request):
+    if not _can_manage(request.user):
+        return redirect('settings_perfil')
+
+    grupos = Group.objects.prefetch_related('user_set').order_by('name')
+    ctx = _settings_ctx(request, 'grupos')
+    ctx['grupos'] = grupos
+    return render(request, 'accounts/settings_grupos.html', ctx)
+
+
+@login_required
+def settings_grupo_crear(request):
+    if not _can_manage(request.user):
+        return redirect('settings_perfil')
+
+    if request.method == 'POST':
+        nombre = request.POST.get('name', '').strip()
+        if not nombre:
+            messages.error(request, 'El nombre del grupo es obligatorio.')
+        elif Group.objects.filter(name=nombre).exists():
+            messages.error(request, f'El grupo "{nombre}" ya existe.')
+        else:
+            Group.objects.create(name=nombre)
+            messages.success(request, f'Grupo "{nombre}" creado correctamente.')
+            return redirect('settings_grupos')
+
+    ctx = _settings_ctx(request, 'grupos')
+    ctx['modo'] = 'crear'
+    return render(request, 'accounts/settings_grupo_form.html', ctx)
+
+
+@login_required
+def settings_grupo_editar(request, pk):
+    if not _can_manage(request.user):
+        return redirect('settings_perfil')
+
+    g = get_object_or_404(Group, pk=pk)
+
+    if request.method == 'POST':
+        nombre = request.POST.get('name', '').strip()
+        if not nombre:
+            messages.error(request, 'El nombre es obligatorio.')
+        elif Group.objects.filter(name=nombre).exclude(pk=pk).exists():
+            messages.error(request, f'El grupo "{nombre}" ya existe.')
+        else:
+            g.name = nombre
+            g.save()
+            messages.success(request, f'Grupo actualizado a "{nombre}".')
+            return redirect('settings_grupos')
+
+    ctx = _settings_ctx(request, 'grupos')
+    ctx.update({'edit_group': g, 'modo': 'editar'})
+    return render(request, 'accounts/settings_grupo_form.html', ctx)
+
+
+@login_required
+def settings_grupo_eliminar(request, pk):
+    if not _can_manage(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    g = get_object_or_404(Group, pk=pk)
+    nombre = g.name
+    g.delete()
+    return JsonResponse({'ok': True, 'nombre': nombre})
+
+
+# ── 5. Actividad (superuser) ──────────────────────────────────
+@login_required
+def settings_actividad(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Solo superusuarios pueden ver la actividad del sistema.')
+        return redirect('settings_perfil')
+
+    from core.models import Notificacion
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+    import json
+
+    today   = datetime.date.today()
+    hace_30 = today - datetime.timedelta(days=29)
+
+    # Logins por día – últimos 30 días
+    logins_dia = (
+        RegistroAcceso.objects
+        .filter(fecha_hora__date__gte=hace_30)
+        .annotate(dia=TruncDate('fecha_hora'))
+        .values('dia')
+        .annotate(total=Count('id'))
+        .order_by('dia')
+    )
+    dia_map     = {item['dia']: item['total'] for item in logins_dia}
+    dias_labels, dias_data = [], []
+    for i in range(30):
+        d = hace_30 + datetime.timedelta(days=i)
+        dias_labels.append(d.strftime('%d/%m'))
+        dias_data.append(dia_map.get(d, 0))
+
+    # Top 10 usuarios por accesos
+    top_usuarios = list(
+        RegistroAcceso.objects
+        .filter(fecha_hora__date__gte=hace_30)
+        .values('username')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:10]
+    )
+
+    total_users      = User.objects.count()
+    active_users     = User.objects.filter(is_active=True).count()
+    staff_users      = User.objects.filter(is_staff=True, is_superuser=False).count()
+    super_users      = User.objects.filter(is_superuser=True).count()
+    total_logins     = RegistroAcceso.objects.count()
+    logins_hoy       = RegistroAcceso.objects.filter(fecha_hora__date=today).count()
+    total_notifs     = Notificacion.objects.count()
+    notifs_no_leidas = Notificacion.objects.filter(leida=False).count()
+    accesos_recientes = RegistroAcceso.objects.select_related('usuario').order_by('-fecha_hora')[:50]
+
+    ctx = _settings_ctx(request, 'actividad')
+    ctx.update({
+        'dias_labels_json': json.dumps(dias_labels),
+        'dias_data_json':   json.dumps(dias_data),
+        'top_usuarios':     top_usuarios,
+        'top_labels_json':  json.dumps([u['username'] for u in top_usuarios]),
+        'top_data_json':    json.dumps([u['total']    for u in top_usuarios]),
+        'total_users':       total_users,
+        'active_users':      active_users,
+        'staff_users':       staff_users,
+        'super_users':       super_users,
+        'total_logins':      total_logins,
+        'logins_hoy':        logins_hoy,
+        'total_notifs':      total_notifs,
+        'notifs_no_leidas':  notifs_no_leidas,
+        'accesos_recientes': accesos_recientes,
+    })
+    return render(request, 'accounts/settings_actividad.html', ctx)
