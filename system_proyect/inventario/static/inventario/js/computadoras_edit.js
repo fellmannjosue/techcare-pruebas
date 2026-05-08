@@ -3,7 +3,7 @@ $(document).ready(function () {
     // ================================
     // ABRIR MODAL EDITAR COMPUTADORA
     // ================================
-    $(document).on("click", ".editar-btn", function () {
+    $(document).on("click", ".editar-computadora", function () {
         let id = $(this).data("id");
 
         $("#modal-computadora-body").html(`
@@ -48,7 +48,7 @@ $(document).ready(function () {
     // ================================
     // ELIMINAR COMPUTADORA
     // ================================
-    $(document).on("click", ".eliminar-btn", function () {
+    $(document).on("click", ".eliminar-computadora", function () {
 
         let id = $(this).data("id");
 

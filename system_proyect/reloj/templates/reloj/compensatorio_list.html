@@ -2,108 +2,129 @@
 {% load static %}
 {% block title %}Tiempo Compensatorio{% endblock %}
 {% block page_pretitle %}Reloj{% endblock %}
-{% block page_title %}Tiempo Compensatorio{% endblock %}
+{% block page_title %}Tiempo Compensatorio – Horario Asistentes{% endblock %}
 {% block nav_compensatorio %}active{% endblock %}
 
 {% block content %}
+
+{# ── Filtros ── #}
 <form method="get" class="card mb-4">
   <div class="card-body">
     <div class="row g-3 align-items-end">
-      <div class="col-auto">
-        <label class="form-label">Filtrar por emp_code</label>
-        <input type="text" class="form-control" name="emp_code" value="{{ emp_code_f }}" placeholder="Ej. 2">
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Fecha inicio</label>
+        <input type="date" class="form-control" name="fecha_inicio" value="{{ fecha_inicio }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Fecha fin</label>
+        <input type="date" class="form-control" name="fecha_fin" value="{{ fecha_fin }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Empleado</label>
+        <select class="form-select" name="emp_code">
+          <option value="">— Todos —</option>
+          {% for code, nombre in emp_map.items %}
+            <option value="{{ code }}" {% if code == emp_code_f %}selected{% endif %}>{{ nombre }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="col-auto d-flex gap-2">
-        <button class="btn btn-primary" type="submit"><i class="ti ti-filter me-1"></i> Filtrar</button>
+        <button class="btn btn-primary" type="submit"><i class="ti ti-filter me-1"></i>Filtrar</button>
         <a class="btn btn-ghost-secondary" href="{% url 'reloj_compensatorio_list' %}">Limpiar</a>
       </div>
     </div>
   </div>
 </form>
 
-{% if messages %}
-  {% for m in messages %}
-  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
-    {{ m }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-  {% endfor %}
+{% if error %}
+<div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>{{ error }}</div>
 {% endif %}
 
+{# ── Info badge ── #}
+<div class="d-flex align-items-center gap-3 mb-3">
+  <span class="badge bg-blue-lt text-blue fs-6 px-3 py-2">
+    <i class="ti ti-clock me-1"></i>Hora de corte: <strong>{{ hora_corte }}</strong>
+  </span>
+  <span class="text-muted small">Solo se muestran días donde la última marca es posterior a {{ hora_corte }}</span>
+  <span class="ms-auto badge bg-green-lt text-green fs-6 px-3 py-2">
+    {{ filas|length }} registro{{ filas|length|pluralize }}
+  </span>
+</div>
+
+{# ── Tabla ── #}
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-vcenter table-hover card-table">
+      <table id="tabla-compensatorio" class="table table-vcenter table-hover card-table">
         <thead>
           <tr>
-            <th>#</th><th>Fecha</th><th>emp_code</th><th>Nombre</th>
-            <th>Minutos</th><th>Motivo</th><th>Estado</th><th>Creado</th>
-            <th style="width:120px;">Acciones</th>
+            <th class="w-1">#</th>
+            <th>Empleado</th>
+            <th>Fecha</th>
+            <th>Horario programado</th>
+            <th>Marcas del día</th>
+            <th>Última marca</th>
+            <th class="text-center">Tiempo compensatorio</th>
           </tr>
         </thead>
         <tbody>
-          {% for it in items %}
+          {% for f in filas %}
           <tr>
-            <td>{{ forloop.counter0|add:items.start_index }}</td>
-            <td>{{ it.fecha|date:"Y-m-d" }}</td>
-            <td><code>{{ it.emp_code }}</code></td>
-            <td>{{ it.nombre_empleado }}</td>
-            <td>{{ it.minutos_registrados }}</td>
-            <td>{{ it.motivo }}</td>
+            <td class="text-muted">{{ forloop.counter }}</td>
             <td>
-              {% if it.estado == "APPR" %}
-                <span class="badge bg-success-lt text-success">Aprobado</span>
-              {% elif it.estado == "REJC" %}
-                <span class="badge bg-danger-lt text-danger">Rechazado</span>
-              {% else %}
-                <span class="badge bg-warning-lt text-warning">Pendiente</span>
-              {% endif %}
+              <div class="fw-semibold">{{ f.nombre }}</div>
+              <div class="text-muted small">{{ f.emp_code }}</div>
             </td>
-            <td>{% if it.creado_en %}{{ it.creado_en|date:"Y-m-d H:i" }}{% endif %}</td>
+            <td>{{ f.fecha|date:"d/m/Y" }}</td>
             <td>
-              {% if request.user.is_staff or request.user.is_superuser %}
-                {% if it.estado == "PEND" %}
-                  <a class="btn btn-sm btn-ghost-success"
-                     href="{% url 'reloj_compensatorio_authorize' it.pk %}">
-                    <i class="ti ti-check me-1"></i> Autorizar
-                  </a>
+              <span class="badge bg-azure-lt text-azure">07:00 – 15:48</span>
+            </td>
+            <td>
+              <span class="text-muted small font-monospace">{{ f.marcas }}</span>
+            </td>
+            <td>
+              <span class="badge bg-orange-lt text-orange font-monospace">{{ f.ultima_marca }}</span>
+            </td>
+            <td class="text-center">
+              {% if f.tiene_comp %}
+                {% if f.completo %}
+                  <span class="badge bg-green-lt text-green fs-6 px-3">
+                    <i class="ti ti-circle-check me-1"></i>{{ f.tope }}m
+                  </span>
                 {% else %}
-                  <span class="text-muted small">—</span>
+                  <span class="badge bg-yellow-lt text-yellow fs-6 px-3">
+                    {{ f.minutos }}m <span class="opacity-75 ms-1">/ {{ f.tope }}</span>
+                  </span>
                 {% endif %}
               {% else %}
-                <span class="text-muted small">—</span>
+                <span class="text-muted">—</span>
               {% endif %}
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="9" class="text-center text-muted py-3">Sin registros.</td></tr>
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              <i class="ti ti-clock-off me-2"></i>Sin registros de tiempo compensatorio en el rango seleccionado.
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-  <div class="card-footer d-flex align-items-center">
-    <nav>
-      <ul class="pagination mb-0">
-        {% if items.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ items.previous_page_number }}&emp_code={{ emp_code_f }}">«</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">«</span></li>
-        {% endif %}
-        <li class="page-item disabled">
-          <span class="page-link">Página {{ items.number }} de {{ items.paginator.num_pages }}</span>
-        </li>
-        {% if items.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ items.next_page_number }}&emp_code={{ emp_code_f }}">»</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">»</span></li>
-        {% endif %}
-      </ul>
-    </nav>
-  </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $.fn.DataTable !== 'undefined') {
+      $('#tabla-compensatorio').DataTable({
+        order: [[2, 'desc']],
+        pageLength: 25,
+        language: {
+          url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

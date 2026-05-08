@@ -355,6 +355,115 @@ def inventario_registros(request):
     })
 
 # ==============================================================
+# Asignar / cambiar grupo de computadora(s)
+# ==============================================================
+
+@login_required
+def asignar_grupo_computadora(request, pk):
+    comp = get_object_or_404(Computadora, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('grupo', '').strip()
+        comp.grupo = int(valor) if valor.isdigit() else None
+        comp.save(update_fields=['grupo'])
+        return JsonResponse({'ok': True, 'grupo': comp.grupo})
+    return JsonResponse({'ok': True, 'grupo': comp.grupo})
+
+
+@login_required
+def asignar_grupo_bulk(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    ids   = request.POST.getlist('ids')
+    valor = request.POST.get('grupo', '').strip()
+    grupo = int(valor) if valor.isdigit() else None
+    updated = Computadora.objects.filter(pk__in=ids).update(grupo=grupo)
+    return JsonResponse({'ok': True, 'grupo': grupo, 'count': updated})
+
+
+@login_required
+def asignar_categoria_televisor(request, pk):
+    from .models import Televisor
+    tv = get_object_or_404(Televisor, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('categoria', '').strip()
+        tv.category = valor if valor else None
+        tv.save(update_fields=['category'])
+        return JsonResponse({'ok': True, 'categoria': tv.category or ''})
+    return JsonResponse({'ok': True, 'categoria': tv.category or ''})
+
+
+@login_required
+def asignar_categoria_router(request, pk):
+    from .models import Router
+    rt = get_object_or_404(Router, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('categoria', '').strip()
+        rt.category = valor if valor else None
+        rt.save(update_fields=['category'])
+        return JsonResponse({'ok': True, 'categoria': rt.category or ''})
+    return JsonResponse({'ok': True, 'categoria': rt.category or ''})
+
+
+@login_required
+def asignar_categoria_impresora(request, pk):
+    from .models import Impresora
+    obj = get_object_or_404(Impresora, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('categoria', '').strip()
+        obj.category = valor if valor else None
+        obj.save(update_fields=['category'])
+        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+
+
+@login_required
+def asignar_categoria_datashow(request, pk):
+    from .models import DataShow
+    obj = get_object_or_404(DataShow, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('categoria', '').strip()
+        obj.category = valor if valor else None
+        obj.save(update_fields=['category'])
+        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+
+
+@login_required
+def asignar_categoria_monitor(request, pk):
+    from .models import Monitor
+    obj = get_object_or_404(Monitor, pk=pk)
+    if request.method == 'POST':
+        valor = request.POST.get('categoria', '').strip()
+        obj.category = valor if valor else None
+        obj.save(update_fields=['category'])
+        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+
+
+@login_required
+def asignar_categoria_bulk(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    tipo = request.POST.get('tipo', '').strip()
+    categoria = request.POST.get('categoria', '').strip()
+    ids = request.POST.getlist('ids')
+    if not ids:
+        return JsonResponse({'ok': False, 'error': 'Sin IDs'})
+    mapa = {
+        'televisor': Televisor,
+        'router':    Router,
+        'impresora': Impresora,
+        'datashow':  DataShow,
+        'monitor':   Monitor,
+    }
+    modelo = mapa.get(tipo)
+    if not modelo:
+        return JsonResponse({'ok': False, 'error': 'Tipo inválido'})
+    modelo.objects.filter(pk__in=ids).update(category=categoria or None)
+    return JsonResponse({'ok': True, 'categoria': categoria})
+
+
+# ==============================================================
 # GET (Cargar formulario en el modal)
 # ==============================================================
 
@@ -504,134 +613,255 @@ def eliminar_monitor(request, pk):
 # ==============================================================
 
 def download_model_pdf(request, tipo, pk):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.utils import ImageReader
+
     model_map = {
         "computadora": Computadora,
-        "televisor": Televisor,
-        "impresora": Impresora,
-        "router": Router,
-        "datashow": DataShow,
-        "monitor": Monitor,
+        "televisor":   Televisor,
+        "impresora":   Impresora,
+        "router":      Router,
+        "datashow":    DataShow,
+        "monitor":     Monitor,
     }
 
     fields_map = {
         "computadora": [
-            ("ID", "asset_id"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("IP", "ip"),
-            ("Categoría", "category"),
-            ("Asignado a", "asignado_a"),
-            ("Área", "area"),
-            ("Grado", "grado"),
-            ("Fecha Instalación", "fecha_instalado"),
-            ("Observaciones", "observaciones"),
+            ("ID",              "asset_id"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("IP",              "ip"),
+            ("Categoría",       "category"),
+            ("Asignado a",      "asignado_a"),
+            ("Área",            "area"),
+            ("Grado",           "grado"),
+            ("Fecha Instalación","fecha_instalado"),
+            ("Observaciones",   "observaciones"),
         ],
         "televisor": [
-            ("ID", "asset_id"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("IP", "ip"),
-            ("Categoría", "category"),
-            ("Grado", "grado"),
-            ("Área", "area"),
-            ("Observaciones", "observaciones"),
+            ("ID",              "asset_id"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("IP",              "ip"),
+            ("Categoría",       "category"),
+            ("Grado",           "grado"),
+            ("Área",            "area"),
+            ("Observaciones",   "observaciones"),
         ],
         "impresora": [
-            ("ID", "asset_id"),
-            ("Nombre", "nombre"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("Categoría", "category"),
-            ("Asignado a", "asignado_a"),
-            ("Nivel Tinta", "nivel_tinta"),
-            ("Últ. Llenado", "ultima_vez_llenado"),
-            ("Cantidad Impresiones", "cantidad_impresiones"),
-            ("A Color", "a_color"),
-            ("Observaciones", "observaciones"),
+            ("ID",              "asset_id"),
+            ("Nombre",          "nombre"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("Categoría",       "category"),
+            ("Asignado a",      "asignado_a"),
+            ("Nivel Tinta",     "nivel_tinta"),
+            ("Últ. Llenado",    "ultima_vez_llenado"),
+            ("Impresiones",     "cantidad_impresiones"),
+            ("A Color",         "a_color"),
+            ("Observaciones",   "observaciones"),
         ],
         "router": [
-            ("ID", "asset_id"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("Categoría", "category"),
-            ("Nombre Router", "nombre_router"),
-            ("Clave Router", "clave_router"),
-            ("IP Asignada", "ip_asignada"),
-            ("IP de Uso", "ip_uso"),
-            ("Ubicado", "ubicado"),
-            ("Observaciones", "observaciones"),
+            ("ID",              "asset_id"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("Categoría",       "category"),
+            ("Nombre Router",   "nombre_router"),
+            ("Clave Router",    "clave_router"),
+            ("IP Asignada",     "ip_asignada"),
+            ("IP de Uso",       "ip_uso"),
+            ("Ubicado",         "ubicado"),
+            ("Observaciones",   "observaciones"),
         ],
         "datashow": [
-            ("ID", "asset_id"),
-            ("Nombre", "nombre"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("Categoría", "category"),
-            ("Estado", "estado"),
+            ("ID",              "asset_id"),
+            ("Nombre",          "nombre"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("Categoría",       "category"),
+            ("Estado",          "estado"),
             ("Cable Corriente", "cable_corriente"),
-            ("HDMI", "hdmi"),
-            ("VGA", "vga"),
-            ("Extensión", "extension"),
-            ("Observaciones", "observaciones"),
+            ("HDMI",            "hdmi"),
+            ("VGA",             "vga"),
+            ("Extensión",       "extension"),
+            ("Observaciones",   "observaciones"),
         ],
         "monitor": [
-            ("ID", "asset_id"),
-            ("Modelo", "modelo"),
-            ("Serie", "serie"),
-            ("Pulgadas", "pulgadas"),
-            ("Asignado a", "asignado_a"),
-            ("Área", "area"),
-            ("Grado", "grado"),
-            ("Categoría", "category"),
-            ("Observaciones", "observaciones"),
+            ("ID",              "asset_id"),
+            ("Modelo",          "modelo"),
+            ("Serie",           "serie"),
+            ("Pulgadas",        "pulgadas"),
+            ("Asignado a",      "asignado_a"),
+            ("Área",            "area"),
+            ("Grado",           "grado"),
+            ("Categoría",       "category"),
+            ("Observaciones",   "observaciones"),
         ],
     }
 
-    tipo = tipo.lower()
+    # Color de acento por tipo de equipo
+    color_map = {
+        "computadora": "#1971c2",
+        "televisor":   "#0c8599",
+        "impresora":   "#d9480f",
+        "router":      "#2f9e44",
+        "datashow":    "#7048e8",
+        "monitor":     "#495057",
+    }
 
+    tipo = tipo.lower()
     if tipo not in model_map:
         return HttpResponse("Modelo inválido", status=404)
 
-    Model = model_map[tipo]
+    Model  = model_map[tipo]
     campos = fields_map[tipo]
+    obj    = get_object_or_404(Model, pk=pk)
 
-    obj = get_object_or_404(Model, pk=pk)
+    accent_hex = color_map.get(tipo, "#0056b3")
+    accent     = colors.HexColor(accent_hex)
+    grey_line  = colors.HexColor("#dee2e6")
+    label_bg   = colors.HexColor("#f1f3f5")
+    label_fg   = colors.HexColor("#343a40")
+    alt_row    = colors.HexColor("#f8f9fa")
 
+    # QR code apuntando a este mismo PDF
+    pdf_path = reverse("inventario:download_model_pdf", args=[tipo, pk])
+    pdf_url  = f"https://servicios.ana-hn.org:437{pdf_path}"
+    qr_pil   = qrcode.make(pdf_url).convert("RGB")
+    qr_buf   = io.BytesIO()
+    qr_pil.save(qr_buf, format="PNG")
+    qr_buf.seek(0)
+
+    # Canvas (portrait Letter: 612 x 792 pts)
+    page_w, page_h = letter
     buffer = io.BytesIO()
-    width, height = landscape(letter)
-    pdf = canvas.Canvas(buffer, pagesize=(width, height))
+    pdf    = canvas.Canvas(buffer, pagesize=letter)
+    margin = 1.5 * cm
 
-    pdf.setFont("Helvetica-Bold", 24)
-    pdf.setFillColor(colors.HexColor("#0056b3"))
-    pdf.drawCentredString(width / 2, height - 50, f"Ficha de {tipo.capitalize()}")
+    today_str = datetime.date.today().strftime("%d/%m/%Y")
+    asset_id  = getattr(obj, "asset_id", "")
+    titulo    = f"Ficha de {tipo.capitalize()}"
 
+    # ── CABECERA ──────────────────────────────────────────────
+    band_h = 105
+
+    # Banda principal de color
+    pdf.setFillColor(accent)
+    pdf.rect(0, page_h - band_h, page_w, band_h, fill=1, stroke=0)
+
+    # Banda inferior oscurecida (efecto sombra)
+    pdf.setFillColor(colors.HexColor("#00000022"))
+    pdf.rect(0, page_h - band_h, page_w, 6, fill=1, stroke=0)
+
+    # Texto blanco
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawString(margin, page_h - 16, "INSTITUTO EDUCATIVO ANA HONDURAS · TechCare")
+
+    pdf.setFont("Helvetica-Bold", 26)
+    pdf.drawString(margin, page_h - 50, titulo)
+
+    # Pastilla Asset ID
+    badge_x, badge_y, badge_w, badge_h = margin, page_h - 85, 160, 20
+    pdf.setFillColor(colors.HexColor("#ffffff33"))
+    pdf.roundRect(badge_x, badge_y, badge_w, badge_h, 4, fill=1, stroke=0)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(badge_x + 8, badge_y + 5, f"Asset ID: {asset_id}")
+
+    # Fecha en cabecera
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawRightString(page_w - 100, page_h - 80, today_str)
+
+    # QR code incrustado en la cabecera
+    qr_size = 88
+    qr_x = page_w - qr_size - 10
+    qr_y = page_h - band_h + 8
+    pdf.drawImage(ImageReader(qr_buf), qr_x, qr_y,
+                  width=qr_size, height=qr_size, preserveAspectRatio=True)
+
+    # Línea separadora debajo de la cabecera
+    sep_y = page_h - band_h - 8
+    pdf.setStrokeColor(accent)
+    pdf.setLineWidth(1.5)
+    pdf.line(margin, sep_y, page_w - margin, sep_y)
+
+    # ── TABLA ─────────────────────────────────────────────────
     data = [["Campo", "Valor"]]
     for label, attr in campos:
         val = getattr(obj, attr)
-        if isinstance(val, bool):
+        if val is None:
+            val = "—"
+        elif isinstance(val, bool):
             val = "Sí" if val else "No"
-        data.append([label, str(val)])
+        elif isinstance(val, datetime.date):
+            val = val.strftime("%d/%m/%Y")
+        else:
+            val = str(val) if str(val) else "—"
+        data.append([label, val])
 
-    table = Table(data, colWidths=[width * 0.3, width * 0.6])
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0056b3")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-    ]))
+    col1_w = 5.2 * cm
+    col2_w = page_w - 2 * margin - col1_w
+    n = len(data)
 
-    tw, th = table.wrap(0, 0)
-    x = (width - tw) / 2
-    y = height - 100 - th
-    table.drawOn(pdf, x, y)
+    tstyles = [
+        # Fila de encabezado
+        ("BACKGROUND",    (0, 0), (-1, 0), accent),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0), 10),
+        ("TOPPADDING",    (0, 0), (-1, 0), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 9),
+        ("ALIGN",         (0, 0), (-1, 0), "CENTER"),
+        # Todas las celdas
+        ("FONTSIZE",      (0, 1), (-1, -1), 10),
+        ("TOPPADDING",    (0, 1), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        # Columna de etiquetas — fondo gris, negrita
+        ("BACKGROUND",    (0, 1), (0, -1), label_bg),
+        ("FONTNAME",      (0, 1), (0, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR",     (0, 1), (0, -1), label_fg),
+        # Columna de valores
+        ("FONTNAME",      (1, 1), (1, -1), "Helvetica"),
+        ("TEXTCOLOR",     (1, 1), (1, -1), colors.HexColor("#212529")),
+        # Bordes
+        ("LINEBELOW",     (0, 0), (-1, -2), 0.4, grey_line),
+        ("BOX",           (0, 0), (-1, -1), 0.6, grey_line),
+        ("LINEAFTER",     (0, 0), (0, -1),  0.4, grey_line),
+    ]
+
+    # Filas alternas en columna de valor
+    for i in range(1, n):
+        if i % 2 == 0:
+            tstyles.append(("BACKGROUND", (1, i), (1, i), alt_row))
+
+    table = Table(data, colWidths=[col1_w, col2_w])
+    table.setStyle(TableStyle(tstyles))
+
+    tw, th = table.wrap(col1_w + col2_w, 0)
+    table_y = sep_y - 14 - th
+    table.drawOn(pdf, margin, table_y)
+
+    # ── PIE DE PÁGINA ─────────────────────────────────────────
+    pdf.setFillColor(accent)
+    pdf.rect(0, 0, page_w, 5, fill=1, stroke=0)
+
+    pdf.setFillColor(colors.HexColor("#6c757d"))
+    pdf.setFont("Helvetica", 7.5)
+    pdf.drawString(margin, 13, "TechCare — Sistema de Gestión de Inventario · Instituto ANA Honduras")
+    pdf.drawRightString(page_w - margin, 13, f"Generado el {today_str}")
 
     pdf.showPage()
     pdf.save()
     buffer.seek(0)
 
-    return HttpResponse(buffer.read(), content_type="application/pdf")
+    filename = f"Ficha_{tipo.capitalize()}_{asset_id}.pdf"
+    response = HttpResponse(buffer.read(), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
 
 
 # ===================== EXPORTAR EXCEL =====================

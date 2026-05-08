@@ -48,7 +48,7 @@ def login_view(request):
                     return redirect('seleccion_rol')
                 if user.username == 'glorenzo@ana-hn.org':
                     return redirect('seleccion_rol')
-                if user.username == 'yzavala@ana-hn.org':
+                if user.username == 'yzavala@ana-hn.org' or user.groups.filter(name='reloj').exists():
                     return redirect('reloj_dashboard')
                 # Cualquier usuario del área Administración → solo tickets
                 if user.groups.filter(name='administracion').exists():
@@ -287,24 +287,6 @@ def menu_view(request):
     tickets_pendientes = Ticket.objects.exclude(status__iexact="Resuelto").count()
 
     # =====================================================
-    # 🔥 CITAS BL
-    # =====================================================
-    try:
-        from citas_billingue.models import Appointment_bl
-        citas_bl = Appointment_bl.objects.exclude(status__iexact="Resuelto").count()
-    except:
-        citas_bl = 0
-
-    # =====================================================
-    # 🔥 CITAS COL
-    # =====================================================
-    try:
-        from citas_colegio.models import Appointment_col
-        citas_col = Appointment_col.objects.exclude(status__iexact="Resuelto").count()
-    except:
-        citas_col = 0
-
-    # =====================================================
     # 🔥 REPORTES DE CONDUCTA — BILINGÜE
     # =====================================================
     try:
@@ -345,8 +327,6 @@ def menu_view(request):
     # =====================================================
     is_admin            = user.is_superuser
     is_administracion   = user.groups.filter(name='administracion').exists()
-    is_group_citas_bl   = user.groups.filter(name='citas bilingue').exists()
-    is_group_citas_col  = user.groups.filter(name='citas colegio').exists()
     is_group_enfermeria = user.groups.filter(name='enfermeria').exists()
     is_group_inventario = user.groups.filter(name='inventario').exists()
     is_group_reloj      = user.groups.filter(name='reloj').exists()
@@ -383,8 +363,6 @@ def menu_view(request):
 
         # ---------- Tarjetas del dashboard ----------
         'tickets_pendientes': tickets_pendientes,
-        'citas_bl': citas_bl,
-        'citas_col': citas_col,
         'reportes_bl': reportes_bl,
         'reportes_col': reportes_col,
         'reloj_pendientes': reloj_pendientes,
@@ -400,8 +378,6 @@ def menu_view(request):
         'show_tickets':     is_admin or can_view_tickets or is_administracion,
         'show_sponsors':    is_admin or can_view_sponsors,
         'show_seguridad':   is_admin or can_view_seguridad,
-        'show_citas_bl':    is_admin or is_group_citas_bl,
-        'show_citas_col':   is_admin or is_group_citas_col,
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
 

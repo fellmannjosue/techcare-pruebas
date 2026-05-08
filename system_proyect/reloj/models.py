@@ -341,3 +341,33 @@ class PermisoEmpleado(models.Model):
 
     def __str__(self):
         return f"{self.emp_code} - {self.nombre_empleado} ({self.fecha_inicio}→{self.fecha_fin})"
+
+
+class CompensatorioCalculo(models.Model):
+    """
+    Cálculo de fecha fin para acumular tiempo compensatorio.
+    47 min/día hábil × días hábiles necesarios = días adeudados × 480 min.
+    """
+    emp_code         = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
+    nombre_empleado  = models.CharField("Nombre empleado", max_length=200)
+    dias_adeudados   = models.DecimalField("Días adeudados", max_digits=6, decimal_places=2)
+    fecha_inicio     = models.DateField("Fecha de inicio")
+
+    # Minutos que el empleado está autorizado a compensar por día hábil
+    minutos_autorizados_dia = models.PositiveIntegerField("Min. autorizados/día", default=47)
+
+    # Calculados y guardados
+    minutos_total           = models.PositiveIntegerField("Minutos a compensar", default=0)
+    dias_habiles_necesarios = models.PositiveIntegerField("Días hábiles necesarios", default=0)
+    fecha_fin               = models.DateField("Fecha fin estimada", null=True, blank=True)
+
+    actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_calculo"
+        verbose_name = "Cálculo compensatorio"
+        verbose_name_plural = "Cálculos compensatorios"
+        ordering = ["nombre_empleado"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} → {self.fecha_fin}"

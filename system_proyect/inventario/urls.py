@@ -46,6 +46,14 @@ urlpatterns = [
     # ---------------------------------------------------------
     # UPDATE - Guardar cambios vía AJAX (POST)
     # ---------------------------------------------------------
+    path("computadora/grupo/<int:pk>/", views.asignar_grupo_computadora, name="asignar_grupo_computadora"),
+    path("computadora/grupo-bulk/", views.asignar_grupo_bulk, name="asignar_grupo_bulk"),
+    path("televisor/categoria/<int:pk>/", views.asignar_categoria_televisor, name="asignar_categoria_televisor"),
+    path("router/categoria/<int:pk>/", views.asignar_categoria_router, name="asignar_categoria_router"),
+    path("impresora/categoria/<int:pk>/", views.asignar_categoria_impresora, name="asignar_categoria_impresora"),
+    path("datashow/categoria/<int:pk>/", views.asignar_categoria_datashow, name="asignar_categoria_datashow"),
+    path("monitor/categoria/<int:pk>/", views.asignar_categoria_monitor, name="asignar_categoria_monitor"),
+    path("categoria-bulk/", views.asignar_categoria_bulk, name="asignar_categoria_bulk"),
     path("computadora/update/<int:pk>/", views.update_computadora, name="update_computadora"),
     path("televisor/update/<int:pk>/", views.update_televisor, name="update_televisor"),
     path("impresora/update/<int:pk>/", views.update_impresora, name="update_impresora"),

@@ -1,0 +1,111 @@
+{% extends 'reloj/base_reloj.html' %}
+{% block title %}{{ modo }} Cálculo Compensatorio{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}{{ modo }} Cálculo Compensatorio{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="ti ti-calculator me-2 text-primary"></i>{{ modo }} registro
+        </h3>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Empleado</label>
+            {{ form.emp_code }}
+            {% if form.emp_code.errors %}
+              <div class="text-danger small mt-1">{{ form.emp_code.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre</label>
+            {{ form.nombre_empleado }}
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Días adeudados</label>
+              {{ form.dias_adeudados }}
+              <div class="form-text">Ej: 15.65 — se calcula como días × 480 min</div>
+              {% if form.dias_adeudados.errors %}
+                <div class="text-danger small mt-1">{{ form.dias_adeudados.errors.0 }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha de inicio</label>
+              {{ form.fecha_inicio }}
+              {% if form.fecha_inicio.errors %}
+                <div class="text-danger small mt-1">{{ form.fecha_inicio.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Preview de cálculo en tiempo real #}
+          <div class="alert alert-light border mb-3" id="preview-calculo" style="display:none;">
+            <div class="row text-center g-2">
+              <div class="col-4">
+                <div class="text-muted small">Minutos a compensar</div>
+                <div class="fw-bold fs-5" id="prev-min">—</div>
+              </div>
+              <div class="col-4">
+                <div class="text-muted small">Días hábiles necesarios</div>
+                <div class="fw-bold fs-5" id="prev-dias">—</div>
+              </div>
+              <div class="col-4">
+                <div class="text-muted small">{{ minutos_dia }} min/día</div>
+                <div class="fw-bold fs-5 text-primary" id="prev-note">Vista previa</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="ti ti-device-floppy me-1"></i>Guardar y calcular
+            </button>
+            <a href="{% url 'reloj_compensatorio_calculo_list' %}" class="btn btn-ghost-secondary">
+              Cancelar
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MIN_DIA = {{ minutos_dia }};
+
+function actualizarPreview() {
+  const dias = parseFloat(document.querySelector('[name=dias_adeudados]').value);
+  if (isNaN(dias) || dias <= 0) {
+    document.getElementById('preview-calculo').style.display = 'none';
+    return;
+  }
+  const minutos = Math.round(dias * 480);
+  const diasHab = Math.ceil(minutos / MIN_DIA);
+  document.getElementById('prev-min').textContent  = minutos.toLocaleString() + ' min';
+  document.getElementById('prev-dias').textContent = diasHab + ' días';
+  document.getElementById('preview-calculo').style.display = '';
+}
+
+document.querySelector('[name=dias_adeudados]').addEventListener('input', actualizarPreview);
+
+// Autocompletar nombre al seleccionar empleado
+const empMap = {
+  {% for asig in form.fields.emp_code.widget.choices %}
+    {% if asig.0 %}"{{ asig.0 }}": "{{ asig.1 }}",{% endif %}
+  {% endfor %}
+};
+document.getElementById('id_emp_code').addEventListener('change', function () {
+  const nombre = empMap[this.value] || '';
+  document.querySelector('[name=nombre_empleado]').value = nombre;
+});
+</script>
+{% endblock %}

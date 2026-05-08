@@ -92,56 +92,6 @@ def notify_ticket_cerrado(ticket, usuario):
 
 
 # ============================================================
-# 🔵 MÓDULO CITAS – Bilingüe
-# ============================================================
-
-def notify_cita_bl_creada(cita, coordinadora):
-    """
-    Notifica cuando un padre agenda una cita BL.
-    """
-    mensaje = f"Nueva cita BL para {cita.teacher} solicitada por {cita.padre}"
-
-    crear_notificacion(
-        usuario=coordinadora,
-        mensaje=mensaje,
-        modulo="citas_bl",
-        tipo="info",
-        extra={"cita_id": cita.id}
-    )
-
-    enviar_correo(
-        subject="Nueva Cita Bilingüe",
-        message=f"El padre {cita.padre} ha solicitado una cita.\nFecha: {cita.fecha}\nHora: {cita.hora}",
-        recipient=coordinadora.email
-    )
-
-
-# ============================================================
-# 🔵 MÓDULO CITAS – Colegio
-# ============================================================
-
-def notify_cita_col_creada(cita, coordinadora):
-    """
-    Notifica cuando un padre agenda una cita COL/VOC.
-    """
-    mensaje = f"Nueva cita COL para {cita.teacher} solicitada por {cita.padre}"
-
-    crear_notificacion(
-        usuario=coordinadora,
-        mensaje=mensaje,
-        modulo="citas_col",
-        tipo="info",
-        extra={"cita_id": cita.id}
-    )
-
-    enviar_correo(
-        subject="Nueva Cita Colegio/Vocacional",
-        message=f"Padre: {cita.padre}\nFecha: {cita.fecha}\nHora: {cita.hora}",
-        recipient=coordinadora.email
-    )
-
-
-# ============================================================
 # 🔵 MÓDULO COORDINACIÓN – Colegio
 # ============================================================
 

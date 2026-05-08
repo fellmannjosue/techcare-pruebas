@@ -37,14 +37,11 @@ urlpatterns = [
     # 5) Módulos agro-sanitarios y de salud
     # ──────────────────────────────────────────────────────────────────────────
     path('enfermeria/',      include(('enfermeria.urls', 'enfermeria'), namespace='enfermeria')),
-    path('citas_billingue/', include('citas_billingue.urls')),
-    path('citas_colegio/',   include('citas_colegio.urls')),
 
     # ──────────────────────────────────────────────────────────────────────────
-    # 6) Patrocinios y menú principal
+    # 6) Patrocinios
     # ──────────────────────────────────────────────────────────────────────────
     path('sponsors/', include('sponsors.urls')),
-    path('menu/',     include('menu.urls')),
 
     # ──────────────────────────────────────────────────────────────────────────
     # 7) Módulo de Seguridad

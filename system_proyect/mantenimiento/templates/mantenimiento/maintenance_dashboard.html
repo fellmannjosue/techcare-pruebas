@@ -71,6 +71,17 @@
     <div class="page-body">
       <div class="container-xl">
 
+        {# Mensajes flash #}
+        {% if messages %}
+          {% for m in messages %}
+          <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible mb-3">
+            <i class="ti ti-{% if 'error' in m.tags %}alert-circle{% else %}circle-check{% endif %} me-2"></i>
+            {{ m }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+          {% endfor %}
+        {% endif %}
+
         {# STATS #}
         <div class="row row-deck row-cards mb-4">
           <div class="col-sm-6 col-lg-3">
@@ -108,7 +119,7 @@
                 <thead><tr>
                   <th>ID</th><th>Equipo</th><th>Modelo</th><th>Serie</th>
                   <th>Maestro</th><th>Grado</th><th>Tipo Falla</th>
-                  <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>PDF</th>
+                  <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                   {% for r in records %}
@@ -117,8 +128,8 @@
                     <td class="fw-semibold">{{ r.computadora.asset_id|default:r.model }}</td>
                     <td>{{ r.model }}</td>
                     <td class="text-muted font-monospace small">{{ r.serie|default:"—" }}</td>
-                    <td>{{ r.teacher_name }}</td>
-                    <td>{{ r.grade }}</td>
+                    <td>{{ r.teacher_name|default:r.computadora.asignado_a|default:"—" }}</td>
+                    <td>{{ r.grade|default:r.computadora.grado|default:"—" }}</td>
                     <td>{{ r.tipo_falla|default:"—" }}</td>
                     <td>{{ r.date|date:"d/m/Y" }}</td>
                     <td>
@@ -133,9 +144,13 @@
                       {% else %}<span class="text-muted">—</span>{% endif %}
                       {% endwith %}
                     </td>
-                    <td>
+                    <td class="text-nowrap">
                       <a href="{% url 'mantenimiento:download_maintenance_pdf' r.id %}"
-                         class="btn btn-sm btn-ghost-secondary" title="PDF"><i class="ti ti-file-type-pdf"></i></a>
+                         class="btn btn-sm btn-ghost-secondary" title="Descargar PDF"><i class="ti ti-file-type-pdf"></i></a>
+                      <button class="btn btn-sm btn-ghost-primary btn-editar-mant"
+                              data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+                      <button class="btn btn-sm btn-ghost-danger btn-eliminar-mant"
+                              data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
                     </td>
                   </tr>
                   {% empty %}
@@ -166,13 +181,15 @@
       <form method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         <input type="hidden" name="firma_data" id="firma_data">
+        <input type="hidden" name="teacher_name" id="hidden_teacher_name">
+        <input type="hidden" name="grade"        id="hidden_grade">
 
         <div class="modal-header">
           <h5 class="modal-title"><i class="ti ti-tool me-2 text-primary"></i>Nuevo Registro de Mantenimiento</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
 
-        <div class="modal-body">
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
           <div class="row g-3">
 
             {# ID auto #}
@@ -205,16 +222,22 @@
               {{ form.serie }}
             </div>
 
-            {# Maestro dropdown #}
+            {# Asignado a (auto-fill) #}
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Nombre del Maestro</label>
-              {{ form.teacher_name }}
+              <label class="form-label fw-semibold">Nombre de la persona</label>
+              <input type="text" id="mant-asignado" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
 
-            {# Grado dropdown #}
+            {# Área (auto-fill) #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Área</label>
+              <input type="text" id="mant-area" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
+            </div>
+
+            {# Grado (auto-fill) #}
             <div class="col-md-4">
               <label class="form-label fw-semibold">Grado</label>
-              {{ form.grade }}
+              <input type="text" id="mant-grado" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
 
             {# Tipo falla, Fecha, Estado #}
@@ -281,7 +304,110 @@
 </div>
 
 
+{# ══════════ MODAL EDITAR REGISTRO ══════════ #}
+<div class="modal modal-blur fade" id="modalEditarRegistro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post" id="form-edit-mant" action="" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="firma_data" id="edit-firma-data">
+        <input type="hidden" name="teacher_name" id="edit-teacher-name">
+        <input type="hidden" name="grade" id="edit-grade">
+
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ti ti-pencil me-2 text-primary"></i>Editar Registro
+            <span id="edit-record-id-badge" class="badge bg-blue-lt text-blue ms-2"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+          <div class="row g-3">
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Computadora</label>
+              <select name="computadora" id="edit-computadora" class="form-select">
+                <option value="">— Seleccionar computadora —</option>
+                {% for c in computadoras %}
+                <option value="{{ c.id }}">{{ c.asset_id }} – {{ c.modelo }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Modelo</label>
+              <input type="text" name="model" id="edit-model" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Serie</label>
+              <input type="text" name="serie" id="edit-serie" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nombre de la persona</label>
+              <input type="text" id="edit-asignado-display" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Área</label>
+              <input type="text" id="edit-area-display" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Grado</label>
+              <input type="text" id="edit-grado-display" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de Falla</label>
+              <select name="tipo_falla" id="edit-tipo-falla" class="form-select">
+                {% for tf in tipos_falla %}
+                <option value="{{ tf.id }}">{{ tf.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha</label>
+              <input type="date" name="date" id="edit-date" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Estado</label>
+              <select name="status" id="edit-status" class="form-select">
+                <option value="Pendiente">Pendiente</option>
+                <option value="En Proceso">En Proceso</option>
+                <option value="Completado">Completado</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold">Solución Aplicada</label>
+              <textarea name="solucion" id="edit-solucion" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
+              <textarea name="observaciones" id="edit-observaciones" class="form-control" rows="2"></textarea>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary ms-auto">
+            <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
@@ -292,24 +418,40 @@ const COMP_DATA = {{ computadoras_json|safe }};
 
 $(function () {
 
-  // DataTable
-  $('#tablaMantenimiento').DataTable({
-    pageLength: 15, order: [[7, 'desc']],
-    language: {
-      lengthMenu:"Mostrar _MENU_ registros", zeroRecords:"Sin registros",
-      info:"Mostrando _START_ a _END_ de _TOTAL_", infoEmpty:"Sin registros",
-      infoFiltered:"(de _MAX_ totales)", search:"Buscar:",
-      paginate:{first:"«",last:"»",next:"›",previous:"‹"}
-    }
+  // DataTable (envuelto en try-catch para que un error no detenga el resto del JS)
+  try {
+    $.fn.dataTable.ext.errMode = 'none';
+    $('#tablaMantenimiento').DataTable({
+      pageLength: 15, order: [[7, 'desc']],
+      language: {
+        lengthMenu:"Mostrar _MENU_ registros", zeroRecords:"Sin registros",
+        info:"Mostrando _START_ a _END_ de _TOTAL_", infoEmpty:"Sin registros",
+        infoFiltered:"(de _MAX_ totales)", search:"Buscar:",
+        paginate:{first:"«",last:"»",next:"›",previous:"‹"}
+      }
+    });
+  } catch(e) { console.warn('DataTable init:', e); }
+
+  // Al abrir el modal disparar fill si ya hay valor
+  $('#modalNuevoRegistro').on('shown.bs.modal', function(){
+    const _val = $('#id_computadora').val();
+    if (_val) fillFromComputadora(_val);
   });
 
-  // Reabrir modal si hay errores
-  {% if form.errors %} new bootstrap.Modal($('#modalNuevoRegistro')[0]).show(); {% endif %}
-
-  // Auto-fill modelo y serie al seleccionar computadora
-  $('#id_computadora').on('change', function(){
-    const data = COMP_DATA[this.value] || {};
+  // Auto-fill al seleccionar computadora
+  function fillFromComputadora(val) {
+    const data = COMP_DATA[val] || {};
     $('#id_model').val(data.modelo || '');
+    $('#mant-asignado').val(data.asignado || '');
+    $('#mant-area').val(data.area || '');
+    $('#mant-grado').val(data.grado || '');
+    $('#hidden_teacher_name').val(data.asignado || '');
+    $('#hidden_grade').val(data.grado || '');
+  }
+
+  $('#id_computadora').on('change', function(){
+    fillFromComputadora(this.value);
+    const data = COMP_DATA[this.value] || {};
     const serieInput = $('#id_serie');
     const chk = $('#chk-serie-mant');
     if (!chk.is(':checked')) {
@@ -412,9 +554,67 @@ $(function () {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   });
 
-  // Antes de enviar → capturar firma como base64
-  $('form').on('submit', function(){
+  // Antes de enviar el form de nuevo registro → capturar firma como base64
+  $('#modalNuevoRegistro form').on('submit', function(){
     document.getElementById('firma_data').value = canvas.toDataURL('image/png');
+  });
+
+  // ── Editar registro ──
+  $(document).on('click', '.btn-editar-mant', function(){
+    const pk = $(this).data('pk');
+    $.getJSON(`/mantenimiento/${pk}/editar/`, function(d){
+      $('#edit-record-id-badge').text(d.record_id);
+      $('#form-edit-mant').attr('action', `/mantenimiento/${pk}/editar/`);
+      $('#edit-computadora').val(d.computadora);
+      const comp = COMP_DATA[String(d.computadora)] || {};
+      $('#edit-model').val(d.model || comp.modelo || '');
+      $('#edit-serie').val(d.serie || comp.serie || '');
+      $('#edit-asignado-display').val(d.teacher_name || comp.asignado || '');
+      $('#edit-area-display').val(comp.area || '');
+      $('#edit-grado-display').val(d.grade || comp.grado || '');
+      $('#edit-teacher-name').val(d.teacher_name || comp.asignado || '');
+      $('#edit-grade').val(d.grade || comp.grado || '');
+      $('#edit-tipo-falla').val(String(d.tipo_falla));
+      $('#edit-date').val(d.date);
+      $('#edit-status').val(d.status);
+      $('#edit-solucion').val(d.solucion);
+      $('#edit-observaciones').val(d.observaciones);
+      $('#modalEditarRegistro').modal('show');
+    }).fail(() => Swal.fire('Error', 'No se pudo cargar el registro.', 'error'));
+  });
+
+  // Auto-fill al cambiar computadora en modal editar
+  $('#edit-computadora').on('change', function(){
+    const comp = COMP_DATA[this.value] || {};
+    $('#edit-model').val(comp.modelo || '');
+    $('#edit-serie').val(comp.serie || '');
+    $('#edit-asignado-display').val(comp.asignado || '');
+    $('#edit-area-display').val(comp.area || '');
+    $('#edit-grado-display').val(comp.grado || '');
+    $('#edit-teacher-name').val(comp.asignado || '');
+    $('#edit-grade').val(comp.grado || '');
+  });
+
+  // ── Eliminar registro ──
+  $(document).on('click', '.btn-eliminar-mant', function(){
+    const pk  = $(this).data('pk');
+    const rid = $(this).data('rid');
+    Swal.fire({
+      title: '¿Eliminar ' + rid + '?',
+      text: 'Se eliminará el registro y la numeración se reiniciará desde 001.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d63939',
+    }).then(res => {
+      if (res.isConfirmed) {
+        const f = $('<form method="post">').attr('action', `/mantenimiento/${pk}/eliminar/`);
+        f.append($('<input type="hidden" name="csrfmiddlewaretoken">').val('{{ csrf_token }}'));
+        $('body').append(f);
+        f.submit();
+      }
+    });
   });
 
 });

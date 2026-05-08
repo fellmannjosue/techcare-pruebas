@@ -11,8 +11,6 @@ from django.views.decorators.http import require_GET
 
 # Importación de modelos
 from tickets.models import Ticket
-from citas_billingue.models import Appointment_bl
-from citas_colegio.models import Appointment_col
 from conducta.models import (
     ReporteInformativo,
     ReporteConductual,
@@ -53,50 +51,6 @@ def summary_tickets(request):
                 "fecha": fmt(t.created_at),
             }
             for t in pendientes[:5]
-        ]
-    })
-
-
-# ============================================================
-# 📌 RESUMEN: CITAS BILINGÜE
-# ============================================================
-@require_GET
-@login_required
-def summary_citas_bl(request):
-    citas = Appointment_bl.objects.exclude(status__iexact="Resuelto").order_by("-id")
-
-    return JsonResponse({
-        "total": citas.count(),
-        "items": [
-            {
-                "id": c.id,
-                "titulo": f"Cita BL — {c.parent_name}",
-                "descripcion": f"Maestro: {c.teacher.name}",
-                "fecha": f"{c.date} {c.time}",
-            }
-            for c in citas[:5]
-        ]
-    })
-
-
-# ============================================================
-# 📌 RESUMEN: CITAS COLEGIO/VOC
-# ============================================================
-@require_GET
-@login_required
-def summary_citas_col(request):
-    citas = Appointment_col.objects.exclude(status__iexact="Resuelto").order_by("-id")
-
-    return JsonResponse({
-        "total": citas.count(),
-        "items": [
-            {
-                "id": c.id,
-                "titulo": f"Cita Colegio — {c.parent_name}",
-                "descripcion": f"Maestro: {c.teacher.name}",
-                "fecha": f"{c.date} {c.time}",
-            }
-            for c in citas[:5]
         ]
     })
 

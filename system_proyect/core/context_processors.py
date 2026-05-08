@@ -66,8 +66,6 @@ def nav_context(request):
         'nav_seguridad':        is_admin or can('seguridad.view_registro'),
         'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
-        'nav_citas_bl':         is_admin or grp('citas bilingue'),
-        'nav_citas_col':        is_admin or grp('citas colegio'),
         'nav_coord_bl':         nav_coord_bl,
         'nav_coord_col':        nav_coord_col,
         'nav_maestro_bl':       nav_mbl,

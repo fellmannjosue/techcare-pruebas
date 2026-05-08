@@ -20,7 +20,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="navbar-brand navbar-brand-autodark">
-        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+        <a href="{% url 'reloj_dashboard' %}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
@@ -49,8 +49,8 @@
           <div class="col">
             <nav aria-label="breadcrumb">
               <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
-                <li class="breadcrumb-item active">{% block page_pretitle %}Reloj{% endblock %}</li>
+                <li class="breadcrumb-item"><a href="{% url 'reloj_dashboard' %}"><i class="ti ti-home me-1"></i>Reloj</a></li>
+                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
               </ol>
             </nav>
             <h2 class="page-title">{% block page_title %}{% endblock %}</h2>

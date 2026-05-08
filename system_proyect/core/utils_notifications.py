@@ -23,8 +23,6 @@ _TIPO_ICON = {
 _MODULO_LABEL = {
     'tickets':       'Soporte Técnico',
     'conducta':      'Conducta',
-    'citas_bl':      'Citas Bilingüe',
-    'citas_col':     'Citas Colegio',
     'reloj':         'Control de Horario',
     'inventario':    'Inventario',
     'enfermeria':    'Enfermería',

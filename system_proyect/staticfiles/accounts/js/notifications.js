@@ -178,9 +178,9 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // =======================================
-// Ejecución cada 5 segundos
+// Ejecución cada 30 segundos
 // =======================================
-setInterval(cargarNotificaciones, 5000);
+setInterval(cargarNotificaciones, 30000);
 
 // =======================================
 // Extra: obtener CSRF token

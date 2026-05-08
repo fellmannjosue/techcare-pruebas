@@ -28,15 +28,9 @@ class MaintenanceRecordForm(forms.ModelForm):
         self.fields['computadora'].queryset = Computadora.objects.all().order_by('asset_id')
         self.fields['computadora'].empty_label = '— Seleccionar computadora —'
 
-        maestros = list(MaestroMantenimiento.objects.values_list('nombre', flat=True))
-        self.fields['teacher_name'].widget = forms.Select(
-            attrs={'class': 'form-select'},
-            choices=[('', '— Seleccionar maestro —')] + [(n, n) for n in maestros]
-        )
-        grados = list(GradoMantenimiento.objects.values_list('nombre', flat=True))
-        self.fields['grade'].widget = forms.Select(
-            attrs={'class': 'form-select'},
-            choices=[('', '— Seleccionar grado —')] + [(n, n) for n in grados]
-        )
-        self.fields['serie'].required = False
-        self.fields['model'].required = False
+        self.fields['serie'].required        = False
+        self.fields['model'].required        = False
+        self.fields['teacher_name'].required = False
+        self.fields['teacher_name'].widget   = forms.HiddenInput()
+        self.fields['grade'].required        = False
+        self.fields['grade'].widget          = forms.HiddenInput()

@@ -37,18 +37,20 @@ from .models import (
     ReporteNota,
     ReporteComentario,
     FeriadoAsignacion,
+    CompensatorioCalculo,
 )
 
 # Formularios
 from .forms import (
     ScheduleTemplateForm,
-    ScheduleRuleForm,          # edición individual (un día)
-    RuleBulkForm,              # creación/actualización en lote (checkbox días)
+    ScheduleRuleForm,
+    RuleBulkForm,
     EmployeeScheduleAssignmentForm,
     FeriadoForm,
     SabadoEspecialForm,
     TiempoCompensatorioForm,
     PermisoEmpleadoForm,
+    CompensatorioCalculoForm,
 )
 
 
@@ -1783,24 +1785,106 @@ def sabado_delete(request, pk):
 
 
 # ─────────────────────────────────────────────────────────────
-# CRUD · Tiempo compensatorio (capturas)
 # ─────────────────────────────────────────────────────────────
+# Tiempo compensatorio · calculado desde ZKTeco (solo asistentes)
+# ─────────────────────────────────────────────────────────────
+
+_HORA_CORTE = time(15, 48)  # a partir de aquí se cuenta como compensatorio
 
 @login_required
 def compensatorio_list(request):
-    """
-    Cualquiera autenticado puede ver su lista filtrada por emp_code si quieres;
-    aquí mostramos todos (puedes filtrar por request.user.is_staff si lo prefieres).
-    """
-    qs = TiempoCompensatorio.objects.all().order_by("-fecha", "-creado_en")
-    emp_code_f = (request.GET.get("emp_code") or "").strip()
-    if emp_code_f:
-        qs = qs.filter(emp_code__iexact=emp_code_f)
+    hoy = date.today()
+    fecha_inicio_str = request.GET.get("fecha_inicio") or hoy.replace(day=1).strftime("%Y-%m-%d")
+    fecha_fin_str    = request.GET.get("fecha_fin")    or hoy.strftime("%Y-%m-%d")
+    emp_code_f       = (request.GET.get("emp_code") or "").strip()
 
-    paginator = Paginator(qs, 25)
-    page = request.GET.get("page")
-    items = paginator.get_page(page)
-    return render(request, "reloj/compensatorio_list.html", {"items": items, "emp_code_f": emp_code_f})
+    # Empleados activos con "horario asistentes"
+    asistentes_qs = (
+        EmployeeScheduleAssignment.objects
+        .filter(template__nombre__icontains="asistente", activo=True)
+        .values_list("emp_code", "nombre_empleado")
+    )
+    emp_map = {code: nombre for code, nombre in asistentes_qs}  # {code: nombre}
+    codigos = list(emp_map.keys())
+
+    if emp_code_f:
+        codigos = [c for c in codigos if c == emp_code_f]
+
+    # Tope de minutos por empleado (desde CompensatorioCalculo)
+    topes_emp = {
+        obj.emp_code: obj.minutos_autorizados_dia
+        for obj in CompensatorioCalculo.objects.filter(emp_code__in=codigos)
+    }
+
+    filas = []
+    error = None
+
+    if codigos:
+        codigos_sql = ", ".join(f"'{c}'" for c in codigos)
+        query = f"""
+        DECLARE @fi DATE = '{fecha_inicio_str}';
+        DECLARE @ff DATE = '{fecha_fin_str}';
+
+        SELECT
+            t.emp_code,
+            CONVERT(DATE, t.punch_time)   AS fecha,
+            STRING_AGG(
+                CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108), ', ')
+                WITHIN GROUP (ORDER BY t.punch_time) AS marcas,
+            MAX(CAST(t.punch_time AS TIME)) AS ultima_marca
+        FROM dbo.iclock_transaction t
+        WHERE t.punch_time >= @fi
+          AND t.punch_time <  DATEADD(DAY, 1, @ff)
+          AND t.emp_code IN ({codigos_sql})
+        GROUP BY t.emp_code, CONVERT(DATE, t.punch_time)
+        ORDER BY fecha DESC, t.emp_code;
+        """
+        try:
+            with connections["zkbio_sqlserver"].cursor() as cursor:
+                cursor.execute(query)
+                for emp_code, fecha, marcas, ultima in cursor.fetchall():
+                    if hasattr(ultima, 'seconds'):
+                        total_seg = ultima.seconds
+                    else:
+                        total_seg = ultima.hour * 3600 + ultima.minute * 60 + ultima.second
+                    corte_seg = _HORA_CORTE.hour * 3600 + _HORA_CORTE.minute * 60
+                    diff_seg  = total_seg - corte_seg  # puede ser negativo
+                    tiene_comp = diff_seg > 0
+                    diff_seg   = max(0, diff_seg)
+                    tope_emp       = topes_emp.get(str(emp_code), 47)
+                    total_comp_min = diff_seg // 60               # minutos totales reales
+                    completo       = total_comp_min >= tope_emp   # alcanzó el tope del empleado
+                    total_comp_min = min(total_comp_min, tope_emp)# tope máximo por empleado
+                    horas_comp   = total_comp_min // 60
+                    minutos_comp = total_comp_min % 60
+                    if hasattr(ultima, 'seconds'):
+                        ult_str = str(ultima)[:5]
+                    else:
+                        ult_str = ultima.strftime("%H:%M")
+                    filas.append({
+                        "emp_code":     emp_code,
+                        "nombre":       emp_map.get(str(emp_code), emp_code),
+                        "fecha":        fecha,
+                        "marcas":       marcas or "",
+                        "ultima_marca": ult_str,
+                        "horas":        horas_comp,
+                        "minutos":      minutos_comp,
+                        "tiene_comp":   tiene_comp,
+                        "completo":     completo,
+                        "tope":         tope_emp,
+                    })
+        except Exception as exc:
+            error = str(exc)
+
+    return render(request, "reloj/compensatorio_list.html", {
+        "filas":          filas,
+        "emp_map":        emp_map,
+        "fecha_inicio":   fecha_inicio_str,
+        "fecha_fin":      fecha_fin_str,
+        "emp_code_f":     emp_code_f,
+        "error":          error,
+        "hora_corte":     "15:48",
+    })
 
 
 @staff_required
@@ -1935,3 +2019,202 @@ def permiso_delete(request, pk):
         messages.success(request, "Permiso eliminado.")
         return redirect("reloj_permisos_list")
     return render(request, "reloj/confirm_delete.html", {"obj": obj, "titulo": "Eliminar permiso"})
+
+
+# ─────────────────────────────────────────────────────────────
+# Cálculo de tiempo compensatorio (fecha fin por empleado)
+# ─────────────────────────────────────────────────────────────
+import math as _math
+
+MINUTOS_POR_DIA_COMP = 47
+JORNADA_MIN = 528  # 8.8 horas
+
+
+def _calcular_fecha_fin(fecha_inicio, dias_adeudados, feriados=None, minutos_dia=None):
+    from datetime import timedelta
+    feriados = feriados or set()
+    if minutos_dia is None or minutos_dia <= 0:
+        minutos_dia = MINUTOS_POR_DIA_COMP
+    minutos = float(dias_adeudados) * JORNADA_MIN
+    dias_hab = _math.ceil(minutos / minutos_dia)
+    fecha = fecha_inicio
+    contados = 0
+    while contados < dias_hab:
+        fecha += timedelta(days=1)
+        if fecha.weekday() < 5 and fecha not in feriados:
+            contados += 1
+    return fecha, int(minutos), dias_hab
+
+
+def _contar_dias_habiles_rango(desde, hasta, feriados=None):
+    """Días hábiles lun–vie desde 'desde' (inclusive) hasta 'hasta' (exclusive)."""
+    from datetime import timedelta
+    feriados = feriados or set()
+    count, d = 0, desde
+    while d < hasta:
+        if d.weekday() < 5 and d not in feriados:
+            count += 1
+        d += timedelta(days=1)
+    return count
+
+
+@login_required
+def compensatorio_calculo_list(request):
+    from datetime import timedelta as _td
+    hoy = date.today()
+
+    # Construir set de feriados
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+
+    # Calcular saldo dinámico para cada registro
+    registros_data = []
+    for r in CompensatorioCalculo.objects.all():
+        min_dia = r.minutos_autorizados_dia if r.minutos_autorizados_dia > 0 else MINUTOS_POR_DIA_COMP
+        dias_trans = _contar_dias_habiles_rango(r.fecha_inicio, hoy, feriados)
+        saldo = max(0, r.minutos_total - dias_trans * min_dia)
+        registros_data.append({'r': r, 'saldo': saldo, 'dias_transcurridos': dias_trans})
+
+    return render(request, "reloj/compensatorio_calculo_list.html", {
+        "registros_data": registros_data,
+        "feriados_count": Feriado.objects.count(),
+        "minutos_dia": MINUTOS_POR_DIA_COMP,
+    })
+
+
+@login_required
+def compensatorio_calculo_new(request):
+    # Construir set de feriados del modelo Feriado
+    from datetime import timedelta as _td
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+
+    if request.method == "POST":
+        form = CompensatorioCalculoForm(request.POST)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            # Autocompletar nombre si viene vacío
+            if not obj.nombre_empleado:
+                from .models import EmployeeScheduleAssignment
+                asig = EmployeeScheduleAssignment.objects.filter(
+                    emp_code=obj.emp_code, activo=True
+                ).first()
+                obj.nombre_empleado = asig.nombre_empleado if asig else obj.emp_code
+            fecha_fin, minutos, dias_hab = _calcular_fecha_fin(
+                obj.fecha_inicio, obj.dias_adeudados, feriados,
+                minutos_dia=obj.minutos_autorizados_dia
+            )
+            obj.minutos_total = minutos
+            obj.dias_habiles_necesarios = dias_hab
+            obj.fecha_fin = fecha_fin
+            obj.save()
+            messages.success(request, f"Cálculo guardado. Fecha fin: {fecha_fin.strftime('%d/%m/%Y')}")
+            return redirect("reloj_compensatorio_calculo_list")
+    else:
+        form = CompensatorioCalculoForm()
+    return render(request, "reloj/compensatorio_calculo_form.html", {
+        "form": form, "modo": "Nuevo",
+        "minutos_dia": MINUTOS_POR_DIA_COMP,
+    })
+
+
+@login_required
+def compensatorio_calculo_edit(request, pk):
+    from datetime import timedelta as _td
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+
+    if request.method == "POST":
+        form = CompensatorioCalculoForm(request.POST, instance=obj)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            if not obj.nombre_empleado:
+                from .models import EmployeeScheduleAssignment
+                asig = EmployeeScheduleAssignment.objects.filter(
+                    emp_code=obj.emp_code, activo=True
+                ).first()
+                obj.nombre_empleado = asig.nombre_empleado if asig else obj.emp_code
+            fecha_fin, minutos, dias_hab = _calcular_fecha_fin(
+                obj.fecha_inicio, obj.dias_adeudados, feriados,
+                minutos_dia=obj.minutos_autorizados_dia
+            )
+            obj.minutos_total = minutos
+            obj.dias_habiles_necesarios = dias_hab
+            obj.fecha_fin = fecha_fin
+            obj.save()
+            messages.success(request, "Cálculo actualizado.")
+            return redirect("reloj_compensatorio_calculo_list")
+    else:
+        form = CompensatorioCalculoForm(instance=obj)
+    return render(request, "reloj/compensatorio_calculo_form.html", {
+        "form": form, "modo": "Editar", "obj": obj,
+        "minutos_dia": MINUTOS_POR_DIA_COMP,
+    })
+
+
+@login_required
+def compensatorio_calculo_set_min_dia(request, pk):
+    """AJAX: actualiza minutos_autorizados_dia y recalcula días hábiles + fecha fin."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        valor = int(request.POST.get('minutos', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    if valor <= 0:
+        return JsonResponse({'ok': False, 'error': 'Debe ser mayor a 0'})
+
+    from datetime import timedelta as _td
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+
+    obj.minutos_autorizados_dia = valor
+    fecha_fin, minutos, dias_hab = _calcular_fecha_fin(
+        obj.fecha_inicio, obj.dias_adeudados, feriados, minutos_dia=valor
+    )
+    obj.dias_habiles_necesarios = dias_hab
+    obj.fecha_fin = fecha_fin
+    obj.save()
+
+    # Recalcular saldo al día de hoy
+    hoy = date.today()
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    saldo = max(0, minutos - dias_trans * valor)
+
+    return JsonResponse({
+        'ok': True,
+        'minutos_dia': valor,
+        'dias_habiles': dias_hab,
+        'fecha_fin': fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '—',
+        'saldo': saldo,
+    })
+
+
+@staff_required
+def compensatorio_calculo_delete(request, pk):
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    if request.method == "POST":
+        obj.delete()
+        messages.success(request, "Registro eliminado.")
+        return redirect("reloj_compensatorio_calculo_list")
+    return render(request, "reloj/confirm_delete.html", {
+        "obj": obj, "titulo": "Eliminar cálculo compensatorio"
+    })

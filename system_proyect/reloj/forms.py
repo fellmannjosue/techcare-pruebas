@@ -1,7 +1,8 @@
 from django import forms
 from .models import (
     ScheduleTemplate, ScheduleRule, EmployeeScheduleAssignment,
-    Feriado, SabadoEspecial, TiempoCompensatorio, PermisoEmpleado
+    Feriado, SabadoEspecial, TiempoCompensatorio, PermisoEmpleado,
+    CompensatorioCalculo,
 )
 
 # ---------------------------------------------------------------------
@@ -240,3 +241,37 @@ class PermisoEmpleadoForm(forms.ModelForm):
             "fecha_fin": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "motivo": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
+
+
+class CompensatorioCalculoForm(forms.ModelForm):
+    class Meta:
+        model = CompensatorioCalculo
+        fields = ["emp_code", "nombre_empleado", "dias_adeudados", "fecha_inicio"]
+        widgets = {
+            "emp_code":        forms.Select(attrs={"class": "form-select"}),
+            "nombre_empleado": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
+            "dias_adeudados":  forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "0.01"}),
+            "fecha_inicio":    forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import EmployeeScheduleAssignment
+        asignados = (
+            EmployeeScheduleAssignment.objects
+            .filter(template__nombre__icontains="asistente", activo=True)
+            .order_by("nombre_empleado")
+            .values_list("emp_code", "nombre_empleado")
+        )
+        self.fields["emp_code"].widget = forms.Select(
+            attrs={"class": "form-select", "id": "id_emp_code"},
+            choices=[("", "— Seleccionar empleado —")] + list(asignados),
+        )
+        self._emp_map = {code: nombre for code, nombre in asignados}
+
+    def clean(self):
+        cleaned = super().clean()
+        emp_code = cleaned.get("emp_code")
+        if emp_code and not cleaned.get("nombre_empleado"):
+            cleaned["nombre_empleado"] = self._emp_map.get(emp_code, "")
+        return cleaned

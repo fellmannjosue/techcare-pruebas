@@ -82,6 +82,12 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_compensatorio_calculo_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-calculator"></i></span>
+              <span class="nav-link-title">Cálculo Compensatorio</span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_permisos_list' %}">
               <span class="nav-link-icon"><i class="ti ti-file-check"></i></span>
               <span class="nav-link-title">Permisos</span>
@@ -273,44 +279,6 @@
             </a>
           </li>
         </ul>
-      </li>
-    </ul>
-  </li>
-  {% endif %}
-
-  {# ── Citas BL ────────────────────────────────────────── #}
-  {% if nav_citas_bl %}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#navCitasBL" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-calendar-check text-green"></i></span>
-      <span class="nav-link-title">Citas BL</span>
-      <span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="navCitasBL">
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_bl' %}">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-        </a>
-      </li>
-    </ul>
-  </li>
-  {% endif %}
-
-  {# ── Citas COL/VOC ───────────────────────────────────── #}
-  {% if nav_citas_col %}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#navCitasCol" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-calendar-event text-yellow"></i></span>
-      <span class="nav-link-title">Citas COL/VOC</span>
-      <span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="navCitasCol">
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_col' %}">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-        </a>
       </li>
     </ul>
   </li>
