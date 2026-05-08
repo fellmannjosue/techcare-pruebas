@@ -1,0 +1,1563 @@
+[
+  {
+    "hash": "6288e5e2dd096177619821f32883919689e92f32",
+    "hash_corto": "6288e5e",
+    "fecha": "2026-05-08",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: account settings con usuarios, grupos, perfil y actividad"
+  },
+  {
+    "hash": "d0af8b7c50add35cc9a5fd76d8c8f484c3c60f88",
+    "hash_corto": "d0af8b7",
+    "fecha": "2026-05-08",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: eliminar apps citas/menu, mejoras inventario, PDF fichas, tiempo compensatorio por empleado"
+  },
+  {
+    "hash": "58ef5ed88804ef5408ea6ac229dda2076f0ca963",
+    "hash_corto": "58ef5ed",
+    "fecha": "2026-05-05",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: rediseño ficha mantenimiento con firma, fotos y dropdowns"
+  },
+  {
+    "hash": "09e3df5ed5a9767f16cee14a307ac51ce8adc441",
+    "hash_corto": "09e3df5",
+    "fecha": "2026-05-04",
+    "autor": "fellmannjosue",
+    "mensaje": "agregando correos"
+  },
+  {
+    "hash": "80dbd8733821b5b6219d248aee59bc86040d022f",
+    "hash_corto": "80dbd87",
+    "fecha": "2026-05-04",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: admin dashboard, control accesos, QR con label y mejoras inventario"
+  },
+  {
+    "hash": "338adfd3a9dd92a956f5dc5345f89ea503799cbf",
+    "hash_corto": "338adfd",
+    "fecha": "2026-05-04",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: sidebar anidado, breadcrumbs, roles coord-maestro y permisos de reportes"
+  },
+  {
+    "hash": "6245c419a1f32879d74334e7fb8f5d528bde132b",
+    "hash_corto": "6245c41",
+    "fecha": "2026-04-28",
+    "autor": "fellmannjosue",
+    "mensaje": "docs: actualizar README con módulos Agendas, Directorio y sidebar unificado"
+  },
+  {
+    "hash": "3b062b37ea4cd6ca0ba88a78a4d6b0fff43c5e9c",
+    "hash_corto": "3b062b3",
+    "fecha": "2026-04-28",
+    "autor": "fellmannjosue",
+    "mensaje": "nuevos ajustes"
+  },
+  {
+    "hash": "b3e90cdf8f70feb75798bf6a8b8d346774c07cae",
+    "hash_corto": "b3e90cd",
+    "fecha": "2026-04-28",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: directorio de teléfonos, agendas Colegio y sidebar unificado"
+  },
+  {
+    "hash": "5db1c20ad6be961918f6951301a5d0f060de4ff3",
+    "hash_corto": "5db1c20",
+    "fecha": "2026-04-24",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: mejoras de notificaciones, tickets, login y roles de usuario"
+  },
+  {
+    "hash": "2fe24b7f142570ba1521589176a97ec6dbd560de",
+    "hash_corto": "2fe24b7",
+    "fecha": "2026-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: modo mantenimiento con toggle en dashboard coordinador"
+  },
+  {
+    "hash": "84bf53e84daa44ebf762ab0b4374344a3f476c5b",
+    "hash_corto": "84bf53e",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "fix: USE_TZ=False para evitar error de timezone en MySQL"
+  },
+  {
+    "hash": "92c72e8562017141f4aa946f2068142c1c24375a",
+    "hash_corto": "92c72e8",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: agregar todos los módulos unfold.contrib disponibles"
+  },
+  {
+    "hash": "22282724c6cc1aa9c6fd197aef7d9746b7dde36a",
+    "hash_corto": "2228272",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: agregar unfold.contrib.inlines"
+  },
+  {
+    "hash": "e65fb5ee1ba4f8d2d67b223683687a240213485e",
+    "hash_corto": "e65fb5e",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "security: limpiar credenciales hardcodeadas y mejorar configuración"
+  },
+  {
+    "hash": "5dd07a3b5203c2561a14ea9c94658edb4f5b28d3",
+    "hash_corto": "5dd07a3",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "feat: notificaciones por correo a coordinadores de Colegio al crear reporte"
+  },
+  {
+    "hash": "0178492f3441b5e3f0096444725055700700b12d",
+    "hash_corto": "0178492",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "fix: corregir conteo en API summary de coordinación BL y Colegio"
+  },
+  {
+    "hash": "6e1d95e4448e32601f19683ff6cb3f808f21b65e",
+    "hash_corto": "6e1d95e",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "revert: quitar unfold.contrib.actions (causaba error de importación)"
+  },
+  {
+    "hash": "1dab11ccce0d16cf79a2db4d1f79933269e7afa8",
+    "hash_corto": "1dab11c",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "fix: quitar reset de contraseña en reenvío + habilitar unfold.contrib.actions"
+  },
+  {
+    "hash": "1caef0db12bf8983762e5bf1acde83dfc9f1dbee",
+    "hash_corto": "1caef0d",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "corregir URL de producción: agregar puerto 437 en todos los correos"
+  },
+  {
+    "hash": "f3222b900547910914ce07700c72bc2a15b4880b",
+    "hash_corto": "f3222b9",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "actualizar README con todos los módulos y estado actual del sistema"
+  },
+  {
+    "hash": "69c92740896c75118c6a679db21bfc3234ed761d",
+    "hash_corto": "69c9274",
+    "fecha": "2026-04-22",
+    "autor": "fellmannjosue",
+    "mensaje": "mejoras globales: feriados por rango, correos HTML, modales admin y reset contraseña"
+  },
+  {
+    "hash": "8fd9a8c6f3d82d069aeab49baaab5f3fbf0a9705",
+    "hash_corto": "8fd9a8c",
+    "fecha": "2026-04-21",
+    "autor": "fellmannjosue",
+    "mensaje": "rediseño Tabler UI global + comentarios múltiples en reporte reloj"
+  },
+  {
+    "hash": "69797676405e3fe77b81d72e72975644e09db7dd",
+    "hash_corto": "6979767",
+    "fecha": "2026-04-17",
+    "autor": "fellmannjosue",
+    "mensaje": "mejoras generales: unfold admin, historial estados, tickets y conducta"
+  },
+  {
+    "hash": "5245c2e8d3880590694b53a91467eea5b614ceb0",
+    "hash_corto": "5245c2e",
+    "fecha": "2026-04-16",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes visuales"
+  },
+  {
+    "hash": "ba992fe6f4b494eaa199b85677344b1e894af0ab",
+    "hash_corto": "ba992fe",
+    "fecha": "2026-04-16",
+    "autor": "fellmannjosue",
+    "mensaje": "auditoría global + panel admin unfold + ajustes conducta"
+  },
+  {
+    "hash": "7a72ad313f008ab6209bff9e2adf7253e84e4d1c",
+    "hash_corto": "7a72ad3",
+    "fecha": "2026-04-15",
+    "autor": "fellmannjosue",
+    "mensaje": "reparaciones en conducta fase 1 - se agrega lo de subir evidencia pendiente realizar pruebas"
+  },
+  {
+    "hash": "2e3daeb4f3c6ba1039ae29d2e59d5f1c6fd5e811",
+    "hash_corto": "2e3daeb",
+    "fecha": "2026-04-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes del 2026"
+  },
+  {
+    "hash": "4f5d1234bbab2d2528cf135a40a63639450429c9",
+    "hash_corto": "4f5d123",
+    "fecha": "2026-02-04",
+    "autor": "fellmannjosue",
+    "mensaje": "algunos ajustes"
+  },
+  {
+    "hash": "bafccc7f7b758067f8422203c1ec90d74018ddf5",
+    "hash_corto": "bafccc7",
+    "fecha": "2025-12-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "95750445ed6d21d6e07bbe195ca929329c1470de",
+    "hash_corto": "9575044",
+    "fecha": "2025-12-10",
+    "autor": "fellmannjosue",
+    "mensaje": "mas detalles"
+  },
+  {
+    "hash": "97c2350b645ce066cf1bc05766197fb4ff2b34fd",
+    "hash_corto": "97c2350",
+    "fecha": "2025-12-10",
+    "autor": "fellmannjosue",
+    "mensaje": "agregando editar eliminar monitor y mas"
+  },
+  {
+    "hash": "94c0c861cf9a0a86652b303bdecae51e0d1819c4",
+    "hash_corto": "94c0c86",
+    "fecha": "2025-12-09",
+    "autor": "fellmannjosue",
+    "mensaje": "nuevos ajustes en tarjetas y notificaciones"
+  },
+  {
+    "hash": "4b9e9c2a721971a664e3e5f41befe2febe78db84",
+    "hash_corto": "4b9e9c2",
+    "fecha": "2025-12-08",
+    "autor": "fellmannjosue",
+    "mensaje": "mas y mas y muchos mas ajuestes"
+  },
+  {
+    "hash": "4e393f9900b800b5abf6c60be37082ff3821deba",
+    "hash_corto": "4e393f9",
+    "fecha": "2025-12-08",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "aa7e153f66c054197ad90d5360b77a54b0ebd63e",
+    "hash_corto": "aa7e153",
+    "fecha": "2025-12-08",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "89a986210d21a0b54a78e69bb569a0e3b45bf884",
+    "hash_corto": "89a9862",
+    "fecha": "2025-12-05",
+    "autor": "fellmannjosue",
+    "mensaje": "nuevos ajustes"
+  },
+  {
+    "hash": "0e48d7e59faec7d7b8bbcf672937b889d7cd3327",
+    "hash_corto": "0e48d7e",
+    "fecha": "2025-12-05",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "7875f389b4480d42f94142934a174cced98a8f59",
+    "hash_corto": "7875f38",
+    "fecha": "2025-12-05",
+    "autor": "fellmannjosue",
+    "mensaje": "oculta media"
+  },
+  {
+    "hash": "793091830f70f5d6335b48b597ccbb543f24cdab",
+    "hash_corto": "7930918",
+    "fecha": "2025-12-05",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en notificacions"
+  },
+  {
+    "hash": "b81d413b554cc33a954c0c305d88832b1f9471b2",
+    "hash_corto": "b81d413",
+    "fecha": "2025-12-05",
+    "autor": "fellmannjosue",
+    "mensaje": "."
+  },
+  {
+    "hash": "9f852a1f9d1ab0b813bd68df3af2699e7a7a59b7",
+    "hash_corto": "9f852a1",
+    "fecha": "2025-12-03",
+    "autor": "fellmannjosue",
+    "mensaje": "registros nuevos"
+  },
+  {
+    "hash": "aa4c54352f2f124cbe7ac6e4b41d3cca58cdc35d",
+    "hash_corto": "aa4c543",
+    "fecha": "2025-12-03",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "4484213c9f2ef9fad7891b94c4af2664a3c8d132",
+    "hash_corto": "4484213",
+    "fecha": "2025-11-28",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el cierre de seccion"
+  },
+  {
+    "hash": "a7ab9c44d6fff7d31caeae3edf5b0c54a2c3c888",
+    "hash_corto": "a7ab9c4",
+    "fecha": "2025-11-12",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "40caa3f9c178b30d22529db026b2b04fcf071ebf",
+    "hash_corto": "40caa3f",
+    "fecha": "2025-11-06",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "5b2af9b84302284cb49a20158f2f2b53113462cb",
+    "hash_corto": "5b2af9b",
+    "fecha": "2025-10-31",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "3429b70a11efa6e97865637f25ec98232cffe455",
+    "hash_corto": "3429b70",
+    "fecha": "2025-10-31",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "e6523a0e4eea73f1431fd7159e8161ebb23c580c",
+    "hash_corto": "e6523a0",
+    "fecha": "2025-10-29",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en tiempo extra"
+  },
+  {
+    "hash": "2e2274e05d456c74470c52bacaa36582e58ec64d",
+    "hash_corto": "2e2274e",
+    "fecha": "2025-10-29",
+    "autor": "fellmannjosue",
+    "mensaje": "nuevos cambios y ajustes en reloj"
+  },
+  {
+    "hash": "3bc87298192de9d7626c8d37e53811d04db903a8",
+    "hash_corto": "3bc8729",
+    "fecha": "2025-10-29",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en la grafica"
+  },
+  {
+    "hash": "e7592d4f93ab68eadcefe0e1f43a10fdc388ba4e",
+    "hash_corto": "e7592d4",
+    "fecha": "2025-10-29",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes de vista en programa"
+  },
+  {
+    "hash": "c6676dc9b0930992d4e4c05a2971ab0834e25ac9",
+    "hash_corto": "c6676dc",
+    "fecha": "2025-10-27",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el refresh"
+  },
+  {
+    "hash": "c227a6c833eb36f22643254edd9b002a38cba28f",
+    "hash_corto": "c227a6c",
+    "fecha": "2025-10-27",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en grafica y mas cosas"
+  },
+  {
+    "hash": "36e7be8a70b32eacca276b135e114083f17a4e21",
+    "hash_corto": "36e7be8",
+    "fecha": "2025-10-27",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el ad y edit entre otros"
+  },
+  {
+    "hash": "5d585c71a46889e2c40046021b590c24e3731529",
+    "hash_corto": "5d585c7",
+    "fecha": "2025-10-27",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "b9d63f6493a19382424745dcaaec0e8ee132a4bd",
+    "hash_corto": "b9d63f6",
+    "fecha": "2025-10-27",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes programa v2"
+  },
+  {
+    "hash": "415c60b2bd566e5c6c45b597052acdbe3b7ff1e7",
+    "hash_corto": "415c60b",
+    "fecha": "2025-10-24",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "c1aba799d6c9b40980e16db7d879a4785958e627",
+    "hash_corto": "c1aba79",
+    "fecha": "2025-10-24",
+    "autor": "fellmannjosue",
+    "mensaje": "creacion de reloj y sus componentes"
+  },
+  {
+    "hash": "98c3ce6b4e8e72617863b3dff431be544869a7e7",
+    "hash_corto": "98c3ce6",
+    "fecha": "2025-10-23",
+    "autor": "fellmannjosue",
+    "mensaje": "agregando adminlite a todos los formularios"
+  },
+  {
+    "hash": "11b292edcdff45c511a47e287a108d2cdb2f679b",
+    "hash_corto": "11b292e",
+    "fecha": "2025-10-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes de sidebar en casi todos los formularios"
+  },
+  {
+    "hash": "97f606553525c68e78d32bd27c6641a06660cd2e",
+    "hash_corto": "97f6065",
+    "fecha": "2025-10-13",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el setting y lo de la api de ia"
+  },
+  {
+    "hash": "b8c1bb6e3048225ee87d4791467d85561bf0a28d",
+    "hash_corto": "b8c1bb6",
+    "fecha": "2025-10-13",
+    "autor": "fellmannjosue",
+    "mensaje": "..."
+  },
+  {
+    "hash": "a412fa32300479dbe62a2c5525ca27b4841c2cf2",
+    "hash_corto": "a412fa3",
+    "fecha": "2025-10-13",
+    "autor": "root",
+    "mensaje": "Limpieza: borro .pyc y agrego a .gitignore"
+  },
+  {
+    "hash": "8177e662934a21ab734b8aac02081199328b7cef",
+    "hash_corto": "8177e66",
+    "fecha": "2025-10-13",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en la api y en el scroll"
+  },
+  {
+    "hash": "00fcf75a0e9c35d9c20bb122ec0143edf4918531",
+    "hash_corto": "00fcf75",
+    "fecha": "2025-10-13",
+    "autor": "fellmannjosue",
+    "mensaje": "expirementando con la ia"
+  },
+  {
+    "hash": "8b3a9464c9c0c975947e2f7fd89b3f730db52bb0",
+    "hash_corto": "8b3a946",
+    "fecha": "2025-10-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes minimos en la configuarcion"
+  },
+  {
+    "hash": "8027867c068e5213d9e96a7ad0b0e7244ae3a3c3",
+    "hash_corto": "8027867",
+    "fecha": "2025-10-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en las dashboards y subdashboard"
+  },
+  {
+    "hash": "b85681bacd9808d258039a1788660c48b621132c",
+    "hash_corto": "b85681b",
+    "fecha": "2025-10-06",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el dashboard principal y sub dashboards"
+  },
+  {
+    "hash": "1048bdd100a00980e474b60786b9778aa85427f5",
+    "hash_corto": "1048bdd",
+    "fecha": "2025-10-06",
+    "autor": "fellmannjosue",
+    "mensaje": "proyecto de modificacion"
+  },
+  {
+    "hash": "cf8796653f1e456dd78c9a6b55eceba56e292322",
+    "hash_corto": "cf87966",
+    "fecha": "2025-10-06",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en registro"
+  },
+  {
+    "hash": "c71c506bcba3540c84b8d0f020f6de750273428b",
+    "hash_corto": "c71c506",
+    "fecha": "2025-10-06",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el login nueva actualizacion"
+  },
+  {
+    "hash": "dd3eee3ce1ac7186dd1652866405c8896566853e",
+    "hash_corto": "dd3eee3",
+    "fecha": "2025-10-06",
+    "autor": "fellmannjosue",
+    "mensaje": "..."
+  },
+  {
+    "hash": "c846907de0688fc1cb3fcaf7a33ee459a0dd3060",
+    "hash_corto": "c846907",
+    "fecha": "2025-09-26",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes y obsevaciones"
+  },
+  {
+    "hash": "d3bb27c2d246840bd100a0a1b7376f4eae3947b4",
+    "hash_corto": "d3bb27c",
+    "fecha": "2025-09-25",
+    "autor": "fellmannjosue",
+    "mensaje": "reajustes en progress"
+  },
+  {
+    "hash": "0e72db4dafee70993f76bc051bac76e1d68c90cc",
+    "hash_corto": "0e72db4",
+    "fecha": "2025-09-25",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el pptx"
+  },
+  {
+    "hash": "24559c30e1d7958fac540fd366fd10eef0a6c2ae",
+    "hash_corto": "24559c3",
+    "fecha": "2025-09-25",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "e8cc93b55a2e76e50d7ff39699e08127d8884bdb",
+    "hash_corto": "e8cc93b",
+    "fecha": "2025-09-25",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en progress"
+  },
+  {
+    "hash": "a8118844a9173d3168d457c190af23cd4684200b",
+    "hash_corto": "a811884",
+    "fecha": "2025-09-24",
+    "autor": "fellmannjosue",
+    "mensaje": "AJUSTES EN PLANTILLA"
+  },
+  {
+    "hash": "c15985806446c3155205e551a494fb91f2c9314c",
+    "hash_corto": "c159858",
+    "fecha": "2025-09-24",
+    "autor": "fellmannjosue",
+    "mensaje": "progres avance 1"
+  },
+  {
+    "hash": "1b52e7463bb439bcec1f96d45280463b64c2ed8f",
+    "hash_corto": "1b52e74",
+    "fecha": "2025-09-24",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el pdf"
+  },
+  {
+    "hash": "9659ae5f82f476eaf36e6ff234300b8df4783b03",
+    "hash_corto": "9659ae5",
+    "fecha": "2025-09-24",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "070d4e756c088a1f527f12f0fdc6b2922159a943",
+    "hash_corto": "070d4e7",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el pdf"
+  },
+  {
+    "hash": "2d31898025a188c98d3e63ee7a4e341e9af241c0",
+    "hash_corto": "2d31898",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "f6867661f9e234a043e21497e94991f212d16806",
+    "hash_corto": "f686766",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste"
+  },
+  {
+    "hash": "6ee14d022a1e9c1f4a0c27b82ab69cbc597f4427",
+    "hash_corto": "6ee14d0",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos en el pdf"
+  },
+  {
+    "hash": "b35f46939f6192c1889b9bbf6f640df5a8d1e79d",
+    "hash_corto": "b35f469",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes para el editor"
+  },
+  {
+    "hash": "3b97cb0655a009760911fe1ad07624e7187b725a",
+    "hash_corto": "3b97cb0",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en elñ pdf"
+  },
+  {
+    "hash": "81da7465ea3617ca98e086dc09a7d0a50a57ce37",
+    "hash_corto": "81da746",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste de firma segun la firma"
+  },
+  {
+    "hash": "10eca0246f81e106c1622717d341fab15c955cf9",
+    "hash_corto": "10eca02",
+    "fecha": "2025-09-23",
+    "autor": "fellmannjosue",
+    "mensaje": "revirtiendo y ajustando"
+  },
+  {
+    "hash": "fe457cfd3f83e350f84f609eb1fd44793c05c9c1",
+    "hash_corto": "fe457cf",
+    "fecha": "2025-09-22",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "0c00f5457f11e01705155de0fe1ba8f26055802d",
+    "hash_corto": "0c00f54",
+    "fecha": "2025-09-22",
+    "autor": "fellmannjosue",
+    "mensaje": "..."
+  },
+  {
+    "hash": "e7fe928f4c189100045c35b69f941f3f3faa9bf7",
+    "hash_corto": "e7fe928",
+    "fecha": "2025-09-22",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "e2ef9f26ab2fe38aa526a89a2273f1d024ef64d5",
+    "hash_corto": "e2ef9f2",
+    "fecha": "2025-09-22",
+    "autor": "fellmannjosue",
+    "mensaje": "creacion"
+  },
+  {
+    "hash": "8ec35cf57c3dd8bcfde4484aca516c03abcd4226",
+    "hash_corto": "8ec35cf",
+    "fecha": "2025-09-22",
+    "autor": "fellmannjosue",
+    "mensaje": "modificacion en el chaty comenzando con dashboard coordinador"
+  },
+  {
+    "hash": "36af5c19fae20af48c8272fa4fa7091b19e92b0d",
+    "hash_corto": "36af5c1",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en documento y otros"
+  },
+  {
+    "hash": "d43bb9a2e2c605304efa9e13443ea2baccc65be9",
+    "hash_corto": "d43bb9a",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "funciones y ajustes"
+  },
+  {
+    "hash": "5e48e9178b431dd2dccddc270794bd34086dc36c",
+    "hash_corto": "5e48e91",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en mensajes"
+  },
+  {
+    "hash": "a8aae2348eb2e83f0325939a48be03ac0bf81e2d",
+    "hash_corto": "a8aae23",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "reparcion del ticket"
+  },
+  {
+    "hash": "bb40f1023d5605fd8902e7939ce02560946f04ab",
+    "hash_corto": "bb40f10",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "reajuste final"
+  },
+  {
+    "hash": "91d73cb91f4c54bc9b43d22728bf83d9c9e9307f",
+    "hash_corto": "91d73cb",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes de los puntos 1,2, 3"
+  },
+  {
+    "hash": "c0113a10d9d86fbab00a72c5df70bba99e32588f",
+    "hash_corto": "c0113a1",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en pestañas"
+  },
+  {
+    "hash": "44269d51ae4e2266403656474403de2f3cbf5316",
+    "hash_corto": "44269d5",
+    "fecha": "2025-09-19",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes finales y funcionales en comentarios"
+  },
+  {
+    "hash": "673f3c480ad1bfb53c93e4d44815f244aa2f2803",
+    "hash_corto": "673f3c4",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "ticketcomment"
+  },
+  {
+    "hash": "48a0fda412bc735bd944c9f54589dd802d071a12",
+    "hash_corto": "48a0fda",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en tickets"
+  },
+  {
+    "hash": "e6e2723012c7a17f5c9f25f17848579da6a5da77",
+    "hash_corto": "e6e2723",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes finales en historial"
+  },
+  {
+    "hash": "f648e8ba703a4ba5489303b0d91768f9a08bff12",
+    "hash_corto": "f648e8b",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes finales"
+  },
+  {
+    "hash": "36ce2e7690154956ab4fd433361ce7eb7350cf53",
+    "hash_corto": "36ce2e7",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "creacion del formulario progress report"
+  },
+  {
+    "hash": "28677944e7839e857880b8b61ba9a05cbd0ba89c",
+    "hash_corto": "2867794",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "fin en ajustes para reporte conductual iniciando progress report"
+  },
+  {
+    "hash": "b627f35daadd40f37dc952eb365593d278260ad9",
+    "hash_corto": "b627f35",
+    "fecha": "2025-09-17",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en los incicios"
+  },
+  {
+    "hash": "5b28167ffca5351830230e972cfa8befd498996a",
+    "hash_corto": "5b28167",
+    "fecha": "2025-09-11",
+    "autor": "fellmannjosue",
+    "mensaje": "creacion completa de conductual"
+  },
+  {
+    "hash": "23fae014c16745c307fad04a188e799687e386e4",
+    "hash_corto": "23fae01",
+    "fecha": "2025-09-10",
+    "autor": "fellmannjosue",
+    "mensaje": "formulario conductual completo ??"
+  },
+  {
+    "hash": "31adfd75cd0966bcd979485397e50e65458d5048",
+    "hash_corto": "31adfd7",
+    "fecha": "2025-09-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "f662e71d2c392187043e767e39d724338b4a0bf9",
+    "hash_corto": "f662e71",
+    "fecha": "2025-09-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes finales en informativo comienzo con conductual"
+  },
+  {
+    "hash": "292366974963430362945fea4268b0212cecaa7c",
+    "hash_corto": "2923669",
+    "fecha": "2025-09-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en reporte informativo casi finales"
+  },
+  {
+    "hash": "ee29ad615391fd34a1f2898805c3278b5b12d527",
+    "hash_corto": "ee29ad6",
+    "fecha": "2025-09-10",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "cfed98306935c2b351d299d2da2d0bec5062c287",
+    "hash_corto": "cfed983",
+    "fecha": "2025-09-09",
+    "autor": "fellmannjosue",
+    "mensaje": "breve ajuste"
+  },
+  {
+    "hash": "e0fcc1a47e02fc25e5f41a8243d9af2ea278e2ff",
+    "hash_corto": "e0fcc1a",
+    "fecha": "2025-09-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes para evitar el cierre de secion"
+  },
+  {
+    "hash": "9dae2f749428b359e6f140be6cc57d261abbd217",
+    "hash_corto": "9dae2f7",
+    "fecha": "2025-09-08",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en nueva plataforma"
+  },
+  {
+    "hash": "d92f38a2dc1b51c5b7367fc3622fd7f98b90d9c1",
+    "hash_corto": "d92f38a",
+    "fecha": "2025-09-02",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes y cambios nuevos"
+  },
+  {
+    "hash": "a77ac16617d194fb0902fe52b0440db1a1a04a85",
+    "hash_corto": "a77ac16",
+    "fecha": "2025-08-20",
+    "autor": "fellmannjosue",
+    "mensaje": "reseteo de informes y comienzo con proyecto coductual"
+  },
+  {
+    "hash": "67b12ea38e356a78ac200f5cef04c814745a8c4a",
+    "hash_corto": "67b12ea",
+    "fecha": "2025-08-20",
+    "autor": "fellmannjosue",
+    "mensaje": "retiro ek proyecto conductual reinicio"
+  },
+  {
+    "hash": "5b1f70851500f43c3b9bc6683fbe073824e3190e",
+    "hash_corto": "5b1f708",
+    "fecha": "2025-08-15",
+    "autor": "fellmannjosue",
+    "mensaje": "adios a django test y hola proyecto nuevo"
+  },
+  {
+    "hash": "60573eb7fb913677dad431096a690f3fe3dcd83a",
+    "hash_corto": "60573eb",
+    "fecha": "2025-08-15",
+    "autor": "fellmannjosue",
+    "mensaje": "AJUSTES CON FILTRO"
+  },
+  {
+    "hash": "ad1812b9d16d24433b9b4e4a7a9a5c614789d9b6",
+    "hash_corto": "ad1812b",
+    "fecha": "2025-08-06",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en enfermeria"
+  },
+  {
+    "hash": "1316ae2e06731d4d62a5c29df093ba7ea12c8e65",
+    "hash_corto": "1316ae2",
+    "fecha": "2025-07-28",
+    "autor": "fellmannjosue",
+    "mensaje": "reinicio 2"
+  },
+  {
+    "hash": "ab514b81f85c4be5e7994736b714e22eb226abfc",
+    "hash_corto": "ab514b8",
+    "fecha": "2025-07-28",
+    "autor": "fellmannjosue",
+    "mensaje": "reinicio 1"
+  },
+  {
+    "hash": "daae9e0b65d83d12eba9e9690d179296768470c5",
+    "hash_corto": "daae9e0",
+    "fecha": "2025-07-22",
+    "autor": "fellmannjosue",
+    "mensaje": "reinicio con informes_bl"
+  },
+  {
+    "hash": "82d249bec1cf7d91c171a92836ce074199036184",
+    "hash_corto": "82d249b",
+    "fecha": "2025-07-22",
+    "autor": "fellmannjosue",
+    "mensaje": "modificaciones nuevas y algunos ajustes mas"
+  },
+  {
+    "hash": "8426f7d9e8c5b82f897850b13d3c6a71b4277462",
+    "hash_corto": "8426f7d",
+    "fecha": "2025-07-02",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #8 from fellmannjosue/codex/integrate-global-message-handler-with-swal"
+  },
+  {
+    "hash": "6271dd1fc411d29cf38b8a5a0fc9858079d8ac9b",
+    "hash_corto": "6271dd1",
+    "fecha": "2025-07-02",
+    "autor": "fellmannjosue",
+    "mensaje": "Inject global Django messages"
+  },
+  {
+    "hash": "b208217f8aceffb6da56cbc129d93e48af4b85c9",
+    "hash_corto": "b208217",
+    "fecha": "2025-07-01",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge branch 'main' of https://github.com/fellmannjosue/techcare_project"
+  },
+  {
+    "hash": "e68d2c46ee34951e70182b6c757fa052c170b50d",
+    "hash_corto": "e68d2c4",
+    "fecha": "2025-07-01",
+    "autor": "fellmannjosue",
+    "mensaje": "reajuste de paginas"
+  },
+  {
+    "hash": "5478fe175af6395b0b718b3ad288950e1216660f",
+    "hash_corto": "5478fe1",
+    "fecha": "2025-07-01",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "d868e65eda47a2363bd9989a30a96cc51a6e6851",
+    "hash_corto": "d868e65",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "6d2cde0181952b1c1da15b33d39b0ff0011f784d",
+    "hash_corto": "6d2cde0",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #7 from fellmannjosue/codex/crear-archivo-vacío-__init__.py-en-core"
+  },
+  {
+    "hash": "dcb8db66d438431ee48e24181bf75fb1b643ea8e",
+    "hash_corto": "dcb8db6",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Add newline to __init__ for visibility"
+  },
+  {
+    "hash": "e06d83d2d801e14b8fc4885b2f9471573c441b38",
+    "hash_corto": "e06d83d",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #6 from fellmannjosue/codex/modificar-script-en-core/middleware.py"
+  },
+  {
+    "hash": "0844d74e9238c4de40f240a8800ae61c2ced6805",
+    "hash_corto": "0844d74",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #5 from fellmannjosue/codex/agregar--click--a-eventos-de-temporizador"
+  },
+  {
+    "hash": "2a3535d2d5001b9d7dbad2fc9af41b3cea65e54c",
+    "hash_corto": "2a3535d",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Escape logout URL in middleware"
+  },
+  {
+    "hash": "1b354417fd56a9411da0584ee195941583b03ea7",
+    "hash_corto": "1b35441",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Add click event to reset inactivity timer"
+  },
+  {
+    "hash": "33fc6ce7dff41b20cef6a468498971fbf07abc35",
+    "hash_corto": "33fc6ce",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "869462152db6accf6f1a6624048d1516869d7296",
+    "hash_corto": "8694621",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #4 from fellmannjosue/codex/mostrar-mensajes-personalizados-según-sesión-e-inactividad"
+  },
+  {
+    "hash": "51e17cc91ef302755a5c7c1785d987334ef10656",
+    "hash_corto": "51e17cc",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Add global welcome and inactivity features"
+  },
+  {
+    "hash": "bd73ab37317dce6aed4f71b80a7bafc63ec357b6",
+    "hash_corto": "bd73ab3",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge branch 'main' of https://github.com/fellmannjosue/techcare_project into main"
+  },
+  {
+    "hash": "fb7c593cdd54edde1653e99e76ee559be7177cd2",
+    "hash_corto": "fb7c593",
+    "fecha": "2025-06-26",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "e64f4e66927b3e1c84ca8266c261eb89ac5432ce",
+    "hash_corto": "e64f4e6",
+    "fecha": "2025-06-25",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #3 from fellmannjosue/codex/new-task"
+  },
+  {
+    "hash": "906090f435a988f0b3979c4c7c104fe8eb38cda5",
+    "hash_corto": "906090f",
+    "fecha": "2025-06-25",
+    "autor": "fellmannjosue",
+    "mensaje": "docs: detalle de rutas de inventario y enfermeria"
+  },
+  {
+    "hash": "f9f964d7308258a5160acccfe2f4bf1cf1b6ef0c",
+    "hash_corto": "f9f964d",
+    "fecha": "2025-06-20",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "c9b341e330c35a050757db8041f4ab07004cd438",
+    "hash_corto": "c9b341e",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "8950b8b8fddd7692bf056fe4880b4ba9b75026d4",
+    "hash_corto": "8950b8b",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "views funcional el atual no funcional"
+  },
+  {
+    "hash": "372f81220fc9c9d942cb551b1801cde7c71dd4f6",
+    "hash_corto": "372f812",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "a6106f70c06e373f1269dfa97cfecefbc32609f0",
+    "hash_corto": "a6106f7",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "cambios"
+  },
+  {
+    "hash": "42cf8cdb033e3fc79414246b021b202516098ff8",
+    "hash_corto": "42cf8cd",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge pull request #2 from fellmannjosue/codex/actualizar-readme.md-con-descripción-y-estructura"
+  },
+  {
+    "hash": "5dbec4f08f06a5ba5a21b55e457b458af38311e8",
+    "hash_corto": "5dbec4f",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "docs: actualizar README con descripcion de apps"
+  },
+  {
+    "hash": "7fab9415dd8e6cd3ba77a2e26840ec3385a1e51c",
+    "hash_corto": "7fab941",
+    "fecha": "2025-06-18",
+    "autor": "fellmannjosue",
+    "mensaje": "Create README.md"
+  },
+  {
+    "hash": "c472ecd7d94df7c545d6cff0fdb0ebf0001f5fc1",
+    "hash_corto": "c472ecd",
+    "fecha": "2025-06-16",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en la vista previa"
+  },
+  {
+    "hash": "5bd04d7b931540f144bd9afb76f1d8eb32012355",
+    "hash_corto": "5bd04d7",
+    "fecha": "2025-06-16",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "71f5b0f68c56075210f0163cb8030c7cc1a5737a",
+    "hash_corto": "71f5b0f",
+    "fecha": "2025-06-16",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en tablas gracias a datatables"
+  },
+  {
+    "hash": "3e7803c7e9d1c17a1eef35881b8c2f0c3b8f58d6",
+    "hash_corto": "3e7803c",
+    "fecha": "2025-06-16",
+    "autor": "fellmannjosue",
+    "mensaje": "1. transferencia de modificacion de django_test a system_proyect exitosa 2. actualizacion de estilos 3 agregando favicons"
+  },
+  {
+    "hash": "22370752c61b35bc62e656e4b6fb107d19d53d48",
+    "hash_corto": "2237075",
+    "fecha": "2025-06-12",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el parafo"
+  },
+  {
+    "hash": "019a951e921a5b593bc1d662bb005d3c302df840",
+    "hash_corto": "019a951",
+    "fecha": "2025-06-12",
+    "autor": "fellmannjosue",
+    "mensaje": "mas cambios"
+  },
+  {
+    "hash": "ba33367bb6a758764c92203025c0c731b2e99b5f",
+    "hash_corto": "ba33367",
+    "fecha": "2025-06-12",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el pdf"
+  },
+  {
+    "hash": "29b6099f3aa70f416223b2bbd78247906fbe07de",
+    "hash_corto": "29b6099",
+    "fecha": "2025-06-12",
+    "autor": "fellmannjosue",
+    "mensaje": "todo funcionañ"
+  },
+  {
+    "hash": "be31bcf70f4aa32acfcc9bc3a4d0cfb736195ac3",
+    "hash_corto": "be31bcf",
+    "fecha": "2025-06-12",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste funcional ya guarda"
+  },
+  {
+    "hash": "154ec0c4f65489ee3447f2d2fd08e990c8964977",
+    "hash_corto": "154ec0c",
+    "fecha": "2025-06-11",
+    "autor": "fellmannjosue",
+    "mensaje": "mmm supuestos ajustes"
+  },
+  {
+    "hash": "18d77c2ba00ee01701e0da9ab261ef4de651bb81",
+    "hash_corto": "18d77c2",
+    "fecha": "2025-06-11",
+    "autor": "fellmannjosue",
+    "mensaje": "codigo que carga grado y el alumno pero no me guarda"
+  },
+  {
+    "hash": "0e6d929085054887eb99601b7653486d867be250",
+    "hash_corto": "0e6d929",
+    "fecha": "2025-06-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el buscador"
+  },
+  {
+    "hash": "8f78c0ffa905f5dfea71d9387843a0b30f2a14ef",
+    "hash_corto": "8f78c0f",
+    "fecha": "2025-06-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el pdf"
+  },
+  {
+    "hash": "5584222e28f2e17ea91ece5437bdc15ccf82f928",
+    "hash_corto": "5584222",
+    "fecha": "2025-06-09",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "759bf91574e64293c4dcf3e7e65bdade0f3c98f0",
+    "hash_corto": "759bf91",
+    "fecha": "2025-06-06",
+    "autor": "fellmannjosue",
+    "mensaje": "reajuste en la carpeta"
+  },
+  {
+    "hash": "9a457b08328bdb60a2d99d5405ec6ab247195dc9",
+    "hash_corto": "9a457b0",
+    "fecha": "2025-06-06",
+    "autor": "fellmannjosue",
+    "mensaje": "test de email"
+  },
+  {
+    "hash": "2fee99a17f91376cf9ca98b6354dde326b859669",
+    "hash_corto": "2fee99a",
+    "fecha": "2025-06-06",
+    "autor": "fellmannjosue",
+    "mensaje": "favicon y dato"
+  },
+  {
+    "hash": "15c764509a61bbda778faf15b946fe765103ac43",
+    "hash_corto": "15c7645",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "pequeños ajustes"
+  },
+  {
+    "hash": "540bc5a762741d91c24a1486b45a29b6748fa82f",
+    "hash_corto": "540bc5a",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en el pdf de atencion medica"
+  },
+  {
+    "hash": "ef52d0c6f36e87adcc1b6a5e6ebaba520c462265",
+    "hash_corto": "ef52d0c",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en el formulario de enfermeria"
+  },
+  {
+    "hash": "8f832227a2cfd81f3c2ddeb0f6c33116454c0f29",
+    "hash_corto": "8f83222",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "Dejar de rastrear .env y agregarlo a .gitignore"
+  },
+  {
+    "hash": "be66ab7dcb715f09f643e3c051dfd85565d2beb3",
+    "hash_corto": "be66ab7",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "Dejar de rastrear .env y agregarlo a .gitignore"
+  },
+  {
+    "hash": "5fc5877738657be2c42e98582e89155ece9dc4a8",
+    "hash_corto": "5fc5877",
+    "fecha": "2025-06-05",
+    "autor": "fellmannjosue",
+    "mensaje": "seguridad para .env"
+  },
+  {
+    "hash": "34774a03b22faf8b9cb352ed9b30e5ec91a4053c",
+    "hash_corto": "34774a0",
+    "fecha": "2025-06-02",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "e65040545c6c8a86272001cff37ab76a17d75711",
+    "hash_corto": "e650405",
+    "fecha": "2025-06-02",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes 1. mover lel js y el css a sus archivos independientes 2. creacion del dashboard en inventario y mas 3 creacion de formulario para invetariar"
+  },
+  {
+    "hash": "9782dcd4aa22f01583119029ae8b60c90aa0e0d0",
+    "hash_corto": "9782dcd",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "imgagen pendiente"
+  },
+  {
+    "hash": "7963b876788c008d378659e20621a033bcb1ee49",
+    "hash_corto": "7963b87",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge branch 'main' of https://github.com/fellmannjosue/techcare_project"
+  },
+  {
+    "hash": "11e1df0731767a3258752c904cd7d79653efe0aa",
+    "hash_corto": "11e1df0",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "imagenes para invetario"
+  },
+  {
+    "hash": "5133828342952ddd41c5b93dbebaf9f3bfdf399d",
+    "hash_corto": "5133828",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes de footer y que sean reponsivo"
+  },
+  {
+    "hash": "f949fff5ed2d8b14de796c670d4e78877da49ea1",
+    "hash_corto": "f949fff",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "fin de los ajustes en los roles"
+  },
+  {
+    "hash": "23bd7743915f3541db046a7becd12eabfed83e65",
+    "hash_corto": "23bd774",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "mas ajustes segun los grupos"
+  },
+  {
+    "hash": "502b07e76e421e29e5129eed772ee0ebcb7d0326",
+    "hash_corto": "502b07e",
+    "fecha": "2025-05-28",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes de roles"
+  },
+  {
+    "hash": "066b9416bf2996c78fd31b69e705648d025b97ea",
+    "hash_corto": "066b941",
+    "fecha": "2025-05-27",
+    "autor": "fellmannjosue",
+    "mensaje": "imagen"
+  },
+  {
+    "hash": "5387a5a3b73cea66cec3bdb70ca06b1e51344d97",
+    "hash_corto": "5387a5a",
+    "fecha": "2025-05-26",
+    "autor": "fellmannjosue",
+    "mensaje": "estilos para la plataforma admin y ajustes en el footer para todo y tambien ajustes en formularios para que sea responsivo"
+  },
+  {
+    "hash": "d8252e348ecaa5ebf442796df24030cc0b8bcc10",
+    "hash_corto": "d8252e3",
+    "fecha": "2025-05-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustesingresos nuevos"
+  },
+  {
+    "hash": "74db2d9fc914af37ff0cdb9f6d0cc1c32dcb82bd",
+    "hash_corto": "74db2d9",
+    "fecha": "2025-05-22",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "95bf389b9fce0d11f4fe775c7594efb8b83348fa",
+    "hash_corto": "95bf389",
+    "fecha": "2025-05-22",
+    "autor": "fellmannjosue",
+    "mensaje": "a"
+  },
+  {
+    "hash": "eac1a79514a12df09bdfb6917c4b3eb1b640bc3c",
+    "hash_corto": "eac1a79",
+    "fecha": "2025-05-22",
+    "autor": "fellmannjosue",
+    "mensaje": "img"
+  },
+  {
+    "hash": "60e31981c3ceea0c1e2a85b80d23a0e6bae6f12f",
+    "hash_corto": "60e3198",
+    "fecha": "2025-05-22",
+    "autor": "fellmannjosue",
+    "mensaje": "agregando formatos nuevos"
+  },
+  {
+    "hash": "9949fdd5478c784c706e1958c493a67420f84610",
+    "hash_corto": "9949fdd",
+    "fecha": "2025-05-12",
+    "autor": "fellmannjosue",
+    "mensaje": "ultimos cambios"
+  },
+  {
+    "hash": "402243a084f76b93ddfdf390b97802117f304387",
+    "hash_corto": "402243a",
+    "fecha": "2025-05-02",
+    "autor": "fellmannjosue",
+    "mensaje": "unico cambio"
+  },
+  {
+    "hash": "8cdffbb4a4af75700875d5c65960b32dee074794",
+    "hash_corto": "8cdffbb",
+    "fecha": "2025-04-30",
+    "autor": "fellmannjosue",
+    "mensaje": "ajuste en imagen"
+  },
+  {
+    "hash": "ebb025711147302f6d1b870d71af7abc119b1236",
+    "hash_corto": "ebb0257",
+    "fecha": "2025-04-24",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes en la tabla de enfermeria"
+  },
+  {
+    "hash": "1f70c55500e501f04ccc0aa210e99015b2bf1548",
+    "hash_corto": "1f70c55",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge branch 'main' of https://github.com/fellmannjosue/techcare_project"
+  },
+  {
+    "hash": "2e53377a5f13a3f693e3396091bf8b149d856e4f",
+    "hash_corto": "2e53377",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "imagen"
+  },
+  {
+    "hash": "1f5e6461ea7b51315e838f711f8832cb9ce5f333",
+    "hash_corto": "1f5e646",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "formularios creados"
+  },
+  {
+    "hash": "ee9235c78621628ab4138228187d65598c7e3fad",
+    "hash_corto": "ee9235c",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "Merge branch 'main' of https://github.com/fellmannjosue/techcare_project"
+  },
+  {
+    "hash": "41ecc8ecfecaede55f80dfa4310c5989ed01eb33",
+    "hash_corto": "41ecc8e",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "cambio en el mas"
+  },
+  {
+    "hash": "7043561cb00ca82e8f78a9fbe2106b817f67d243",
+    "hash_corto": "7043561",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "modificacion"
+  },
+  {
+    "hash": "4799f03061a729973efbd0c2475882b67bdb2591",
+    "hash_corto": "4799f03",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "imgs"
+  },
+  {
+    "hash": "76eb325be659388035166131949f81eb4c7a9ff4",
+    "hash_corto": "76eb325",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "modificaciones en enfermeria"
+  },
+  {
+    "hash": "ae88502a25bd471bd52b03e2a6f4f6cb42728039",
+    "hash_corto": "ae88502",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes"
+  },
+  {
+    "hash": "e505ae641846f2946ef5b6965935fb51d58df5e9",
+    "hash_corto": "e505ae6",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "img"
+  },
+  {
+    "hash": "48dc08fcc7b932f9adea91fe4fa154d23c82a595",
+    "hash_corto": "48dc08f",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "img"
+  },
+  {
+    "hash": "60859472ab96d75357e1c79e3bb1b991fbee16ee",
+    "hash_corto": "6085947",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "detalles nuevos para enfermeria"
+  },
+  {
+    "hash": "08bc6790026f7c72b724d67269eab61eeb3d9d11",
+    "hash_corto": "08bc679",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "se agrega nuevo enfermeria"
+  },
+  {
+    "hash": "c4cef6f6d4505bf28de21dbe45ead593e74e6834",
+    "hash_corto": "c4cef6f",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "errores"
+  },
+  {
+    "hash": "91787c366ccd98eb4f0d54c0aca5e38b48dcbcb7",
+    "hash_corto": "91787c3",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "Resuelvo conflictos de migraciones 0003 en citas_colegio y sponsors"
+  },
+  {
+    "hash": "530e90a8af9b77cdc775b97a9b55b4057ba422b9",
+    "hash_corto": "530e90a",
+    "fecha": "2025-04-23",
+    "autor": "fellmannjosue",
+    "mensaje": "1. proyecto subido al servidor 129.168.10.6 2. configurado para que funcione en el servidor 3. mejora en mantenimiento 4.se quitaron las advertencias que muestar en la consola de los estilo como el de admin 5. mejora para el pdf de matenimiento y inventario"
+  },
+  {
+    "hash": "12479e731e0b5e9ba8a1101775557fb67534543b",
+    "hash_corto": "12479e7",
+    "fecha": "2025-04-21",
+    "autor": "fellmannjosue",
+    "mensaje": ".."
+  },
+  {
+    "hash": "86eb4840cef6fae79e680b8b2586ca0652b39572",
+    "hash_corto": "86eb484",
+    "fecha": "2025-04-21",
+    "autor": "fellmannjosue",
+    "mensaje": "agregando configuracion de estilos"
+  },
+  {
+    "hash": "8614dc54aac3cd68f40001fc80664d913c3e409f",
+    "hash_corto": "8614dc5",
+    "fecha": "2025-04-21",
+    "autor": "fellmannjosue",
+    "mensaje": "Agregando archivo de dependencias"
+  },
+  {
+    "hash": "57fe3eae1b43da5d9229b18cc698583ac4139b55",
+    "hash_corto": "57fe3ea",
+    "fecha": "2025-04-21",
+    "autor": "fellmannjosue",
+    "mensaje": "ajustes nuevos"
+  },
+  {
+    "hash": "78f1f61a6bb40728913e6b4450bb356cefeaa404",
+    "hash_corto": "78f1f61",
+    "fecha": "2025-03-31",
+    "autor": "fellmannjosue",
+    "mensaje": "se mueve en carpeta"
+  },
+  {
+    "hash": "78262c79c68c196347f36129dd6ac2ce44c3facd",
+    "hash_corto": "78262c7",
+    "fecha": "2025-03-31",
+    "autor": "fellmannjosue",
+    "mensaje": "se agrego el formulario de sponsors se agrego el menu se agregaron detalles nuevos a citas colegio se agregaron detalles nuevos a citas billingue"
+  },
+  {
+    "hash": "652b21e205a5a2580bf393773e118c797804bd95",
+    "hash_corto": "652b21e",
+    "fecha": "2025-03-18",
+    "autor": "fellmannjosue",
+    "mensaje": "se agrego el formulario sponsors esta 50% funcional"
+  },
+  {
+    "hash": "98e6320aa685ecce67995f4c5e168869b03c75a4",
+    "hash_corto": "98e6320",
+    "fecha": "2025-03-18",
+    "autor": "fellmannjosue",
+    "mensaje": "unificacion de proyecto se une todo los proyectos anteriores a uno solo que son el sistema de tickets el sistema de mantenimiento el sistema de inventariado el sistema de citas colegio y el sistema de citas billingue se construira el sistema de sponsors"
+  }
+]
