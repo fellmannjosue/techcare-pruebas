@@ -39,7 +39,8 @@
             <th class="text-center">Días adeudados</th>
             <th class="text-center">Min. a compensar</th>
             <th class="text-center">Min. Auto/día</th>
-            <th class="text-center">Saldo total</th>
+            <th class="text-center">Compensado hasta hoy</th>
+            <th class="text-center">Saldo restante</th>
             <th class="text-center">Días hábiles</th>
             <th class="text-center">Fecha inicio</th>
             <th class="text-center">Fecha fin estimada</th>
@@ -67,6 +68,22 @@
                 <span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>
                 <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
               </button>
+            </td>
+            <td class="text-center">
+              {% if item.minutos_compensados >= r.minutos_total %}
+                <span class="badge bg-green-lt text-green compensado-badge-{{ r.pk }}">
+                  <i class="ti ti-circle-check me-1"></i>{{ item.minutos_compensados }} min
+                </span>
+              {% elif item.minutos_compensados > 0 %}
+                <span class="badge bg-teal-lt text-teal compensado-badge-{{ r.pk }}">
+                  <i class="ti ti-progress me-1"></i>{{ item.minutos_compensados }} min
+                </span>
+              {% else %}
+                <span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">
+                  0 min
+                </span>
+              {% endif %}
+              <div class="text-muted small mt-1 dias-trans-{{ r.pk }}">{{ item.dias_transcurridos }} días háb.</div>
             </td>
             <td class="text-center">
               {% if saldo == 0 %}
@@ -112,7 +129,7 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="10" class="text-center text-muted py-4">
               <i class="ti ti-calculator-off me-2"></i>
               Sin registros. Agrega el primer empleado con el botón de arriba.
             </td>
@@ -238,6 +255,21 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
           saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${activePk}`;
           saldoBadge.textContent = `${data.saldo} min`;
+        }
+      }
+
+      // Actualizar compensado hasta hoy
+      const compBadge = document.querySelector(`.compensado-badge-${activePk}`);
+      if (compBadge && data.minutos_compensados !== undefined) {
+        if (data.minutos_compensados >= minTotal) {
+          compBadge.className = `badge bg-green-lt text-green compensado-badge-${activePk}`;
+          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${data.minutos_compensados} min`;
+        } else if (data.minutos_compensados > 0) {
+          compBadge.className = `badge bg-teal-lt text-teal compensado-badge-${activePk}`;
+          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${data.minutos_compensados} min`;
+        } else {
+          compBadge.className = `badge bg-secondary-lt text-secondary compensado-badge-${activePk}`;
+          compBadge.textContent = '0 min';
         }
       }
 

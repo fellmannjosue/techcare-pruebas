@@ -371,3 +371,36 @@ class CompensatorioCalculo(models.Model):
 
     def __str__(self):
         return f"{self.nombre_empleado} → {self.fecha_fin}"
+
+
+class ReportePermisoMensual(models.Model):
+    """
+    Reporte mensual de permisos por empleado.
+    Una fila por empleado por mes con los 8 tipos de permiso en días.
+    Los minutos tarde y horas rebaja se calculan en la vista desde zkbio_sqlserver.
+    """
+    emp_code        = models.CharField("Código empleado", max_length=20, db_index=True)
+    nombre_empleado = models.CharField("Nombre empleado", max_length=200)
+    mes             = models.DateField("Mes (primer día del mes)")
+
+    ausencias_dias   = models.DecimalField("Ausencias",        max_digits=5, decimal_places=2, default=0)
+    otro_pagado_dias = models.DecimalField("Otro Pagado",       max_digits=5, decimal_places=2, default=0)
+    vacaciones_dias  = models.DecimalField("Vacaciones",        max_digits=5, decimal_places=2, default=0)
+    enfermedad_dias  = models.DecimalField("Enfermedad",        max_digits=5, decimal_places=2, default=0)
+    pct25_dias       = models.DecimalField("25%",               max_digits=5, decimal_places=2, default=0)
+    pct50_dias       = models.DecimalField("50%",               max_digits=5, decimal_places=2, default=0)
+    pct75_dias       = models.DecimalField("75%",               max_digits=5, decimal_places=2, default=0)
+    pct100_dias      = models.DecimalField("100%",              max_digits=5, decimal_places=2, default=0)
+    pierde_bono      = models.BooleanField("Pierde bono",       default=False)
+
+    actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
+
+    class Meta:
+        db_table = "reloj_reporte_permiso_mensual"
+        verbose_name = "Reporte de permiso mensual"
+        verbose_name_plural = "Reportes de permisos mensuales"
+        unique_together = ("emp_code", "mes")
+        ordering = ["nombre_empleado"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} – {self.mes.strftime('%m/%Y')}"

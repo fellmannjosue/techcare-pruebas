@@ -91,4 +91,10 @@ urlpatterns = [
     path('permisos/<int:pk>/editar/', views.permiso_edit, name='reloj_permiso_edit'),
     path('permisos/<int:pk>/aprobar/', views.permiso_approve, name='reloj_permiso_approve'),
     path('permisos/<int:pk>/eliminar/', views.permiso_delete, name='reloj_permiso_delete'),
+
+    # ─────────────────────────────────────────────
+    # Reporte mensual de permisos
+    # ─────────────────────────────────────────────
+    path('permisos/reporte/', views.permiso_reporte_list, name='reloj_permiso_reporte'),
+    path('permisos/reporte/set-campo/', views.permiso_reporte_set_campo, name='reloj_permiso_reporte_set_campo'),
 ]

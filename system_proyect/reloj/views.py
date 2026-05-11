@@ -38,6 +38,7 @@ from .models import (
     ReporteComentario,
     FeriadoAsignacion,
     CompensatorioCalculo,
+    ReportePermisoMensual,
 )
 
 # Formularios
@@ -2077,7 +2078,12 @@ def compensatorio_calculo_list(request):
         min_dia = r.minutos_autorizados_dia if r.minutos_autorizados_dia > 0 else MINUTOS_POR_DIA_COMP
         dias_trans = _contar_dias_habiles_rango(r.fecha_inicio, hoy, feriados)
         saldo = max(0, r.minutos_total - dias_trans * min_dia)
-        registros_data.append({'r': r, 'saldo': saldo, 'dias_transcurridos': dias_trans})
+        minutos_compensados = min(dias_trans * min_dia, r.minutos_total)
+        registros_data.append({
+            'r': r, 'saldo': saldo,
+            'dias_transcurridos': dias_trans,
+            'minutos_compensados': minutos_compensados,
+        })
 
     return render(request, "reloj/compensatorio_calculo_list.html", {
         "registros_data": registros_data,
@@ -2198,6 +2204,7 @@ def compensatorio_calculo_set_min_dia(request, pk):
     hoy = date.today()
     dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
     saldo = max(0, minutos - dias_trans * valor)
+    minutos_compensados = min(dias_trans * valor, minutos)
 
     return JsonResponse({
         'ok': True,
@@ -2205,6 +2212,7 @@ def compensatorio_calculo_set_min_dia(request, pk):
         'dias_habiles': dias_hab,
         'fecha_fin': fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '—',
         'saldo': saldo,
+        'minutos_compensados': minutos_compensados,
     })
 
 
@@ -2218,3 +2226,192 @@ def compensatorio_calculo_delete(request, pk):
     return render(request, "reloj/confirm_delete.html", {
         "obj": obj, "titulo": "Eliminar cálculo compensatorio"
     })
+
+
+# ─────────────────────────────────────────────────────────────
+# Reporte de Permisos Mensual
+# ─────────────────────────────────────────────────────────────
+
+_CARGOS_EXCLUIDOS_TARDE = ('hora', 'vigilante')
+
+CAMPOS_PERMISO = [
+    ('ausencias_dias',   'Ausencias',   '#00FFFF'),
+    ('otro_pagado_dias', 'Otro Pagado', '#D0CECE'),
+    ('vacaciones_dias',  'Vacaciones',  '#92D050'),
+    ('enfermedad_dias',  'Enfermedad',  '#FF33CC'),
+    ('pct25_dias',       '25%',         '#FFFFB7'),
+    ('pct50_dias',       '50%',         '#FFFF65'),
+    ('pct75_dias',       '75%',         '#FFFF05'),
+    ('pct100_dias',      '100%',        '#EFDC25'),
+]
+
+
+def _rebaja_por_dia(minutos: int) -> float:
+    if minutos >= 31:
+        return 1.0
+    if minutos >= 11:
+        return 0.5
+    return 0.0
+
+
+@login_required
+def permiso_reporte_list(request):
+    import calendar as _cal
+    from datetime import date as _date
+
+    hoy = _date.today()
+    mes_str = request.GET.get('mes', hoy.strftime('%Y-%m'))
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes_inicio = _date(year, month, 1)
+    except Exception:
+        mes_inicio = hoy.replace(day=1)
+        mes_str = mes_inicio.strftime('%Y-%m')
+
+    ultimo_dia = _cal.monthrange(mes_inicio.year, mes_inicio.month)[1]
+    mes_fin = _date(mes_inicio.year, mes_inicio.month, ultimo_dia)
+
+    empleados = []
+    # {emp_code: [minutos_tarde_por_dia, ...]}
+    tarde_por_dia_map: dict = {}
+    error_sql = None
+
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    CAST(e.emp_code AS VARCHAR(20))         AS emp_code,
+                    e.first_name + ' ' + ISNULL(e.last_name,'') AS nombre,
+                    ISNULL(p.position_name, '')              AS cargo
+                FROM dbo.personnel_employee e
+                LEFT JOIN dbo.personnel_position p
+                       ON p.id = TRY_CONVERT(INT, e.position_id)
+                ORDER BY e.first_name, e.last_name
+            """)
+            for code, nombre, cargo in cursor.fetchall():
+                empleados.append({
+                    'emp_code': (code or '').strip(),
+                    'nombre':   (nombre or '').strip(),
+                    'cargo':    (cargo or '').strip(),
+                })
+
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            cursor.execute(f"""
+                SELECT
+                    CAST(e.emp_code AS VARCHAR(20))             AS emp_code,
+                    ISNULL(p.position_name, '')                  AS cargo,
+                    CONVERT(DATE, t.punch_time)                  AS fecha,
+                    DATEDIFF(MINUTE,'07:00:00',
+                        MIN(CAST(t.punch_time AS TIME)))          AS minutos_tarde
+                FROM dbo.personnel_employee e
+                LEFT JOIN dbo.personnel_position p
+                       ON p.id = TRY_CONVERT(INT, e.position_id)
+                INNER JOIN dbo.iclock_transaction t
+                        ON t.emp_code = e.emp_code
+                       AND CONVERT(DATE, t.punch_time) BETWEEN '{mes_inicio}' AND '{mes_fin}'
+                GROUP BY e.emp_code, p.position_name, CONVERT(DATE, t.punch_time)
+                HAVING MIN(CAST(t.punch_time AS TIME)) >= '07:01:00'
+                ORDER BY e.emp_code, CONVERT(DATE, t.punch_time)
+            """)
+            for code, cargo, _fecha, mins in cursor.fetchall():
+                ec = (code or '').strip()
+                cargo_l = (cargo or '').lower()
+                if any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE):
+                    continue
+                tarde_por_dia_map.setdefault(ec, []).append(int(mins or 0))
+
+    except Exception as exc:
+        error_sql = str(exc)
+
+    registros_db = {
+        r.emp_code: r
+        for r in ReportePermisoMensual.objects.filter(mes=mes_inicio)
+    }
+
+    rows = []
+    for emp in empleados:
+        ec = emp['emp_code']
+        cargo_l = emp['cargo'].lower()
+        excluido = any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE)
+        lista_mins = tarde_por_dia_map.get(ec, [])
+
+        minutos_tarde = sum(lista_mins) if not excluido else None
+        horas_rebaja = sum(_rebaja_por_dia(m) for m in lista_mins) if not excluido else None
+
+        rows.append({
+            'emp_code':     ec,
+            'nombre':       emp['nombre'],
+            'cargo':        emp['cargo'],
+            'r':            registros_db.get(ec),
+            'minutos_tarde': minutos_tarde,
+            'horas_rebaja':  horas_rebaja,
+        })
+
+    return render(request, 'reloj/permiso_reporte.html', {
+        'rows':         rows,
+        'mes':          mes_inicio,
+        'mes_str':      mes_str,
+        'campos':       CAMPOS_PERMISO,
+        'error_sql':    error_sql,
+    })
+
+
+@login_required
+def permiso_reporte_set_campo(request):
+    """AJAX: guarda el valor de un campo de permiso para un empleado/mes."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+
+    from datetime import date as _date
+
+    emp_code  = (request.POST.get('emp_code') or '').strip()
+    mes_str   = (request.POST.get('mes') or '').strip()
+    campo     = (request.POST.get('campo') or '').strip()
+    valor_str = (request.POST.get('valor') or '0').strip().replace(',', '.')
+
+    campos_validos = {c[0] for c in CAMPOS_PERMISO} | {'pierde_bono'}
+    if campo not in campos_validos:
+        return JsonResponse({'ok': False, 'error': 'Campo inválido'})
+
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes = _date(year, month, 1)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Mes inválido'})
+
+    try:
+        if campo == 'pierde_bono':
+            valor = valor_str.lower() in ('1', 'true', 'on', 'yes')
+        else:
+            valor = float(valor_str)
+            if valor < 0:
+                return JsonResponse({'ok': False, 'error': 'Valor debe ser >= 0'})
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+
+    # Nombre desde SQL o registro existente
+    nombre = ''
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            cursor.execute("""
+                SELECT e.first_name + ' ' + ISNULL(e.last_name,'')
+                FROM dbo.personnel_employee e
+                WHERE CAST(e.emp_code AS VARCHAR(20)) = %s
+            """, [emp_code])
+            row = cursor.fetchone()
+            if row:
+                nombre = (row[0] or '').strip()
+    except Exception:
+        pass
+
+    obj, _ = ReportePermisoMensual.objects.get_or_create(
+        emp_code=emp_code, mes=mes,
+        defaults={'nombre_empleado': nombre or emp_code}
+    )
+    if nombre and not obj.nombre_empleado:
+        obj.nombre_empleado = nombre
+
+    setattr(obj, campo, valor)
+    obj.save()
+
+    return JsonResponse({'ok': True, 'campo': campo, 'valor': str(valor)})

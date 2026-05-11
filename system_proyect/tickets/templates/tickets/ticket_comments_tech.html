@@ -2,38 +2,145 @@
 {% load static %}
 {% block title %}Chat Ticket {{ ticket.ticket_id }}{% endblock %}
 {% block page_pretitle %}Tickets – Técnico{% endblock %}
-{% block page_title %}Chat Técnico – Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block page_title %}Chat – Ticket {{ ticket.ticket_id }}{% endblock %}
 {% block nav_tickets %}active{% endblock %}
 
 {% block extra_head %}
 <style>
-  .chat-box { max-height:380px; overflow-y:auto; background:#f8fafc; border-radius:8px; padding:16px; }
-  .chat-bubble { background:#fff; border-radius:10px; padding:10px 16px; margin-bottom:10px; max-width:80%; box-shadow:0 1px 4px rgba(0,0,0,.07); }
-  .chat-bubble.mine { background:#e1f0fc; margin-left:auto; }
-  .chat-meta { font-size:.82rem; color:#adb5bd; margin-top:5px; }
+/* ── Contenedor chat ── */
+.chat-scroll {
+  height: 520px;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: #f8fafc;
+  scroll-behavior: smooth;
+}
+
+/* ── Item de mensaje ── */
+.chat-item { margin-bottom: 1.5rem; }
+
+/* ── Avatar ── */
+.chat-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700; text-transform: uppercase;
+  flex-shrink: 0; letter-spacing: .5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+}
+.chat-avatar.av-other { background: #e9ecef; color: #495057; }
+.chat-avatar.av-me    { background: #206bc4; color: #fff; }
+
+/* ── Burbuja ── */
+.chat-bubble {
+  display: inline-block;
+  max-width: 480px;
+  padding: .65rem 1rem;
+  border-radius: 8px;
+  font-size: .9rem;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.chat-bubble.bubble-other {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  color: #354052;
+  border-radius: 0 8px 8px 8px;
+}
+.chat-bubble.bubble-me {
+  background: #206bc4;
+  color: #fff;
+  border-radius: 8px 0 8px 8px;
+}
+
+/* ── Meta (nombre + hora) ── */
+.chat-item-meta {
+  font-size: .76rem;
+  color: #adb5bd;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-item-meta .meta-name { font-weight: 600; color: #495057; }
+.chat-item-mine .chat-item-meta { justify-content: flex-end; }
+.chat-bubble.bubble-me + .chat-item-time { text-align: right; }
+
+/* ── Hora sobre burbuja-me ── */
+.bubble-me-wrap { text-align: right; }
+.bubble-me-wrap .chat-item-meta { justify-content: flex-end; }
+
+/* ── Typing ── */
+.chat-typing {
+  display: flex; align-items: center; gap: 10px;
+  padding: .5rem 0 0;
+  font-size: .82rem; color: #adb5bd;
+}
+.typing-dots span {
+  display: inline-block; width: 7px; height: 7px;
+  background: #adb5bd; border-radius: 50%; margin: 0 1px;
+  animation: bounce 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40%           { transform: translateY(-6px); }
+}
+
+/* ── Input bar ── */
+.chat-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 1rem 1.25rem;
+  background: #fff;
+}
+.chat-input {
+  resize: none; overflow: hidden;
+  min-height: 42px; max-height: 150px;
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  padding: 9px 14px;
+  font-size: .9rem;
+  width: 100%;
+  transition: border-color .15s, box-shadow .15s;
+  line-height: 1.5;
+}
+.chat-input:focus {
+  outline: none;
+  border-color: #206bc4;
+  box-shadow: 0 0 0 3px rgba(32,107,196,.12);
+}
+
+/* ── Empty state ── */
+.chat-empty-state {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #adb5bd; gap: .5rem;
+}
 </style>
 {% endblock %}
 
 {% block page_actions %}
 <div class="col-auto ms-auto">
   <a href="{% url 'technician_dashboard' %}" class="btn btn-ghost-secondary">
-    <i class="ti ti-arrow-left me-1"></i> Volver al Panel
+    <i class="ti ti-arrow-left me-1"></i>Volver al Panel
   </a>
 </div>
 {% endblock %}
 
 {% block content %}
-{# Info del ticket #}
+{# ── Info ticket ── #}
 <div class="card mb-3">
   <div class="card-body">
-    <div class="row g-2 align-items-start">
+    <div class="row g-3 align-items-center">
       <div class="col-md-8">
-        <div class="d-flex flex-wrap gap-3">
-          <div><span class="text-muted small">Ticket:</span> <strong>{{ ticket.ticket_id }}</strong></div>
-          <div><span class="text-muted small">Nombre:</span> {{ ticket.name }}</div>
-          <div><span class="text-muted small">Correo:</span> {{ ticket.email }}</div>
+        <div class="d-flex flex-wrap gap-3 align-items-center">
           <div>
-            <span class="text-muted small">Estado:</span>
+            <span class="text-muted small me-1">Ticket:</span>
+            <strong class="font-monospace">{{ ticket.ticket_id }}</strong>
+          </div>
+          <div><span class="text-muted small me-1">Nombre:</span>{{ ticket.name }}</div>
+          <div><span class="text-muted small me-1">Correo:</span>{{ ticket.email }}</div>
+          <div>
             <span id="badge-status" class="badge
               {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
               {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
@@ -42,11 +149,11 @@
             </span>
           </div>
         </div>
-        <div class="mt-2 text-muted small">{{ ticket.description }}</div>
+        <div class="text-muted small mt-2">{{ ticket.description }}</div>
         {% if ticket.attachment %}
         <div class="mt-1">
           <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-ghost-secondary" target="_blank">
-            <i class="ti ti-paperclip me-1"></i> Ver adjunto
+            <i class="ti ti-paperclip me-1"></i>Ver adjunto
           </a>
         </div>
         {% endif %}
@@ -54,7 +161,7 @@
       <div class="col-md-4">
         {% if ticket.ia_bloqueada %}
         <div class="alert alert-warning py-2 small mb-0">
-          <i class="ti ti-robot me-1"></i> La IA dejó de responder. Solo soporte técnico continúa.
+          <i class="ti ti-robot me-1"></i>La IA dejó de responder. Solo soporte técnico continúa.
         </div>
         {% endif %}
       </div>
@@ -62,21 +169,21 @@
   </div>
 </div>
 
-{# Actualizar estado #}
+{# ── Actualizar estado ── #}
 <div class="card mb-3">
   <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-settings me-2"></i>Actualizar Estado</h3>
+    <h3 class="card-title"><i class="ti ti-settings-2 me-2 text-blue"></i>Actualizar Estado</h3>
   </div>
   <div class="card-body">
     <form id="form-status-ticket">
       {% csrf_token %}
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
-          <label class="form-label">Estado del Ticket</label>
+          <label class="form-label">Estado</label>
           <select class="form-select" id="chat-status-select" name="status">
-            <option value="Pendiente" {% if ticket.status == "Pendiente" %}selected{% endif %}>Pendiente</option>
+            <option value="Pendiente"  {% if ticket.status == "Pendiente"  %}selected{% endif %}>Pendiente</option>
             <option value="En Proceso" {% if ticket.status == "En Proceso" %}selected{% endif %}>En Proceso</option>
-            <option value="Resuelto" {% if ticket.status == "Resuelto" %}selected{% endif %}>Resuelto</option>
+            <option value="Resuelto"   {% if ticket.status == "Resuelto"   %}selected{% endif %}>Resuelto</option>
           </select>
         </div>
         <div class="col-md-6">
@@ -85,7 +192,7 @@
         </div>
         <div class="col-md-2">
           <button type="submit" class="btn btn-primary w-100">
-            <i class="ti ti-device-floppy me-1"></i> Guardar
+            <i class="ti ti-device-floppy me-1"></i>Guardar
           </button>
         </div>
       </div>
@@ -93,43 +200,52 @@
   </div>
 </div>
 
-{# Chat #}
-<div class="card">
+{# ── Chat ── #}
+<div class="card" style="overflow:hidden;">
   <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-message-circle me-2"></i>Conversación Técnica</h3>
-  </div>
-  <div class="card-body">
-    <div id="chat-mensajes" class="chat-box mb-3">
-      {% for c in comentarios %}
-      <div class="chat-bubble{% if c.usuario == request.user %} mine{% endif %}">
-        {{ c.mensaje|linebreaksbr }}
-        <div class="chat-meta">
-          <i class="bi bi-person-badge"></i>
-          <span class="fw-semibold">{{ c.usuario.username }}</span>
-          {{ c.fecha|date:"d/m/Y H:i" }}
-        </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="avatar avatar-sm bg-blue-lt text-blue">
+        <i class="ti ti-user"></i>
+      </span>
+      <div>
+        <div class="fw-semibold">{{ ticket.name }}</div>
+        <div class="text-muted small">{{ ticket.email }}</div>
       </div>
-      {% empty %}
-      <div class="text-center text-muted py-3"><i class="ti ti-message-off me-1"></i>No hay comentarios aún.</div>
-      {% endfor %}
     </div>
+    <div class="card-options">
+      <span class="badge bg-blue-lt text-blue font-monospace">{{ ticket.ticket_id }}</span>
+    </div>
+  </div>
 
-    {% if ticket.status != "Resuelto" %}
-    <form id="formComentarioTech" method="post" autocomplete="off">
+  <div id="chat-mensajes" class="chat-scroll">
+    <div class="chat-empty-state">
+      <i class="ti ti-messages" style="font-size:2.5rem;"></i>
+      <span>Cargando mensajes…</span>
+    </div>
+  </div>
+
+  {% if ticket.status != "Resuelto" %}
+  <div class="chat-footer">
+    <form id="formComentarioTech" autocomplete="off">
       {% csrf_token %}
-      <div class="input-group">
-        {{ form.mensaje }}
-        <button type="submit" class="btn btn-primary">
-          <i class="ti ti-send me-1"></i> Enviar
+      <div class="d-flex align-items-end gap-2">
+        <textarea id="chat-input-msg" name="mensaje" class="chat-input"
+                  placeholder="Escribe un mensaje… (Enter para enviar, Shift+Enter nueva línea)"
+                  rows="1"></textarea>
+        <button type="submit" class="btn btn-primary px-4" style="height:42px;">
+          <i class="ti ti-send me-1"></i>Enviar
         </button>
       </div>
     </form>
-    {% else %}
-    <div class="alert alert-success mb-0">
-      <i class="ti ti-circle-check me-1"></i> Ticket resuelto — ya no se pueden agregar comentarios.
-    </div>
-    {% endif %}
   </div>
+  {% else %}
+  <div class="px-4 py-3 bg-success-lt border-top">
+    <div class="d-flex align-items-center gap-2 text-success fw-semibold">
+      <i class="ti ti-circle-check fs-4"></i>
+      Ticket resuelto — ya no se pueden agregar comentarios.
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -137,8 +253,18 @@
 <script src="{% static 'tickets/js/comments.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  const inp = document.querySelector('textarea[name="mensaje"], input[name="mensaje"]');
-  if (inp && !inp.classList.contains('form-control')) inp.classList.add('form-control');
+  const ta = document.getElementById('chat-input-msg');
+  if (!ta) return;
+  ta.addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+  });
+  ta.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      document.getElementById('formComentarioTech')?.dispatchEvent(new Event('submit', {bubbles:true}));
+    }
+  });
 });
 </script>
 {% endblock %}

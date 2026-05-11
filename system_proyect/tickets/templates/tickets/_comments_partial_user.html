@@ -1,16 +1,70 @@
 {% if comentarios %}
 {% for c in comentarios %}
-<div class="chat-bubble{% if c.usuario == request.user %} mine{% endif %}">
-    {{ c.mensaje|linebreaksbr }}
-    <div class="chat-meta">
-        <i class="bi bi-person-circle"></i>
-        <span class="fw-semibold">{{ c.usuario.username }}</span>
-        <span class="text-secondary">{{ c.fecha|date:"d/m/Y H:i" }}</span>
+{% with initials=c.usuario.username|slice:":2"|upper %}
+
+{% if c.usuario.pk == request.user.pk %}
+{# ── Mensaje mío (derecha) ── #}
+<div class="chat-item">
+  <div class="d-flex align-items-end justify-content-end gap-2">
+    <div style="text-align:right;">
+      <div class="chat-item-meta" style="justify-content:flex-end;">
+        <span class="meta-name">Tú</span>
+        <span>·</span>
+        <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
+      </div>
+      <div class="chat-bubble bubble-me">
+        {{ c.mensaje|linebreaksbr }}
+      </div>
     </div>
+    <div class="chat-avatar av-me" title="{{ c.usuario.username }}">{{ initials }}</div>
+  </div>
 </div>
-{% endfor %}
+
+{% elif c.tipo == 'tecnico' %}
+{# ── Mensaje del técnico (izquierda, acento naranja) ── #}
+<div class="chat-item">
+  <div class="d-flex align-items-end gap-2">
+    <div class="chat-avatar av-other" title="Técnico">
+      <i class="ti ti-tool" style="font-size:.9rem;"></i>
+    </div>
+    <div>
+      <div class="chat-item-meta">
+        <span class="meta-name meta-tech"><i class="ti ti-tool me-1" style="font-size:.7rem;"></i>Técnico</span>
+        <span>·</span>
+        <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
+      </div>
+      <div class="chat-bubble bubble-tecnico">
+        {{ c.mensaje|linebreaksbr }}
+      </div>
+    </div>
+  </div>
+</div>
+
 {% else %}
-<div class="alert alert-light text-center py-3">
-    <i class="bi bi-chat-left-dots"></i> No hay comentarios en este ticket.
+{# ── Otro usuario (izquierda) ── #}
+<div class="chat-item">
+  <div class="d-flex align-items-end gap-2">
+    <div class="chat-avatar av-other" title="{{ c.usuario.username }}">{{ initials }}</div>
+    <div>
+      <div class="chat-item-meta">
+        <span class="meta-name">{{ c.usuario.get_full_name|default:c.usuario.username }}</span>
+        <span>·</span>
+        <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
+      </div>
+      <div class="chat-bubble bubble-other">
+        {{ c.mensaje|linebreaksbr }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endwith %}
+{% endfor %}
+
+{% else %}
+<div class="chat-empty-state">
+  <i class="ti ti-message-off" style="font-size:2.5rem;"></i>
+  <span>No hay mensajes aún. Escríbenos para comenzar.</span>
 </div>
 {% endif %}
