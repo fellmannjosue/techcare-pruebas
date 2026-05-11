@@ -25,7 +25,7 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-settings">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="navbar-brand navbar-brand-autodark">
+      <div class="navbar-brand">
         <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
@@ -33,26 +33,7 @@
       </div>
       <div class="collapse navbar-collapse" id="sidebar-settings">
         {% include 'accounts/_sidebar.html' %}
-        <div class="mt-auto pt-3 border-top border-secondary">
-          <div class="d-flex align-items-center gap-2 px-2 py-1">
-            {% with perfil=request.user.perfil %}
-              {% if perfil.avatar %}
-                <img src="{{ perfil.avatar.url }}" class="avatar avatar-sm rounded-circle" alt="">
-              {% else %}
-                <span class="avatar avatar-sm bg-blue-lt text-blue fw-bold">
-                  {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
-                </span>
-              {% endif %}
-            {% endwith %}
-            <div class="flex-fill">
-              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
-              <div class="text-muted" style="font-size:.7rem;">{{ request.user.email }}</div>
-            </div>
-            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
-              <i class="ti ti-logout fs-5"></i>
-            </a>
-          </div>
-        </div>
+        {% include 'accounts/_user_dropdown.html' %}
       </div>
     </div>
   </aside>

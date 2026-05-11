@@ -18,7 +18,7 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-agendas">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="navbar-brand navbar-brand-autodark">
+      <div class="navbar-brand">
         <a href="{% if es_coord %}{% url 'menu' %}{% else %}{% url 'dashboard_maestro' %}{% endif %}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
@@ -27,18 +27,7 @@
       <div class="collapse navbar-collapse" id="sidebar-agendas">
         {% include 'accounts/_sidebar.html' %}
 
-        <div class="mt-auto pt-3 border-top border-secondary">
-          <div class="d-flex align-items-center gap-2 px-2 py-1">
-            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
-            <div class="flex-fill">
-              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
-              <div class="text-muted" style="font-size:.75rem;">Agendas</div>
-            </div>
-            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
-              <i class="ti ti-logout fs-5"></i>
-            </a>
-          </div>
-        </div>
+        {% include 'accounts/_user_dropdown.html' %}
       </div>
     </div>
   </aside>

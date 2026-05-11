@@ -49,6 +49,12 @@ def _q_materias(materias):
         q |= Q(materia__icontains=m)
     return q
 
+def _q_docentes(docentes):
+    q = Q()
+    for d in docentes:
+        q |= Q(docente__icontains=d)
+    return q
+
 _TIPO_COLOR = {
     'Reporte Informativo': '#1971c2',
     'Reporte Conductual':  '#f59f00',
@@ -304,6 +310,7 @@ def reporte_informativo_bilingue(request):
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
         comentario = request.POST.get('comentario', "")
+        tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = coord_bl = ""
@@ -321,6 +328,7 @@ def reporte_informativo_bilingue(request):
             grado=grado,
             materia=materia,
             docente=docente,
+            tipo_reporte=tipo_reporte,
             comentario=comentario
         )
         _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area, coordinador_bl=coord_bl)
@@ -346,6 +354,7 @@ def reporte_informativo_colegio(request):
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
         comentario = request.POST.get('comentario', "")
+        tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = ""
@@ -362,6 +371,7 @@ def reporte_informativo_colegio(request):
             grado=grado,
             materia=materia,
             docente=docente,
+            tipo_reporte=tipo_reporte,
             comentario=comentario
         )
         _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area)
@@ -733,11 +743,11 @@ def editar_reporte_informativo(request, pk):
         coordinadores = COORDINADORES_COLEGIO
 
     if request.method == "POST":
-        # <--- hecho por claude code: se agrega 'comentario' (del docente) editable
         reporte.comentario            = request.POST.get("comentario", "")
         reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
         reporte.estado                = request.POST.get("estado", "enviado")
         reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
+        reporte.tipo_reporte          = request.POST.get("tipo_reporte", "academico")
         reporte.save()
         messages.success(request, "Reporte informativo actualizado correctamente.")
         return redirect('dashboard_coordinador', area=reporte.area)
@@ -1558,20 +1568,24 @@ def descargar_zip_reportes(request):
         qs_cond = ReporteConductual.objects.all()
         qs_prog = ProgressReport.objects.all()
     elif email == 'cvarela@ana-hn.org':
-        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
-        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
+        _d = _docentes_de_coord('C1')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
         qs_prog = ProgressReport.objects.none()
     elif email == 'druiz@ana-hn.org':
-        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C2_GRADOS)).exclude(_q_materias(_C3_MATERIAS))
-        qs_cond = ReporteConductual.objects.none()
+        _d = _docentes_de_coord('C2')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
         qs_prog = ProgressReport.objects.none()
     elif email == 'ialcerro@ana-hn.org':
-        qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_materias(_C3_MATERIAS))
-        qs_cond = ReporteConductual.objects.filter(area='bilingue')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual')
+        _d = _docentes_de_coord('C3')
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
         qs_prog = ProgressReport.objects.none()
     elif email == 'jmartinez@ana-hn.org':
-        qs_info = ReporteInformativo.objects.filter(area='bilingue', materia__icontains='math')
-        qs_cond = ReporteConductual.objects.filter(area='bilingue', materia__icontains='math')
+        _d = _docentes_de_coord('C4')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
         qs_prog = ProgressReport.objects.all()
     elif email == 'coordinacion_bl@ana-hn.org':
         qs_info = ReporteInformativo.objects.none()
@@ -1863,8 +1877,9 @@ def _docentes_de_coord(codigo):
 
 @login_required
 def dashboard_c1(request):
-    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C1_GRADOS))
-    qs_cond = ReporteConductual.objects.none()
+    docentes = _docentes_de_coord('C1')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     reportes_nuevos_bl = (
@@ -1876,43 +1891,50 @@ def dashboard_c1(request):
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'coord_codigo': 'C1',
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
     })
 
 @login_required
 def dashboard_c2(request):
-    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_grados(_C2_GRADOS)).exclude(_q_materias(_C3_MATERIAS))
-    qs_cond = ReporteConductual.objects.none()
+    docentes = _docentes_de_coord('C2')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'coord_codigo': 'C2',
     })
 
 @login_required
 def dashboard_c3(request):
-    qs_info = ReporteInformativo.objects.filter(area='bilingue').filter(_q_materias(_C3_MATERIAS))
-    qs_cond = ReporteConductual.objects.filter(area='bilingue')
+    docentes = _docentes_de_coord('C3')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual')
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'coord_codigo': 'C3',
     })
 
 @login_required
 def dashboard_c4(request):
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', materia__icontains='math')
-    qs_cond = ReporteConductual.objects.none()
+    docentes = _docentes_de_coord('C4')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
+        'coord_codigo': 'C4',
     })
 
 @login_required

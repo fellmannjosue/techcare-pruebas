@@ -10,14 +10,6 @@
     </a>
   </li>
 
-  {# ── Configuración ───────────────────────────────────── #}
-  <li class="nav-item">
-    <a class="nav-link" href="{% url 'settings_perfil' %}">
-      <span class="nav-link-icon"><i class="ti ti-settings"></i></span>
-      <span class="nav-link-title">Configuración</span>
-    </a>
-  </li>
-
   {# ── Tickets ──────────────────────────────────────────── #}
   {% if nav_tickets %}
   <li class="nav-item">
@@ -53,12 +45,11 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navReloj">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'reloj_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navRelojModulos">
+        <a class="nav-link" href="{% url 'reloj_dashboard' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navRelojModulos">
+        <ul class="navbar-nav ps-3" id="navRelojModulos">
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_reporte' %}">
               <span class="nav-link-icon"><i class="ti ti-report"></i></span>
@@ -117,12 +108,11 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navInventario">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'inventario:dashboard' %}" id="invDashLink" data-bs-toggle="collapse" data-bs-target="#navInventarioModulos">
+        <a class="nav-link" href="{% url 'inventario:dashboard' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navInventarioModulos">
+        <ul class="navbar-nav ps-3" id="navInventarioModulos">
           <li class="nav-item">
             <a class="nav-link" href="{% url 'inventario:inventario_computadoras' %}">
               <span class="nav-link-icon"><i class="ti ti-device-desktop"></i></span>
@@ -274,12 +264,11 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navEnfermeria">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'enfermeria:enfermeria_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navEnfermeriaModulos">
+        <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navEnfermeriaModulos">
+        <ul class="navbar-nav ps-3" id="navEnfermeriaModulos">
           <li class="nav-item">
             <a class="nav-link" href="{% url 'enfermeria:directorio_telefonos' %}">
               <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
@@ -302,12 +291,11 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navCoordBL">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'dashboard_coordinador' area='bilingue' %}" data-bs-toggle="collapse" data-bs-target="#navCoordBLModulos">
+        <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navCoordBLModulos">
+        <ul class="navbar-nav ps-3" id="navCoordBLModulos">
           <li class="nav-item">
             <a class="nav-link" href="{% url 'directorio_telefonos' %}">
               <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
@@ -342,12 +330,11 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navCoordCol">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'dashboard_coordinador' area='colegio' %}" data-bs-toggle="collapse" data-bs-target="#navCoordColModulos">
+        <a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navCoordColModulos">
+        <ul class="navbar-nav ps-3" id="navCoordColModulos">
           <li class="nav-item">
             <a class="nav-link" href="{% url 'directorio_telefonos' %}">
               <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
@@ -458,4 +445,38 @@
   </li>
   {% endif %}
 
+  <li class="nav-item d-none" id="pwa-install-item">
+    <a class="nav-link text-green" href="#" id="pwa-install-btn">
+      <span class="nav-link-icon"><i class="ti ti-device-desktop-down text-green"></i></span>
+      <span class="nav-link-title fw-semibold">Instalar App</span>
+    </a>
+  </li>
+
 </ul>
+
+<script>
+(function () {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  let _prompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _prompt = e;
+    document.getElementById('pwa-install-item')?.classList.remove('d-none');
+  });
+  document.getElementById('pwa-install-btn')?.addEventListener('click', async e => {
+    e.preventDefault();
+    if (!_prompt) return;
+    _prompt.prompt();
+    const { outcome } = await _prompt.userChoice;
+    _prompt = null;
+    if (outcome === 'accepted') {
+      document.getElementById('pwa-install-item')?.classList.add('d-none');
+    }
+  });
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('pwa-install-item')?.classList.add('d-none');
+  });
+})();
+</script>

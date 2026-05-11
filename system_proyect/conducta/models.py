@@ -122,6 +122,13 @@ class ReporteConductual(AuditModel):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado del reporte")
     comentario_coordinador = models.TextField("Comentario del Coordinador", blank=True, null=True, help_text="Observación, recomendación o motivo de la revisión/aprobación.")
 
+    @property
+    def coord_codigo(self):
+        md = MateriaDocenteBilingue.objects.filter(docente=self.docente, activo=True).first()
+        if md:
+            return md.coordinador.split(',')[0].strip()
+        return '—'
+
     def __str__(self):
         return f'{self.alumno_nombre} - {self.materia} - {self.usuario.username} ({self.get_area_display()})'
 
@@ -134,6 +141,11 @@ class ReporteConductual(AuditModel):
 # Reporte Informativo
 # ────────────────
 class ReporteInformativo(AuditModel):
+    TIPO_REPORTE_CHOICES = [
+        ('academico',   'Académico'),
+        ('conductual',  'Conductual'),
+    ]
+
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Usuario que reporta")
     area = models.CharField(max_length=10, choices=AREA_CHOICES, default='bilingue', verbose_name="Área")
     alumno_id = models.CharField(max_length=50, verbose_name="ID Alumno")
@@ -142,11 +154,21 @@ class ReporteInformativo(AuditModel):
     materia = models.CharField(max_length=100, verbose_name="Materia")
     docente = models.CharField(max_length=100, verbose_name="Docente")
     fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de registro")
+    tipo_reporte = models.CharField(max_length=20, choices=TIPO_REPORTE_CHOICES, default='academico', verbose_name="Tipo de Reporte")
     comentario = models.TextField(blank=True, null=True, verbose_name="Comentario")
 
     coordinador_firma = models.CharField("Coordinador que aprueba", max_length=100, blank=True, null=True, help_text="Nombre del coordinador que aprobó/firmó el reporte.")
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado del reporte")
     comentario_coordinador = models.TextField("Comentario del Coordinador", blank=True, null=True, help_text="Observación, recomendación o motivo de la revisión/aprobación.")
+
+    @property
+    def coord_codigo(self):
+        if self.tipo_reporte == 'conductual':
+            return 'C3'
+        md = MateriaDocenteBilingue.objects.filter(docente=self.docente, activo=True).first()
+        if md:
+            return md.coordinador.split(',')[0].strip()
+        return '—'
 
     def __str__(self):
         return f'{self.alumno_nombre} - {self.materia} - {self.usuario.username} ({self.get_area_display()})'

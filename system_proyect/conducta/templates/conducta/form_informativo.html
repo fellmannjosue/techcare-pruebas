@@ -87,6 +87,13 @@
               </select>
             </div>
             <div class="col-md-6">
+              <label class="form-label">Tipo de Reporte</label>
+              <select name="tipo_reporte" class="form-select" required>
+                <option value="academico">Académico</option>
+                <option value="conductual">Conductual</option>
+              </select>
+            </div>
+            <div class="col-md-6">
               <label class="form-label">Fecha</label>
               <input type="date" id="id_fecha" name="fecha" class="form-control"
                      value="{{ fecha|slice:':10' }}" required>

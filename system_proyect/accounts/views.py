@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -930,3 +930,17 @@ def settings_actividad(request):
         'accesos_recientes': accesos_recientes,
     })
     return render(request, 'accounts/settings_actividad.html', ctx)
+
+
+def pwa_service_worker(request):
+    sw = """
+const CACHE = 'techcare-v1';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
+"""
+    return HttpResponse(sw.strip(), content_type='application/javascript',
+                        headers={'Service-Worker-Allowed': '/'})

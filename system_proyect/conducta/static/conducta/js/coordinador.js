@@ -1,15 +1,14 @@
 // static/conducta/js/coordinador.js
 
 $(function() {
-    // Inicializar DataTable en la tabla principal
-    if ($('#tabla-coordinador').length) {
-        $('#tabla-coordinador').DataTable({
-            "order": [[2, "desc"]],
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
-            }
-        });
-    }
+    // Inicializar DataTables en las tres tablas de pestañas
+    const dtOpts = {
+        "order": [[2, "desc"]],
+        "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" }
+    };
+    ['#tabla-academicos', '#tabla-conductuales', '#tabla-progress'].forEach(function(id) {
+        if ($(id).length) { $(id).DataTable(dtOpts); }
+    });
 
     // Acción para mostrar historial del alumno en modal
     // <--- hecho por claude code: usando Bootstrap 5 API (no jQuery .modal())
@@ -28,7 +27,7 @@ $(function() {
     // Mostrar el modal de advertencia si el usuario intenta descargar PDF sin 3 reportes
     $(document).on('click', '.btn-pdf-disabled', function(e) {
         e.preventDefault();
-        $('#modalTresFaltas').modal('show');
+        new bootstrap.Modal(document.getElementById('modalTresFaltas')).show();
     });
 
     // <--- hecho por claude code: abrir modal de evidencia con Bootstrap 5 API.

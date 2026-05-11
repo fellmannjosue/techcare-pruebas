@@ -73,6 +73,13 @@
               <textarea class="form-control" name="comentario_coordinador" rows="3">{{ reporte.comentario_coordinador|default_if_none:"" }}</textarea>
             </div>
             <div class="col-md-6">
+              <label class="form-label fw-bold">Tipo de Reporte</label>
+              <select name="tipo_reporte" class="form-select">
+                <option value="academico"  {% if reporte.tipo_reporte == "academico"  %}selected{% endif %}>Académico</option>
+                <option value="conductual" {% if reporte.tipo_reporte == "conductual" %}selected{% endif %}>Conductual</option>
+              </select>
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-bold">Estado del Reporte</label>
               <select name="estado" class="form-select">
                 <option value="enviado"   {% if reporte.estado == "enviado"   %}selected{% endif %}>Enviado</option>

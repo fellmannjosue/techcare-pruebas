@@ -24,40 +24,17 @@
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <h1 class="navbar-brand navbar-brand-autodark">
-        <a href="#">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" width="110" alt="TechCare"
-               class="navbar-brand-image">
+      <div class="navbar-brand">
+        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
-      </h1>
+      </div>
 
       <div class="collapse navbar-collapse" id="navbar-menu">
         {% include 'accounts/_sidebar.html' %}
 
-        <div class="mt-auto pt-3 border-top border-secondary-subtle">
-          <div class="d-flex align-items-center px-3 py-2">
-            <img src="{% static 'accounts/img/user.png' %}" width="36" height="36"
-                 class="rounded-circle me-2" alt="Avatar">
-            <div class="flex-grow-1 overflow-hidden">
-              <div class="text-white fw-bold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
-              <div class="text-secondary small text-truncate">{{ request.user.username }}</div>
-            </div>
-            <div class="d-flex gap-2 ms-2">
-              {% if request.user.is_superuser %}
-              <button type="button" class="btn btn-sm btn-ghost-info" title="Reenviar correo de bienvenida"
-                      data-bs-toggle="modal" data-bs-target="#modalReenviarBienvenida">
-                <i class="ti ti-mail-forward"></i>
-              </button>
-              {% endif %}
-              <a href="{% url 'admin:index' %}" class="btn btn-sm btn-ghost-secondary" title="Admin">
-                <i class="ti ti-settings"></i>
-              </a>
-              <a href="{% url 'logout' %}" class="btn btn-sm btn-ghost-danger" title="Cerrar sesión">
-                <i class="ti ti-logout"></i>
-              </a>
-            </div>
-          </div>
-        </div>
+        {% include 'accounts/_user_dropdown.html' %}
       </div>
     </div>
   </aside>

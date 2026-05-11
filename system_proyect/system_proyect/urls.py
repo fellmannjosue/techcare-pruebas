@@ -3,12 +3,13 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
-# <--- hecho por claude code: imports necesarios para servir archivos MEDIA en desarrollo.
-# En producción (DEBUG=False) nginx/apache se encarga de esto.
 from django.conf import settings
 from django.conf.urls.static import static
+from accounts import views as accounts_views
 
 urlpatterns = [
+
+    path('sw.js', accounts_views.pwa_service_worker, name='pwa_sw'),
 
     # ──────────────────────────────────────────────────────────────────────────
     # 1) Ruta raíz: redirige al login
