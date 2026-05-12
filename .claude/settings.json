@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://servicios.ana-hn.org:437/sw.js\")",
+      "Bash(grep -n \"^</ul>$\\\\|^</ul> *$\" /home/admin2/techcare_project/system_proyect/accounts/templates/accounts/_sidebar.html)",
+      "Bash(python manage.py shell -c ' *)"
+    ]
+  }
+}
