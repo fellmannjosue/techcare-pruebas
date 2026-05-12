@@ -55,6 +55,32 @@ def _q_docentes(docentes):
         q |= Q(docente__icontains=d)
     return q
 
+def _q_docentes_for_coord(codigo):
+    """
+    Builds Q() for reports belonging to coordinator `codigo`.
+    For teachers shared across coordinators, restricts by the materias
+    assigned to this coordinator in MateriaDocenteBilingue so that
+    reports from shared teachers only appear in the right dashboard.
+    """
+    all_records = list(MateriaDocenteBilingue.objects.filter(activo=True))
+    docente_all_coords = {}
+    for md in all_records:
+        for c in [x.strip() for x in md.coordinador.split(',')]:
+            docente_all_coords.setdefault(md.docente, set()).add(c)
+    q = Q()
+    for md in all_records:
+        if codigo not in [x.strip() for x in md.coordinador.split(',')]:
+            continue
+        other_coords = docente_all_coords[md.docente] - {codigo}
+        if other_coords:
+            q_mat = Q()
+            for m in [x.strip() for x in md.materia.split(',') if x.strip()]:
+                q_mat |= Q(materia__icontains=m)
+            q |= Q(docente__icontains=md.docente) & q_mat
+        else:
+            q |= Q(docente__icontains=md.docente)
+    return q
+
 _TIPO_COLOR = {
     'Reporte Informativo': '#1971c2',
     'Reporte Conductual':  '#f59f00',
@@ -755,6 +781,66 @@ def editar_reporte_informativo(request, pk):
         "reporte": reporte,
         "coordinadores": coordinadores,
     })
+
+# ────────────────────────────────────────────────────────────────
+# ELIMINAR REPORTES (AJAX) — solo coordinadores/staff
+# Notifica a todos los superusuarios al eliminar.
+# ────────────────────────────────────────────────────────────────
+
+@login_required
+def eliminar_reporte_conductual(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    reporte = get_object_or_404(ReporteConductual, pk=pk)
+    info = {
+        'pk': reporte.pk,
+        'alumno': reporte.alumno_nombre,
+        'materia': reporte.materia,
+        'docente': reporte.docente,
+        'fecha': reporte.fecha.strftime('%d/%m/%Y %H:%M') if reporte.fecha else '—',
+        'eliminado_por': request.user.get_full_name() or request.user.username,
+    }
+    reporte.delete()
+
+    msg = (f"⚠️ Reporte Conductual #{info['pk']} eliminado por {info['eliminado_por']}. "
+           f"Alumno: {info['alumno']} | Materia: {info['materia']} – {info['docente']} | "
+           f"Fecha: {info['fecha']}")
+    for su in User.objects.filter(is_superuser=True):
+        crear_notificacion(su, msg, 'conducta', tipo='warning')
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def eliminar_reporte_informativo(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    reporte = get_object_or_404(ReporteInformativo, pk=pk)
+    info = {
+        'pk': reporte.pk,
+        'alumno': reporte.alumno_nombre,
+        'materia': reporte.materia,
+        'docente': reporte.docente,
+        'tipo': reporte.get_tipo_reporte_display(),
+        'fecha': reporte.fecha.strftime('%d/%m/%Y %H:%M') if reporte.fecha else '—',
+        'eliminado_por': request.user.get_full_name() or request.user.username,
+    }
+    reporte.delete()
+
+    msg = (f"⚠️ Reporte Informativo #{info['pk']} ({info['tipo']}) eliminado por {info['eliminado_por']}. "
+           f"Alumno: {info['alumno']} | Materia: {info['materia']} – {info['docente']} | "
+           f"Fecha: {info['fecha']}")
+    for su in User.objects.filter(is_superuser=True):
+        crear_notificacion(su, msg, 'conducta', tipo='warning')
+
+    return JsonResponse({'ok': True})
+
 
 # ────────────────
 # EDITAR PROGRESS
@@ -1568,24 +1654,27 @@ def descargar_zip_reportes(request):
         qs_cond = ReporteConductual.objects.all()
         qs_prog = ProgressReport.objects.all()
     elif email == 'cvarela@ana-hn.org':
-        _d = _docentes_de_coord('C1')
-        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
-        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
+        _q = _q_docentes_for_coord('C1')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'druiz@ana-hn.org':
-        _d = _docentes_de_coord('C2')
-        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
-        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
+        _q = _q_docentes_for_coord('C2')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'ialcerro@ana-hn.org':
-        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual')
-        _d = _docentes_de_coord('C3')
-        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
+        _q = _q_docentes_for_coord('C3')
+        qs_info = (
+            ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual') |
+            ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
+        ).distinct().order_by('-fecha')
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'jmartinez@ana-hn.org':
-        _d = _docentes_de_coord('C4')
-        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(_d))
-        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(_d))
+        _q = _q_docentes_for_coord('C4')
+        qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
+        qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.all()
     elif email == 'coordinacion_bl@ana-hn.org':
         qs_info = ReporteInformativo.objects.none()
@@ -1877,9 +1966,9 @@ def _docentes_de_coord(codigo):
 
 @login_required
 def dashboard_c1(request):
-    docentes = _docentes_de_coord('C1')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
-    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
+    q = _q_docentes_for_coord('C1')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     reportes_nuevos_bl = (
@@ -1897,9 +1986,9 @@ def dashboard_c1(request):
 
 @login_required
 def dashboard_c2(request):
-    docentes = _docentes_de_coord('C2')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
-    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
+    q = _q_docentes_for_coord('C2')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -1911,9 +2000,12 @@ def dashboard_c2(request):
 
 @login_required
 def dashboard_c3(request):
-    docentes = _docentes_de_coord('C3')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual')
-    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
+    q = _q_docentes_for_coord('C3')
+    qs_info = (
+        ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual') |
+        ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    ).distinct().order_by('-fecha')
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -1925,9 +2017,9 @@ def dashboard_c3(request):
 
 @login_required
 def dashboard_c4(request):
-    docentes = _docentes_de_coord('C4')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_docentes(docentes))
-    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q_docentes(docentes))
+    q = _q_docentes_for_coord('C4')
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     return render(request, 'conducta/dashboard_coordinador.html', {

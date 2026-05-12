@@ -782,3 +782,15 @@ def descargar_pptx_agenda(request, pk):
                             content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+# ── ELIMINAR AGENDA ───────────────────────────────────────────────────────────
+@login_required
+def eliminar_agenda(request, pk):
+    if not _es_coordinador(request.user):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    agenda = get_object_or_404(Agenda, pk=pk)
+    agenda.delete()
+    return JsonResponse({'ok': True})

@@ -12,4 +12,5 @@ urlpatterns = [
     path('<int:pk>/pptx/',     views.descargar_pptx_agenda,   name='descargar_pptx'),
     path('imagen/subir/',      views.subir_imagen,            name='subir_imagen'),
     path('imagen/<int:pk>/eliminar/', views.eliminar_imagen,  name='eliminar_imagen'),
+    path('<int:pk>/eliminar/',        views.eliminar_agenda,   name='eliminar_agenda'),
 ]

@@ -125,12 +125,12 @@
   <div class="card-header">
     <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
       <li class="nav-item">
-        <a href="#tab-academicos" class="nav-link {% if coord_codigo != 'C3' %}active{% endif %}" data-bs-toggle="tab">
+        <a href="#tab-academicos" class="nav-link active" data-bs-toggle="tab">
           <i class="ti ti-book me-1 text-cyan"></i>Reportes Académicos
         </a>
       </li>
       <li class="nav-item">
-        <a href="#tab-conductuales" class="nav-link {% if coord_codigo == 'C3' %}active{% endif %}" data-bs-toggle="tab">
+        <a href="#tab-conductuales" class="nav-link" data-bs-toggle="tab">
           <i class="ti ti-alert-triangle me-1 text-warning"></i>Reportes Conductuales
         </a>
       </li>
@@ -147,7 +147,7 @@
     <div class="tab-content">
 
       {# ── TAB 1: Académicos ─────────────────────────────── #}
-      <div class="tab-pane {% if coord_codigo != 'C3' %}active show{% endif %}" id="tab-academicos">
+      <div class="tab-pane active show" id="tab-academicos">
         <div class="table-responsive">
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -186,6 +186,13 @@
                          title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                          style="object-fit:cover;border-radius:4px;cursor:pointer;">
                     {% endfor %}
+                    <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
+                            data-pk="{{ r.pk }}" data-tipo="informativo"
+                            data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
+                            data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}"
+                            title="Eliminar reporte">
+                      <i class="ti ti-trash"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -196,7 +203,7 @@
       </div>
 
       {# ── TAB 2: Conductuales ───────────────────────────── #}
-      <div class="tab-pane {% if coord_codigo == 'C3' %}active show{% endif %}" id="tab-conductuales">
+      <div class="tab-pane" id="tab-conductuales">
         <div class="table-responsive">
           <table id="tabla-conductuales" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -237,6 +244,13 @@
                          title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                          style="object-fit:cover;border-radius:4px;cursor:pointer;">
                     {% endfor %}
+                    <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
+                            data-pk="{{ r.pk }}" data-tipo="informativo"
+                            data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
+                            data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}"
+                            title="Eliminar reporte">
+                      <i class="ti ti-trash"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -273,6 +287,13 @@
                          title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                          style="object-fit:cover;border-radius:4px;cursor:pointer;">
                     {% endfor %}
+                    <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
+                            data-pk="{{ r.pk }}" data-tipo="conductual"
+                            data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.motivo|default:'—' }}"
+                            data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}"
+                            title="Eliminar reporte">
+                      <i class="ti ti-trash"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -403,6 +424,39 @@
   </div>
 </div>
 
+{# Modal Eliminar Reporte (doble confirmación) #}
+<div class="modal modal-blur fade" id="modalEliminarReporte" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" id="eliminar-modal-header">
+        <h5 class="modal-title" id="eliminar-modal-title">
+          <i class="ti ti-alert-triangle me-2 text-warning"></i>Eliminar reporte
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4" id="eliminar-step-1">
+        <div class="mb-3"><i class="ti ti-trash text-warning" style="font-size:3rem;"></i></div>
+        <p class="fw-bold mb-1">¿Estás seguro que deseas eliminar este reporte?</p>
+        <p class="text-muted small mb-0" id="eliminar-detalle"></p>
+      </div>
+      <div class="modal-body text-center py-4 d-none" id="eliminar-step-2">
+        <div class="mb-3"><i class="ti ti-skull text-danger" style="font-size:3rem;"></i></div>
+        <p class="fw-bold text-danger mb-1">¡Esta acción no se puede deshacer!</p>
+        <p class="text-muted small mb-0">¿Confirmas definitivamente la eliminación?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="eliminar-btn-step1">
+          <i class="ti ti-arrow-right me-1"></i>Sí, continuar
+        </button>
+        <button type="button" class="btn btn-danger d-none" id="eliminar-btn-step2">
+          <i class="ti ti-trash me-1"></i>Sí, ELIMINAR
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {# Modal Subir Evidencia #}
 <div class="modal modal-blur fade" id="modalEvidencia" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -505,5 +559,77 @@
       new bootstrap.Modal(document.getElementById('modalLightbox')).show();
     });
   });
+</script>
+
+{# ══════ ELIMINAR REPORTE (doble confirmación) ══════ #}
+<script>
+(function(){
+  const CSRF = "{{ csrf_token }}";
+  let _pk = null, _tipo = null, _row = null;
+  const modal = new bootstrap.Modal(document.getElementById('modalEliminarReporte'));
+  const step1Body = document.getElementById('eliminar-step-1');
+  const step2Body = document.getElementById('eliminar-step-2');
+  const btn1 = document.getElementById('eliminar-btn-step1');
+  const btn2 = document.getElementById('eliminar-btn-step2');
+  const detalle = document.getElementById('eliminar-detalle');
+  const title = document.getElementById('eliminar-modal-title');
+
+  function resetModal() {
+    step1Body.classList.remove('d-none');
+    step2Body.classList.add('d-none');
+    btn1.classList.remove('d-none');
+    btn2.classList.add('d-none');
+    btn2.disabled = false;
+    btn2.innerHTML = '<i class="ti ti-trash me-1"></i>Sí, ELIMINAR';
+    title.innerHTML = '<i class="ti ti-alert-triangle me-2 text-warning"></i>Eliminar reporte';
+  }
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-eliminar-reporte');
+    if (!btn) return;
+    _pk   = btn.dataset.pk;
+    _tipo = btn.dataset.tipo;
+    _row  = btn.closest('tr');
+    const alumno = btn.dataset.alumno || '—';
+    const materia = btn.dataset.materia || '—';
+    const fecha  = btn.dataset.fecha  || '—';
+    detalle.textContent = alumno + ' · ' + materia + ' · ' + fecha;
+    resetModal();
+    modal.show();
+  });
+
+  btn1.addEventListener('click', function() {
+    step1Body.classList.add('d-none');
+    step2Body.classList.remove('d-none');
+    btn1.classList.add('d-none');
+    btn2.classList.remove('d-none');
+    title.innerHTML = '<i class="ti ti-skull me-2 text-danger"></i>Confirmación final';
+  });
+
+  btn2.addEventListener('click', async function() {
+    btn2.disabled = true;
+    btn2.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+    const url = '/conducta/reporte-' + _tipo + '/' + _pk + '/eliminar/';
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        modal.hide();
+        if (_row) _row.remove();
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo eliminar.'));
+        resetModal();
+      }
+    } catch(err) {
+      alert('Error de red. Intenta de nuevo.');
+      resetModal();
+    }
+  });
+
+  document.getElementById('modalEliminarReporte').addEventListener('hidden.bs.modal', resetModal);
+})();
 </script>
 {% endblock %}

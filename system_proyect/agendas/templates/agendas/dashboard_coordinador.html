@@ -39,14 +39,24 @@
             <td class="small">{{ ag.usuario.get_full_name|default:ag.usuario.username }}</td>
             <td class="text-muted small">{{ ag.fecha_creado|date:"d/m/Y" }}</td>
             <td>
-              <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary me-1"
-                 title="Revisar / editar">
-                <i class="ti ti-pencil"></i>
-              </a>
-              <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success"
-                 title="Descargar PPTX">
-                <i class="ti ti-download"></i>
-              </a>
+              <div class="d-flex align-items-center gap-1">
+                <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary"
+                   title="Revisar / editar">
+                  <i class="ti ti-pencil"></i>
+                </a>
+                <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success"
+                   title="Descargar PPTX">
+                  <i class="ti ti-download"></i>
+                </a>
+                <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
+                        data-pk="{{ ag.pk }}"
+                        data-grado="{{ ag.grado.nombre }}"
+                        data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
+                        data-maestro="{{ ag.usuario.get_full_name|default:ag.usuario.username }}"
+                        title="Eliminar agenda">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
           {% empty %}
@@ -59,6 +69,39 @@
     </div>
   </div>
 </div>
+
+{# Modal doble confirmación eliminar agenda #}
+<div class="modal modal-blur fade" id="modalEliminarAgenda" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" id="ag-modal-header">
+        <h5 class="modal-title" id="ag-modal-title">
+          <i class="ti ti-alert-triangle me-2 text-warning"></i>Eliminar agenda
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4" id="ag-step-1">
+        <div class="mb-3"><i class="ti ti-trash text-warning" style="font-size:3rem;"></i></div>
+        <p class="fw-bold mb-1">¿Estás seguro que deseas eliminar esta agenda?</p>
+        <p class="text-muted small mb-0" id="ag-detalle"></p>
+      </div>
+      <div class="modal-body text-center py-4 d-none" id="ag-step-2">
+        <div class="mb-3"><i class="ti ti-skull text-danger" style="font-size:3rem;"></i></div>
+        <p class="fw-bold text-danger mb-1">¡Esta acción no se puede deshacer!</p>
+        <p class="text-muted small mb-0">¿Confirmas definitivamente la eliminación?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="ag-btn-step1">
+          <i class="ti ti-arrow-right me-1"></i>Sí, continuar
+        </button>
+        <button type="button" class="btn btn-danger d-none" id="ag-btn-step2">
+          <i class="ti ti-trash me-1"></i>Sí, ELIMINAR
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -67,11 +110,77 @@
 <script>
 $(document).ready(function() {
   $('#tablaAgendas').DataTable({
-    order: [[5, 'desc']],
+    order: [[4, 'desc']],
     language: {
       url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
     }
   });
 });
+</script>
+
+<script>
+(function(){
+  const CSRF = "{{ csrf_token }}";
+  let _pk = null, _row = null;
+  const modal   = new bootstrap.Modal(document.getElementById('modalEliminarAgenda'));
+  const step1   = document.getElementById('ag-step-1');
+  const step2   = document.getElementById('ag-step-2');
+  const btn1    = document.getElementById('ag-btn-step1');
+  const btn2    = document.getElementById('ag-btn-step2');
+  const detalle = document.getElementById('ag-detalle');
+  const title   = document.getElementById('ag-modal-title');
+
+  function resetModal() {
+    step1.classList.remove('d-none');
+    step2.classList.add('d-none');
+    btn1.classList.remove('d-none');
+    btn2.classList.add('d-none');
+    btn2.disabled = false;
+    btn2.innerHTML = '<i class="ti ti-trash me-1"></i>Sí, ELIMINAR';
+    title.innerHTML = '<i class="ti ti-alert-triangle me-2 text-warning"></i>Eliminar agenda';
+  }
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-eliminar-agenda');
+    if (!btn) return;
+    _pk  = btn.dataset.pk;
+    _row = btn.closest('tr');
+    detalle.textContent = btn.dataset.grado + ' · ' + btn.dataset.semana + ' · ' + btn.dataset.maestro;
+    resetModal();
+    modal.show();
+  });
+
+  btn1.addEventListener('click', function() {
+    step1.classList.add('d-none');
+    step2.classList.remove('d-none');
+    btn1.classList.add('d-none');
+    btn2.classList.remove('d-none');
+    title.innerHTML = '<i class="ti ti-skull me-2 text-danger"></i>Confirmación final';
+  });
+
+  btn2.addEventListener('click', async function() {
+    btn2.disabled = true;
+    btn2.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+    try {
+      const res  = await fetch('/agendas/' + _pk + '/eliminar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        modal.hide();
+        if (_row) _row.remove();
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo eliminar.'));
+        resetModal();
+      }
+    } catch(err) {
+      alert('Error de red. Intenta de nuevo.');
+      resetModal();
+    }
+  });
+
+  document.getElementById('modalEliminarAgenda').addEventListener('hidden.bs.modal', resetModal);
+})();
 </script>
 {% endblock %}
