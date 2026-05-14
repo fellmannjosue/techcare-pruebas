@@ -1,0 +1,92 @@
+{% extends 'calculadoras/base_calculadoras.html' %}
+{% block title %}Calculadora IP{% endblock %}
+{% block page_pretitle %}Calculadoras{% endblock %}
+{% block page_title %}Calculadora de IPs / Subredes{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10 col-lg-8">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-network text-teal me-2"></i>Calculadora de Subredes</h3></div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-8">
+            <label class="form-label fw-semibold">Dirección IP</label>
+            <input type="text" id="inp-ip" class="form-control font-monospace" placeholder="192.168.1.0" maxlength="18">
+          </div>
+          <div class="col-4">
+            <label class="form-label fw-semibold">Prefijo CIDR</label>
+            <select id="inp-cidr" class="form-select">
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-calcular-ip"><i class="ti ti-calculator me-1"></i>Calcular</button>
+        <div id="res-ip" class="d-none mt-4">
+          <div class="row g-3">
+            <div class="col-6 col-md-4"><div class="card bg-blue-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Dirección de Red</div><div class="fw-bold font-monospace" id="res-network">—</div></div></div></div>
+            <div class="col-6 col-md-4"><div class="card bg-red-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Broadcast</div><div class="fw-bold font-monospace" id="res-broadcast">—</div></div></div></div>
+            <div class="col-6 col-md-4"><div class="card bg-green-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Hosts Usables</div><div class="fw-bold" id="res-hosts">—</div></div></div></div>
+            <div class="col-6 col-md-4"><div class="card bg-yellow-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Máscara de Subred</div><div class="fw-bold font-monospace" id="res-mask">—</div></div></div></div>
+            <div class="col-6 col-md-4"><div class="card bg-purple-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Wildcard</div><div class="fw-bold font-monospace" id="res-wildcard">—</div></div></div></div>
+            <div class="col-6 col-md-4"><div class="card bg-cyan-lt"><div class="card-body py-2 text-center"><div class="text-muted small">Clase IP</div><div class="fw-bold" id="res-clase">—</div></div></div></div>
+            <div class="col-12"><div class="card"><div class="card-body py-2"><div class="text-muted small mb-1">Rango de hosts usables</div><div class="fw-bold font-monospace" id="res-rango">—</div></div></div></div>
+            <div class="col-12"><div class="card"><div class="card-body py-2"><div class="text-muted small mb-1">Dirección binaria</div><div class="fw-bold font-monospace small" id="res-binario">—</div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Populate CIDR select
+for (let i = 0; i <= 32; i++) {
+  $('#inp-cidr').append(`<option value="${i}" ${i===24?'selected':''}>/${i}</option>`);
+}
+
+function ipToInt(ip) {
+  return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct), 0) >>> 0;
+}
+function intToIp(n) {
+  return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join('.');
+}
+function toBinary(ip) {
+  return ip.split('.').map(o => parseInt(o).toString(2).padStart(8,'0')).join('.');
+}
+function ipClase(ip) {
+  const first = parseInt(ip.split('.')[0]);
+  if (first < 128) return 'A'; if (first < 192) return 'B';
+  if (first < 224) return 'C'; if (first < 240) return 'D'; return 'E';
+}
+
+$('#btn-calcular-ip').on('click', function(){
+  const ip = $('#inp-ip').val().trim();
+  const cidr = parseInt($('#inp-cidr').val());
+  const parts = ip.split('.');
+  if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
+    Swal.fire({icon:'warning', title:'IP inválida', text:'Ingresa una dirección IPv4 válida.'}); return;
+  }
+  const ipInt = ipToInt(ip);
+  const maskInt = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
+  const networkInt = (ipInt & maskInt) >>> 0;
+  const broadcastInt = (networkInt | (~maskInt >>> 0)) >>> 0;
+  const hosts = cidr >= 31 ? (cidr === 32 ? 1 : 2) : Math.pow(2, 32 - cidr) - 2;
+  const firstHost = cidr >= 31 ? networkInt : networkInt + 1;
+  const lastHost = cidr >= 31 ? broadcastInt : broadcastInt - 1;
+
+  $('#res-ip').removeClass('d-none');
+  $('#res-network').text(intToIp(networkInt) + '/' + cidr);
+  $('#res-broadcast').text(intToIp(broadcastInt));
+  $('#res-hosts').text(hosts.toLocaleString());
+  $('#res-mask').text(intToIp(maskInt));
+  $('#res-wildcard').text(intToIp(~maskInt >>> 0));
+  $('#res-clase').text('Clase ' + ipClase(ip));
+  $('#res-rango').text(intToIp(firstHost) + ' – ' + intToIp(lastHost));
+  $('#res-binario').text(toBinary(ip));
+});
+
+$('#inp-ip').on('keydown', function(e){ if(e.key==='Enter') $('#btn-calcular-ip').click(); });
+</script>
+{% endblock %}

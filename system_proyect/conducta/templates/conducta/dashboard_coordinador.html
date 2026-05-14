@@ -7,6 +7,29 @@
 
 {% block extra_head %}
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <style>
+    .coord-btn-group { display:flex; flex-wrap:wrap; gap:2px; }
+    .btn-coord {
+      font-size:.7rem; font-weight:700; padding:2px 6px; border-radius:4px;
+      border:1px solid #dee2e6; background:#f8f9fa; color:#6c757d;
+      cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+      line-height:1.4;
+    }
+    .btn-coord:hover  { background:#e9ecef; border-color:#adb5bd; color:#343a40; }
+    .btn-coord.active { background:#f76707; border-color:#f76707; color:#fff; }
+    .btn-coord.override { border-color:#f76707; }
+    .ev-thumb-wrap { position:relative; display:inline-block; }
+    .btn-ev-delete {
+      position:absolute; top:-4px; right:-4px;
+      width:16px; height:16px; border-radius:50%;
+      background:#dc3545; color:#fff; border:none;
+      font-size:10px; line-height:1; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transition:opacity .15s;
+      padding:0; z-index:10;
+    }
+    .ev-thumb-wrap:hover .btn-ev-delete { opacity:1; }
+  </style>
 {% endblock %}
 
 {% block page_actions %}
@@ -152,18 +175,27 @@
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
               <th>#</th><th>Alumno</th><th>Fecha</th><th>Grado</th><th>Docente</th>
-              {% if request.user.is_superuser %}<th>Coord.</th>{% endif %}
-              <th>Estado</th><th>Acciones</th>
+              {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
+              <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
             <tbody>
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'academico' %}
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
-                {% if request.user.is_superuser %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:r.coord_codigo }}</span></td>{% endif %}
+                {% if request.user.is_superuser and area == 'bilingue' %}<td>
+                  <div class="coord-btn-group select-coord-reporte {% if r.coord_asignado %}override{% endif %}"
+                       data-pk="{{ r.pk }}" data-tipo="informativo"
+                       title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C1' %}active{% endif %}" data-val="C1">C1</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C2' %}active{% endif %}" data-val="C2">C2</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C3' %}active{% endif %}" data-val="C3">C3</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C4' %}active{% endif %}" data-val="C4">C4</button>
+                  </div>
+                </td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
                   {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
@@ -173,19 +205,27 @@
                   {% if r.coordinador_firma %}<i class="ti ti-circle-check text-success ms-1"></i>{% endif %}
                 </td>
                 <td>
-                  <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
-                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                  <div class="d-flex align-items-center gap-1">
                     <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                             data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
                             title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
                       <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
-                    <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
-                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
-                         style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                    <div class="ev-thumb-wrap">
+                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                           title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                           style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                      <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
+                              data-reporte-pk="{{ r.pk }}" title="Eliminar evidencia">×</button>
+                    </div>
                     {% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
@@ -208,8 +248,8 @@
           <table id="tabla-conductuales" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
               <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Docente</th>
-              {% if request.user.is_superuser %}<th>Coord.</th>{% endif %}
-              <th>Estado</th><th>Acciones</th>
+              {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
+              <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
             <tbody>
               {# Informativos marcados como conductual #}
@@ -218,10 +258,19 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-cyan-lt text-cyan">Informativo</span></td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
-                {% if request.user.is_superuser %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:r.coord_codigo }}</span></td>{% endif %}
+                {% if request.user.is_superuser and area == 'bilingue' %}<td>
+                  <div class="coord-btn-group select-coord-reporte {% if r.coord_asignado %}override{% endif %}"
+                       data-pk="{{ r.pk }}" data-tipo="informativo"
+                       title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C1' %}active{% endif %}" data-val="C1">C1</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C2' %}active{% endif %}" data-val="C2">C2</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C3' %}active{% endif %}" data-val="C3">C3</button>
+                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C4' %}active{% endif %}" data-val="C4">C4</button>
+                  </div>
+                </td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
                   {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
@@ -231,19 +280,27 @@
                   {% if r.coordinador_firma %}<i class="ti ti-circle-check text-success ms-1"></i>{% endif %}
                 </td>
                 <td>
-                  <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
-                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                  <div class="d-flex align-items-center gap-1">
                     <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                             data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
                             title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
                       <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
-                    <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
-                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
-                         style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                    <div class="ev-thumb-wrap">
+                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                           title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                           style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                      <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
+                              data-reporte-pk="{{ r.pk }}" title="Eliminar evidencia">×</button>
+                    </div>
                     {% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
@@ -261,10 +318,20 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-warning-lt text-warning">Conductual</span></td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
-                {% if request.user.is_superuser %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:r.coord_codigo }}</span></td>{% endif %}
+                {% if request.user.is_superuser and area == 'bilingue' %}<td>
+                  <select class="form-select form-select-sm select-coord-reporte {% if r.coord_asignado %}border-warning{% endif %}"
+                          style="min-width:72px;font-size:.75rem;"
+                          data-pk="{{ r.pk }}" data-tipo="conductual"
+                          title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
+                    <option value="C1" {% if r.coord_codigo == 'C1' %}selected{% endif %}>C1</option>
+                    <option value="C2" {% if r.coord_codigo == 'C2' %}selected{% endif %}>C2</option>
+                    <option value="C3" {% if r.coord_codigo == 'C3' %}selected{% endif %}>C3</option>
+                    <option value="C4" {% if r.coord_codigo == 'C4' %}selected{% endif %}>C4</option>
+                  </select>
+                </td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
                   {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
@@ -274,19 +341,27 @@
                   {% if r.coordinador_firma %}<i class="ti ti-circle-check text-success ms-1"></i>{% endif %}
                 </td>
                 <td>
-                  <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <a href="{% url 'editar_reporte_conductual' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
-                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                  <div class="d-flex align-items-center gap-1">
                     <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                             data-id="{{ r.pk }}" data-tipo="conductual" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
                             title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
                       <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
-                    <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
-                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
-                         style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                    <div class="ev-thumb-wrap">
+                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                           title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                           style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                      <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
+                              data-reporte-pk="{{ r.pk }}" title="Eliminar evidencia">×</button>
+                    </div>
                     {% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <a href="{% url 'editar_reporte_conductual' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="conductual"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.motivo|default:'—' }}"
@@ -310,18 +385,18 @@
           <table id="tabla-progress" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
               <th>#</th><th>Alumno</th><th>Fecha</th><th>Grado</th><th>Maestro</th>
-              {% if request.user.is_superuser %}<th>Coord.</th>{% endif %}
-              <th>Estado</th><th>Acciones</th>
+              {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
+              <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
             <tbody>
               {% for r in reportes_progress %}
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.usuario }}</td>
-                {% if request.user.is_superuser %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:"—" }}</span></td>{% endif %}
+                {% if request.user.is_superuser and area == 'bilingue' %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:"—" }}</span></td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
                   {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
@@ -331,19 +406,27 @@
                   {% if r.coordinador_firma %}<i class="ti ti-circle-check text-success ms-1"></i>{% endif %}
                 </td>
                 <td>
-                  <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <a href="{% url 'editar_progress_report' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
-                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                  <div class="d-flex align-items-center gap-1">
                     <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
                             data-id="{{ r.pk }}" data-tipo="progress" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
                             title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
                       <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
-                    <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
-                         title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
-                         style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                    <div class="ev-thumb-wrap">
+                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                           title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                           style="object-fit:cover;border-radius:4px;cursor:pointer;">
+                      <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
+                              data-reporte-pk="{{ r.pk }}" title="Eliminar evidencia">×</button>
+                    </div>
                     {% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <a href="{% url 'editar_progress_report' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                   </div>
                 </td>
               </tr>
@@ -478,12 +561,20 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-bold">Imagen <span class="text-danger">*</span></label>
-            <input type="file" name="imagen" id="ev-imagen" class="form-control" accept="image/*" required>
-            <div class="mt-2 text-center">
+            <input type="file" name="imagen" id="ev-imagen" accept="image/*" class="d-none">
+            <div id="ev-dropzone"
+                 style="border:2px dashed #adb5bd;border-radius:8px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:#f8f9fa;">
+              <div id="ev-dz-placeholder">
+                <i class="ti ti-clipboard-text" style="font-size:2rem;color:#adb5bd;"></i>
+                <div class="mt-1 fw-semibold text-muted" style="font-size:.9rem;">Pegar imagen <kbd>Ctrl+V</kbd></div>
+                <div class="text-muted" style="font-size:.78rem;">o haz clic / arrastra un archivo</div>
+              </div>
               <img id="ev-preview" src="#" alt="Vista previa"
                    class="img-fluid rounded d-none"
-                   style="max-height:180px; border:1px solid #dee2e6;">
+                   style="max-height:160px;border:1px solid #dee2e6;">
+              <div id="ev-dz-filename" class="text-muted small mt-1 d-none"></div>
             </div>
+            <div class="form-text mt-1">Haz clic, arrastra o pega con <kbd>Ctrl+V</kbd>.</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Comentario <span class="text-muted small">(opcional)</span></label>
@@ -559,7 +650,88 @@
       new bootstrap.Modal(document.getElementById('modalLightbox')).show();
     });
   });
+
+  // ── Eliminar evidencia ──
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-ev-delete');
+    if (!btn) return;
+    if (!confirm('¿Eliminar esta evidencia? Esta acción no se puede deshacer.')) return;
+    const evPk = btn.dataset.evPk;
+    const reportePk = btn.dataset.reportePk;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/conducta/evidencia/${evPk}/eliminar/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const wrap = btn.closest('.ev-thumb-wrap');
+        const uploadBtn = document.querySelector(`.btn-evidencia[data-id="${reportePk}"]`);
+        wrap.remove();
+        if (uploadBtn) {
+          const numEl = parseInt(uploadBtn.dataset.numEvidencias || '0') - 1;
+          uploadBtn.dataset.numEvidencias = numEl;
+          uploadBtn.classList.remove('btn-danger', 'btn-success', 'btn-secondary', 'disabled');
+          uploadBtn.classList.add(numEl > 0 ? 'btn-success' : 'btn-secondary');
+          uploadBtn.title = 'Subir evidencia';
+          uploadBtn.querySelector('i').className = numEl > 0 ? 'ti ti-photo' : 'ti ti-camera';
+        }
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo eliminar.'));
+        btn.disabled = false;
+      }
+    } catch {
+      alert('Error de red.');
+      btn.disabled = false;
+    }
+  });
 </script>
+
+{# ══════ CAMBIAR COORDINADOR (solo superuser) ══════ #}
+{% if request.user.is_superuser %}
+<script>
+(function(){
+  const CSRF   = "{{ csrf_token }}";
+  const URL_SC = "{% url 'set_coord_reporte' %}";
+
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-coord');
+    if (!btn) return;
+    const grp  = btn.closest('.coord-btn-group');
+    if (!grp) return;
+    const pk   = grp.dataset.pk;
+    const tipo = grp.dataset.tipo;
+    const coord = btn.dataset.val;
+
+    grp.querySelectorAll('.btn-coord').forEach(b => b.disabled = true);
+    const body = new URLSearchParams({ pk, tipo, coord });
+    try {
+      const res  = await fetch(URL_SC, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body
+      });
+      const data = await res.json();
+      if (data.ok) {
+        grp.querySelectorAll('.btn-coord').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        grp.classList.toggle('override', !!coord);
+        grp.title = coord ? 'Override manual activo' : 'Auto (por docente)';
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo guardar.'));
+        location.reload();
+      }
+    } catch {
+      alert('Error de red.');
+      location.reload();
+    } finally {
+      grp.querySelectorAll('.btn-coord').forEach(b => b.disabled = false);
+    }
+  });
+})();
+</script>
+{% endif %}
 
 {# ══════ ELIMINAR REPORTE (doble confirmación) ══════ #}
 <script>
@@ -630,6 +802,94 @@
   });
 
   document.getElementById('modalEliminarReporte').addEventListener('hidden.bs.modal', resetModal);
+})();
+</script>
+
+<script>
+// ── Dropzone + paste para evidencia ──
+(function(){
+  const dropzone  = document.getElementById('ev-dropzone');
+  const fileInput = document.getElementById('ev-imagen');
+  const preview   = document.getElementById('ev-preview');
+  const placeholder = document.getElementById('ev-dz-placeholder');
+  const filename  = document.getElementById('ev-dz-filename');
+
+  function showPreview(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+      preview.classList.remove('d-none');
+      placeholder.classList.add('d-none');
+      filename.textContent = file.name || 'Imagen pegada';
+      filename.classList.remove('d-none');
+      dropzone.style.borderColor = '#4299e1';
+      dropzone.style.background  = '#ebf8ff';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function setFile(file) {
+    if (!file) return;
+    // Crear un nuevo FileList con el archivo
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    showPreview(file);
+  }
+
+  // Clic en dropzone → abre selector de archivo
+  dropzone.addEventListener('click', function() { fileInput.click(); });
+
+  // Selección por file input
+  fileInput.addEventListener('change', function() {
+    if (this.files[0]) showPreview(this.files[0]);
+  });
+
+  // Drag & drop
+  dropzone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.style.borderColor = '#4299e1';
+    this.style.background  = '#ebf8ff';
+  });
+  dropzone.addEventListener('dragleave', function() {
+    if (!fileInput.files[0]) {
+      this.style.borderColor = '#adb5bd';
+      this.style.background  = '#f8f9fa';
+    }
+  });
+  dropzone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  });
+
+  // Ctrl+V / Paste — funciona mientras el modal está abierto
+  document.addEventListener('paste', function(e) {
+    const modal = document.getElementById('modalEvidencia');
+    if (!modal.classList.contains('show')) return;
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) setFile(file);
+        break;
+      }
+    }
+  });
+
+  // Limpiar al cerrar el modal
+  document.getElementById('modalEvidencia').addEventListener('hidden.bs.modal', function() {
+    preview.src = '#';
+    preview.classList.add('d-none');
+    placeholder.classList.remove('d-none');
+    filename.classList.add('d-none');
+    filename.textContent = '';
+    dropzone.style.borderColor = '#adb5bd';
+    dropzone.style.background  = '#f8f9fa';
+    fileInput.value = '';
+  });
 })();
 </script>
 {% endblock %}

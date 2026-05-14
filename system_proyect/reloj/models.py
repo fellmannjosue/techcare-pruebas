@@ -361,6 +361,9 @@ class CompensatorioCalculo(models.Model):
     dias_habiles_necesarios = models.PositiveIntegerField("Días hábiles necesarios", default=0)
     fecha_fin               = models.DateField("Fecha fin estimada", null=True, blank=True)
 
+    # Override manual para empleados con seguimiento especial
+    minutos_compensados_manual = models.PositiveIntegerField("Compensado manual (min)", null=True, blank=True)
+
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 
     class Meta:
@@ -390,8 +393,9 @@ class ReportePermisoMensual(models.Model):
     pct25_dias       = models.DecimalField("25%",               max_digits=5, decimal_places=2, default=0)
     pct50_dias       = models.DecimalField("50%",               max_digits=5, decimal_places=2, default=0)
     pct75_dias       = models.DecimalField("75%",               max_digits=5, decimal_places=2, default=0)
-    pct100_dias      = models.DecimalField("100%",              max_digits=5, decimal_places=2, default=0)
-    pierde_bono      = models.BooleanField("Pierde bono",       default=False)
+    pct100_dias          = models.DecimalField("100%",              max_digits=5, decimal_places=2, default=0)
+    compensatorio_dias   = models.DecimalField("Compensatorio",    max_digits=5, decimal_places=2, default=0)
+    pierde_bono          = models.BooleanField("Pierde bono",       default=False)
 
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 
@@ -404,3 +408,33 @@ class ReportePermisoMensual(models.Model):
 
     def __str__(self):
         return f"{self.nombre_empleado} – {self.mes.strftime('%m/%Y')}"
+
+
+class PermisoReporte(models.Model):
+    """Registro individual de permiso desde el reporte de asistencia.
+    Soporta edición/eliminación y sincroniza ReportePermisoMensual."""
+    emp_code        = models.CharField("Código empleado", max_length=20, db_index=True)
+    nombre_empleado = models.CharField("Nombre empleado", max_length=200, blank=True)
+    fecha           = models.DateField("Fecha inicio")
+    fecha_fin       = models.DateField("Fecha fin", null=True, blank=True)
+    tipo            = models.CharField("Tipo de permiso", max_length=30)
+    dias            = models.DecimalField("Días", max_digits=5, decimal_places=2, default=1)
+    horas           = models.DecimalField("Horas", max_digits=6, decimal_places=2, null=True, blank=True)
+    razon           = models.CharField("Razón", max_length=300, blank=True)
+    comentario      = models.TextField("Comentario", blank=True)
+    registrado_por  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, verbose_name="Registrado por"
+    )
+    creado_en       = models.DateTimeField(auto_now_add=True)
+    actualizado_en  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reloj_permiso_reporte"
+        verbose_name = "Permiso en reporte"
+        verbose_name_plural = "Permisos en reporte"
+        unique_together = ("emp_code", "fecha", "tipo")
+        ordering = ["-fecha", "emp_code"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} – {self.fecha} – {self.tipo}"

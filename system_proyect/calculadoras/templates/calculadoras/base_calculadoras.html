@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Calculadoras{% endblock %} – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="wrapper">
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-calc">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand">
+        <a href="{% url 'calculadoras_dashboard' %}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-calc">
+        {% include 'accounts/_sidebar.html' %}
+        {% include 'accounts/_user_dropdown.html' %}
+      </div>
+    </div>
+  </aside>
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-xl">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{% url 'calculadoras_dashboard' %}"><i class="ti ti-calculator me-1"></i>Calculadoras</a></li>
+                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
+              </ol>
+            </nav>
+            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+          </div>
+          {% block page_actions %}{% endblock %}
+        </div>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="container-xl">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+    <footer class="footer footer-transparent d-print-none">
+      <div class="container-xl text-center">
+        <p class="text-muted mb-0 small">© {% now "Y" %} Soporte Técnico – Asociación Nuevo Amanecer.</p>
+      </div>
+    </footer>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,14 +1,30 @@
 // static/conducta/js/coordinador.js
 
 $(function() {
-    // Inicializar DataTables en las tres tablas de pestañas
-    const dtOpts = {
-        "order": [[2, "desc"]],
-        "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" }
-    };
-    ['#tabla-academicos', '#tabla-conductuales', '#tabla-progress'].forEach(function(id) {
-        if ($(id).length) { $(id).DataTable(dtOpts); }
-    });
+    // Inicializar DataTables
+    // Tab 1 académicos:    #,Alumno,Fecha(2),Grado,Docente,[Coord],Estado,Evidencias,Acciones
+    // Tab 2 conductuales:  #,Alumno,Tipo,Fecha(3),Grado,Docente,[Coord],Estado,Evidencias,Acciones
+    // Tab 3 progress:      #,Alumno,Fecha(2),Grado,Maestro,[Coord],Estado,Evidencias,Acciones
+    const lang = { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" };
+    const noSort = { orderable: false };
+    if ($('#tabla-academicos').length) {
+        $('#tabla-academicos').DataTable({
+            language: lang, order: [[2, 'desc']], pageLength: 100,
+            columnDefs: [{ targets: [-1, -2], orderable: false }]
+        });
+    }
+    if ($('#tabla-conductuales').length) {
+        $('#tabla-conductuales').DataTable({
+            language: lang, order: [[3, 'desc']], pageLength: 100,
+            columnDefs: [{ targets: [-1, -2], orderable: false }]
+        });
+    }
+    if ($('#tabla-progress').length) {
+        $('#tabla-progress').DataTable({
+            language: lang, order: [[2, 'desc']], pageLength: 100,
+            columnDefs: [{ targets: [-1, -2], orderable: false }]
+        });
+    }
 
     // Acción para mostrar historial del alumno en modal
     // <--- hecho por claude code: usando Bootstrap 5 API (no jQuery .modal())

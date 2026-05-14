@@ -8,6 +8,10 @@
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
 <style>
+  /* Usar ancho completo en esta página */
+  .page-wrapper .page-header .container-xl,
+  .page-wrapper .page-body  .container-xl { max-width: 100% !important; padding-left: 1.5rem; padding-right: 1.5rem; }
+
   .select2-container .select2-selection--single { height: 36px; }
   .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; }
   .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
@@ -28,6 +32,29 @@
   .cmt-add-row input:focus { outline:none; border-color:#86b7fe; box-shadow:0 0 0 2px rgba(13,110,253,.15); }
   .cmt-add-row input:disabled, .btn-add-cmt:disabled { opacity:.45; cursor:not-allowed; }
   .cmt-limit { font-size:.75rem; color:#6c757d; }
+  .badge-permiso { font-size:.7rem; padding:2px 6px; }
+
+  /* Anchos de columna */
+  #tablaAsistencia th:nth-child(1),
+  #tablaAsistencia td:nth-child(1) { width: 80px;  min-width: 60px; }   /* ID */
+  #tablaAsistencia th:nth-child(2),
+  #tablaAsistencia td:nth-child(2) { width: 150px; min-width: 120px; }  /* Empleado */
+  #tablaAsistencia th:nth-child(3),
+  #tablaAsistencia td:nth-child(3) { width: 160px; min-width: 130px; }  /* Horario */
+  #tablaAsistencia th:nth-child(4),
+  #tablaAsistencia td:nth-child(4) { width: 130px; min-width: 100px; }  /* Feriado */
+  #tablaAsistencia th:nth-child(5),
+  #tablaAsistencia td:nth-child(5) { width: 100px; min-width:  90px; }  /* Fecha */
+  #tablaAsistencia th:nth-child(6),
+  #tablaAsistencia td:nth-child(6) { width: 180px; min-width: 140px; }  /* Marcas */
+  #tablaAsistencia th:nth-child(7),
+  #tablaAsistencia td:nth-child(7) { width:  90px; min-width:  80px; }  /* Cant. */
+  #tablaAsistencia th:nth-child(8),
+  #tablaAsistencia td:nth-child(8) { min-width: 200px; }                /* Permiso */
+  #tablaAsistencia th:nth-child(9),
+  #tablaAsistencia td:nth-child(9) { min-width: 220px; }                /* Comentario */
+  #tablaAsistencia th:nth-child(10),
+  #tablaAsistencia td:nth-child(10){ width:  60px; min-width:  50px; }  /* Estado */
 </style>
 {% endblock %}
 
@@ -91,7 +118,7 @@
           <tr>
             <th>ID Empleado</th><th>Empleado</th><th>Horario Programado</th>
             <th>Feriado</th><th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
-            <th>Comentario</th><th>Estado</th>
+            <th>Permiso</th><th>Comentario</th><th>Estado</th>
           </tr>
           <tr>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
@@ -102,6 +129,7 @@
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
             <th></th>
+            <th></th>
             <th><input type="text" class="form-control form-control-sm" placeholder="Filtrar"/></th>
           </tr>
         </thead>
@@ -109,7 +137,7 @@
           {% for row in datos %}
           <tr {% if row.Es_Feriado %}class="table-warning"{% elif row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
             <td>{{ row.ID_Empleado }}</td>
-            <td>{{ row.Empleado }}</td>
+            <td data-order="{{ row.Empleado_Sort }}">{{ row.Empleado }}</td>
             <td>
               {% if row.No_Programado %}
                 <span class="badge bg-dark">No programado</span>
@@ -124,7 +152,7 @@
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td>{{ row.Fecha|date:"Y-m-d" }}</td>
+            <td>{{ row.Fecha|date:"d/m/Y" }}</td>
             <td>
               {% if row.Marcas_Dia %}
                 {% for m in row.Marcas_Dia %}
@@ -135,6 +163,11 @@
               {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
             <td class="text-center">{{ row.Cantidad_Marcas }}</td>
+            <td class="text-center permiso-cell"
+                data-emp="{{ row.ID_Empleado }}"
+                data-nombre="{{ row.Empleado }}"
+                data-fecha="{{ row.Fecha|date:'Y-m-d' }}">
+            </td>
             <td>
               <div class="cmts-wrap"
                    data-emp="{{ row.ID_Empleado }}"
@@ -177,22 +210,107 @@
 {% elif not error %}
 <div class="alert alert-secondary">No hay datos para mostrar en el rango seleccionado.</div>
 {% endif %}
+
+{# <--- hecho por claude code: modal para registrar/editar permiso desde el reporte de asistencia #}
+<div class="modal modal-blur fade" id="modalPermiso" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-license me-2 text-primary"></i><span id="perm-modal-title">Registrar Permiso</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="perm-pk">
+        <input type="hidden" id="perm-emp-code">
+        <div class="mb-3">
+          <label class="form-label fw-semibold text-muted small">Empleado</label>
+          <div id="perm-nombre-display" class="fw-semibold"></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label" for="perm-fecha">Fecha inicio</label>
+            <input type="date" id="perm-fecha" class="form-control">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="perm-fecha-fin">Fecha fin</label>
+            <input type="date" id="perm-fecha-fin" class="form-control">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="perm-tipo">Tipo de Permiso</label>
+          <select id="perm-tipo" class="form-select">
+            {% for campo, etiqueta, color in campos_permiso %}
+            {% if campo != 'enfermedad_incapacidad' and campo != 'enfermedad_maternidad' and campo != 'enfermedad_citamedica' and campo != 'enfermedad_consulta' %}
+            <option value="{{ campo }}" data-color="{{ color }}">{{ etiqueta }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="perm-subtipo-wrap">
+          <label class="form-label" for="perm-subtipo">Subtipo Enfermedad</label>
+          <select id="perm-subtipo" class="form-select">
+            <option value="enfermedad_incapacidad">Incapacidad</option>
+            <option value="enfermedad_maternidad">Incapacidad por maternidad</option>
+            <option value="enfermedad_citamedica">Cita médica</option>
+            <option value="enfermedad_consulta">Consulta médica</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="perm-razon">Razón</label>
+          <input type="text" id="perm-razon" class="form-control" maxlength="300" placeholder="Motivo del permiso...">
+        </div>
+        <div class="mb-2 d-flex align-items-center gap-2">
+          <span class="form-label mb-0 me-1 small text-muted">Registrar como:</span>
+          <div class="btn-group btn-group-sm" role="group">
+            <input type="radio" class="btn-check" name="perm-modo" id="modo-dias" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="modo-dias">Días</label>
+            <input type="radio" class="btn-check" name="perm-modo" id="modo-horas" autocomplete="off">
+            <label class="btn btn-outline-primary" for="modo-horas">Horas</label>
+          </div>
+        </div>
+        <div id="wrap-dias" class="mb-1">
+          <label class="form-label" for="perm-dias">Días hábiles</label>
+          <input type="number" id="perm-dias" class="form-control" step="0.5" min="0" max="31" value="1" placeholder="0.5, 1, 2...">
+        </div>
+        <div id="wrap-horas" class="mb-1 d-none">
+          <label class="form-label" for="perm-horas">Horas</label>
+          <input type="number" id="perm-horas" class="form-control" step="0.5" min="0" max="248" placeholder="4, 8, 16...">
+        </div>
+        <div class="form-text" id="perm-dias-hint"></div>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-ghost-danger d-none" id="btn-eliminar-permiso">
+          <i class="ti ti-trash me-1"></i>Eliminar
+        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-guardar-permiso">
+            <i class="ti ti-check me-1"></i>Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'reloj/js/autorefresh.js' %}"></script>
 <script>
-const CSRF_TOKEN  = '{{ csrf_token }}';
-const ADD_URL     = '{% url "reloj_comentario_add" %}';
-const DELETE_BASE = '{% url "reloj_comentario_delete" pk=99999 %}';
+const CSRF_TOKEN       = '{{ csrf_token }}';
+const ADD_URL          = '{% url "reloj_comentario_add" %}';
+const DELETE_BASE      = '{% url "reloj_comentario_delete" pk=99999 %}';
+const URL_PERM_SAVE    = '{% url "reloj_permiso_reporte_save" %}';
+const URL_PERM_DELETE  = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
+const PERMISOS_MAP     = {{ permisos_json|safe }};
 
 $(function(){
   var table = $('#tablaAsistencia').DataTable({
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
     pageLength: 25, orderCellsTop: true, fixedHeader: true,
-    order: [[0,'asc'],[4,'asc']],
-    columnDefs: [{ orderable: false, targets: [3, 7] }]
+    order: [[1,'asc'],[4,'asc']],
+    columnDefs: [{ orderable: false, targets: [3, 7, 8] }]
   });
 
   $('#tablaAsistencia thead tr:eq(1) th').each(function(i){
@@ -263,6 +381,276 @@ $(function(){
       success: function(res){
         if (res.ok){ $li.remove(); actualizarLimite($wrap); }
       }
+    });
+  });
+
+  // ── Renderizar badges de permisos en columna Permiso ──
+  const TIPO_LABELS = {
+    {% for campo, etiqueta, color in campos_permiso %}
+    '{{ campo }}': { label: '{{ etiqueta }}', color: '{{ color }}' },
+    {% endfor %}
+  };
+
+  function renderPermisoCells() {
+    $('.permiso-cell').each(function(){
+      const emp   = String($(this).data('emp')).trim();
+      const fecha = $(this).data('fecha');
+      const key   = emp + '|' + fecha;
+      const lista = PERMISOS_MAP[key] || [];
+      const $td   = $(this);
+      $td.empty();
+      if (lista.length > 0) {
+        lista.forEach(function(p){
+          const info = TIPO_LABELS[p.tipo] || {label: p.tipo, color: '#ccc'};
+          const $wrap = $('<span class="d-inline-flex align-items-center gap-1 me-1 mb-1">');
+          const $badge = $('<span class="badge badge-permiso">')
+            .css('background-color', info.color)
+            .css('color', '#333')
+            .text(info.label + ' ' + (p.horas != null ? parseFloat(p.horas) + 'h' : parseFloat(p.dias) + 'd'))
+            .attr('title', p.razon || '');
+          const $btnEdit = $('<button class="btn btn-xs btn-outline-secondary btn-edit-permiso p-0" title="Editar" style="width:18px;height:18px;line-height:1">')
+            .html('<i class="ti ti-pencil" style="font-size:.65rem"></i>')
+            .data('permiso', p).data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
+          const $btnDel = $('<button class="btn btn-xs btn-outline-danger btn-del-permiso p-0" title="Eliminar" style="width:18px;height:18px;line-height:1">')
+            .html('<i class="ti ti-trash" style="font-size:.65rem"></i>')
+            .data('pk', p.pk).data('emp', emp).data('fecha', fecha).data('tipo', p.tipo);
+          $wrap.append($badge, $btnEdit, $btnDel);
+          $td.append($wrap);
+        });
+      }
+      const $addBtn = $('<button class="btn btn-sm btn-secondary btn-reg-permiso" title="Registrar permiso">')
+        .html('<i class="ti ti-license me-1"></i>Permiso')
+        .data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
+      $td.append($addBtn);
+    });
+  }
+  renderPermisoCells();
+
+  // Mostrar/ocultar subtipo enfermedad y auto-calcular días
+  $(document).on('change', '#perm-tipo', function(){
+    const esEnfermedad = $(this).val() === 'enfermedad_dias';
+    $('#perm-subtipo-wrap').toggleClass('d-none', !esEnfermedad);
+  });
+
+  function diasHabiles(fi, ff) {
+    let count = 0;
+    const d = new Date(fi + 'T00:00:00');
+    const e = new Date(ff + 'T00:00:00');
+    while (d <= e) {
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+
+  function modoActual() {
+    return $('#modo-horas').is(':checked') ? 'horas' : 'dias';
+  }
+
+  function calcularDias() {
+    const fi = $('#perm-fecha').val();
+    const ff = $('#perm-fecha-fin').val();
+    if (fi && ff && ff >= fi) {
+      const dias = diasHabiles(fi, ff);
+      if (modoActual() === 'horas') {
+        $('#perm-horas').val(dias * 8);
+        $('#perm-dias-hint').text('Calculado: ' + (dias * 8) + ' hora(s) hábil(es)');
+      } else {
+        $('#perm-dias').val(dias);
+        $('#perm-dias-hint').text('Calculado: ' + dias + ' día(s) hábil(es)');
+      }
+    } else {
+      $('#perm-dias-hint').text('');
+    }
+  }
+  $(document).on('change', '#perm-fecha, #perm-fecha-fin', calcularDias);
+
+  $(document).on('change', 'input[name="perm-modo"]', function(){
+    const modo = modoActual();
+    $('#wrap-dias').toggleClass('d-none', modo === 'horas');
+    $('#wrap-horas').toggleClass('d-none', modo === 'dias');
+    $('#perm-dias-hint').text('');
+  });
+
+  function abrirModalPermiso(emp, nombre, fecha, permiso) {
+    const tipoActual = permiso ? permiso.tipo : '';
+    const ENFER_SUBTYPES = ['enfermedad_dias','enfermedad_incapacidad','enfermedad_maternidad',
+                            'enfermedad_citamedica','enfermedad_consulta'];
+    const esEnfermedad = ENFER_SUBTYPES.includes(tipoActual);
+    // When editing, use the permiso's original start date (not the clicked cell date)
+    const fechaInicio = permiso && permiso.fecha ? permiso.fecha : fecha;
+
+    $('#perm-pk').val(permiso ? permiso.pk : '');
+    $('#perm-emp-code').val(emp);
+    $('#perm-nombre-display').text(nombre);
+    $('#perm-fecha').val(fechaInicio);
+    $('#perm-fecha-fin').val(permiso && permiso.fecha_fin ? permiso.fecha_fin : fechaInicio);
+    $('#perm-dias-hint').text('');
+
+    // Tipo: si es subtipo enfermedad, seleccionar enfermedad_dias en el select principal
+    if (esEnfermedad) {
+      $('#perm-tipo').val('enfermedad_dias');
+      $('#perm-subtipo-wrap').removeClass('d-none');
+      $('#perm-subtipo').val(tipoActual === 'enfermedad_dias' ? 'enfermedad_incapacidad' : tipoActual);
+    } else {
+      $('#perm-tipo').val(tipoActual || $('#perm-tipo option:first').val());
+      $('#perm-subtipo-wrap').addClass('d-none');
+    }
+
+    $('#perm-razon').val(permiso ? permiso.razon : '');
+
+    // Detectar modo según cómo fue guardado
+    const usaHoras = permiso && permiso.horas != null;
+    if (usaHoras) {
+      $('#modo-horas').prop('checked', true);
+      $('#wrap-dias').addClass('d-none');
+      $('#wrap-horas').removeClass('d-none');
+      $('#perm-horas').val(parseFloat(permiso.horas));
+    } else {
+      $('#modo-dias').prop('checked', true);
+      $('#wrap-dias').removeClass('d-none');
+      $('#wrap-horas').addClass('d-none');
+      $('#perm-dias').val(permiso ? parseFloat(permiso.dias) : 1);
+    }
+    $('#perm-modal-title').text(permiso ? 'Editar Permiso' : 'Registrar Permiso');
+    $('#btn-eliminar-permiso').toggleClass('d-none', !permiso);
+    new bootstrap.Modal(document.getElementById('modalPermiso')).show();
+  }
+
+  $(document).on('click', '.btn-reg-permiso', function(){
+    abrirModalPermiso($(this).data('emp'), $(this).data('nombre'), $(this).data('fecha'), null);
+  });
+
+  $(document).on('click', '.btn-edit-permiso', function(){
+    const p = $(this).data('permiso');
+    abrirModalPermiso($(this).data('emp'), $(this).data('nombre'), $(this).data('fecha'), p);
+  });
+
+  $(document).on('click', '.btn-del-permiso', function(){
+    const pk    = $(this).data('pk');
+    const emp   = String($(this).data('emp')).trim();
+    const fecha = $(this).data('fecha');
+    const tipo  = $(this).data('tipo');
+    Swal.fire({icon:'warning', title:'¿Eliminar permiso?', showCancelButton:true,
+               confirmButtonText:'Sí, eliminar', cancelButtonText:'Cancelar',
+               confirmButtonColor:'#d33'}).then(r => {
+      if (!r.isConfirmed) return;
+      $.ajax({
+        url: URL_PERM_DELETE.replace('99999', pk), method: 'POST',
+        headers: {'X-CSRFToken': CSRF_TOKEN},
+        success: function(res){
+          if (res.ok){
+            const empKey = String(emp).trim();
+            Object.keys(PERMISOS_MAP).forEach(function(k){
+              if (k.startsWith(empKey + '|')) {
+                PERMISOS_MAP[k] = PERMISOS_MAP[k].filter(function(p){ return p.pk != pk; });
+                if (!PERMISOS_MAP[k].length) delete PERMISOS_MAP[k];
+              }
+            });
+            renderPermisoCells();
+            Swal.fire({icon:'success', title:'Eliminado', timer:1000, showConfirmButton:false});
+          } else {
+            Swal.fire({icon:'error', title:'Error', text: res.error});
+          }
+        },
+        error: function(){ Swal.fire({icon:'error', title:'Error de red'}); }
+      });
+    });
+  });
+
+  $('#btn-guardar-permiso').on('click', function(){
+    const emp      = $('#perm-emp-code').val();
+    const fecha    = $('#perm-fecha').val();
+    const fechaFin = $('#perm-fecha-fin').val() || fecha;
+    const razon    = $('#perm-razon').val().trim();
+    const modo     = modoActual();
+    const dias     = modo === 'dias'  ? $('#perm-dias').val()  : '';
+    const horas    = modo === 'horas' ? $('#perm-horas').val() : '';
+    const pk       = $('#perm-pk').val();
+    const nombre   = $('#perm-nombre-display').text();
+
+    // Si es enfermedad usar el subtipo seleccionado
+    const tipoBase = $('#perm-tipo').val();
+    const tipo = tipoBase === 'enfermedad_dias'
+      ? $('#perm-subtipo').val()
+      : tipoBase;
+
+    const valorCantidad = modo === 'horas' ? horas : dias;
+    if (!fecha || !tipo || valorCantidad === '') {
+      Swal.fire({icon:'warning', title:'Campos requeridos', text:'Complete fecha, tipo y ' + (modo === 'horas' ? 'horas' : 'días') + '.'});
+      return;
+    }
+    const $btn = $(this).prop('disabled', true);
+    $.ajax({
+      url: URL_PERM_SAVE, method: 'POST',
+      headers: {'X-CSRFToken': CSRF_TOKEN},
+      data: { pk, emp_code: emp, nombre, fecha, fecha_fin: fechaFin, tipo, dias, horas, razon },
+      success: function(res){
+        $btn.prop('disabled', false);
+        if (res.ok){
+          const empKey      = String(emp).trim();
+          const newFechaFin = res.fecha_fin || fechaFin || fecha;
+          const newFecha    = res.fecha || fecha;
+          const entry       = {pk: res.pk, tipo, dias: res.dias, horas: res.horas, razon,
+                               fecha: newFecha, fecha_fin: newFechaFin};
+          // Remove permiso from all days (handles range shrink / change)
+          Object.keys(PERMISOS_MAP).forEach(function(k){
+            if (k.startsWith(empKey + '|')) {
+              PERMISOS_MAP[k] = PERMISOS_MAP[k].filter(function(p){ return p.pk != res.pk; });
+              if (!PERMISOS_MAP[k].length) delete PERMISOS_MAP[k];
+            }
+          });
+          // Add for every day in the new fecha..fecha_fin range
+          const d1 = new Date(fecha + 'T00:00:00');
+          const d2 = new Date(newFechaFin + 'T00:00:00');
+          for (var d = new Date(d1); d <= d2; d.setDate(d.getDate() + 1)) {
+            const dayKey = empKey + '|' + d.toISOString().slice(0, 10);
+            if (!PERMISOS_MAP[dayKey]) PERMISOS_MAP[dayKey] = [];
+            PERMISOS_MAP[dayKey].push(entry);
+          }
+          renderPermisoCells();
+          bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
+          Swal.fire({icon:'success', title:'Guardado', timer:1200, showConfirmButton:false});
+        } else {
+          Swal.fire({icon:'error', title:'Error', text: res.error || 'No se pudo guardar.'});
+        }
+      },
+      error: function(){ $btn.prop('disabled', false); Swal.fire({icon:'error', title:'Error de red'}); }
+    });
+  });
+
+  $('#btn-eliminar-permiso').on('click', function(){
+    const pk    = $('#perm-pk').val();
+    const emp   = $('#perm-emp-code').val();
+    const fecha = $('#perm-fecha').val();
+    const tipo  = $('#perm-tipo').val();
+    if (!pk) return;
+    Swal.fire({icon:'warning', title:'¿Eliminar permiso?', showCancelButton:true,
+               confirmButtonText:'Sí, eliminar', cancelButtonText:'Cancelar',
+               confirmButtonColor:'#d33'}).then(r => {
+      if (!r.isConfirmed) return;
+      $.ajax({
+        url: URL_PERM_DELETE.replace('99999', pk), method: 'POST',
+        headers: {'X-CSRFToken': CSRF_TOKEN},
+        success: function(res){
+          if (res.ok){
+            const empKey = String(emp).trim();
+            Object.keys(PERMISOS_MAP).forEach(function(k){
+              if (k.startsWith(empKey + '|')) {
+                PERMISOS_MAP[k] = PERMISOS_MAP[k].filter(function(p){ return p.pk != pk; });
+                if (!PERMISOS_MAP[k].length) delete PERMISOS_MAP[k];
+              }
+            });
+            renderPermisoCells();
+            bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
+            Swal.fire({icon:'success', title:'Eliminado', timer:1200, showConfirmButton:false});
+          } else {
+            Swal.fire({icon:'error', title:'Error', text: res.error});
+          }
+        },
+        error: function(){ Swal.fire({icon:'error', title:'Error de red'}); }
+      });
     });
   });
 });

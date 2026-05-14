@@ -45,10 +45,13 @@ urlpatterns = [
     path('progress-report/<int:pk>/pdf/', views.descargar_pdf_progress, name='descargar_pdf_progress'),
 
 
+    path('set-coord/', views.set_coord_reporte, name='set_coord_reporte'),
+
     # --- EVIDENCIAS ---  <--- hecho por claude code
     # Recibe el POST del modal del dashboard coordinador.
     # Acepta imagen + comentario + tipo + reporte_id y guarda EvidenciaReporte.
     path('evidencia/subir/', views.subir_evidencia, name='subir_evidencia'),
+    path('evidencia/<int:pk>/eliminar/', views.eliminar_evidencia, name='eliminar_evidencia'),
     path('descargar/zip/', views.descargar_zip_reportes, name='descargar_zip_reportes'),
     path('directorio/', views.directorio_telefonos, name='directorio_telefonos'),
 ]

@@ -121,9 +121,13 @@ class ReporteConductual(AuditModel):
     coordinador_firma = models.CharField("Coordinador que aprueba", max_length=100, blank=True, null=True, help_text="Nombre del coordinador que aprobó/firmó el reporte.")
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado del reporte")
     comentario_coordinador = models.TextField("Comentario del Coordinador", blank=True, null=True, help_text="Observación, recomendación o motivo de la revisión/aprobación.")
+    coord_asignado = models.CharField("Coordinador asignado", max_length=10, blank=True, default='',
+                                      help_text="Override manual del coordinador (C1/C2/C3/C4). Vacío = auto.")
 
     @property
     def coord_codigo(self):
+        if self.coord_asignado:
+            return self.coord_asignado
         md = MateriaDocenteBilingue.objects.filter(docente=self.docente, activo=True).first()
         if md:
             return md.coordinador.split(',')[0].strip()
@@ -160,9 +164,13 @@ class ReporteInformativo(AuditModel):
     coordinador_firma = models.CharField("Coordinador que aprueba", max_length=100, blank=True, null=True, help_text="Nombre del coordinador que aprobó/firmó el reporte.")
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado del reporte")
     comentario_coordinador = models.TextField("Comentario del Coordinador", blank=True, null=True, help_text="Observación, recomendación o motivo de la revisión/aprobación.")
+    coord_asignado = models.CharField("Coordinador asignado", max_length=10, blank=True, default='',
+                                      help_text="Override manual del coordinador (C1/C2/C3/C4). Vacío = auto.")
 
     @property
     def coord_codigo(self):
+        if self.coord_asignado:
+            return self.coord_asignado
         if self.tipo_reporte == 'conductual':
             return 'C3'
         md = MateriaDocenteBilingue.objects.filter(docente=self.docente, activo=True).first()

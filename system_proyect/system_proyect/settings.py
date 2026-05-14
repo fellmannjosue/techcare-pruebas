@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     'agendas',
     'core',
     'reloj',
+    'calculadoras',
 
 ]
 

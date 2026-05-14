@@ -98,6 +98,16 @@
   </li>
   {% endif %}
 
+  {# ── Calculadoras ────────────────────────────────────── #}
+  {% if nav_calculadoras %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'calculadoras_dashboard' %}">
+      <span class="nav-link-icon"><i class="ti ti-calculator"></i></span>
+      <span class="nav-link-title">Calculadoras</span>
+    </a>
+  </li>
+  {% endif %}
+
   {# ── Inventario ──────────────────────────────────────── #}
   {% if nav_inventory %}
   <li class="nav-item">

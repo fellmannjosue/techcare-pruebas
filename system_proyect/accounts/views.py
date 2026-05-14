@@ -398,8 +398,9 @@ def menu_view(request):
 
         'show_coordinador_bilingue': is_admin or is_coord_bilingue,
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
-        'show_agendas':      is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
-        'show_directorio':   is_admin or is_coord_bilingue or is_coord_colegio,
+        'show_agendas':        is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
+        'show_directorio':     is_admin or is_coord_bilingue or is_coord_colegio,
+        'show_calculadoras':   is_admin or is_group_reloj,
     }
 
     # <--- hecho por claude code: limpiar session welcome después de renderizar
@@ -939,7 +940,11 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(clients.claim()));
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  e.respondWith(
+    fetch(e.request).catch(() =>
+      caches.match(e.request).then(r => r || new Response('Sin conexión', {status: 503, statusText: 'Offline'}))
+    )
+  );
 });
 """
     return HttpResponse(sw.strip(), content_type='application/javascript',

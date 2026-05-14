@@ -1,0 +1,114 @@
+{% extends 'calculadoras/base_calculadoras.html' %}
+{% load static %}
+{% block title %}Calculadoras{% endblock %}
+{% block page_pretitle %}Inicio{% endblock %}
+{% block page_title %}Calculadoras{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="alert alert-info py-2">
+      <i class="ti ti-info-circle me-1"></i>
+      Tasas de cambio actualizadas:
+      {% if tasas.USD %}<strong>USD L. {{ tasas.USD.tasa }}</strong> ({{ tasas.USD.fecha_actualizacion }}){% else %}<span class="text-muted">USD sin tasa</span>{% endif %} ·
+      {% if tasas.EUR %}<strong>EUR L. {{ tasas.EUR.tasa }}</strong> ({{ tasas.EUR.fecha_actualizacion }}){% else %}<span class="text-muted">EUR sin tasa</span>{% endif %} ·
+      {% if tasas.CHF %}<strong>CHF L. {{ tasas.CHF.tasa }}</strong> ({{ tasas.CHF.fecha_actualizacion }}){% else %}<span class="text-muted">CHF sin tasa</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Divisas -->
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_divisas' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-currency-dollar text-green" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">USD → Lempira</div>
+          <div class="text-muted small mt-1">{% if tasas.USD %}L. {{ tasas.USD.tasa }}{% else %}Sin tasa{% endif %}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_divisas' %}#eur" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-currency-euro text-blue" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">EUR → Lempira</div>
+          <div class="text-muted small mt-1">{% if tasas.EUR %}L. {{ tasas.EUR.tasa }}{% else %}Sin tasa{% endif %}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_divisas' %}#chf" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-currency-frank text-orange" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">CHF → Lempira</div>
+          <div class="text-muted small mt-1">{% if tasas.CHF %}L. {{ tasas.CHF.tasa }}{% else %}Sin tasa{% endif %}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <!-- Tiempo -->
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_tiempo' %}#horas-dias" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-clock-hour-4 text-cyan" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">Horas → Días</div>
+          <div class="text-muted small mt-1">Conversión de tiempo</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_tiempo' %}#fechas" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-calendar-stats text-purple" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">Fecha a Fecha</div>
+          <div class="text-muted small mt-1">Días entre fechas</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_tiempo' %}#minutos" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-stopwatch text-yellow" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">Minutos → Horas</div>
+          <div class="text-muted small mt-1">Conversión de tiempo</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <!-- Almacenamiento -->
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_almacenamiento' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-database text-red" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">MB → GB</div>
+          <div class="text-muted small mt-1">Almacenamiento digital</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <!-- IP -->
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'calculadoras_ip' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-network text-teal" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold">Calculadora de IPs</div>
+          <div class="text-muted small mt-1">Subredes y rangos</div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

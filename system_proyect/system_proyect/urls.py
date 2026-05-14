@@ -55,9 +55,14 @@ urlpatterns = [
     path('conducta/', include('conducta.urls')),
     path('agendas/',  include(('agendas.urls', 'agendas'), namespace='agendas')),
     # ──────────────────────────────────────────────────────────────────────────
-    # 8) Módulo de reloj 
+    # 8) Módulo de reloj
     # ──────────────────────────────────────────────────────────────────────────
     path('reloj/', include('reloj.urls')),
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 9) Módulo de calculadoras
+    # ──────────────────────────────────────────────────────────────────────────
+    path('calculadoras/', include('calculadoras.urls')),
 
 ]
 

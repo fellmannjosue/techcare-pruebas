@@ -1,0 +1,66 @@
+{% extends 'calculadoras/base_calculadoras.html' %}
+{% block title %}Almacenamiento{% endblock %}
+{% block page_pretitle %}Calculadoras{% endblock %}
+{% block page_title %}Calculadora de Almacenamiento{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-database text-red me-2"></i>Conversión de Almacenamiento</h3></div>
+      <div class="card-body">
+        <div class="row g-3 mb-4">
+          <div class="col-8">
+            <label class="form-label fw-semibold">Valor</label>
+            <input type="number" id="inp-storage-val" class="form-control form-control-lg" min="0" step="any" placeholder="0">
+          </div>
+          <div class="col-4">
+            <label class="form-label fw-semibold">Unidad origen</label>
+            <select id="inp-storage-unit" class="form-select form-select-lg">
+              <option value="B">B (Bytes)</option>
+              <option value="KB">KB</option>
+              <option value="MB" selected>MB</option>
+              <option value="GB">GB</option>
+              <option value="TB">TB</option>
+            </select>
+          </div>
+        </div>
+        <div id="res-storage" class="d-none">
+          <hr>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered text-center">
+              <thead class="table-dark"><tr><th>Unidad</th><th>Valor</th></tr></thead>
+              <tbody>
+                <tr><td>Bytes (B)</td><td class="fw-bold" id="res-B">—</td></tr>
+                <tr><td>Kilobytes (KB)</td><td class="fw-bold" id="res-KB">—</td></tr>
+                <tr class="table-warning"><td>Megabytes (MB)</td><td class="fw-bold" id="res-MB">—</td></tr>
+                <tr class="table-success"><td>Gigabytes (GB)</td><td class="fw-bold" id="res-GB">—</td></tr>
+                <tr><td>Terabytes (TB)</td><td class="fw-bold" id="res-TB">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const UNITS = { B: 1, KB: 1024, MB: 1024**2, GB: 1024**3, TB: 1024**4 };
+function fmt(n) {
+  if (n >= 1e12) return n.toExponential(4);
+  return n.toLocaleString('es-HN', {maximumFractionDigits: 6});
+}
+function calcStorage(){
+  const val = parseFloat($('#inp-storage-val').val()) || 0;
+  const unit = $('#inp-storage-unit').val();
+  if (val <= 0) { $('#res-storage').addClass('d-none'); return; }
+  const bytes = val * UNITS[unit];
+  $('#res-storage').removeClass('d-none');
+  Object.keys(UNITS).forEach(u => $(`#res-${u}`).text(fmt(bytes / UNITS[u])));
+}
+$('#inp-storage-val, #inp-storage-unit').on('input change', calcStorage);
+</script>
+{% endblock %}

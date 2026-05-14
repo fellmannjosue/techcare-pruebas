@@ -55,6 +55,12 @@ def _q_docentes(docentes):
         q |= Q(docente__icontains=d)
     return q
 
+def _q_for_coord(codigo):
+    """Q filter for a coordinator's dashboard: explicit override takes priority over docente match."""
+    q_docente = _q_docentes_for_coord(codigo)
+    no_override = Q(coord_asignado='') | Q(coord_asignado__isnull=True)
+    return Q(coord_asignado=codigo) | (no_override & q_docente)
+
 def _q_docentes_for_coord(codigo):
     """
     Builds Q() for reports belonging to coordinator `codigo`.
@@ -840,6 +846,33 @@ def eliminar_reporte_informativo(request, pk):
         crear_notificacion(su, msg, 'conducta', tipo='warning')
 
     return JsonResponse({'ok': True})
+
+
+@login_required
+def set_coord_reporte(request):
+    """AJAX: superuser cambia el coordinador asignado de un reporte."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+
+    pk    = request.POST.get('pk')
+    tipo  = request.POST.get('tipo')
+    coord = request.POST.get('coord', '').strip().upper()
+
+    if coord not in {'C1', 'C2', 'C3', 'C4', ''}:
+        return JsonResponse({'ok': False, 'error': 'Coordinador inválido'}, status=400)
+
+    if tipo == 'conductual':
+        obj = get_object_or_404(ReporteConductual, pk=pk)
+    elif tipo == 'informativo':
+        obj = get_object_or_404(ReporteInformativo, pk=pk)
+    else:
+        return JsonResponse({'ok': False, 'error': 'Tipo inválido'}, status=400)
+
+    obj.coord_asignado = coord
+    obj.save(update_fields=['coord_asignado'])
+    return JsonResponse({'ok': True, 'coord': coord or obj.coord_codigo})
 
 
 # ────────────────
@@ -1654,17 +1687,17 @@ def descargar_zip_reportes(request):
         qs_cond = ReporteConductual.objects.all()
         qs_prog = ProgressReport.objects.all()
     elif email == 'cvarela@ana-hn.org':
-        _q = _q_docentes_for_coord('C1')
+        _q = _q_for_coord('C1')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'druiz@ana-hn.org':
-        _q = _q_docentes_for_coord('C2')
+        _q = _q_for_coord('C2')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'ialcerro@ana-hn.org':
-        _q = _q_docentes_for_coord('C3')
+        _q = _q_for_coord('C3')
         qs_info = (
             ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual') |
             ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
@@ -1672,7 +1705,7 @@ def descargar_zip_reportes(request):
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.none()
     elif email == 'jmartinez@ana-hn.org':
-        _q = _q_docentes_for_coord('C4')
+        _q = _q_for_coord('C4')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
         qs_prog = ProgressReport.objects.all()
@@ -1966,7 +1999,7 @@ def _docentes_de_coord(codigo):
 
 @login_required
 def dashboard_c1(request):
-    q = _q_docentes_for_coord('C1')
+    q = _q_for_coord('C1')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
@@ -1986,7 +2019,7 @@ def dashboard_c1(request):
 
 @login_required
 def dashboard_c2(request):
-    q = _q_docentes_for_coord('C2')
+    q = _q_for_coord('C2')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
@@ -2000,7 +2033,7 @@ def dashboard_c2(request):
 
 @login_required
 def dashboard_c3(request):
-    q = _q_docentes_for_coord('C3')
+    q = _q_for_coord('C3')
     qs_info = (
         ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual') |
         ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
@@ -2017,7 +2050,7 @@ def dashboard_c3(request):
 
 @login_required
 def dashboard_c4(request):
-    q = _q_docentes_for_coord('C4')
+    q = _q_for_coord('C4')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
@@ -2153,6 +2186,21 @@ def subir_evidencia(request):
 
     # Si alguien accede por GET, redirigir al inicio
     return redirect('dashboard_maestro')
+
+
+@login_required
+def eliminar_evidencia(request, pk):
+    if not es_coordinador(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no permitido.'}, status=405)
+    ev = get_object_or_404(EvidenciaReporte, pk=pk)
+    try:
+        ev.imagen.delete(save=False)
+    except Exception:
+        pass
+    ev.delete()
+    return JsonResponse({'ok': True})
 
 
 # ================= DIRECTORIO DE TELÉFONOS =================

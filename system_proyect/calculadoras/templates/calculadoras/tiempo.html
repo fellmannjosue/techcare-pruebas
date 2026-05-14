@@ -1,0 +1,111 @@
+{% extends 'calculadoras/base_calculadoras.html' %}
+{% block title %}Tiempo{% endblock %}
+{% block page_pretitle %}Calculadoras{% endblock %}
+{% block page_title %}Calculadoras de Tiempo{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Horas a Días -->
+  <div class="col-12 col-md-4" id="horas-dias">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-clock-hour-4 text-cyan me-2"></i>Horas → Días</h3></div>
+      <div class="card-body">
+        <label class="form-label">Horas</label>
+        <input type="number" id="inp-horas" class="form-control" min="0" step="0.5" placeholder="Ej. 48">
+        <div class="mt-3 p-3 bg-light rounded text-center d-none" id="res-horas-dias">
+          <div class="text-muted small">Equivale a</div>
+          <div class="fw-bold fs-2" id="res-dias-val">—</div>
+          <div class="text-muted small" id="res-horas-rest"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minutos a Horas -->
+  <div class="col-12 col-md-4" id="minutos">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-stopwatch text-yellow me-2"></i>Minutos → Horas</h3></div>
+      <div class="card-body">
+        <label class="form-label">Minutos</label>
+        <input type="number" id="inp-minutos" class="form-control" min="0" placeholder="Ej. 90">
+        <div class="mt-3 p-3 bg-light rounded text-center d-none" id="res-min-horas">
+          <div class="text-muted small">Equivale a</div>
+          <div class="fw-bold fs-2" id="res-horas-val">—</div>
+          <div class="text-muted small" id="res-min-rest"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fecha a Fecha -->
+  <div class="col-12 col-md-4" id="fechas">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-calendar-stats text-purple me-2"></i>De Fecha a Fecha</h3></div>
+      <div class="card-body">
+        <label class="form-label">Fecha inicio</label>
+        <input type="date" id="inp-fecha-inicio" class="form-control mb-2">
+        <label class="form-label">Fecha fin</label>
+        <input type="date" id="inp-fecha-fin" class="form-control">
+        <div class="mt-3 p-3 bg-light rounded text-center d-none" id="res-fechas">
+          <div class="row text-center">
+            <div class="col-4">
+              <div class="fw-bold fs-3" id="res-dias-total">—</div>
+              <div class="text-muted small">Días totales</div>
+            </div>
+            <div class="col-4">
+              <div class="fw-bold fs-3" id="res-semanas">—</div>
+              <div class="text-muted small">Semanas</div>
+            </div>
+            <div class="col-4">
+              <div class="fw-bold fs-3" id="res-meses">—</div>
+              <div class="text-muted small">Meses aprox.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Horas → Días
+$('#inp-horas').on('input', function(){
+  const h = parseFloat($(this).val()) || 0;
+  if (h <= 0) { $('#res-horas-dias').addClass('d-none'); return; }
+  const dias = Math.floor(h / 24);
+  const hrest = h % 24;
+  $('#res-horas-dias').removeClass('d-none');
+  $('#res-dias-val').text(dias + (dias === 1 ? ' día' : ' días'));
+  $('#res-horas-rest').text(hrest > 0 ? `+ ${hrest.toFixed(1)} horas restantes` : '');
+});
+
+// Minutos → Horas
+$('#inp-minutos').on('input', function(){
+  const m = parseFloat($(this).val()) || 0;
+  if (m <= 0) { $('#res-min-horas').addClass('d-none'); return; }
+  const h = Math.floor(m / 60);
+  const mrest = m % 60;
+  $('#res-min-horas').removeClass('d-none');
+  $('#res-horas-val').text(h + (h === 1 ? ' hora' : ' horas'));
+  $('#res-min-rest').text(mrest > 0 ? `+ ${mrest} minutos restantes` : '');
+});
+
+// Fecha a Fecha
+function calcFechas(){
+  const fi = new Date($('#inp-fecha-inicio').val());
+  const ff = new Date($('#inp-fecha-fin').val());
+  if (!$('#inp-fecha-inicio').val() || !$('#inp-fecha-fin').val()) return;
+  const diff = Math.round((ff - fi) / (1000 * 60 * 60 * 24));
+  if (isNaN(diff)) return;
+  const absDiff = Math.abs(diff);
+  $('#res-fechas').removeClass('d-none');
+  $('#res-dias-total').text(absDiff);
+  $('#res-semanas').text((absDiff / 7).toFixed(1));
+  $('#res-meses').text((absDiff / 30.44).toFixed(1));
+}
+$('#inp-fecha-inicio, #inp-fecha-fin').on('change', calcFechas);
+</script>
+{% endblock %}

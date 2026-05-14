@@ -22,7 +22,6 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     # Tiempo por hora + autorización de tiempo extra
     # ─────────────────────────────────────────────
-    path('tiempo-por-hora/', views.tiempo_por_hora, name='tiempo_por_hora'),
     path('overtime/authorize/', views.overtime_authorize, name='reloj_overtime_authorize'),
 
     # ─────────────────────────────────────────────
@@ -77,6 +76,7 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/editar/', views.compensatorio_calculo_edit, name='reloj_compensatorio_calculo_edit'),
     path('compensatorio-calculo/<int:pk>/eliminar/', views.compensatorio_calculo_delete, name='reloj_compensatorio_calculo_delete'),
     path('compensatorio-calculo/<int:pk>/set-min-dia/', views.compensatorio_calculo_set_min_dia, name='reloj_compensatorio_calculo_set_min_dia'),
+    path('compensatorio-calculo/<int:pk>/set-compensado/', views.compensatorio_calculo_set_compensado, name='reloj_compensatorio_calculo_set_compensado'),
 
     # Hook Google Forms (POST Apps Script)
     path('google/compensatorio/ingresar/', views.compensatorio_google_hook, name='compensatorio_google_hook'),
@@ -97,4 +97,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('permisos/reporte/', views.permiso_reporte_list, name='reloj_permiso_reporte'),
     path('permisos/reporte/set-campo/', views.permiso_reporte_set_campo, name='reloj_permiso_reporte_set_campo'),
+    path('permisos/reporte/save/', views.permiso_reporte_save, name='reloj_permiso_reporte_save'),
+    path('permisos/reporte/<int:pk>/delete/', views.permiso_reporte_delete, name='reloj_permiso_reporte_delete'),
+    path('permisos/reporte/list-mes/', views.permiso_list_mes, name='reloj_permiso_list_mes'),
 ]

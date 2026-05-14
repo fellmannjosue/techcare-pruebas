@@ -61,6 +61,7 @@ def nav_context(request):
     return {
         'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
         'nav_reloj':            is_admin or grp('reloj'),
+        'nav_calculadoras':     is_admin or grp('reloj'),
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
         'nav_seguridad':        is_admin or can('seguridad.view_registro'),
