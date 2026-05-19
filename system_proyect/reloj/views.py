@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────────────────────
 from django.shortcuts import render, get_object_or_404, redirect
 import json
-from django.db import connections, transaction
+from django.db import connections, transaction, models
 from django.urls import reverse
 from django import forms
 from datetime import datetime, time, date
@@ -40,6 +40,7 @@ from .models import (
     CompensatorioCalculo,
     ReportePermisoMensual,
     PermisoReporte,
+    TiempoExtraDia,
 )
 
 # Formularios
@@ -171,11 +172,16 @@ def exportar_pdf(request):
 
     pdf_columnas = columnas + ["Comentarios"]
     data = [pdf_columnas]
+    marcas_col_idx = columnas.index('Marcas') if 'Marcas' in columnas else None
     for row in datos:
         emp_code_r = str(row.get('ID_Empleado') or "").strip()
         fecha_r    = row.get('Fecha')
         comentarios_txt = " | ".join(pdf_comentarios_map.get((emp_code_r, fecha_r), []))
-        data.append([str(row[c]) if row.get(c) is not None else "" for c in columnas] + [comentarios_txt])
+        fila = [str(row[c]) if row.get(c) is not None else "" for c in columnas]
+        if marcas_col_idx is not None and fila[marcas_col_idx]:
+            raw_marks = [m.strip() for m in fila[marcas_col_idx].split(',') if m.strip()]
+            fila[marcas_col_idx] = ', '.join(_dedup_marcas_hora(raw_marks))
+        data.append(fila + [comentarios_txt])
 
     col_count = len(pdf_columnas)
     table = Table(data, repeatRows=1)
@@ -269,6 +275,23 @@ def _parse_hhmm_to_dt(hhmm):
 def _mins_between(a_dt, b_dt):
     """Retorna los minutos (int) entre dos datetime."""
     return int((b_dt - a_dt).total_seconds() // 60)
+
+
+def _dedup_marcas_hora(marcas: list, ventana_minutos: int = 5) -> list:
+    """Elimina marcas duplicadas que llegaron dentro de `ventana_minutos` entre sí
+    (doble toque accidental del reloj ZKBio). Marcas más separadas siempre se conservan."""
+    if not marcas:
+        return marcas
+    deduped = [marcas[0]]
+    for mk in marcas[1:]:
+        try:
+            t_prev = datetime.strptime(deduped[-1], '%H:%M')
+            t_cur  = datetime.strptime(mk, '%H:%M')
+            if abs((t_cur - t_prev).total_seconds()) > ventana_minutos * 60:
+                deduped.append(mk)
+        except Exception:
+            deduped.append(mk)
+    return deduped
 
 
 def _sum_sched_minutes(segments):
@@ -747,9 +770,9 @@ OPTION (MAXRECURSION 0);
                 except Exception:
                     pass
 
-                # Chips coloreados
+                # Chips coloreados — deduplicar marcas en la misma hora del reloj (mismo HH)
                 key = (emp_code, fecha_d)
-                marcas_list = marcas_map.get(key, [])
+                marcas_list = _dedup_marcas_hora(marcas_map.get(key, []))
                 marcas_coloreadas = []
                 for idx, t_mark in enumerate(marcas_list):
                     cls = ""
@@ -762,6 +785,7 @@ OPTION (MAXRECURSION 0);
                 row['No_Programado']    = no_programado
                 row['Horario_Prog']     = f"{prog_first_in} → {prog_last_out}" if not no_programado else ""
                 row['Marcas_Dia']       = marcas_coloreadas
+                row['Cantidad_Marcas']  = len(marcas_coloreadas)
                 row['Comentarios']      = comentarios_map.get((emp_code, fecha_d), [])
                 row['Es_Feriado']       = bool(es_feriado)
                 row['Feriado_Desc']     = es_feriado or ""
@@ -809,6 +833,10 @@ OPTION (MAXRECURSION 0);
             for p in lista
         ]
 
+    u = request.user
+    can_edit_permisos   = u.is_staff or u.is_superuser
+    can_delete_permisos = u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'
+
     contexto = {
         'datos': datos,
         'error': error,
@@ -818,6 +846,8 @@ OPTION (MAXRECURSION 0);
         'emp_code_f': emp_code_f,
         'campos_permiso': CAMPOS_PERMISO,
         'permisos_json': _json.dumps(permisos_json),
+        'can_edit_permisos':   can_edit_permisos,
+        'can_delete_permisos': can_delete_permisos,
     }
     return render(request, 'reloj/reporte.html', contexto)
 
@@ -1482,6 +1512,45 @@ def sabado_delete(request, pk):
 
 _HORA_CORTE = time(15, 48)  # a partir de aquí se cuenta como compensatorio
 
+# Empleados con cálculo especial: mañana (antes de inicio) + tarde (después de corte)
+_EMP_HORARIO_ESPECIAL = {
+    '75': {  # Nancy Alvarado
+        'manana_inicio_seg': 6 * 3600 + 40 * 60,  # 06:40 — inicio fijo mañana (llegar antes cuenta igual)
+        'manana_corte_seg':  7 * 3600,             # 07:00 — fin del bloque mañana
+        'manana_max_min':    20,                   # máx. 20 min mañana
+        'tarde_corte_seg':   15 * 3600 + 48 * 60, # 15:48 — inicio del bloque tarde
+        'tarde_max_min':     27,                   # máx. 27 min tarde
+    }
+}
+
+def _t_to_seg(t_val) -> int:
+    """Convierte un valor time/timedelta a segundos desde medianoche."""
+    if t_val is None:
+        return 0
+    if hasattr(t_val, 'seconds'):
+        return t_val.seconds
+    return t_val.hour * 3600 + t_val.minute * 60 + getattr(t_val, 'second', 0)
+
+def _comp_min_dia(ec: str, primera_seg: int, ultima_seg: int, tope: int):
+    """Retorna (total_comp_min, completo) para un empleado en un día."""
+    regla = _EMP_HORARIO_ESPECIAL.get(str(ec))
+    if regla:
+        # Truncar a minutos y aplicar inicio fijo: si llegó antes de 06:40 cuenta igual que 06:40
+        primera_min = (primera_seg // 60) * 60
+        manana_inicio = regla.get('manana_inicio_seg', 0)
+        manana_start = max(primera_min, manana_inicio)
+        manana = max(0, min(regla['manana_corte_seg'] - manana_start, regla['manana_max_min'] * 60)) // 60
+        tarde  = max(0, min(ultima_seg - regla['tarde_corte_seg'],    regla['tarde_max_min']  * 60)) // 60
+        total  = manana + tarde
+        completo = manana >= regla['manana_max_min'] and tarde >= regla['tarde_max_min']
+        return total, completo
+    else:
+        diff = ultima_seg - (_HORA_CORTE.hour * 3600 + _HORA_CORTE.minute * 60)
+        if diff <= 0:
+            return 0, False
+        total = min(diff // 60, tope)
+        return total, total >= tope
+
 @login_required
 def compensatorio_list(request):
     hoy = date.today()
@@ -1524,6 +1593,7 @@ def compensatorio_list(request):
             STRING_AGG(
                 CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108), ', ')
                 WITHIN GROUP (ORDER BY t.punch_time) AS marcas,
+            MIN(CAST(t.punch_time AS TIME)) AS primera_marca,
             MAX(CAST(t.punch_time AS TIME)) AS ultima_marca
         FROM dbo.iclock_transaction t
         WHERE t.punch_time >= @fi
@@ -1535,28 +1605,34 @@ def compensatorio_list(request):
         try:
             with connections["zkbio_sqlserver"].cursor() as cursor:
                 cursor.execute(query)
-                for emp_code, fecha, marcas, ultima in cursor.fetchall():
-                    if hasattr(ultima, 'seconds'):
-                        total_seg = ultima.seconds
-                    else:
-                        total_seg = ultima.hour * 3600 + ultima.minute * 60 + ultima.second
-                    corte_seg = _HORA_CORTE.hour * 3600 + _HORA_CORTE.minute * 60
-                    diff_seg  = total_seg - corte_seg  # puede ser negativo
-                    tiene_comp = diff_seg > 0
-                    diff_seg   = max(0, diff_seg)
-                    tope_emp       = topes_emp.get(str(emp_code), 47)
-                    total_comp_min = diff_seg // 60               # minutos totales reales
-                    completo       = total_comp_min >= tope_emp   # alcanzó el tope del empleado
-                    total_comp_min = min(total_comp_min, tope_emp)# tope máximo por empleado
+                for emp_code, fecha, marcas, primera, ultima in cursor.fetchall():
+                    ec           = str(emp_code).strip()
+                    primera_seg  = _t_to_seg(primera)
+                    ultima_seg   = _t_to_seg(ultima)
+                    tope_emp     = topes_emp.get(ec, 47)
+                    total_comp_min, completo = _comp_min_dia(ec, primera_seg, ultima_seg, tope_emp)
+                    tiene_comp   = total_comp_min > 0
                     horas_comp   = total_comp_min // 60
                     minutos_comp = total_comp_min % 60
-                    if hasattr(ultima, 'seconds'):
-                        ult_str = str(ultima)[:5]
+                    ult_str = str(ultima)[:5] if hasattr(ultima, 'seconds') else ultima.strftime("%H:%M")
+                    # Desglose mañana/tarde para empleados con horario especial
+                    regla_esp = _EMP_HORARIO_ESPECIAL.get(ec)
+                    if regla_esp:
+                        primera_min    = (primera_seg // 60) * 60
+                        man_inicio     = regla_esp.get('manana_inicio_seg', 0)
+                        man_start      = max(primera_min, man_inicio)
+                        manana_min = max(0, min(regla_esp['manana_corte_seg'] - man_start, regla_esp['manana_max_min'] * 60)) // 60
+                        tarde_min  = max(0, min(ultima_seg - regla_esp['tarde_corte_seg'],  regla_esp['tarde_max_min']  * 60)) // 60
+                        manana_max = regla_esp['manana_max_min']
+                        tarde_max  = regla_esp['tarde_max_min']
                     else:
-                        ult_str = ultima.strftime("%H:%M")
+                        manana_min = None
+                        tarde_min  = None
+                        manana_max = None
+                        tarde_max  = None
                     filas.append({
                         "emp_code":     emp_code,
-                        "nombre":       emp_map.get(str(emp_code), emp_code),
+                        "nombre":       emp_map.get(ec, ec),
                         "fecha":        fecha,
                         "marcas":       marcas or "",
                         "ultima_marca": ult_str,
@@ -1565,18 +1641,107 @@ def compensatorio_list(request):
                         "tiene_comp":   tiene_comp,
                         "completo":     completo,
                         "tope":         tope_emp,
+                        "manana_min":   manana_min,
+                        "tarde_min":    tarde_min,
+                        "manana_max":   manana_max,
+                        "tarde_max":    tarde_max,
                     })
         except Exception as exc:
             error = str(exc)
 
+    # Totales para empleado individual
+    total_min_emp = sum(
+        f['horas'] * 60 + f['minutos']
+        for f in filas if f['tiene_comp']
+    )
+    total_dias_emp = sum(1 for f in filas if f['tiene_comp'])
+
+    # Extras por día registrados manualmente
+    fi_date = date.fromisoformat(fecha_inicio_str)
+    ff_date = date.fromisoformat(fecha_fin_str)
+    extras_qs = TiempoExtraDia.objects.filter(
+        fecha__gte=fi_date, fecha__lte=ff_date,
+    )
+    if emp_code_f:
+        extras_qs = extras_qs.filter(emp_code=emp_code_f)
+    extra_map = {(str(e.emp_code), str(e.fecha)): e for e in extras_qs}
+
+    for f in filas:
+        ec_str = str(f['emp_code'])
+        fe_str = str(f['fecha'])
+        ex = extra_map.get((ec_str, fe_str))
+        f['extra_pk']           = ex.pk if ex else None
+        f['extra_min']          = ex.minutos if ex else 0
+        f['extra_razon']        = ex.razon if ex else ''
+        f['extra_comentario']   = ex.comentario if ex else ''
+        f['extra_autorizado_por'] = ex.autorizado_por if ex else ''
+
+    u = request.user
+    can_edit_extra = u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'
+
     return render(request, "reloj/compensatorio_list.html", {
-        "filas":          filas,
-        "emp_map":        emp_map,
-        "fecha_inicio":   fecha_inicio_str,
-        "fecha_fin":      fecha_fin_str,
-        "emp_code_f":     emp_code_f,
-        "error":          error,
-        "hora_corte":     "15:48",
+        "filas":            filas,
+        "emp_map":          emp_map,
+        "fecha_inicio":     fecha_inicio_str,
+        "fecha_fin":        fecha_fin_str,
+        "emp_code_f":       emp_code_f,
+        "error":            error,
+        "hora_corte":       "15:48",
+        "total_min_emp":    total_min_emp,
+        "total_horas_emp":  total_min_emp // 60,
+        "total_mins_emp":   total_min_emp % 60,
+        "total_dias_emp":   total_dias_emp,
+        "can_edit_extra":   can_edit_extra,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_list_set_extra(request):
+    """AJAX: guarda tiempo extra autorizado por día para un empleado."""
+    u = request.user
+    if not (u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    emp_code       = (body.get('emp_code') or '').strip()
+    fecha_str      = (body.get('fecha') or '').strip()
+    minutos        = int(body.get('minutos') or 0)
+    razon          = (body.get('razon') or '').strip()[:300]
+    comentario     = (body.get('comentario') or '').strip()
+    autorizado_por = (body.get('autorizado_por') or '').strip()[:200]
+
+    if not emp_code or not fecha_str:
+        return JsonResponse({'ok': False, 'error': 'Faltan datos'}, status=400)
+    if minutos < 0:
+        minutos = 0
+
+    try:
+        fecha = date.fromisoformat(fecha_str)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    obj, _ = TiempoExtraDia.objects.get_or_create(
+        emp_code=emp_code, fecha=fecha,
+        defaults={'registrado_por': u}
+    )
+    obj.minutos        = minutos
+    obj.razon          = razon
+    obj.comentario     = comentario
+    obj.autorizado_por = autorizado_por
+    obj.registrado_por = u
+    obj.save()
+
+    return JsonResponse({
+        'ok':            True,
+        'pk':            obj.pk,
+        'minutos':       minutos,
+        'razon':         razon,
+        'comentario':    comentario,
+        'autorizado_por': autorizado_por,
     })
 
 
@@ -1765,6 +1930,7 @@ def _especial_rank(nombre):
 def compensatorio_calculo_list(request):
     from datetime import timedelta as _td
     hoy = date.today()
+    _CORTE_SEG = _HORA_CORTE.hour * 3600 + _HORA_CORTE.minute * 60
 
     # Construir set de feriados
     feriados = set()
@@ -1774,21 +1940,65 @@ def compensatorio_calculo_list(request):
             feriados.add(d)
             d += _td(days=1)
 
-    # Calcular saldo dinámico para cada registro
+    todos_registros = list(CompensatorioCalculo.objects.all())
+
+    # ── Consultar marcas reales del ZKBio para todos los empleados ──────────
+    # Obtiene la última marca de cada empleado/día desde la fecha_inicio más
+    # antigua hasta hoy, y suma los minutos reales de compensatorio.
+    real_comp_map = {}  # {emp_code: total_min_real}
+    if todos_registros:
+        fechas_inicio_map = {str(r.emp_code): r.fecha_inicio for r in todos_registros}
+        topes_map         = {str(r.emp_code): (r.minutos_autorizados_dia or 47) for r in todos_registros}
+        min_fecha         = min(fechas_inicio_map.values())
+        codigos_sql       = ', '.join(f"'{c}'" for c in fechas_inicio_map.keys())
+        try:
+            with connections['zkbio_sqlserver'].cursor() as cur:
+                cur.execute(f"""
+                    SELECT
+                        CAST(t.emp_code AS VARCHAR(20)) AS emp_code,
+                        CONVERT(DATE, t.punch_time)     AS fecha,
+                        MIN(CAST(t.punch_time AS TIME)) AS primera,
+                        MAX(CAST(t.punch_time AS TIME)) AS ultima
+                    FROM dbo.iclock_transaction t
+                    WHERE CONVERT(DATE, t.punch_time) BETWEEN '{min_fecha}' AND '{hoy}'
+                      AND t.emp_code IN ({codigos_sql})
+                    GROUP BY t.emp_code, CONVERT(DATE, t.punch_time)
+                """)
+                for emp_code, fecha, primera, ultima in cur.fetchall():
+                    ec = str(emp_code).strip()
+                    fi = fechas_inicio_map.get(ec)
+                    if fi and fecha < fi:
+                        continue
+                    comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), topes_map.get(ec, 47))
+                    if comp_min > 0:
+                        real_comp_map[ec] = real_comp_map.get(ec, 0) + comp_min
+        except Exception as _ex:
+            print(f"[WARN] compensatorio_calculo real_comp_map: {_ex}")
+
+    # ── Construir registros_data ─────────────────────────────────────────────
+    def _min_to_h(m): return round(m / 60, 1)
+
     registros_data = []
-    for r in CompensatorioCalculo.objects.all():
-        min_dia = r.minutos_autorizados_dia if r.minutos_autorizados_dia > 0 else MINUTOS_POR_DIA_COMP
-        dias_trans = _contar_dias_habiles_rango(r.fecha_inicio, hoy, feriados)
-        auto_comp = min(dias_trans * min_dia, r.minutos_total)
-        # Usar override manual si está definido
-        minutos_compensados = r.minutos_compensados_manual if r.minutos_compensados_manual is not None else auto_comp
-        saldo = max(0, r.minutos_total - minutos_compensados)
+    for r in todos_registros:
+        ec           = str(r.emp_code)
+        tiempo_extra = r.minutos_tiempo_extra or 0
+        dias_trans   = _contar_dias_habiles_rango(r.fecha_inicio, hoy, feriados)
+
+        # Compensado real desde marcas ZKBio (o override manual si existe)
+        real_min = real_comp_map.get(ec, 0)
+        minutos_compensados = r.minutos_compensados_manual if r.minutos_compensados_manual is not None else real_min
+
+        saldo = max(0, r.minutos_total - minutos_compensados - tiempo_extra)
         es_especial = any(k in r.nombre_empleado.lower() for k in _ESPECIALES_COMP)
         registros_data.append({
             'r': r, 'saldo': saldo,
-            'dias_transcurridos': dias_trans,
+            'dias_transcurridos':  dias_trans,
             'minutos_compensados': minutos_compensados,
-            'es_especial': es_especial,
+            'es_especial':         es_especial,
+            'horas_total':         _min_to_h(r.minutos_total),
+            'horas_compensados':   _min_to_h(minutos_compensados),
+            'horas_saldo':         _min_to_h(saldo),
+            'horas_tiempo_extra':  _min_to_h(r.minutos_tiempo_extra) if r.minutos_tiempo_extra else None,
         })
 
     # Especiales primero (en el orden definido), luego el resto alfabético
@@ -1798,18 +2008,20 @@ def compensatorio_calculo_list(request):
     ))
 
     u = request.user
-    can_edit             = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
-    can_delete           = u.is_superuser
-    can_edit_compensado  = u.is_superuser or u.username in ('glorenzo@ana-hn.org', 'yzavala@ana-hn.org')
+    can_edit              = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
+    can_delete            = u.is_superuser
+    can_edit_compensado   = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
+    can_edit_tiempo_extra = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
 
     return render(request, "reloj/compensatorio_calculo_list.html", {
         "registros_data": registros_data,
         "feriados_count": Feriado.objects.count(),
         "minutos_dia": MINUTOS_POR_DIA_COMP,
-        "can_edit":            can_edit,
-        "can_delete":          can_delete,
-        "can_edit_compensado": can_edit_compensado,
-        "url_set_compensado":  "reloj_compensatorio_calculo_set_compensado",
+        "can_edit":              can_edit,
+        "can_delete":            can_delete,
+        "can_edit_compensado":   can_edit_compensado,
+        "can_edit_tiempo_extra": can_edit_tiempo_extra,
+        "url_set_compensado":    "reloj_compensatorio_calculo_set_compensado",
     })
 
 
@@ -1949,7 +2161,7 @@ def compensatorio_calculo_set_min_dia(request, pk):
 @login_required
 def compensatorio_calculo_set_compensado(request, pk):
     """AJAX: guarda override manual de minutos compensados para empleados especiales."""
-    if not (request.user.is_superuser or request.user.username in ('glorenzo@ana-hn.org', 'yzavala@ana-hn.org')):
+    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -1965,6 +2177,71 @@ def compensatorio_calculo_set_compensado(request, pk):
     obj.save(update_fields=['minutos_compensados_manual'])
     saldo = max(0, obj.minutos_total - valor)
     return JsonResponse({'ok': True, 'minutos_compensados': valor, 'saldo': saldo})
+
+
+@login_required
+def compensatorio_calculo_set_tiempo_extra(request, pk):
+    """AJAX: guarda minutos de tiempo extra autorizado y recalcula días hábiles + fecha fin."""
+    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        valor = int(request.POST.get('minutos', 0))
+        if valor < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+
+    obj.minutos_tiempo_extra = valor if valor > 0 else None
+    obj.save(update_fields=['minutos_tiempo_extra'])
+
+    tiempo_extra = obj.minutos_tiempo_extra or 0
+
+    # Recalcular días hábiles y fecha fin descontando el tiempo extra
+    from datetime import timedelta as _td
+    import math as _math
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+
+    min_dia = obj.minutos_autorizados_dia if obj.minutos_autorizados_dia > 0 else MINUTOS_POR_DIA_COMP
+    minutos_efectivos = max(0, obj.minutos_total - tiempo_extra)
+    dias_hab = _math.ceil(minutos_efectivos / min_dia) if minutos_efectivos > 0 else 0
+
+    # Contar dias_hab días hábiles desde fecha_inicio
+    fecha_fin = None
+    if dias_hab > 0:
+        contados, d = 0, obj.fecha_inicio
+        while contados < dias_hab:
+            if d.weekday() < 5 and d not in feriados:
+                contados += 1
+            if contados < dias_hab:
+                d += _td(days=1)
+        fecha_fin = d
+
+    obj.dias_habiles_necesarios = dias_hab
+    obj.fecha_fin = fecha_fin
+    obj.save(update_fields=['dias_habiles_necesarios', 'fecha_fin'])
+
+    # Saldo al día de hoy
+    hoy = date.today()
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    auto_comp = min(dias_trans * min_dia, obj.minutos_total)
+    minutos_compensados = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
+    saldo = max(0, obj.minutos_total - minutos_compensados - tiempo_extra)
+
+    return JsonResponse({
+        'ok': True,
+        'minutos': tiempo_extra,
+        'dias_habiles': dias_hab,
+        'fecha_fin': fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '—',
+        'saldo': saldo,
+    })
 
 
 @login_required
@@ -1989,8 +2266,8 @@ def compensatorio_calculo_delete(request, pk):
 _CARGOS_EXCLUIDOS_TARDE = ('hora', 'vigilante')
 
 CAMPOS_PERMISO = [
-    ('compensatorio_dias', 'Compensatorio', '#B4C7E7'),
-    ('ausencias_dias',     'Ausencias',     '#00FFFF'),
+    ('compensatorio_dias', 'Compensatorio', '#D0CECE'),
+    ('ausencias_dias',     'No Pagado',     '#00FFFF'),
     ('otro_pagado_dias',   'Otro Pagado',   '#D0CECE'),
     ('vacaciones_dias',    'Vacaciones',    '#92D050'),
     ('enfermedad_dias',         'Enfermedad',                        '#FF33CC'),
@@ -2054,6 +2331,15 @@ def permiso_reporte_list(request):
                     'cargo':    (cargo or '').strip(),
                 })
 
+        # Empleados con plantillas excluidas (asistentes especiales y maestros por hora)
+        from reloj.models import EmployeeScheduleAssignment
+        excluir_codes = set(
+            EmployeeScheduleAssignment.objects.filter(activo=True).filter(
+                models.Q(template__nombre__icontains='horario especial asistentes') |
+                models.Q(template__nombre__icontains='maestro')
+            ).values_list('emp_code', flat=True)
+        )
+
         with connections['zkbio_sqlserver'].cursor() as cursor:
             cursor.execute(f"""
                 SELECT
@@ -2070,12 +2356,15 @@ def permiso_reporte_list(request):
                        AND CONVERT(DATE, t.punch_time) BETWEEN '{mes_inicio}' AND '{mes_fin}'
                 GROUP BY e.emp_code, p.position_name, CONVERT(DATE, t.punch_time)
                 HAVING MIN(CAST(t.punch_time AS TIME)) >= '07:01:00'
+                   AND MIN(CAST(t.punch_time AS TIME)) <= '08:00:00'
                 ORDER BY e.emp_code, CONVERT(DATE, t.punch_time)
             """)
             for code, cargo, _fecha, mins in cursor.fetchall():
                 ec = (code or '').strip()
                 cargo_l = (cargo or '').lower()
                 if any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE):
+                    continue
+                if ec in excluir_codes:
                     continue
                 tarde_por_dia_map.setdefault(ec, []).append(int(mins or 0))
 
@@ -2108,7 +2397,7 @@ def permiso_reporte_list(request):
     for emp in empleados:
         ec = emp['emp_code']
         cargo_l = emp['cargo'].lower()
-        excluido = any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE)
+        excluido = any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE) or ec in excluir_codes
         lista_mins = tarde_por_dia_map.get(ec, [])
 
         minutos_tarde = sum(lista_mins) if not excluido else None
@@ -2125,8 +2414,9 @@ def permiso_reporte_list(request):
             'cargo':        emp['cargo'],
             'r':            registros_db.get(ec),
             'horas_map':    horas_agg.get(ec, {}),
-            'minutos_tarde': minutos_tarde,
-            'horas_rebaja':  horas_rebaja,
+            'minutos_tarde':  minutos_tarde,
+            'horas_rebaja':   horas_rebaja,
+            'excluido_tarde': excluido,
         })
 
     return render(request, 'reloj/permiso_reporte.html', {
@@ -2137,6 +2427,30 @@ def permiso_reporte_list(request):
         'error_sql':     error_sql,
         'can_delete':    request.user.is_superuser,
     })
+
+
+@require_POST
+@login_required
+def permiso_rebaja_toggle(request):
+    """AJAX: activa/desactiva horas_rebaja para un empleado en un mes."""
+    from datetime import date as _d
+    emp_code = request.POST.get('emp_code', '').strip()
+    mes_str  = request.POST.get('mes', '').strip()
+    activa   = request.POST.get('activa') == '1'
+    if not emp_code or not mes_str:
+        return JsonResponse({'ok': False, 'error': 'Datos incompletos'})
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes = _d(year, month, 1)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Mes inválido'})
+    obj, _ = ReportePermisoMensual.objects.get_or_create(
+        emp_code=emp_code, mes=mes,
+        defaults={'nombre_empleado': emp_code}
+    )
+    obj.rebaja_activa = activa
+    obj.save(update_fields=['rebaja_activa'])
+    return JsonResponse({'ok': True, 'activa': activa})
 
 
 @login_required
@@ -2202,6 +2516,7 @@ def permiso_reporte_set_campo(request):
 
 _ENFERMEDAD_SUBTYPES = {'enfermedad_incapacidad', 'enfermedad_maternidad',
                         'enfermedad_citamedica',  'enfermedad_consulta'}
+_OTRO_PAGADO_SUBTYPES = {'compensatorio_dias'}
 
 def _sync_permiso_mensual(emp_code, fecha, tipo, nombre=''):
     """Recalcula el total mensual para emp_code/mes/tipo desde PermisoReporte y guarda."""
@@ -2210,13 +2525,23 @@ def _sync_permiso_mensual(emp_code, fecha, tipo, nombre=''):
     mes = _d(fecha.year, fecha.month, 1)
 
     # Los subtipos de enfermedad suman al campo enfermedad_dias del mensual
-    campo_mensual = 'enfermedad_dias' if tipo in _ENFERMEDAD_SUBTYPES else tipo
+    # Los subtipos de otro_pagado suman al campo otro_pagado_dias del mensual
+    if tipo in _ENFERMEDAD_SUBTYPES:
+        campo_mensual = 'enfermedad_dias'
+    elif tipo in _OTRO_PAGADO_SUBTYPES:
+        campo_mensual = 'otro_pagado_dias'
+    else:
+        campo_mensual = tipo
 
     if tipo in _ENFERMEDAD_SUBTYPES:
-        # Sumar todos los subtipos de enfermedad juntos
         total = PermisoReporte.objects.filter(
             emp_code=emp_code, fecha__year=fecha.year,
             fecha__month=fecha.month, tipo__in=_ENFERMEDAD_SUBTYPES | {'enfermedad_dias'},
+        ).aggregate(t=Sum('dias'))['t'] or 0
+    elif tipo in _OTRO_PAGADO_SUBTYPES:
+        total = PermisoReporte.objects.filter(
+            emp_code=emp_code, fecha__year=fecha.year,
+            fecha__month=fecha.month, tipo__in=_OTRO_PAGADO_SUBTYPES | {'otro_pagado_dias'},
         ).aggregate(t=Sum('dias'))['t'] or 0
     else:
         total = PermisoReporte.objects.filter(
@@ -2306,6 +2631,9 @@ def permiso_reporte_save(request):
 @login_required
 def permiso_reporte_delete(request, pk):
     """AJAX: elimina un PermisoReporte y recalcula el resumen mensual."""
+    u = request.user
+    if not (u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     try:
         obj = PermisoReporte.objects.get(pk=pk)
         emp_code = obj.emp_code
@@ -2346,6 +2674,8 @@ def permiso_list_mes(request):
             qs = qs.filter(tipo__in=['enfermedad_dias', 'enfermedad_incapacidad',
                                      'enfermedad_maternidad', 'enfermedad_citamedica',
                                      'enfermedad_consulta'])
+        elif tipo_f == 'otro_pagado_dias':
+            qs = qs.filter(tipo__in=['otro_pagado_dias', 'compensatorio_dias'])
         else:
             qs = qs.filter(tipo=tipo_f)
     qs = qs.order_by('fecha', 'tipo')

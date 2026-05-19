@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Tiempo Compensatorio{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Tiempo Compensatorio{% endblock %}
 {% block page_title %}Tiempo Compensatorio – Horario Asistentes{% endblock %}
 {% block nav_compensatorio %}active{% endblock %}
 
@@ -51,6 +51,38 @@
   </span>
 </div>
 
+{# ── Resumen total empleado (solo cuando se filtra uno) ── #}
+{% if emp_code_f and total_dias_emp %}
+<div class="card mb-4 border-0 bg-teal-lt">
+  <div class="card-body py-3">
+    <div class="row align-items-center g-3">
+      <div class="col-auto">
+        <span class="avatar avatar-md bg-teal text-white">
+          <i class="ti ti-clock-check fs-3"></i>
+        </span>
+      </div>
+      <div class="col">
+        <div class="fw-bold text-teal fs-4">
+          {% if total_horas_emp %}{{ total_horas_emp }}h {% endif %}{{ total_mins_emp }}m
+          <span class="text-muted fw-normal fs-5 ms-1">de tiempo compensatorio acumulado</span>
+        </div>
+        <div class="text-muted small mt-1">
+          {{ total_dias_emp }} día{{ total_dias_emp|pluralize }} con compensatorio
+          en el rango seleccionado
+          · <strong>{{ filas.0.nombre }}</strong>
+        </div>
+      </div>
+      <div class="col-auto">
+        <div class="text-center">
+          <div class="h2 mb-0 text-teal">{{ total_min_emp }}</div>
+          <div class="text-muted small">minutos totales</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {# ── Tabla ── #}
 <div class="card">
   <div class="card-body p-0">
@@ -65,6 +97,7 @@
             <th>Marcas del día</th>
             <th>Última marca</th>
             <th class="text-center">Tiempo compensatorio</th>
+            <th class="text-center">Tiempo extra autorizado</th>
           </tr>
         </thead>
         <tbody>
@@ -75,7 +108,7 @@
               <div class="fw-semibold">{{ f.nombre }}</div>
               <div class="text-muted small">{{ f.emp_code }}</div>
             </td>
-            <td>{{ f.fecha|date:"d/m/Y" }}</td>
+            <td data-order="{{ f.fecha|date:'Y-m-d' }}">{{ f.fecha|date:"d/m/Y" }}</td>
             <td>
               <span class="badge bg-azure-lt text-azure">07:00 – 15:48</span>
             </td>
@@ -85,8 +118,35 @@
             <td>
               <span class="badge bg-orange-lt text-orange font-monospace">{{ f.ultima_marca }}</span>
             </td>
+
+            {# ── Tiempo compensatorio ── #}
             <td class="text-center">
-              {% if f.tiene_comp %}
+              {% if emp_code_f and f.manana_min is not None %}
+                {# Empleado con horario especial filtrado: desglose mañana + tarde #}
+                <div class="d-flex flex-column align-items-center gap-1">
+                  {% if f.manana_min >= f.manana_max %}
+                    <span class="badge bg-blue-lt text-blue px-2"><i class="ti ti-sun me-1"></i>{{ f.manana_min }}m mañana</span>
+                  {% elif f.manana_min > 0 %}
+                    <span class="badge bg-azure-lt text-azure px-2"><i class="ti ti-sun me-1"></i>{{ f.manana_min }}m <span class="opacity-75">/ {{ f.manana_max }}</span></span>
+                  {% else %}
+                    <span class="badge bg-secondary-lt text-secondary px-2"><i class="ti ti-sun me-1"></i>0m mañana</span>
+                  {% endif %}
+                  {% if f.tarde_min >= f.tarde_max %}
+                    <span class="badge bg-orange-lt text-orange px-2"><i class="ti ti-moon me-1"></i>{{ f.tarde_min }}m tarde</span>
+                  {% elif f.tarde_min > 0 %}
+                    <span class="badge bg-yellow-lt text-yellow px-2"><i class="ti ti-moon me-1"></i>{{ f.tarde_min }}m <span class="opacity-75">/ {{ f.tarde_max }}</span></span>
+                  {% else %}
+                    <span class="badge bg-secondary-lt text-secondary px-2"><i class="ti ti-moon me-1"></i>0m tarde</span>
+                  {% endif %}
+                  {% with total=f.manana_min|add:f.tarde_min %}
+                    {% if total >= f.tope %}
+                      <span class="badge bg-green-lt text-green px-2 fw-bold"><i class="ti ti-circle-check me-1"></i>{{ total }}m total</span>
+                    {% else %}
+                      <span class="badge bg-teal-lt text-teal px-2 fw-bold">{{ total }}m <span class="opacity-75">/ {{ f.tope }}</span></span>
+                    {% endif %}
+                  {% endwith %}
+                </div>
+              {% elif f.tiene_comp %}
                 {% if f.completo %}
                   <span class="badge bg-green-lt text-green fs-6 px-3">
                     <i class="ti ti-circle-check me-1"></i>{{ f.tope }}m
@@ -100,10 +160,39 @@
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
+
+            {# ── Tiempo extra autorizado ── #}
+            <td class="text-center" id="extra-cell-{{ f.emp_code }}-{{ f.fecha|date:'Ymd' }}">
+              {% if f.extra_min %}
+                <span class="badge bg-blue-lt text-blue extra-badge">
+                  <i class="ti ti-clock-bolt me-1"></i>{{ f.extra_min }}m
+                </span>
+                {% if f.extra_autorizado_por %}
+                  <div class="text-muted small mt-1">Por: {{ f.extra_autorizado_por }}</div>
+                {% endif %}
+              {% else %}
+                <span class="text-muted extra-badge">—</span>
+              {% endif %}
+              {% if can_edit_extra %}
+              <div class="mt-1">
+                <button class="btn btn-xs btn-ghost-secondary btn-set-extra px-1 py-0"
+                        data-emp="{{ f.emp_code }}"
+                        data-fecha="{{ f.fecha|date:'Y-m-d' }}"
+                        data-nombre="{{ f.nombre }}"
+                        data-minutos="{{ f.extra_min }}"
+                        data-razon="{{ f.extra_razon }}"
+                        data-comentario="{{ f.extra_comentario }}"
+                        data-autorizado="{{ f.extra_autorizado_por }}"
+                        title="Editar tiempo extra">
+                  <i class="ti ti-pencil" style="font-size:.75rem"></i>
+                </button>
+              </div>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center text-muted py-4">
+            <td colspan="8" class="text-center text-muted py-4">
               <i class="ti ti-clock-off me-2"></i>Sin registros de tiempo compensatorio en el rango seleccionado.
             </td>
           </tr>
@@ -113,6 +202,117 @@
     </div>
   </div>
 </div>
+
+{# ── Modal: Tiempo Extra Autorizado ── #}
+{% if can_edit_extra %}
+<div class="modal modal-blur fade" id="modalExtraDia" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="ti ti-clock-bolt me-2 text-blue"></i>Tiempo Extra Autorizado
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3" id="extra-modal-empleado"></p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Minutos extra autorizados</label>
+          <input type="number" class="form-control" id="extra-minutos" min="0" max="999" placeholder="0">
+          <div class="form-text">Ingresa 0 para eliminar el registro.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Razón</label>
+          <input type="text" class="form-control" id="extra-razon" maxlength="300" placeholder="Motivo del tiempo extra...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Comentario</label>
+          <textarea class="form-control" id="extra-comentario" rows="2" placeholder="Observaciones adicionales..."></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Autorizado por</label>
+          <input type="text" class="form-control" id="extra-autorizado-por" maxlength="200" placeholder="Nombre de quien autorizó...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-extra">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const URL_SET_EXTRA = "{% url 'reloj_compensatorio_set_extra' %}";
+  let _emp = '', _fecha = '';
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-set-extra');
+    if (!btn) return;
+    _emp   = btn.dataset.emp;
+    _fecha = btn.dataset.fecha;
+    document.getElementById('extra-modal-empleado').textContent =
+      btn.dataset.nombre + ' · ' + btn.dataset.fecha;
+    document.getElementById('extra-minutos').value       = btn.dataset.minutos || 0;
+    document.getElementById('extra-razon').value         = btn.dataset.razon || '';
+    document.getElementById('extra-comentario').value    = btn.dataset.comentario || '';
+    document.getElementById('extra-autorizado-por').value = btn.dataset.autorizado || '';
+    const modal = new bootstrap.Modal(document.getElementById('modalExtraDia'));
+    modal.show();
+  });
+
+  document.getElementById('btn-guardar-extra').addEventListener('click', function() {
+    const minutos       = parseInt(document.getElementById('extra-minutos').value) || 0;
+    const razon         = document.getElementById('extra-razon').value.trim();
+    const comentario    = document.getElementById('extra-comentario').value.trim();
+    const autorizado_por = document.getElementById('extra-autorizado-por').value.trim();
+
+    fetch(URL_SET_EXTRA, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+      body: JSON.stringify({emp_code: _emp, fecha: _fecha, minutos, razon, comentario, autorizado_por})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { alert('Error: ' + (data.error || 'desconocido')); return; }
+      bootstrap.Modal.getInstance(document.getElementById('modalExtraDia')).hide();
+      // Actualizar la celda sin recargar
+      const dateKey = _fecha.replaceAll('-', '');
+      const cell = document.getElementById('extra-cell-' + _emp + '-' + dateKey);
+      if (cell) {
+        const badgeEl = cell.querySelector('.extra-badge');
+        if (badgeEl) {
+          if (data.minutos > 0) {
+            badgeEl.className = 'badge bg-blue-lt text-blue extra-badge';
+            badgeEl.innerHTML = '<i class="ti ti-clock-bolt me-1"></i>' + data.minutos + 'm';
+          } else {
+            badgeEl.className = 'text-muted extra-badge';
+            badgeEl.textContent = '—';
+          }
+        }
+        // Actualizar data attrs del botón
+        const btnRow = cell.querySelector('.btn-set-extra');
+        if (btnRow) {
+          btnRow.dataset.minutos    = data.minutos;
+          btnRow.dataset.razon      = data.razon;
+          btnRow.dataset.comentario = data.comentario;
+          btnRow.dataset.autorizado = data.autorizado_por;
+        }
+      }
+    })
+    .catch(() => alert('Error de conexión.'));
+  });
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+})();
+</script>
+{% endif %}
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {

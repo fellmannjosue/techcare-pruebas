@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Reporte de Asistencia{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Reporte de Asistencia{% endblock %}
 {% block page_title %}Reporte de Asistencia{% endblock %}
 {% block nav_reporte %}active{% endblock %}
 
@@ -60,6 +60,9 @@
 
 {% block page_actions %}
 <div class="col-auto ms-auto d-flex gap-2">
+  <a href="{% url 'reloj_dashboard' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i>Dashboard
+  </a>
   <div data-autorefresh-host></div>
   <a href="{% url 'reloj_exportar_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&emp_code={{ emp_code_f }}"
      class="btn btn-ghost-danger">
@@ -240,19 +243,26 @@
           <label class="form-label" for="perm-tipo">Tipo de Permiso</label>
           <select id="perm-tipo" class="form-select">
             {% for campo, etiqueta, color in campos_permiso %}
-            {% if campo != 'enfermedad_incapacidad' and campo != 'enfermedad_maternidad' and campo != 'enfermedad_citamedica' and campo != 'enfermedad_consulta' %}
+            {% if campo != 'enfermedad_incapacidad' and campo != 'enfermedad_maternidad' and campo != 'enfermedad_citamedica' and campo != 'enfermedad_consulta' and campo != 'compensatorio_dias' %}
             <option value="{{ campo }}" data-color="{{ color }}">{{ etiqueta }}</option>
             {% endif %}
             {% endfor %}
           </select>
         </div>
-        <div class="mb-3 d-none" id="perm-subtipo-wrap">
-          <label class="form-label" for="perm-subtipo">Subtipo Enfermedad</label>
-          <select id="perm-subtipo" class="form-select">
+        <div class="mb-3 d-none" id="perm-subtipo-enf-wrap">
+          <label class="form-label" for="perm-subtipo-enf">Subtipo Enfermedad</label>
+          <select id="perm-subtipo-enf" class="form-select">
             <option value="enfermedad_incapacidad">Incapacidad</option>
             <option value="enfermedad_maternidad">Incapacidad por maternidad</option>
             <option value="enfermedad_citamedica">Cita médica</option>
             <option value="enfermedad_consulta">Consulta médica</option>
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="perm-subtipo-otro-wrap">
+          <label class="form-label" for="perm-subtipo-otro">Subtipo Otro Pagado</label>
+          <select id="perm-subtipo-otro" class="form-select">
+            <option value="otro_pagado_dias">Otro Pagado</option>
+            <option value="compensatorio_dias">Compensatorio</option>
           </select>
         </div>
         <div class="mb-3">
@@ -298,12 +308,14 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'reloj/js/autorefresh.js' %}"></script>
 <script>
-const CSRF_TOKEN       = '{{ csrf_token }}';
-const ADD_URL          = '{% url "reloj_comentario_add" %}';
-const DELETE_BASE      = '{% url "reloj_comentario_delete" pk=99999 %}';
-const URL_PERM_SAVE    = '{% url "reloj_permiso_reporte_save" %}';
-const URL_PERM_DELETE  = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
-const PERMISOS_MAP     = {{ permisos_json|safe }};
+const CSRF_TOKEN          = '{{ csrf_token }}';
+const ADD_URL             = '{% url "reloj_comentario_add" %}';
+const DELETE_BASE         = '{% url "reloj_comentario_delete" pk=99999 %}';
+const URL_PERM_SAVE       = '{% url "reloj_permiso_reporte_save" %}';
+const URL_PERM_DELETE     = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
+const PERMISOS_MAP        = {{ permisos_json|safe }};
+const CAN_EDIT_PERMISOS   = {{ can_edit_permisos|yesno:"true,false" }};
+const CAN_DELETE_PERMISOS = {{ can_delete_permisos|yesno:"true,false" }};
 
 $(function(){
   var table = $('#tablaAsistencia').DataTable({
@@ -390,6 +402,11 @@ $(function(){
     '{{ campo }}': { label: '{{ etiqueta }}', color: '{{ color }}' },
     {% endfor %}
   };
+  // Prefijo parent/subtipo para badge
+  const TIPO_BADGE_LABEL = {
+    'otro_pagado_dias':   'Otro Pagado/Otro Pagado',
+    'compensatorio_dias': 'Otro Pagado/Compensatorio',
+  };
 
   function renderPermisoCells() {
     $('.permiso-cell').each(function(){
@@ -403,33 +420,47 @@ $(function(){
         lista.forEach(function(p){
           const info = TIPO_LABELS[p.tipo] || {label: p.tipo, color: '#ccc'};
           const $wrap = $('<span class="d-inline-flex align-items-center gap-1 me-1 mb-1">');
+          const esPrimerDia = fecha === p.fecha;
+          const badgeLabel = TIPO_BADGE_LABEL[p.tipo] || info.label;
+          const badgeTexto = esPrimerDia
+            ? badgeLabel + ' ' + (p.horas != null ? parseFloat(p.horas) + 'h' : parseFloat(p.dias) + 'd')
+            : badgeLabel;
           const $badge = $('<span class="badge badge-permiso">')
             .css('background-color', info.color)
             .css('color', '#333')
-            .text(info.label + ' ' + (p.horas != null ? parseFloat(p.horas) + 'h' : parseFloat(p.dias) + 'd'))
+            .text(badgeTexto)
             .attr('title', p.razon || '');
-          const $btnEdit = $('<button class="btn btn-xs btn-outline-secondary btn-edit-permiso p-0" title="Editar" style="width:18px;height:18px;line-height:1">')
-            .html('<i class="ti ti-pencil" style="font-size:.65rem"></i>')
-            .data('permiso', p).data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
-          const $btnDel = $('<button class="btn btn-xs btn-outline-danger btn-del-permiso p-0" title="Eliminar" style="width:18px;height:18px;line-height:1">')
-            .html('<i class="ti ti-trash" style="font-size:.65rem"></i>')
-            .data('pk', p.pk).data('emp', emp).data('fecha', fecha).data('tipo', p.tipo);
-          $wrap.append($badge, $btnEdit, $btnDel);
+          if (CAN_EDIT_PERMISOS) {
+            const $btnEdit = $('<button class="btn btn-xs btn-outline-secondary btn-edit-permiso p-0" title="Editar" style="width:18px;height:18px;line-height:1">')
+              .html('<i class="ti ti-pencil" style="font-size:.65rem"></i>')
+              .data('permiso', p).data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
+            $wrap.append($btnEdit);
+          }
+          if (CAN_DELETE_PERMISOS) {
+            const $btnDel = $('<button class="btn btn-xs btn-outline-danger btn-del-permiso p-0" title="Eliminar" style="width:18px;height:18px;line-height:1">')
+              .html('<i class="ti ti-trash" style="font-size:.65rem"></i>')
+              .data('pk', p.pk).data('emp', emp).data('fecha', fecha).data('tipo', p.tipo);
+            $wrap.append($btnDel);
+          }
+          $wrap.prepend($badge);
           $td.append($wrap);
         });
       }
-      const $addBtn = $('<button class="btn btn-sm btn-secondary btn-reg-permiso" title="Registrar permiso">')
-        .html('<i class="ti ti-license me-1"></i>Permiso')
-        .data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
-      $td.append($addBtn);
+      if (CAN_EDIT_PERMISOS) {
+        const $addBtn = $('<button class="btn btn-sm btn-secondary btn-reg-permiso" title="Registrar permiso">')
+          .html('<i class="ti ti-license me-1"></i>Permiso')
+          .data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
+        $td.append($addBtn);
+      }
     });
   }
   renderPermisoCells();
 
-  // Mostrar/ocultar subtipo enfermedad y auto-calcular días
+  // Mostrar/ocultar subtipos y auto-calcular días
   $(document).on('change', '#perm-tipo', function(){
-    const esEnfermedad = $(this).val() === 'enfermedad_dias';
-    $('#perm-subtipo-wrap').toggleClass('d-none', !esEnfermedad);
+    const v = $(this).val();
+    $('#perm-subtipo-enf-wrap').toggleClass('d-none', v !== 'enfermedad_dias');
+    $('#perm-subtipo-otro-wrap').toggleClass('d-none', v !== 'otro_pagado_dias');
   });
 
   function diasHabiles(fi, ff) {
@@ -444,6 +475,23 @@ $(function(){
     return count;
   }
 
+  function diasCalendario(fi, ff) {
+    const d = new Date(fi + 'T00:00:00');
+    const e = new Date(ff + 'T00:00:00');
+    return Math.round((e - d) / 86400000) + 1;
+  }
+
+  function usarCalendario() {
+    const subtipo = $('#perm-subtipo-enf').val();
+    if (subtipo === 'enfermedad_maternidad') return true;
+    if (subtipo === 'enfermedad_incapacidad') {
+      const fi = $('#perm-fecha').val();
+      const ff = $('#perm-fecha-fin').val();
+      if (fi && ff && ff >= fi) return diasCalendario(fi, ff) > 10;
+    }
+    return false;
+  }
+
   function modoActual() {
     return $('#modo-horas').is(':checked') ? 'horas' : 'dias';
   }
@@ -452,19 +500,21 @@ $(function(){
     const fi = $('#perm-fecha').val();
     const ff = $('#perm-fecha-fin').val();
     if (fi && ff && ff >= fi) {
-      const dias = diasHabiles(fi, ff);
+      const calendario = usarCalendario();
+      const dias = calendario ? diasCalendario(fi, ff) : diasHabiles(fi, ff);
+      const etiqueta = calendario ? 'día(s) calendario' : 'día(s) hábil(es)';
       if (modoActual() === 'horas') {
         $('#perm-horas').val(dias * 8);
-        $('#perm-dias-hint').text('Calculado: ' + (dias * 8) + ' hora(s) hábil(es)');
+        $('#perm-dias-hint').text('Calculado: ' + (dias * 8) + ' hora(s) — ' + etiqueta);
       } else {
         $('#perm-dias').val(dias);
-        $('#perm-dias-hint').text('Calculado: ' + dias + ' día(s) hábil(es)');
+        $('#perm-dias-hint').text('Calculado: ' + dias + ' ' + etiqueta);
       }
     } else {
       $('#perm-dias-hint').text('');
     }
   }
-  $(document).on('change', '#perm-fecha, #perm-fecha-fin', calcularDias);
+  $(document).on('change', '#perm-fecha, #perm-fecha-fin, #perm-subtipo-enf, #perm-subtipo-otro', calcularDias);
 
   $(document).on('change', 'input[name="perm-modo"]', function(){
     const modo = modoActual();
@@ -477,7 +527,9 @@ $(function(){
     const tipoActual = permiso ? permiso.tipo : '';
     const ENFER_SUBTYPES = ['enfermedad_dias','enfermedad_incapacidad','enfermedad_maternidad',
                             'enfermedad_citamedica','enfermedad_consulta'];
-    const esEnfermedad = ENFER_SUBTYPES.includes(tipoActual);
+    const OTRO_SUBTYPES  = ['compensatorio_dias', 'otro_pagado_dias'];
+    const esEnfermedad   = ENFER_SUBTYPES.includes(tipoActual);
+    const esOtroPagado   = OTRO_SUBTYPES.includes(tipoActual);
     // When editing, use the permiso's original start date (not the clicked cell date)
     const fechaInicio = permiso && permiso.fecha ? permiso.fecha : fecha;
 
@@ -488,14 +540,19 @@ $(function(){
     $('#perm-fecha-fin').val(permiso && permiso.fecha_fin ? permiso.fecha_fin : fechaInicio);
     $('#perm-dias-hint').text('');
 
-    // Tipo: si es subtipo enfermedad, seleccionar enfermedad_dias en el select principal
+    // Tipo: si es subtipo enfermedad → seleccionar enfermedad_dias; si es subtipo otro_pagado → otro_pagado_dias
+    $('#perm-subtipo-enf-wrap').addClass('d-none');
+    $('#perm-subtipo-otro-wrap').addClass('d-none');
     if (esEnfermedad) {
       $('#perm-tipo').val('enfermedad_dias');
-      $('#perm-subtipo-wrap').removeClass('d-none');
-      $('#perm-subtipo').val(tipoActual === 'enfermedad_dias' ? 'enfermedad_incapacidad' : tipoActual);
+      $('#perm-subtipo-enf-wrap').removeClass('d-none');
+      $('#perm-subtipo-enf').val(tipoActual === 'enfermedad_dias' ? 'enfermedad_incapacidad' : tipoActual);
+    } else if (esOtroPagado) {
+      $('#perm-tipo').val('otro_pagado_dias');
+      $('#perm-subtipo-otro-wrap').removeClass('d-none');
+      $('#perm-subtipo-otro').val(tipoActual);
     } else {
       $('#perm-tipo').val(tipoActual || $('#perm-tipo option:first').val());
-      $('#perm-subtipo-wrap').addClass('d-none');
     }
 
     $('#perm-razon').val(permiso ? permiso.razon : '');
@@ -570,11 +627,11 @@ $(function(){
     const pk       = $('#perm-pk').val();
     const nombre   = $('#perm-nombre-display').text();
 
-    // Si es enfermedad usar el subtipo seleccionado
+    // Si es enfermedad o subgrupo de otro_pagado, usar el subtipo seleccionado
     const tipoBase = $('#perm-tipo').val();
-    const tipo = tipoBase === 'enfermedad_dias'
-      ? $('#perm-subtipo').val()
-      : tipoBase;
+    let tipo = tipoBase;
+    if (tipoBase === 'enfermedad_dias')   tipo = $('#perm-subtipo-enf').val();
+    else if (tipoBase === 'otro_pagado_dias') tipo = $('#perm-subtipo-otro').val();
 
     const valorCantidad = modo === 'horas' ? horas : dias;
     if (!fecha || !tipo || valorCantidad === '') {

@@ -67,8 +67,11 @@ def login_view(request):
                 if user.groups.filter(name='administracion').exists():
                     return redirect('dashboard_administracion')
                 # Coord-maestros: el checkbox determina el modo de agendas
-                _coord_maestros = {'cvarela@ana-hn.org', 'ialcerro@ana-hn.org', 'jmartinez@ana-hn.org'}
-                if user.username in _coord_maestros:
+                try:
+                    _es_coord_maestro = user.perfil.es_coord_maestro
+                except Exception:
+                    _es_coord_maestro = False
+                if _es_coord_maestro:
                     request.session['agenda_modo_maestro'] = is_maestro
                 if is_maestro:
                     return redirect('dashboard_maestro')
@@ -292,8 +295,51 @@ def menu_view(request):
     """
     Panel principal de TechCare, con tarjetas estadísticas
     y visibilidad por módulos.
+    Superusers y administración ven el panel completo.
+    Coordinadores, maestros y técnicos son redirigidos a su dashboard.
     """
     user = request.user
+
+    # ── Redirigir a usuarios que tienen su propio dashboard ──────────────────
+    if not user.is_superuser:
+        # Técnicos → tickets
+        if user.groups.filter(name='tecnicos').exists():
+            return redirect('tickets_dashboard')
+
+        # Reloj → dashboard reloj
+        if user.groups.filter(name='reloj').exists() and not user.groups.filter(
+            name__in=['administracion', 'coordinador_bilingue', 'coordinadores_colegio',
+                      'coordinador_colegio', 'coordinadores', 'maestros_bilingue', 'maestros_colegio']
+        ).exists():
+            return redirect('reloj_dashboard')
+
+        # Administración → su dashboard
+        if user.groups.filter(name='administracion').exists() and not user.groups.filter(
+            name__in=['coordinador_bilingue', 'coordinadores_colegio', 'coordinador_colegio',
+                      'coordinadores', 'maestros_bilingue', 'maestros_colegio']
+        ).exists():
+            return redirect('dashboard_administracion')
+
+        # Staff (coordinadores) en modo maestro → dashboard maestro
+        if user.is_staff and request.session.get('agenda_modo_maestro'):
+            return redirect('dashboard_maestro')
+
+        # Staff (coordinadores) en modo coordinador
+        if user.is_staff:
+            if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
+                return redirect('dashboard_coordinador', area='colegio')
+            if user.groups.filter(name='coordinador_bilingue').exists():
+                return redirect('dashboard_coordinador', area='bilingue')
+
+        # Maestros regulares
+        in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
+        in_mcol = user.groups.filter(name='maestros_colegio').exists()
+        if in_mbl or in_mcol:
+            if in_mbl and in_mcol:
+                return redirect('seleccion_rol')
+            return redirect('dashboard_maestro')
+    # ─────────────────────────────────────────────────────────────────────────
+
     year = datetime.datetime.now().year
 
     # =====================================================
@@ -358,7 +404,6 @@ def menu_view(request):
     can_view_maintenance = user.has_perm('mantenimiento.view_mantenimiento')
     can_view_tickets     = user.has_perm('tickets.view_ticket')
     can_view_sponsors    = user.has_perm('sponsors.view_sponsor')
-    can_view_seguridad   = user.has_perm('seguridad.view_seguridad')
 
     # =====================================================
     # 🚫 BLOQUEO DE TARJETAS PARA USUARIOS ESPECÍFICOS
@@ -392,7 +437,7 @@ def menu_view(request):
         'show_maintenance': is_admin or can_view_maintenance,
         'show_tickets':     is_admin or can_view_tickets or is_administracion,
         'show_sponsors':    is_admin or can_view_sponsors,
-        'show_seguridad':   is_admin or can_view_seguridad,
+        'show_finanzas':    user.is_superuser or user.email == 'cvalle@ana-hn.org',
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
 
@@ -931,6 +976,159 @@ def settings_actividad(request):
         'accesos_recientes': accesos_recientes,
     })
     return render(request, 'accounts/settings_actividad.html', ctx)
+
+
+# ── 6. Config. Coordinadores (superuser) ────────────────────
+@login_required
+def settings_coordinadores(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+    from conducta.models import ConfiguracionCoordinador
+
+    if request.method == 'POST':
+        pk      = request.POST.get('pk') or None
+        area    = request.POST.get('area', '').strip()
+        codigo  = request.POST.get('codigo', '').strip()
+        nombre  = request.POST.get('nombre', '').strip()
+        uid     = request.POST.get('usuario_id') or None
+        activo  = request.POST.get('activo') == 'on'
+        if not nombre:
+            messages.error(request, 'El nombre es obligatorio.')
+        elif pk:
+            obj = get_object_or_404(ConfiguracionCoordinador, pk=pk)
+            obj.area = area; obj.codigo = codigo; obj.nombre = nombre
+            obj.usuario_id = uid; obj.activo = activo
+            obj.save()
+            messages.success(request, f'Coordinador "{nombre}" actualizado.')
+        else:
+            ConfiguracionCoordinador.objects.create(
+                area=area, codigo=codigo, nombre=nombre, usuario_id=uid, activo=activo)
+            messages.success(request, f'Coordinador "{nombre}" creado.')
+        return redirect('settings_coordinadores')
+
+    ctx = _settings_ctx(request, 'coordinadores')
+    ctx.update({
+        'coordinadores': ConfiguracionCoordinador.objects.select_related('usuario').order_by('area', 'codigo'),
+        'todos_usuarios': User.objects.filter(is_active=True).exclude(email='').order_by('first_name', 'last_name'),
+    })
+    return render(request, 'accounts/settings_coordinadores.html', ctx)
+
+
+@login_required
+def settings_coordinador_eliminar(request, pk):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    from conducta.models import ConfiguracionCoordinador
+    obj = get_object_or_404(ConfiguracionCoordinador, pk=pk)
+    nombre = obj.nombre
+    obj.delete()
+    return JsonResponse({'ok': True, 'nombre': nombre})
+
+
+# ── 7. Config. Notificaciones Conducta (superuser) ───────────
+@login_required
+def settings_notificaciones_conducta(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+    from conducta.models import ConfiguracionNotificacion, ConfiguracionCoordinador
+
+    if request.method == 'POST':
+        pk   = request.POST.get('pk') or None
+        area = request.POST.get('area', '').strip()
+        cid  = request.POST.get('coordinador_id') or None
+        data = {
+            'area': area, 'coordinador_id': cid,
+            'recibe_conductual':             request.POST.get('recibe_conductual') == 'on',
+            'recibe_informativo_academico':  request.POST.get('recibe_informativo_academico') == 'on',
+            'recibe_informativo_conductual': request.POST.get('recibe_informativo_conductual') == 'on',
+            'recibe_progress':               request.POST.get('recibe_progress') == 'on',
+            'activo':                        request.POST.get('activo') == 'on',
+        }
+        try:
+            if pk:
+                obj = get_object_or_404(ConfiguracionNotificacion, pk=pk)
+                for k, v in data.items():
+                    setattr(obj, k, v)
+                obj.save()
+                messages.success(request, 'Regla actualizada correctamente.')
+            else:
+                ConfiguracionNotificacion.objects.create(**data)
+                messages.success(request, 'Regla creada correctamente.')
+        except Exception as e:
+            messages.error(request, f'Error: {e}')
+        return redirect('settings_notificaciones_conducta')
+
+    ctx = _settings_ctx(request, 'notificaciones_conducta')
+    ctx.update({
+        'reglas':        ConfiguracionNotificacion.objects.select_related('coordinador__usuario').order_by('area', 'coordinador__nombre'),
+        'coordinadores': ConfiguracionCoordinador.objects.filter(activo=True).order_by('area', 'codigo', 'nombre'),
+    })
+    return render(request, 'accounts/settings_notificaciones_conducta.html', ctx)
+
+
+@login_required
+def settings_notificacion_eliminar(request, pk):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    from conducta.models import ConfiguracionNotificacion
+    obj = get_object_or_404(ConfiguracionNotificacion, pk=pk)
+    nombre = str(obj)
+    obj.delete()
+    return JsonResponse({'ok': True, 'nombre': nombre})
+
+
+# ── 8. Config. Roles coord-maestro (superuser) ───────────────
+@login_required
+def settings_roles(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', '')
+        uid    = request.POST.get('user_id') or None
+        if not uid:
+            messages.error(request, 'Usuario no especificado.')
+            return redirect('settings_roles')
+        target = get_object_or_404(User, pk=uid)
+        perfil, _ = PerfilUsuario.objects.get_or_create(usuario=target)
+
+        if accion == 'toggle_coord_maestro':
+            perfil.es_coord_maestro = not perfil.es_coord_maestro
+            perfil.save()
+            estado = 'activado' if perfil.es_coord_maestro else 'desactivado'
+            messages.success(request, f'Modo coord-maestro {estado} para {target.get_full_name() or target.username}.')
+
+        elif accion == 'toggle_staff':
+            if target == request.user:
+                messages.error(request, 'No puedes modificar tu propio estado staff.')
+            else:
+                target.is_staff = not target.is_staff
+                target.save()
+                estado = 'activado' if target.is_staff else 'desactivado'
+                messages.success(request, f'Staff {estado} para {target.get_full_name() or target.username}.')
+
+        elif accion == 'set_grupos':
+            grupo_ids = request.POST.getlist('grupos')
+            target.groups.set(Group.objects.filter(pk__in=grupo_ids))
+            messages.success(request, f'Grupos actualizados para {target.get_full_name() or target.username}.')
+
+        return redirect('settings_roles')
+
+    ctx = _settings_ctx(request, 'roles')
+    usuarios = (User.objects
+                .prefetch_related('groups', 'perfil')
+                .filter(is_active=True)
+                .exclude(is_superuser=True)
+                .order_by('first_name', 'last_name', 'username'))
+    ctx.update({
+        'usuarios_roles': usuarios,
+        'todos_grupos':   Group.objects.order_by('name'),
+    })
+    return render(request, 'accounts/settings_roles.html', ctx)
 
 
 def pwa_service_worker(request):

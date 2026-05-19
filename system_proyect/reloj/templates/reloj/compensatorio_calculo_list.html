@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Cálculo Compensatorio{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Cálculo de Tiempo Compensatorio{% endblock %}
 {% block page_title %}Cálculo de Tiempo Compensatorio{% endblock %}
 
 {% block content %}
@@ -39,7 +39,7 @@
           <tr>
             <th>Empleado</th>
             <th class="text-center">Días adeudados</th>
-            <th class="text-center">Min. a compensar</th>
+            <th class="text-center">Hrs. a compensar</th>
             <th class="text-center">Min. Auto/día</th>
             <th class="text-center">Compensado hasta hoy</th>
             <th class="text-center">Saldo restante</th>
@@ -60,7 +60,7 @@
             <td class="text-center">
               <span class="badge bg-blue-lt text-blue fs-6 px-3">{{ r.dias_adeudados }}</span>
             </td>
-            <td class="text-center text-muted font-monospace">{{ r.minutos_total }} min</td>
+            <td class="text-center text-muted font-monospace" data-minutos="{{ r.minutos_total }}">{{ item.horas_total }} h</td>
             <td class="text-center">
               {% if can_edit %}
               <button class="btn btn-sm btn-ghost-secondary btn-set-min-dia px-2 py-0"
@@ -78,32 +78,20 @@
             <td class="text-center">
               {% if item.minutos_compensados >= r.minutos_total %}
                 <span class="badge bg-green-lt text-green compensado-badge-{{ r.pk }}">
-                  <i class="ti ti-circle-check me-1"></i>{{ item.minutos_compensados }} min
+                  <i class="ti ti-circle-check me-1"></i>{{ item.horas_compensados }} h
                 </span>
               {% elif item.minutos_compensados > 0 %}
                 <span class="badge bg-teal-lt text-teal compensado-badge-{{ r.pk }}">
-                  <i class="ti ti-progress me-1"></i>{{ item.minutos_compensados }} min
+                  <i class="ti ti-progress me-1"></i>{{ item.horas_compensados }} h
                 </span>
               {% else %}
                 <span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">
-                  0 min
+                  0 h
                 </span>
               {% endif %}
               <div class="text-muted small mt-1 dias-trans-{{ r.pk }}">{{ item.dias_transcurridos }} días háb.</div>
-              {% if item.es_especial and can_edit_compensado %}
-              <button class="btn btn-xs btn-ghost-secondary btn-set-compensado mt-1 px-1 py-0"
-                      data-pk="{{ r.pk }}"
-                      data-nombre="{{ r.nombre_empleado }}"
-                      data-valor="{{ item.minutos_compensados }}"
-                      data-total="{{ r.minutos_total }}"
-                      title="Editar compensado">
-                <i class="ti ti-pencil" style="font-size:.75rem"></i>
-              </button>
-              {% if r.minutos_compensados_manual is not None %}
-              <div class="text-muted" style="font-size:.65rem">manual</div>
-              {% endif %}
-              {% endif %}
             </td>
+
             <td class="text-center">
               {% if saldo == 0 %}
                 <span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}">
@@ -111,11 +99,11 @@
                 </span>
               {% elif saldo < r.minutos_total %}
                 <span class="badge bg-yellow-lt text-yellow saldo-badge-{{ r.pk }}">
-                  {{ saldo }} min
+                  {{ item.horas_saldo }} h
                 </span>
               {% else %}
                 <span class="badge bg-red-lt text-red saldo-badge-{{ r.pk }}">
-                  {{ saldo }} min
+                  {{ item.horas_saldo }} h
                 </span>
               {% endif %}
             </td>
@@ -150,7 +138,7 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="10" class="text-center text-muted py-4">
+            <td colspan="9" class="text-center text-muted py-4">
               <i class="ti ti-calculator-off me-2"></i>
               Sin registros. Agrega el primer empleado con el botón de arriba.
             </td>
@@ -172,7 +160,7 @@
       </div>
       <div class="modal-body">
         <p class="text-muted small mb-1">Empleado: <strong id="comp-nombre"></strong></p>
-        <p class="text-muted small mb-3">Total a compensar: <strong id="comp-total"></strong> min</p>
+        <p class="text-muted small mb-3">Total a compensar: <strong id="comp-total"></strong> h</p>
         <label class="form-label fw-semibold">Minutos compensados</label>
         <input type="number" id="comp-input" class="form-control" min="0" placeholder="Ej: 1500">
         <p class="text-muted small mt-2">Este valor sobreescribe el cálculo automático.</p>
@@ -213,6 +201,7 @@
   </div>
 </div>
 
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof $.fn.DataTable !== 'undefined') {
@@ -230,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const CSRF = '{{ csrf_token }}';
   let activePk = null;
   let minTotal = 0;
+  const minToH = m => +(m / 60).toFixed(1);
 
   // ── Modal compensado manual ──
   let activePkComp = null, minTotalComp = 0;
@@ -239,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
       activePkComp = this.dataset.pk;
       minTotalComp = parseInt(this.dataset.total) || 0;
       document.getElementById('comp-nombre').textContent = this.dataset.nombre;
-      document.getElementById('comp-total').textContent  = minTotalComp;
+      document.getElementById('comp-total').textContent  = minToH(minTotalComp);
       document.getElementById('comp-input').value = this.dataset.valor || '';
       new bootstrap.Modal(document.getElementById('modalCompensado')).show();
     });
@@ -272,13 +262,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (compBadge) {
         if (data.minutos_compensados >= minTotalComp) {
           compBadge.className = `badge bg-green-lt text-green compensado-badge-${activePkComp}`;
-          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${data.minutos_compensados} min`;
+          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${minToH(data.minutos_compensados)} h`;
         } else if (data.minutos_compensados > 0) {
           compBadge.className = `badge bg-teal-lt text-teal compensado-badge-${activePkComp}`;
-          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${data.minutos_compensados} min`;
+          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${minToH(data.minutos_compensados)} h`;
         } else {
           compBadge.className = `badge bg-secondary-lt text-secondary compensado-badge-${activePkComp}`;
-          compBadge.textContent = '0 min';
+          compBadge.textContent = '0 h';
         }
       }
       // Actualizar botón data-valor
@@ -292,10 +282,10 @@ document.addEventListener('DOMContentLoaded', function () {
           saldoBadge.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
         } else if (data.saldo < minTotalComp) {
           saldoBadge.className = `badge bg-yellow-lt text-yellow saldo-badge-${activePkComp}`;
-          saldoBadge.textContent = `${data.saldo} min`;
+          saldoBadge.textContent = `${minToH(data.saldo)} h`;
         } else {
           saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${activePkComp}`;
-          saldoBadge.textContent = `${data.saldo} min`;
+          saldoBadge.textContent = `${minToH(data.saldo)} h`;
         }
       }
       bootstrap.Modal.getInstance(document.getElementById('modalCompensado')).hide();
@@ -311,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Guardar minutos_total del registro para actualizar saldo en frontend
       const row = this.closest('tr');
       const minTotalCell = row.querySelector('td:nth-child(3)');
-      minTotal = parseInt(minTotalCell ? minTotalCell.textContent : '0') || 0;
+      minTotal = parseInt(minTotalCell ? minTotalCell.dataset.minutos : '0') || 0;
       new bootstrap.Modal(document.getElementById('modalMinDia')).show();
     });
   });
@@ -368,10 +358,10 @@ document.addEventListener('DOMContentLoaded', function () {
           saldoBadge.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
         } else if (data.saldo < minTotal) {
           saldoBadge.className = `badge bg-yellow-lt text-yellow saldo-badge-${activePk}`;
-          saldoBadge.textContent = `${data.saldo} min`;
+          saldoBadge.textContent = `${minToH(data.saldo)} h`;
         } else {
           saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${activePk}`;
-          saldoBadge.textContent = `${data.saldo} min`;
+          saldoBadge.textContent = `${minToH(data.saldo)} h`;
         }
       }
 
@@ -380,13 +370,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (compBadge && data.minutos_compensados !== undefined) {
         if (data.minutos_compensados >= minTotal) {
           compBadge.className = `badge bg-green-lt text-green compensado-badge-${activePk}`;
-          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${data.minutos_compensados} min`;
+          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${minToH(data.minutos_compensados)} h`;
         } else if (data.minutos_compensados > 0) {
           compBadge.className = `badge bg-teal-lt text-teal compensado-badge-${activePk}`;
-          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${data.minutos_compensados} min`;
+          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${minToH(data.minutos_compensados)} h`;
         } else {
           compBadge.className = `badge bg-secondary-lt text-secondary compensado-badge-${activePk}`;
-          compBadge.textContent = '0 min';
+          compBadge.textContent = '0 h';
         }
       }
 
@@ -395,4 +385,5 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 })();
 </script>
+
 {% endblock %}

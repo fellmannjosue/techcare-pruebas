@@ -78,12 +78,13 @@ INSTALLED_APPS = [
     'mantenimiento',
     'sponsors',
     'enfermeria',
-    'seguridad',
+
     'conducta',
     'agendas',
     'core',
     'reloj',
     'calculadoras',
+    'finanzas_personales',
 
 ]
 
@@ -266,7 +267,36 @@ CACHES = {
 # ─────────────────────────────────────────────────────────────
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
 CONSTANCE_CONFIG = {
-    'MAINTENANCE_MODE': (False, 'Activar modo mantenimiento — bloquea el acceso a usuarios no administradores', bool),
+    'MAINTENANCE_MODE':    (False, 'Activar/desactivar modo mantenimiento', bool),
+    'MAINTENANCE_AREA':    ('all', 'Área bloqueada: all | bilingue | colegio', str),
+    'MAINTENANCE_MESSAGE': (
+        'El sistema se encuentra temporalmente en mantenimiento. '
+        'Disculpe los inconvenientes. Estaremos de vuelta pronto.',
+        'Mensaje que verán los usuarios en la página de mantenimiento',
+        str,
+    ),
+    'MAINTENANCE_END_TIME': (
+        '',
+        'Fecha y hora de fin del mantenimiento (formato YYYY-MM-DDTHH:MM). Vacío = sin límite.',
+        str,
+    ),
+    'MAINTENANCE_BLOCKED_USERS': (
+        '',
+        'Emails bloqueados específicamente (separados por coma). Si hay valores, SOLO esos usuarios ven el mantenimiento.',
+        str,
+    ),
+}
+CONSTANCE_CONFIG_FIELDSETS = {
+    'Modo Mantenimiento': {
+        'fields': (
+            'MAINTENANCE_MODE',
+            'MAINTENANCE_AREA',
+            'MAINTENANCE_MESSAGE',
+            'MAINTENANCE_END_TIME',
+            'MAINTENANCE_BLOCKED_USERS',
+        ),
+        'collapse': False,
+    }
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -435,13 +465,7 @@ UNFOLD = {
                     {"title": _("Registros"), "icon": "build", "link": reverse_lazy("admin:mantenimiento_maintenancerecord_changelist")},
                 ],
             },
-            {
-                "title": _("Seguridad"),
-                "separator": True,
-                "items": [
-                    {"title": _("Cámaras"), "icon": "videocam", "link": reverse_lazy("admin:seguridad_inventariocamara_changelist")},
-                ],
-            },
+
             {
                 "title": _("Control de Accesos"),
                 "separator": True,

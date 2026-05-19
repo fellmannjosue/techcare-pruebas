@@ -364,6 +364,9 @@ class CompensatorioCalculo(models.Model):
     # Override manual para empleados con seguimiento especial
     minutos_compensados_manual = models.PositiveIntegerField("Compensado manual (min)", null=True, blank=True)
 
+    # Tiempo extra autorizado registrado manualmente
+    minutos_tiempo_extra = models.PositiveIntegerField("Tiempo extra autorizado (min)", null=True, blank=True)
+
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 
     class Meta:
@@ -374,6 +377,35 @@ class CompensatorioCalculo(models.Model):
 
     def __str__(self):
         return f"{self.nombre_empleado} → {self.fecha_fin}"
+
+
+class TiempoExtraDia(models.Model):
+    """
+    Tiempo extra autorizado por día para un empleado.
+    Registrado manualmente por superuser o glorenzo.
+    """
+    emp_code       = models.CharField("Código empleado", max_length=20, db_index=True)
+    fecha          = models.DateField("Fecha", db_index=True)
+    minutos        = models.PositiveIntegerField("Minutos extra autorizados", default=0)
+    razon          = models.CharField("Razón", max_length=300, blank=True)
+    comentario     = models.TextField("Comentario", blank=True)
+    autorizado_por = models.CharField("Autorizado por", max_length=200, blank=True)
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="tiempos_extra_dia", verbose_name="Registrado por"
+    )
+    creado_en      = models.DateTimeField("Creado en", auto_now_add=True)
+    actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
+
+    class Meta:
+        db_table = "reloj_tiempo_extra_dia"
+        unique_together = [("emp_code", "fecha")]
+        verbose_name = "Tiempo extra por día"
+        verbose_name_plural = "Tiempos extra por día"
+        ordering = ["-fecha"]
+
+    def __str__(self):
+        return f"{self.emp_code} {self.fecha} – {self.minutos}m"
 
 
 class ReportePermisoMensual(models.Model):
@@ -396,6 +428,7 @@ class ReportePermisoMensual(models.Model):
     pct100_dias          = models.DecimalField("100%",              max_digits=5, decimal_places=2, default=0)
     compensatorio_dias   = models.DecimalField("Compensatorio",    max_digits=5, decimal_places=2, default=0)
     pierde_bono          = models.BooleanField("Pierde bono",       default=False)
+    rebaja_activa        = models.BooleanField("Rebaja activa",     default=False)
 
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 

@@ -62,6 +62,7 @@ urlpatterns = [
     # Tiempo compensatorio (capturas)
     # ─────────────────────────────────────────────
     path('compensatorio/', views.compensatorio_list, name='reloj_compensatorio_list'),
+    path('compensatorio/set-extra/', views.compensatorio_list_set_extra, name='reloj_compensatorio_set_extra'),
     path('compensatorio/nuevo/', views.compensatorio_new, name='reloj_compensatorio_new'),
     path('compensatorio/<int:pk>/editar/', views.compensatorio_edit, name='reloj_compensatorio_edit'),
     path('compensatorio/<int:pk>/eliminar/', views.compensatorio_delete, name='reloj_compensatorio_delete'),
@@ -77,6 +78,7 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/eliminar/', views.compensatorio_calculo_delete, name='reloj_compensatorio_calculo_delete'),
     path('compensatorio-calculo/<int:pk>/set-min-dia/', views.compensatorio_calculo_set_min_dia, name='reloj_compensatorio_calculo_set_min_dia'),
     path('compensatorio-calculo/<int:pk>/set-compensado/', views.compensatorio_calculo_set_compensado, name='reloj_compensatorio_calculo_set_compensado'),
+    path('compensatorio-calculo/<int:pk>/set-tiempo-extra/', views.compensatorio_calculo_set_tiempo_extra, name='reloj_compensatorio_calculo_set_tiempo_extra'),
 
     # Hook Google Forms (POST Apps Script)
     path('google/compensatorio/ingresar/', views.compensatorio_google_hook, name='compensatorio_google_hook'),
@@ -100,4 +102,5 @@ urlpatterns = [
     path('permisos/reporte/save/', views.permiso_reporte_save, name='reloj_permiso_reporte_save'),
     path('permisos/reporte/<int:pk>/delete/', views.permiso_reporte_delete, name='reloj_permiso_reporte_delete'),
     path('permisos/reporte/list-mes/', views.permiso_list_mes, name='reloj_permiso_list_mes'),
+    path('permisos/reporte/rebaja-toggle/', views.permiso_rebaja_toggle, name='reloj_permiso_rebaja_toggle'),
 ]
