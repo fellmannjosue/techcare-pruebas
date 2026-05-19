@@ -15,7 +15,7 @@
 
 {% block content %}
 <div class="row g-4">
-  <div class="col-lg-5">
+  <div class="col-12">
     <div class="card">
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-plus me-2 text-blue"></i>Agregar Computadora</h3>
@@ -24,41 +24,44 @@
         <form method="post" novalidate class="row g-3">
           {% csrf_token %}
 
-          {# Laboratorio — checkboxes mutuamente exclusivos #}
+          {# Laboratorio — radio buttons estilo btn-check #}
           <div class="col-12">
-            <label class="form-label fw-semibold mb-2">Laboratorio <span class="text-muted fw-normal small">(opcional)</span></label>
-            <div class="d-flex flex-wrap gap-3">
-              <div class="form-check">
-                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-bl" value="lab_bl">
-                <label class="form-check-label" for="chk-lab-bl">Lab BL</label>
+            <label class="form-label fw-semibold">Laboratorio</label>
+            <div class="d-flex flex-wrap gap-2">
+              <div>
+                <input type="radio" class="btn-check" name="id_prefix" id="lab-estandar" value="estandar" checked>
+                <label class="btn btn-outline-secondary btn-sm" for="lab-estandar">General</label>
               </div>
-              <div class="form-check">
-                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-col" value="lab_col">
-                <label class="form-check-label" for="chk-lab-col">Lab COL</label>
+              <div>
+                <input type="radio" class="btn-check" name="id_prefix" id="lab-bl" value="lab_bl">
+                <label class="btn btn-outline-primary btn-sm" for="lab-bl">Lab BL</label>
               </div>
-              <div class="form-check">
-                <input class="form-check-input chk-lab" type="checkbox" id="chk-lab-inf" value="informatica">
-                <label class="form-check-label" for="chk-lab-inf">Informática</label>
+              <div>
+                <input type="radio" class="btn-check" name="id_prefix" id="lab-col" value="lab_col">
+                <label class="btn btn-outline-primary btn-sm" for="lab-col">Lab COL</label>
+              </div>
+              <div>
+                <input type="radio" class="btn-check" name="id_prefix" id="lab-inf" value="informatica">
+                <label class="btn btn-outline-primary btn-sm" for="lab-inf">Informática</label>
               </div>
             </div>
-            <input type="hidden" name="id_prefix" id="id_prefix" value="estandar">
           </div>
 
           {# Asset ID auto-generado #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">Asset ID</label>
             <input type="text" id="preview-asset-id" class="form-control bg-light text-muted" value="{{ next_id }}" readonly>
           </div>
 
           {# Modelo — dropdown #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.modelo.label }}</label>
             {{ form.modelo }}
             {% for e in form.modelo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
           {# Serie — display only con checkbox para habilitar #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold d-flex align-items-center gap-2">
               Serie
               <span class="form-check form-check-inline mb-0 ms-1">
@@ -66,11 +69,11 @@
                 <label class="form-check-label fw-normal text-muted small" for="chk-serie">Ingresar ahora</label>
               </span>
             </label>
-            <input type="text" id="input-serie" name="serie" class="form-control bg-light text-muted" value="—" readonly>
+            <input type="text" id="input-serie" name="serie" class="form-control bg-light text-muted" value="—" readonly style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
           </div>
 
           {# IP — display only con checkbox para habilitar #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold d-flex align-items-center gap-2">
               IP
               <span class="form-check form-check-inline mb-0 ms-1">
@@ -82,35 +85,65 @@
           </div>
 
           {# Asignado a — dropdown #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.asignado_a.label }}</label>
             {{ form.asignado_a }}
             {% for e in form.asignado_a.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
           {# Área — dropdown #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.area.label }}</label>
             {{ form.area }}
             {% for e in form.area.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
           {# Grado — dropdown #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.grado.label }}</label>
             {{ form.grado }}
             {% for e in form.grado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
+          {# Sub-tipo cuando Grado = Otros #}
+          <div class="col-md-4 d-none" id="campo-grado-subtipo">
+            <label class="form-label fw-semibold">Sub-tipo</label>
+            <select name="grado_subtipo" class="form-select" id="id_grado_subtipo">
+              <option value="">— Seleccionar —</option>
+              {% for st in subtipos_otros %}
+              <option value="{{ st.nombre }}">{{ st.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
           {# Fecha instalado #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.fecha_instalado.label }}</label>
             {{ form.fecha_instalado }}
             {% for e in form.fecha_instalado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
+          {# ── Edificio (solo General) ── #}
+          <div class="col-md-4 d-none" id="campo-edificio">
+            <label class="form-label fw-semibold">Edificio</label>
+            <select name="edificio" class="form-select" id="id_edificio">
+              <option value="">— Seleccionar edificio —</option>
+              {% for e in edificios %}
+              <option value="{{ e.nombre }}">{{ e.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {# ── Alerta prefijo / lab incorrecto ── #}
+          <div class="col-12 d-none" id="alerta-lab-prefijo">
+            <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-0">
+              <i class="ti ti-alert-octagon fs-4"></i>
+              <div id="alerta-lab-prefijo-texto"></div>
+            </div>
+          </div>
+
           {# Categoría — dropdown #}
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">{{ form.category.label }}</label>
             {{ form.category }}
           </div>
@@ -131,7 +164,7 @@
     </div>
   </div>
 
-  <div class="col-lg-7">
+  <div class="col-12">
     <div class="card">
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-device-desktop me-2"></i>Computadoras Registradas</h3>
@@ -142,7 +175,7 @@
             <thead>
               <tr>
                 <th>ID</th><th>Asset ID</th><th>Modelo</th><th>Serie</th><th>IP</th>
-                <th>Asignado a</th><th>Área</th><th>Grado</th><th>Fecha Inst.</th>
+                <th>Asignado a</th><th>Área</th><th>Grado</th><th>Edificio</th><th>Fecha Inst.</th>
                 <th>Categoría</th><th>Observaciones</th><th>Acciones</th>
               </tr>
             </thead>
@@ -152,7 +185,8 @@
                 <td>{{ pc.id }}</td><td>{{ pc.asset_id }}</td><td>{{ pc.modelo }}</td>
                 <td>{{ pc.serie }}</td><td>{{ pc.ip }}</td><td>{{ pc.asignado_a }}</td>
                 <td>{{ pc.area }}</td><td>{{ pc.grado }}</td>
-                <td>{{ pc.fecha_instalado|date:"Y-m-d" }}</td>
+                <td>{{ pc.edificio|default:"—" }}</td>
+                <td>{{ pc.fecha_instalado|date:"d/m/Y" }}</td>
                 <td>{{ pc.category|default:"—" }}</td>
                 <td>{{ pc.observaciones|default:"—" }}</td>
                 <td>
@@ -249,6 +283,51 @@ $(document).ready(function () {
 });
 </script>
 <script>
+// ── Verificación lab vs área/grado ──
+const LAB_AREA = { lab_bl: 'Bilingue', lab_col: 'Colegio' };
+const LAB_GRADO = { informatica: 'informatica' };
+const LAB_LABELS = { lab_bl: 'Lab BL', lab_col: 'Lab COL', informatica: 'Informática', estandar: 'General' };
+
+function checkLabPrefijo() {
+  var lab   = $('input[name="id_prefix"]:checked').val() || 'estandar';
+  var area  = $('#id_area').val();
+  var grado = $('#id_grado').val();
+  var alertEl  = $('#alerta-lab-prefijo');
+  var textoEl  = $('#alerta-lab-prefijo-texto');
+
+  if (!area && !grado) { alertEl.addClass('d-none'); return; }
+
+  var msg = '';
+  var labLabel = LAB_LABELS[lab] || lab;
+
+  // Lab BL/COL vs área
+  if (LAB_AREA[lab] && area && area !== LAB_AREA[lab]) {
+    msg = '<strong>¡Alto!</strong> Seleccionaste el laboratorio <strong>' + labLabel +
+          '</strong> pero el área es <strong>' + area +
+          '</strong>. ¿Estás usando el prefijo de ID correcto?';
+  }
+  // Informática vs grado
+  else if (lab === 'informatica' && grado && grado !== 'Informatica Avanzada CFP') {
+    msg = '<strong>¡Alto!</strong> Seleccionaste <strong>Informática</strong> pero el grado es <strong>' +
+          grado + '</strong>. ¿Estás usando el prefijo correcto?';
+  }
+
+  if (msg) { textoEl.html(msg); alertEl.removeClass('d-none'); }
+  else alertEl.addClass('d-none');
+}
+
+// Disparar al cambiar área o grado (el lab ya lo llama el handler de arriba)
+$('#id_area, #id_grado').on('change', checkLabPrefijo);
+
+// Sub-tipo de Otros
+function toggleGradoSubtipo() {
+  var esOtros = $('#id_grado').val() === 'Otros';
+  $('#campo-grado-subtipo').toggleClass('d-none', !esOtros);
+  if (!esOtros) $('#id_grado_subtipo').val('');
+}
+$('#id_grado').on('change', toggleGradoSubtipo);
+toggleGradoSubtipo();
+
 $('#chk-serie').on('change', function(){
   var inp = $('#input-serie');
   if ($(this).is(':checked')) {
@@ -258,33 +337,80 @@ $('#chk-serie').on('change', function(){
   }
 });
 
+// ── Auto-prefijo de serie según modelo ──
+var SERIE_PREFIJOS_COMP = {
+  'Ideacentre AIO 3 22ITL6':  'MP24ML',
+  'Ideacentre AIO 3 24ARE05': 'MP1Z5',
+  'IdeaCentre AIO 5 24IMB05': 'MJ0F7'
+};
+$('#id_modelo').on('change', function(){
+  var prefijo = SERIE_PREFIJOS_COMP[$(this).val()];
+  if (prefijo) {
+    $('#chk-serie').prop('checked', true);
+    var inp = $('#input-serie');
+    inp.removeClass('bg-light text-muted').prop('readonly', false).val(prefijo.toUpperCase()).focus();
+    var el = document.getElementById('input-serie');
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
+  }
+});
+
+var ipPrefijosChk = {
+  'estandar':   '192.168.10.',
+  'lab_bl':     '192.168.12.',
+  'lab_col':    '192.168.13.',
+  'informatica':'192.168.19.',
+};
 $('#chk-ip').on('change', function(){
   var inp = $('#input-ip');
   if ($(this).is(':checked')) {
-    inp.removeClass('bg-light text-muted').prop('readonly', false).val('').focus();
+    var lab = $('input[name="id_prefix"]:checked').val() || 'estandar';
+    var prefijo = ipPrefijosChk[lab] || '192.168.10.';
+    inp.removeClass('bg-light text-muted').prop('readonly', false).val(prefijo).focus();
+    var el = document.getElementById('input-ip');
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
   } else {
     inp.addClass('bg-light text-muted').prop('readonly', true).val('0.0.0.0');
   }
 });
 
-// Checkboxes de laboratorio — mutuamente exclusivos
+// Radio buttons de laboratorio → Asset ID + IP automática
 var nextIds = {
   'estandar':   '{{ next_id }}',
   'lab_bl':     '{{ next_id_bl }}',
   'lab_col':    '{{ next_id_col }}',
   'informatica':'{{ next_id_inf }}',
 };
-$('.chk-lab').on('change', function(){
-  var val = $(this).val();
-  if ($(this).is(':checked')) {
-    // Desmarcar los otros
-    $('.chk-lab').not(this).prop('checked', false);
-    $('#id_prefix').val(val);
-    $('#preview-asset-id').val(nextIds[val]);
-  } else {
-    $('#id_prefix').val('estandar');
-    $('#preview-asset-id').val(nextIds['estandar']);
-  }
+var ipPrefijos = {
+  'estandar':   '192.168.10.',
+  'lab_bl':     '192.168.12.',
+  'lab_col':    '192.168.13.',
+  'informatica':'192.168.19.',
+};
+
+function toggleEdificio() {
+  var lab = $('input[name="id_prefix"]:checked').val() || 'estandar';
+  $('#campo-edificio').toggleClass('d-none', lab !== 'estandar');
+  if (lab !== 'estandar') $('#id_edificio').val('');
+}
+toggleEdificio();
+
+$('input[name="id_prefix"]').on('change', function(){
+  var val = this.value;
+  $('#preview-asset-id').val(nextIds[val] || nextIds['estandar']);
+  toggleEdificio();
+
+  // Auto-rellenar prefijo de IP y habilitar campo
+  var prefijo = ipPrefijos[val] || ipPrefijos['estandar'];
+  $('#input-ip')
+    .val(prefijo)
+    .removeClass('bg-light text-muted')
+    .prop('readonly', false);
+  $('#chk-ip').prop('checked', true);
+  // Colocar cursor al final
+  var el = document.getElementById('input-ip');
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+
+  checkLabPrefijo();
 });
 </script>
 {% endblock %}

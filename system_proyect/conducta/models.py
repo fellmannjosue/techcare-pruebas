@@ -70,12 +70,56 @@ class MateriaDocenteBilingue(AuditModel):
         ordering = ['materia', 'docente']
 
 # ────────────────
+# Configuración de Coordinadores
+# ────────────────
+class ConfiguracionCoordinador(AuditModel):
+    AREA_CHOICES = [
+        ('bilingue', 'Bilingüe'),
+        ('colegio',  'Colegio/CFP'),
+    ]
+    area    = models.CharField(max_length=10, choices=AREA_CHOICES, verbose_name="Área")
+    codigo  = models.CharField(
+        max_length=5, blank=True, verbose_name="Código",
+        help_text="Solo Bilingüe: C1, C2, C3, C4. Dejar vacío para Colegio."
+    )
+    nombre  = models.CharField(max_length=100, verbose_name="Nombre del coordinador")
+    usuario = models.OneToOneField(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='config_coordinador', verbose_name="Usuario del sistema",
+        help_text="Cuenta del coordinador en TechCare. Su correo se usará para notificaciones."
+    )
+    activo  = models.BooleanField(default=True, verbose_name="¿Activo?")
+
+    class Meta:
+        verbose_name = "Coordinador"
+        verbose_name_plural = "Configuración de Coordinadores"
+        ordering = ['area', 'codigo']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.get_area_display()}{' · ' + self.codigo if self.codigo else ''})"
+
+    @property
+    def email(self):
+        return self.usuario.email if self.usuario_id else ''
+
+
+# ────────────────
 # Materia-Docente (Colegio)
 # ────────────────
 class MateriaDocenteColegio(AuditModel):
-    materia = models.CharField(max_length=100, verbose_name="Materia")
-    docente = models.CharField(max_length=100, verbose_name="Docente")
-    activo = models.BooleanField(default=True, verbose_name="¿Activo?")
+    materia       = models.CharField(max_length=100, verbose_name="Materia")
+    docente       = models.CharField(max_length=100, verbose_name="Docente")
+    coordinadores = models.ManyToManyField(
+        ConfiguracionCoordinador, blank=True,
+        limit_choices_to={'area': 'colegio', 'activo': True},
+        related_name='materias_colegio',
+        verbose_name="Coordinadores",
+        help_text=(
+            "Coordinadores que recibirán notificaciones para esta materia/docente. "
+            "Si queda vacío se notificará a todos los coordinadores de Colegio activos."
+        ),
+    )
+    activo        = models.BooleanField(default=True, verbose_name="¿Activo?")
 
     def __str__(self):
         return f"{self.materia} – {self.docente}"
@@ -280,3 +324,31 @@ class EvidenciaReporte(AuditModel):
         verbose_name = "Evidencia de Reporte"
         verbose_name_plural = "Evidencias de Reportes"
         ordering = ['-fecha']
+
+
+# ────────────────────────────────────────────────────────────────
+# Configuración de notificaciones — por coordinador qué tipos recibe
+# ────────────────────────────────────────────────────────────────
+class ConfiguracionNotificacion(AuditModel):
+    area        = models.CharField(max_length=10, choices=AREA_CHOICES, verbose_name="Área")
+    coordinador = models.ForeignKey(
+        ConfiguracionCoordinador,
+        on_delete=models.CASCADE,
+        verbose_name="Coordinador",
+        related_name='notificaciones',
+        help_text="Coordinador que recibirá los tipos de reporte marcados abajo.",
+    )
+    recibe_conductual             = models.BooleanField(default=False, verbose_name="Conductual")
+    recibe_informativo_academico  = models.BooleanField(default=False, verbose_name="Informativo / Académico")
+    recibe_informativo_conductual = models.BooleanField(default=False, verbose_name="Informativo / Conductual")
+    recibe_progress               = models.BooleanField(default=False, verbose_name="Progress Report")
+    activo = models.BooleanField(default=True, verbose_name="¿Activo?")
+
+    class Meta:
+        verbose_name = "Regla de Notificación"
+        verbose_name_plural = "Configuración de Notificaciones"
+        unique_together = [('area', 'coordinador')]
+        ordering = ['area', 'coordinador']
+
+    def __str__(self):
+        return f"{self.get_area_display()} – {self.coordinador.nombre}"

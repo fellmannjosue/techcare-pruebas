@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}{{ titulo|default:"Confirmar eliminación" }}{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}{{ titulo|default:"Eliminar registro" }}{% endblock %}
 {% block page_title %}{{ titulo|default:"Eliminar registro" }}{% endblock %}
 
 {% block content %}
@@ -17,9 +17,9 @@
     {% if obj %}
     <ul class="list-group mb-4">
       <li class="list-group-item"><strong>ID:</strong> {{ obj.pk }}</li>
-      {% if obj.fecha %}<li class="list-group-item"><strong>Fecha:</strong> {{ obj.fecha|date:"Y-m-d" }}</li>{% endif %}
-      {% if obj.fecha_inicio %}<li class="list-group-item"><strong>Fecha inicio:</strong> {{ obj.fecha_inicio|date:"Y-m-d" }}</li>{% endif %}
-      {% if obj.fecha_fin %}<li class="list-group-item"><strong>Fecha fin:</strong> {{ obj.fecha_fin|date:"Y-m-d" }}</li>{% endif %}
+      {% if obj.fecha %}<li class="list-group-item"><strong>Fecha:</strong> {{ obj.fecha|date:"d/m/Y" }}</li>{% endif %}
+      {% if obj.fecha_inicio %}<li class="list-group-item"><strong>Fecha inicio:</strong> {{ obj.fecha_inicio|date:"d/m/Y" }}</li>{% endif %}
+      {% if obj.fecha_fin %}<li class="list-group-item"><strong>Fecha fin:</strong> {{ obj.fecha_fin|date:"d/m/Y" }}</li>{% endif %}
       {% if obj.emp_code %}<li class="list-group-item"><strong>emp_code:</strong> <code>{{ obj.emp_code }}</code></li>{% endif %}
       {% if obj.nombre_empleado %}<li class="list-group-item"><strong>Nombre:</strong> {{ obj.nombre_empleado }}</li>{% endif %}
       {% if obj.descripcion %}<li class="list-group-item"><strong>Descripción:</strong> {{ obj.descripcion }}</li>{% endif %}

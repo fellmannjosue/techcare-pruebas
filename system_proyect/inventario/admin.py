@@ -1,6 +1,7 @@
 from django.contrib import admin
 from core.audit_admin import AuditAdminMixin
 from .models import (
+    CategoriaInventario,
     InventoryItem,
     Computadora,
     Televisor,
@@ -11,10 +12,13 @@ from .models import (
     GradoTelevisor,
     AreaTelevisor,
     ModeloComputadora,
+    ModeloMonitor,
     SerieComputadora,
     AsignadoAComputadora,
     AreaComputadora,
     GradoComputadora,
+    SubtipoGradoComputadora,
+    EdificioComputadora,
 )
 
 try:
@@ -37,6 +41,10 @@ def _catalogo_admin(nombre_desc):
 @_catalogo_admin("Modelos disponibles (ej: HP EliteBook, Dell Latitude, Lenovo ThinkPad).")
 class ModeloComputadoraAdmin(UnfoldModelAdmin): pass
 
+@admin.register(ModeloMonitor)
+@_catalogo_admin("Modelos de monitor disponibles (ej: Samsung 24\", LG 27\", Dell P2422H).")
+class ModeloMonitorAdmin(UnfoldModelAdmin): pass
+
 
 @admin.register(SerieComputadora)
 @_catalogo_admin("Series disponibles (ej: Core i5 10ma Gen, Core i7 12va Gen, Ryzen 5).")
@@ -56,6 +64,22 @@ class AreaComputadoraAdmin(UnfoldModelAdmin): pass
 @admin.register(GradoComputadora)
 @_catalogo_admin("Grados o ubicaciones disponibles (ej: Kinder, Primero 1, Sala de Maestros).")
 class GradoComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(SubtipoGradoComputadora)
+@_catalogo_admin("Sub-tipos para el grado 'Otros' (ej: Dirección Vocacional, Dirección Bilingüe).")
+class SubtipoGradoComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(EdificioComputadora)
+@_catalogo_admin("Edificios donde se ubican los equipos generales (ej: Edificio A, Edificio Administrativo).")
+class EdificioComputadoraAdmin(UnfoldModelAdmin): pass
+
+
+@admin.register(CategoriaInventario)
+class CategoriaInventarioAdmin(UnfoldModelAdmin):
+    list_display  = ('nombre',)
+    search_fields = ('nombre',)
 
 
 @admin.register(InventoryItem)

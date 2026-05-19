@@ -21,10 +21,12 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.units import cm
 
 from .models import (
+    InventoryItem,
     Computadora, Televisor, Impresora, Router, DataShow, Monitor,
+    ModeloMonitor,
     ModeloTelevisor, GradoTelevisor, AreaTelevisor,
     ModeloComputadora, SerieComputadora, AsignadoAComputadora,
-    AreaComputadora, GradoComputadora,
+    AreaComputadora, GradoComputadora, SubtipoGradoComputadora, EdificioComputadora,
 )
 
 from .forms import (
@@ -125,29 +127,37 @@ def inventario_por_categoria(request):
     else:
         form = CategoryUpdateForm()
 
+    from django.db.models import Q as _Q
     mapping = [
-        (Computadora, "Computadora", "modelo"),
-        (Televisor, "Televisor", "modelo"),
-        (Impresora, "Impresora", "nombre"),
-        (Router, "Router", "modelo"),
-        (DataShow, "DataShow", "serie"),
-        (Monitor, "Monitor", "modelo"),
+        (Computadora, "Computadora", "modelo",  "computadora"),
+        (Televisor,   "Televisor",   "modelo",  "televisor"),
+        (Impresora,   "Impresora",   "nombre",  "impresora"),
+        (Router,      "Router",      "modelo",  "router"),
+        (DataShow,    "DataShow",    "serie",   "datashow"),
+        (Monitor,     "Monitor",     "modelo",  "monitor"),
     ]
 
-    items = None
-    for Model, label, field in mapping:
-        qs = Model.objects.annotate(
+    grupos = []
+    sin_cat = []
+    for Model, label, field, tipo_key in mapping:
+        qs = list(Model.objects.annotate(
             tipo=Value(label, output_field=CharField()),
+            tipo_key=Value(tipo_key, output_field=CharField()),
             descripcion=F(field),
             categoria=F("category"),
-        ).values("tipo", "id", "descripcion", "categoria")
-
-        items = qs if items is None else items.union(qs)
+        ).values("tipo", "tipo_key", "id", "descripcion", "categoria"))
+        categorized = [i for i in qs if i["categoria"]]
+        uncategorized = [i for i in qs if not i["categoria"]]
+        if categorized:
+            grupos.append({"tipo": label, "tipo_key": tipo_key, "items": categorized})
+        sin_cat.extend(uncategorized)
 
     return render(request, "inventario/inventario_por_categoria.html", {
-        "items": items,
-        "form": form,
-        "year": year
+        "grupos":   grupos,
+        "sin_cat":  sin_cat,
+        "form":     form,
+        "year":     year,
+        "category_choices": InventoryItem.CATEGORY_CHOICES,
     })
 
 # ==============================================================
@@ -190,18 +200,27 @@ def inventario_computadoras(request):
             comp.ip = ip_post if ip_post and ip_post != '0.0.0.0' else '0.0.0.0'
             serie_post = request.POST.get('serie', '').strip()
             comp.serie = serie_post if serie_post and serie_post != '—' else ''
+            if prefijo_key == 'estandar':
+                comp.edificio = request.POST.get('edificio', '').strip() or None
+            else:
+                comp.edificio = None
+            grado_subtipo = request.POST.get('grado_subtipo', '').strip()
+            if comp.grado == 'Otros' and grado_subtipo:
+                comp.grado = f'Otros/{grado_subtipo}'
             comp.save()
             return redirect("inventario:inventario_computadoras")
     else:
         form = ComputadoraForm()
 
     return render(request, "inventario/inventario_computadoras.html", {
-        "form":         form,
-        "next_id":      _siguiente_asset_id_computadora('estandar'),
-        "next_id_bl":   _siguiente_asset_id_computadora('lab_bl'),
-        "next_id_col":  _siguiente_asset_id_computadora('lab_col'),
-        "next_id_inf":  _siguiente_asset_id_computadora('informatica'),
-        "computadoras": Computadora.objects.order_by("-id"),
+        "form":              form,
+        "next_id":           _siguiente_asset_id_computadora('estandar'),
+        "next_id_bl":        _siguiente_asset_id_computadora('lab_bl'),
+        "next_id_col":       _siguiente_asset_id_computadora('lab_col'),
+        "next_id_inf":       _siguiente_asset_id_computadora('informatica'),
+        "computadoras":      Computadora.objects.order_by("-id"),
+        "edificios":         EdificioComputadora.objects.all(),
+        "subtipos_otros":    SubtipoGradoComputadora.objects.all(),
     })
 
 
@@ -319,6 +338,7 @@ def inventario_datashows(request):
 
 @login_required
 def inventario_monitores(request):
+    import re as _re
     year = datetime.datetime.now().year
 
     if request.method == "POST":
@@ -329,10 +349,39 @@ def inventario_monitores(request):
     else:
         form = MonitorForm()
 
+    # Prefijos de ID y siguiente número disponible
+    prefijos = [
+        ("ANAMONI",    "General"),
+        ("LABBLMONI",  "Lab BL"),
+        ("LABCOLMONI", "Lab COL"),
+        ("CFPINFO",    "Lab Informática"),
+    ]
+    next_ids = {}
+    for prefix, _ in prefijos:
+        existing = Monitor.objects.filter(asset_id__startswith=prefix).values_list('asset_id', flat=True)
+        nums = [int(m.group()) for aid in existing for m in [_re.search(r'\d+$', aid)] if m]
+        next_ids[prefix] = f"{prefix}{(max(nums) + 1 if nums else 1):03d}"
+
+    # Modelos de monitores desde catálogo admin
+    modelos_monitor = list(ModeloMonitor.objects.values_list('nombre', flat=True))
+
+    # Computadoras para selects
+    computadoras = list(Computadora.objects.order_by('asset_id').values('id', 'asset_id', 'modelo', 'serie', 'asignado_a', 'area', 'grado'))
+
+    # Asset IDs de computadoras ya vinculadas a un monitor (para advertencia de duplicado)
+    labs_usados    = set(Monitor.objects.exclude(laboratorio='').exclude(laboratorio__isnull=True).values_list('laboratorio', flat=True))
+    asignados_usados = set(Monitor.objects.exclude(asignado_a='').exclude(asignado_a__isnull=True).values_list('asignado_a', flat=True))
+
     return render(request, "inventario/inventario_monitores.html", {
-        "form": form,
-        "year": year,
-        "monitores": Monitor.objects.order_by("-id")
+        "form":              form,
+        "year":              year,
+        "monitores":         Monitor.objects.order_by("-id"),
+        "prefijos":          prefijos,
+        "next_ids":          next_ids,
+        "modelos_monitor":   modelos_monitor,
+        "computadoras":      computadoras,
+        "labs_usados":       list(labs_usados),
+        "asignados_usados":  list(asignados_usados),
     })
 
 
@@ -450,11 +499,12 @@ def asignar_categoria_bulk(request):
     if not ids:
         return JsonResponse({'ok': False, 'error': 'Sin IDs'})
     mapa = {
-        'televisor': Televisor,
-        'router':    Router,
-        'impresora': Impresora,
-        'datashow':  DataShow,
-        'monitor':   Monitor,
+        'computadora': Computadora,
+        'televisor':   Televisor,
+        'router':      Router,
+        'impresora':   Impresora,
+        'datashow':    DataShow,
+        'monitor':     Monitor,
     }
     modelo = mapa.get(tipo)
     if not modelo:
@@ -471,7 +521,26 @@ def asignar_categoria_bulk(request):
 def get_computadora(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
     form = ComputadoraForm(instance=obj)
-    return render(request, "inventario/edit_computadora.html", {"form": form, "obj": obj})
+    grado_val = obj.grado or ''
+    grado_subtipo = grado_val.split('/', 1)[1] if grado_val.startswith('Otros/') else ''
+    return render(request, "inventario/edit_computadora.html", {
+        "form": form, "obj": obj,
+        "edificios": EdificioComputadora.objects.all(),
+        "grado_subtipo": grado_subtipo,
+        "subtipos_otros": SubtipoGradoComputadora.objects.all(),
+    })
+
+@login_required
+def computadora_json(request, pk):
+    obj = get_object_or_404(Computadora, pk=pk)
+    return JsonResponse({
+        'asset_id':   obj.asset_id,
+        'modelo':     obj.modelo,
+        'serie':      obj.serie,
+        'asignado_a': obj.asignado_a,
+        'area':       obj.area,
+        'grado':      obj.grado,
+    })
 
 @login_required
 def get_televisor(request, pk):
@@ -499,9 +568,23 @@ def get_datashow(request, pk):
 
 @login_required
 def get_monitor(request, pk):
-    obj = get_object_or_404(Monitor, pk=pk)
+    obj  = get_object_or_404(Monitor, pk=pk)
     form = MonitorForm(instance=obj)
-    return render(request, "inventario/edit_monitor.html", {"form": form, "obj": obj})
+    prefijos = [
+        ("ANAMONI",    "General"),
+        ("LABBLMONI",  "Lab BL"),
+        ("LABCOLMONI", "Lab COL"),
+        ("CFPINFO",    "Lab Informática"),
+    ]
+    computadoras = list(Computadora.objects.order_by('asset_id').values('id', 'asset_id', 'modelo', 'serie', 'asignado_a', 'area', 'grado'))
+    labs_usados      = list(Monitor.objects.exclude(pk=pk).exclude(laboratorio='').exclude(laboratorio__isnull=True).values_list('laboratorio', flat=True))
+    asignados_usados = list(Monitor.objects.exclude(pk=pk).exclude(asignado_a='').exclude(asignado_a__isnull=True).values_list('asignado_a', flat=True))
+    return render(request, "inventario/edit_monitor.html", {
+        "form": form, "obj": obj, "prefijos": prefijos,
+        "computadoras": computadoras,
+        "labs_usados": labs_usados,
+        "asignados_usados": asignados_usados,
+    })
 
 # ==============================================================
 # UPDATE (Guardar cambios vía AJAX)
@@ -519,6 +602,13 @@ def update_computadora(request, pk):
         new_serie = request.POST.get('serie', '').strip()
         if new_serie:
             comp.serie = new_serie
+        new_asset_id = request.POST.get('asset_id', '').strip()
+        if new_asset_id:
+            comp.asset_id = new_asset_id
+        comp.edificio = request.POST.get('edificio', '').strip() or None
+        grado_subtipo = request.POST.get('grado_subtipo', '').strip()
+        if comp.grado == 'Otros' and grado_subtipo:
+            comp.grado = f'Otros/{grado_subtipo}'
         comp.save()
         return JsonResponse({"ok": True})
     return JsonResponse({"ok": False, "errors": form.errors})
@@ -635,6 +725,7 @@ def download_model_pdf(request, tipo, pk):
             ("Asignado a",      "asignado_a"),
             ("Área",            "area"),
             ("Grado",           "grado"),
+            ("Edificio",        "edificio"),
             ("Fecha Instalación","fecha_instalado"),
             ("Observaciones",   "observaciones"),
         ],
@@ -690,10 +781,9 @@ def download_model_pdf(request, tipo, pk):
             ("ID",              "asset_id"),
             ("Modelo",          "modelo"),
             ("Serie",           "serie"),
-            ("Pulgadas",        "pulgadas"),
+            ("Tipo Ubicación",  "ubicacion_tipo"),
+            ("Laboratorio",     "laboratorio"),
             ("Asignado a",      "asignado_a"),
-            ("Área",            "area"),
-            ("Grado",           "grado"),
             ("Categoría",       "category"),
             ("Observaciones",   "observaciones"),
         ],
@@ -742,6 +832,10 @@ def download_model_pdf(request, tipo, pk):
     asset_id  = getattr(obj, "asset_id", "")
     titulo    = f"Ficha de {tipo.capitalize()}"
 
+    pdf.setTitle(f"Ficha {tipo.capitalize()} – {asset_id}")
+    pdf.setAuthor("TechCare – Instituto ANA Honduras")
+    pdf.setSubject(f"Reporte de inventario: {asset_id}")
+
     # ── CABECERA ──────────────────────────────────────────────
     band_h = 105
 
@@ -789,7 +883,7 @@ def download_model_pdf(request, tipo, pk):
     # ── TABLA ─────────────────────────────────────────────────
     data = [["Campo", "Valor"]]
     for label, attr in campos:
-        val = getattr(obj, attr)
+        val = getattr(obj, attr, None)
         if val is None:
             val = "—"
         elif isinstance(val, bool):
@@ -797,7 +891,12 @@ def download_model_pdf(request, tipo, pk):
         elif isinstance(val, datetime.date):
             val = val.strftime("%d/%m/%Y")
         else:
-            val = str(val) if str(val) else "—"
+            # Usar display label si el campo tiene choices
+            display_method = f"get_{attr}_display"
+            if hasattr(obj, display_method):
+                val = getattr(obj, display_method)() or "—"
+            else:
+                val = str(val) if str(val) else "—"
         data.append([label, val])
 
     col1_w = 5.2 * cm
@@ -844,6 +943,71 @@ def download_model_pdf(request, tipo, pk):
     tw, th = table.wrap(col1_w + col2_w, 0)
     table_y = sep_y - 14 - th
     table.drawOn(pdf, margin, table_y)
+
+    current_y = table_y  # rastrea la Y más baja usada
+
+    # ── SECCIÓN MONITOR (solo para computadoras) ───────────────
+    if tipo == "computadora":
+        monitor = Monitor.objects.filter(laboratorio=obj.asset_id).first()
+        if monitor:
+            mon_accent = colors.HexColor("#495057")
+            gap = 18
+            subband_h = 26
+
+            # Sub-cabecera del monitor
+            sub_y = current_y - gap
+            pdf.setFillColor(mon_accent)
+            pdf.rect(margin, sub_y - subband_h, col1_w + col2_w, subband_h, fill=1, stroke=0)
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 10)
+            pdf.drawString(margin + 8, sub_y - subband_h + 8,
+                           f"Monitor Asignado  —  {monitor.asset_id}")
+
+            # Tabla del monitor
+            mon_campos = [
+                ("Asset ID",       monitor.asset_id or "—"),
+                ("Modelo",         monitor.modelo or "—"),
+                ("Serie",          monitor.serie or "—"),
+                ("Tipo Ubicación", monitor.get_ubicacion_tipo_display() if monitor.ubicacion_tipo else "—"),
+                ("Categoría",      monitor.category or "—"),
+                ("Observaciones",  monitor.observaciones or "—"),
+            ]
+            mon_data = [["Campo", "Valor"]] + [[lbl, val] for lbl, val in mon_campos]
+            nm = len(mon_data)
+
+            mon_tstyles = [
+                ("BACKGROUND",    (0, 0), (-1, 0), mon_accent),
+                ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
+                ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE",      (0, 0), (-1, 0), 10),
+                ("TOPPADDING",    (0, 0), (-1, 0), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 9),
+                ("ALIGN",         (0, 0), (-1, 0), "CENTER"),
+                ("FONTSIZE",      (0, 1), (-1, -1), 10),
+                ("TOPPADDING",    (0, 1), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+                ("BACKGROUND",    (0, 1), (0, -1), label_bg),
+                ("FONTNAME",      (0, 1), (0, -1), "Helvetica-Bold"),
+                ("TEXTCOLOR",     (0, 1), (0, -1), label_fg),
+                ("FONTNAME",      (1, 1), (1, -1), "Helvetica"),
+                ("TEXTCOLOR",     (1, 1), (1, -1), colors.HexColor("#212529")),
+                ("LINEBELOW",     (0, 0), (-1, -2), 0.4, grey_line),
+                ("BOX",           (0, 0), (-1, -1), 0.6, grey_line),
+                ("LINEAFTER",     (0, 0), (0, -1),  0.4, grey_line),
+            ]
+            for i in range(1, nm):
+                if i % 2 == 0:
+                    mon_tstyles.append(("BACKGROUND", (1, i), (1, i), alt_row))
+
+            mon_table = Table(mon_data, colWidths=[col1_w, col2_w])
+            mon_table.setStyle(TableStyle(mon_tstyles))
+            _, mon_th = mon_table.wrap(col1_w + col2_w, 0)
+            mon_table_y = sub_y - subband_h - mon_th
+            mon_table.drawOn(pdf, margin, mon_table_y)
+            current_y = mon_table_y
 
     # ── PIE DE PÁGINA ─────────────────────────────────────────
     pdf.setFillColor(accent)

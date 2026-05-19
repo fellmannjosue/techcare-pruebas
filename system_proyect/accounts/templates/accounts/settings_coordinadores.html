@@ -1,0 +1,194 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Config. Coordinadores{% endblock %}
+
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-user-cog me-2 text-cyan"></i>Configuración de Coordinadores</h3>
+    <div class="card-options">
+      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalCoord" onclick="abrirNuevo()">
+        <i class="ti ti-plus me-1"></i>Nuevo
+      </button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Área</th>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Correo (usuario)</th>
+            <th class="text-center">Activo</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in coordinadores %}
+          <tr>
+            <td>
+              <span class="badge {% if c.area == 'bilingue' %}bg-blue-lt text-blue{% else %}bg-green-lt text-green{% endif %}">
+                {{ c.get_area_display }}
+              </span>
+            </td>
+            <td class="fw-bold">{{ c.codigo|default:"—" }}</td>
+            <td>{{ c.nombre }}</td>
+            <td class="text-muted small">{{ c.email|default:"Sin usuario asignado" }}</td>
+            <td class="text-center">
+              {% if c.activo %}
+                <span class="badge bg-success-lt text-success"><i class="ti ti-check me-1"></i>Activo</span>
+              {% else %}
+                <span class="badge bg-secondary-lt text-secondary"><i class="ti ti-x me-1"></i>Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-ghost-primary"
+                      onclick="abrirEditar({{ c.pk }},'{{ c.area }}','{{ c.codigo }}','{{ c.nombre|escapejs }}',{{ c.usuario_id|default:'null' }},{{ c.activo|yesno:'true,false' }})"
+                      title="Editar">
+                <i class="ti ti-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost-danger btn-eliminar"
+                      data-pk="{{ c.pk }}" data-nombre="{{ c.nombre|escapejs }}"
+                      title="Eliminar">
+                <i class="ti ti-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">
+              <i class="ti ti-user-off fs-2 d-block mb-2 opacity-50"></i>
+              No hay coordinadores configurados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal agregar / editar -->
+<div class="modal modal-blur fade" id="modalCoord" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="pk" id="coord-pk">
+        <div class="modal-header">
+          <h5 class="modal-title" id="coord-modal-title">Nuevo coordinador</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Área <span class="text-danger">*</span></label>
+            <select name="area" id="coord-area" class="form-select" required>
+              <option value="bilingue">Bilingüe</option>
+              <option value="colegio">Colegio/CFP</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Código
+              <span class="text-muted fw-normal small">(solo Bilingüe: C1, C2, C3, C4)</span>
+            </label>
+            <input type="text" name="codigo" id="coord-codigo" class="form-control" maxlength="5" placeholder="C1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre completo <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" id="coord-nombre" class="form-control" required placeholder="Ej. Catherine Varela">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Usuario del sistema
+              <span class="text-muted fw-normal small">(para correo de notificaciones)</span>
+            </label>
+            <select name="usuario_id" id="coord-usuario" class="form-select">
+              <option value="">— Sin usuario asignado —</option>
+              {% for u in todos_usuarios %}
+              <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} — {{ u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-check form-switch">
+              <input type="checkbox" name="activo" id="coord-activo" class="form-check-input" checked>
+              <span class="form-check-label fw-semibold">Activo</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar eliminar -->
+<div class="modal modal-blur fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger"><i class="ti ti-alert-triangle me-2"></i>Eliminar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">¿Eliminar al coordinador</p>
+        <p class="fw-bold" id="del-nombre"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirmar-eliminar">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+const CSRF = "{{ csrf_token }}";
+let eliminarPk = null;
+
+function abrirNuevo() {
+  document.getElementById('coord-modal-title').textContent = 'Nuevo coordinador';
+  document.getElementById('coord-pk').value     = '';
+  document.getElementById('coord-area').value   = 'bilingue';
+  document.getElementById('coord-codigo').value = '';
+  document.getElementById('coord-nombre').value = '';
+  document.getElementById('coord-usuario').value = '';
+  document.getElementById('coord-activo').checked = true;
+}
+
+function abrirEditar(pk, area, codigo, nombre, usuarioId, activo) {
+  document.getElementById('coord-modal-title').textContent = 'Editar coordinador';
+  document.getElementById('coord-pk').value      = pk;
+  document.getElementById('coord-area').value    = area;
+  document.getElementById('coord-codigo').value  = codigo;
+  document.getElementById('coord-nombre').value  = nombre;
+  document.getElementById('coord-usuario').value = usuarioId || '';
+  document.getElementById('coord-activo').checked = activo;
+  new bootstrap.Modal(document.getElementById('modalCoord')).show();
+}
+
+document.querySelectorAll('.btn-eliminar').forEach(btn => {
+  btn.addEventListener('click', function() {
+    eliminarPk = this.dataset.pk;
+    document.getElementById('del-nombre').textContent = '"' + this.dataset.nombre + '"';
+    new bootstrap.Modal(document.getElementById('modalEliminar')).show();
+  });
+});
+
+document.getElementById('btn-confirmar-eliminar').addEventListener('click', async function() {
+  this.disabled = true;
+  this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+  const res  = await fetch(`/accounts/settings/conducta/coordinadores/${eliminarPk}/eliminar/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF }
+  });
+  const data = await res.json();
+  if (data.ok) location.reload();
+  else { alert('Error: ' + data.error); this.disabled = false; this.textContent = 'Sí, eliminar'; }
+});
+</script>
+{% endblock %}
+{% endblock %}

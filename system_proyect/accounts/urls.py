@@ -26,6 +26,11 @@ urlpatterns = [
     path('settings/grupos/<int:pk>/editar/',           views.settings_grupo_editar,     name='settings_grupo_editar'),
     path('settings/grupos/<int:pk>/eliminar/',         views.settings_grupo_eliminar,   name='settings_grupo_eliminar'),
     path('settings/actividad/',                        views.settings_actividad,        name='settings_actividad'),
+    path('settings/conducta/coordinadores/',                    views.settings_coordinadores,            name='settings_coordinadores'),
+    path('settings/conducta/coordinadores/<int:pk>/eliminar/',  views.settings_coordinador_eliminar,     name='settings_coordinador_eliminar'),
+    path('settings/conducta/notificaciones/',                   views.settings_notificaciones_conducta,  name='settings_notificaciones_conducta'),
+    path('settings/conducta/notificaciones/<int:pk>/eliminar/', views.settings_notificacion_eliminar,    name='settings_notificacion_eliminar'),
+    path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
 
     # Recuperación de contraseña (vistas estándar de Django)
     path('password_reset/', auth_views.PasswordResetView.as_view(

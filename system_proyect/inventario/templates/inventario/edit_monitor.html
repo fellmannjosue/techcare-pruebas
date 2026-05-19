@@ -4,9 +4,18 @@
 
     <div class="row g-3">
 
-        <div class="col-md-6">
-            <label class="form-label fw-semibold">Asset ID</label>
-            <input type="text" class="form-control bg-light text-muted" value="{{ obj.asset_id }}" readonly>
+        <div class="col-12">
+            <label class="form-label fw-semibold">ID Monitor</label>
+            <div class="d-flex flex-wrap gap-2 mb-2" id="edit-prefix-group">
+              {% for prefix, label in prefijos %}
+              <div>
+                <input type="radio" class="btn-check" name="edit_prefix_sel"
+                       id="edit-prefix-{{ prefix }}" value="{{ prefix }}">
+                <label class="btn btn-outline-primary btn-sm" for="edit-prefix-{{ prefix }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+            {{ form.asset_id }}
         </div>
 
         <div class="col-md-6">
@@ -24,14 +33,50 @@
             {{ form.ubicacion_tipo }}
         </div>
 
-        <div class="col-md-6" id="edit-campo-laboratorio">
-            <label class="form-label fw-semibold">{{ form.laboratorio.label }}</label>
-            {{ form.laboratorio }}
+        {# ── Alerta duplicado ── #}
+        <div class="col-12 d-none" id="edit-alerta-duplicado">
+          <div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-0">
+            <i class="ti ti-alert-triangle fs-4"></i>
+            <div><strong>Este registro ya fue registrado.</strong> Asegúrate de seleccionar el correcto.</div>
+          </div>
         </div>
 
-        <div class="col-md-6" id="edit-campo-asignado">
-            <label class="form-label fw-semibold">{{ form.asignado_a.label }}</label>
-            {{ form.asignado_a }}
+        {# ── Alerta prefijo incorrecto ── #}
+        <div class="col-12 d-none" id="edit-alerta-prefijo">
+          <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-0">
+            <i class="ti ti-alert-octagon fs-4"></i>
+            <div id="edit-alerta-prefijo-texto"></div>
+          </div>
+        </div>
+
+        <div class="col-md-6 d-none" id="edit-campo-laboratorio">
+            <label class="form-label fw-semibold">Computadora del laboratorio</label>
+            <select class="form-select" id="edit-sel-lab-comp" name="laboratorio">
+              <option value="">— Seleccionar computadora —</option>
+              {% for c in computadoras %}
+              <option value="{{ c.asset_id }}"
+                      {% if c.asset_id == obj.laboratorio %}selected{% endif %}>
+                {{ c.asset_id }} – {{ c.modelo }}
+              </option>
+              {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-6 d-none" id="edit-campo-asignado">
+            <label class="form-label fw-semibold">Computadora asignada</label>
+            <select class="form-select" id="edit-sel-asig-comp" name="asignado_a">
+              <option value="">— Seleccionar computadora —</option>
+              {% for c in computadoras %}
+              <option value="{{ c.asignado_a }}"
+                      data-asignado="{{ c.asignado_a }}"
+                      data-serie="{{ c.serie }}"
+                      data-area="{{ c.area }}"
+                      data-grado="{{ c.grado }}"
+                      {% if c.asignado_a == obj.asignado_a %}selected{% endif %}>
+                {{ c.asset_id }} – {{ c.asignado_a }}
+              </option>
+              {% endfor %}
+            </select>
         </div>
 
         <div class="col-md-6">
@@ -51,37 +96,124 @@
     </button>
 </form>
 
+{{ labs_usados|json_script:"edit-labs-data" }}
+{{ asignados_usados|json_script:"edit-asig-data" }}
 <script>
 (function () {
-    function toggleCamposEdit() {
-        var val = document.getElementById('id_ubicacion_tipo').value;
-        var labDiv = document.getElementById('edit-campo-laboratorio');
-        var asnDiv = document.getElementById('edit-campo-asignado');
-        var labInput = document.querySelector('#edit-campo-laboratorio input');
-        var asnInput = document.querySelector('#edit-campo-asignado input');
+    // Usar el form como raíz para evitar conflicto con IDs del formulario principal de la página
+    var form = document.getElementById('form-edit-monitor');
+    if (!form) return;
 
-        if (val === 'laboratorio') {
-            labDiv.style.display = '';
-            asnDiv.style.display = 'none';
-            if (labInput) labInput.disabled = false;
-            if (asnInput) { asnInput.disabled = true; asnInput.value = ''; }
-        } else if (val === 'persona') {
-            labDiv.style.display = 'none';
-            asnDiv.style.display = '';
-            if (asnInput) asnInput.disabled = false;
-            if (labInput) { labInput.disabled = true; labInput.value = ''; }
+    var EDIT_LABS_USADOS      = new Set(JSON.parse(document.getElementById('edit-labs-data').textContent));
+    var EDIT_ASIGNADOS_USADOS = new Set(JSON.parse(document.getElementById('edit-asig-data').textContent));
+
+    var EDIT_PREFIX_LABELS = { ANAMONI: 'General', LABBLMONI: 'Lab BL', LABCOLMONI: 'Lab COL', CFPINFO: 'Lab Informática' };
+
+    function getExpectedPrefix(assetId) {
+        if (!assetId) return null;
+        var id = assetId.toUpperCase();
+        if (id.indexOf('LABCOL') !== -1) return 'LABCOLMONI';
+        if (id.indexOf('LABBL')  !== -1) return 'LABBLMONI';
+        if (id.indexOf('CFP')    !== -1) return 'CFPINFO';
+        return 'ANAMONI';
+    }
+
+    function checkEditPrefijo(labAssetId) {
+        var alertaEl = document.getElementById('edit-alerta-prefijo');
+        var textoEl  = document.getElementById('edit-alerta-prefijo-texto');
+        if (!alertaEl || !labAssetId) { if (alertaEl) alertaEl.classList.add('d-none'); return; }
+        var checkedRadio = form.querySelector('input[name="edit_prefix_sel"]:checked');
+        var selectedPrefix = checkedRadio ? checkedRadio.value : '';
+        var expected = getExpectedPrefix(labAssetId);
+        if (expected && selectedPrefix && selectedPrefix !== expected) {
+            var expLabel = EDIT_PREFIX_LABELS[expected] || expected;
+            var selLabel = EDIT_PREFIX_LABELS[selectedPrefix] || selectedPrefix;
+            textoEl.innerHTML = '<strong>¡Alto!</strong> La computadora es de <strong>' + expLabel +
+                '</strong> pero el ID Monitor usa el prefijo <strong>' + selLabel +
+                '</strong>. ¿Estás seguro de la selección?';
+            alertaEl.classList.remove('d-none');
         } else {
-            labDiv.style.display = 'none';
-            asnDiv.style.display = 'none';
-            if (labInput) { labInput.disabled = true; labInput.value = ''; }
-            if (asnInput) { asnInput.disabled = true; asnInput.value = ''; }
+            alertaEl.classList.add('d-none');
         }
     }
 
-    var sel = document.getElementById('id_ubicacion_tipo');
-    if (sel) {
-        sel.addEventListener('change', toggleCamposEdit);
+    function checkEditDuplicado(valor, esLab) {
+        var usado = esLab ? EDIT_LABS_USADOS.has(valor) : EDIT_ASIGNADOS_USADOS.has(valor);
+        var el = document.getElementById('edit-alerta-duplicado');
+        if (el) el.classList.toggle('d-none', !usado);
+    }
+
+    // ── Pre-seleccionar radio según asset_id actual ──
+    var assetInput = form.querySelector('[name="asset_id"]');
+    var currentId  = assetInput ? assetInput.value : '';
+    var prefijos   = ['CFPINFO', 'LABCOLMONI', 'LABBLMONI', 'ANAMONI'];
+    prefijos.forEach(function(p) {
+        if (currentId.startsWith(p)) {
+            var radio = document.getElementById('edit-prefix-' + p);
+            if (radio) radio.checked = true;
+        }
+    });
+
+    // ── Al cambiar radio: actualizar prefijo en el asset_id ──
+    document.querySelectorAll('input[name="edit_prefix_sel"]').forEach(function(r) {
+        r.addEventListener('change', function() {
+            if (!assetInput) return;
+            var match = assetInput.value.match(/(\d+)$/);
+            var suffix = match ? match[1] : '001';
+            assetInput.value = this.value + suffix;
+            if (labSel && labSel.value) checkEditPrefijo(labSel.value);
+        });
+    });
+
+    // ── Toggle campos según tipo ubicación ──
+    var ubicacionSel = form.querySelector('[name="ubicacion_tipo"]');
+    var labDiv       = document.getElementById('edit-campo-laboratorio');
+    var asnDiv       = document.getElementById('edit-campo-asignado');
+    var alertaDiv    = document.getElementById('edit-alerta-duplicado');
+    var labSel       = document.getElementById('edit-sel-lab-comp');
+    var asnSel       = document.getElementById('edit-sel-asig-comp');
+
+    function toggleCamposEdit() {
+        var val = ubicacionSel ? ubicacionSel.value : '';
+        if (alertaDiv) alertaDiv.classList.add('d-none');
+
+        if (val === 'laboratorio') {
+            if (labDiv) labDiv.classList.remove('d-none');
+            if (asnDiv) asnDiv.classList.add('d-none');
+            if (labSel && labSel.value) checkEditDuplicado(labSel.value, true);
+        } else if (val === 'persona') {
+            if (labDiv) labDiv.classList.add('d-none');
+            if (asnDiv) asnDiv.classList.remove('d-none');
+            if (asnSel && asnSel.value) checkEditDuplicado(asnSel.value, false);
+        } else {
+            if (labDiv) labDiv.classList.add('d-none');
+            if (asnDiv) asnDiv.classList.add('d-none');
+        }
+    }
+
+    if (labSel) labSel.addEventListener('change', function(){
+        if (this.value) {
+            checkEditDuplicado(this.value, true);
+            checkEditPrefijo(this.value);
+        } else {
+            if (alertaDiv) alertaDiv.classList.add('d-none');
+            var ap = document.getElementById('edit-alerta-prefijo');
+            if (ap) ap.classList.add('d-none');
+        }
+    });
+
+    if (asnSel) asnSel.addEventListener('change', function(){
+        if (this.value) checkEditDuplicado(this.value, false);
+        else if (alertaDiv) alertaDiv.classList.add('d-none');
+    });
+
+    if (ubicacionSel) {
+        ubicacionSel.addEventListener('change', toggleCamposEdit);
         toggleCamposEdit();
+        // Verificar prefijo al abrir si ya hay laboratorio seleccionado
+        if (ubicacionSel.value === 'laboratorio' && labSel && labSel.value) {
+            checkEditPrefijo(labSel.value);
+        }
     }
 })();
 </script>

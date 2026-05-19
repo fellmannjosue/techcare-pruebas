@@ -1,0 +1,29 @@
+/* Section visibility */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Color swatches */
+.color-swatch {
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: border-color .15s, transform .1s;
+  display: inline-block;
+}
+.color-swatch.selected { border-color: var(--tblr-body-color); transform: scale(1.15); }
+
+/* Drop area */
+.drop-area {
+  border: 2px dashed var(--tblr-border-color);
+  border-radius: var(--tblr-border-radius);
+  padding: 28px 20px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.drop-area:hover, .drop-area.dragover {
+  border-color: var(--tblr-primary); background: var(--tblr-primary-lt);
+}
+
+/* Print */
+@media print {
+  .navbar-vertical, .page-header { display: none !important; }
+  .page-wrapper { margin-left: 0 !important; }
+  .section { display: block !important; }
+}

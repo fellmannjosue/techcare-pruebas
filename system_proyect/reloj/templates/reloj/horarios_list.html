@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Asignaciones de Horario{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Asignaciones de Horario{% endblock %}
 {% block page_title %}Asignaciones de Horario (Plantillas){% endblock %}
 {% block nav_asignaciones %}active{% endblock %}
 
@@ -37,8 +37,8 @@
                  data-bs-target="#editarAsignacionModal" data-id="{{ a.pk }}">{{ a.nombre_empleado|default:"—" }}</a>
             </td>
             <td>{{ a.template.nombre }}</td>
-            <td>{{ a.fecha_inicio|date:"Y-m-d" }}</td>
-            <td>{{ a.fecha_fin|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ a.fecha_inicio|date:"d/m/Y" }}</td>
+            <td>{{ a.fecha_fin|date:"d/m/Y"|default:"—" }}</td>
             <td>
               {% if a.activo %}
                 <span class="badge bg-success-lt text-success">Activo</span>

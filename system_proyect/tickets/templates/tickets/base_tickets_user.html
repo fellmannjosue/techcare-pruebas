@@ -22,7 +22,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="navbar-brand">
-        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
@@ -37,7 +37,7 @@
   <!-- Page wrapper -->
   <div class="page-wrapper">
     <div class="page-header d-print-none">
-      <div class="container-xl">
+      <div class="container-fluid">
         <div class="row g-2 align-items-center">
           <div class="col">
             <div class="page-pretitle">{% block page_pretitle %}Tickets{% endblock %}</div>
@@ -49,13 +49,13 @@
     </div>
 
     <div class="page-body">
-      <div class="container-xl">
+      <div class="container-fluid">
         {% block content %}{% endblock %}
       </div>
     </div>
 
     <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl">
+      <div class="container-fluid">
         <div class="row text-center align-items-center">
           <div class="col-12 col-lg-auto">
             <p class="mb-0 text-secondary">

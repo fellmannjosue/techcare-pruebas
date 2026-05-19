@@ -1,5 +1,5 @@
 {% extends 'inventario/base_inventario.html' %}
-{% load static %}
+{% load static inventario_extras %}
 {% block title %}Monitores{% endblock %}
 {% block page_pretitle %}Monitores{% endblock %}
 {% block page_title %}Inventario – Monitores{% endblock %}
@@ -7,56 +7,145 @@
 
 {% block content %}
 <div class="row g-4">
+
+  {# ── Formulario Agregar ── #}
   <div class="col-lg-5">
     <div class="card">
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-plus me-2 text-secondary"></i>Agregar Monitor</h3>
       </div>
       <div class="card-body">
-        <form method="post" class="row g-3">
+        <form method="post" class="row g-3" id="form-add-monitor">
           {% csrf_token %}
 
+          {# ── ID Monitor (radio prefijos) ── #}
+          <div class="col-12">
+            <label class="form-label fw-semibold">ID Monitor</label>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              {% for prefix, label in prefijos %}
+              <div>
+                <input type="radio" class="btn-check" name="prefix_sel"
+                       id="prefix-{{ prefix }}" value="{{ prefix }}"
+                       data-next="{{ next_ids|get_item:prefix }}"
+                       {% if forloop.first %}checked{% endif %}>
+                <label class="btn btn-outline-primary btn-sm" for="prefix-{{ prefix }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="input-group">
+              <input type="text" class="form-control bg-light text-muted"
+                     id="preview-asset-id"
+                     value="{{ next_ids|get_item:'ANAMONI' }}" readonly>
+              <input type="hidden" name="asset_id" id="hidden-asset-id"
+                     value="{{ next_ids|get_item:'ANAMONI' }}">
+            </div>
+          </div>
+
+          {# ── Modelo (select) ── #}
           <div class="col-md-6">
-            <label class="form-label fw-semibold">{{ form.asset_id.label }}</label>
-            {{ form.asset_id }}
-            {% for e in form.asset_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <label class="form-label fw-semibold">Modelo</label>
+            <select name="modelo" class="form-select" id="id_modelo" required>
+              <option value="">— Seleccionar modelo —</option>
+              {% for m in modelos_monitor %}
+              <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+            </select>
           </div>
 
+          {# ── Serie (con toggle) ── #}
           <div class="col-md-6">
-            <label class="form-label fw-semibold">{{ form.modelo.label }}</label>
-            {{ form.modelo }}
-            {% for e in form.modelo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <label class="form-label fw-semibold d-flex align-items-center gap-2">
+              Serie
+              <span class="form-check mb-0 ms-1">
+                <input class="form-check-input" type="checkbox" id="chk-serie-manual">
+                <label class="form-check-label small text-muted" for="chk-serie-manual">Ingresar manualmente</label>
+              </span>
+            </label>
+            <input type="text" name="serie" class="form-control bg-light" id="id_serie"
+                   placeholder="Auto desde computadora" readonly style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
           </div>
 
+          {# ── Tipo de ubicación ── #}
           <div class="col-md-6">
-            <label class="form-label fw-semibold">{{ form.serie.label }}</label>
-            {{ form.serie }}
-            {% for e in form.serie.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <label class="form-label fw-semibold">Tipo de ubicación</label>
+            <select name="ubicacion_tipo" class="form-select" id="id_ubicacion_tipo">
+              <option value="">— Seleccionar —</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="persona">Asignado a</option>
+            </select>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">{{ form.ubicacion_tipo.label }}</label>
-            {{ form.ubicacion_tipo }}
-            {% for e in form.ubicacion_tipo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          {# ── Alerta duplicado ── #}
+          <div class="col-12 d-none" id="alerta-duplicado">
+            <div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-0">
+              <i class="ti ti-alert-triangle fs-4"></i>
+              <div><strong>Este registro ya fue registrado.</strong> Asegúrate de seleccionar el correcto.</div>
+            </div>
           </div>
 
-          <div class="col-md-6" id="campo-laboratorio" style="display:none;">
-            <label class="form-label fw-semibold">{{ form.laboratorio.label }}</label>
-            {{ form.laboratorio }}
-            {% for e in form.laboratorio.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          {# ── Alerta prefijo incorrecto ── #}
+          <div class="col-12 d-none" id="alerta-prefijo">
+            <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-0">
+              <i class="ti ti-alert-octagon fs-4"></i>
+              <div id="alerta-prefijo-texto"></div>
+            </div>
           </div>
 
-          <div class="col-md-6" id="campo-asignado" style="display:none;">
-            <label class="form-label fw-semibold">{{ form.asignado_a.label }}</label>
-            {{ form.asignado_a }}
-            {% for e in form.asignado_a.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          {# ── Laboratorio: select de computadoras ── #}
+          <div class="col-md-6 d-none" id="campo-laboratorio">
+            <label class="form-label fw-semibold">Computadora del laboratorio</label>
+            <select class="form-select" id="sel-lab-comp" name="laboratorio">
+              <option value="">— Seleccionar computadora —</option>
+              {% for c in computadoras %}
+              <option value="{{ c.asset_id }}">{{ c.asset_id }} – {{ c.modelo }}</option>
+              {% endfor %}
+            </select>
           </div>
 
+          {# ── Asignado a: select + datos auto ── #}
+          <div class="col-12 d-none" id="campo-asignado">
+            <label class="form-label fw-semibold">Computadora asignada</label>
+            <select class="form-select" id="sel-asig-comp"
+                    data-url="{% url 'inventario:computadora_json' 0 %}">
+              <option value="">— Seleccionar computadora —</option>
+              {% for c in computadoras %}
+              <option value="{{ c.id }}"
+                      data-asset="{{ c.asset_id }}"
+                      data-modelo="{{ c.modelo }}"
+                      data-serie="{{ c.serie }}"
+                      data-asignado="{{ c.asignado_a }}"
+                      data-area="{{ c.area }}"
+                      data-grado="{{ c.grado }}">
+                {{ c.asset_id }} – {{ c.asignado_a }}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="asignado_a" id="hidden-asignado-a">
+
+            {# Datos auto-cargados #}
+            <div class="row g-2 mt-2 d-none" id="datos-comp-asig">
+              <div class="col-md-4">
+                <label class="form-label small text-muted mb-0">Nombre</label>
+                <input type="text" class="form-control form-control-sm bg-light" id="info-asignado" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small text-muted mb-0">Área</label>
+                <input type="text" class="form-control form-control-sm bg-light" id="info-area" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small text-muted mb-0">Grado</label>
+                <input type="text" class="form-control form-control-sm bg-light" id="info-grado" readonly>
+              </div>
+            </div>
+          </div>
+
+          {# ── Categoría ── #}
           <div class="col-md-6">
             <label class="form-label fw-semibold">{{ form.category.label }}</label>
             {{ form.category }}
           </div>
 
+          {# ── Observaciones ── #}
           <div class="col-12">
             <label class="form-label fw-semibold">{{ form.observaciones.label }}</label>
             {{ form.observaciones }}
@@ -72,6 +161,7 @@
     </div>
   </div>
 
+  {# ── Tabla ── #}
   <div class="col-lg-7">
     <div class="card">
       <div class="card-header">
@@ -113,6 +203,7 @@
   </div>
 </div>
 
+{# Modal editar #}
 <div class="modal modal-blur fade" id="modalEditarMonitor" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -128,34 +219,124 @@
 
 {% block extra_js %}
 <script>
+// Registros ya usados
+const LABS_USADOS     = new Set({{ labs_usados|safe }});
+const ASIGNADOS_USADOS = new Set({{ asignados_usados|safe }});
+
+function checkDuplicado(valor, esLab) {
+  const usado = esLab ? LABS_USADOS.has(valor) : ASIGNADOS_USADOS.has(valor);
+  document.getElementById('alerta-duplicado').classList.toggle('d-none', !usado);
+}
+
+// ── Detección prefijo incorrecto ──
+const PREFIX_LABELS = { ANAMONI: 'General', LABBLMONI: 'Lab BL', LABCOLMONI: 'Lab COL', CFPINFO: 'Lab Informática' };
+
+function getExpectedPrefix(assetId) {
+  if (!assetId) return null;
+  const id = assetId.toUpperCase();
+  if (id.includes('LABCOL')) return 'LABCOLMONI';
+  if (id.includes('LABBL'))  return 'LABBLMONI';
+  if (id.includes('CFP'))    return 'CFPINFO';
+  return 'ANAMONI';
+}
+
+function checkPrefijo() {
+  const labVal = $('#sel-lab-comp').val();
+  if (!labVal || $('#id_ubicacion_tipo').val() !== 'laboratorio') {
+    $('#alerta-prefijo').addClass('d-none'); return;
+  }
+  const selectedPrefix = $('input[name="prefix_sel"]:checked').val() || '';
+  const expected = getExpectedPrefix(labVal);
+  if (expected && selectedPrefix !== expected) {
+    const expLabel = PREFIX_LABELS[expected] || expected;
+    const selLabel = PREFIX_LABELS[selectedPrefix] || selectedPrefix || '(ninguno)';
+    $('#alerta-prefijo-texto').html(
+      '<strong>¡Alto!</strong> La computadora es de <strong>' + expLabel +
+      '</strong> pero el ID Monitor usa el prefijo <strong>' + selLabel +
+      '</strong>. ¿Estás seguro de la selección?'
+    );
+    $('#alerta-prefijo').removeClass('d-none');
+  } else {
+    $('#alerta-prefijo').addClass('d-none');
+  }
+}
+
+// Datos de prefijos y next IDs
+const NEXT_IDS = {
+  {% for prefix, label in prefijos %}"{{ prefix }}": "{{ next_ids|get_item:prefix }}"{% if not forloop.last %},{% endif %}{% endfor %}
+};
+
 $(function(){
   $('#monitores-table').DataTable({
     pageLength: 10, scrollX: true, order: [[0,'desc']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
 
-  function toggleCampos() {
-    var val = $('#id_ubicacion_tipo').val();
-    if (val === 'laboratorio') {
-      $('#campo-laboratorio').show();
-      $('#campo-asignado').hide();
-      $('#id_laboratorio').prop('disabled', false);
-      $('#id_asignado_a').prop('disabled', true).val('');
-    } else if (val === 'persona') {
-      $('#campo-laboratorio').hide();
-      $('#campo-asignado').show();
-      $('#id_asignado_a').prop('disabled', false);
-      $('#id_laboratorio').prop('disabled', true).val('');
-    } else {
-      $('#campo-laboratorio').hide();
-      $('#campo-asignado').hide();
-      $('#id_laboratorio').prop('disabled', true).val('');
-      $('#id_asignado_a').prop('disabled', true).val('');
-    }
-  }
+  // ── Radio prefijo → actualizar asset_id ──
+  $('input[name="prefix_sel"]').on('change', function(){
+    const next = NEXT_IDS[this.value] || '';
+    $('#preview-asset-id').val(next);
+    $('#hidden-asset-id').val(next);
+    checkPrefijo();
+  });
 
-  $('#id_ubicacion_tipo').on('change', toggleCampos);
-  toggleCampos();
+  // Copiar asignado_a al submit si aplica
+  $('#form-add-monitor').on('submit', function(){
+    if ($('#id_ubicacion_tipo').val() === 'persona') {
+      const opt = $('#sel-asig-comp option:selected');
+      $('#hidden-asignado-a').val(opt.data('asignado') || '');
+    }
+  });
+
+  // ── Serie: toggle manual ──
+  $('#chk-serie-manual').on('change', function(){
+    const $s = $('#id_serie');
+    if (this.checked) {
+      $s.prop('readonly', false).removeClass('bg-light').val('').focus();
+    } else {
+      $s.prop('readonly', true).addClass('bg-light').val('');
+    }
+  });
+
+  // ── Tipo de ubicación ──
+  $('#id_ubicacion_tipo').on('change', function(){
+    const v = $(this).val();
+    $('#campo-laboratorio').toggleClass('d-none', v !== 'laboratorio');
+    $('#campo-asignado').toggleClass('d-none', v !== 'persona');
+    $('#alerta-duplicado').addClass('d-none');
+    if (v !== 'persona') {
+      $('#datos-comp-asig').addClass('d-none');
+      if (!$('#chk-serie-manual').is(':checked')) $('#id_serie').val('');
+    }
+  });
+
+  // ── Laboratorio: verificar duplicado y prefijo ──
+  $('#sel-lab-comp').on('change', function(){
+    const val = $(this).val();
+    if (val) { checkDuplicado(val, true); checkPrefijo(); }
+    else { $('#alerta-duplicado').addClass('d-none'); $('#alerta-prefijo').addClass('d-none'); }
+  });
+
+  // ── Asignado a: auto-cargar datos ──
+  $('#sel-asig-comp').on('change', function(){
+    const opt = $(this).find('option:selected');
+    const id = opt.val();
+    if (!id) {
+      $('#datos-comp-asig').addClass('d-none');
+      if (!$('#chk-serie-manual').is(':checked')) $('#id_serie').val('');
+      return;
+    }
+    checkDuplicado(opt.data('asignado') || '', false);
+    $('#info-asignado').val(opt.data('asignado') || '');
+    $('#info-area').val(opt.data('area') || '');
+    $('#info-grado').val(opt.data('grado') || '');
+    $('#datos-comp-asig').removeClass('d-none');
+    // Auto-fill serie si no es manual
+    if (!$('#chk-serie-manual').is(':checked')) {
+      $('#id_serie').val(opt.data('serie') || '').prop('readonly', true).addClass('bg-light');
+    }
+    $('#hidden-asignado-a').val(opt.data('asignado') || '');
+  });
 });
 </script>
 <script src="{% static 'inventario/js/monitores_edit.js' %}"></script>

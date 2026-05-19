@@ -37,6 +37,7 @@ urlpatterns = [
     # GET - Cargar formulario en MODAL (AJAX)
     # ---------------------------------------------------------
     path("computadora/get/<int:pk>/", views.get_computadora, name="get_computadora"),
+    path("computadora/json/<int:pk>/", views.computadora_json, name="computadora_json"),
     path("televisor/get/<int:pk>/", views.get_televisor, name="get_televisor"),
     path("impresora/get/<int:pk>/", views.get_impresora, name="get_impresora"),
     path("router/get/<int:pk>/", views.get_router, name="get_router"),

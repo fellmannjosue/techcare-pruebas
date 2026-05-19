@@ -44,10 +44,6 @@ urlpatterns = [
     # ──────────────────────────────────────────────────────────────────────────
     path('sponsors/', include('sponsors.urls')),
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 7) Módulo de Seguridad
-    # ──────────────────────────────────────────────────────────────────────────
-    path('seguridad/', include(('seguridad.urls', 'seguridad'), namespace='seguridad')),
 
     # ──────────────────────────────────────────────────────────────────────────
     # 8) Módulo de Conducta 
@@ -63,6 +59,11 @@ urlpatterns = [
     # 9) Módulo de calculadoras
     # ──────────────────────────────────────────────────────────────────────────
     path('calculadoras/', include('calculadoras.urls')),
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 10) Finanzas Personales
+    # ──────────────────────────────────────────────────────────────────────────
+    path('finanzas/', include(('finanzas_personales.urls', 'finanzas_personales'), namespace='finanzas_personales')),
 
 ]
 

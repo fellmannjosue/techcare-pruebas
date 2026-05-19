@@ -40,7 +40,7 @@
       </button>
 
       <div class="navbar-brand">
-        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
@@ -59,12 +59,12 @@
   <div class="page-wrapper">
 
     <div class="page-header d-print-none">
-      <div class="container-xl">
+      <div class="container-fluid">
         <div class="row align-items-center">
           <div class="col">
             <nav aria-label="breadcrumb">
               <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
                 <li class="breadcrumb-item active">{% block page_pretitle %}Conducta{% endblock %}</li>
               </ol>
             </nav>
@@ -78,7 +78,7 @@
     </div>
 
     <div class="page-body">
-      <div class="container-xl">
+      <div class="container-fluid">
 
         {% if messages %}
           {% for message in messages %}
@@ -95,7 +95,7 @@
     </div>
 
     <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl">
+      <div class="container-fluid">
         <div class="text-center text-muted small py-2">
           © {% now "Y" %} Sistema TechCare – Asociación Nuevo Amanecer
         </div>

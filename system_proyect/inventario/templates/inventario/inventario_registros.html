@@ -387,8 +387,8 @@
         <table id="tablaMonitores" class="table table-vcenter table-hover">
           <thead><tr>
             <th style="width:36px;"><input type="checkbox" class="form-check-input chk-all-cat" data-tipo="monitor"></th>
-            <th>Asset ID</th><th>Modelo</th><th>Serie</th><th>Tipo Ubic.</th>
-            <th>Laboratorio</th><th>Asignado a</th><th>Categoría</th><th>Observaciones</th><th>Acciones</th>
+            <th>Asset ID</th><th>Modelo</th><th>Serie</th><th>Tipo Ubicación</th>
+            <th>Laboratorio / Computadora</th><th>Asignado a</th><th>Categoría</th><th>Observaciones</th><th>Acciones</th>
           </tr></thead>
           <tbody>
             {% for m in monitores %}
@@ -396,8 +396,16 @@
               <td><input type="checkbox" class="form-check-input chk-cat-item" data-tipo="monitor" value="{{ m.id }}"></td>
               <td><span class="badge bg-secondary-lt fw-semibold">{{ m.asset_id }}</span></td>
               <td>{{ m.modelo }}</td>
-              <td class="font-monospace small">{{ m.serie }}</td>
-              <td>{{ m.get_ubicacion_tipo_display|default:"—" }}</td>
+              <td class="font-monospace small">{{ m.serie|default:"—" }}</td>
+              <td>
+                {% if m.ubicacion_tipo == 'laboratorio' %}
+                  <span class="badge bg-blue-lt text-blue"><i class="ti ti-building me-1"></i>Laboratorio</span>
+                {% elif m.ubicacion_tipo == 'persona' %}
+                  <span class="badge bg-teal-lt text-teal"><i class="ti ti-user me-1"></i>Asignado a</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
               <td>{{ m.laboratorio|default:"—" }}</td>
               <td>{{ m.asignado_a|default:"—" }}</td>
               <td>

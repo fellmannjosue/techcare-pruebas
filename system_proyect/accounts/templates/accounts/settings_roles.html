@@ -1,0 +1,139 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Config. Roles{% endblock %}
+
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-shield-half me-2 text-purple"></i>Configuración de Roles</h3>
+    <div class="card-options">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="ti ti-search"></i></span>
+        <input type="text" id="buscar-usuario" class="form-control" placeholder="Buscar usuario…" style="min-width:200px">
+      </div>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table" id="tabla-roles">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th class="text-center">Staff</th>
+            <th class="text-center">Coord-Maestro</th>
+            <th>Grupos</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in usuarios_roles %}
+          <tr class="fila-usuario">
+            <td class="fw-semibold">{{ u.get_full_name|default:u.username }}</td>
+            <td class="text-muted small">{{ u.email }}</td>
+            <td class="text-center">
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="toggle_staff">
+                <input type="hidden" name="user_id" value="{{ u.pk }}">
+                <button type="submit" class="btn btn-sm {% if u.is_staff %}btn-warning{% else %}btn-ghost-secondary{% endif %}" title="{% if u.is_staff %}Quitar Staff{% else %}Hacer Staff{% endif %}">
+                  <i class="ti {% if u.is_staff %}ti-shield-check{% else %}ti-shield-off{% endif %}"></i>
+                  {% if u.is_staff %}<span class="ms-1 d-none d-xl-inline">Staff</span>{% endif %}
+                </button>
+              </form>
+            </td>
+            <td class="text-center">
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="toggle_coord_maestro">
+                <input type="hidden" name="user_id" value="{{ u.pk }}">
+                {% with cm=u.perfil.es_coord_maestro %}
+                <button type="submit" class="btn btn-sm {% if cm %}btn-purple{% else %}btn-ghost-secondary{% endif %}" title="{% if cm %}Desactivar modo Coord-Maestro{% else %}Activar modo Coord-Maestro{% endif %}">
+                  <i class="ti {% if cm %}ti-refresh-dot{% else %}ti-refresh-off{% endif %}"></i>
+                  {% if cm %}<span class="ms-1 d-none d-xl-inline">Activo</span>{% endif %}
+                </button>
+                {% endwith %}
+              </form>
+            </td>
+            <td>
+              <div class="d-flex flex-wrap gap-1">
+                {% for g in u.groups.all %}
+                <span class="badge bg-blue-lt text-blue">{{ g.name }}</span>
+                {% empty %}
+                <span class="text-muted small">Sin grupos</span>
+                {% endfor %}
+              </div>
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-ghost-primary" title="Editar grupos"
+                      onclick="abrirEditarGrupos({{ u.pk }}, '{{ u.get_full_name|default:u.username|escapejs }}', [{% for g in u.groups.all %}{{ g.pk }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+                <i class="ti ti-users-group"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">
+              <i class="ti ti-users-off fs-2 d-block mb-2 opacity-50"></i>
+              No hay usuarios activos.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar grupos -->
+<div class="modal modal-blur fade" id="modalGrupos" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="set_grupos">
+        <input type="hidden" name="user_id" id="grp-user-id">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ti ti-users-group me-2"></i>Grupos de <span id="grp-nombre"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Selecciona los grupos que tendrá este usuario:</p>
+          <div class="d-flex flex-column gap-2" id="grp-lista">
+            {% for g in todos_grupos %}
+            <label class="form-check">
+              <input type="checkbox" name="grupos" value="{{ g.pk }}" class="form-check-input grp-check" data-grp-id="{{ g.pk }}">
+              <span class="form-check-label">{{ g.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar grupos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+function abrirEditarGrupos(userId, nombre, gruposActivos) {
+  document.getElementById('grp-user-id').value = userId;
+  document.getElementById('grp-nombre').textContent = nombre;
+  document.querySelectorAll('.grp-check').forEach(cb => {
+    cb.checked = gruposActivos.includes(parseInt(cb.dataset.grpId));
+  });
+  new bootstrap.Modal(document.getElementById('modalGrupos')).show();
+}
+
+document.getElementById('buscar-usuario').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#tabla-roles .fila-usuario').forEach(fila => {
+    const texto = fila.textContent.toLowerCase();
+    fila.style.display = texto.includes(q) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}
+{% endblock %}

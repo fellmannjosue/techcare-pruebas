@@ -1,15 +1,11 @@
 # core/context_processors.py
 
 from datetime import datetime
+from django.urls import reverse
 
 def current_year(request):
     return {'year': datetime.now().year}
 
-
-_COORD_MAESTROS_NAV = frozenset([
-    'cvarela@ana-hn.org', 'druiz@ana-hn.org',
-    'ialcerro@ana-hn.org', 'jmartinez@ana-hn.org',
-])
 
 def nav_context(request):
     """Provee variables nav_* a todos los templates para el sidebar unificado."""
@@ -29,7 +25,10 @@ def nav_context(request):
 
     can = lambda p: user.has_perm(p)
 
-    es_coord_maestro = user.email.lower() in _COORD_MAESTROS_NAV
+    try:
+        es_coord_maestro = user.perfil.es_coord_maestro
+    except Exception:
+        es_coord_maestro = False
     modo_maestro     = es_coord_maestro and bool(
         request.session.get('agenda_modo_maestro', False)
     )
@@ -58,13 +57,31 @@ def nav_context(request):
         nav_mbl       = is_maestro_bl
         nav_mcol      = is_maestro_col
 
+    # URL de "home" para cada tipo de usuario (usada en sidebar y breadcrumbs)
+    if is_admin:
+        nav_home_url = reverse('menu')
+    elif nav_mbl or nav_mcol:
+        nav_home_url = reverse('dashboard_maestro')
+    elif nav_coord_col and not nav_coord_bl:
+        nav_home_url = reverse('dashboard_coordinador', kwargs={'area': 'colegio'})
+    elif nav_coord_bl:
+        nav_home_url = reverse('dashboard_coordinador', kwargs={'area': 'bilingue'})
+    elif grp('administracion'):
+        nav_home_url = reverse('dashboard_administracion')
+    elif grp('tecnicos'):
+        nav_home_url = reverse('tickets_dashboard')
+    elif grp('reloj'):
+        nav_home_url = reverse('reloj_dashboard')
+    else:
+        nav_home_url = reverse('menu')
+
     return {
         'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
         'nav_reloj':            is_admin or grp('reloj'),
         'nav_calculadoras':     is_admin or grp('reloj'),
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
-        'nav_seguridad':        is_admin or can('seguridad.view_registro'),
+        'nav_finanzas':         request.user.is_superuser or request.user.email == 'cvalle@ana-hn.org',
         'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_coord_bl':         nav_coord_bl,
@@ -73,4 +90,5 @@ def nav_context(request):
         'nav_maestro_col':      nav_mcol,
         'nav_es_coord_maestro': es_coord_maestro,
         'nav_modo_maestro':     modo_maestro,
+        'nav_home_url':         nav_home_url,
     }

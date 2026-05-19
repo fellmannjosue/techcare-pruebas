@@ -13,17 +13,34 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 import datetime as _dt_module
 
-_COORD_BL_EMAIL = {
+_COORD_BL_EMAIL_FALLBACK = {
     'C1': 'cvarela@ana-hn.org',
     'C2': 'druiz@ana-hn.org',
     'C3': 'ialcerro@ana-hn.org',
     'C4': 'jmartinez@ana-hn.org',
 }
-COORDINADORES_EMAILS_COLEGIO = [
+_COLEGIO_EMAILS_FALLBACK = [
     'flicona@ana-hn.org',
     'kgarcia@ana-hn.org',
     'fvalladares@ana-hn.org',
 ]
+
+def _coord_bl_email(codigo):
+    """Return email for a bilingüe coordinator by code, falling back to hardcoded dict."""
+    cfg = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=codigo, activo=True).select_related('usuario').first()
+    if cfg and cfg.usuario and cfg.usuario.email:
+        return cfg.usuario.email
+    return _COORD_BL_EMAIL_FALLBACK.get(codigo, '')
+
+def _colegio_emails(md_colegio_obj=None):
+    """Return list of colegio coordinator emails. Filters by md_colegio_obj.coordinadores if given."""
+    qs = ConfiguracionCoordinador.objects.filter(area='colegio', activo=True).select_related('usuario')
+    if md_colegio_obj is not None:
+        assigned = md_colegio_obj.coordinadores.filter(activo=True)
+        if assigned.exists():
+            qs = assigned.select_related('usuario')
+    emails = [c.usuario.email for c in qs if c.usuario and c.usuario.email]
+    return emails if emails else _COLEGIO_EMAILS_FALLBACK
 SITE_URL = 'https://servicios.ana-hn.org:437'
 
 _EMAIL_COORDI_BL = 'coordinacion_bl@ana-hn.org'
@@ -99,7 +116,7 @@ _TIPO_ICON = {
 }
 
 
-def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordinador_bl=None):
+def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordinador_bl=None, md_colegio=None, subtipo=None):
     nombre = maestro.get_full_name() or maestro.username
     asunto = f"[TechCare] Nuevo {tipo} registrado – {alumno}"
     color = _TIPO_COLOR.get(tipo, '#1971c2')
@@ -163,15 +180,38 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordi
         f"Maestro : {nombre}\nAlumno  : {alumno}\nGrado   : {grado}\n"
         f"Materia : {materia}\nÁrea    : {area}\n\nRevisa: {SITE_URL}"
     )
-    if area == 'colegio':
-        destinatarios = COORDINADORES_EMAILS_COLEGIO
-    elif tipo == 'Reporte Conductual':
-        destinatarios = [_COORD_BL_EMAIL['C3']]
-    elif coordinador_bl:
-        codigos = [c.strip() for c in coordinador_bl.split(',') if c.strip() in _COORD_BL_EMAIL]
-        destinatarios = list(dict.fromkeys(_COORD_BL_EMAIL[c] for c in codigos))
-    else:
-        destinatarios = list(_COORD_BL_EMAIL.values())
+    # 1. Regla explícita configurada en el admin
+    _SUBTIPO_CAMPO = {
+        'conductual':             'recibe_conductual',
+        'informativo_academico':  'recibe_informativo_academico',
+        'informativo_conductual': 'recibe_informativo_conductual',
+        'progress':               'recibe_progress',
+    }
+    destinatarios = None
+    if subtipo and subtipo in _SUBTIPO_CAMPO:
+        campo = _SUBTIPO_CAMPO[subtipo]
+        reglas = ConfiguracionNotificacion.objects.filter(
+            area=area, activo=True, **{campo: True}
+        ).select_related('coordinador__usuario')
+        emails = [
+            r.coordinador.usuario.email
+            for r in reglas
+            if r.coordinador.usuario and r.coordinador.usuario.email
+        ]
+        if emails:
+            destinatarios = emails
+
+    # 2. Fallback: lógica automática por materia/docente
+    if destinatarios is None:
+        if area == 'colegio':
+            destinatarios = _colegio_emails(md_colegio)
+        elif tipo == 'Reporte Conductual':
+            destinatarios = [e for e in [_coord_bl_email('C3')] if e]
+        elif coordinador_bl:
+            codigos = [c.strip() for c in coordinador_bl.split(',') if c.strip()]
+            destinatarios = list(dict.fromkeys(e for c in codigos for e in [_coord_bl_email(c)] if e))
+        else:
+            destinatarios = [e for c in _COORD_BL_EMAIL_FALLBACK for e in [_coord_bl_email(c)] if e]
     try:
         msg = EmailMultiAlternatives(
             asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, destinatarios
@@ -224,6 +264,8 @@ from .models import (
     MateriaDocenteBilingue,
     MateriaDocenteColegio,
     EvidenciaReporte,  # <--- hecho por claude code: importar modelo de evidencias para la view subir_evidencia
+    ConfiguracionNotificacion,
+    ConfiguracionCoordinador,
 )
 from tickets.models import Ticket
 
@@ -363,7 +405,8 @@ def reporte_informativo_bilingue(request):
             tipo_reporte=tipo_reporte,
             comentario=comentario
         )
-        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area, coordinador_bl=coord_bl)
+        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area,
+                                 coordinador_bl=coord_bl, subtipo=f"informativo_{tipo_reporte}")
         messages.success(request, "¡Reporte registrado correctamente!")
         return redirect('reporte_informativo_bilingue')
 
@@ -390,6 +433,7 @@ def reporte_informativo_colegio(request):
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = ""
+        md_obj = None
         if materia_docente_id:
             md_obj = MateriaDocenteColegio.objects.filter(pk=materia_docente_id).first()
             if md_obj:
@@ -406,7 +450,8 @@ def reporte_informativo_colegio(request):
             tipo_reporte=tipo_reporte,
             comentario=comentario
         )
-        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area)
+        _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area,
+                                 md_colegio=md_obj, subtipo=f"informativo_{tipo_reporte}")
         messages.success(request, "¡Reporte registrado correctamente!")
         return redirect('reporte_informativo_colegio')
 
@@ -470,7 +515,8 @@ def reporte_conductual_bilingue(request):
         if ids_muygrave:
             reporte.incisos_muygrave.set(ids_muygrave)
 
-        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area, coordinador_bl=coord_bl)
+        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area,
+                                 coordinador_bl=coord_bl, subtipo='conductual')
         messages.success(request, "¡Reporte conductual registrado correctamente!")
         return redirect('reporte_conductual_bilingue')
 
@@ -508,6 +554,7 @@ def reporte_conductual_colegio(request):
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = ""
+        md_obj = None
         if materia_docente_id:
             md_obj = MateriaDocenteColegio.objects.filter(pk=materia_docente_id).first()
             if md_obj:
@@ -532,7 +579,8 @@ def reporte_conductual_colegio(request):
         if ids_muygrave:
             reporte.incisos_muygrave.set(ids_muygrave)
 
-        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area)
+        _notificar_coordinadores("Reporte Conductual", request.user, alumno_label, grado, materia, area,
+                                 md_colegio=md_obj, subtipo='conductual')
         messages.success(request, "¡Reporte conductual registrado correctamente!")
         return redirect('reporte_conductual_colegio')
 
@@ -623,7 +671,8 @@ def progress_report_bilingue(request):
                 comentario_general=comentario_general,
                 materias_json=materias_list
             )
-            _notificar_coordinadores("Progress Report", request.user, alumno_label, grado, "", "bilingue")
+            _notificar_coordinadores("Progress Report", request.user, alumno_label, grado, "", "bilingue",
+                                     subtipo='progress')
             messages.success(request, "¡Progress report registrado correctamente!")
             return redirect('progress_report_bilingue')
     else:
@@ -705,13 +754,16 @@ def reenviar_reportes_coordinadores(request):
 
     enviados = 0
     for r in ReporteInformativo.objects.filter(fecha__date=fecha):
-        _notificar_coordinadores("Reporte Informativo", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area)
+        _notificar_coordinadores("Reporte Informativo", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area,
+                                 subtipo=f"informativo_{r.tipo_reporte}")
         enviados += 1
     for r in ReporteConductual.objects.filter(fecha=fecha):
-        _notificar_coordinadores("Reporte Conductual", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area)
+        _notificar_coordinadores("Reporte Conductual", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area,
+                                 subtipo='conductual')
         enviados += 1
     for r in ProgressReport.objects.filter(semana_inicio__lte=fecha, semana_fin__gte=fecha):
-        _notificar_coordinadores("Progress Report", r.usuario, r.alumno_nombre, r.grado, "", "bilingue")
+        _notificar_coordinadores("Progress Report", r.usuario, r.alumno_nombre, r.grado, "", "bilingue",
+                                 subtipo='progress')
         enviados += 1
 
     return JsonResponse({'ok': True, 'enviados': enviados})
@@ -1979,6 +2031,10 @@ def dashboard_coordinador(request, area):
     for row in qs:
         strikes[row['alumno_id']] = row['total']
 
+    coord_nombres = {
+        cfg.codigo: cfg.nombre
+        for cfg in ConfiguracionCoordinador.objects.filter(area='bilingue', activo=True)
+    }
     contexto = {
         'area': area,
         'reportes_informativo': reportes_informativo,
@@ -1986,6 +2042,7 @@ def dashboard_coordinador(request, area):
         'reportes_progress':    reportes_progress,
         'strikes':              strikes,
         'today':                timezone.now().strftime('%Y-%m-%d'),
+        'coord_nombres':        coord_nombres,
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 

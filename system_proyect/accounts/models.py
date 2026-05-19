@@ -29,6 +29,10 @@ class PerfilUsuario(models.Model):
         'Puede gestionar usuarios/grupos', default=False,
         help_text='Permite a este usuario Staff ver y editar la sección Usuarios y Grupos en Settings.'
     )
+    es_coord_maestro   = models.BooleanField(
+        'Es coordinador-maestro', default=False,
+        help_text='Activa el checkbox "Soy maestro" en el login para que este usuario pueda alternar entre dashboard de coordinador y maestro.'
+    )
 
     class Meta:
         verbose_name = 'Perfil de usuario'

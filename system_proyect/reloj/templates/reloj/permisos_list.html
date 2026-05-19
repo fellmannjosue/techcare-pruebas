@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Permisos de Empleados{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Permisos de Empleados{% endblock %}
 {% block page_title %}Permisos de Empleados{% endblock %}
 {% block nav_permisos %}active{% endblock %}
 
@@ -61,8 +61,8 @@
             <td>{{ forloop.counter0|add:items.start_index }}</td>
             <td><code>{{ p.emp_code }}</code></td>
             <td>{{ p.nombre_empleado|default:"—" }}</td>
-            <td>{{ p.fecha_inicio|date:"Y-m-d" }}</td>
-            <td>{{ p.fecha_fin|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+            <td>{{ p.fecha_fin|date:"d/m/Y"|default:"—" }}</td>
             <td>{{ p.motivo|truncatechars:40|default:"—" }}</td>
             <td>
               {% if p.aprobado is None %}

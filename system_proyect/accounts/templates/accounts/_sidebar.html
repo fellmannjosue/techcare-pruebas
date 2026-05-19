@@ -4,7 +4,7 @@
 
   {# ── Panel Principal ─────────────────────────────────── #}
   <li class="nav-item">
-    <a class="nav-link" href="{% url 'menu' %}">
+    <a class="nav-link" href="{{ nav_home_url }}">
       <span class="nav-link-icon"><i class="ti ti-home"></i></span>
       <span class="nav-link-title">Panel Principal</span>
     </a>
@@ -205,43 +205,13 @@
   </li>
   {% endif %}
 
-  {# ── Seguridad ───────────────────────────────────────── #}
-  {% if nav_seguridad %}
+  {# ── Finanzas Personales ─────────────────────────────── #}
+  {% if nav_finanzas %}
   <li class="nav-item">
-    <a class="nav-link collapsed" href="#navSeguridad" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-shield-half"></i></span>
-      <span class="nav-link-title">Seguridad</span>
-      <span class="nav-link-arrow"></span>
+    <a class="nav-link" href="{% url 'finanzas_personales:index' %}">
+      <span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span>
+      <span class="nav-link-title">Finanzas</span>
     </a>
-    <ul class="navbar-nav collapse ps-4" id="navSeguridad">
-      <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'seguridad:dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navSeguridadModulos">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
-        </a>
-        <ul class="navbar-nav collapse ps-3" id="navSeguridadModulos">
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'seguridad:inventario_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-package"></i></span>
-              <span class="nav-link-title">Inventario</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'seguridad:contable_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-receipt"></i></span>
-              <span class="nav-link-title">Contable</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'seguridad:identificacion_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-id-badge"></i></span>
-              <span class="nav-link-title">Identificación</span>
-            </a>
-          </li>
-        </ul>
-      </li>
-    </ul>
   </li>
   {% endif %}
 

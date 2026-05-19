@@ -62,7 +62,7 @@
                 <td>{{ imp.serie }}</td>
                 <td>{{ imp.asignado_a }}</td>
                 <td>{{ imp.nivel_tinta }}</td>
-                <td>{{ imp.ultima_vez_llenado|date:"Y-m-d"|default:"—" }}</td>
+                <td>{{ imp.ultima_vez_llenado|date:"d/m/Y"|default:"—" }}</td>
                 <td>{{ imp.cantidad_impresiones }}</td>
                 <td>
                   {% if imp.a_color %}

@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Feriados{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Feriados{% endblock %}
 {% block page_title %}Feriados{% endblock %}
 {% block nav_feriados %}active{% endblock %}
 
@@ -39,10 +39,10 @@
           {% for f in feriados %}
           <tr>
             <td>
-              <strong>{{ f.fecha_inicio|date:"Y-m-d" }}</strong>
+              <strong>{{ f.fecha_inicio|date:"d/m/Y" }}</strong>
               {% if f.fecha_fin != f.fecha_inicio %}
                 <span class="text-muted mx-1">→</span>
-                <strong>{{ f.fecha_fin|date:"Y-m-d" }}</strong>
+                <strong>{{ f.fecha_fin|date:"d/m/Y" }}</strong>
               {% endif %}
             </td>
             <td>{{ f.descripcion }}</td>

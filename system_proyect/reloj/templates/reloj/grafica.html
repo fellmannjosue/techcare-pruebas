@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Gráfica{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Gráfica de Asistencias{% endblock %}
 {% block page_title %}Gráfica de Asistencias vs Ausencias{% endblock %}
 {% block nav_grafica %}active{% endblock %}
 
@@ -65,9 +65,13 @@
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body">
-    <canvas id="pieAsistencia" height="110"></canvas>
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <canvas id="pieAsistencia"></canvas>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

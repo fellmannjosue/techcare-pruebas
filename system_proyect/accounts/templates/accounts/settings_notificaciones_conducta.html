@@ -1,0 +1,208 @@
+{% extends 'accounts/settings_base.html' %}
+{% block title %}Config. Notificaciones{% endblock %}
+
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-bell-ringing me-2 text-orange"></i>Configuración de Notificaciones</h3>
+    <div class="card-options">
+      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNotif" onclick="abrirNuevo()">
+        <i class="ti ti-plus me-1"></i>Nueva regla
+      </button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Coordinador</th>
+            <th>Área</th>
+            <th class="text-center">Conductual</th>
+            <th class="text-center">Inf. Académico</th>
+            <th class="text-center">Inf. Conductual</th>
+            <th class="text-center">Progress</th>
+            <th class="text-center">Activo</th>
+            <th class="text-center w-1">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reglas %}
+          <tr>
+            <td class="fw-semibold">{{ r.coordinador.nombre }}</td>
+            <td>
+              <span class="badge {% if r.area == 'bilingue' %}bg-blue-lt text-blue{% else %}bg-green-lt text-green{% endif %}">
+                {{ r.get_area_display }}
+              </span>
+            </td>
+            <td class="text-center">{% if r.recibe_conductual %}<span class="badge bg-red-lt text-red">Sí</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.recibe_informativo_academico %}<span class="badge bg-blue-lt text-blue">Sí</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.recibe_informativo_conductual %}<span class="badge bg-orange-lt text-orange">Sí</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.recibe_progress %}<span class="badge bg-teal-lt text-teal">Sí</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">
+              {% if r.activo %}
+                <span class="badge bg-success-lt text-success"><i class="ti ti-check"></i></span>
+              {% else %}
+                <span class="badge bg-secondary-lt text-secondary"><i class="ti ti-x"></i></span>
+              {% endif %}
+            </td>
+            <td class="text-center text-nowrap">
+              <button class="btn btn-sm btn-ghost-primary"
+                      onclick="abrirEditar({{ r.pk }},'{{ r.area }}',{{ r.coordinador_id }},{{ r.recibe_conductual|yesno:'true,false' }},{{ r.recibe_informativo_academico|yesno:'true,false' }},{{ r.recibe_informativo_conductual|yesno:'true,false' }},{{ r.recibe_progress|yesno:'true,false' }},{{ r.activo|yesno:'true,false' }})"
+                      title="Editar">
+                <i class="ti ti-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-ghost-danger btn-eliminar"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.coordinador.nombre|escapejs }}"
+                      title="Eliminar">
+                <i class="ti ti-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <i class="ti ti-bell-off fs-2 d-block mb-2 opacity-50"></i>
+              No hay reglas de notificación configuradas.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal agregar / editar -->
+<div class="modal modal-blur fade" id="modalNotif" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="pk" id="notif-pk">
+        <div class="modal-header">
+          <h5 class="modal-title" id="notif-modal-title">Nueva regla de notificación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Área <span class="text-danger">*</span></label>
+            <select name="area" id="notif-area" class="form-select" required>
+              <option value="bilingue">Bilingüe</option>
+              <option value="colegio">Colegio/CFP</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Coordinador <span class="text-danger">*</span></label>
+            <select name="coordinador_id" id="notif-coord" class="form-select" required>
+              <option value="">— Seleccionar —</option>
+              {% for c in coordinadores %}
+              <option value="{{ c.pk }}">{{ c.nombre }} ({{ c.get_area_display }}{% if c.codigo %} · {{ c.codigo }}{% endif %})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tipos de reporte que recibe</label>
+            <div class="d-flex flex-column gap-2">
+              <label class="form-check">
+                <input type="checkbox" name="recibe_conductual" id="notif-conductual" class="form-check-input">
+                <span class="form-check-label"><span class="badge bg-red-lt text-red me-1">Conductual</span></span>
+              </label>
+              <label class="form-check">
+                <input type="checkbox" name="recibe_informativo_academico" id="notif-infac" class="form-check-input">
+                <span class="form-check-label"><span class="badge bg-blue-lt text-blue me-1">Informativo / Académico</span></span>
+              </label>
+              <label class="form-check">
+                <input type="checkbox" name="recibe_informativo_conductual" id="notif-infco" class="form-check-input">
+                <span class="form-check-label"><span class="badge bg-orange-lt text-orange me-1">Informativo / Conductual</span></span>
+              </label>
+              <label class="form-check">
+                <input type="checkbox" name="recibe_progress" id="notif-progress" class="form-check-input">
+                <span class="form-check-label"><span class="badge bg-teal-lt text-teal me-1">Progress Report</span></span>
+              </label>
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="form-check form-switch">
+              <input type="checkbox" name="activo" id="notif-activo" class="form-check-input" checked>
+              <span class="form-check-label fw-semibold">Activo</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar eliminar -->
+<div class="modal modal-blur fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger"><i class="ti ti-alert-triangle me-2"></i>Eliminar regla</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-3">
+        <p class="mb-1">¿Eliminar la regla de</p>
+        <p class="fw-bold" id="del-nombre"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirmar-eliminar">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+const CSRF = "{{ csrf_token }}";
+let eliminarPk = null;
+
+function abrirNuevo() {
+  document.getElementById('notif-modal-title').textContent = 'Nueva regla de notificación';
+  document.getElementById('notif-pk').value = '';
+  document.getElementById('notif-area').value = 'bilingue';
+  document.getElementById('notif-coord').value = '';
+  ['notif-conductual','notif-infac','notif-infco','notif-progress'].forEach(id => document.getElementById(id).checked = false);
+  document.getElementById('notif-activo').checked = true;
+}
+
+function abrirEditar(pk, area, coordId, conductual, infAc, infCo, progress, activo) {
+  document.getElementById('notif-modal-title').textContent = 'Editar regla';
+  document.getElementById('notif-pk').value    = pk;
+  document.getElementById('notif-area').value  = area;
+  document.getElementById('notif-coord').value = coordId;
+  document.getElementById('notif-conductual').checked = conductual;
+  document.getElementById('notif-infac').checked      = infAc;
+  document.getElementById('notif-infco').checked      = infCo;
+  document.getElementById('notif-progress').checked   = progress;
+  document.getElementById('notif-activo').checked     = activo;
+  new bootstrap.Modal(document.getElementById('modalNotif')).show();
+}
+
+document.querySelectorAll('.btn-eliminar').forEach(btn => {
+  btn.addEventListener('click', function() {
+    eliminarPk = this.dataset.pk;
+    document.getElementById('del-nombre').textContent = '"' + this.dataset.nombre + '"';
+    new bootstrap.Modal(document.getElementById('modalEliminar')).show();
+  });
+});
+
+document.getElementById('btn-confirmar-eliminar').addEventListener('click', async function() {
+  this.disabled = true;
+  this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+  const res  = await fetch(`/accounts/settings/conducta/notificaciones/${eliminarPk}/eliminar/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF }
+  });
+  const data = await res.json();
+  if (data.ok) location.reload();
+  else { alert('Error: ' + data.error); this.disabled = false; this.textContent = 'Sí, eliminar'; }
+});
+</script>
+{% endblock %}
+{% endblock %}

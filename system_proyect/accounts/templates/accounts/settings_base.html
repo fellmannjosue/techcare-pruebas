@@ -26,7 +26,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="navbar-brand">
-        <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
+        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
           <span class="fw-bold fs-5 text-white">TechCare</span>
         </a>
@@ -46,7 +46,7 @@
           <div class="col">
             <nav aria-label="breadcrumb">
               <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{% url 'menu' %}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
                 <li class="breadcrumb-item active">Configuración</li>
               </ol>
             </nav>
@@ -99,9 +99,24 @@
 
                 {% if can_see_activity %}
                 <div class="nav-section">Sistema</div>
-                <nav class="nav flex-column gap-1">
+                <nav class="nav flex-column gap-1 mb-2">
                   <a class="nav-link {% if active_tab == 'actividad' %}active{% endif %}" href="{% url 'settings_actividad' %}">
                     <i class="ti ti-activity me-2"></i>Actividad
+                  </a>
+                </nav>
+                {% endif %}
+
+                {% if request.user.is_superuser %}
+                <div class="nav-section">Conducta</div>
+                <nav class="nav flex-column gap-1">
+                  <a class="nav-link {% if active_tab == 'coordinadores' %}active{% endif %}" href="{% url 'settings_coordinadores' %}">
+                    <i class="ti ti-user-cog me-2"></i>Config. Coordinadores
+                  </a>
+                  <a class="nav-link {% if active_tab == 'notificaciones_conducta' %}active{% endif %}" href="{% url 'settings_notificaciones_conducta' %}">
+                    <i class="ti ti-bell-ringing me-2"></i>Config. Notificaciones
+                  </a>
+                  <a class="nav-link {% if active_tab == 'roles' %}active{% endif %}" href="{% url 'settings_roles' %}">
+                    <i class="ti ti-shield-half me-2"></i>Config. Roles
                   </a>
                 </nav>
                 {% endif %}

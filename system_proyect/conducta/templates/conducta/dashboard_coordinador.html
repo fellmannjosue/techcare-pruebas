@@ -1,5 +1,5 @@
 {% extends 'conducta/base_conducta.html' %}
-{% load static %}
+{% load static conducta_tags %}
 
 {% block title %}Dashboard Coordinador – {{ area|title }}{% endblock %}
 {% block page_pretitle %}Coordinador{% endblock %}
@@ -8,24 +8,23 @@
 {% block extra_head %}
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
   <style>
-    .coord-btn-group { display:flex; flex-wrap:wrap; gap:2px; }
-    .btn-coord {
-      font-size:.7rem; font-weight:700; padding:2px 6px; border-radius:4px;
-      border:1px solid #dee2e6; background:#f8f9fa; color:#6c757d;
-      cursor:pointer; transition:background .15s, color .15s, border-color .15s;
-      line-height:1.4;
+    .coord-badge-select {
+      appearance: none; -webkit-appearance: none;
+      border: none; border-radius: 20px;
+      padding: 3px 12px; font-size: 11px; font-weight: 700;
+      color: #fff; cursor: pointer; outline: none;
+      transition: background .2s;
+      min-width: 100px; max-width: 180px;
     }
-    .btn-coord:hover  { background:#e9ecef; border-color:#adb5bd; color:#343a40; }
-    .btn-coord.active { background:#f76707; border-color:#f76707; color:#fff; }
-    .btn-coord.override { border-color:#f76707; }
-    .ev-thumb-wrap { position:relative; display:inline-block; }
+    .coord-badge-select:focus { box-shadow: 0 0 0 2px rgba(255,255,255,.4); }
+    .ev-thumb-wrap { position:relative; display:inline-block; overflow:hidden; border-radius:4px; }
     .btn-ev-delete {
-      position:absolute; top:-4px; right:-4px;
-      width:16px; height:16px; border-radius:50%;
-      background:#dc3545; color:#fff; border:none;
-      font-size:10px; line-height:1; cursor:pointer;
+      position:absolute; top:0; right:0;
+      width:18px; height:18px; border-radius:0 4px 0 4px;
+      background:rgba(220,53,69,.85); color:#fff; border:none;
+      font-size:11px; font-weight:700; line-height:1; cursor:pointer;
       display:flex; align-items:center; justify-content:center;
-      opacity:0; transition:opacity .15s;
+      opacity:0; transition:opacity .18s;
       padding:0; z-index:10;
     }
     .ev-thumb-wrap:hover .btn-ev-delete { opacity:1; }
@@ -44,14 +43,14 @@
      title="Descargar todos los reportes en un ZIP">
     <i class="ti ti-file-zip me-1"></i>Descargar todo (ZIP)
   </a>
-  <a href="{% url 'menu' %}" class="btn btn-ghost-secondary">
+  <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary">
     <i class="ti ti-arrow-left me-1"></i> Menú Principal
   </a>
 {% endblock %}
 
 {% block sidebar_nav %}
   <li class="nav-item">
-    <a class="nav-link" href="{% url 'menu' %}">
+    <a class="nav-link" href="{{ nav_home_url }}">
       <span class="nav-link-icon"><i class="ti ti-home"></i></span>
       <span class="nav-link-title">Menú Principal</span>
     </a>
@@ -174,7 +173,7 @@
         <div class="table-responsive">
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
-              <th>#</th><th>Alumno</th><th>Fecha</th><th>Grado</th><th>Docente</th>
+              <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Docente</th>
               {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
               <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
@@ -183,18 +182,21 @@
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
+                <td><span class="badge bg-blue-lt text-blue fw-semibold">Informativo / Académico</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
-                  <div class="coord-btn-group select-coord-reporte {% if r.coord_asignado %}override{% endif %}"
-                       data-pk="{{ r.pk }}" data-tipo="informativo"
-                       title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C1' %}active{% endif %}" data-val="C1">C1</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C2' %}active{% endif %}" data-val="C2">C2</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C3' %}active{% endif %}" data-val="C3">C3</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C4' %}active{% endif %}" data-val="C4">C4</button>
-                  </div>
+                  <select class="coord-badge-select select-coord-reporte"
+                          data-pk="{{ r.pk }}" data-tipo="informativo"
+                          data-color-c1="#c92a2a" data-color-c2="#1971c2" data-color-c3="#2f9e44" data-color-c4="#e67700"
+                          style="background:{{ r.coord_codigo|coord_color }}"
+                          title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
+                    <option value="C1" {% if r.coord_codigo == 'C1' %}selected{% endif %}>C1{% if coord_nombres.C1 %} – {{ coord_nombres.C1 }}{% endif %}</option>
+                    <option value="C2" {% if r.coord_codigo == 'C2' %}selected{% endif %}>C2{% if coord_nombres.C2 %} – {{ coord_nombres.C2 }}{% endif %}</option>
+                    <option value="C3" {% if r.coord_codigo == 'C3' %}selected{% endif %}>C3{% if coord_nombres.C3 %} – {{ coord_nombres.C3 }}{% endif %}</option>
+                    <option value="C4" {% if r.coord_codigo == 'C4' %}selected{% endif %}>C4{% if coord_nombres.C4 %} – {{ coord_nombres.C4 }}{% endif %}</option>
+                  </select>
                 </td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
@@ -257,19 +259,20 @@
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td><span class="badge bg-cyan-lt text-cyan">Informativo</span></td>
+                <td><span class="badge bg-orange-lt text-orange fw-semibold">Informativo / Conductual</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
-                  <div class="coord-btn-group select-coord-reporte {% if r.coord_asignado %}override{% endif %}"
-                       data-pk="{{ r.pk }}" data-tipo="informativo"
-                       title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C1' %}active{% endif %}" data-val="C1">C1</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C2' %}active{% endif %}" data-val="C2">C2</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C3' %}active{% endif %}" data-val="C3">C3</button>
-                    <button type="button" class="btn-coord {% if r.coord_codigo == 'C4' %}active{% endif %}" data-val="C4">C4</button>
-                  </div>
+                  <select class="coord-badge-select select-coord-reporte"
+                          data-pk="{{ r.pk }}" data-tipo="informativo"
+                          style="background:{{ r.coord_codigo|coord_color }}"
+                          title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
+                    <option value="C1" {% if r.coord_codigo == 'C1' %}selected{% endif %}>C1{% if coord_nombres.C1 %} – {{ coord_nombres.C1 }}{% endif %}</option>
+                    <option value="C2" {% if r.coord_codigo == 'C2' %}selected{% endif %}>C2{% if coord_nombres.C2 %} – {{ coord_nombres.C2 }}{% endif %}</option>
+                    <option value="C3" {% if r.coord_codigo == 'C3' %}selected{% endif %}>C3{% if coord_nombres.C3 %} – {{ coord_nombres.C3 }}{% endif %}</option>
+                    <option value="C4" {% if r.coord_codigo == 'C4' %}selected{% endif %}>C4{% if coord_nombres.C4 %} – {{ coord_nombres.C4 }}{% endif %}</option>
+                  </select>
                 </td>{% endif %}
                 <td>
                   {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
@@ -317,19 +320,19 @@
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td><span class="badge bg-warning-lt text-warning">Conductual</span></td>
+                <td><span class="badge bg-red-lt text-red fw-semibold">Conductual</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.docente }}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
-                  <select class="form-select form-select-sm select-coord-reporte {% if r.coord_asignado %}border-warning{% endif %}"
-                          style="min-width:72px;font-size:.75rem;"
+                  <select class="coord-badge-select select-coord-reporte"
                           data-pk="{{ r.pk }}" data-tipo="conductual"
+                          style="background:{{ r.coord_codigo|coord_color }}"
                           title="{% if r.coord_asignado %}Override manual activo{% else %}Auto (por docente){% endif %}">
-                    <option value="C1" {% if r.coord_codigo == 'C1' %}selected{% endif %}>C1</option>
-                    <option value="C2" {% if r.coord_codigo == 'C2' %}selected{% endif %}>C2</option>
-                    <option value="C3" {% if r.coord_codigo == 'C3' %}selected{% endif %}>C3</option>
-                    <option value="C4" {% if r.coord_codigo == 'C4' %}selected{% endif %}>C4</option>
+                    <option value="C1" {% if r.coord_codigo == 'C1' %}selected{% endif %}>C1{% if coord_nombres.C1 %} – {{ coord_nombres.C1 }}{% endif %}</option>
+                    <option value="C2" {% if r.coord_codigo == 'C2' %}selected{% endif %}>C2{% if coord_nombres.C2 %} – {{ coord_nombres.C2 }}{% endif %}</option>
+                    <option value="C3" {% if r.coord_codigo == 'C3' %}selected{% endif %}>C3{% if coord_nombres.C3 %} – {{ coord_nombres.C3 }}{% endif %}</option>
+                    <option value="C4" {% if r.coord_codigo == 'C4' %}selected{% endif %}>C4{% if coord_nombres.C4 %} – {{ coord_nombres.C4 }}{% endif %}</option>
                   </select>
                 </td>{% endif %}
                 <td>
@@ -384,7 +387,7 @@
         <div class="table-responsive">
           <table id="tabla-progress" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
-              <th>#</th><th>Alumno</th><th>Fecha</th><th>Grado</th><th>Maestro</th>
+              <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Maestro</th>
               {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
               <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
@@ -393,6 +396,7 @@
               <tr>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
+                <td><span class="badge bg-teal-lt text-teal fw-semibold">Progress Report</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado }}</td>
                 <td>{{ r.usuario }}</td>
@@ -591,6 +595,29 @@
     </div>
   </div>
 </div>
+{# Modal eliminar evidencia (doble confirmación) #}
+<div class="modal fade" id="modalEliminarEvidencia" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white py-2">
+        <h5 class="modal-title fs-6"><i class="ti ti-trash me-2"></i>Eliminar Evidencia</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="ev-del-step1">
+        <p class="mb-0 text-center">¿Deseas eliminar esta evidencia?</p>
+      </div>
+      <div class="modal-body d-none" id="ev-del-step2">
+        <p class="text-danger fw-semibold text-center mb-1"><i class="ti ti-alert-triangle me-1"></i>¡Esta acción no se puede deshacer!</p>
+        <p class="text-center small text-muted mb-0">La imagen será eliminada permanentemente del sistema.</p>
+      </div>
+      <div class="modal-footer py-2 gap-2">
+        <button type="button" class="btn btn-ghost-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning btn-sm" id="ev-del-btn1">Sí, eliminar</button>
+        <button type="button" class="btn btn-danger btn-sm d-none" id="ev-del-btn2">Confirmar eliminación</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -651,41 +678,76 @@
     });
   });
 
-  // ── Eliminar evidencia ──
-  document.addEventListener('click', async function(e) {
-    const btn = e.target.closest('.btn-ev-delete');
-    if (!btn) return;
-    if (!confirm('¿Eliminar esta evidencia? Esta acción no se puede deshacer.')) return;
-    const evPk = btn.dataset.evPk;
-    const reportePk = btn.dataset.reportePk;
-    btn.disabled = true;
-    try {
-      const res = await fetch(`/conducta/evidencia/${evPk}/eliminar/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      const data = await res.json();
-      if (data.ok) {
-        const wrap = btn.closest('.ev-thumb-wrap');
-        const uploadBtn = document.querySelector(`.btn-evidencia[data-id="${reportePk}"]`);
-        wrap.remove();
-        if (uploadBtn) {
-          const numEl = parseInt(uploadBtn.dataset.numEvidencias || '0') - 1;
-          uploadBtn.dataset.numEvidencias = numEl;
-          uploadBtn.classList.remove('btn-danger', 'btn-success', 'btn-secondary', 'disabled');
-          uploadBtn.classList.add(numEl > 0 ? 'btn-success' : 'btn-secondary');
-          uploadBtn.title = 'Subir evidencia';
-          uploadBtn.querySelector('i').className = numEl > 0 ? 'ti ti-photo' : 'ti ti-camera';
-        }
-      } else {
-        alert('Error: ' + (data.error || 'No se pudo eliminar.'));
-        btn.disabled = false;
-      }
-    } catch {
-      alert('Error de red.');
-      btn.disabled = false;
+  // ── Eliminar evidencia (doble confirmación) ──
+  (function(){
+    const modalEl   = document.getElementById('modalEliminarEvidencia');
+    const modal     = new bootstrap.Modal(modalEl);
+    const step1     = document.getElementById('ev-del-step1');
+    const step2     = document.getElementById('ev-del-step2');
+    const btn1      = document.getElementById('ev-del-btn1');
+    const btn2      = document.getElementById('ev-del-btn2');
+    let _evPk = null, _reportePk = null, _btnOrigen = null;
+
+    function resetModal() {
+      step1.classList.remove('d-none');
+      step2.classList.add('d-none');
+      btn1.classList.remove('d-none');
+      btn2.classList.add('d-none');
+      btn2.disabled = false;
+      btn2.innerHTML = 'Confirmar eliminación';
     }
-  });
+
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.btn-ev-delete');
+      if (!btn) return;
+      _evPk      = btn.dataset.evPk;
+      _reportePk = btn.dataset.reportePk;
+      _btnOrigen = btn;
+      resetModal();
+      modal.show();
+    });
+
+    btn1.addEventListener('click', function() {
+      step1.classList.add('d-none');
+      step2.classList.remove('d-none');
+      btn1.classList.add('d-none');
+      btn2.classList.remove('d-none');
+    });
+
+    btn2.addEventListener('click', async function() {
+      btn2.disabled = true;
+      btn2.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+      try {
+        const res = await fetch(`/conducta/evidencia/${_evPk}/eliminar/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          modal.hide();
+          const wrap = _btnOrigen.closest('.ev-thumb-wrap');
+          const uploadBtn = document.querySelector(`.btn-evidencia[data-id="${_reportePk}"]`);
+          wrap.remove();
+          if (uploadBtn) {
+            const numEl = parseInt(uploadBtn.dataset.numEvidencias || '0') - 1;
+            uploadBtn.dataset.numEvidencias = numEl;
+            uploadBtn.classList.remove('btn-danger', 'btn-success', 'btn-secondary', 'disabled');
+            uploadBtn.classList.add(numEl > 0 ? 'btn-success' : 'btn-secondary');
+            uploadBtn.title = 'Subir evidencia';
+            uploadBtn.querySelector('i').className = numEl > 0 ? 'ti ti-photo' : 'ti ti-camera';
+          }
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo eliminar.'));
+          resetModal();
+        }
+      } catch {
+        alert('Error de red.');
+        resetModal();
+      }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', resetModal);
+  })();
 </script>
 
 {# ══════ CAMBIAR COORDINADOR (solo superuser) ══════ #}
@@ -694,17 +756,16 @@
 (function(){
   const CSRF   = "{{ csrf_token }}";
   const URL_SC = "{% url 'set_coord_reporte' %}";
+  const COLORES = { C1:'#c92a2a', C2:'#1971c2', C3:'#2f9e44', C4:'#e67700' };
 
-  document.addEventListener('click', async function(e) {
-    const btn = e.target.closest('.btn-coord');
-    if (!btn) return;
-    const grp  = btn.closest('.coord-btn-group');
-    if (!grp) return;
-    const pk   = grp.dataset.pk;
-    const tipo = grp.dataset.tipo;
-    const coord = btn.dataset.val;
+  document.addEventListener('change', async function(e) {
+    const sel = e.target.closest('.coord-badge-select');
+    if (!sel) return;
+    const pk    = sel.dataset.pk;
+    const tipo  = sel.dataset.tipo;
+    const coord = sel.value;
 
-    grp.querySelectorAll('.btn-coord').forEach(b => b.disabled = true);
+    sel.disabled = true;
     const body = new URLSearchParams({ pk, tipo, coord });
     try {
       const res  = await fetch(URL_SC, {
@@ -714,10 +775,8 @@
       });
       const data = await res.json();
       if (data.ok) {
-        grp.querySelectorAll('.btn-coord').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        grp.classList.toggle('override', !!coord);
-        grp.title = coord ? 'Override manual activo' : 'Auto (por docente)';
+        sel.style.background = COLORES[coord] || '#6c757d';
+        sel.title = 'Override manual activo';
       } else {
         alert('Error: ' + (data.error || 'No se pudo guardar.'));
         location.reload();
@@ -726,7 +785,7 @@
       alert('Error de red.');
       location.reload();
     } finally {
-      grp.querySelectorAll('.btn-coord').forEach(b => b.disabled = false);
+      sel.disabled = false;
     }
   });
 })();

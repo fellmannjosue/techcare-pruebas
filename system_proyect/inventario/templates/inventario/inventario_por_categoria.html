@@ -5,88 +5,304 @@
 {% block page_title %}Inventario – Por Categoría{% endblock %}
 {% block nav_categoria %}active{% endblock %}
 
-{% block extra_head %}
-<link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet">
-{% endblock %}
-
 {% block content %}
-<div class="card">
-  <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-category me-2 text-blue"></i>Clasificar Inventario por Categoría</h3>
+
+{% if messages %}
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
+    {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
-  <div class="card-body">
-    <div class="mb-3 d-flex flex-wrap gap-3">
-      <label class="form-check">
-        <input type="checkbox" class="form-check-input category-filter" value="Computadora" checked>
-        <span class="form-check-label">Computadora</span>
-      </label>
-      <label class="form-check">
-        <input type="checkbox" class="form-check-input category-filter" value="Impresora" checked>
-        <span class="form-check-label">Impresora</span>
-      </label>
-      <label class="form-check">
-        <input type="checkbox" class="form-check-input category-filter" value="Router" checked>
-        <span class="form-check-label">Router</span>
-      </label>
-    </div>
-  </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table id="items-table" class="table table-vcenter table-hover card-table">
-        <thead>
-          <tr>
-            <th>Categoría</th><th>ID</th><th>Descripción</th>
-            <th>Categoría Actual</th><th>Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in items %}
-          <tr>
-            <td>{{ item.tipo }}</td>
-            <td>{{ item.id }}</td>
-            <td>{{ item.descripcion }}</td>
-            <td>{{ item.categoria }}</td>
-            <td>
-              <form method="post" action="{% url 'inventario:inventario_por_categoria' %}" class="d-flex mb-0">
-                {% csrf_token %}
-                <input type="hidden" name="item_type" value="{{ item.tipo }}">
-                <input type="hidden" name="item_id" value="{{ item.id }}">
-                <select name="categoria" class="form-select form-select-sm me-2" required>
-                  {% for val,label in form.categoria.field.choices %}
-                  <option value="{{ val }}" {% if val == item.categoria %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" class="text-center text-muted py-3">No hay ítems para clasificar.</td></tr>
+  {% endfor %}
+{% endif %}
+
+{# ── Tabs ── #}
+<ul class="nav nav-tabs mb-0" id="tabsCategorias" role="tablist">
+  {% for grupo in grupos %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if forloop.first %}active{% endif %}"
+            id="tab-{{ grupo.tipo_key }}"
+            data-bs-toggle="tab"
+            data-bs-target="#panel-{{ grupo.tipo_key }}"
+            type="button" role="tab">
+      {% if grupo.tipo == "Computadora" %}<i class="ti ti-device-desktop me-1"></i>
+      {% elif grupo.tipo == "Impresora" %}<i class="ti ti-printer me-1"></i>
+      {% elif grupo.tipo == "Router" %}<i class="ti ti-router me-1"></i>
+      {% elif grupo.tipo == "Monitor" %}<i class="ti ti-device-tv me-1"></i>
+      {% elif grupo.tipo == "Televisor" %}<i class="ti ti-device-tv me-1"></i>
+      {% elif grupo.tipo == "DataShow" %}<i class="ti ti-projector me-1"></i>
+      {% endif %}
+      {{ grupo.tipo }}
+      <span class="badge bg-blue-lt text-blue ms-1">{{ grupo.items|length }}</span>
+    </button>
+  </li>
+  {% endfor %}
+  {# Tab Sin Categoría #}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if not grupos %}active{% endif %}"
+            id="tab-sincategoria"
+            data-bs-toggle="tab"
+            data-bs-target="#panel-sincategoria"
+            type="button" role="tab">
+      <i class="ti ti-alert-circle me-1 text-warning"></i>
+      Sin Categoría
+      {% if sin_cat %}
+      <span class="badge bg-warning-lt text-warning ms-1">{{ sin_cat|length }}</span>
+      {% endif %}
+    </button>
+  </li>
+</ul>
+
+{# ── Paneles por tipo ── #}
+<div class="tab-content" id="tabsCategoriasContent">
+
+  {% for grupo in grupos %}
+  <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+       id="panel-{{ grupo.tipo_key }}" role="tabpanel">
+
+    {# Barra de acción bulk #}
+    <div class="card mb-0 border-0 border-bottom rounded-0 bg-light px-3 py-2 bulk-bar d-none"
+         id="bulk-bar-{{ grupo.tipo_key }}">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted small"><span class="bulk-count-{{ grupo.tipo_key }}">0</span> seleccionados</span>
+        <select class="form-select form-select-sm" style="width:220px;" id="bulk-cat-{{ grupo.tipo_key }}">
+          <option value="">— Seleccionar categoría —</option>
+          {% for val,label in form.categoria.field.choices %}
+          <option value="{{ val }}">{{ label }}</option>
           {% endfor %}
-        </tbody>
-      </table>
+        </select>
+        <button class="btn btn-sm btn-primary btn-bulk-apply"
+                data-tipo="{{ grupo.tipo_key }}">
+          <i class="ti ti-check me-1"></i>Aplicar a seleccionados
+        </button>
+        <button class="btn btn-sm btn-ghost-secondary btn-bulk-clear"
+                data-tipo="{{ grupo.tipo_key }}">Limpiar selección</button>
+      </div>
+    </div>
+
+    <div class="card mb-0" style="border-top-left-radius:0; border-top:none;">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="tabla-{{ grupo.tipo_key }}" class="table table-vcenter table-hover card-table">
+            <thead>
+              <tr>
+                <th style="width:40px;">
+                  <input type="checkbox" class="form-check-input chk-all" data-tipo="{{ grupo.tipo_key }}">
+                </th>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th>Categoría Actual</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in grupo.items %}
+              <tr>
+                <td>
+                  <input type="checkbox" class="form-check-input chk-item"
+                         data-tipo="{{ grupo.tipo_key }}"
+                         data-id="{{ item.id }}">
+                </td>
+                <td>{{ item.id }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td>
+                  <span class="badge bg-blue-lt text-blue">{{ item.categoria }}</span>
+                </td>
+                <td>
+                  <form method="post" action="{% url 'inventario:inventario_por_categoria' %}" class="d-flex mb-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_type" value="{{ item.tipo }}">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <select name="categoria" class="form-select form-select-sm me-2" required>
+                      {% for val,label in form.categoria.field.choices %}
+                      <option value="{{ val }}" {% if val == item.categoria %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary text-nowrap">Guardar</button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-3">Sin registros.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
-</div>
+  {% endfor %}
+
+  {# ── Panel Sin Categoría ── #}
+  <div class="tab-pane fade {% if not grupos %}show active{% endif %}"
+       id="panel-sincategoria" role="tabpanel">
+
+    {# Barra bulk sin categoría #}
+    <div class="card mb-0 border-0 border-bottom rounded-0 bg-light px-3 py-2 bulk-bar d-none"
+         id="bulk-bar-sincategoria">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted small"><span class="bulk-count-sincategoria">0</span> seleccionados</span>
+        <select class="form-select form-select-sm" style="width:220px;" id="bulk-cat-sincategoria">
+          <option value="">— Seleccionar categoría —</option>
+          {% for val,label in form.categoria.field.choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-primary btn-bulk-apply"
+                data-tipo="sincategoria">
+          <i class="ti ti-check me-1"></i>Aplicar a seleccionados
+        </button>
+        <button class="btn btn-sm btn-ghost-secondary btn-bulk-clear"
+                data-tipo="sincategoria">Limpiar selección</button>
+      </div>
+    </div>
+
+    <div class="card mb-0" style="border-top-left-radius:0; border-top:none;">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="tabla-sincategoria" class="table table-vcenter table-hover card-table">
+            <thead>
+              <tr>
+                <th style="width:40px;">
+                  <input type="checkbox" class="form-check-input chk-all" data-tipo="sincategoria">
+                </th>
+                <th>Tipo</th>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in sin_cat %}
+              <tr>
+                <td>
+                  <input type="checkbox" class="form-check-input chk-item"
+                         data-tipo="sincategoria"
+                         data-tipo-real="{{ item.tipo_key }}"
+                         data-id="{{ item.id }}">
+                </td>
+                <td><span class="badge bg-secondary-lt text-secondary">{{ item.tipo }}</span></td>
+                <td>{{ item.id }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td>
+                  <form method="post" action="{% url 'inventario:inventario_por_categoria' %}" class="d-flex mb-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_type" value="{{ item.tipo }}">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <select name="categoria" class="form-select form-select-sm me-2" required>
+                      {% for val,label in form.categoria.field.choices %}
+                      <option value="{{ val }}">{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-success text-nowrap">Asignar</button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  <i class="ti ti-circle-check text-success me-2"></i>
+                  Todos los ítems tienen categoría asignada.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>{# /tab-content #}
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
 <script>
+const CSRF = '{{ csrf_token }}';
+const BULK_URL = "{% url 'inventario:asignar_categoria_bulk' %}";
+
 $(function(){
-  var table = $('#items-table').DataTable({
-    dom: 'Bfrtip',
-    buttons: ['excel','pdf','print'],
+  // DataTable por cada tab
+  {% for grupo in grupos %}
+  $('#tabla-{{ grupo.tipo_key }}').DataTable({
+    pageLength: 25,
+    columnDefs: [{ orderable: false, targets: [0,4] }],
+    language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+  });
+  {% endfor %}
+  $('#tabla-sincategoria').DataTable({
+    pageLength: 25,
+    columnDefs: [{ orderable: false, targets: [0,4] }],
     language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
 
-  $('.category-filter').on('change', function(){
-    var cats = [];
-    $('.category-filter:checked').each(function(){ cats.push($(this).val()); });
-    table.column(0).search(cats.length ? cats.join('|') : '', true, false).draw();
+  // ── Seleccionar todo ──
+  $(document).on('change', '.chk-all', function(){
+    const tipo = $(this).data('tipo');
+    const checked = this.checked;
+    $(`#panel-${tipo} .chk-item`).prop('checked', checked);
+    updateBulkBar(tipo);
+  });
+
+  // ── Checkbox individual ──
+  $(document).on('change', '.chk-item', function(){
+    const tipo = $(this).data('tipo');
+    updateBulkBar(tipo);
+    // Sincronizar chk-all
+    const total = $(`#panel-${tipo} .chk-item`).length;
+    const checked = $(`#panel-${tipo} .chk-item:checked`).length;
+    $(`#panel-${tipo} .chk-all`).prop('indeterminate', checked > 0 && checked < total);
+    $(`#panel-${tipo} .chk-all`).prop('checked', checked === total && total > 0);
+  });
+
+  function updateBulkBar(tipo) {
+    const count = $(`#panel-${tipo} .chk-item:checked`).length;
+    $(`#bulk-bar-${tipo}`).toggleClass('d-none', count === 0);
+    $(`.bulk-count-${tipo}`).text(count);
+  }
+
+  // ── Limpiar selección ──
+  $(document).on('click', '.btn-bulk-clear', function(){
+    const tipo = $(this).data('tipo');
+    $(`#panel-${tipo} .chk-item, #panel-${tipo} .chk-all`).prop('checked', false).prop('indeterminate', false);
+    updateBulkBar(tipo);
+  });
+
+  // ── Aplicar bulk ──
+  $(document).on('click', '.btn-bulk-apply', async function(){
+    const tipo = $(this).data('tipo');
+    const categoria = $(`#bulk-cat-${tipo}`).val();
+    if (!categoria) { alert('Selecciona una categoría primero.'); return; }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aplicando...';
+
+    if (tipo === 'sincategoria') {
+      // Agrupar por tipo_real
+      const grupos = {};
+      $(`#panel-sincategoria .chk-item:checked`).each(function(){
+        const tipoReal = $(this).data('tipo-real');
+        const id = $(this).data('id');
+        if (!grupos[tipoReal]) grupos[tipoReal] = [];
+        grupos[tipoReal].push(id);
+      });
+
+      const promesas = Object.entries(grupos).map(([tipoReal, ids]) => {
+        const body = new URLSearchParams({ csrfmiddlewaretoken: CSRF, tipo: tipoReal, categoria });
+        ids.forEach(id => body.append('ids', id));
+        return fetch(BULK_URL, { method: 'POST', body });
+      });
+      await Promise.all(promesas);
+    } else {
+      const ids = [];
+      $(`#panel-${tipo} .chk-item:checked`).each(function(){ ids.push($(this).data('id')); });
+      const body = new URLSearchParams({ csrfmiddlewaretoken: CSRF, tipo, categoria });
+      ids.forEach(id => body.append('ids', id));
+      await fetch(BULK_URL, { method: 'POST', body });
+    }
+
+    location.reload();
   });
 });
 </script>

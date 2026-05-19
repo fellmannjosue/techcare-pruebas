@@ -4,6 +4,18 @@ from django.db import models
 from core.models import AuditModel
 
 
+class CategoriaInventario(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = "Categoría de Inventario"
+        verbose_name_plural = "Categorías de Inventario"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class InventoryItem(AuditModel):
     CATEGORY_CHOICES = [
         ('Equipo Informatico', 'Equipo Informatico'),
@@ -29,6 +41,15 @@ class ModeloComputadora(models.Model):
     class Meta:
         verbose_name = "Modelo de Computadora"
         verbose_name_plural = "Modelos de Computadora"
+        ordering = ['nombre']
+    def __str__(self): return self.nombre
+
+
+class ModeloMonitor(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+    class Meta:
+        verbose_name = "Modelo de Monitor"
+        verbose_name_plural = "Modelos de Monitor"
         ordering = ['nombre']
     def __str__(self): return self.nombre
 
@@ -69,6 +90,30 @@ class GradoComputadora(models.Model):
     def __str__(self): return self.nombre
 
 
+class SubtipoGradoComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = "Sub-tipo de Grado (Otros)"
+        verbose_name_plural = "Sub-tipos de Grado (Otros)"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class EdificioComputadora(models.Model):
+    nombre = models.CharField("Nombre", max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = "Edificio (Computadora)"
+        verbose_name_plural = "Edificios (Computadora)"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
 class Computadora(AuditModel):
     asset_id        = models.CharField("ID Computadora", max_length=50, unique=True)
     modelo          = models.CharField("Modelo", max_length=100)
@@ -77,6 +122,7 @@ class Computadora(AuditModel):
     asignado_a      = models.CharField("Asignado a", max_length=100)
     area            = models.CharField("Área", max_length=100)
     grado           = models.CharField("Grado", max_length=50)
+    edificio        = models.CharField("Edificio", max_length=100, blank=True, null=True)
     fecha_instalado = models.DateField("Fecha de Instalación")
     observaciones   = models.TextField("Observaciones", blank=True, null=True)
 
@@ -208,12 +254,12 @@ class Monitor(AuditModel):
 
     OPCIONES_UBICACION = [
         ("laboratorio", "Laboratorio"),
-        ("persona", "Asignado a persona"),
+        ("persona", "Asignado a"),
     ]
 
     asset_id      = models.CharField("ID Monitor", max_length=50, unique=True)
-    modelo        = models.CharField("Modelo", max_length=100)
-    serie         = models.CharField("Serie", max_length=100)
+    modelo        = models.CharField("Modelo", max_length=100, blank=True)
+    serie         = models.CharField("Serie", max_length=100, blank=True)
 
     # NUEVO: Dropdown para controlar qué campo se habilita
     ubicacion_tipo = models.CharField(

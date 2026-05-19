@@ -1,7 +1,7 @@
 {% extends 'reloj/base_reloj.html' %}
 {% load static %}
 {% block title %}Reporte de Permisos{% endblock %}
-{% block page_pretitle %}Reloj{% endblock %}
+{% block page_pretitle %}Reporte Mensual de Permisos{% endblock %}
 {% block page_title %}Reporte Mensual de Permisos{% endblock %}
 
 {% block extra_head %}
@@ -93,15 +93,14 @@
         <thead>
           <tr>
             <th class="col-nombre">Empleado</th>
-            <th class="th-permiso th-compensatorio">Compensatorio</th>
-            <th class="th-permiso th-ausencias">Ausencias</th>
+            <th class="th-permiso th-ausencias">No<br>Pagado</th>
             <th class="th-permiso th-otro-pagado">Otro<br>Pagado</th>
             <th class="th-permiso th-vacaciones">Vacaciones</th>
             <th class="th-permiso th-enfermedad">Enfermedad</th>
-            <th class="th-permiso th-pct25">25%</th>
-            <th class="th-permiso th-pct50">50%</th>
-            <th class="th-permiso th-pct75">75%</th>
-            <th class="th-permiso th-pct100">100%</th>
+            <th class="th-permiso th-pct25">Horas<br>Extra 25%</th>
+            <th class="th-permiso th-pct50">Horas<br>Extra 50%</th>
+            <th class="th-permiso th-pct75">Horas<br>Extra 75%</th>
+            <th class="th-permiso th-pct100">Horas<br>Extra 100%</th>
             <th class="col-mins">Horas<br>Rebaja Otra</th>
             <th class="col-mins">Minutos<br>Tarde</th>
             <th class="col-mins">Pierde<br>Bono</th>
@@ -116,19 +115,8 @@
               <div class="text-muted small">{{ row.emp_code }} {% if row.cargo %}<span class="ms-1">· {{ row.cargo }}</span>{% endif %}</div>
             </td>
 
-            {# ── 9 celdas editables: Compensatorio, Ausencias, Otro Pagado, Vacaciones, Enfermedad, 25%, 50%, 75%, 100% ── #}
+            {# ── 8 celdas editables: Ausencias, Otro Pagado, Vacaciones, Enfermedad, 25%, 50%, 75%, 100% ── #}
             {% with hm=row.horas_map %}
-
-            <td class="text-center p-1">
-              <button class="btn-permiso-cell {% if r and r.compensatorio_dias %}has-value cell-compensatorio{% else %}no-value{% endif %}"
-                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
-                      data-mes="{{ mes_str }}" data-campo="compensatorio_dias"
-                      data-label="Compensatorio" data-color="#B4C7E7"
-                      data-valor="{% if r %}{{ r.compensatorio_dias }}{% else %}0{% endif %}">
-                {% if r and r.compensatorio_dias %}{{ r.compensatorio_dias|stringformat:"g" }}d{% else %}—{% endif %}
-                {% if hm.compensatorio_dias %}<br><small class="fw-normal">{{ hm.compensatorio_dias|stringformat:"g" }}h</small>{% endif %}
-              </button>
-            </td>
 
             <td class="text-center p-1">
               <button class="btn-permiso-cell {% if r and r.ausencias_dias %}has-value cell-ausencias{% else %}no-value{% endif %}"
@@ -342,7 +330,7 @@
       $('#tabla-permisos').DataTable({
         order: [[0, 'asc']],
         pageLength: 50,
-        columnDefs: [{ orderable: false, targets: [1,2,3,4,5,6,7,8,9,10,11,12] }],
+        columnDefs: [{ orderable: false, targets: [1,2,3,4,5,6,7,8,9,10,11] }],
         language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
       });
     }
@@ -492,4 +480,6 @@
   });
 })();
 </script>
+
+
 {% endblock %}

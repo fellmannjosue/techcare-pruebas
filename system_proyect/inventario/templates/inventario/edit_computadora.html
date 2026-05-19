@@ -6,7 +6,7 @@
 
         <div class="col-md-6">
             <label class="form-label fw-semibold">Asset ID</label>
-            <input type="text" class="form-control bg-light text-muted" value="{{ obj.asset_id }}" readonly>
+            <input type="text" name="asset_id" class="form-control" value="{{ obj.asset_id }}">
         </div>
 
         <div class="col-md-6">
@@ -16,12 +16,13 @@
 
         <div class="col-md-6">
             <label class="form-label fw-semibold">Serie</label>
-            <input type="text" name="serie" class="form-control" value="{{ obj.serie }}">
+            <input type="text" name="serie" class="form-control" value="{{ obj.serie }}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
         </div>
 
         <div class="col-md-6">
             <label class="form-label fw-semibold">IP</label>
-            <input type="text" name="ip" class="form-control" value="{{ obj.ip }}" placeholder="0.0.0.0">
+            <input type="text" name="ip" class="form-control" value="{{ obj.ip }}"
+                   placeholder="{% if 'LABBL' in obj.asset_id %}192.168.12.{% elif 'LABCOL' in obj.asset_id %}192.168.13.{% elif 'CFP' in obj.asset_id %}192.168.19.{% else %}192.168.10.{% endif %}xxx">
         </div>
 
         <div class="col-md-6">
@@ -39,9 +40,30 @@
             {{ form.grado }}
         </div>
 
+        <div class="col-md-6{% if not grado_subtipo %} d-none{% endif %}" id="edit-campo-grado-subtipo">
+            <label class="form-label fw-semibold">Sub-tipo</label>
+            <select name="grado_subtipo" class="form-select" id="edit-id-grado-subtipo">
+              <option value="">— Seleccionar —</option>
+              {% for st in subtipos_otros %}
+              <option value="{{ st.nombre }}"{% if grado_subtipo == st.nombre %} selected{% endif %}>{{ st.nombre }}</option>
+              {% endfor %}
+            </select>
+        </div>
+
         <div class="col-md-6">
             <label class="form-label fw-semibold">{{ form.fecha_instalado.label }}</label>
-            {{ form.fecha_instalado }}
+            <input type="date" name="fecha_instalado" class="form-control"
+                   value="{{ obj.fecha_instalado|date:'Y-m-d' }}">
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Edificio</label>
+            <select name="edificio" class="form-select">
+              <option value="">— Sin edificio —</option>
+              {% for e in edificios %}
+              <option value="{{ e.nombre }}" {% if e.nombre == obj.edificio %}selected{% endif %}>{{ e.nombre }}</option>
+              {% endfor %}
+            </select>
         </div>
 
         <div class="col-md-6">
@@ -60,3 +82,39 @@
         <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
     </button>
 </form>
+<script>
+(function(){
+  var form = document.getElementById('form-edit-computadora');
+  if (!form) return;
+
+  // Sub-tipo Otros
+  var gradoSel     = form.querySelector('[name="grado"]');
+  var subtipoDiv   = document.getElementById('edit-campo-grado-subtipo');
+  var subtipoSel   = document.getElementById('edit-id-grado-subtipo');
+  if (gradoSel) {
+    gradoSel.addEventListener('change', function(){
+      var esOtros = this.value === 'Otros';
+      if (subtipoDiv) subtipoDiv.classList.toggle('d-none', !esOtros);
+      if (!esOtros && subtipoSel) subtipoSel.value = '';
+    });
+  }
+
+  var SERIE_PREFIJOS = {
+    'Ideacentre AIO 3 22ITL6':  'MP24ML',
+    'Ideacentre AIO 3 24ARE05': 'MP1Z5',
+    'IdeaCentre AIO 5 24IMB05': 'MJ0F7'
+  };
+  var modeloSel = form.querySelector('[name="modelo"]');
+  var serieInp  = form.querySelector('[name="serie"]');
+  if (modeloSel && serieInp) {
+    modeloSel.addEventListener('change', function(){
+      var prefijo = SERIE_PREFIJOS[this.value];
+      if (prefijo) {
+        serieInp.value = prefijo.toUpperCase();
+        serieInp.focus();
+        serieInp.setSelectionRange(serieInp.value.length, serieInp.value.length);
+      }
+    });
+  }
+})();
+</script>

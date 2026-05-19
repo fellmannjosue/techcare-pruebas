@@ -2,6 +2,7 @@
 
 from django import forms
 from .models import (
+    CategoriaInventario,
     InventoryItem,
     Computadora,
     Televisor,
@@ -18,6 +19,10 @@ from .models import (
     AreaComputadora,
     GradoComputadora,
 )
+
+def _categoria_choices():
+    cats = list(CategoriaInventario.objects.values_list('nombre', flat=True))
+    return [('', '— Categoría —')] + [(c, c) for c in cats]
 
 # Form para crear o actualizar un ítem de inventario genérico
 class InventoryItemForm(forms.ModelForm):
@@ -56,12 +61,13 @@ class ComputadoraForm(forms.ModelForm):
         self.fields['asignado_a'].choices = [('', '— Asignado a —')] + [(a.nombre, a.nombre) for a in AsignadoAComputadora.objects.all()]
         self.fields['area'].choices       = [('', '— Área —')]       + [(a.nombre, a.nombre) for a in AreaComputadora.objects.all()]
         self.fields['grado'].choices      = [('', '— Grado —')]      + [(g.nombre, g.nombre) for g in GradoComputadora.objects.all()]
-        self.fields['category'].choices   = [('', '— Categoría —')]  + list(InventoryItem.CATEGORY_CHOICES)
+        self.fields['category'].choices   = _categoria_choices()
         if self.instance and self.instance.pk:
             self.fields['modelo'].initial     = self.instance.modelo
             self.fields['asignado_a'].initial = self.instance.asignado_a
             self.fields['area'].initial       = self.instance.area
-            self.fields['grado'].initial      = self.instance.grado
+            grado_val = self.instance.grado or ''
+            self.fields['grado'].initial = 'Otros' if grado_val.startswith('Otros/') else grado_val
             self.fields['category'].initial   = self.instance.category
 
 
@@ -129,7 +135,7 @@ class ImpresoraForm(forms.ModelForm):
             'asset_id':            forms.TextInput(attrs={'class': 'form-control'}),
             'nombre':              forms.TextInput(attrs={'class': 'form-control'}),
             'modelo':              forms.TextInput(attrs={'class': 'form-control'}),
-            'serie':               forms.TextInput(attrs={'class': 'form-control'}),
+            'serie':               forms.TextInput(attrs={'class': 'form-control', 'style': 'text-transform:uppercase', 'oninput': 'this.value=this.value.toUpperCase()'}),
             'asignado_a':          forms.TextInput(attrs={'class': 'form-control'}),
             'nivel_tinta':         forms.TextInput(attrs={'class': 'form-control'}),
             'ultima_vez_llenado':  forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -157,7 +163,7 @@ class RouterForm(forms.ModelForm):
         widgets = {
             'asset_id':      forms.TextInput(attrs={'class': 'form-control'}),
             'modelo':        forms.TextInput(attrs={'class': 'form-control'}),
-            'serie':         forms.TextInput(attrs={'class': 'form-control'}),
+            'serie':               forms.TextInput(attrs={'class': 'form-control', 'style': 'text-transform:uppercase', 'oninput': 'this.value=this.value.toUpperCase()'}),
             'nombre_router': forms.TextInput(attrs={'class': 'form-control'}),
             'clave_router':  forms.TextInput(attrs={'class': 'form-control'}),
             'ip_asignada':   forms.TextInput(attrs={'class': 'form-control'}),
@@ -187,7 +193,7 @@ class DataShowForm(forms.ModelForm):
             'asset_id':        forms.TextInput(attrs={'class': 'form-control'}),
             'nombre':          forms.TextInput(attrs={'class': 'form-control'}),
             'modelo':          forms.TextInput(attrs={'class': 'form-control'}),
-            'serie':           forms.TextInput(attrs={'class': 'form-control'}),
+            'serie':               forms.TextInput(attrs={'class': 'form-control', 'style': 'text-transform:uppercase', 'oninput': 'this.value=this.value.toUpperCase()'}),
             'estado':          forms.TextInput(attrs={'class': 'form-control'}),
             'cable_corriente': forms.CheckboxInput(),
             'hdmi':            forms.CheckboxInput(),
@@ -212,9 +218,13 @@ class CategoryUpdateForm(forms.Form):
     item_id = forms.IntegerField(widget=forms.HiddenInput)  # ID del objeto a actualizar
     categoria = forms.ChoiceField(
         label='Categoría',
-        choices=InventoryItem.CATEGORY_CHOICES,  # Categorías definidas en el modelo
+        choices=[],
         widget=forms.Select(attrs={'class': 'form-select form-select-sm'})
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['categoria'].choices = [(c, c) for c in CategoriaInventario.objects.values_list('nombre', flat=True)]
 
     def save(self):
         """
@@ -317,7 +327,7 @@ class MonitorForm(forms.ModelForm):
         widgets = {
             "asset_id": forms.TextInput(attrs={"class": "form-control"}),
             "modelo": forms.TextInput(attrs={"class": "form-control"}),
-            "serie": forms.TextInput(attrs={"class": "form-control"}),
+            "serie": forms.TextInput(attrs={"class": "form-control", "style": "text-transform:uppercase", "oninput": "this.value=this.value.toUpperCase()"}),
 
             "ubicacion_tipo": forms.Select(attrs={"class": "form-select"}),
 
@@ -327,3 +337,8 @@ class MonitorForm(forms.ModelForm):
             "observaciones": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "category": forms.Select(attrs={"class": "form-select"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cats = list(CategoriaInventario.objects.values_list('nombre', flat=True))
+        self.fields['category'].choices = [('', '— Categoría —')] + [(c, c) for c in cats]

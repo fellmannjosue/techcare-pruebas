@@ -3,6 +3,10 @@
 {% block title %}Nueva Agenda{% endblock %}
 {% block page_title %}Nueva Agenda{% endblock %}
 {% block nav_form %}active{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'agendas:historial_maestro' %}">Agendas</a></li>
+<li class="breadcrumb-item active">Nueva Agenda</li>
+{% endblock %}
 
 {% block content %}
 <div class="card">

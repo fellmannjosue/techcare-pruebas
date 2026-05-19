@@ -26,7 +26,6 @@ _MODULO_LABEL = {
     'reloj':         'Control de Horario',
     'inventario':    'Inventario',
     'enfermeria':    'Enfermería',
-    'seguridad':     'Seguridad',
 }
 
 
