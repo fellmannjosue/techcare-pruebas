@@ -1,0 +1,344 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Control de Vacaciones{% endblock %}
+{% block page_pretitle %}Vacaciones{% endblock %}
+{% block page_title %}Control de Vacaciones{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'reloj_vacaciones_importar' %}" class="btn btn-ghost-secondary btn-sm">
+    <i class="ti ti-upload me-1"></i>Importar fechas
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Período y reglas -->
+<div class="row mb-3 g-2">
+  <div class="col-12">
+    <div class="alert alert-info py-2 mb-0 small">
+      <i class="ti ti-calendar me-1"></i>
+      Período activo: <strong>{{ periodo_inicio|date:"d/m/Y" }} — {{ periodo_fin|date:"d/m/Y" }}</strong>
+      &nbsp;|&nbsp;
+      <i class="ti ti-school me-1"></i>Docentes: <strong>60 días</strong> (desde 1er año)
+      &nbsp;|&nbsp;
+      <i class="ti ti-briefcase me-1"></i>No docentes: <strong>1a→10d · 2a→12d · 3a→15d · 4a+→20d</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Cards resumen -->
+<div class="row mb-3 g-2">
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <span class="bg-blue text-white avatar me-3"><i class="ti ti-users"></i></span>
+          <div>
+            <div class="fw-bold">{{ filas|length }}</div>
+            <div class="text-muted small">Total empleados</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <span class="bg-red text-white avatar me-3"><i class="ti ti-alert-circle"></i></span>
+          <div>
+            <div class="fw-bold" id="count-sin-config">—</div>
+            <div class="text-muted small">Sin configurar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Buscador -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <div class="input-group">
+      <span class="input-group-text"><i class="ti ti-search"></i></span>
+      <input type="text" id="buscar" class="form-control" placeholder="Buscar empleado...">
+    </div>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter table-hover card-table" id="tablaVacaciones">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th class="text-center">Tipo</th>
+          <th class="text-center">Inicio labores</th>
+          <th class="text-center">Años</th>
+          <th class="text-center">Días corresponden</th>
+          <th class="text-center">Días usados</th>
+          <th class="text-center">Días disponibles</th>
+          <th class="text-center w-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr data-emp="{{ f.emp_code }}"
+            data-nombre="{{ f.nombre }}"
+            data-docente="{{ f.cfg.es_docente|yesno:'true,false' }}"
+            data-fecha="{{ f.cfg.fecha_inicio_labores|date:'Y-m-d'|default:'' }}">
+
+          <td>
+            <div class="fw-semibold">{{ f.nombre }}</div>
+            <div class="text-muted small">Cód. {{ f.emp_code }}</div>
+          </td>
+
+          <td class="text-center td-tipo">
+            {% if not f.cfg %}
+              <span class="badge bg-secondary-lt text-muted">Sin config.</span>
+            {% elif f.cfg.es_docente %}
+              <span class="badge bg-blue-lt text-blue"><i class="ti ti-school me-1"></i>Docente</span>
+            {% else %}
+              <span class="badge bg-green-lt text-green"><i class="ti ti-briefcase me-1"></i>No docente</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-fecha">
+            {% if f.cfg.fecha_inicio_labores %}
+              {{ f.cfg.fecha_inicio_labores|date:"d/m/Y" }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-años">
+            {% if f.años is not None %}
+              {% if f.años == 0 %}
+                <span class="text-muted small">< 1 año</span>
+              {% else %}
+                {{ f.años }} {% if f.años == 1 %}año{% else %}años{% endif %}
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-corresponden">
+            {% if f.dias_corresponden > 0 %}
+              <span class="fw-bold text-primary">{{ f.dias_corresponden }}</span>
+            {% else %}
+              <span class="text-muted">0</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-usados">
+            {% if f.dias_usados > 0 %}
+              <span class="text-orange fw-semibold">{{ f.dias_usados }}</span>
+            {% else %}
+              <span class="text-muted">0</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-disponibles">
+            {% if f.dias_corresponden > 0 %}
+              {% if f.dias_disponibles <= 0 %}
+                <span class="badge bg-red-lt text-red fw-bold">{{ f.dias_disponibles }}</span>
+              {% elif f.dias_disponibles <= 5 %}
+                <span class="badge bg-orange-lt text-orange fw-bold">{{ f.dias_disponibles }}</span>
+              {% else %}
+                <span class="badge bg-green-lt text-green fw-bold">{{ f.dias_disponibles }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-icon btn-cfg"
+                    data-emp="{{ f.emp_code }}"
+                    data-nombre="{{ f.nombre }}"
+                    data-docente="{{ f.cfg.es_docente|yesno:'true,false' }}"
+                    data-fecha="{{ f.cfg.fecha_inicio_labores|date:'Y-m-d'|default:'' }}"
+                    title="Configurar">
+              <i class="ti ti-settings"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron empleados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal configurar -->
+<div class="modal modal-blur fade" id="modalConfig" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-settings me-2"></i>Configurar vacaciones</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cfg-emp-code">
+        <input type="hidden" id="cfg-nombre">
+
+        <div class="mb-3">
+          <div class="fw-semibold" id="cfg-nombre-display"></div>
+          <div class="text-muted small" id="cfg-emp-display"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tipo de empleado</label>
+          <div>
+            <label class="form-check">
+              <input class="form-check-input" type="radio" name="cfg-tipo" id="cfg-tipo-docente" value="docente">
+              <span class="form-check-label">
+                <i class="ti ti-school me-1 text-blue"></i>Docente
+                <span class="text-muted small ms-1">(60 días desde 1er año)</span>
+              </span>
+            </label>
+            <label class="form-check mt-1">
+              <input class="form-check-input" type="radio" name="cfg-tipo" id="cfg-tipo-nodocente" value="nodocente">
+              <span class="form-check-label">
+                <i class="ti ti-briefcase me-1 text-green"></i>No docente
+                <span class="text-muted small ms-1">(escala por años)</span>
+              </span>
+            </label>
+          </div>
+          <div id="escala-info" class="mt-2 border rounded p-2 bg-light" style="display:none;font-size:12px;">
+            <strong>Escala:</strong> 1a→10d · 2a→12d · 3a→15d · 4a+→20d
+          </div>
+        </div>
+
+        <div class="mb-1">
+          <label class="form-label fw-semibold" for="cfg-fecha">Fecha inicio de labores</label>
+          <input type="date" class="form-control" id="cfg-fecha">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar-cfg">
+          <i class="ti ti-check me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF    = '{{ csrf_token }}';
+const URL_SAVE= '{% url "reloj_vacacion_config_save" %}';
+
+document.addEventListener('DOMContentLoaded', function(){
+  const sinCfg = document.querySelectorAll('tr[data-fecha=""]').length;
+  document.getElementById('count-sin-config').textContent = sinCfg;
+});
+
+// Buscador
+document.getElementById('buscar').addEventListener('input', function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#tablaVacaciones tbody tr').forEach(tr => {
+    tr.style.display = (tr.dataset.nombre || '').toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+// Abrir modal
+document.querySelectorAll('.btn-cfg').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const emp    = this.dataset.emp;
+    const nombre = this.dataset.nombre;
+    const docente= this.dataset.docente === 'true';
+    const fecha  = this.dataset.fecha || '';
+
+    document.getElementById('cfg-emp-code').value       = emp;
+    document.getElementById('cfg-nombre').value         = nombre;
+    document.getElementById('cfg-nombre-display').textContent = nombre;
+    document.getElementById('cfg-emp-display').textContent   = 'Cód. ' + emp;
+    document.getElementById('cfg-fecha').value          = fecha;
+    document.getElementById('cfg-tipo-docente').checked   = docente;
+    document.getElementById('cfg-tipo-nodocente').checked = !docente;
+    document.getElementById('escala-info').style.display  = docente ? 'none' : '';
+
+    new bootstrap.Modal(document.getElementById('modalConfig')).show();
+  });
+});
+
+document.querySelectorAll('input[name="cfg-tipo"]').forEach(r => {
+  r.addEventListener('change', function(){
+    document.getElementById('escala-info').style.display = this.value === 'nodocente' ? '' : 'none';
+  });
+});
+
+// Guardar
+document.getElementById('btn-guardar-cfg').addEventListener('click', function(){
+  const btn      = this;
+  const empCode  = document.getElementById('cfg-emp-code').value;
+  const nombre   = document.getElementById('cfg-nombre').value;
+  const esDocente= document.getElementById('cfg-tipo-docente').checked;
+  const fecha    = document.getElementById('cfg-fecha').value;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  fetch(URL_SAVE, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ emp_code: empCode, nombre, es_docente: esDocente, fecha_inicio: fecha }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert('Error: ' + data.error); return; }
+
+    const tr = document.querySelector(`tr[data-emp="${empCode}"]`);
+    if (tr) {
+      tr.dataset.docente = esDocente ? 'true' : 'false';
+      tr.dataset.fecha   = fecha;
+
+      tr.querySelector('.td-tipo').innerHTML = esDocente
+        ? '<span class="badge bg-blue-lt text-blue"><i class="ti ti-school me-1"></i>Docente</span>'
+        : '<span class="badge bg-green-lt text-green"><i class="ti ti-briefcase me-1"></i>No docente</span>';
+
+      if (fecha) {
+        const [y,m,d] = fecha.split('-');
+        tr.querySelector('.td-fecha').textContent = `${d}/${m}/${y}`;
+      }
+
+      const años = data.años;
+      const tdA = tr.querySelector('.td-años');
+      if (años === null || años === undefined) tdA.innerHTML = '<span class="text-muted">—</span>';
+      else if (años === 0) tdA.innerHTML = '<span class="text-muted small">< 1 año</span>';
+      else tdA.textContent = años + (años === 1 ? ' año' : ' años');
+
+      const dc = data.dias_corresponden;
+      tr.querySelector('.td-corresponden').innerHTML = dc > 0
+        ? `<span class="fw-bold text-primary">${dc}</span>`
+        : '<span class="text-muted">0</span>';
+
+      const usados = parseFloat(tr.querySelector('.td-usados').textContent) || 0;
+      const disp   = dc - usados;
+      const tdD    = tr.querySelector('.td-disponibles');
+      if (dc > 0) {
+        const cls = disp <= 0 ? 'bg-red-lt text-red' : disp <= 5 ? 'bg-orange-lt text-orange' : 'bg-green-lt text-green';
+        tdD.innerHTML = `<span class="badge ${cls} fw-bold">${disp}</span>`;
+      }
+
+      tr.querySelector('.btn-cfg').dataset.docente = esDocente ? 'true' : 'false';
+      tr.querySelector('.btn-cfg').dataset.fecha   = fecha;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('modalConfig')).hide();
+  })
+  .catch(() => alert('Error de conexión'))
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check me-1"></i>Guardar';
+  });
+});
+</script>
+{% endblock %}

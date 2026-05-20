@@ -6,11 +6,13 @@
 {% block nav_feriados %}active{% endblock %}
 
 {% block page_actions %}
+{% if can_edit %}
 <div class="col-auto ms-auto">
   <a href="{% url 'reloj_feriado_new' %}" class="btn btn-primary">
     <i class="ti ti-plus me-1"></i> Agregar Feriado
   </a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -52,12 +54,16 @@
             <td>{{ f.creado_por|default:"—" }}</td>
             <td>
               <div class="d-flex gap-1">
+                {% if can_edit %}
                 <a href="{% url 'reloj_feriado_edit' f.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar / Asignar empleados">
                   <i class="ti ti-pencil"></i>
                 </a>
+                {% endif %}
+                {% if can_delete %}
                 <a href="{% url 'reloj_feriado_delete' f.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
                   <i class="ti ti-trash"></i>
                 </a>
+                {% endif %}
               </div>
             </td>
           </tr>

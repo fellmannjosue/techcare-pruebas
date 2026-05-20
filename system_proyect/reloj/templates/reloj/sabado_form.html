@@ -23,7 +23,7 @@
   {% endfor %}
 {% endif %}
 
-<div class="card" style="max-width:560px;">
+<div class="card mb-4">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-calendar-week me-2"></i>{{ modo }} Sábado Especial</h3>
   </div>
@@ -50,6 +50,49 @@
     </form>
   </div>
 </div>
+
+{% if obj %}
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-3">
+    <h3 class="card-title mb-0">
+      <i class="ti ti-users me-2"></i>Empleados asignados a este sábado
+      <span id="badge-total" class="badge bg-blue ms-2">{{ total_asignados }}</span>
+    </h3>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-sm btn-ghost-secondary" id="btnSelAll">Seleccionar todos</button>
+      <button class="btn btn-sm btn-ghost-secondary" id="btnDeselAll">Deseleccionar todos</button>
+      <button class="btn btn-sm btn-primary" id="btnGuardarAsig">
+        <i class="ti ti-device-floppy me-1"></i> Guardar selección
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body pb-2 pt-3">
+    <div id="asig-alert" class="alert d-none mb-2"></div>
+    <input type="text" id="buscarEmpleado" class="form-control form-control-sm mb-3"
+           placeholder="Buscar empleado…">
+  </div>
+
+  <div class="card-body pt-0" style="max-height:480px;overflow-y:auto;" id="listaEmpleados">
+    <div class="row g-2">
+      {% for emp in empleados_check %}
+      <div class="col-md-4 col-lg-3 emp-row" data-label="{{ emp.label|lower }}">
+        <label class="form-check form-check-inline w-100 border rounded p-2 m-0
+                       {% if emp.checked %}bg-blue-lt{% endif %}"
+               id="lbl-{{ emp.code }}">
+          <input class="form-check-input emp-chk" type="checkbox"
+                 value="{{ emp.code }}"
+                 {% if emp.checked %}checked{% endif %}>
+          <span class="form-check-label small">{{ emp.label }}</span>
+        </label>
+      </div>
+      {% empty %}
+      <div class="col-12 text-muted text-center py-3">No hay empleados disponibles.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -61,5 +104,79 @@ document.addEventListener('DOMContentLoaded', function(){
     else if (!el.classList.contains('form-control')) el.classList.add('form-control');
   });
 });
+
+{% if obj %}
+const BULK_URL = '{% url "reloj_sabado_asignacion_bulk" obj.pk %}';
+const CSRF     = '{{ csrf_token }}';
+
+document.getElementById('buscarEmpleado').addEventListener('input', function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.emp-row').forEach(function(row){
+    row.style.display = row.dataset.label.includes(q) ? '' : 'none';
+  });
+});
+
+document.getElementById('btnSelAll').addEventListener('click', function(){
+  document.querySelectorAll('.emp-row:not([style*="none"]) .emp-chk').forEach(function(chk){
+    chk.checked = true;
+    actualizarEstilo(chk);
+  });
+});
+document.getElementById('btnDeselAll').addEventListener('click', function(){
+  document.querySelectorAll('.emp-row:not([style*="none"]) .emp-chk').forEach(function(chk){
+    chk.checked = false;
+    actualizarEstilo(chk);
+  });
+});
+
+document.querySelectorAll('.emp-chk').forEach(function(chk){
+  chk.addEventListener('change', function(){ actualizarEstilo(this); });
+});
+
+function actualizarEstilo(chk){
+  const lbl = document.getElementById('lbl-' + chk.value);
+  if (!lbl) return;
+  if (chk.checked) lbl.classList.add('bg-blue-lt');
+  else             lbl.classList.remove('bg-blue-lt');
+}
+
+document.getElementById('btnGuardarAsig').addEventListener('click', function(){
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando…';
+
+  const checked = Array.from(document.querySelectorAll('.emp-chk:checked')).map(c => c.value);
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  checked.forEach(c => fd.append('emp_codes', c));
+
+  fetch(BULK_URL, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(function(res){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> Guardar selección';
+      const $alert = document.getElementById('asig-alert');
+      if (res.ok){
+        document.getElementById('badge-total').textContent = res.total;
+        $alert.className = 'alert alert-success';
+        $alert.textContent = `Guardado: ${res.added} agregados, ${res.removed} removidos.`;
+        $alert.classList.remove('d-none');
+        setTimeout(() => $alert.classList.add('d-none'), 3000);
+      } else {
+        $alert.className = 'alert alert-danger';
+        $alert.textContent = res.error || 'Error al guardar.';
+        $alert.classList.remove('d-none');
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> Guardar selección';
+      const $alert = document.getElementById('asig-alert');
+      $alert.className = 'alert alert-danger';
+      $alert.textContent = 'Error de red.';
+      $alert.classList.remove('d-none');
+    });
+});
+{% endif %}
 </script>
 {% endblock %}

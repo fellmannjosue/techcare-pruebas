@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
     ScheduleTemplate, ScheduleRule, EmployeeScheduleAssignment,
-    OvertimeRequest, Feriado, SabadoEspecial, TiempoCompensatorio, PermisoEmpleado
+    OvertimeRequest, Feriado, SabadoEspecial, SabadoAsignacion, TiempoCompensatorio, PermisoEmpleado,
+    VacacionConfig,
 )
 
 # ─────────────────────────────────────────────────────────────
@@ -66,6 +67,13 @@ class SabadoEspecialAdmin(admin.ModelAdmin):
     ordering      = ("-fecha",)
 
 
+@admin.register(SabadoAsignacion)
+class SabadoAsignacionAdmin(admin.ModelAdmin):
+    list_display  = ("sabado", "emp_code", "nombre_empleado", "asignado_por", "asignado_en")
+    search_fields = ("emp_code", "nombre_empleado")
+    ordering      = ("-sabado__fecha", "emp_code")
+
+
 @admin.register(TiempoCompensatorio)
 class TiempoCompensatorioAdmin(admin.ModelAdmin):
     list_display  = ("emp_code", "nombre_empleado", "fecha", "minutos_registrados", "estado", "registrado_por", "autorizado_por", "autorizado_en")
@@ -82,3 +90,11 @@ class PermisoEmpleadoAdmin(admin.ModelAdmin):
     search_fields = ("emp_code", "nombre_empleado", "motivo")
     date_hierarchy = "fecha_inicio"
     ordering      = ("-fecha_inicio",)
+
+
+@admin.register(VacacionConfig)
+class VacacionConfigAdmin(admin.ModelAdmin):
+    list_display  = ("emp_code", "nombre_empleado", "es_docente", "fecha_inicio_labores", "actualizado_en")
+    list_filter   = ("es_docente",)
+    search_fields = ("emp_code", "nombre_empleado")
+    ordering      = ("nombre_empleado",)

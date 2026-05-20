@@ -19,7 +19,8 @@
   .hora-verde { background:#d1e7dd !important; color:#0f5132 !important; font-weight:600; }
   .hora-azul  { background:#3b8eea !important; color:#fff    !important; font-weight:600; }
   .chip       { padding:2px 7px; border-radius:.25rem; display:inline-block; font-size:.82rem; }
-  .hora-feriado { background:#fff3cd !important; color:#664d03 !important; font-weight:600; }
+  .hora-feriado  { background:#fff3cd !important; color:#664d03 !important; font-weight:600; }
+  tr.table-info td { background:#e8f4fd !important; }
   .cmts-wrap { min-width:200px; max-width:280px; }
   .cmts-list { list-style:none; padding:0; margin:0 0 4px 0; }
   .cmts-list li { display:flex; align-items:flex-start; gap:4px; font-size:.8rem; padding:2px 0; border-bottom:1px solid #f0f0f0; }
@@ -120,7 +121,7 @@
         <thead>
           <tr>
             <th>ID Empleado</th><th>Empleado</th><th>Horario Programado</th>
-            <th>Feriado</th><th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
+            <th>Feriado / Sábado Esp.</th><th>Fecha</th><th>Marcas del Día</th><th>Cantidad Marcas</th>
             <th>Permiso</th><th>Comentario</th><th>Estado</th>
           </tr>
           <tr>
@@ -138,7 +139,7 @@
         </thead>
         <tbody>
           {% for row in datos %}
-          <tr {% if row.Es_Feriado %}class="table-warning"{% elif row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
+          <tr {% if row.Es_Feriado %}class="table-warning"{% elif row.Es_Sabado_Esp %}class="table-info"{% elif row.Estado == "AUSENTE" %}style="background-color:#fef0f0;"{% endif %}>
             <td>{{ row.ID_Empleado }}</td>
             <td data-order="{{ row.Empleado_Sort }}">{{ row.Empleado }}</td>
             <td>
@@ -151,6 +152,8 @@
             <td>
               {% if row.Es_Feriado %}
                 <span class="chip hora-feriado"><i class="ti ti-sun me-1"></i>{{ row.Feriado_Desc|default:"Feriado" }}</span>
+              {% elif row.Es_Sabado_Esp %}
+                <span class="badge bg-cyan-lt text-cyan"><i class="ti ti-calendar-week me-1"></i>{{ row.Sabado_Esp_Desc|default:"Sábado especial" }}</span>
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
@@ -249,6 +252,34 @@
             {% endfor %}
           </select>
         </div>
+        {# Balance de vacaciones — solo visible cuando tipo=vacaciones_dias #}
+        <div id="perm-vac-balance" class="d-none mb-3 rounded p-2" style="background:#f0faf0;border:1px solid #c3e6cb;">
+          <div class="small fw-semibold text-success mb-2"><i class="ti ti-beach me-1"></i>Balance de vacaciones</div>
+          <div id="perm-vac-sin-cfg" class="d-none small text-muted">
+            <i class="ti ti-alert-circle me-1 text-warning"></i>Sin configuración. <a href="{% url 'reloj_vacaciones_list' %}" target="_blank">Configurar aquí</a>.
+          </div>
+          <div id="perm-vac-cards" class="d-none">
+            <div class="d-flex gap-4 text-center">
+              <div>
+                <div class="fw-bold text-primary" id="perm-vac-corresponden" style="font-size:1.3rem">—</div>
+                <div class="small text-muted">Corresponden</div>
+              </div>
+              <div>
+                <div class="fw-bold text-orange" id="perm-vac-usados" style="font-size:1.3rem">—</div>
+                <div class="small text-muted">Usados</div>
+              </div>
+              <div>
+                <div class="fw-bold" id="perm-vac-disponibles" style="font-size:1.3rem">—</div>
+                <div class="small text-muted">Disponibles</div>
+              </div>
+            </div>
+            <div class="small text-muted mt-1" id="perm-vac-periodo"></div>
+          </div>
+          <div id="perm-vac-loading" class="small text-muted">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
+          </div>
+        </div>
+
         <div class="mb-3 d-none" id="perm-subtipo-enf-wrap">
           <label class="form-label" for="perm-subtipo-enf">Subtipo Enfermedad</label>
           <select id="perm-subtipo-enf" class="form-select">
@@ -313,6 +344,7 @@ const ADD_URL             = '{% url "reloj_comentario_add" %}';
 const DELETE_BASE         = '{% url "reloj_comentario_delete" pk=99999 %}';
 const URL_PERM_SAVE       = '{% url "reloj_permiso_reporte_save" %}';
 const URL_PERM_DELETE     = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
+const URL_VAC_BALANCE     = '{% url "reloj_vacacion_balance" %}';
 const PERMISOS_MAP        = {{ permisos_json|safe }};
 const CAN_EDIT_PERMISOS   = {{ can_edit_permisos|yesno:"true,false" }};
 const CAN_DELETE_PERMISOS = {{ can_delete_permisos|yesno:"true,false" }};
@@ -456,11 +488,39 @@ $(function(){
   }
   renderPermisoCells();
 
-  // Mostrar/ocultar subtipos y auto-calcular días
+  // Cargar balance de vacaciones
+  function fetchVacBalance(empCode) {
+    $('#perm-vac-loading').removeClass('d-none');
+    $('#perm-vac-sin-cfg').addClass('d-none');
+    $('#perm-vac-cards').addClass('d-none');
+    fetch(URL_VAC_BALANCE + '?emp_code=' + encodeURIComponent(empCode))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        $('#perm-vac-loading').addClass('d-none');
+        if (!data.ok) return;
+        if (!data.tiene_config) {
+          $('#perm-vac-sin-cfg').removeClass('d-none');
+          return;
+        }
+        $('#perm-vac-cards').removeClass('d-none');
+        $('#perm-vac-corresponden').text(data.dias_corresponden);
+        $('#perm-vac-usados').text(data.dias_usados);
+        $('#perm-vac-periodo').text(data.periodo || '');
+        const disp = data.dias_disponibles;
+        const cls  = disp <= 0 ? 'text-danger' : disp <= 5 ? 'text-warning' : 'text-success';
+        $('#perm-vac-disponibles').text(disp).attr('class', 'fw-bold ' + cls).css('font-size','1.3rem');
+      })
+      .catch(function(){ $('#perm-vac-loading').addClass('d-none'); });
+  }
+
+  // Mostrar/ocultar subtipos, balance vacaciones y auto-calcular días
   $(document).on('change', '#perm-tipo', function(){
     const v = $(this).val();
     $('#perm-subtipo-enf-wrap').toggleClass('d-none', v !== 'enfermedad_dias');
     $('#perm-subtipo-otro-wrap').toggleClass('d-none', v !== 'otro_pagado_dias');
+    const esVac = v === 'vacaciones_dias';
+    $('#perm-vac-balance').toggleClass('d-none', !esVac);
+    if (esVac) fetchVacBalance($('#perm-emp-code').val());
   });
 
   function diasHabiles(fi, ff) {
@@ -572,6 +632,13 @@ $(function(){
     }
     $('#perm-modal-title').text(permiso ? 'Editar Permiso' : 'Registrar Permiso');
     $('#btn-eliminar-permiso').toggleClass('d-none', !permiso);
+
+    // Balance vacaciones al abrir modal
+    const tipoSeleccionado = $('#perm-tipo').val();
+    const esVacAlAbrir = tipoSeleccionado === 'vacaciones_dias';
+    $('#perm-vac-balance').toggleClass('d-none', !esVacAlAbrir);
+    if (esVacAlAbrir) fetchVacBalance(emp);
+
     new bootstrap.Modal(document.getElementById('modalPermiso')).show();
   }
 

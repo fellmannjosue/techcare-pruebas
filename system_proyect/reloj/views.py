@@ -32,6 +32,7 @@ from .models import (
     OvertimeRequest,
     Feriado,
     SabadoEspecial,
+    SabadoAsignacion,
     TiempoCompensatorio,
     PermisoEmpleado,
     ReporteNota,
@@ -41,7 +42,20 @@ from .models import (
     ReportePermisoMensual,
     PermisoReporte,
     TiempoExtraDia,
+    VacacionConfig,
+    RelojPermiso,
 )
+
+
+def _reloj_can(user, modulo, accion):
+    """Verifica si el usuario puede editar/eliminar en un módulo del reloj.
+    Superusers siempre pueden. Staff consulta RelojPermiso."""
+    if user.is_superuser:
+        return True
+    try:
+        return bool(getattr(user.reloj_permiso, f'{modulo}_{accion}', False))
+    except Exception:
+        return False
 
 # Formularios
 from .forms import (
@@ -698,6 +712,20 @@ OPTION (MAXRECURSION 0);
             except Exception as _ex:
                 print(f"[WARN] feriados_map reporte: {_ex}")
 
+            # Mapa de sábados especiales: (emp_code, date) -> descripcion
+            sabados_especiales_r = set()
+            sabados_especiales_desc_r = {}
+            try:
+                for asig in SabadoAsignacion.objects.filter(
+                    sabado__fecha__gte=fi_d,
+                    sabado__fecha__lte=ff_d,
+                ).select_related("sabado"):
+                    key = (asig.emp_code.strip(), asig.sabado.fecha)
+                    sabados_especiales_r.add(key)
+                    sabados_especiales_desc_r[key] = asig.sabado.descripcion or "Sábado especial"
+            except Exception as _ex:
+                print(f"[WARN] sabados_especiales reporte: {_ex}")
+
             DEF_IN, DEF_OUT = "07:00", "16:48"
 
             # Diagnóstico: tipo de fecha_d (temporal)
@@ -724,10 +752,13 @@ OPTION (MAXRECURSION 0);
                 # Feriado asignado
                 es_feriado = feriados_map_r.get((emp_code, fecha_d)) if fecha_d else None
 
+                # Sábado especial asignado a este empleado
+                es_sabado_especial = (emp_code, fecha_d) in sabados_especiales_r if fecha_d else False
+
                 # Filtro por horario: omitir días que el empleado no trabaja
-                # (excepto si marcó físicamente ese día o es feriado asignado)
+                # (excepto si marcó físicamente, es feriado asignado, o sábado especial)
                 cantidad_marcas = int(row.get('Cantidad_Marcas') or 0)
-                if cantidad_marcas == 0 and not es_feriado:
+                if cantidad_marcas == 0 and not es_feriado and not es_sabado_especial:
                     tpl_id = _plantilla_para_fecha(emp_code, fecha_d)
                     if tpl_id:
                         rule = _reglas_del_dia(tpl_id, fecha_d.weekday())
@@ -789,6 +820,8 @@ OPTION (MAXRECURSION 0);
                 row['Comentarios']      = comentarios_map.get((emp_code, fecha_d), [])
                 row['Es_Feriado']       = bool(es_feriado)
                 row['Feriado_Desc']     = es_feriado or ""
+                row['Es_Sabado_Esp']    = es_sabado_especial
+                row['Sabado_Esp_Desc']  = sabados_especiales_desc_r.get((emp_code, fecha_d), "") if es_sabado_especial else ""
                 # Sort key por apellido para DataTables
                 nombre_e = str(row.get('Empleado') or '')
                 partes_e = nombre_e.rsplit(' ', 1)
@@ -834,8 +867,8 @@ OPTION (MAXRECURSION 0);
         ]
 
     u = request.user
-    can_edit_permisos   = u.is_staff or u.is_superuser
-    can_delete_permisos = u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'
+    can_edit_permisos   = _reloj_can(u, 'reporte', 'editar')
+    can_delete_permisos = _reloj_can(u, 'reporte', 'eliminar')
 
     contexto = {
         'datos': datos,
@@ -903,7 +936,11 @@ def reporte_nota_ajax(request):
 def plantilla_list(request):
     """Lista de plantillas de horario (con enlace para editar y agregar reglas)."""
     plantillas = ScheduleTemplate.objects.all().order_by("nombre")
-    return render(request, "reloj/plantilla_list.html", {"plantillas": plantillas})
+    return render(request, "reloj/plantilla_list.html", {
+        "plantillas":  plantillas,
+        "can_edit":    _reloj_can(request.user, 'plantilla', 'editar'),
+        "can_delete":  _reloj_can(request.user, 'plantilla', 'eliminar'),
+    })
 
 
 @login_required
@@ -1031,7 +1068,9 @@ def horarios_list(request):
 
     return render(request, 'reloj/horarios_list.html', {
         'asignaciones': asignaciones,
-        'form': form,
+        'form':         form,
+        'can_edit':     _reloj_can(request.user, 'asignacion', 'editar'),
+        'can_delete':   _reloj_can(request.user, 'asignacion', 'eliminar'),
     })
 
 
@@ -1349,7 +1388,11 @@ def compensatorio_google_hook(request):
 def feriados_list(request):
     from django.db.models import Count
     feriados = Feriado.objects.annotate(total_asignados=Count("asignaciones")).order_by("-fecha_inicio")
-    return render(request, "reloj/feriados_list.html", {"feriados": feriados})
+    return render(request, "reloj/feriados_list.html", {
+        "feriados":   feriados,
+        "can_edit":   _reloj_can(request.user, 'feriado', 'editar'),
+        "can_delete": _reloj_can(request.user, 'feriado', 'eliminar'),
+    })
 
 
 @staff_required
@@ -1459,11 +1502,16 @@ def feriado_asignacion_bulk(request, pk):
 
 @staff_required
 def sabados_list(request):
-    qs = SabadoEspecial.objects.all().order_by("-fecha")
+    from django.db.models import Count
+    qs = SabadoEspecial.objects.annotate(total_asignados=Count('asignaciones')).order_by("-fecha")
     paginator = Paginator(qs, 20)
     page = request.GET.get("page")
     sabados = paginator.get_page(page)
-    return render(request, "reloj/sabados_list.html", {"sabados": sabados})
+    return render(request, "reloj/sabados_list.html", {
+        "sabados":    sabados,
+        "can_edit":   _reloj_can(request.user, 'sabado', 'editar'),
+        "can_delete": _reloj_can(request.user, 'sabado', 'eliminar'),
+    })
 
 
 @staff_required
@@ -1489,10 +1537,25 @@ def sabado_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "Sábado especial actualizado.")
-            return redirect("reloj_sabados_list")
+            return redirect("reloj_sabado_edit", pk=obj.pk)
     else:
         form = SabadoEspecialForm(instance=obj)
-    return render(request, "reloj/sabado_form.html", {"form": form, "modo": "Editar", "obj": obj})
+    asignados_codes = set(
+        SabadoAsignacion.objects.filter(sabado=obj).values_list("emp_code", flat=True)
+    )
+    try:
+        empleados_opts = get_empleado_options()
+    except Exception:
+        empleados_opts = []
+    empleados_check = [
+        {"code": code, "label": label, "checked": code in asignados_codes}
+        for code, label in empleados_opts
+    ]
+    return render(request, "reloj/sabado_form.html", {
+        "form": form, "modo": "Editar", "obj": obj,
+        "empleados_check": empleados_check,
+        "total_asignados": len(asignados_codes),
+    })
 
 
 @staff_required
@@ -1503,6 +1566,51 @@ def sabado_delete(request, pk):
         messages.success(request, "Sábado especial eliminado.")
         return redirect("reloj_sabados_list")
     return render(request, "reloj/confirm_delete.html", {"obj": obj, "titulo": "Eliminar sábado especial"})
+
+
+@staff_required
+@require_POST
+def sabado_asignacion_bulk(request, pk):
+    """Guarda la selección completa de empleados para un sábado especial."""
+    sabado = get_object_or_404(SabadoEspecial, pk=pk)
+    selected = set(filter(None, (c.strip() for c in request.POST.getlist("emp_codes"))))
+    existing = set(SabadoAsignacion.objects.filter(sabado=sabado).values_list("emp_code", flat=True))
+
+    to_add    = selected - existing
+    to_remove = existing - selected
+
+    SabadoAsignacion.objects.filter(sabado=sabado, emp_code__in=to_remove).delete()
+
+    nombres = {}
+    if to_add:
+        try:
+            placeholders = ",".join(["%s"] * len(to_add))
+            with connections["zkbio_sqlserver"].cursor() as c:
+                c.execute(
+                    f"SELECT CAST(emp_code AS VARCHAR(20)), first_name + ' ' + last_name "
+                    f"FROM dbo.personnel_employee WHERE CAST(emp_code AS VARCHAR(20)) IN ({placeholders})",
+                    list(to_add)
+                )
+                for code, nombre in c.fetchall():
+                    nombres[(code or "").strip()] = (nombre or "").strip()
+        except Exception:
+            pass
+
+    for emp_code in to_add:
+        SabadoAsignacion.objects.create(
+            sabado=sabado,
+            emp_code=emp_code,
+            nombre_empleado=nombres.get(emp_code, ""),
+            asignado_por=request.user,
+        )
+
+    total = SabadoAsignacion.objects.filter(sabado=sabado).count()
+    return JsonResponse({
+        "ok": True,
+        "added": len(to_add),
+        "removed": len(to_remove),
+        "total": total,
+    })
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1677,7 +1785,7 @@ def compensatorio_list(request):
         f['extra_autorizado_por'] = ex.autorizado_por if ex else ''
 
     u = request.user
-    can_edit_extra = u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'
+    can_edit_extra = _reloj_can(u, 'compensatorio', 'editar')
 
     return render(request, "reloj/compensatorio_list.html", {
         "filas":            filas,
@@ -1692,6 +1800,8 @@ def compensatorio_list(request):
         "total_mins_emp":   total_min_emp % 60,
         "total_dias_emp":   total_dias_emp,
         "can_edit_extra":   can_edit_extra,
+        "can_edit":         _reloj_can(u, 'compensatorio', 'editar'),
+        "can_delete":       _reloj_can(u, 'compensatorio', 'eliminar'),
     })
 
 
@@ -1700,7 +1810,7 @@ def compensatorio_list(request):
 def compensatorio_list_set_extra(request):
     """AJAX: guarda tiempo extra autorizado por día para un empleado."""
     u = request.user
-    if not (u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(u, 'compensatorio', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     try:
         body = json.loads(request.body or b'{}')
@@ -2008,10 +2118,10 @@ def compensatorio_calculo_list(request):
     ))
 
     u = request.user
-    can_edit              = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
-    can_delete            = u.is_superuser
-    can_edit_compensado   = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
-    can_edit_tiempo_extra = u.is_superuser or u.username == 'glorenzo@ana-hn.org'
+    can_edit              = _reloj_can(u, 'calculo_comp', 'editar')
+    can_delete            = _reloj_can(u, 'calculo_comp', 'eliminar')
+    can_edit_compensado   = _reloj_can(u, 'calculo_comp', 'editar')
+    can_edit_tiempo_extra = _reloj_can(u, 'calculo_comp', 'editar')
 
     return render(request, "reloj/compensatorio_calculo_list.html", {
         "registros_data": registros_data,
@@ -2027,7 +2137,7 @@ def compensatorio_calculo_list(request):
 
 @login_required
 def compensatorio_calculo_new(request):
-    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         from django.contrib import messages as _msg
         _msg.error(request, "No tiene permiso para crear registros.")
         return redirect("reloj_compensatorio_calculo_list")
@@ -2070,7 +2180,7 @@ def compensatorio_calculo_new(request):
 
 @login_required
 def compensatorio_calculo_edit(request, pk):
-    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         from django.contrib import messages as _msg
         _msg.error(request, "No tiene permiso para editar registros.")
         return redirect("reloj_compensatorio_calculo_list")
@@ -2114,7 +2224,7 @@ def compensatorio_calculo_edit(request, pk):
 @login_required
 def compensatorio_calculo_set_min_dia(request, pk):
     """AJAX: actualiza minutos_autorizados_dia y recalcula días hábiles + fecha fin."""
-    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -2161,7 +2271,7 @@ def compensatorio_calculo_set_min_dia(request, pk):
 @login_required
 def compensatorio_calculo_set_compensado(request, pk):
     """AJAX: guarda override manual de minutos compensados para empleados especiales."""
-    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -2182,7 +2292,7 @@ def compensatorio_calculo_set_compensado(request, pk):
 @login_required
 def compensatorio_calculo_set_tiempo_extra(request, pk):
     """AJAX: guarda minutos de tiempo extra autorizado y recalcula días hábiles + fecha fin."""
-    if not (request.user.is_superuser or request.user.username == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -2425,7 +2535,7 @@ def permiso_reporte_list(request):
         'mes_str':       mes_str,
         'campos_permiso': CAMPOS_PERMISO,
         'error_sql':     error_sql,
-        'can_delete':    request.user.is_superuser,
+        'can_delete':    _reloj_can(request.user, 'reporte', 'eliminar'),
     })
 
 
@@ -2632,7 +2742,7 @@ def permiso_reporte_save(request):
 def permiso_reporte_delete(request, pk):
     """AJAX: elimina un PermisoReporte y recalcula el resumen mensual."""
     u = request.user
-    if not (u.is_superuser or getattr(u, 'email', '') == 'glorenzo@ana-hn.org'):
+    if not _reloj_can(u, 'reporte', 'eliminar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     try:
         obj = PermisoReporte.objects.get(pk=pk)
@@ -2696,3 +2806,309 @@ def permiso_list_mes(request):
     ]
     return JsonResponse({'ok': True, 'permisos': permisos})
 
+
+
+# ─────────────────────────────────────────────────────────────
+# VACACIONES
+# ─────────────────────────────────────────────────────────────
+
+def _years_of_service(fecha_inicio, hoy):
+    years = hoy.year - fecha_inicio.year
+    if (hoy.month, hoy.day) < (fecha_inicio.month, fecha_inicio.day):
+        years -= 1
+    return max(0, years)
+
+
+def _dias_vacacion(es_docente, fecha_inicio, hoy):
+    if not fecha_inicio:
+        return 0
+    years = _years_of_service(fecha_inicio, hoy)
+    if years < 1:
+        return 0
+    if es_docente:
+        return 60
+    if years == 1:
+        return 10
+    if years == 2:
+        return 12
+    if years == 3:
+        return 15
+    return 20
+
+
+@login_required
+def vacaciones_list(request):
+    from django.db.models import Sum as _Sum
+    hoy   = date.today()
+    año   = hoy.year
+    fi    = date(año, 2, 1)
+    ff    = date(año, 11, 30)
+
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            cursor.execute("""
+                SELECT CAST(emp_code AS VARCHAR(20)), first_name, last_name
+                FROM dbo.personnel_employee
+                ORDER BY last_name, first_name
+            """)
+            empleados_rows = cursor.fetchall()
+    except Exception:
+        empleados_rows = []
+
+    configs = {str(c.emp_code): c for c in VacacionConfig.objects.all()}
+
+    permisos_map = {
+        str(p['emp_code']): float(p['dias_usados'] or 0)
+        for p in PermisoReporte.objects.filter(
+            tipo='vacaciones_dias',
+            fecha__gte=fi,
+            fecha__lte=ff,
+        ).values('emp_code').annotate(dias_usados=_Sum('dias'))
+    }
+
+    filas = []
+    for ec, fn, ln in empleados_rows:
+        ec     = str(ec).strip()
+        nombre = f"{fn} {ln}".strip()
+        cfg    = configs.get(ec)
+        años   = None
+        dias_corresponden = 0
+        if cfg and cfg.fecha_inicio_labores:
+            años = _years_of_service(cfg.fecha_inicio_labores, hoy)
+            dias_corresponden = _dias_vacacion(cfg.es_docente, cfg.fecha_inicio_labores, hoy)
+        dias_usados      = permisos_map.get(ec, 0)
+        dias_disponibles = dias_corresponden - dias_usados
+        filas.append({
+            'emp_code':         ec,
+            'nombre':           nombre,
+            'cfg':              cfg,
+            'años':             años,
+            'dias_corresponden':dias_corresponden,
+            'dias_usados':      dias_usados,
+            'dias_disponibles': dias_disponibles,
+        })
+
+    return render(request, 'reloj/vacaciones_list.html', {
+        'filas':          filas,
+        'periodo_inicio': fi,
+        'periodo_fin':    ff,
+        'hoy':            hoy,
+        'can_edit':       _reloj_can(request.user, 'vacaciones', 'editar'),
+    })
+
+
+@login_required
+@require_POST
+def vacacion_config_save(request):
+    if not _reloj_can(request.user, 'vacaciones', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        body = {}
+
+    emp_code   = body.get('emp_code', '').strip()
+    nombre     = body.get('nombre', '').strip()
+    es_docente = bool(body.get('es_docente', False))
+    fecha_str  = body.get('fecha_inicio', '').strip()
+
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
+
+    fecha_inicio = None
+    if fecha_str:
+        try:
+            fecha_inicio = date.fromisoformat(fecha_str)
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Fecha inválida'})
+
+    VacacionConfig.objects.update_or_create(
+        emp_code=emp_code,
+        defaults={
+            'nombre_empleado':      nombre,
+            'es_docente':           es_docente,
+            'fecha_inicio_labores': fecha_inicio,
+            'registrado_por':       request.user,
+        }
+    )
+
+    hoy              = date.today()
+    años             = _years_of_service(fecha_inicio, hoy) if fecha_inicio else None
+    dias_corresponden= _dias_vacacion(es_docente, fecha_inicio, hoy)
+
+    return JsonResponse({
+        'ok':              True,
+        'años':            años,
+        'dias_corresponden': dias_corresponden,
+        'es_docente':      es_docente,
+        'fecha_inicio':    fecha_str,
+    })
+
+
+@login_required
+def vacacion_balance(request):
+    """AJAX GET: devuelve balance de vacaciones de un empleado para el período activo."""
+    from django.db.models import Sum as _Sum
+    emp_code = (request.GET.get('emp_code') or '').strip()
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
+
+    hoy = date.today()
+    año = hoy.year
+    fi  = date(año, 2, 1)
+    ff  = date(año, 11, 30)
+
+    try:
+        cfg = VacacionConfig.objects.get(emp_code=emp_code)
+        tiene_config      = True
+        dias_corresponden = _dias_vacacion(cfg.es_docente, cfg.fecha_inicio_labores, hoy)
+    except VacacionConfig.DoesNotExist:
+        tiene_config      = False
+        dias_corresponden = 0
+
+    usados_raw   = PermisoReporte.objects.filter(
+        tipo='vacaciones_dias', emp_code=emp_code,
+        fecha__gte=fi, fecha__lte=ff,
+    ).aggregate(t=_Sum('dias'))['t'] or 0
+    dias_usados      = float(usados_raw)
+    dias_disponibles = round(dias_corresponden - dias_usados, 2)
+
+    return JsonResponse({
+        'ok':               True,
+        'tiene_config':     tiene_config,
+        'dias_corresponden': dias_corresponden,
+        'dias_usados':      dias_usados,
+        'dias_disponibles': dias_disponibles,
+        'periodo':          f"{fi.strftime('%d/%m/%Y')} — {ff.strftime('%d/%m/%Y')}",
+    })
+
+
+# ─────────────────────────────────────────────────────────────
+# Importar fechas de inicio (solo staff)
+# ─────────────────────────────────────────────────────────────
+_MESES_ES = {
+    'ene':1,'feb':2,'mar':3,'abr':4,'may':5,'jun':6,
+    'jul':7,'ago':8,'sep':9,'oct':10,'nov':11,'dic':12,
+}
+
+def _parse_fecha_es(s):
+    """Convierte '01-feb-18' → date(2018, 2, 1)."""
+    try:
+        partes = s.strip().lower().split('-')
+        dia  = int(partes[0])
+        mes  = _MESES_ES[partes[1]]
+        año  = int(partes[2])
+        if año < 100:
+            año += 2000
+        return date(año, mes, dia)
+    except Exception:
+        return None
+
+def _norm(s):
+    """Normaliza texto: minúsculas, sin tildes."""
+    import unicodedata
+    s = s.lower().strip()
+    s = unicodedata.normalize('NFD', s)
+    return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+
+
+@login_required
+def vacaciones_importar(request):
+    if not request.user.is_staff:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    resultados = None
+
+    if request.method == 'POST':
+        texto = request.POST.get('datos', '').strip()
+        lineas = [l.strip() for l in texto.splitlines() if l.strip()]
+
+        # Cargar todos los empleados de ZKBio
+        try:
+            with connections['zkbio_sqlserver'].cursor() as cursor:
+                cursor.execute("""
+                    SELECT CAST(emp_code AS VARCHAR(20)), first_name, last_name
+                    FROM dbo.personnel_employee
+                """)
+                zkbio_rows = cursor.fetchall()
+        except Exception as e:
+            return render(request, 'reloj/vacaciones_importar.html', {
+                'error_sql': str(e), 'resultados': None
+            })
+
+        # Mapa: (norm_last, norm_first_parcial) → (emp_code, nombre_completo)
+        zkbio_map = {}
+        for ec, fn, ln in zkbio_rows:
+            ec = str(ec).strip()
+            norm_ln = _norm(ln or '')
+            norm_fn = _norm(fn or '')
+            # índice por primer token del last_name + primer token del first_name
+            clave1 = (norm_ln, norm_fn)                               # exacto
+            clave2 = (norm_ln, norm_fn.split()[0] if norm_fn else '')  # solo primer nombre
+            for k in (clave1, clave2):
+                if k not in zkbio_map:
+                    zkbio_map[k] = (ec, f"{fn} {ln}".strip())
+
+        resultados = []
+        importados = 0
+
+        for linea in lineas:
+            tokens = linea.split()
+            if len(tokens) < 3:
+                resultados.append({'linea': linea, 'estado': 'error', 'msg': 'Formato inválido'})
+                continue
+
+            # Último token = fecha
+            fecha_str = tokens[-1]
+            fecha = _parse_fecha_es(fecha_str)
+            if not fecha:
+                resultados.append({'linea': linea, 'estado': 'error', 'msg': f'Fecha inválida: {fecha_str}'})
+                continue
+
+            # tokens[0]=ap1, tokens[1]=ap2, tokens[2:-1]=nombres
+            ap1    = _norm(tokens[0])
+            ap2    = _norm(tokens[1]) if len(tokens) > 2 else ''
+            nombres= tokens[2:-1]
+            n1     = _norm(nombres[0]) if nombres else ''
+            n2     = _norm(nombres[1]) if len(nombres) > 1 else ''
+
+            apellidos_norm = f"{ap1} {ap2}".strip()
+            nombres_norm   = f"{n1} {n2}".strip()
+
+            match = (
+                zkbio_map.get((apellidos_norm, nombres_norm)) or
+                zkbio_map.get((apellidos_norm, n1)) or
+                zkbio_map.get((ap1, nombres_norm)) or
+                zkbio_map.get((ap1, n1))
+            )
+
+            if not match:
+                resultados.append({'linea': linea, 'estado': 'no_match',
+                                   'msg': 'No se encontró en ZKBio'})
+                continue
+
+            emp_code, nombre_completo = match
+            VacacionConfig.objects.update_or_create(
+                emp_code=emp_code,
+                defaults={
+                    'nombre_empleado':      nombre_completo,
+                    'fecha_inicio_labores': fecha,
+                    'registrado_por':       request.user,
+                }
+            )
+            importados += 1
+            resultados.append({
+                'linea':  linea,
+                'estado': 'ok',
+                'msg':    f'{nombre_completo} → {fecha.strftime("%d/%m/%Y")}',
+            })
+
+        return render(request, 'reloj/vacaciones_importar.html', {
+            'resultados': resultados,
+            'importados': importados,
+            'total':      len(lineas),
+        })
+
+    return render(request, 'reloj/vacaciones_importar.html', {'resultados': None})

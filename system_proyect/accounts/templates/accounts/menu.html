@@ -368,9 +368,8 @@
 <script src="{% static 'accounts/js/notifications.js' %}"></script>
 <script src="{% static 'accounts/js/dashboard_summary.js' %}"></script>
 
-{% if request.user.is_superuser %}
-{# Modal Reenviar Correo de Bienvenida — solo superuser #}
-<div class="modal modal-blur fade" id="modalReenviarBienvenida" tabindex="-1" aria-hidden="true">
+{% if False %}{# Modal movido a _user_dropdown.html #}
+<div class="modal fade" id="__modal_placeholder__" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
@@ -413,6 +412,13 @@
           </table>
         </div>
       </div>
+      <div class="px-3 py-2 border-top">
+        <label class="form-label fw-semibold mb-1 small">
+          <i class="ti ti-message me-1 text-muted"></i>Mensaje adicional <span class="text-muted fw-normal">(opcional — aparece en el correo)</span>
+        </label>
+        <textarea id="mensajeExtra" class="form-control form-control-sm" rows="3"
+                  placeholder="Ej: Tu contraseña temporal es: abc123&#10;Por favor cámbiala al ingresar."></textarea>
+      </div>
       <div class="modal-footer d-flex justify-content-between">
         <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
         <button type="button" class="btn btn-primary" id="btnEnviarSeleccionados">
@@ -428,8 +434,13 @@
   const URL_REENVIAR = "{% url 'reenviar_bienvenida' %}";
   const CSRF = "{{ csrf_token }}";
 
+  function getMensaje() {
+    const el = document.getElementById('mensajeExtra');
+    return el ? el.value.trim() : '';
+  }
+
   async function enviar(modo, email) {
-    const body = new URLSearchParams({ modo, email: email || '' });
+    const body = new URLSearchParams({ modo, email: email || '', mensaje_extra: getMensaje() });
     const res = await fetch(URL_REENVIAR, {
       method: 'POST',
       headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },

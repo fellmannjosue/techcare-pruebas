@@ -108,7 +108,7 @@
 
                 {% if request.user.is_superuser %}
                 <div class="nav-section">Conducta</div>
-                <nav class="nav flex-column gap-1">
+                <nav class="nav flex-column gap-1 mb-2">
                   <a class="nav-link {% if active_tab == 'coordinadores' %}active{% endif %}" href="{% url 'settings_coordinadores' %}">
                     <i class="ti ti-user-cog me-2"></i>Config. Coordinadores
                   </a>
@@ -117,6 +117,12 @@
                   </a>
                   <a class="nav-link {% if active_tab == 'roles' %}active{% endif %}" href="{% url 'settings_roles' %}">
                     <i class="ti ti-shield-half me-2"></i>Config. Roles
+                  </a>
+                </nav>
+                <div class="nav-section">Reloj</div>
+                <nav class="nav flex-column gap-1">
+                  <a class="nav-link {% if active_tab == 'reloj_permisos' %}active{% endif %}" href="{% url 'settings_reloj_permisos' %}">
+                    <i class="ti ti-shield-check me-2"></i>Permisos de edición
                   </a>
                 </nav>
                 {% endif %}

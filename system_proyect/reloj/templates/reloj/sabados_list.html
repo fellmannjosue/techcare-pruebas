@@ -6,11 +6,13 @@
 {% block nav_sabados %}active{% endblock %}
 
 {% block page_actions %}
+{% if can_edit %}
 <div class="col-auto ms-auto">
   <a href="{% url 'reloj_sabado_new' %}" class="btn btn-primary">
     <i class="ti ti-plus me-1"></i> Agregar Sábado Especial
   </a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -38,6 +40,7 @@
             <th>#</th>
             <th>Fecha</th>
             <th>Descripción</th>
+            <th class="text-center">Empleados asignados</th>
             <th>Creado por</th>
             <th>Creado en</th>
             <th style="width:120px;">Acciones</th>
@@ -49,21 +52,28 @@
             <td>{{ forloop.counter0|add:sabados.start_index }}</td>
             <td><strong>{{ s.fecha|date:"d/m/Y" }}</strong></td>
             <td>{{ s.descripcion|default:"—" }}</td>
+            <td class="text-center">
+              <span class="badge bg-blue-lt text-blue">{{ s.total_asignados }}</span>
+            </td>
             <td>{{ s.creado_por|default:"—" }}</td>
             <td>{% if s.creado_en %}{{ s.creado_en|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td>
               <div class="d-flex gap-1">
+                {% if can_edit %}
                 <a href="{% url 'reloj_sabado_edit' s.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
                   <i class="ti ti-pencil"></i>
                 </a>
+                {% endif %}
+                {% if can_delete %}
                 <a href="{% url 'reloj_sabado_delete' s.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
                   <i class="ti ti-trash"></i>
                 </a>
+                {% endif %}
               </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="text-center text-muted py-3">No hay sábados especiales registrados.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-3">No hay sábados especiales registrados.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -6,11 +6,13 @@
 {% block nav_plantillas %}active{% endblock %}
 
 {% block page_actions %}
+{% if can_edit %}
 <div class="col-auto ms-auto">
   <a href="{% url 'reloj_plantilla_new' %}" class="btn btn-primary">
     <i class="ti ti-plus me-1"></i> Nueva Plantilla
   </a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -35,12 +37,14 @@
           {% for p in plantillas %}
           <tr>
             <td>
+              {% if can_edit %}
               <a class="btn btn-sm btn-ghost-primary" href="{% url 'reloj_plantilla_edit' p.pk %}" title="Editar">
                 <i class="ti ti-pencil"></i>
               </a>
               <a class="btn btn-sm btn-ghost-success" href="{% url 'reloj_regla_add' p.pk %}" title="Agregar regla">
                 <i class="ti ti-calendar-plus"></i>
               </a>
+              {% endif %}
             </td>
             <td class="fw-semibold">{{ p.nombre }}</td>
             <td>{{ p.descripcion|default:"—" }}</td>

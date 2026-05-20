@@ -202,6 +202,28 @@ class SabadoEspecial(models.Model):
         return f"{self.fecha} - {self.descripcion}"
 
 
+class SabadoAsignacion(models.Model):
+    """Asignación de un sábado especial a un empleado específico."""
+    sabado          = models.ForeignKey(SabadoEspecial, on_delete=models.CASCADE, related_name="asignaciones")
+    emp_code        = models.CharField("Código empleado", max_length=20, db_index=True)
+    nombre_empleado = models.CharField("Nombre empleado", max_length=200, blank=True)
+    asignado_por    = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sabados_asignados", verbose_name="Asignado por"
+    )
+    asignado_en = models.DateTimeField("Asignado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_sabado_asignacion"
+        verbose_name = "Asignación de sábado especial"
+        verbose_name_plural = "Asignaciones de sábados especiales"
+        unique_together = ("sabado", "emp_code")
+        ordering = ["emp_code"]
+
+    def __str__(self):
+        return f"{self.sabado} → {self.emp_code}"
+
+
 class TiempoCompensatorio(models.Model):
     """
     Solicitudes de tiempo extra registradas por usuario (vía Google Form o UI).
@@ -471,3 +493,65 @@ class PermisoReporte(models.Model):
 
     def __str__(self):
         return f"{self.nombre_empleado} – {self.fecha} – {self.tipo}"
+
+
+class VacacionConfig(models.Model):
+    emp_code             = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
+    nombre_empleado      = models.CharField("Nombre empleado", max_length=200, blank=True)
+    es_docente           = models.BooleanField("Es docente (60 días)", default=False)
+    fecha_inicio_labores = models.DateField("Fecha inicio de labores", null=True, blank=True)
+    registrado_por       = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='vacacion_configs',
+    )
+    creado_en      = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table  = "reloj_vacacion_config"
+        verbose_name = "Configuración de vacaciones"
+        verbose_name_plural = "Configuraciones de vacaciones"
+        ordering  = ["nombre_empleado"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} ({self.emp_code})"
+
+
+class RelojPermiso(models.Model):
+    """Permisos de edición/eliminación por módulo del reloj para usuarios staff."""
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='reloj_permiso', verbose_name='Usuario',
+    )
+    # Generar Reporte
+    reporte_editar        = models.BooleanField("Reporte – Editar",   default=False)
+    reporte_eliminar      = models.BooleanField("Reporte – Eliminar", default=False)
+    # Plantilla de Horario
+    plantilla_editar      = models.BooleanField("Plantilla – Editar",   default=False)
+    plantilla_eliminar    = models.BooleanField("Plantilla – Eliminar", default=False)
+    # Asignación de Horario
+    asignacion_editar     = models.BooleanField("Asignación – Editar",   default=False)
+    asignacion_eliminar   = models.BooleanField("Asignación – Eliminar", default=False)
+    # Tiempo Compensatorio
+    compensatorio_editar  = models.BooleanField("Compensatorio – Editar",   default=False)
+    compensatorio_eliminar= models.BooleanField("Compensatorio – Eliminar", default=False)
+    # Feriados
+    feriado_editar        = models.BooleanField("Feriados – Editar",   default=False)
+    feriado_eliminar      = models.BooleanField("Feriados – Eliminar", default=False)
+    # Sábados Especiales
+    sabado_editar         = models.BooleanField("Sábados – Editar",   default=False)
+    sabado_eliminar       = models.BooleanField("Sábados – Eliminar", default=False)
+    # Cálculo Compensatorio
+    calculo_comp_editar   = models.BooleanField("Cálculo Comp. – Editar",   default=False)
+    calculo_comp_eliminar = models.BooleanField("Cálculo Comp. – Eliminar", default=False)
+    # Vacaciones
+    vacaciones_editar     = models.BooleanField("Vacaciones – Editar",   default=False)
+    vacaciones_eliminar   = models.BooleanField("Vacaciones – Eliminar", default=False)
+
+    class Meta:
+        db_table         = 'reloj_permiso_usuario'
+        verbose_name     = 'Permiso de módulo reloj'
+        verbose_name_plural = 'Permisos de módulos reloj'
+
+    def __str__(self):
+        return f'Permisos reloj – {self.user}'

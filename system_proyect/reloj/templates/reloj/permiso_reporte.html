@@ -271,6 +271,63 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0">
+
+        {# ── Balance vacaciones (solo cuando tipo=vacaciones_dias) ── #}
+        <div id="mhp-vac-info" class="d-none border-bottom px-3 py-2" style="background:#f0faf0;">
+          <div class="small fw-semibold text-success mb-2"><i class="ti ti-beach me-1"></i>Balance de vacaciones &mdash; <span id="mhp-vac-periodo" class="fw-normal text-muted"></span></div>
+          <div id="mhp-vac-sin-cfg" class="d-none text-muted small"><i class="ti ti-alert-circle me-1 text-warning"></i>Este empleado no tiene configuración de vacaciones. Ve a <a href="{% url 'reloj_vacaciones_list' %}" target="_blank">Control de Vacaciones</a> para configurarlo.</div>
+          <div id="mhp-vac-cards" class="d-none">
+            <div class="d-flex gap-4">
+              <div class="text-center">
+                <div class="fw-bold text-primary fs-4" id="mhp-vac-corresponden">—</div>
+                <div class="small text-muted">Corresponden</div>
+              </div>
+              <div class="text-center">
+                <div class="fw-bold text-orange fs-4" id="mhp-vac-usados">—</div>
+                <div class="small text-muted">Usados</div>
+              </div>
+              <div class="text-center">
+                <div class="fw-bold fs-4" id="mhp-vac-disponibles">—</div>
+                <div class="small text-muted">Disponibles</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Formulario agregar vacación (solo cuando tipo=vacaciones_dias) ── #}
+        <div id="mhp-add-form" class="d-none border-bottom px-3 py-2 bg-light">
+          <div class="small fw-semibold mb-2"><i class="ti ti-plus me-1"></i>Registrar días de vacaciones</div>
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-3">
+              <label class="form-label mb-0 small">Fecha inicio</label>
+              <input type="date" class="form-control form-control-sm" id="mhp-add-fecha">
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label mb-0 small">Fecha fin <span class="text-muted">(opc.)</span></label>
+              <input type="date" class="form-control form-control-sm" id="mhp-add-fecha-fin">
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label mb-0 small">Días hábiles</label>
+              <input type="number" class="form-control form-control-sm" id="mhp-add-dias" min="0.5" step="0.5" placeholder="1">
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label mb-0 small">Horas <span class="text-muted">(opc.)</span></label>
+              <input type="number" class="form-control form-control-sm" id="mhp-add-horas" min="0.5" step="0.5" placeholder="">
+            </div>
+            <div class="col-sm-2">
+              <button class="btn btn-sm btn-success w-100" id="mhp-btn-agregar">
+                <i class="ti ti-check me-1"></i>Agregar
+              </button>
+            </div>
+            <div class="col-12">
+              <input type="text" class="form-control form-control-sm" id="mhp-add-razon" placeholder="Razón (opcional)">
+            </div>
+            <div class="col-12 d-none" id="mhp-add-error">
+              <div class="alert alert-danger py-1 mb-0 small"></div>
+            </div>
+          </div>
+        </div>
+
         <div id="mhp-loading" class="text-center py-4 text-muted">
           <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
         </div>
@@ -315,14 +372,17 @@
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
 (function(){
-  const CSRF       = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-  const URL_SET    = '{% url "reloj_permiso_reporte_set_campo" %}';
-  const URL_LIST   = '{% url "reloj_permiso_list_mes" %}';
-  const URL_DELETE = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
-  const CAN_DELETE = {{ can_delete|yesno:"true,false" }};
+  const CSRF        = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const URL_SET     = '{% url "reloj_permiso_reporte_set_campo" %}';
+  const URL_LIST    = '{% url "reloj_permiso_list_mes" %}';
+  const URL_DELETE  = '{% url "reloj_permiso_reporte_delete" pk=99999 %}';
+  const URL_SAVE    = '{% url "reloj_permiso_reporte_save" %}';
+  const URL_BALANCE = '{% url "reloj_vacacion_balance" %}';
+  const CAN_DELETE  = {{ can_delete|yesno:"true,false" }};
 
   const PER_PAGE = 8;
-  let allPermisos = [], currentPage = 1, activeCellEmp = null, activeCellMes = null;
+  let allPermisos = [], currentPage = 1;
+  let activeCellEmp = null, activeCellMes = null, activeCellNombre = null, activeCellCampo = null;
 
   // ── DataTable ──
   document.addEventListener('DOMContentLoaded', function(){
@@ -395,38 +455,151 @@
     }
   }
 
+  // ── Helpers vacaciones ──
+  async function fetchBalance() {
+    const info     = document.getElementById('mhp-vac-info');
+    const sinCfg   = document.getElementById('mhp-vac-sin-cfg');
+    const cards    = document.getElementById('mhp-vac-cards');
+    try {
+      const res  = await fetch(URL_BALANCE + '?emp_code=' + encodeURIComponent(activeCellEmp));
+      const data = await res.json();
+      if (!data.ok) return;
+      document.getElementById('mhp-vac-periodo').textContent = data.periodo || '';
+      if (!data.tiene_config) {
+        sinCfg.classList.remove('d-none');
+        cards.classList.add('d-none');
+      } else {
+        sinCfg.classList.add('d-none');
+        cards.classList.remove('d-none');
+        document.getElementById('mhp-vac-corresponden').textContent = data.dias_corresponden;
+        document.getElementById('mhp-vac-usados').textContent       = data.dias_usados;
+        const dispEl = document.getElementById('mhp-vac-disponibles');
+        dispEl.textContent = data.dias_disponibles;
+        dispEl.className   = 'fw-bold fs-4 ' + (data.dias_disponibles <= 0 ? 'text-danger' : data.dias_disponibles <= 5 ? 'text-warning' : 'text-success');
+      }
+    } catch(e) {}
+  }
+
+  async function fetchList() {
+    document.getElementById('mhp-loading').classList.remove('d-none');
+    document.getElementById('mhp-contenido').classList.add('d-none');
+    try {
+      const res  = await fetch(URL_LIST + '?emp_code=' + encodeURIComponent(activeCellEmp) + '&mes=' + activeCellMes + '&tipo=' + encodeURIComponent(activeCellCampo));
+      const data = await res.json();
+      allPermisos = data.ok ? data.permisos : [];
+      currentPage = 1;
+    } catch(e) { allPermisos = []; }
+    document.getElementById('mhp-loading').classList.add('d-none');
+    document.getElementById('mhp-contenido').classList.remove('d-none');
+    renderPagina();
+    // actualizar celda en tabla principal
+    const totalMes = allPermisos.reduce(function(s, p){ return s + parseFloat(p.dias); }, 0);
+    const cellBtn  = document.querySelector('.btn-permiso-cell[data-emp="' + activeCellEmp + '"][data-campo="' + activeCellCampo + '"]');
+    if (cellBtn) {
+      if (totalMes > 0) {
+        const t = parseFloat(totalMes.toFixed(2));
+        cellBtn.innerHTML = t + 'd';
+        cellBtn.className = 'btn-permiso-cell has-value cell-' + activeCellCampo.replace('_dias','').replace('_','-');
+      } else {
+        cellBtn.innerHTML = '—';
+        cellBtn.className = 'btn-permiso-cell no-value';
+      }
+    }
+  }
+
   // ── Abrir modal al clic en celda ──
   document.querySelectorAll('.btn-permiso-cell').forEach(function(btn){
     btn.addEventListener('click', async function(){
-      activeCellEmp = this.dataset.emp;
-      activeCellMes = this.dataset.mes;
-      const nombre  = this.dataset.nombre;
-      const label   = this.dataset.label;
-      const campo   = this.dataset.campo;
+      activeCellEmp    = this.dataset.emp;
+      activeCellMes    = this.dataset.mes;
+      activeCellNombre = this.dataset.nombre;
+      activeCellCampo  = this.dataset.campo;
+      const label      = this.dataset.label;
 
-      document.getElementById('mhp-subtitulo').textContent = nombre + ' · ' + label + ' · ' + activeCellMes;
-      document.getElementById('mhp-loading').classList.remove('d-none');
-      document.getElementById('mhp-contenido').classList.add('d-none');
+      document.getElementById('mhp-subtitulo').textContent = activeCellNombre + ' · ' + label + ' · ' + activeCellMes;
+
+      const esVac = activeCellCampo === 'vacaciones_dias';
+      document.getElementById('mhp-vac-info').classList.toggle('d-none', !esVac);
+      document.getElementById('mhp-add-form').classList.toggle('d-none', !esVac);
+      document.getElementById('mhp-add-error').classList.add('d-none');
+      if (esVac) {
+        document.getElementById('mhp-vac-sin-cfg').classList.add('d-none');
+        document.getElementById('mhp-vac-cards').classList.add('d-none');
+        document.getElementById('mhp-add-fecha').value     = '';
+        document.getElementById('mhp-add-fecha-fin').value = '';
+        document.getElementById('mhp-add-dias').value      = '';
+        document.getElementById('mhp-add-horas').value     = '';
+        document.getElementById('mhp-add-razon').value     = '';
+        fetchBalance();
+      }
 
       new bootstrap.Modal(document.getElementById('modalHistorialPermisos')).show();
-
-      try {
-        const res  = await fetch(URL_LIST + '?emp_code=' + encodeURIComponent(activeCellEmp) + '&mes=' + activeCellMes + '&tipo=' + encodeURIComponent(campo));
-        const data = await res.json();
-        allPermisos = data.ok ? data.permisos : [];
-        currentPage = 1;
-        document.getElementById('mhp-loading').classList.add('d-none');
-        document.getElementById('mhp-contenido').classList.remove('d-none');
-        renderPagina();
-      } catch(e) {
-        document.getElementById('mhp-loading').innerHTML = '<span class="text-danger">Error de red.</span>';
-      }
+      await fetchList();
     });
   });
 
   // ── Paginacion ──
   document.getElementById('mhp-prev').addEventListener('click', function(){ currentPage--; renderPagina(); });
   document.getElementById('mhp-next').addEventListener('click', function(){ currentPage++; renderPagina(); });
+
+  // ── Agregar permiso de vacaciones ──
+  document.getElementById('mhp-btn-agregar').addEventListener('click', async function(){
+    const errDiv = document.getElementById('mhp-add-error');
+    errDiv.classList.add('d-none');
+
+    const fecha    = document.getElementById('mhp-add-fecha').value;
+    const fechaFin = document.getElementById('mhp-add-fecha-fin').value;
+    const diasVal  = document.getElementById('mhp-add-dias').value.trim();
+    const horasVal = document.getElementById('mhp-add-horas').value.trim();
+    const razon    = document.getElementById('mhp-add-razon').value.trim();
+
+    if (!fecha) {
+      errDiv.querySelector('.alert').textContent = 'La fecha de inicio es obligatoria.';
+      errDiv.classList.remove('d-none'); return;
+    }
+    if (!diasVal && !horasVal) {
+      errDiv.querySelector('.alert').textContent = 'Ingresa días o horas.';
+      errDiv.classList.remove('d-none'); return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
+
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('emp_code', activeCellEmp);
+    fd.append('nombre',   activeCellNombre);
+    fd.append('fecha',    fecha);
+    fd.append('fecha_fin', fechaFin || fecha);
+    fd.append('tipo',     'vacaciones_dias');
+    fd.append('dias',     diasVal || '');
+    fd.append('horas',    horasVal || '');
+    fd.append('razon',    razon);
+
+    try {
+      const res  = await fetch(URL_SAVE, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!data.ok) {
+        errDiv.querySelector('.alert').textContent = data.error || 'Error al guardar.';
+        errDiv.classList.remove('d-none');
+      } else {
+        document.getElementById('mhp-add-fecha').value     = '';
+        document.getElementById('mhp-add-fecha-fin').value = '';
+        document.getElementById('mhp-add-dias').value      = '';
+        document.getElementById('mhp-add-horas').value     = '';
+        document.getElementById('mhp-add-razon').value     = '';
+        await fetchList();
+        await fetchBalance();
+      }
+    } catch(e) {
+      errDiv.querySelector('.alert').textContent = 'Error de conexión.';
+      errDiv.classList.remove('d-none');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check me-1"></i>Agregar';
+  });
 
   // ── Eliminar desde historial ──
   document.getElementById('mhp-tbody').addEventListener('click', async function(e){
@@ -441,9 +614,8 @@
       });
       const data = await res.json();
       if (data.ok) {
-        allPermisos = allPermisos.filter(function(p){ return p.pk != pk; });
-        if ((currentPage - 1) * PER_PAGE >= allPermisos.length && currentPage > 1) currentPage--;
-        renderPagina();
+        await fetchList();
+        if (activeCellCampo === 'vacaciones_dias') await fetchBalance();
       } else {
         alert('Error: ' + (data.error || 'No se pudo eliminar.'));
         btn.disabled = false;

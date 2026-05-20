@@ -14,6 +14,7 @@ from core.utils_notifications import crear_notificacion
 from .forms import MaestroRegisterForm
 from .models import RegistroAcceso, PerfilUsuario
 from tickets.models import Ticket
+from reloj.models import RelojPermiso
 
 
 # =====================================================
@@ -79,27 +80,34 @@ def login_view(request):
                     return redirect('dashboard_coordinador', area='colegio')
                 return redirect('dashboard_coordinador', area='bilingue')
 
-            # Técnicos
-            if user.groups.filter(name='tecnicos').exists():
-                login(request, user)
-                _registrar_acceso(user)
-                request.session['show_welcome'] = True
-                return redirect('tickets_dashboard')
+            # Construir lista de roles a partir de los grupos del usuario (case-insensitive)
+            roles_disponibles = [
+                _GRUPO_A_ROL[g.name.lower()]
+                for g in user.groups.all()
+                if g.name.lower() in _GRUPO_A_ROL
+            ]
+            # Agregar rol maestro si marcó el checkbox
+            if is_maestro:
+                in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
+                in_mcol = user.groups.filter(name='maestros_colegio').exists()
+                if not in_mbl and not in_mcol:
+                    # Solo tiene el checkbox pero ningún grupo de maestro asignado
+                    roles_disponibles.append(_GRUPO_A_ROL.get('maestros_bilingue', {
+                        'titulo': 'Maestro', 'subtitulo': '', 'icon': 'ti-school',
+                        'clase': 'icon-bl', 'url': '/accounts/aplicar-rol/maestro_bl/',
+                    }))
 
-            # Usuario regular: debe marcar "Soy maestro"
-            if not is_maestro:
+            if not roles_disponibles:
                 messages.error(request, 'checkbox_hint')
                 return render(request, 'accounts/login.html', {'year': year})
 
             login(request, user)
             _registrar_acceso(user)
             request.session['show_welcome'] = True
-            # Maestro dual (en ambos grupos) → elige área
-            in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
-            in_mcol = user.groups.filter(name='maestros_colegio').exists()
-            if in_mbl and in_mcol:
-                return redirect('seleccion_rol')
-            return redirect('dashboard_maestro')
+
+            if len(roles_disponibles) == 1:
+                return redirect(roles_disponibles[0]['url'])
+            return redirect('seleccion_rol')
 
         messages.error(request, 'Credenciales inválidas.')
 
@@ -109,6 +117,21 @@ def login_view(request):
 # =====================================================
 # 🎭 SELECCIÓN DE ROL (usuarios con múltiples roles)
 # =====================================================
+
+# Mapeo grupo → tarjeta de rol (para cualquier usuario)
+_GRUPO_A_ROL = {
+    'maestros_bilingue':    {'titulo': 'Maestro – Bilingüe',    'subtitulo': 'Registrar y ver mis reportes del área BL',           'icon': 'ti-school',          'clase': 'icon-bl',    'url': '/accounts/aplicar-rol/maestro_bl/'},
+    'maestros_colegio':     {'titulo': 'Maestro – Colegio',     'subtitulo': 'Registrar y ver mis reportes del área Colegio',      'icon': 'ti-building-school', 'clase': 'icon-col',   'url': '/accounts/aplicar-rol/maestro_col/'},
+    'coordinador_bilingue': {'titulo': 'Coordinador Bilingüe',  'subtitulo': 'Ver reportes del área BL · gestionar incidencias',   'icon': 'ti-users-group',     'clase': 'icon-coord', 'url': '/accounts/aplicar-rol/coordinador/'},
+    'coordinador_colegio':  {'titulo': 'Coordinador Colegio',   'subtitulo': 'Ver reportes del área Colegio · gestionar incidencias','icon': 'ti-users-group',    'clase': 'icon-coord', 'url': '/accounts/aplicar-rol/coordinador_col/'},
+    'administracion':       {'titulo': 'Administración',        'subtitulo': 'Gestión de tickets y solicitudes',                   'icon': 'ti-layout-dashboard','clase': 'icon-admin', 'url': '/tickets/dashboard_administracion/'},
+    'tecnicos':             {'titulo': 'Soporte Técnico',       'subtitulo': 'Gestión de tickets técnicos',                       'icon': 'ti-tools',           'clase': 'icon-tech',  'url': '/tickets/dashboard/'},
+    'enfermeria':           {'titulo': 'Enfermería',            'subtitulo': 'Atención médica y control de medicamentos',          'icon': 'ti-first-aid-kit',   'clase': 'icon-enf',   'url': '/enfermeria/'},
+    'inventario':           {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
+    'finanzas':             {'titulo': 'Finanzas',              'subtitulo': 'Gestión de finanzas personales',                    'icon': 'ti-coin',            'clase': 'icon-fin',   'url': '/finanzas/'},
+    'reloj':                {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
+}
+
 _ROLES_POR_USUARIO = {
     'druiz@ana-hn.org': [
         {'titulo': 'Coordinador Bilingüe',  'subtitulo': 'Ver reportes del área BL · gestionar incidencias',  'icon': 'ti-users-group',     'clase': 'icon-coord', 'url': '/accounts/aplicar-rol/coordinador/'},
@@ -132,12 +155,15 @@ _ROLES_MAESTRO_DUAL = [
 
 @login_required
 def seleccion_rol(request):
+    # Usuarios con lista hardcodeada (ej. druiz con coord + maestro)
     roles = _ROLES_POR_USUARIO.get(request.user.username)
     if roles is None:
-        # Maestro dual detectado por grupos (sin entrada en _ROLES_POR_USUARIO)
-        in_mbl  = request.user.groups.filter(name='maestros_bilingue').exists()
-        in_mcol = request.user.groups.filter(name='maestros_colegio').exists()
-        roles = _ROLES_MAESTRO_DUAL if (in_mbl and in_mcol) else []
+        # Construir dinámicamente desde los grupos del usuario (case-insensitive)
+        roles = [
+            _GRUPO_A_ROL[g.name.lower()]
+            for g in request.user.groups.all()
+            if g.name.lower() in _GRUPO_A_ROL
+        ]
     return render(request, 'accounts/seleccion_rol.html', {'roles': roles})
 
 
@@ -461,12 +487,33 @@ def menu_view(request):
 # 📧 REENVÍO DE CORREO DE BIENVENIDA (solo superuser)
 # =====================================================
 @login_required
+def usuarios_lista_json(request):
+    """Devuelve lista de usuarios activos con email como JSON (solo superuser)."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False}, status=403)
+    usuarios = (
+        User.objects.filter(is_active=True).exclude(email='')
+        .order_by('first_name', 'last_name')
+        .values('email', 'first_name', 'last_name', 'username')
+    )
+    data = [
+        {
+            'email': u['email'],
+            'nombre': f"{u['first_name']} {u['last_name']}".strip() or u['username'],
+        }
+        for u in usuarios
+    ]
+    return JsonResponse({'ok': True, 'usuarios': data})
+
+
+@login_required
 def reenviar_bienvenida(request):
     if not request.user.is_superuser:
         return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
 
     modo = request.POST.get('modo', 'todos')  # 'todos' o 'uno'
     email_destino = request.POST.get('email', '').strip()
+    mensaje_extra = request.POST.get('mensaje_extra', '').strip()
 
     SITE_URL = 'https://servicios.ana-hn.org:437'
 
@@ -486,9 +533,25 @@ def reenviar_bienvenida(request):
             f'Hola {nombre},\n\n'
             f'Este es un recordatorio de tu acceso al Sistema TechCare.\n\n'
             f'Usuario : {u.email}\n\n'
-            f'Si no recuerdas tu contraseña, usa el enlace "¿Olvidaste tu contraseña?" en la página de inicio de sesión o contacta al administrador.\n\n'
-            f'Accede en: {SITE_URL}'
+            + (f'{mensaje_extra}\n\n' if mensaje_extra else '')
+            + f'Accede en: {SITE_URL}'
         )
+        bloque_mensaje_extra = ""
+        if mensaje_extra:
+            lineas_html = "".join(
+                f'<span style="font-size:14px;color:#1a1a2e;">{linea}</span><br>'
+                for linea in mensaje_extra.splitlines()
+            )
+            bloque_mensaje_extra = f"""
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="background:#fff8e1;border-left:4px solid #f59f00;border-radius:4px;padding:16px 20px;margin-bottom:24px;">
+            <tr><td>
+              <span style="font-size:12px;color:#f59f00;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">
+                Mensaje del administrador
+              </span><br><br>
+              {lineas_html}
+            </td></tr>
+          </table>"""
         html_recordatorio = f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
@@ -513,6 +576,7 @@ def reenviar_bienvenida(request):
               </td>
             </tr>
           </table>
+          {bloque_mensaje_extra}
           <p style="margin:0 0 20px;font-size:13px;color:#6c757d;">
             Si no recuerdas tu contraseña, usa el enlace <strong>"¿Olvidaste tu contraseña?"</strong> en la página de inicio de sesión o contacta al administrador.
           </p>
@@ -1129,6 +1193,71 @@ def settings_roles(request):
         'todos_grupos':   Group.objects.order_by('name'),
     })
     return render(request, 'accounts/settings_roles.html', ctx)
+
+
+@login_required
+def settings_reloj_permisos(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+
+    # Solo estos dos staff con permisos de edición en el reloj
+    EMAILS_RELOJ = ['glorenzo@ana-hn.org', 'yzavala@ana-hn.org']
+    usuarios = User.objects.filter(email__in=EMAILS_RELOJ, is_active=True).order_by('username')
+
+    # Garantizar que cada usuario tenga un RelojPermiso
+    for u in usuarios:
+        RelojPermiso.objects.get_or_create(user=u)
+
+    MODULOS = [
+        ('reporte',       'Generar Reporte',        'ti-table'),
+        ('plantilla',     'Plantilla de Horario',   'ti-stack'),
+        ('asignacion',    'Asignación de Horario',  'ti-calendar-user'),
+        ('compensatorio', 'Tiempo Compensatorio',   'ti-clock-check'),
+        ('feriado',       'Feriados',               'ti-calendar'),
+        ('sabado',        'Sábados Especiales',     'ti-calendar-week'),
+        ('calculo_comp',  'Cálculo Compensatorio',  'ti-calculator'),
+        ('vacaciones',    'Vacaciones',             'ti-beach'),
+    ]
+
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        import json as _json
+        body = _json.loads(request.body or b'{}')
+        user_id = body.get('user_id')
+        campo   = body.get('campo')
+        valor   = bool(body.get('valor', False))
+        try:
+            u   = User.objects.get(pk=user_id, email__in=EMAILS_RELOJ)
+            obj = RelojPermiso.objects.get(user=u)
+            if hasattr(obj, campo):
+                setattr(obj, campo, valor)
+                obj.save(update_fields=[campo])
+                return JsonResponse({'ok': True})
+        except Exception:
+            pass
+        return JsonResponse({'ok': False}, status=400)
+
+    # Construir matriz: filas=módulos, columnas=usuarios
+    usuarios_list = list(usuarios)
+    matrix = []
+    for mod_key, mod_label, mod_icon in MODULOS:
+        fila = {'key': mod_key, 'label': mod_label, 'icon': mod_icon, 'celdas': []}
+        for u in usuarios_list:
+            perms = u.reloj_permiso
+            fila['celdas'].append({
+                'user_id':  u.pk,
+                'editar':   getattr(perms, f'{mod_key}_editar',   False),
+                'eliminar': getattr(perms, f'{mod_key}_eliminar', False),
+            })
+        matrix.append(fila)
+
+    return render(request, 'accounts/settings_reloj_permisos.html', {
+        'active_tab':       'reloj_permisos',
+        'nav_home_url':     '/',
+        'can_manage_users': request.user.is_superuser,
+        'can_see_activity': request.user.is_superuser,
+        'usuarios':         usuarios_list,
+        'matrix':           matrix,
+    })
 
 
 def pwa_service_worker(request):

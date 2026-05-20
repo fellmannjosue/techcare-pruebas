@@ -9,6 +9,7 @@ urlpatterns = [
     path('maestro_logout/', views.maestro_logout, name='maestro_logout'),
     path('register/', views.register_maestro, name='register_maestro'),
     path('reenviar-bienvenida/', views.reenviar_bienvenida, name='reenviar_bienvenida'),
+    path('usuarios-lista/', views.usuarios_lista_json, name='usuarios_lista_json'),
     path('menu/', views.menu_view, name='menu'),
     path('seleccion-rol/', views.seleccion_rol, name='seleccion_rol'),
     path('aplicar-rol/<str:rol>/', views.aplicar_rol, name='aplicar_rol'),
@@ -31,6 +32,7 @@ urlpatterns = [
     path('settings/conducta/notificaciones/',                   views.settings_notificaciones_conducta,  name='settings_notificaciones_conducta'),
     path('settings/conducta/notificaciones/<int:pk>/eliminar/', views.settings_notificacion_eliminar,    name='settings_notificacion_eliminar'),
     path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
+    path('settings/reloj/permisos/',                            views.settings_reloj_permisos,           name='settings_reloj_permisos'),
 
     # Recuperación de contraseña (vistas estándar de Django)
     path('password_reset/', auth_views.PasswordResetView.as_view(

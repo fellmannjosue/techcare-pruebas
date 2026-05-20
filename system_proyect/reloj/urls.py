@@ -57,6 +57,7 @@ urlpatterns = [
     path('sabados/nuevo/', views.sabado_new, name='reloj_sabado_new'),
     path('sabados/<int:pk>/editar/', views.sabado_edit, name='reloj_sabado_edit'),
     path('sabados/<int:pk>/eliminar/', views.sabado_delete, name='reloj_sabado_delete'),
+    path('sabados/<int:pk>/asignacion/bulk/', views.sabado_asignacion_bulk, name='reloj_sabado_asignacion_bulk'),
 
     # ─────────────────────────────────────────────
     # Tiempo compensatorio (capturas)
@@ -103,4 +104,10 @@ urlpatterns = [
     path('permisos/reporte/<int:pk>/delete/', views.permiso_reporte_delete, name='reloj_permiso_reporte_delete'),
     path('permisos/reporte/list-mes/', views.permiso_list_mes, name='reloj_permiso_list_mes'),
     path('permisos/reporte/rebaja-toggle/', views.permiso_rebaja_toggle, name='reloj_permiso_rebaja_toggle'),
+
+    # Vacaciones
+    path('vacaciones/', views.vacaciones_list, name='reloj_vacaciones_list'),
+    path('vacaciones/config/save/', views.vacacion_config_save, name='reloj_vacacion_config_save'),
+    path('vacaciones/balance/', views.vacacion_balance, name='reloj_vacacion_balance'),
+    path('vacaciones/importar/', views.vacaciones_importar, name='reloj_vacaciones_importar'),
 ]

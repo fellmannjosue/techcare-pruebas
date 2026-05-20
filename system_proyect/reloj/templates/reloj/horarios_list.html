@@ -6,11 +6,13 @@
 {% block nav_asignaciones %}active{% endblock %}
 
 {% block page_actions %}
+{% if can_edit %}
 <div class="col-auto ms-auto">
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#agregarAsignacionModal">
     <i class="ti ti-plus me-1"></i> Agregar Asignación
   </button>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -47,10 +49,12 @@
               {% endif %}
             </td>
             <td>
+              {% if can_edit %}
               <button class="btn btn-sm btn-ghost-primary link-edit" data-bs-toggle="modal"
                       data-bs-target="#editarAsignacionModal" data-id="{{ a.pk }}">
                 <i class="ti ti-pencil"></i>
               </button>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
