@@ -160,6 +160,7 @@
 <div class="card">
   <div class="card-header">
     <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+      {% if not nav_progress_only %}
       <li class="nav-item">
         <a href="#tab-academicos" class="nav-link active" data-bs-toggle="tab">
           <i class="ti ti-book me-1 text-cyan"></i>Reportes Académicos
@@ -170,9 +171,10 @@
           <i class="ti ti-alert-triangle me-1 text-warning"></i>Reportes Conductuales
         </a>
       </li>
+      {% endif %}
       {% if area == "bilingue" %}
       <li class="nav-item">
-        <a href="#tab-progress" class="nav-link" data-bs-toggle="tab">
+        <a href="#tab-progress" class="nav-link {% if nav_progress_only %}active{% endif %}" data-bs-toggle="tab">
           <i class="ti ti-chart-line me-1 text-blue"></i>Progress Reports
         </a>
       </li>
@@ -183,7 +185,7 @@
     <div class="tab-content">
 
       {# ── TAB 1: Académicos ─────────────────────────────── #}
-      <div class="tab-pane active show" id="tab-academicos">
+      <div class="tab-pane {% if not nav_progress_only %}active show{% endif %}" id="tab-academicos">
         <div class="table-responsive">
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -397,7 +399,7 @@
 
       {# ── TAB 3: Progress Reports ───────────────────────── #}
       {% if area == "bilingue" %}
-      <div class="tab-pane" id="tab-progress">
+      <div class="tab-pane {% if nav_progress_only %}active show{% endif %}" id="tab-progress">
         <div class="table-responsive">
           <table id="tabla-progress" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>

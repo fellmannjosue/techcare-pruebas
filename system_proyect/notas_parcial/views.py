@@ -6,6 +6,7 @@ from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.cache import cache
 from django.db import connections
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -25,14 +26,42 @@ from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada
 
 User = get_user_model()
 
-_GRUPOS_COORD   = {'coordinador_bilingue', 'coordinador_colegio', 'coordinadores_colegio', 'coordinadores', 'coord_notas_parcial'}
-_GRUPOS_MAESTRO = {'maestros_bilingue', 'maestros_colegio', 'maestros_notas_parcial'}
+_GRUPOS_COORD        = {'coordinador_bilingue', 'coordinador_colegio', 'coordinadores_colegio', 'coordinadores', 'coord_notas_parcial', 'coordinador_bl', 'coordinador_col', 'coord_progress_bl', 'notas_revision', 'coord_revision'}
+_GRUPOS_COORD_FULL   = {'coord_notas_parcial'}
+_GRUPOS_MAESTRO      = {'maestros_bilingue', 'maestros_colegio', 'maestros_notas_parcial'}
+_GRUPOS_BL           = {'coordinador_bilingue', 'coordinador_bl', 'coord_progress_bl', 'coord_revision', 'coord_notas_parcial'}
+_GRUPOS_COLEGIO      = {'coordinador_colegio', 'coordinadores_colegio', 'coordinador_col'}
+
+AREAS_BL      = [('bl', 'Primaria Bilingüe'), ('colegio_bl', 'Colegio BL')]
+AREAS_COLEGIO = [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')]
+
+
+def _areas_para(user):
+    """Retorna las áreas visibles según el grupo del usuario."""
+    if user.is_superuser:
+        return AREAS
+    grupos = set(user.groups.values_list('name', flat=True))
+    es_bl      = bool(grupos & _GRUPOS_BL)
+    es_colegio = bool(grupos & _GRUPOS_COLEGIO)
+    if es_bl and not es_colegio:
+        return AREAS_BL
+    if es_colegio and not es_bl:
+        return AREAS_COLEGIO
+    return AREAS
 
 
 def _es_coordinador(user):
     if user.is_superuser or user.is_staff:
         return True
     return user.groups.filter(name__in=_GRUPOS_COORD).exists()
+
+
+def _es_solo_revision(user):
+    """True si el usuario solo puede ver el carrusel (coord_revision sin acceso completo)."""
+    if user.is_superuser:
+        return False
+    grupos = set(user.groups.values_list('name', flat=True))
+    return 'coord_revision' in grupos and not (grupos & _GRUPOS_COORD_FULL)
 
 
 def _es_maestro(user):
@@ -75,15 +104,62 @@ MESES_ES  = ['enero','febrero','marzo','abril','mayo','junio',
              'julio','agosto','septiembre','octubre','noviembre','diciembre']
 
 
+# Columnas exactas que usa _agrupar — evita traer columnas innecesarias
+_COLS_STAGING = (
+    'IngrEgrID, NombreCompl, AreaCurso, CrsoNumero, GrupoNumero, '
+    'InicioParcial, FinalParcial, Materia, Tarea, '
+    'Cuadro1, Cuadro2, Cuadro3, Cuadro4, Cuadro5, '
+    'Cuadro6, Cuadro7, Cuadro8, Cuadro9, Cuadro10'
+)
+_CACHE_TTL = 28800  # 8 horas
+
+# Correo destino según usuario — bilingüe → lchavez, colegio → malvarado
+_DEST_POR_USUARIO = {
+    'druiz':      'lchavez@ana-hn.org',
+    'cvarela':    'lchavez@ana-hn.org',
+    'ialcerro':   'lchavez@ana-hn.org',
+    'jmartinez':  'lchavez@ana-hn.org',
+    'coordi_bl':  'lchavez@ana-hn.org',
+    'jvalladres': 'malvarado@ana-hn.org',
+    'coordi_col': 'malvarado@ana-hn.org',
+}
+_CORREO_PRUEBAS   = 'admin2@ana-hn.org'
+_CORREOS_VALIDOS  = {'lchavez@ana-hn.org', 'malvarado@ana-hn.org', 'admin2@ana-hn.org'}
+
+
+def _destinatarios_para(user):
+    """Retorna la lista de correos que puede ver este coordinador en el select."""
+    if user.is_superuser:
+        return ['lchavez@ana-hn.org', 'malvarado@ana-hn.org', _CORREO_PRUEBAS]
+    grupos = set(user.groups.values_list('name', flat=True))
+    if 'coordinador_bl' in grupos:
+        return ['lchavez@ana-hn.org', _CORREO_PRUEBAS]
+    if 'coordinador_col' in grupos:
+        return ['malvarado@ana-hn.org', _CORREO_PRUEBAS]
+    # Fallback para usuarios existentes asignados por username
+    dest = _DEST_POR_USUARIO.get(user.username)
+    if dest:
+        return [dest, _CORREO_PRUEBAS]
+    return [_CORREO_PRUEBAS]
+
+
+def _cache_key(area, parcial, anio, curso):
+    return f'notas_sp_{area}_{parcial}_{anio}_{curso or ""}'
+
+
 def _leer_staging_directo(area, parcial, anio, curso=None):
-    """Lee la tabla de staging directo sin llamar el SP (mucho más rápido en recargas)."""
+    """Lee staging table con columnas específicas + NOLOCK para mayor velocidad."""
     tabla = _TABLA_STAGING.get(area)
     if not tabla:
         return [], []
     try:
         with connections['padres_sqlserver'].cursor() as cursor:
             bach = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
-            sql = f"SELECT * FROM {tabla} WHERE Parcial={int(parcial)} AND Año={int(anio)}{bach}"
+            sql = (
+                f"SELECT {_COLS_STAGING} "
+                f"FROM {tabla} WITH (NOLOCK) "
+                f"WHERE Parcial={int(parcial)} AND Año={int(anio)}{bach}"
+            )
             cursor.execute(sql)
             if cursor.description is None:
                 return [], []
@@ -96,12 +172,20 @@ def _leer_staging_directo(area, parcial, anio, curso=None):
 
 
 def _llamar_sp(area, parcial, anio, curso=None):
-    # Fast path: leer de staging sin llamar el SP si ya hay datos
+    key = _cache_key(area, parcial, anio, curso)
+
+    # 1. Caché en BD Django (válida 15 min, compartida entre workers)
+    cached = cache.get(key)
+    if cached:
+        return cached
+
+    # 2. Staging table directo (sin llamar el SP)
     rows, cols = _leer_staging_directo(area, parcial, anio, curso)
     if rows:
+        cache.set(key, (rows, cols), _CACHE_TTL)
         return rows, cols
 
-    # Slow path: llamar el SP (también puebla la staging table)
+    # 3. Llamar SP (lento — también puebla la staging table)
     entry = SP_MAP.get(area)
     if not entry:
         return [], []
@@ -118,6 +202,8 @@ def _llamar_sp(area, parcial, anio, curso=None):
                     return [], []
             cols = [c[0] for c in cursor.description]
             rows = [dict(zip(cols, r)) for r in cursor.fetchall()]
+        if rows:
+            cache.set(key, (rows, cols), _CACHE_TTL)
         return rows, cols
     except Exception as e:
         print(f">>> ERROR SP {sp}:", e)
@@ -176,6 +262,9 @@ def _fmt_fecha(d):
 @login_required
 @_superuser
 def notas_index(request):
+    from django.shortcuts import redirect as _redirect
+    return _redirect('notas_parcial_coordinador')
+    # vista heredada — ya no se usa directamente
     parcial  = request.GET.get('parcial', '')
     anio     = request.GET.get('anio', date.today().year)
     area     = request.GET.get('area', '')
@@ -572,9 +661,16 @@ def coordinador_notas(request):
     error     = ''
     asignaciones_dict = {}
 
-    # Maestros disponibles para asignar
+    # Maestros disponibles para asignar — filtrados por área
+    _areas_bl_keys = {a for a, _ in AREAS_BL}
+    if area in _areas_bl_keys:
+        _grupos_maestro_area = {'maestros_bilingue'}
+    elif area in {a for a, _ in AREAS_COLEGIO}:
+        _grupos_maestro_area = {'maestros_colegio'}
+    else:
+        _grupos_maestro_area = _GRUPOS_MAESTRO
     maestros = User.objects.filter(
-        groups__name__in=_GRUPOS_MAESTRO
+        groups__name__in=_grupos_maestro_area
     ).distinct().order_by('first_name', 'last_name', 'username')
 
     secciones_grado = []
@@ -634,6 +730,10 @@ def coordinador_notas(request):
         'maestros':          maestros,
         'asignaciones_dict': asignaciones_dict,
         'notificaciones':    notificaciones,
+        'destinatarios':          _destinatarios_para(request.user),
+        'solo_carrusel':          _es_solo_revision(request.user) and area in {'bl', 'colegio_bl'},
+        'ocultar_asignaciones':   _es_solo_revision(request.user),
+        'areas':                  _areas_para(request.user),
     })
 
 
@@ -774,8 +874,13 @@ def finalizar_revision(request):
         maestro_nombre = request.user.get_full_name() or request.user.username
         area_label     = dict(AREAS).get(area, area)
 
+        _areas_bl_keys = {a for a, _ in AREAS_BL}
+        if area in _areas_bl_keys:
+            _grupos_email = _GRUPOS_BL - {'coord_progress_bl'}
+        else:
+            _grupos_email = _GRUPOS_COLEGIO | {'coordinadores', 'coord_notas_parcial'}
         coordinadores_emails = list(
-            User.objects.filter(groups__name__in=_GRUPOS_COORD)
+            User.objects.filter(groups__name__in=_grupos_email)
             .exclude(email='').values_list('email', flat=True).distinct()
         )
         if coordinadores_emails:
@@ -821,20 +926,27 @@ def leer_notificacion(request):
 def enviar_pdf_email(request):
     """Genera el PDF y lo envía por correo a lchavez@ana-hn.org."""
     try:
-        data    = json.loads(request.body)
-        parcial = data.get('parcial', '')
-        anio    = data.get('anio', '')
-        area    = data.get('area', '')
-        curso   = data.get('curso') or None
-        grado   = data.get('grado', '')
-        seccion = data.get('seccion', '')
+        data         = json.loads(request.body)
+        parcial      = data.get('parcial', '')
+        anio         = data.get('anio', '')
+        area         = data.get('area', '')
+        curso        = data.get('curso') or None
+        grado        = data.get('grado', '')
+        seccion      = data.get('seccion', '')
+        destinatario = data.get('destinatario', '')
     except Exception:
-        parcial = request.POST.get('parcial', '')
-        anio    = request.POST.get('anio', '')
-        area    = request.POST.get('area', '')
-        curso   = request.POST.get('curso') or None
-        grado   = request.POST.get('grado', '')
-        seccion = request.POST.get('seccion', '')
+        parcial      = request.POST.get('parcial', '')
+        anio         = request.POST.get('anio', '')
+        area         = request.POST.get('area', '')
+        curso        = request.POST.get('curso') or None
+        grado        = request.POST.get('grado', '')
+        seccion      = request.POST.get('seccion', '')
+        destinatario = request.POST.get('destinatario', '')
+
+    # Validar que el correo sea uno de los permitidos
+    if destinatario not in _CORREOS_VALIDOS:
+        destinos = _destinatarios_para(request.user)
+        destinatario = destinos[0] if destinos else 'lchavez@ana-hn.org'
 
     if not parcial or not area:
         return JsonResponse({'ok': False, 'error': 'Parámetros incompletos.'})
@@ -885,8 +997,7 @@ def enviar_pdf_email(request):
         f'Sección:  {seccion or "Todas"}\n\n'
         f'Generado por: {remitente}'
     )
-    DEST_IMPRESION = 'lchavez@ana-hn.org'
-    mail = DjangoEmailMessage(subject=asunto, body=cuerpo, to=[DEST_IMPRESION])
+    mail = DjangoEmailMessage(subject=asunto, body=cuerpo, to=[destinatario])
     mail.attach(f'notas_parcial_{parcial}_{anio}.pdf', buf.getvalue(), 'application/pdf')
     try:
         mail.send()
@@ -920,3 +1031,160 @@ def notificaciones_json(request):
             'fecha':      n.fecha.strftime('%d/%m/%Y %H:%M'),
         })
     return JsonResponse({'notificaciones': data})
+
+
+# ─── Vista: Asignaciones del Coordinador ──────────────────────────────────────
+
+@login_required
+@_coordinador
+def asignaciones_vista(request):
+    """Lista de asignaciones con fecha límite y estado de cache por grupo."""
+    areas_visibles = [a for a, _ in _areas_para(request.user)]
+    qs = AsignacionMaestro.objects.filter(
+        area__in=areas_visibles
+    ).select_related(
+        'maestro', 'asignado_por'
+    ).order_by('-anio', 'parcial', 'area', 'grado', 'seccion')
+
+    area_map = dict(AREAS)
+    grupos = {}
+    for a in qs:
+        key = (a.area, a.parcial, a.anio)
+        if key not in grupos:
+            ck = _cache_key(a.area, a.parcial, a.anio, None)
+            grupos[key] = {
+                'area':       a.area,
+                'area_label': area_map.get(a.area, a.area),
+                'parcial':    a.parcial,
+                'anio':       a.anio,
+                'cached':     cache.get(ck) is not None,
+                'items':      [],
+            }
+        grupos[key]['items'].append(a)
+
+    return render(request, 'notas_parcial/asignaciones.html', {
+        'grupos':   list(grupos.values()),
+        'areas':    AREAS,
+        'maestros': User.objects.filter(
+            groups__name__in=_GRUPOS_MAESTRO
+        ).distinct().order_by('first_name', 'last_name'),
+    })
+
+
+@login_required
+@_coordinador
+@require_POST
+def actualizar_fecha_limite(request):
+    """Actualiza o borra la fecha límite de una asignación."""
+    try:
+        data      = json.loads(request.body)
+        asig      = AsignacionMaestro.objects.get(pk=int(data['id']))
+        fecha_str = data.get('fecha_limite', '').strip()
+        if fecha_str:
+            from django.utils.dateparse import parse_datetime
+            asig.fecha_limite = parse_datetime(fecha_str)
+        else:
+            asig.fecha_limite = None
+        asig.save(update_fields=['fecha_limite'])
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+@_coordinador
+@require_POST
+def eliminar_asignacion(request):
+    """Elimina una AsignacionMaestro por pk."""
+    try:
+        data = json.loads(request.body)
+        AsignacionMaestro.objects.filter(pk=int(data['id'])).delete()
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+@_coordinador
+def precargar_cache(request):
+    """Pre-carga el cache para un area/parcial/anio determinado."""
+    area    = request.GET.get('area', '')
+    parcial = request.GET.get('parcial', '')
+    anio    = request.GET.get('anio', '')
+    if not (area and parcial and anio):
+        return JsonResponse({'ok': False, 'error': 'Faltan parámetros'})
+    _llamar_sp(area, parcial, anio)
+    return JsonResponse({'ok': True})
+
+
+# ─── Vista: Revisión de Comentarios ───────────────────────────────────────────
+
+@login_required
+@_coordinador
+def revision_comentarios_view(request):
+    """Lista de comentarios con nombre de alumno, grados y edición/eliminación."""
+    parcial   = request.GET.get('parcial', '')
+    anio      = request.GET.get('anio', str(date.today().year))
+    area      = request.GET.get('area', '')
+    grado_sel = request.GET.get('grado', '')
+
+    comentarios  = []
+    alumnos_dict = {}
+    grados       = []
+
+    if parcial and area:
+        todos_comentarios = list(
+            NotaComentario.objects
+            .filter(parcial=int(parcial), anio=int(anio), area=area)
+            .select_related('actualizado_por')
+            .order_by('-actualizado_en')
+        )
+
+        if todos_comentarios:
+            rows, _ = _llamar_sp(area, parcial, anio)
+            if rows:
+                alumnos_dict = {a['ingr_egr_id']: a for a in _agrupar(rows)}
+                ids_con_com  = {c.ingr_egr_id for c in todos_comentarios}
+                grados = sorted({
+                    alumnos_dict[iid]['grado']
+                    for iid in ids_con_com if iid in alumnos_dict
+                })
+
+        base = todos_comentarios
+        if grado_sel and alumnos_dict:
+            ids_en_grado = {iid for iid, a in alumnos_dict.items() if a['grado'] == grado_sel}
+            base = [c for c in todos_comentarios if c.ingr_egr_id in ids_en_grado]
+
+        # Enriquecer cada comentario con datos del alumno
+        comentarios = []
+        for c in base:
+            alumno = alumnos_dict.get(c.ingr_egr_id, {})
+            comentarios.append({
+                'obj':    c,
+                'nombre': alumno.get('nombre', '—'),
+                'grado':  alumno.get('grado', ''),
+                'grupo':  alumno.get('grupo', ''),
+            })
+
+    return render(request, 'notas_parcial/revision_comentarios.html', {
+        'areas':       AREAS,
+        'parcial':     parcial,
+        'anio':        anio,
+        'area':        area,
+        'grado_sel':   grado_sel,
+        'grados':      grados,
+        'comentarios': comentarios,
+    })
+
+
+@login_required
+@_coordinador
+@require_POST
+def eliminar_comentario(request):
+    """Elimina un NotaComentario por id."""
+    try:
+        data = json.loads(request.body)
+        NotaComentario.objects.filter(pk=int(data['id'])).delete()
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})

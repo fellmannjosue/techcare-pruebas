@@ -74,6 +74,11 @@ def login_view(request):
                     _es_coord_maestro = False
                 if _es_coord_maestro:
                     request.session['agenda_modo_maestro'] = is_maestro
+                # Coordinadores con restricción de progress — siempre van al dashboard coordinador
+                if user.groups.filter(name__in=['coord_progress_bl', 'coordinador_bl', 'coordinador_col']).exists():
+                    if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores', 'coordinador_col']).exists():
+                        return redirect('dashboard_coordinador', area='colegio')
+                    return redirect('dashboard_coordinador', area='bilingue')
                 if is_maestro:
                     return redirect('dashboard_maestro')
                 if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
@@ -86,16 +91,7 @@ def login_view(request):
                 for g in user.groups.all()
                 if g.name.lower() in _GRUPO_A_ROL
             ]
-            # Agregar rol maestro si marcó el checkbox
-            if is_maestro:
-                in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
-                in_mcol = user.groups.filter(name='maestros_colegio').exists()
-                if not in_mbl and not in_mcol:
-                    # Solo tiene el checkbox pero ningún grupo de maestro asignado
-                    roles_disponibles.append(_GRUPO_A_ROL.get('maestros_bilingue', {
-                        'titulo': 'Maestro', 'subtitulo': '', 'icon': 'ti-school',
-                        'clase': 'icon-bl', 'url': '/accounts/aplicar-rol/maestro_bl/',
-                    }))
+            # El rol maestro solo aparece si tiene el grupo asignado — el checkbox no lo otorga
 
             if not roles_disponibles:
                 messages.error(request, 'checkbox_hint')
@@ -214,9 +210,17 @@ def register_maestro(request):
 
             # Asignar grupos
             if area == 'bilingue':
-                group_name = 'maestros_bilingue' if cargo == 'docente' else 'admin_bilingue'
+                if cargo == 'docente':
+                    group_name = 'maestros_bilingue'
+                else:
+                    group_name = 'coordinador_bl'
+                    user.is_staff = True
             elif area == 'colegio':
-                group_name = 'maestros_colegio' if cargo == 'docente' else 'admin_colegio'
+                if cargo == 'docente':
+                    group_name = 'maestros_colegio'
+                else:
+                    group_name = 'coordinador_col'
+                    user.is_staff = True
             else:
                 group_name = 'administracion'
                 user.is_staff = True
@@ -328,6 +332,10 @@ def menu_view(request):
 
     # ── Redirigir a usuarios que tienen su propio dashboard ──────────────────
     if not user.is_superuser:
+        # Solo Progress → progress report directo
+        if user.groups.filter(name='solo_progress').exists():
+            return redirect('progress_report_bilingue')
+
         # Técnicos → tickets
         if user.groups.filter(name='tecnicos').exists():
             return redirect('tickets_dashboard')
@@ -354,7 +362,7 @@ def menu_view(request):
         if user.is_staff:
             if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
                 return redirect('dashboard_coordinador', area='colegio')
-            if user.groups.filter(name='coordinador_bilingue').exists():
+            if user.groups.filter(name__in=['coordinador_bilingue', 'coordinador_bl', 'coord_progress_bl']).exists():
                 return redirect('dashboard_coordinador', area='bilingue')
 
         # Maestros regulares

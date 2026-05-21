@@ -18,10 +18,12 @@ def nav_context(request):
     def grp(*names):
         return user.groups.filter(name__in=names).exists()
 
-    is_coord_bl    = grp('coordinador_bilingue')
-    is_coord_col   = grp('coordinadores_colegio', 'coordinador_colegio', 'coordinadores')
-    is_maestro_bl  = grp('maestros_bilingue')
-    is_maestro_col = grp('maestros_colegio')
+    is_coord_bl      = grp('coordinador_bilingue', 'coordinador_bl', 'coord_progress_bl')
+    is_coord_col     = grp('coordinadores_colegio', 'coordinador_colegio', 'coordinadores', 'coordinador_col')
+    is_maestro_bl    = grp('maestros_bilingue')
+    is_maestro_col   = grp('maestros_colegio')
+    is_solo_progress = grp('solo_progress')
+    is_progress_only = grp('coord_progress_bl')
 
     can = lambda p: user.has_perm(p)
 
@@ -51,6 +53,11 @@ def nav_context(request):
             nav_coord_col = False
             nav_mbl       = True
             nav_mcol      = False
+    elif is_solo_progress:
+        nav_coord_bl  = False
+        nav_coord_col = False
+        nav_mbl       = False
+        nav_mcol      = False
     else:
         nav_coord_bl  = is_admin or is_coord_bl
         nav_coord_col = is_admin or is_coord_col
@@ -60,6 +67,8 @@ def nav_context(request):
     # URL de "home" para cada tipo de usuario (usada en sidebar y breadcrumbs)
     if is_admin:
         nav_home_url = reverse('menu')
+    elif is_solo_progress:
+        nav_home_url = reverse('progress_report_bilingue')
     elif nav_mbl or nav_mcol:
         nav_home_url = reverse('dashboard_maestro')
     elif nav_coord_col and not nav_coord_bl:
@@ -91,4 +100,6 @@ def nav_context(request):
         'nav_es_coord_maestro': es_coord_maestro,
         'nav_modo_maestro':     modo_maestro,
         'nav_home_url':         nav_home_url,
+        'nav_solo_progress':    is_solo_progress,
+        'nav_progress_only':    is_progress_only,
     }

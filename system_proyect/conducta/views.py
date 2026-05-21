@@ -2000,6 +2000,9 @@ _REDIRECT_COORD_BL = {
 #--------------  DASHBOARD COORDINADOR -----------------
 @login_required
 def dashboard_coordinador(request, area):
+    if request.user.groups.filter(name='solo_progress').exists():
+        return redirect('progress_report_bilingue')
+
     if area == 'bilingue':
         destino = _REDIRECT_COORD_BL.get(request.user.email)
         if destino:

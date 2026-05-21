@@ -15,6 +15,7 @@ urlpatterns = [
     path('menu/', lambda request: redirect('/accounts/menu/'), name='tickets_menu'),
 
     path('ticket_status_update_ajax/<int:ticket_id>/', views.ticket_status_update_ajax, name='ticket_status_update_ajax'),
+    path('ticket_eliminar/<int:ticket_id>/', views.ticket_eliminar_ajax, name='ticket_eliminar_ajax'),
     path('ticket_status_get_ajax/<int:ticket_id>/', views.ticket_status_get_ajax, name='ticket_status_get_ajax'),
     path('ticket_send_comment_ajax/<int:ticket_id>/', views.ticket_send_comment_ajax, name='ticket_send_comment_ajax'),
     path('ticket/<int:ticket_id>/reporte/', views.ticket_reporte_ajax, name='ticket_reporte_ajax'),

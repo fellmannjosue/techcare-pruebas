@@ -68,7 +68,7 @@ def enviar_correo_ticket_resuelto(ticket):
     comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
     chat_conversacion = [
         {
-            'autor': c.usuario.get_full_name() or c.usuario.username,
+            'autor': (c.usuario.get_full_name() or c.usuario.username) if c.usuario else 'Sistema',
             'fecha': c.fecha.strftime('%d/%m/%Y %H:%M'),
             'mensaje': c.mensaje,
         }
@@ -428,6 +428,19 @@ def ticket_status_update_ajax(request, ticket_id):
             )
         enviar_correo_ticket_resuelto(ticket)
 
+    return JsonResponse({"ok": True})
+
+
+# ======================================================
+# AJAX → Eliminar ticket
+# ======================================================
+@login_required
+@require_POST
+def ticket_eliminar_ajax(request, ticket_id):
+    if not request.user.is_staff:
+        return JsonResponse({"ok": False, "error": "Sin permiso"}, status=403)
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    ticket.delete()
     return JsonResponse({"ok": True})
 
 

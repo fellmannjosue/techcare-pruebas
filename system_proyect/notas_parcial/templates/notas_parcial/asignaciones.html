@@ -1,0 +1,207 @@
+{% extends 'notas_parcial/base_notas.html' %}
+{% block title %}Asignaciones – Notas Mitad de Parcial{% endblock %}
+{% block page_title %}Asignaciones de Maestros{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <p class="text-muted mb-0">Listado de asignaciones con fecha límite y estado del cache.</p>
+  <a href="{% url 'notas_parcial_coordinador' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="ti ti-arrow-left me-1"></i>Volver a Revisión
+  </a>
+</div>
+
+{% if not grupos %}
+<div class="empty">
+  <div class="empty-icon"><i class="ti ti-clipboard-list" style="font-size:3rem;"></i></div>
+  <p class="empty-title">Sin asignaciones</p>
+  <p class="empty-subtitle text-muted">Aún no se han creado asignaciones de maestros.</p>
+</div>
+{% endif %}
+
+{% for g in grupos %}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div>
+      <span class="fw-bold fs-5">{{ g.area_label }}</span>
+      <span class="text-muted ms-2">Parcial {{ g.parcial }} · {{ g.anio }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if g.cached %}
+        <span class="badge bg-success-lt"><i class="ti ti-database me-1"></i>Cache activo</span>
+      {% else %}
+        <span class="badge bg-secondary-lt"><i class="ti ti-database-off me-1"></i>Sin cache</span>
+        <button class="btn btn-sm btn-outline-primary btn-precargar"
+                data-area="{{ g.area }}" data-parcial="{{ g.parcial }}" data-anio="{{ g.anio }}">
+          <i class="ti ti-bolt me-1"></i>Pre-cargar cache
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th>Grado / Sección</th>
+          <th>Maestro asignado</th>
+          <th>Asignado por</th>
+          <th>Asignado el</th>
+          <th style="min-width:220px">Fecha límite</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in g.items %}
+        <tr id="fila-{{ a.pk }}">
+          <td>
+            <span class="fw-semibold">{{ a.grado }}</span>
+            {% if a.seccion %}<span class="text-muted ms-1">/ {{ a.seccion }}</span>{% endif %}
+          </td>
+          <td>{{ a.maestro.get_full_name|default:a.maestro.username }}</td>
+          <td class="text-muted small">{{ a.asignado_por.get_full_name|default:a.asignado_por.username|default:"—" }}</td>
+          <td class="text-muted small">{{ a.asignado_en|date:"d/m/Y H:i" }}</td>
+          <td>
+            <input type="datetime-local" class="form-control form-control-sm inp-fecha"
+                   data-id="{{ a.pk }}"
+                   value="{{ a.fecha_limite|date:'Y-m-d\TH:i'|default:'' }}">
+          </td>
+          <td>
+            <button class="btn btn-sm btn-success btn-guardar-fecha" data-id="{{ a.pk }}" title="Guardar fecha límite">
+              <i class="ti ti-device-floppy"></i>
+            </button>
+            <button class="btn btn-sm btn-danger btn-eliminar-asig" data-id="{{ a.pk }}"
+                    data-nombre="{{ a.maestro.get_full_name|default:a.maestro.username }}"
+                    data-grado="{{ a.grado }}" data-seccion="{{ a.seccion }}"
+                    title="Quitar asignación">
+              <i class="ti ti-x"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+{# Modal confirmación eliminar asignación #}
+<div class="modal modal-blur fade" id="modalEliminarAsig" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <i class="ti ti-alert-triangle text-danger mb-3" style="font-size:2.5rem;"></i>
+        <h4 class="fw-bold">¿Quitar asignación?</h4>
+        <p class="text-muted" id="modalAsigTexto"></p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-danger" id="btnConfirmarEliminarAsig">Sí, quitar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Toast feedback #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastAsig" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body" id="toastAsigMsg">Guardado</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function toast(msg, ok=true){
+  const el = document.getElementById('toastAsig');
+  el.className = `toast align-items-center text-bg-${ok?'success':'danger'} border-0`;
+  document.getElementById('toastAsigMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+}
+
+async function guardarFecha(id, valor){
+  const r = await fetch('{% url "notas_parcial_actualizar_fecha" %}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+    body: JSON.stringify({id, fecha_limite: valor}),
+  });
+  const d = await r.json();
+  if(d.ok){
+    toast(valor ? 'Fecha límite guardada' : 'Fecha límite eliminada');
+    if(!valor){
+      const fila = document.getElementById('fila-'+id);
+      if(fila) fila.querySelector('.inp-fecha').value = '';
+    }
+  } else {
+    toast('Error: '+d.error, false);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  // Guardar fecha límite
+  document.querySelectorAll('.btn-guardar-fecha').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const id  = this.dataset.id;
+      const inp = document.querySelector(`.inp-fecha[data-id="${id}"]`);
+      guardarFecha(id, inp.value);
+    });
+  });
+
+  // Eliminar asignación
+  let idEliminarAsig = null;
+  document.querySelectorAll('.btn-eliminar-asig').forEach(btn => {
+    btn.addEventListener('click', function(){
+      idEliminarAsig = this.dataset.id;
+      const nombre  = this.dataset.nombre;
+      const grado   = this.dataset.grado;
+      const seccion = this.dataset.seccion;
+      document.getElementById('modalAsigTexto').textContent =
+        `¿Quitar la asignación de ${nombre} en ${grado}${seccion ? ' / '+seccion : ''}?`;
+      new bootstrap.Modal(document.getElementById('modalEliminarAsig')).show();
+    });
+  });
+
+  document.getElementById('btnConfirmarEliminarAsig').addEventListener('click', async function(){
+    if(!idEliminarAsig) return;
+    const r = await fetch('{% url "notas_parcial_eliminar_asignacion" %}', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+      body: JSON.stringify({id: parseInt(idEliminarAsig)}),
+    });
+    const d = await r.json();
+    bootstrap.Modal.getInstance(document.getElementById('modalEliminarAsig')).hide();
+    if(d.ok){
+      document.getElementById('fila-'+idEliminarAsig)?.remove();
+      toast('Asignación eliminada');
+    } else {
+      toast('Error: '+d.error, false);
+    }
+    idEliminarAsig = null;
+  });
+
+  // Pre-cargar cache
+  document.querySelectorAll('.btn-precargar').forEach(btn => {
+    btn.addEventListener('click', async function(){
+      const orig = this.innerHTML;
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      const {area, parcial, anio} = this.dataset;
+      const r = await fetch(`{% url "notas_parcial_precargar" %}?area=${area}&parcial=${parcial}&anio=${anio}`);
+      const d = await r.json();
+      if(d.ok){
+        this.closest('.d-flex').innerHTML =
+          '<span class="badge bg-success-lt"><i class="ti ti-database me-1"></i>Cache activo</span>';
+        toast('Cache pre-cargado correctamente');
+      } else {
+        this.disabled = false;
+        this.innerHTML = orig;
+        toast('Error al pre-cargar cache', false);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

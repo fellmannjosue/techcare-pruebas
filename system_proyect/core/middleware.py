@@ -1,6 +1,7 @@
 import datetime as dt
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse, NoReverseMatch
 
 
 _RUTAS_PERMITIDAS = (
@@ -24,6 +25,34 @@ _AREA_LABELS = {
 
 # Staff que siempre pasan en cualquier modo
 _STAFF_EXCEPTIONS_ALL = frozenset(['yzavala@ana-hn.org', 'glorenzo@ana-hn.org'])
+
+
+class SoloProgressMiddleware:
+    """Restringe a usuarios del grupo solo_progress a únicamente la vista progress_report_bilingue."""
+
+    _RUTAS_LIBRES = ('/accounts/login/', '/accounts/logout/', '/static/', '/media/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._destino = None
+
+    def _get_destino(self):
+        if self._destino is None:
+            try:
+                self._destino = reverse('progress_report_bilingue')
+            except NoReverseMatch:
+                self._destino = '/'
+        return self._destino
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if (user and user.is_authenticated and not user.is_superuser
+                and user.groups.filter(name='solo_progress').exists()):
+            destino = self._get_destino()
+            ruta = request.path_info
+            if not any(ruta.startswith(p) for p in self._RUTAS_LIBRES) and ruta != destino:
+                return redirect(destino)
+        return self.get_response(request)
 
 
 class MaintenanceModeMiddleware:

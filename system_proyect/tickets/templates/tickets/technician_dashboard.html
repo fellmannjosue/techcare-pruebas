@@ -74,11 +74,17 @@
                 <span class="text-muted small">—</span>
               {% endif %}
             </td>
-            <td>
+            <td class="d-flex gap-1 align-items-center">
               <a href="{% url 'ticket_comments' ticket.id %}" class="btn btn-sm btn-ghost-primary"
                  onclick="event.stopPropagation();" title="Abrir chat">
                 <i class="ti ti-message-circle"></i>
               </a>
+              <button class="btn btn-sm btn-ghost-danger btn-eliminar-ticket"
+                      data-id="{{ ticket.id }}"
+                      data-tid="{{ ticket.ticket_id }}"
+                      onclick="event.stopPropagation();" title="Eliminar ticket">
+                <i class="ti ti-trash"></i>
+              </button>
             </td>
           </tr>
           {% empty %}
@@ -86,6 +92,24 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Eliminar Ticket ── #}
+<div class="modal modal-blur fade" id="modalEliminarTicket" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <i class="ti ti-alert-triangle text-danger mb-3" style="font-size:2.5rem;"></i>
+        <h4 class="fw-bold">¿Eliminar ticket?</h4>
+        <p class="text-muted" id="modalEliminarTicketTxt"></p>
+        <p class="text-muted small">Se eliminarán también todos los mensajes del chat.</p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-danger" id="btnConfirmarEliminarTicket">Sí, eliminar</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -220,6 +244,34 @@ $(function(){
     .catch(() => {
       document.getElementById('mChat').innerHTML = '<div class="text-danger small">Error al cargar el reporte.</div>';
     });
+  });
+})();
+
+// ── Eliminar ticket ──────────────────────────────────────────────────────────
+(function(){
+  let idEliminar = null;
+  document.querySelectorAll('.btn-eliminar-ticket').forEach(btn => {
+    btn.addEventListener('click', function(){
+      idEliminar = this.dataset.id;
+      document.getElementById('modalEliminarTicketTxt').textContent =
+        '¿Eliminar ' + this.dataset.tid + '?';
+      new bootstrap.Modal(document.getElementById('modalEliminarTicket')).show();
+    });
+  });
+  document.getElementById('btnConfirmarEliminarTicket')?.addEventListener('click', async function(){
+    if(!idEliminar) return;
+    const r = await fetch('/tickets/ticket_eliminar/' + idEliminar + '/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    });
+    const d = await r.json();
+    bootstrap.Modal.getInstance(document.getElementById('modalEliminarTicket')).hide();
+    if(d.ok){
+      document.querySelector(`tr[data-ticket-id="${idEliminar}"]`)?.remove();
+    } else {
+      alert('Error: ' + (d.error || 'No se pudo eliminar'));
+    }
+    idEliminar = null;
   });
 })();
 </script>

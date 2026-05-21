@@ -1,0 +1,257 @@
+{% extends 'notas_parcial/base_notas.html' %}
+{% block title %}Revisión de Comentarios – Notas Mitad de Parcial{% endblock %}
+{% block page_title %}Revisión de Comentarios{% endblock %}
+
+{% block content %}
+
+{# ── Filtros ── #}
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label">Parcial</label>
+        <select name="parcial" class="form-select">
+          <option value="">— Selecciona —</option>
+          <option value="1" {% if parcial == '1' %}selected{% endif %}>Parcial 1</option>
+          <option value="2" {% if parcial == '2' %}selected{% endif %}>Parcial 2</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label">Año</label>
+        <input type="number" name="anio" class="form-control" value="{{ anio }}" min="2024" max="2099">
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label">Área</label>
+        <select name="area" class="form-select">
+          <option value="">— Selecciona —</option>
+          {% for val, lbl in areas %}
+          <option value="{{ val }}" {% if area == val %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="ti ti-search me-1"></i>Buscar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if parcial and area %}
+
+  {# ── Tabs de grado ── #}
+  {% if grados %}
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link {% if not grado_sel %}active fw-semibold{% endif %}"
+         href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}">
+        <i class="ti ti-list me-1"></i>Todos
+      </a>
+    </li>
+    {% for g in grados %}
+    <li class="nav-item">
+      <a class="nav-link {% if grado_sel == g %}active fw-semibold{% endif %}"
+         href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}&grado={{ g }}">
+        {{ g }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if comentarios %}
+  <div class="card">
+    <div class="card-header">
+      <span class="fw-bold">{{ comentarios|length }} comentario{{ comentarios|length|pluralize:"s" }}{% if grado_sel %} – Grado {{ grado_sel }}{% endif %}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead>
+          <tr>
+            <th style="width:260px">Alumno</th>
+            <th>Comentario</th>
+            <th style="width:160px">Actualizado</th>
+            <th style="width:150px">Por</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyComentarios">
+          {% for item in comentarios %}
+          {% with c=item.obj %}
+          <tr id="row-com-{{ c.pk }}">
+            <td>
+              <div class="fw-semibold">{{ item.nombre }}</div>
+              <div class="text-muted small">
+                ID: {{ c.ingr_egr_id }}
+                {% if item.grado %}&nbsp;· {{ item.grado }}{% if item.grupo %} / {{ item.grupo }}{% endif %}{% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="vista-texto" id="texto-{{ c.pk }}">{{ c.comentario }}</div>
+              <textarea class="form-control form-control-sm editor-texto d-none"
+                        id="editor-{{ c.pk }}"
+                        rows="3">{{ c.comentario }}</textarea>
+            </td>
+            <td class="text-muted small">{{ c.actualizado_en|date:"d/m/Y H:i" }}</td>
+            <td class="text-muted small">{{ c.actualizado_por.get_full_name|default:c.actualizado_por.username|default:"—" }}</td>
+            <td>
+              <div class="d-flex gap-1" id="acciones-{{ c.pk }}">
+                <button class="btn btn-sm btn-outline-secondary btn-editar" data-id="{{ c.pk }}"
+                        data-iid="{{ c.ingr_egr_id }}" title="Editar">
+                  <i class="ti ti-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ c.pk }}" title="Eliminar">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </div>
+              <div class="d-flex gap-1 d-none" id="acciones-edit-{{ c.pk }}">
+                <button class="btn btn-sm btn-success btn-guardar-edit"
+                        data-id="{{ c.pk }}"
+                        data-iid="{{ c.ingr_egr_id }}"
+                        data-parcial="{{ parcial }}"
+                        data-anio="{{ anio }}"
+                        data-area="{{ area }}">
+                  <i class="ti ti-device-floppy"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary btn-cancelar-edit" data-id="{{ c.pk }}">
+                  <i class="ti ti-x"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon"><i class="ti ti-message-off" style="font-size:3rem;"></i></div>
+    <p class="empty-title">Sin comentarios</p>
+    <p class="empty-subtitle text-muted">No hay comentarios para los parámetros seleccionados.</p>
+  </div>
+  {% endif %}
+{% endif %}
+
+{# Modal confirmación eliminar #}
+<div class="modal modal-blur fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <i class="ti ti-alert-triangle text-danger mb-3" style="font-size:2.5rem;"></i>
+        <h4 class="fw-bold">¿Eliminar comentario?</h4>
+        <p class="text-muted">Esta acción no se puede deshacer.</p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-danger" id="btnConfirmarEliminar">Sí, eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Toast feedback #}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastRev" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body" id="toastRevMsg">Listo</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function toast(msg, ok=true){
+  const el = document.getElementById('toastRev');
+  el.className = `toast align-items-center text-bg-${ok?'success':'danger'} border-0`;
+  document.getElementById('toastRevMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+}
+
+// ── Editar ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-editar').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const id = this.dataset.id;
+    document.getElementById('texto-'+id).classList.add('d-none');
+    document.getElementById('editor-'+id).classList.remove('d-none');
+    document.getElementById('acciones-'+id).classList.add('d-none');
+    document.getElementById('acciones-edit-'+id).classList.remove('d-none');
+  });
+});
+
+document.querySelectorAll('.btn-cancelar-edit').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const id = this.dataset.id;
+    const orig = document.getElementById('texto-'+id).textContent;
+    document.getElementById('editor-'+id).value = orig;
+    document.getElementById('editor-'+id).classList.add('d-none');
+    document.getElementById('texto-'+id).classList.remove('d-none');
+    document.getElementById('acciones-edit-'+id).classList.add('d-none');
+    document.getElementById('acciones-'+id).classList.remove('d-none');
+  });
+});
+
+document.querySelectorAll('.btn-guardar-edit').forEach(btn => {
+  btn.addEventListener('click', async function(){
+    const {id, iid, parcial, anio, area} = this.dataset;
+    const nuevo = document.getElementById('editor-'+id).value.trim();
+    const r = await fetch('{% url "notas_parcial_comentario" %}', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+      body: JSON.stringify({
+        ingr_egr_id: parseInt(iid),
+        parcial: parseInt(parcial),
+        anio: parseInt(anio),
+        area,
+        comentario: nuevo,
+      }),
+    });
+    const d = await r.json();
+    if(d.ok){
+      document.getElementById('texto-'+id).textContent = nuevo;
+      document.getElementById('editor-'+id).classList.add('d-none');
+      document.getElementById('texto-'+id).classList.remove('d-none');
+      document.getElementById('acciones-edit-'+id).classList.add('d-none');
+      document.getElementById('acciones-'+id).classList.remove('d-none');
+      toast('Comentario actualizado');
+    } else {
+      toast('Error: '+d.error, false);
+    }
+  });
+});
+
+// ── Eliminar ─────────────────────────────────────────────────────────────────
+let idEliminar = null;
+document.querySelectorAll('.btn-eliminar').forEach(btn => {
+  btn.addEventListener('click', function(){
+    idEliminar = this.dataset.id;
+    new bootstrap.Modal(document.getElementById('modalEliminar')).show();
+  });
+});
+
+document.getElementById('btnConfirmarEliminar')?.addEventListener('click', async function(){
+  if(!idEliminar) return;
+  const r = await fetch('{% url "notas_parcial_eliminar_comentario" %}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+    body: JSON.stringify({id: parseInt(idEliminar)}),
+  });
+  const d = await r.json();
+  bootstrap.Modal.getInstance(document.getElementById('modalEliminar')).hide();
+  if(d.ok){
+    document.getElementById('row-com-'+idEliminar)?.remove();
+    toast('Comentario eliminado');
+  } else {
+    toast('Error: '+d.error, false);
+  }
+  idEliminar = null;
+});
+</script>
+{% endblock %}

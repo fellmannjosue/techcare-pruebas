@@ -42,6 +42,7 @@ class AsignacionMaestro(models.Model):
         related_name='asignaciones_hechas_notas',
     )
     asignado_en  = models.DateTimeField(auto_now_add=True)
+    fecha_limite = models.DateTimeField(null=True, blank=True, verbose_name='Fecha límite')
 
     class Meta:
         db_table        = 'notas_asignacion_maestro'

@@ -132,7 +132,7 @@
     </a>
   </div>
 
-  {% if request.user|es_maestro_notas or request.user|es_coord_notas or request.user.is_superuser %}
+  {% if request.user|es_maestro_notas or request.user.is_superuser %}
   <div class="col-sm-6 col-lg-4">
     <a href="{% url 'notas_parcial_maestro' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-4">

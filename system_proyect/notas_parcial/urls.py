@@ -12,5 +12,11 @@ urlpatterns = [
     path('finalizar/',         views.finalizar_revision,    name='notas_parcial_finalizar'),
     path('leer-notificacion/',  views.leer_notificacion,   name='notas_parcial_leer_notif'),
     path('notificaciones-json/', views.notificaciones_json, name='notas_parcial_notif_json'),
-    path('enviar-pdf-email/',   views.enviar_pdf_email,    name='notas_parcial_enviar_email'),
+    path('enviar-pdf-email/',      views.enviar_pdf_email,            name='notas_parcial_enviar_email'),
+    path('asignaciones/',          views.asignaciones_vista,           name='notas_parcial_asignaciones'),
+    path('eliminar-asignacion/',   views.eliminar_asignacion,          name='notas_parcial_eliminar_asignacion'),
+    path('actualizar-fecha/',      views.actualizar_fecha_limite,      name='notas_parcial_actualizar_fecha'),
+    path('precargar-cache/',       views.precargar_cache,              name='notas_parcial_precargar'),
+    path('revision-comentarios/',  views.revision_comentarios_view,    name='notas_parcial_revision_comentarios'),
+    path('eliminar-comentario/',   views.eliminar_comentario,          name='notas_parcial_eliminar_comentario'),
 ]
