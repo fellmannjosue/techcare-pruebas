@@ -75,7 +75,33 @@ MESES_ES  = ['enero','febrero','marzo','abril','mayo','junio',
              'julio','agosto','septiembre','octubre','noviembre','diciembre']
 
 
+def _leer_staging_directo(area, parcial, anio, curso=None):
+    """Lee la tabla de staging directo sin llamar el SP (mucho más rápido en recargas)."""
+    tabla = _TABLA_STAGING.get(area)
+    if not tabla:
+        return [], []
+    try:
+        with connections['padres_sqlserver'].cursor() as cursor:
+            bach = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
+            sql = f"SELECT * FROM {tabla} WHERE Parcial={int(parcial)} AND Año={int(anio)}{bach}"
+            cursor.execute(sql)
+            if cursor.description is None:
+                return [], []
+            cols = [c[0] for c in cursor.description]
+            rows = [dict(zip(cols, r)) for r in cursor.fetchall()]
+        return rows, cols
+    except Exception as e:
+        print(f">>> ERROR staging {tabla}:", e)
+        return [], []
+
+
 def _llamar_sp(area, parcial, anio, curso=None):
+    # Fast path: leer de staging sin llamar el SP si ya hay datos
+    rows, cols = _leer_staging_directo(area, parcial, anio, curso)
+    if rows:
+        return rows, cols
+
+    # Slow path: llamar el SP (también puebla la staging table)
     entry = SP_MAP.get(area)
     if not entry:
         return [], []
@@ -87,7 +113,6 @@ def _llamar_sp(area, parcial, anio, curso=None):
             else:
                 sql = f"EXEC {sp} @Parcial={int(parcial)}, @Año={int(anio)}"
             cursor.execute(sql)
-            # El SP hace INSERT antes del SELECT; hay que avanzar al primer result set con datos
             while cursor.description is None:
                 if not cursor.nextset():
                     return [], []
@@ -785,6 +810,86 @@ def leer_notificacion(request):
         data = json.loads(request.body)
         pk   = int(data['pk'])
         RevisionFinalizada.objects.filter(pk=pk).update(leida=True)
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+@_coordinador
+@require_POST
+def enviar_pdf_email(request):
+    """Genera el PDF y lo envía por correo a lchavez@ana-hn.org."""
+    try:
+        data    = json.loads(request.body)
+        parcial = data.get('parcial', '')
+        anio    = data.get('anio', '')
+        area    = data.get('area', '')
+        curso   = data.get('curso') or None
+        grado   = data.get('grado', '')
+        seccion = data.get('seccion', '')
+    except Exception:
+        parcial = request.POST.get('parcial', '')
+        anio    = request.POST.get('anio', '')
+        area    = request.POST.get('area', '')
+        curso   = request.POST.get('curso') or None
+        grado   = request.POST.get('grado', '')
+        seccion = request.POST.get('seccion', '')
+
+    if not parcial or not area:
+        return JsonResponse({'ok': False, 'error': 'Parámetros incompletos.'})
+
+    rows, _ = _llamar_sp(area, int(parcial), int(anio), curso)
+    alumnos = _agrupar(rows)
+    if grado:
+        alumnos = [a for a in alumnos if a['grado'] == grado]
+    if seccion:
+        alumnos = [a for a in alumnos if a['grupo'] == seccion]
+    if not alumnos:
+        return JsonResponse({'ok': False, 'error': 'Sin datos para los parámetros indicados.'})
+
+    ids = [a['ingr_egr_id'] for a in alumnos]
+    comentarios_db = {
+        c.ingr_egr_id: c.comentario
+        for c in NotaComentario.objects.filter(
+            ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area,
+        )
+    }
+    for a in alumnos:
+        a['comentario'] = comentarios_db.get(a['ingr_egr_id'], '')
+
+    buf = io.BytesIO()
+    pdf = canvas.Canvas(buf, pagesize=letter)
+    pdf.setTitle(f"Reporte Notas Parcial {parcial} {anio}.pdf")
+    total = len(alumnos)
+    for idx, alumno in enumerate(alumnos, 1):
+        _dibujar_pagina(pdf, alumno, int(parcial), int(anio), idx, total)
+        if idx < total:
+            pdf.showPage()
+    pdf.save()
+    buf.seek(0)
+
+    from django.core.mail import EmailMessage as DjangoEmailMessage
+    area_label  = dict(AREAS).get(area, area)
+    remitente   = request.user.get_full_name() or request.user.username
+    asunto      = f'Reporte de Notas – Parcial {parcial}/{anio} – {area_label}'
+    if grado:
+        asunto += f' – Grado {grado}'
+    if seccion:
+        asunto += f' – Sección {seccion}'
+    cuerpo = (
+        f'Se adjunta el reporte de notas a mitad de parcial para imprimir.\n\n'
+        f'Área:     {area_label}\n'
+        f'Parcial:  {parcial} / {anio}\n'
+        f'Grado:    {grado or "Todos"}\n'
+        f'Sección:  {seccion or "Todas"}\n\n'
+        f'Generado por: {remitente}'
+    )
+    DEST_IMPRESION = 'lchavez@ana-hn.org'
+    mail = DjangoEmailMessage(subject=asunto, body=cuerpo, to=[DEST_IMPRESION])
+    mail.attach(f'notas_parcial_{parcial}_{anio}.pdf', buf.getvalue(), 'application/pdf')
+    try:
+        mail.send()
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})

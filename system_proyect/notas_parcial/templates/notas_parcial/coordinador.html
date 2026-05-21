@@ -13,6 +13,25 @@
   .asig-banner { background: #f0f4ff; border-bottom: 1px solid #d0dbff; padding: .5rem 1rem; }
   .tabs-grado .nav-link  { font-size: .88rem; }
   .tabs-seccion .nav-link { font-size: .8rem; padding: .28rem .7rem; }
+
+  /* ── Carrusel coordinador ── */
+  .slide-coord { display: none; }
+  .slide-coord.activo { display: block; }
+  .reporte-card { border: 1px solid #dee2e6; border-radius: 6px; padding: 1.2rem 1.4rem; background: #fff; font-size: .87rem; }
+  .reporte-card .titulo { font-weight: 700; font-size: 1rem; text-align: center; }
+  .reporte-card .subtitulo { text-align: center; color: #555; font-size: .82rem; }
+  .reporte-card hr { margin: .5rem 0; }
+  .reporte-card .info-row { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: .4rem; }
+  .reporte-card .info-lbl { font-weight: 600; min-width: 90px; }
+  .tabla-notas { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: .5rem; }
+  .tabla-notas th, .tabla-notas td { border: 1px solid #ccc; padding: 3px 6px; text-align: center; }
+  .tabla-notas th { background: #e9ecef; font-weight: 600; }
+  .tabla-notas td.asig { text-align: left; }
+  .tabla-notas tr:nth-child(even) td { background: #f8f9fa; }
+  .tabla-notas td.nota-baja { color: #d63939; font-weight: 700; }
+  .nav-carrusel { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  .nav-carrusel .contador { color: #666; font-size: .85rem; min-width: 80px; text-align: center; }
+  .comentario-readonly { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: .5rem .75rem; font-size: .85rem; min-height: 48px; color: #495057; white-space: pre-wrap; }
 </style>
 {% endblock %}
 
@@ -150,6 +169,8 @@
 
   {# ── Resultados ──────────────────────────────────────────── #}
   {% if alumnos %}
+
+  {# ── Barra superior: conteo + toggle vista + acciones ── #}
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div class="text-muted small">
       <strong>{{ alumnos|length }}</strong> alumno{{ alumnos|length|pluralize }}
@@ -157,18 +178,27 @@
       {% if grado %} — <strong>{{ grado }}</strong>{% endif %}
       {% if seccion %} / {{ seccion }}{% endif %}
     </div>
-    <div class="d-flex gap-2 align-items-center">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      {# Toggle vista #}
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-secondary active" id="btnVistaLista">
+          <i class="ti ti-list me-1"></i>Lista
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnVistaCarrusel">
+          <i class="ti ti-cards me-1"></i>Carrusel
+        </button>
+      </div>
       <span class="text-muted small me-1" id="txtRevisado" style="display:none;">
         <i class="ti ti-circle-check text-success me-1"></i>Marcado como revisado
       </span>
-      <button type="button" class="btn btn-success" id="btnRevisado">
+      <button type="button" class="btn btn-success btn-sm" id="btnRevisado">
         <i class="ti ti-clipboard-check me-1"></i>Revisado
       </button>
-      <a href="{% url 'notas_parcial_pdf' %}?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}{% if grado %}&grado={{ grado }}{% endif %}{% if seccion %}&seccion={{ seccion }}{% endif %}"
-         target="_blank" class="btn btn-danger" id="btnPDF"
-         style="pointer-events:none; opacity:.5;" aria-disabled="true">
-        <i class="ti ti-file-type-pdf me-1"></i>Generar PDF
-      </a>
+      <button type="button" class="btn btn-danger btn-sm" id="btnEnviarCorreo"
+              style="pointer-events:none; opacity:.5;" disabled
+              data-bs-toggle="modal" data-bs-target="#modalEnviarPDF">
+        <i class="ti ti-mail me-1"></i>Enviar PDF por correo
+      </button>
     </div>
   </div>
 
@@ -251,29 +281,146 @@
     {% endfor %}
   </div>
 
-  <div class="d-flex justify-content-end mt-3 mb-4 gap-2 align-items-center">
+  <div class="d-flex justify-content-end mt-3 mb-2 gap-2 align-items-center" id="footerLista">
     <span class="text-muted small" id="txtRevisado2" style="display:none;">
       <i class="ti ti-circle-check text-success me-1"></i>Marcado como revisado
     </span>
-    <button type="button" class="btn btn-success" id="btnRevisado2">
+    <button type="button" class="btn btn-success btn-sm" id="btnRevisado2">
       <i class="ti ti-clipboard-check me-1"></i>Revisado
     </button>
-    <a href="{% url 'notas_parcial_pdf' %}?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}{% if grado %}&grado={{ grado }}{% endif %}{% if seccion %}&seccion={{ seccion }}{% endif %}"
-       target="_blank" class="btn btn-danger" id="btnPDF2"
-       style="pointer-events:none; opacity:.5;" aria-disabled="true">
-      <i class="ti ti-file-type-pdf me-1"></i>Generar PDF
-    </a>
   </div>
+
+  {# ── VENTANA 2: Carrusel de revisión ─────────────────────────── #}
+  <div id="seccionCarrusel" style="display:none;">
+    <div class="card mb-4">
+      <div class="card-header bg-blue-lt d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h4 class="card-title mb-0 text-blue">
+          <i class="ti ti-cards me-2"></i>Revisión de comentarios
+          — Parcial {{ parcial }} / {{ anio }}
+          {% if grado %}— Grado {{ grado }}{% endif %}
+          {% if seccion %}/ {{ seccion }}{% endif %}
+        </h4>
+        <div class="nav-carrusel">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="cBtnAnterior">
+            <i class="ti ti-chevron-left"></i> Anterior
+          </button>
+          <span class="contador" id="cContador">1 / {{ alumnos|length }}</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="cBtnSiguiente">
+            Siguiente <i class="ti ti-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body" id="cCarruselWrap">
+        {% load notas_tags %}
+        {% for a in alumnos %}
+        <div class="slide-coord {% if forloop.first %}activo{% endif %}">
+          <div class="reporte-card">
+            <div class="titulo">Centro Educativo Nuevo Amanecer</div>
+            <div class="subtitulo">La Venta D.C.</div>
+            <div class="titulo" style="font-size:.95rem; margin-top:.3rem;">Reporte de Notas a mitad de Parcial</div>
+            <hr>
+            <div class="info-row">
+              <div><span class="info-lbl">Área y Grado:</span> {{ a.area_curso }} {{ a.grado }} {{ a.grupo }}</div>
+              <div><span class="info-lbl">Desde:</span> {{ a.fecha_desde }}</div>
+              <div><span class="info-lbl">Parcial:</span> {{ parcial }}</div>
+            </div>
+            <div class="info-row">
+              <div><span class="info-lbl">Alumno:</span> {{ a.nombre }}</div>
+              <div><span class="info-lbl">Hasta:</span> {{ a.fecha_hasta }}</div>
+              <div><span class="info-lbl">Año:</span> {{ anio }}</div>
+            </div>
+            <table class="tabla-notas">
+              <thead>
+                <tr>
+                  <th style="text-align:left; width:38%;">Asignatura</th>
+                  <th style="width:8%;">Tareas</th>
+                  {% for i in "1234567890" %}<th>E{{ forloop.counter }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for mat in a.materias %}
+                <tr>
+                  <td class="asig">{{ mat.nombre }}</td>
+                  <td {% if mat.tarea|nota_baja %}class="nota-baja"{% endif %}>{{ mat.tarea|default:"" }}</td>
+                  {% for val in mat.cuadros %}<td {% if val|nota_baja %}class="nota-baja"{% endif %}>{{ val|default:"" }}</td>{% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div style="text-align:right; font-size:.72rem; color:#888; margin-top:.3rem; font-style:italic;">
+              Todas las notas a base 100
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="fw-semibold small mb-1">
+              <i class="ti ti-message me-1 text-blue"></i>Comentarios del Maestro:
+            </div>
+            <div class="comentario-readonly">{{ a.comentario|default:"— Sin comentario —" }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card-footer d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="cBtnAnterior2">
+          <i class="ti ti-chevron-left me-1"></i>Anterior
+        </button>
+        <span class="text-muted small" id="cContador2">1 / {{ alumnos|length }}</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="cBtnSiguiente2">
+          Siguiente<i class="ti ti-chevron-right ms-1"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── VENTANA 3: botón enviar PDF por correo ── #}
+  <div class="d-flex justify-content-end mb-4 gap-2" id="footerEnvio">
+    <button type="button" class="btn btn-danger btn-sm" id="btnEnviarCorreo2"
+            style="pointer-events:none; opacity:.5;" disabled
+            data-bs-toggle="modal" data-bs-target="#modalEnviarPDF">
+      <i class="ti ti-mail me-1"></i>Enviar PDF por correo
+    </button>
+  </div>
+
+  {# ── Modal envío PDF ── #}
+  <div class="modal modal-blur fade" id="modalEnviarPDF" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ti ti-mail me-2 text-red"></i>Enviar PDF por correo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Se generará el PDF con los reportes actuales y se enviará al correo:</p>
+          <div class="alert alert-info d-flex align-items-center gap-2 py-2">
+            <i class="ti ti-mail fs-4"></i>
+            <span class="fw-bold">lchavez@ana-hn.org</span>
+          </div>
+          <p class="text-muted small mb-0">Esta persona es la encargada de imprimir los reportes.</p>
+          <div id="envioMensaje" class="mt-2" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmarEnvio">
+            <i class="ti ti-send me-1"></i>Enviar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {% endif %}
 
 </div>
 
 <script>
 (function(){
-  const URL_SAVE  = "{% url 'notas_parcial_comentario' %}";
-  const URL_ASIG  = "{% url 'notas_parcial_asignar' %}";
-  const URL_LEER  = "{% url 'notas_parcial_leer_notif' %}";
-  const CSRF      = "{{ csrf_token }}";
+  const URL_SAVE   = "{% url 'notas_parcial_comentario' %}";
+  const URL_ASIG   = "{% url 'notas_parcial_asignar' %}";
+  const URL_LEER   = "{% url 'notas_parcial_leer_notif' %}";
+  const URL_EMAIL  = "{% url 'notas_parcial_enviar_email' %}";
+  const CSRF       = "{{ csrf_token }}";
 
   // ── Marcar notificación como leída ──
   document.querySelectorAll('.btn-leer-notif').forEach(btn => {
@@ -371,10 +518,10 @@
     });
   });
 
-  function activarPDF(){
-    ['btnPDF','btnPDF2'].forEach(id => {
+  function activarEnvio(){
+    ['btnEnviarCorreo','btnEnviarCorreo2'].forEach(id => {
       const el = document.getElementById(id);
-      if(el){ el.style.pointerEvents=''; el.style.opacity=''; el.removeAttribute('aria-disabled'); }
+      if(el){ el.style.pointerEvents=''; el.style.opacity='1'; el.disabled=false; }
     });
     ['txtRevisado','txtRevisado2'].forEach(id => {
       const el = document.getElementById(id);
@@ -389,8 +536,97 @@
   async function revisarTodo(){
     for(const tr of document.querySelectorAll('#lista-alumnos tr[data-iid]'))
       await guardar(tr);
-    activarPDF();
+    activarEnvio();
   }
+
+  // ── Toggle Lista / Carrusel ──
+  document.getElementById('btnVistaLista')?.addEventListener('click', function(){
+    document.getElementById('lista-alumnos').style.display = '';
+    document.getElementById('footerLista').style.display = '';
+    document.getElementById('seccionCarrusel').style.display = 'none';
+    document.getElementById('footerEnvio').style.display = 'none';
+    this.classList.add('active');
+    document.getElementById('btnVistaCarrusel')?.classList.remove('active');
+  });
+  document.getElementById('btnVistaCarrusel')?.addEventListener('click', function(){
+    document.getElementById('lista-alumnos').style.display = 'none';
+    document.getElementById('footerLista').style.display = 'none';
+    document.getElementById('seccionCarrusel').style.display = '';
+    document.getElementById('footerEnvio').style.display = '';
+    this.classList.add('active');
+    document.getElementById('btnVistaLista')?.classList.remove('active');
+  });
+
+  // ── Carrusel coordinador ──
+  (function(){
+    const slides = Array.from(document.querySelectorAll('.slide-coord'));
+    if(!slides.length) return;
+    let cur = 0;
+
+    function actualizarCarrusel(){
+      ['cBtnAnterior','cBtnAnterior2'].forEach(id=>{
+        const el=document.getElementById(id); if(el) el.disabled = cur===0;
+      });
+      ['cBtnSiguiente','cBtnSiguiente2'].forEach(id=>{
+        const el=document.getElementById(id); if(el) el.disabled = cur===slides.length-1;
+      });
+    }
+
+    function cMostrar(idx){
+      if(idx<0||idx>=slides.length) return;
+      slides[cur].classList.remove('activo');
+      cur=idx;
+      slides[cur].classList.add('activo');
+      const txt=`${cur+1} / ${slides.length}`;
+      document.getElementById('cContador').textContent=txt;
+      document.getElementById('cContador2').textContent=txt;
+      actualizarCarrusel();
+      const wrap=document.getElementById('cCarruselWrap');
+      if(wrap) window.scrollTo({top:wrap.offsetTop-80,behavior:'smooth'});
+    }
+    document.getElementById('cBtnAnterior')?.addEventListener('click',()=>cMostrar(cur-1));
+    document.getElementById('cBtnSiguiente')?.addEventListener('click',()=>cMostrar(cur+1));
+    document.getElementById('cBtnAnterior2')?.addEventListener('click',()=>cMostrar(cur-1));
+    document.getElementById('cBtnSiguiente2')?.addEventListener('click',()=>cMostrar(cur+1));
+    actualizarCarrusel();
+  })();
+
+  // ── Enviar PDF por correo ──
+  document.getElementById('btnConfirmarEnvio')?.addEventListener('click', async function(){
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando…';
+    const msgEl = document.getElementById('envioMensaje');
+    try {
+      const res = await fetch(URL_EMAIL, {
+        method: 'POST',
+        headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          parcial: '{{ parcial }}',
+          anio:    '{{ anio }}',
+          area:    '{{ area }}',
+          curso:   '{{ curso }}',
+          grado:   '{{ grado }}',
+          seccion: '{{ seccion }}',
+        }),
+      });
+      const d = await res.json();
+      msgEl.style.display = '';
+      if(d.ok){
+        msgEl.innerHTML = '<div class="alert alert-success py-2"><i class="ti ti-circle-check me-2"></i>PDF enviado correctamente a <strong>lchavez@ana-hn.org</strong></div>';
+        btn.innerHTML = '<i class="ti ti-circle-check me-1"></i>¡Enviado!';
+      } else {
+        msgEl.innerHTML = `<div class="alert alert-danger py-2"><i class="ti ti-alert-circle me-2"></i>Error: ${d.error||'No se pudo enviar'}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-send me-1"></i>Enviar PDF';
+      }
+    } catch(e){
+      msgEl.style.display='';
+      msgEl.innerHTML='<div class="alert alert-danger py-2">Error de conexión.</div>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-send me-1"></i>Enviar PDF';
+    }
+  });
 
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.btn-guardar-uno').forEach(btn => {

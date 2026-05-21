@@ -12,4 +12,5 @@ urlpatterns = [
     path('finalizar/',         views.finalizar_revision,    name='notas_parcial_finalizar'),
     path('leer-notificacion/',  views.leer_notificacion,   name='notas_parcial_leer_notif'),
     path('notificaciones-json/', views.notificaciones_json, name='notas_parcial_notif_json'),
+    path('enviar-pdf-email/',   views.enviar_pdf_email,    name='notas_parcial_enviar_email'),
 ]
