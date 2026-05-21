@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 from .models import Ticket, TicketComment
 from .forms import TicketForm, TicketCommentForm
 from django.contrib.auth import get_user_model
@@ -125,7 +126,10 @@ def submit_ticket(request):
                 subject_user = f'Ticket #{ticket.ticket_id} - Confirmación de Recepción'
                 send_email_async(subject_user, html_msg, [ticket.email])
 
-                return JsonResponse({'message': f'Ticket #{ticket.ticket_id} creado exitosamente'}, status=201)
+                return JsonResponse({
+                    'message': f'Ticket #{ticket.ticket_id} creado exitosamente',
+                    'redirect_url': reverse('ticket_comments', args=[ticket.id]),
+                }, status=201)
 
             except json.JSONDecodeError:
                 return JsonResponse({'error': 'Error al procesar data JSON'}, status=400)
@@ -153,7 +157,10 @@ def submit_ticket(request):
             send_email_async(subject, html_msg, ['techcare.app2024@gmail.com'])
             send_email_async(subject, html_msg, [ticket.email])
 
-            return JsonResponse({'message': f'Ticket #{ticket.ticket_id} creado exitosamente'}, status=201)
+            return JsonResponse({
+                'message': f'Ticket #{ticket.ticket_id} creado exitosamente',
+                'redirect_url': reverse('ticket_comments', args=[ticket.id]),
+            }, status=201)
 
         return JsonResponse({'error': 'Error en formulario', 'details': form.errors.as_json()}, status=400)
 
@@ -217,8 +224,19 @@ def ticket_comments(request, ticket_id):
 
         # -------------------- CAMBIO DE ESTADO --------------------
         if new_status and new_status != ticket.status:
+            old_status = ticket.status
             ticket.status = new_status
             ticket.save()
+
+            # Mensaje de sistema en el chat
+            if new_status.lower() == "resuelto":
+                msg_sistema = (
+                    f"El técnico ha finalizado el ticket. "
+                    f"Gracias y esté pendiente de su correo, ahí se enviará el historial de esta conversación."
+                )
+            else:
+                msg_sistema = f"El técnico ha cambiado el estado de '{old_status}' a '{new_status}'."
+            TicketComment.objects.create(ticket=ticket, usuario=None, mensaje=msg_sistema, tipo="sistema")
 
             # 🔔 Notificaciones por estado
             if new_status.lower() == "en proceso" and ticket.usuario:
@@ -285,11 +303,17 @@ def ticket_comments(request, ticket_id):
     form = TicketCommentForm()
     template = 'tickets/ticket_comments_tech.html' if request.user.is_staff else 'tickets/ticket_comments_user.html'
 
+    if request.user.is_staff:
+        sidebar_tickets = Ticket.objects.all().order_by('-id')[:60]
+    else:
+        sidebar_tickets = Ticket.objects.filter(usuario=request.user).order_by('-id')
+
     return render(request, template, {
         'ticket': ticket,
         'comentarios': comentarios,
         'form': form,
         'status_resuelto': status_resuelto,
+        'sidebar_tickets': sidebar_tickets,
     })
 
 
@@ -364,9 +388,24 @@ def ticket_status_update_ajax(request, ticket_id):
     if new_status not in ["Pendiente", "En Proceso", "Resuelto"]:
         return JsonResponse({"ok": False}, status=400)
 
-    ticket.status = new_status
-    ticket.comments = comments
-    ticket.save()
+    old_status = ticket.status
+    if new_status != old_status:
+        ticket.status = new_status
+        ticket.comments = comments
+        ticket.save()
+
+        # Mensaje de sistema en el chat
+        if new_status == "Resuelto":
+            msg_sistema = (
+                "El técnico ha finalizado el ticket. "
+                "Gracias y esté pendiente de su correo, ahí se enviará el historial de esta conversación."
+            )
+        else:
+            msg_sistema = f"El técnico ha cambiado el estado de '{old_status}' a '{new_status}'."
+        TicketComment.objects.create(ticket=ticket, usuario=None, mensaje=msg_sistema, tipo="sistema")
+    else:
+        ticket.comments = comments
+        ticket.save()
 
     # 🔔 Notificaciones
     if new_status == "En Proceso" and ticket.usuario:
@@ -400,6 +439,36 @@ def ticket_status_update_ajax(request, ticket_id):
 def ticket_status_get_ajax(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     return JsonResponse({"status": ticket.status, "comments": ticket.comments})
+
+
+# ======================================================
+# AJAX → Reporte de ticket (GET) para modal
+# ======================================================
+@require_GET
+@login_required
+def ticket_reporte_ajax(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
+    return JsonResponse({
+        'ticket_id': ticket.ticket_id,
+        'name': ticket.name,
+        'grade': ticket.grade,
+        'email': ticket.email,
+        'description': ticket.description,
+        'status': ticket.status,
+        'created_at': ticket.created_at.strftime('%d/%m/%Y %H:%M'),
+        'attachment_url': ticket.attachment.url if ticket.attachment else None,
+        'chat_url': reverse('ticket_comments', args=[ticket.id]),
+        'chat': [
+            {
+                'autor': c.usuario.get_full_name() or c.usuario.username if c.usuario else 'Sistema',
+                'fecha': c.fecha.strftime('%d/%m/%Y %H:%M'),
+                'mensaje': c.mensaje,
+                'tipo': c.tipo,
+            }
+            for c in comentarios
+        ],
+    })
 
 
 # ======================================================

@@ -5,12 +5,30 @@
 {% block page_title %}Panel Técnico – Lista de Tickets{% endblock %}
 {% block nav_tickets %}active{% endblock %}
 
+{% block extra_head %}
+<style>
+  .ticket-row { cursor: pointer; }
+  .ticket-row:hover td { background: #f8f9fa !important; }
+  .chat-scroll-modal { max-height: 340px; overflow-y: auto; padding: .75rem; background: #f8fafc; border-radius: 6px; }
+  .chat-bubble-modal {
+    display: inline-block; max-width: 85%; padding: .5rem .85rem;
+    border-radius: 8px; font-size: .85rem; line-height: 1.5; word-break: break-word; margin-bottom: .6rem;
+  }
+  .bm-usuario { background: #206bc4; color: #fff; border-radius: 8px 0 8px 8px; }
+  .bm-tecnico { background: #fff4e6; border: 1px solid #f59f00; border-left: 3px solid #f59f00; color: #354052; border-radius: 0 8px 8px 8px; }
+  .bm-sistema { background: #e9ecef; color: #495057; border-radius: 0 8px 8px 8px; }
+  .chat-row-right { text-align: right; }
+  .chat-row-right .chat-bubble-modal { text-align: left; }
+  .chat-meta { font-size: .71rem; color: #adb5bd; margin-bottom: 2px; }
+  .chat-meta.right { text-align: right; }
+</style>
+{% endblock %}
+
 {% block content %}
 {% if messages %}
   {% for m in messages %}
   <div class="alert alert-{{ m.tags }} alert-dismissible mb-3">
-    {{ m }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
   {% endfor %}
 {% endif %}
@@ -27,16 +45,16 @@
             <th>Descripción</th>
             <th>Estado</th>
             <th>Adjunto</th>
-            <th style="width:100px;">Acciones</th>
+            <th style="width:80px;">Chat</th>
           </tr>
         </thead>
         <tbody>
           {% for ticket in tickets %}
-          <tr>
+          <tr class="ticket-row" data-ticket-id="{{ ticket.id }}" title="Click para ver reporte">
             <td><code>{{ ticket.ticket_id }}</code></td>
             <td>{{ ticket.name }}</td>
             <td>{{ ticket.email }}</td>
-            <td style="max-width:240px;">{{ ticket.description|truncatechars:70 }}</td>
+            <td style="max-width:220px;">{{ ticket.description|truncatechars:60 }}</td>
             <td>
               {% if ticket.status == "Resuelto" %}
                 <span class="badge bg-success-lt text-success">{{ ticket.status }}</span>
@@ -48,16 +66,18 @@
             </td>
             <td>
               {% if ticket.attachment %}
-                <a href="{{ ticket.attachment.url }}" target="_blank" class="btn btn-sm btn-ghost-secondary">
-                  <i class="ti ti-paperclip me-1"></i> Ver
+                <a href="{{ ticket.attachment.url }}" target="_blank"
+                   class="btn btn-sm btn-ghost-secondary" onclick="event.stopPropagation();">
+                  <i class="ti ti-paperclip me-1"></i>Ver
                 </a>
               {% else %}
                 <span class="text-muted small">—</span>
               {% endif %}
             </td>
             <td>
-              <a href="{% url 'ticket_comments' ticket.id %}" class="btn btn-sm btn-ghost-primary" title="Abrir chat del ticket">
-                <i class="ti ti-message-circle me-1"></i> Chat
+              <a href="{% url 'ticket_comments' ticket.id %}" class="btn btn-sm btn-ghost-primary"
+                 onclick="event.stopPropagation();" title="Abrir chat">
+                <i class="ti ti-message-circle"></i>
               </a>
             </td>
           </tr>
@@ -66,6 +86,61 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Reporte de Ticket ── #}
+<div class="modal modal-blur fade" id="modalReporte" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="modalTicketId">Reporte de Ticket</h5>
+          <span id="modalStatus" class="badge mt-1"></span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <div class="text-muted small">Nombre</div>
+            <div id="mNombre" class="fw-semibold"></div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Grado / Depto.</div>
+            <div id="mGrado" class="fw-semibold"></div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Correo</div>
+            <div id="mEmail"></div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Fecha de creación</div>
+            <div id="mFecha"></div>
+          </div>
+          <div class="col-12">
+            <div class="text-muted small">Descripción</div>
+            <div id="mDescripcion" class="p-2 bg-light rounded small"></div>
+          </div>
+          <div class="col-12" id="adjuntoRow" style="display:none;">
+            <a id="mAdjunto" href="#" target="_blank" class="btn btn-sm btn-ghost-secondary">
+              <i class="ti ti-paperclip me-1"></i>Ver adjunto
+            </a>
+          </div>
+        </div>
+
+        <div class="fw-semibold mb-2"><i class="ti ti-messages me-2 text-blue"></i>Conversación</div>
+        <div class="chat-scroll-modal" id="mChat">
+          <div class="text-center text-muted small py-3">Cargando…</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="mBtnChat" href="#" class="btn btn-primary">
+          <i class="ti ti-message-circle me-1"></i>Ir al Chat
+        </a>
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -79,5 +154,73 @@ $(function(){
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' }
   });
 });
+
+(function(){
+  const statusClasses = {
+    'Resuelto':   'bg-success-lt text-success',
+    'En Proceso': 'bg-blue-lt text-blue',
+    'Pendiente':  'bg-warning-lt text-warning',
+  };
+
+  function tipoClass(tipo) {
+    if (tipo === 'tecnico') return 'bm-tecnico';
+    if (tipo === 'sistema') return 'bm-sistema';
+    return 'bm-usuario';
+  }
+
+  function renderChat(chat) {
+    if (!chat.length) return '<div class="text-center text-muted small py-2">Sin mensajes aún.</div>';
+    return chat.map(c => {
+      const isMe = c.tipo === 'tecnico';
+      const cls  = tipoClass(c.tipo);
+      return `
+        <div class="${isMe ? 'chat-row-right' : ''}">
+          <div class="chat-meta ${isMe ? 'right' : ''}">${c.autor} · ${c.fecha}</div>
+          <div class="chat-bubble-modal ${cls}">${c.mensaje.replace(/\n/g,'<br>')}</div>
+        </div>`;
+    }).join('');
+  }
+
+  document.addEventListener('click', function(e) {
+    const row = e.target.closest('.ticket-row');
+    if (!row || e.target.closest('a') || e.target.closest('button')) return;
+
+    const ticketId = row.dataset.ticketId;
+    document.getElementById('mChat').innerHTML = '<div class="text-center text-muted small py-3">Cargando…</div>';
+    document.getElementById('modalTicketId').textContent = 'Cargando…';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalReporte'));
+    modal.show();
+
+    fetch(`/tickets/ticket/${ticketId}/reporte/`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('modalTicketId').textContent = 'Ticket ' + d.ticket_id;
+      const sb = document.getElementById('modalStatus');
+      sb.textContent = d.status;
+      sb.className = 'badge mt-1 ' + (statusClasses[d.status] || 'bg-secondary');
+      document.getElementById('mNombre').textContent     = d.name;
+      document.getElementById('mGrado').textContent      = d.grade;
+      document.getElementById('mEmail').textContent      = d.email;
+      document.getElementById('mFecha').textContent      = d.created_at;
+      document.getElementById('mDescripcion').textContent = d.description;
+      if (d.attachment_url) {
+        document.getElementById('mAdjunto').href = d.attachment_url;
+        document.getElementById('adjuntoRow').style.display = '';
+      } else {
+        document.getElementById('adjuntoRow').style.display = 'none';
+      }
+      document.getElementById('mBtnChat').href = d.chat_url;
+      document.getElementById('mChat').innerHTML = renderChat(d.chat);
+      const cs = document.getElementById('mChat');
+      cs.scrollTop = cs.scrollHeight;
+    })
+    .catch(() => {
+      document.getElementById('mChat').innerHTML = '<div class="text-danger small">Error al cargar el reporte.</div>';
+    });
+  });
+})();
 </script>
 {% endblock %}

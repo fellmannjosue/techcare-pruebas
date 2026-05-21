@@ -1,270 +1,295 @@
 {% extends 'tickets/base_tickets.html' %}
 {% load static %}
-{% block title %}Chat Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block title %}Chat {{ ticket.ticket_id }}{% endblock %}
 {% block page_pretitle %}Tickets – Técnico{% endblock %}
-{% block page_title %}Chat – Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block page_title %}Chat – {{ ticket.ticket_id }}{% endblock %}
 {% block nav_tickets %}active{% endblock %}
 
 {% block extra_head %}
 <style>
-/* ── Contenedor chat ── */
-.chat-scroll {
-  height: 520px;
+/* ── Two-panel layout ── */
+.ticket-panel-wrap {
+  display: flex;
+  height: calc(100vh - 185px);
+  overflow: hidden;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* ── Left sidebar: ticket list ── */
+.ticket-sidebar {
+  width: 290px;
+  flex-shrink: 0;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
+}
+.ticket-sidebar-header {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+.ticket-sidebar-list {
   overflow-y: auto;
-  padding: 1.5rem;
+  flex: 1;
+}
+.ticket-item {
+  display: block;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid #f1f3f5;
+  text-decoration: none;
+  transition: background .12s;
+}
+.ticket-item:hover { background: #f8f9fa; }
+.ticket-item.active { background: #e8f0fe; border-left: 3px solid #206bc4; }
+.ticket-item .ti-id {
+  font-family: var(--bs-font-monospace, monospace);
+  font-size: .75rem;
+  color: #495057;
+  font-weight: 600;
+}
+.ticket-item .ti-name { font-size: .82rem; color: #354052; margin-top: 2px; }
+.ticket-item .ti-desc { font-size: .74rem; color: #adb5bd; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Right: chat panel ── */
+.ticket-chat-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-panel-header {
+  padding: .85rem 1.25rem;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  background: #fff;
+}
+.chat-panel-status-bar {
+  padding: .6rem 1.25rem;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  background: #fafbfc;
+}
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
   background: #f8fafc;
   scroll-behavior: smooth;
 }
 
-/* ── Item de mensaje ── */
-.chat-item { margin-bottom: 1.5rem; }
-
-/* ── Avatar ── */
+/* ── Mensajes ── */
+.chat-item { margin-bottom: 1.25rem; }
 .chat-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: .78rem; font-weight: 700; text-transform: uppercase;
-  flex-shrink: 0; letter-spacing: .5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+  font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  flex-shrink: 0;
 }
 .chat-avatar.av-other { background: #e9ecef; color: #495057; }
 .chat-avatar.av-me    { background: #206bc4; color: #fff; }
-
-/* ── Burbuja ── */
 .chat-bubble {
-  display: inline-block;
-  max-width: 480px;
-  padding: .65rem 1rem;
-  border-radius: 8px;
-  font-size: .9rem;
-  line-height: 1.55;
-  word-break: break-word;
+  display: inline-block; max-width: 480px;
+  padding: .6rem 1rem; border-radius: 8px;
+  font-size: .88rem; line-height: 1.55; word-break: break-word;
 }
-.chat-bubble.bubble-other {
-  background: #fff;
-  border: 1px solid #e9ecef;
-  color: #354052;
-  border-radius: 0 8px 8px 8px;
-}
-.chat-bubble.bubble-me {
-  background: #206bc4;
-  color: #fff;
-  border-radius: 8px 0 8px 8px;
-}
-
-/* ── Meta (nombre + hora) ── */
-.chat-item-meta {
-  font-size: .76rem;
-  color: #adb5bd;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+.bubble-other { background: #fff; border: 1px solid #e9ecef; color: #354052; border-radius: 0 8px 8px 8px; }
+.bubble-me    { background: #206bc4; color: #fff; border-radius: 8px 0 8px 8px; }
+.chat-item-meta { font-size: .73rem; color: #adb5bd; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
 .chat-item-meta .meta-name { font-weight: 600; color: #495057; }
-.chat-item-mine .chat-item-meta { justify-content: flex-end; }
-.chat-bubble.bubble-me + .chat-item-time { text-align: right; }
-
-/* ── Hora sobre burbuja-me ── */
-.bubble-me-wrap { text-align: right; }
 .bubble-me-wrap .chat-item-meta { justify-content: flex-end; }
 
-/* ── Typing ── */
-.chat-typing {
-  display: flex; align-items: center; gap: 10px;
-  padding: .5rem 0 0;
-  font-size: .82rem; color: #adb5bd;
-}
-.typing-dots span {
-  display: inline-block; width: 7px; height: 7px;
-  background: #adb5bd; border-radius: 50%; margin: 0 1px;
-  animation: bounce 1.2s infinite;
-}
-.typing-dots span:nth-child(2) { animation-delay: .2s; }
-.typing-dots span:nth-child(3) { animation-delay: .4s; }
-@keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); }
-  40%           { transform: translateY(-6px); }
-}
-
-/* ── Input bar ── */
+/* ── Footer ── */
 .chat-footer {
   border-top: 1px solid #e9ecef;
-  padding: 1rem 1.25rem;
+  padding: .85rem 1.25rem;
   background: #fff;
+  flex-shrink: 0;
 }
 .chat-input {
   resize: none; overflow: hidden;
-  min-height: 42px; max-height: 150px;
-  border-radius: 8px;
-  border: 1px solid #ced4da;
-  padding: 9px 14px;
-  font-size: .9rem;
-  width: 100%;
-  transition: border-color .15s, box-shadow .15s;
-  line-height: 1.5;
+  min-height: 42px; max-height: 140px;
+  border-radius: 8px; border: 1px solid #ced4da;
+  padding: 9px 14px; font-size: .9rem; width: 100%; line-height: 1.5;
 }
-.chat-input:focus {
-  outline: none;
-  border-color: #206bc4;
-  box-shadow: 0 0 0 3px rgba(32,107,196,.12);
-}
-
-/* ── Empty state ── */
+.chat-input:focus { outline: none; border-color: #206bc4; box-shadow: 0 0 0 3px rgba(32,107,196,.12); }
 .chat-empty-state {
   height: 100%; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  color: #adb5bd; gap: .5rem;
+  align-items: center; justify-content: center; color: #adb5bd; gap: .5rem;
 }
+
+/* Toast nuevo ticket */
+.toast-ticket { min-width: 280px; }
 </style>
 {% endblock %}
 
 {% block page_actions %}
-<div class="col-auto ms-auto">
-  <a href="{% url 'technician_dashboard' %}" class="btn btn-ghost-secondary">
-    <i class="ti ti-arrow-left me-1"></i>Volver al Panel
+<div class="col-auto ms-auto d-flex gap-2">
+  <a href="{% url 'submit_ticket' %}" class="btn btn-sm btn-outline-primary">
+    <i class="ti ti-plus me-1"></i>Nuevo Ticket
+  </a>
+  <a href="{% url 'technician_dashboard' %}" class="btn btn-ghost-secondary btn-sm">
+    <i class="ti ti-arrow-left me-1"></i>Panel
   </a>
 </div>
 {% endblock %}
 
 {% block content %}
-{# ── Info ticket ── #}
-<div class="card mb-3">
-  <div class="card-body">
-    <div class="row g-3 align-items-center">
-      <div class="col-md-8">
-        <div class="d-flex flex-wrap gap-3 align-items-center">
+{# ── Contenedor dos paneles ── #}
+<div class="ticket-panel-wrap">
+
+  {# ── Panel izquierdo: lista de tickets ── #}
+  <div class="ticket-sidebar">
+    <div class="ticket-sidebar-header">
+      <input class="form-control form-control-sm" id="searchTickets"
+             placeholder="Buscar ticket…" autocomplete="off">
+    </div>
+    <div class="ticket-sidebar-list" id="ticketList">
+      {% for t in sidebar_tickets %}
+      <a href="{% url 'ticket_comments' t.id %}"
+         class="ticket-item {% if t.id == ticket.id %}active{% endif %}"
+         data-search="{{ t.ticket_id|lower }} {{ t.name|lower }} {{ t.email|lower }}">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="ti-id">{{ t.ticket_id }}</span>
+          <span class="badge badge-sm
+            {% if t.status == 'Resuelto' %}bg-success-lt text-success
+            {% elif t.status == 'En Proceso' %}bg-blue-lt text-blue
+            {% else %}bg-warning-lt text-warning{% endif %}">
+            {{ t.status }}
+          </span>
+        </div>
+        <div class="ti-name">{{ t.name }}</div>
+        <div class="ti-desc">{{ t.description|truncatechars:45 }}</div>
+      </a>
+      {% empty %}
+      <div class="p-3 text-center text-muted small">Sin tickets</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Panel derecho: chat ── #}
+  <div class="ticket-chat-panel">
+
+    {# Header con info del ticket #}
+    <div class="chat-panel-header">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-3">
+          <span class="avatar avatar-sm bg-blue-lt text-blue"><i class="ti ti-user"></i></span>
           <div>
-            <span class="text-muted small me-1">Ticket:</span>
-            <strong class="font-monospace">{{ ticket.ticket_id }}</strong>
-          </div>
-          <div><span class="text-muted small me-1">Nombre:</span>{{ ticket.name }}</div>
-          <div><span class="text-muted small me-1">Correo:</span>{{ ticket.email }}</div>
-          <div>
-            <span id="badge-status" class="badge
-              {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
-              {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
-              {% else %}bg-warning-lt text-warning{% endif %}">
-              {{ ticket.status }}
-            </span>
+            <div class="fw-semibold">{{ ticket.name }}
+              <span id="badge-status" class="ms-2 badge
+                {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
+                {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
+                {% else %}bg-warning-lt text-warning{% endif %}">
+                {{ ticket.status }}
+              </span>
+            </div>
+            <div class="text-muted small">{{ ticket.email }} — {{ ticket.grade }}</div>
+            <div class="text-muted small mt-1" style="max-width:420px;">{{ ticket.description|truncatechars:90 }}</div>
           </div>
         </div>
-        <div class="text-muted small mt-2">{{ ticket.description }}</div>
         {% if ticket.attachment %}
-        <div class="mt-1">
-          <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-ghost-secondary" target="_blank">
-            <i class="ti ti-paperclip me-1"></i>Ver adjunto
-          </a>
-        </div>
-        {% endif %}
-      </div>
-      <div class="col-md-4">
-        {% if ticket.ia_bloqueada %}
-        <div class="alert alert-warning py-2 small mb-0">
-          <i class="ti ti-robot me-1"></i>La IA dejó de responder. Solo soporte técnico continúa.
-        </div>
+        <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-ghost-secondary" target="_blank">
+          <i class="ti ti-paperclip me-1"></i>Adjunto
+        </a>
         {% endif %}
       </div>
     </div>
-  </div>
-</div>
 
-{# ── Actualizar estado ── #}
-<div class="card mb-3">
-  <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-settings-2 me-2 text-blue"></i>Actualizar Estado</h3>
-  </div>
-  <div class="card-body">
-    <form id="form-status-ticket">
-      {% csrf_token %}
-      <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label">Estado</label>
-          <select class="form-select" id="chat-status-select" name="status">
+    {# Barra de estado ── solo para técnicos #}
+    <div class="chat-panel-status-bar">
+      <form id="form-status-ticket" class="d-flex align-items-end gap-2 flex-wrap">
+        {% csrf_token %}
+        <div>
+          <label class="form-label mb-1 small fw-semibold">Estado</label>
+          <select class="form-select form-select-sm" id="chat-status-select" name="status" style="width:130px;">
             <option value="Pendiente"  {% if ticket.status == "Pendiente"  %}selected{% endif %}>Pendiente</option>
             <option value="En Proceso" {% if ticket.status == "En Proceso" %}selected{% endif %}>En Proceso</option>
             <option value="Resuelto"   {% if ticket.status == "Resuelto"   %}selected{% endif %}>Resuelto</option>
           </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Comentarios Generales</label>
-          <textarea class="form-control" name="comments" id="ticket-comments" rows="2">{{ ticket.comments }}</textarea>
+        <div class="flex-fill">
+          <label class="form-label mb-1 small fw-semibold">Comentario general</label>
+          <input type="text" class="form-control form-control-sm" name="comments"
+                 id="ticket-comments" value="{{ ticket.comments|default:'' }}"
+                 placeholder="Nota interna…">
         </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="ti ti-device-floppy me-1"></i>Guardar
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </form>
+    </div>
+
+    {# Mensajes #}
+    <div id="chat-mensajes" class="chat-scroll">
+      <div class="chat-empty-state">
+        <i class="ti ti-messages" style="font-size:2.5rem;"></i>
+        <span>Cargando mensajes…</span>
+      </div>
+    </div>
+
+    {# Input o mensaje de resuelto #}
+    {% if ticket.status != "Resuelto" %}
+    <div class="chat-footer">
+      <form id="formComentarioTech" autocomplete="off">
+        {% csrf_token %}
+        <div class="d-flex align-items-end gap-2">
+          <textarea id="chat-input-msg" name="mensaje" class="chat-input"
+                    placeholder="Escribe un mensaje… (Enter para enviar, Shift+Enter nueva línea)"
+                    rows="1"></textarea>
+          <button type="submit" class="btn btn-primary px-4" style="height:42px;">
+            <i class="ti ti-send me-1"></i>Enviar
           </button>
         </div>
-      </div>
-    </form>
-  </div>
-</div>
-
-{# ── Chat ── #}
-<div class="card" style="overflow:hidden;">
-  <div class="card-header">
-    <div class="d-flex align-items-center gap-3">
-      <span class="avatar avatar-sm bg-blue-lt text-blue">
-        <i class="ti ti-user"></i>
-      </span>
-      <div>
-        <div class="fw-semibold">{{ ticket.name }}</div>
-        <div class="text-muted small">{{ ticket.email }}</div>
+      </form>
+    </div>
+    {% else %}
+    <div class="px-4 py-3 bg-success-lt border-top">
+      <div class="d-flex align-items-center gap-2 text-success fw-semibold">
+        <i class="ti ti-circle-check fs-4"></i>
+        Ticket resuelto — ya no se pueden agregar comentarios.
       </div>
     </div>
-    <div class="card-options">
-      <span class="badge bg-blue-lt text-blue font-monospace">{{ ticket.ticket_id }}</span>
-    </div>
-  </div>
+    {% endif %}
 
-  <div id="chat-mensajes" class="chat-scroll">
-    <div class="chat-empty-state">
-      <i class="ti ti-messages" style="font-size:2.5rem;"></i>
-      <span>Cargando mensajes…</span>
-    </div>
-  </div>
+  </div>{# /ticket-chat-panel #}
+</div>{# /ticket-panel-wrap #}
 
-  {% if ticket.status != "Resuelto" %}
-  <div class="chat-footer">
-    <form id="formComentarioTech" autocomplete="off">
-      {% csrf_token %}
-      <div class="d-flex align-items-end gap-2">
-        <textarea id="chat-input-msg" name="mensaje" class="chat-input"
-                  placeholder="Escribe un mensaje… (Enter para enviar, Shift+Enter nueva línea)"
-                  rows="1"></textarea>
-        <button type="submit" class="btn btn-primary px-4" style="height:42px;">
-          <i class="ti ti-send me-1"></i>Enviar
-        </button>
+{# Toast de nuevo ticket #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+  <div id="toastNuevoTicket" class="toast toast-ticket align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="ti ti-circle-check me-2"></i>¡Ticket creado con éxito! Ahora puedes chatear con soporte.
       </div>
-    </form>
-  </div>
-  {% else %}
-  <div class="px-4 py-3 bg-success-lt border-top">
-    <div class="d-flex align-items-center gap-2 text-success fw-semibold">
-      <i class="ti ti-circle-check fs-4"></i>
-      Ticket resuelto — ya no se pueden agregar comentarios.
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
-  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'tickets/js/comments.js' %}"></script>
+<script src="{% static 'tickets/js/comments.js' %}?v=4"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  const ta = document.getElementById('chat-input-msg');
-  if (!ta) return;
-  ta.addEventListener('input', function(){
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+  // Búsqueda en sidebar
+  document.getElementById('searchTickets')?.addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#ticketList .ticket-item').forEach(el => {
+      el.style.display = el.dataset.search.includes(q) ? '' : 'none';
+    });
   });
-  ta.addEventListener('keydown', function(e){
-    if (e.key === 'Enter' && !e.shiftKey){
-      e.preventDefault();
-      document.getElementById('formComentarioTech')?.dispatchEvent(new Event('submit', {bubbles:true}));
-    }
-  });
+
+  // Toast si viene de crear ticket
+  if (localStorage.getItem('ticketCreado')) {
+    localStorage.removeItem('ticketCreado');
+    const toastEl = document.getElementById('toastNuevoTicket');
+    if (toastEl) new bootstrap.Toast(toastEl, { delay: 5000 }).show();
+  }
 });
 </script>
 {% endblock %}

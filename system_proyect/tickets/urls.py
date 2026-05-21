@@ -17,6 +17,7 @@ urlpatterns = [
     path('ticket_status_update_ajax/<int:ticket_id>/', views.ticket_status_update_ajax, name='ticket_status_update_ajax'),
     path('ticket_status_get_ajax/<int:ticket_id>/', views.ticket_status_get_ajax, name='ticket_status_get_ajax'),
     path('ticket_send_comment_ajax/<int:ticket_id>/', views.ticket_send_comment_ajax, name='ticket_send_comment_ajax'),
+    path('ticket/<int:ticket_id>/reporte/', views.ticket_reporte_ajax, name='ticket_reporte_ajax'),
 
     # 🚀 IA — Endpoint AJAX para chat IA
     #path('ticket/<int:ticket_id>/chat_ai/', views.ticket_chat_ai_ajax, name='ticket_chat_ai_ajax'),

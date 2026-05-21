@@ -1,9 +1,19 @@
 {% if comentarios %}
 {% for c in comentarios %}
-{% with es_mio=c.usuario.pk == request.user.pk initials=c.usuario.username|slice:":2"|upper %}
 
-{% if c.usuario.pk == request.user.pk %}
+{% if c.tipo == 'sistema' %}
+{# ── Mensaje de sistema (centrado, separador) ── #}
+<div class="d-flex align-items-center gap-2 my-3 px-1">
+  <div style="flex:1;border-top:1px solid #e9ecef;"></div>
+  <span class="text-muted px-2" style="font-size:.75rem;white-space:nowrap;">
+    <i class="ti ti-info-circle me-1"></i>{{ c.mensaje }}
+  </span>
+  <div style="flex:1;border-top:1px solid #e9ecef;"></div>
+</div>
+
+{% elif c.usuario and c.usuario.pk == request.user.pk %}
 {# ── Mensaje mío (derecha) ── #}
+{% with initials=c.usuario.username|slice:":2"|upper %}
 <div class="chat-item">
   <div class="d-flex align-items-end justify-content-end gap-2">
     <div style="text-align:right;">
@@ -12,36 +22,33 @@
         <span>·</span>
         <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
       </div>
-      <div class="chat-bubble bubble-me">
-        {{ c.mensaje|linebreaksbr }}
-      </div>
+      <div class="chat-bubble bubble-me">{{ c.mensaje|linebreaksbr }}</div>
     </div>
     <div class="chat-avatar av-me" title="{{ c.usuario.username }}">{{ initials }}</div>
   </div>
 </div>
+{% endwith %}
 
 {% else %}
-{# ── Mensaje del usuario (izquierda) ── #}
+{# ── Mensaje del usuario / otro técnico (izquierda) ── #}
+{% with initials=c.usuario.username|slice:":2"|upper %}
 <div class="chat-item">
   <div class="d-flex align-items-end gap-2">
-    <div class="chat-avatar av-other" title="{{ c.usuario.username }}">{{ initials }}</div>
+    <div class="chat-avatar av-other" title="{{ c.usuario.username|default:'?' }}">{{ initials|default:'?' }}</div>
     <div>
       <div class="chat-item-meta">
         <span class="meta-name">{{ c.usuario.get_full_name|default:c.usuario.username }}</span>
         <span>·</span>
         <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
       </div>
-      <div class="chat-bubble bubble-other">
-        {{ c.mensaje|linebreaksbr }}
-      </div>
+      <div class="chat-bubble bubble-other">{{ c.mensaje|linebreaksbr }}</div>
     </div>
   </div>
 </div>
+{% endwith %}
 {% endif %}
 
-{% endwith %}
 {% endfor %}
-
 {% else %}
 <div class="chat-empty-state">
   <i class="ti ti-message-off" style="font-size:2.5rem;"></i>

@@ -692,6 +692,7 @@ def progress_report_bilingue(request):
 def historial_maestro_bilingue(request):
     usuario = request.user
     usuario_actual = usuario.get_full_name()
+    request.session['maestro_area'] = 'bilingue'
     reportes_informativo = ReporteInformativo.objects.filter(usuario=usuario, area='bilingue').order_by('-fecha')
     reportes_conductual = ReporteConductual.objects.filter(usuario=usuario, area='bilingue').order_by('-fecha')
 
@@ -716,6 +717,7 @@ def historial_maestro_bilingue(request):
 @login_required
 def historial_maestro_colegio(request):
     usuario = request.user
+    request.session['maestro_area'] = 'colegio'
     reportes_informativo = ReporteInformativo.objects.filter(usuario=usuario, area='colegio').order_by('-fecha')
     reportes_conductual = ReporteConductual.objects.filter(usuario=usuario, area='colegio').order_by('-fecha')
 

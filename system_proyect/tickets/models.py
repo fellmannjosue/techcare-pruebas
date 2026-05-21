@@ -45,6 +45,7 @@ class TicketComment(AuditModel):
     TIPO_CHOICES = (
         ('usuario', 'Usuario'),
         ('tecnico', 'Técnico'),
+        ('sistema', 'Sistema'),
         # IA pendiente para más adelante
         # ('ia', 'IA'),
     )

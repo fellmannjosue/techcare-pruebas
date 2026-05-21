@@ -10,35 +10,56 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("formComentarioTech") ||
     document.getElementById("formComentarioUsuario");
 
-  const match    = window.location.pathname.match(/\/(\d+)\//);
+  const match    = window.location.pathname.match(/\/ticket\/(\d+)\//);
   const ticketId = match ? match[1] : null;
   if (!ticketId) return;
 
   let editandoEstado = false;
+  let lastHtml       = null;
+  let primeraVez     = true;
 
+  // ── Textarea: auto-resize + Enter para enviar ──
+  const ta = document.getElementById("chat-input-msg");
+  if (ta) {
+    ta.addEventListener("input", function () {
+      this.style.height = "auto";
+      this.style.height = Math.min(this.scrollHeight, 140) + "px";
+    });
+    ta.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensaje();
+      }
+    });
+  }
+
+  // ── Estado: detectar si técnico está editando ──
   if (statusSelect) {
     statusSelect.addEventListener("focus",  () => { editandoEstado = true; });
     statusSelect.addEventListener("change", () => { editandoEstado = true; });
-    statusSelect.addEventListener("blur",   () => { setTimeout(() => { editandoEstado = false; }, 500); });
+    statusSelect.addEventListener("blur",   () => { setTimeout(() => { editandoEstado = false; }, 600); });
   }
   if (commentsInput) {
     commentsInput.addEventListener("focus", () => { editandoEstado = true; });
     commentsInput.addEventListener("input", () => { editandoEstado = true; });
-    commentsInput.addEventListener("blur",  () => { setTimeout(() => { editandoEstado = false; }, 500); });
-  }
-
-  function scrollChatToBottom() {
-    if (chatDiv) {
-      chatDiv.scrollTop = chatDiv.scrollHeight;
-    }
+    commentsInput.addEventListener("blur",  () => { setTimeout(() => { editandoEstado = false; }, 600); });
   }
 
   function resetTextarea() {
-    const ta = document.getElementById('chat-input-msg');
-    if (ta) {
-      ta.value = '';
-      ta.style.height = 'auto';
-    }
+    if (!ta) return;
+    ta.value = "";
+    ta.style.height = "auto";
+    // Belt-and-suspenders: clear again after all key events finish processing
+    setTimeout(() => { ta.value = ""; ta.style.height = "auto"; }, 0);
+  }
+
+  function scrollChatToBottom() {
+    if (chatDiv) chatDiv.scrollTop = chatDiv.scrollHeight;
+  }
+
+  function estabaAlFondo() {
+    if (!chatDiv) return true;
+    return chatDiv.scrollHeight - chatDiv.scrollTop <= chatDiv.clientHeight + 80;
   }
 
   function disableFormNormal() {
@@ -46,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const textarea = form.querySelector("textarea");
     const boton    = form.querySelector('button[type="submit"]');
     if (textarea) textarea.disabled = true;
-    if (boton)    { boton.disabled = true; boton.textContent = "Ticket cerrado"; }
+    if (boton) { boton.disabled = true; boton.textContent = "Ticket cerrado"; }
   }
 
   // ── Cargar mensajes ──
@@ -56,15 +77,19 @@ document.addEventListener("DOMContentLoaded", function () {
     })
       .then(r => r.json())
       .then(res => {
-        if (chatDiv) {
-          chatDiv.innerHTML = res.html;
-          scrollChatToBottom();
-        }
+        if (!chatDiv) return;
+        if (res.html === lastHtml && !primeraVez) return;
+
+        const alFondo = primeraVez || estabaAlFondo();
+        lastHtml = res.html;
+        chatDiv.innerHTML = res.html;
+        if (alFondo) scrollChatToBottom();
+        primeraVez = false;
       })
       .catch(err => console.error("Error al cargar mensajes:", err));
   }
 
-  // ── Obtener estado del ticket ──
+  // ── Obtener estado ──
   function getTicketStatus() {
     fetch(`/tickets/ticket_status_get_ajax/${ticketId}/`, {
       headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -75,11 +100,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (badgeStatus && res.status) {
           badgeStatus.innerText = res.status;
-          let cls = "badge bg-secondary";
-          if (res.status === "Pendiente")  cls = "badge bg-warning-lt text-warning";
-          if (res.status === "En Proceso") cls = "badge bg-blue-lt text-blue";
-          if (res.status === "Resuelto")   cls = "badge bg-success-lt text-success";
-          badgeStatus.className = cls;
+          let cls = "badge";
+          if (res.status === "Pendiente")       cls += " bg-warning-lt text-warning";
+          else if (res.status === "En Proceso") cls += " bg-blue-lt text-blue";
+          else if (res.status === "Resuelto")   cls += " bg-success-lt text-success";
+          else                                   cls += " bg-secondary";
+          badgeStatus.className = cls + " ms-2";
         }
 
         if (!editandoEstado && commentsInput && typeof res.comments !== "undefined") {
@@ -91,7 +117,56 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch(err => console.error("Error al obtener estado:", err));
   }
 
-  // ── Actualizar estado ──
+  // ── Enviar mensaje ──
+  function enviarMensaje() {
+    if (!form) return;
+    const csrf    = form.querySelector("[name=csrfmiddlewaretoken]");
+    const btn     = form.querySelector('button[type="submit"]');
+    const mensaje = ta ? ta.value.trim() : "";
+
+    if (!mensaje) return;
+    if (btn && btn.disabled) return;
+
+    // Deshabilitar botón y limpiar textarea INMEDIATAMENTE
+    if (btn) btn.disabled = true;
+    resetTextarea();
+
+    fetch(`/tickets/ticket_send_comment_ajax/${ticketId}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": csrf ? csrf.value : "",
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ mensaje }),
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok) {
+          lastHtml = null;
+          cargarMensajes();
+        } else {
+          // Restaurar si el servidor rechazó
+          if (ta) ta.value = mensaje;
+        }
+      })
+      .catch(() => {
+        if (ta) ta.value = mensaje;
+      })
+      .finally(() => {
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  // ── Botón Enviar / form submit ──
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      enviarMensaje();
+    });
+  }
+
+  // ── Actualizar estado (solo técnico) ──
   if (statusForm) {
     statusForm.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -114,11 +189,13 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(res => {
           editandoEstado = false;
           if (res.ok) {
+            lastHtml = null;
+            cargarMensajes();
             getTicketStatus();
             Swal.fire({
               icon: "success", title: "Estado actualizado",
-              text: "El estado del ticket se actualizó correctamente.",
-              timer: 1800, showConfirmButton: false
+              text: `El ticket ahora está en: ${status}`,
+              timer: 2000, showConfirmButton: false,
             });
           } else {
             Swal.fire("Error", "No se pudo actualizar el estado.", "error");
@@ -126,50 +203,14 @@ document.addEventListener("DOMContentLoaded", function () {
         })
         .catch(() => {
           editandoEstado = false;
-          Swal.fire("Error", "Falló la actualización del estado.", "error");
+          Swal.fire("Error", "Falló la actualización.", "error");
         });
     });
   }
 
-  // ── Enviar comentario ──
-  if (form) {
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-
-      const csrf     = form.querySelector("[name=csrfmiddlewaretoken]");
-      const textarea = form.querySelector("textarea") || form.querySelector("input[name=mensaje]");
-      const btn      = form.querySelector('button[type="submit"]');
-      const mensaje  = textarea ? textarea.value.trim() : "";
-      if (!mensaje) return;
-      if (btn && btn.disabled) return;
-
-      if (btn) btn.disabled = true;
-
-      fetch(`/tickets/ticket_send_comment_ajax/${ticketId}/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": csrf ? csrf.value : "",
-          "X-Requested-With": "XMLHttpRequest",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ mensaje }),
-      })
-        .then(r => r.json())
-        .then(res => {
-          if (res.ok) {
-            resetTextarea();
-            cargarMensajes();
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (btn) btn.disabled = false;
-        });
-    });
-  }
-
-  // ── Autosync cada 3s ──
+  // ── Autosync ──
   setInterval(cargarMensajes, 3000);
+  setInterval(getTicketStatus, 8000);
   cargarMensajes();
   getTicketStatus();
 });
