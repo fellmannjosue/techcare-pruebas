@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'reloj',
     'calculadoras',
     'finanzas_personales',
+    'notas_parcial',
 
 ]
 

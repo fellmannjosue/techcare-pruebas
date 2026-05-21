@@ -65,6 +65,8 @@ urlpatterns = [
     # ──────────────────────────────────────────────────────────────────────────
     path('finanzas/', include(('finanzas_personales.urls', 'finanzas_personales'), namespace='finanzas_personales')),
 
+    path('notas-parcial/', include('notas_parcial.urls')),
+
 ]
 
 # <--- hecho por claude code: sirve archivos de media (imágenes subidas por usuarios)

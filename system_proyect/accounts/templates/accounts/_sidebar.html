@@ -431,6 +431,31 @@
   </li>
   {% endif %}
 
+  {# ── Notas Mitad de Parcial ───────────────────────────────── #}
+  {% load notas_tags %}
+  {% if request.user.is_superuser %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'notas_parcial_index' %}">
+      <span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span>
+      <span class="nav-link-title">Notas Mitad de Parcial</span>
+    </a>
+  </li>
+  {% elif request.user|es_coord_notas %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'notas_parcial_coordinador' %}">
+      <span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span>
+      <span class="nav-link-title">Notas Mitad de Parcial</span>
+    </a>
+  </li>
+  {% elif request.user|es_maestro_notas %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'notas_parcial_maestro' %}">
+      <span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span>
+      <span class="nav-link-title">Notas Mitad de Parcial</span>
+    </a>
+  </li>
+  {% endif %}
+
   <li class="nav-item d-none" id="pwa-install-item">
     <a class="nav-link text-green" href="#" id="pwa-install-btn">
       <span class="nav-link-icon"><i class="ti ti-device-desktop-down text-green"></i></span>

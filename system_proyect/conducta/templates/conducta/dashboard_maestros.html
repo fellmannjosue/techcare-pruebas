@@ -1,5 +1,5 @@
 {% extends 'conducta/base_conducta.html' %}
-{% load static %}
+{% load static notas_tags %}
 
 {% block title %}Dashboard Maestro – {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}{% endblock %}
 {% block page_pretitle %}Bienvenido{% endblock %}
@@ -131,6 +131,20 @@
       </div>
     </a>
   </div>
+
+  {% if request.user|es_maestro_notas or request.user|es_coord_notas or request.user.is_superuser %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'notas_parcial_maestro' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-file-certificate text-blue" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Notas Mitad de Parcial</div>
+          <div class="text-muted small mt-1">Ver y comentar reportes de notas</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

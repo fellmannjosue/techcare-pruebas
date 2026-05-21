@@ -1,0 +1,204 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Notas Parcial{% endblock %} – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="wrapper">
+
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-notas">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand">
+        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-notas">
+        {% include 'accounts/_sidebar.html' %}
+        {% include 'accounts/_user_dropdown.html' %}
+      </div>
+    </div>
+  </aside>
+
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-fluid">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+                <li class="breadcrumb-item active">Notas Mitad de Parcial</li>
+              </ol>
+            </nav>
+            <h2 class="page-title">
+              <i class="ti ti-file-certificate me-2 text-blue"></i>{% block page_title %}Notas Mitad de Parcial{% endblock %}
+            </h2>
+          </div>
+          {% block page_actions %}{% endblock %}
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="container-fluid">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="alert alert-{{ msg.tags }} alert-dismissible mb-3">
+            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+
+    <footer class="footer footer-transparent d-print-none">
+      <div class="container-fluid text-center">
+        <p class="text-muted mb-0 small">© {{ year }} Soporte Técnico – Asociación Nuevo Amanecer.</p>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+{% block extra_js %}{% endblock %}
+
+{% include "accounts/_notif_notas_toast.html" %}
+
+{# ── Modal: parcial aún no disponible (3 y 4) ──────────────────────── #}
+<div class="modal modal-blur fade" id="modalParcialFuturo" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4 px-4">
+        <div id="emoji-futuro" style="font-size:3.5rem; display:inline-block; transition: transform .25s, opacity .25s;">😕</div>
+        <h3 class="mt-3 fw-bold">¡Oye!</h3>
+        <p class="text-muted mb-4">
+          No hemos llegado a ese parcial todavía.<br>
+          Espera un poco para ver las notas.
+        </p>
+        <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Entendido</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: parcial ya pasado (1) ───────────────────────────────────── #}
+<div class="modal modal-blur fade" id="modalParcialPasado" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4 px-4">
+        <div id="emoji-pasado" style="font-size:3.5rem; display:inline-block; transition: transform .25s, opacity .25s;">😅</div>
+        <h3 class="mt-3 fw-bold">¡Oye!</h3>
+        <p class="text-muted mb-4">
+          Eso ya pasó...<br>
+          ¡Ya supéralo!
+        </p>
+        <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Ya lo sé...</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: año pasado ───────────────────────────────────────────────── #}
+<div class="modal modal-blur fade" id="modalAnioPasado" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4 px-4">
+        <div class="d-flex justify-content-center gap-3 mb-1">
+          <span id="emoji-anio-1" style="font-size:3.2rem; display:inline-block; transition: transform .2s, opacity .2s;">😟</span>
+          <span id="emoji-anio-2" style="font-size:3.2rem; display:inline-block; transition: transform .2s, opacity .2s;">😲</span>
+        </div>
+        <h3 class="mt-2 fw-bold">¡Oye!</h3>
+        <p class="text-muted mb-4">
+          ¿Por qué piensas en el pasado?<br>
+          <strong>¡Eso ya pasó!</strong>
+        </p>
+        <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">🙅 Tienes razón</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const AÑO_ACTUAL = parseInt('{% now "Y" %}');
+
+  function animar(elId, pasos){
+    const el = document.getElementById(elId);
+    let i = 0;
+    el.textContent = pasos[0];
+    el.style.opacity = '1'; el.style.transform = 'scale(1)';
+    const tick = setInterval(function(){
+      el.style.opacity = '0';
+      el.style.transform = 'scale(0.7)';
+      setTimeout(function(){
+        i = Math.min(i + 1, pasos.length - 1);
+        el.textContent = pasos[i];
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1.15)';
+        setTimeout(function(){ el.style.transform = 'scale(1)'; }, 180);
+        if(i >= pasos.length - 1) clearInterval(tick);
+      }, 250);
+    }, 750);
+  }
+
+  function animarDos(id1, id2){
+    [id1, id2].forEach(function(id, idx){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.style.opacity = '1'; el.style.transform = 'scale(1)';
+      setTimeout(function(){
+        el.style.transform = 'scale(1.4)';
+        setTimeout(function(){
+          el.style.transform = 'scale(0.85)';
+          setTimeout(function(){ el.style.transform = 'scale(1)'; }, 150);
+        }, 200);
+      }, idx * 120);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const selParcial = document.querySelector('select[name="parcial"]');
+    const inpAnio    = document.querySelector('input[name="anio"]');
+
+    if(selParcial){
+      selParcial.addEventListener('change', function(){
+        const v = parseInt(selParcial.value);
+        if(v >= 3){
+          animar('emoji-futuro', ['😕','😟','😤','😠']);
+          new bootstrap.Modal(document.getElementById('modalParcialFuturo')).show();
+          selParcial.value = '';
+        } else if(v === 1){
+          animar('emoji-pasado', ['😅','🤒','😵','💀']);
+          new bootstrap.Modal(document.getElementById('modalParcialPasado')).show();
+          selParcial.value = '';
+        }
+      });
+    }
+
+    if(inpAnio){
+      inpAnio.addEventListener('change', function(){
+        if(parseInt(inpAnio.value) < AÑO_ACTUAL){
+          inpAnio.value = AÑO_ACTUAL;
+          animarDos('emoji-anio-1', 'emoji-anio-2');
+          new bootstrap.Modal(document.getElementById('modalAnioPasado')).show();
+        }
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

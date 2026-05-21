@@ -1,0 +1,404 @@
+{% extends 'notas_parcial/base_notas.html' %}
+{% load static %}
+
+{% block title %}Coordinador – Notas Mitad de Parcial{% endblock %}
+
+{% block extra_head %}
+<style>
+  .alumno-card:hover { background: #f8f9fa; }
+  .grade-badge  { font-size: .72rem; }
+  textarea.comentario-txt { resize: vertical; min-height: 60px; font-size: .85rem; }
+  .saved-ok  { color: #2fb344; font-size: .8rem; }
+  .saved-err { color: #d63939; font-size: .8rem; }
+  .asig-banner { background: #f0f4ff; border-bottom: 1px solid #d0dbff; padding: .5rem 1rem; }
+  .tabs-grado .nav-link  { font-size: .88rem; }
+  .tabs-seccion .nav-link { font-size: .8rem; padding: .28rem .7rem; }
+</style>
+{% endblock %}
+
+{% block page_title %}Coordinador – Notas Mitad de Parcial{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+
+  {# ── Notificaciones de revisión finalizada ──────────────────── #}
+  {% if notificaciones %}
+  <div id="panel-notificaciones" class="mb-3">
+    {% for notif in notificaciones %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between gap-2 mb-2"
+         id="notif-{{ notif.pk }}">
+      <div>
+        <i class="ti ti-bell-ringing me-2 text-success"></i>
+        <strong>{{ notif.maestro.get_full_name|default:notif.maestro.username }}</strong>
+        finalizó la revisión de
+        <strong>{{ notif.area }} – Parcial {{ notif.parcial }}/{{ notif.anio }} – Grado {{ notif.grado }} {{ notif.seccion }}</strong>
+        <span class="text-muted small ms-2">{{ notif.fecha|date:"d/m/Y H:i" }}</span>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-success btn-leer-notif"
+              data-pk="{{ notif.pk }}">
+        <i class="ti ti-check me-1"></i>Listo
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Formulario: solo Parcial, Año y Área ──────────────────── #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" id="frmFiltro" class="row g-3 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label fw-semibold">Parcial</label>
+          <select name="parcial" class="form-select" id="selParcial">
+            <option value="">— Selecciona —</option>
+            {% for p in "1234" %}
+              <option value="{{ p }}" {% if parcial == p %}selected{% endif %}>Parcial {{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label fw-semibold">Año</label>
+          <input type="number" name="anio" id="inpAnio" class="form-control"
+                 value="{{ anio }}" min="2020" max="2099">
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label fw-semibold">Área</label>
+          <select name="area" class="form-select" id="selArea">
+            <option value="">— Selecciona —</option>
+            {% for val, label in areas %}
+              <option value="{{ val }}" {% if area == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="ti ti-search me-1"></i>Cargar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Bachillerato: tabs de curso ──────────────────────────── #}
+  {% if area == 'bachillerato' and parcial and anio %}
+  <div class="mb-2">
+    <ul class="nav nav-tabs tabs-grado">
+      <li class="nav-item">
+        <a class="nav-link {% if curso == '1' %}active fw-semibold{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}&curso=1">
+          <i class="ti ti-school me-1"></i>1er Año
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if curso == '2' %}active fw-semibold{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}&curso=2">
+          <i class="ti ti-school me-1"></i>2do Año
+        </a>
+      </li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {# ── Tabs de grado ────────────────────────────────────────── #}
+  {% if grados %}
+  <div class="mb-2">
+    <ul class="nav nav-tabs tabs-grado flex-wrap">
+      <li class="nav-item">
+        <a class="nav-link {% if not grado %}active fw-semibold{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}">
+          <i class="ti ti-list me-1"></i>Todos
+        </a>
+      </li>
+      {% for g in grados %}
+      <li class="nav-item">
+        <a class="nav-link {% if grado == g %}active fw-semibold{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}&grado={{ g|urlencode }}">
+          {{ g }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# ── Sub-tabs de sección ──────────────────────────────────── #}
+  {% if grado and secciones_grado %}
+  <div class="mb-3">
+    <ul class="nav nav-pills tabs-seccion flex-wrap">
+      <li class="nav-item">
+        <a class="nav-link {% if not seccion %}active{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}&grado={{ grado|urlencode }}">
+          Todas
+        </a>
+      </li>
+      {% for s in secciones_grado %}
+      <li class="nav-item">
+        <a class="nav-link {% if seccion == s %}active{% endif %}"
+           href="?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}&grado={{ grado|urlencode }}&seccion={{ s|urlencode }}">
+          {{ s }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# ── Error ───────────────────────────────────────────────── #}
+  {% if error %}
+  <div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>{{ error }}</div>
+  {% endif %}
+
+  {# ── Resultados ──────────────────────────────────────────── #}
+  {% if alumnos %}
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="text-muted small">
+      <strong>{{ alumnos|length }}</strong> alumno{{ alumnos|length|pluralize }}
+      — Parcial <strong>{{ parcial }}</strong> / {{ anio }}
+      {% if grado %} — <strong>{{ grado }}</strong>{% endif %}
+      {% if seccion %} / {{ seccion }}{% endif %}
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="text-muted small me-1" id="txtRevisado" style="display:none;">
+        <i class="ti ti-circle-check text-success me-1"></i>Marcado como revisado
+      </span>
+      <button type="button" class="btn btn-success" id="btnRevisado">
+        <i class="ti ti-clipboard-check me-1"></i>Revisado
+      </button>
+      <a href="{% url 'notas_parcial_pdf' %}?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}{% if grado %}&grado={{ grado }}{% endif %}{% if seccion %}&seccion={{ seccion }}{% endif %}"
+         target="_blank" class="btn btn-danger" id="btnPDF"
+         style="pointer-events:none; opacity:.5;" aria-disabled="true">
+        <i class="ti ti-file-type-pdf me-1"></i>Generar PDF
+      </a>
+    </div>
+  </div>
+
+  <div id="lista-alumnos">
+    {% regroup alumnos by grado as por_grado %}
+    {% for grupo in por_grado %}
+    <div class="card mb-3">
+
+      {# ── Banner asignación de maestro ── #}
+      <div class="asig-banner d-flex align-items-center gap-3 flex-wrap"
+           data-grado="{{ grupo.grouper }}"
+           data-seccion="{{ grupo.list.0.grupo }}">
+        <span class="fw-semibold text-blue me-2">
+          <i class="ti ti-school me-1"></i>Maestro asignado:
+        </span>
+        <span class="maestro-nombre text-muted fst-italic">
+          {% for key, asig in asignaciones_dict.items %}
+            {% if key.0 == grupo.grouper %}{{ asig.maestro.get_full_name|default:asig.maestro.username }}{% endif %}
+          {% endfor %}
+        </span>
+        <select class="form-select form-select-sm sel-maestro" style="max-width:220px;">
+          <option value="">— Sin asignar —</option>
+          {% for m in maestros %}
+            <option value="{{ m.pk }}"
+              {% for key, asig in asignaciones_dict.items %}{% if key.0 == grupo.grouper and asig.maestro_id == m.pk %}selected{% endif %}{% endfor %}>
+              {{ m.get_full_name|default:m.username }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-sm btn-primary btn-asignar">
+          <i class="ti ti-check me-1"></i>Asignar
+        </button>
+        <span class="asig-msg ms-1 small"></span>
+      </div>
+
+      <div class="card-header bg-blue-lt">
+        <h4 class="card-title mb-0 text-blue">
+          <i class="ti ti-users me-2"></i>
+          {{ grupo.grouper }} — {{ grupo.list|length }} alumno{{ grupo.list|length|pluralize }}
+        </h4>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>Alumno</th>
+              <th style="width:90px;">Grupo</th>
+              <th>Comentario del maestro</th>
+              <th style="width:100px;">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in grupo.list %}
+            <tr class="alumno-card"
+                data-iid="{{ a.ingr_egr_id }}"
+                data-parcial="{{ parcial }}"
+                data-anio="{{ anio }}"
+                data-area="{{ area }}">
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td class="fw-semibold">{{ a.nombre }}</td>
+              <td><span class="badge bg-blue-lt text-blue grade-badge">{{ a.grupo }}</span></td>
+              <td>
+                <textarea class="form-control comentario-txt" rows="2"
+                          placeholder="Comentario del maestro (opcional)…">{{ a.comentario }}</textarea>
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm btn-outline-success btn-guardar-uno">
+                  <i class="ti ti-check"></i>
+                </button>
+                <span class="estado-msg ms-1"></span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="d-flex justify-content-end mt-3 mb-4 gap-2 align-items-center">
+    <span class="text-muted small" id="txtRevisado2" style="display:none;">
+      <i class="ti ti-circle-check text-success me-1"></i>Marcado como revisado
+    </span>
+    <button type="button" class="btn btn-success" id="btnRevisado2">
+      <i class="ti ti-clipboard-check me-1"></i>Revisado
+    </button>
+    <a href="{% url 'notas_parcial_pdf' %}?parcial={{ parcial }}&anio={{ anio }}&area={{ area }}{% if curso %}&curso={{ curso }}{% endif %}{% if grado %}&grado={{ grado }}{% endif %}{% if seccion %}&seccion={{ seccion }}{% endif %}"
+       target="_blank" class="btn btn-danger" id="btnPDF2"
+       style="pointer-events:none; opacity:.5;" aria-disabled="true">
+      <i class="ti ti-file-type-pdf me-1"></i>Generar PDF
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+(function(){
+  const URL_SAVE  = "{% url 'notas_parcial_comentario' %}";
+  const URL_ASIG  = "{% url 'notas_parcial_asignar' %}";
+  const URL_LEER  = "{% url 'notas_parcial_leer_notif' %}";
+  const CSRF      = "{{ csrf_token }}";
+
+  // ── Marcar notificación como leída ──
+  document.querySelectorAll('.btn-leer-notif').forEach(btn => {
+    btn.addEventListener('click', async function(){
+      const pk  = btn.dataset.pk;
+      btn.disabled = true;
+      try {
+        await fetch(URL_LEER, {
+          method: 'POST',
+          headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+          body: JSON.stringify({pk}),
+        });
+      } catch(e){}
+      document.getElementById(`notif-${pk}`)?.remove();
+    });
+  });
+
+  // Auto-submit on dropdown change (resets grade/section state)
+  document.getElementById('selParcial')?.addEventListener('change', function(){
+    const v = parseInt(this.value);
+    if(v >= 3 || v === 1) return; // leave it to the modal
+    document.getElementById('frmFiltro').submit();
+  });
+  document.getElementById('selArea')?.addEventListener('change', () =>
+    document.getElementById('frmFiltro').submit()
+  );
+  document.getElementById('inpAnio')?.addEventListener('change', function(){
+    if(parseInt(this.value) < parseInt('{% now "Y" %}')) return; // modal handles it
+    document.getElementById('frmFiltro').submit();
+  });
+
+  // ── Guardar comentario ──
+  async function guardar(tr){
+    const btn = tr.querySelector('.btn-guardar-uno');
+    const msg = tr.querySelector('.estado-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+      const res = await fetch(URL_SAVE, {
+        method: 'POST',
+        headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          ingr_egr_id: tr.dataset.iid,
+          parcial:     tr.dataset.parcial,
+          anio:        tr.dataset.anio,
+          area:        tr.dataset.area,
+          comentario:  tr.querySelector('.comentario-txt').value,
+        }),
+      });
+      const d = await res.json();
+      msg.className  = d.ok ? 'estado-msg saved-ok' : 'estado-msg saved-err';
+      msg.textContent = d.ok ? '✓' : '✗';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    } catch(e){
+      msg.className = 'estado-msg saved-err'; msg.textContent = '✗';
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check"></i>';
+  }
+
+  // ── Asignar maestro ──
+  document.querySelectorAll('.btn-asignar').forEach(btn => {
+    btn.addEventListener('click', async function(){
+      const banner    = btn.closest('.asig-banner');
+      const grado     = banner.dataset.grado;
+      const seccion   = banner.dataset.seccion;
+      const maestroId = banner.querySelector('.sel-maestro').value;
+      const msgEl     = banner.querySelector('.asig-msg');
+      const nombreEl  = banner.querySelector('.maestro-nombre');
+      btn.disabled = true;
+      try {
+        const res = await fetch(URL_ASIG, {
+          method: 'POST',
+          headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            maestro_id: maestroId || null,
+            area:    '{{ area }}',
+            parcial: '{{ parcial }}',
+            anio:    '{{ anio }}',
+            grado, seccion,
+          }),
+        });
+        const d = await res.json();
+        if(d.ok){
+          nombreEl.textContent = d.nombre || '—';
+          msgEl.className = 'asig-msg saved-ok'; msgEl.textContent = '✓ Guardado';
+          setTimeout(() => { msgEl.textContent = ''; }, 3000);
+        } else {
+          msgEl.className = 'asig-msg saved-err'; msgEl.textContent = 'Error';
+        }
+      } catch(e){
+        msgEl.className = 'asig-msg saved-err'; msgEl.textContent = 'Error';
+      }
+      btn.disabled = false;
+    });
+  });
+
+  function activarPDF(){
+    ['btnPDF','btnPDF2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){ el.style.pointerEvents=''; el.style.opacity=''; el.removeAttribute('aria-disabled'); }
+    });
+    ['txtRevisado','txtRevisado2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = '';
+    });
+    ['btnRevisado','btnRevisado2'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){ el.classList.replace('btn-success','btn-outline-success'); el.innerHTML='<i class="ti ti-circle-check me-1"></i>Revisado'; }
+    });
+  }
+
+  async function revisarTodo(){
+    for(const tr of document.querySelectorAll('#lista-alumnos tr[data-iid]'))
+      await guardar(tr);
+    activarPDF();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.btn-guardar-uno').forEach(btn => {
+      btn.addEventListener('click', () => guardar(btn.closest('tr')));
+    });
+    document.getElementById('btnRevisado')?.addEventListener('click', revisarTodo);
+    document.getElementById('btnRevisado2')?.addEventListener('click', revisarTodo);
+  });
+})();
+</script>
+{% endblock %}
