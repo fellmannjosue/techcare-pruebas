@@ -88,13 +88,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-$(function(){
-  $('#routers-table').DataTable({
-    pageLength: 10, scrollX: true, order: [[0,'desc']],
-    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
-  });
-});
-</script>
+<script src="{% static 'inventario/js/inventario_routers.js' %}"></script>
 <script src="{% static 'inventario/js/routers_edit.js' %}"></script>
 {% endblock %}

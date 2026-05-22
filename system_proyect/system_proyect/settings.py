@@ -209,7 +209,16 @@ _raw_static_dirs = [
     BASE_DIR / "system_proyect/inventario/static",
     BASE_DIR / "system_proyect/mantenimiento/static",
     BASE_DIR / "system_proyect/sponsors/static",
+    BASE_DIR / "system_proyect/agendas/static",
+    BASE_DIR / "system_proyect/calculadoras/static",
+    BASE_DIR / "system_proyect/conducta/static",
+    BASE_DIR / "system_proyect/core/static",
+    BASE_DIR / "system_proyect/enfermeria/static",
+    BASE_DIR / "system_proyect/finanzas_personales/static",
+    BASE_DIR / "system_proyect/notas_parcial/static",
+    BASE_DIR / "system_proyect/reloj/static",
     BASE_DIR / "system_proyect/static",
+    BASE_DIR / "system_proyect/system_proyect/static",
 ]
 
 # Filtra solo las que existen en disco

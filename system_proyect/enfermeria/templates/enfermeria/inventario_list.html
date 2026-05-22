@@ -68,20 +68,13 @@
   </div>
 </div>
 
-{% if request.session.mensaje_exito %}
-<script>
-  Swal.fire({ icon: 'success', title: '¡Éxito!', text: '{{ request.session.mensaje_exito }}', timer: 2000, showConfirmButton: false });
-</script>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-$(function(){
-  $('#inventario-table').DataTable({
-    pageLength: 15,
-    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
-  });
-});
+window._PAGE = {
+  mensajeExito: {% if request.session.mensaje_exito %}'{{ request.session.mensaje_exito|escapejs }}'{% else %}''{% endif %}
+};
 </script>
+<script src="{% static 'enfermeria/js/inventario_list.js' %}"></script>
 {% endblock %}

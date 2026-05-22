@@ -1,15 +1,24 @@
 {% extends 'accounts/settings_base.html' %}
+{% load static %}
 {% block title %}Usuarios{% endblock %}
 
 {% block settings_content %}
 
 {# ── Barra superior ── #}
 <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap">
-  <form class="d-flex gap-2" method="get">
+  <form class="d-flex gap-2 flex-wrap align-items-center" method="get">
     <input type="text" class="form-control" name="q" value="{{ q }}"
-           placeholder="Buscar en todos los usuarios..." style="width:260px;">
+           placeholder="Buscar usuarios..." style="width:220px;">
+    <select name="grupo" class="form-select" style="width:200px;">
+      <option value="">Todos los grupos</option>
+      {% for g in todos_grupos %}
+        <option value="{{ g.name }}" {% if grupo_filtro == g.name %}selected{% endif %}>
+          {{ g.name }}
+        </option>
+      {% endfor %}
+    </select>
     <button class="btn btn-primary"><i class="ti ti-search me-1"></i>Buscar</button>
-    {% if q %}
+    {% if q or grupo_filtro %}
       <a href="{% url 'settings_usuarios' %}" class="btn btn-ghost-secondary">
         <i class="ti ti-x me-1"></i>Limpiar
       </a>
@@ -20,11 +29,13 @@
   </a>
 </div>
 
-{% if q %}
+{% if q or grupo_filtro %}
 <div class="alert alert-info mb-4 py-2">
-  <i class="ti ti-search me-1"></i>
-  Resultados para <strong>"{{ q }}"</strong> —
-  {{ superusers|length|add:staff_users|length|add:reg_users|length }} coincidencia{{ superusers|length|add:staff_users|length|add:reg_users|length|pluralize }}
+  <i class="ti ti-filter me-1"></i>
+  {% if q %}Búsqueda: <strong>"{{ q }}"</strong>{% endif %}
+  {% if q and grupo_filtro %} · {% endif %}
+  {% if grupo_filtro %}Grupo: <span class="badge bg-blue-lt text-blue">{{ grupo_filtro }}</span>{% endif %}
+  — {{ superusers|length|add:staff_users|length|add:reg_users|length }} resultado{{ superusers|length|add:staff_users|length|add:reg_users|length|pluralize }}
 </div>
 {% endif %}
 
@@ -109,6 +120,9 @@
       <table class="table table-vcenter table-hover card-table mb-0">
         <thead>
           <tr>
+            <th class="w-1 text-center">
+              <input type="checkbox" class="form-check-input chk-all" data-table="staff">
+            </th>
             <th>Usuario</th>
             <th>Nombre completo</th>
             <th>Grupos</th>
@@ -121,6 +135,9 @@
         <tbody>
           {% for u in staff_users %}
           <tr>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input chk-user" value="{{ u.pk }}">
+            </td>
             <td>
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar avatar-sm bg-orange-lt text-orange fw-bold">
@@ -180,7 +197,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center text-muted py-3">
+            <td colspan="8" class="text-center text-muted py-3">
               Sin usuarios staff{% if q %} con ese criterio{% endif %}.
             </td>
           </tr>
@@ -196,14 +213,31 @@
   <div class="card-header bg-blue-lt">
     <h3 class="card-title text-blue">
       <i class="ti ti-users me-2"></i>Usuarios
-      <span class="badge bg-blue ms-2">{{ reg_users|length }}</span>
+      <span class="badge bg-blue ms-2" id="reg-count-badge">{{ reg_users|length }}</span>
     </h3>
+    <div class="card-options">
+      <select id="filtro-grupo-reg" class="form-select form-select-sm" style="width:190px;">
+        <option value="">Todos los grupos</option>
+        <option value="maestros_bilingue">Maestros Bilingüe</option>
+        <option value="maestros_colegio">Maestros Colegio</option>
+        <optgroup label="Otros grupos">
+          {% for g in todos_grupos %}
+            {% if g.name != 'maestros_bilingue' and g.name != 'maestros_colegio' %}
+              <option value="{{ g.name }}">{{ g.name }}</option>
+            {% endif %}
+          {% endfor %}
+        </optgroup>
+      </select>
+    </div>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-vcenter table-hover card-table mb-0">
         <thead>
           <tr>
+            <th class="w-1 text-center">
+              <input type="checkbox" class="form-check-input chk-all" data-table="reg">
+            </th>
             <th>Usuario</th>
             <th>Nombre completo</th>
             <th>Grupos</th>
@@ -212,9 +246,12 @@
             <th class="text-center w-1">Acciones</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="tabla-reg-users">
           {% for u in reg_users %}
-          <tr>
+          <tr data-grupos="{% for g in u.groups.all %}{{ g.name }} {% endfor %}">
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input chk-user" value="{{ u.pk }}">
+            </td>
             <td>
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar avatar-sm bg-blue-lt text-blue fw-bold">
@@ -254,7 +291,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="6" class="text-center text-muted py-3">
+            <td colspan="7" class="text-center text-muted py-3">
               Sin usuarios{% if q %} con ese criterio{% endif %}.
             </td>
           </tr>
@@ -265,6 +302,71 @@
   </div>
 </div>
 
+
+{# Barra flotante selección múltiple #}
+<div id="barra-seleccion" class="d-none"
+     style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1050;
+            background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.18);
+            padding:12px 20px;display:flex;align-items:center;gap:16px;min-width:340px;">
+  <span class="fw-semibold text-blue">
+    <i class="ti ti-checkbox me-1"></i>
+    <span id="sel-count">0</span> seleccionado<span id="sel-plural"></span>
+  </span>
+  <button type="button" class="btn btn-sm btn-primary ms-auto" id="btn-abrir-asignar-grupos">
+    <i class="ti ti-users-group me-1"></i>Asignar grupos
+  </button>
+  <button type="button" class="btn btn-sm btn-ghost-secondary" id="btn-deselect-all">
+    <i class="ti ti-x"></i>
+  </button>
+</div>
+
+{# Modal asignar grupos #}
+<div class="modal modal-blur fade" id="modalAsignarGrupos" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="ti ti-users-group me-2"></i>Asignar grupos</h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          Se aplicará a <strong id="asignar-count"></strong> usuario<span id="asignar-plural"></span>.
+        </p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Modo</label>
+          <div class="d-flex gap-4">
+            <label class="d-flex align-items-center gap-2">
+              <input type="radio" name="modo-asignar" value="agregar" checked> Agregar a grupos existentes
+            </label>
+            <label class="d-flex align-items-center gap-2">
+              <input type="radio" name="modo-asignar" value="reemplazar"> Reemplazar todos los grupos
+            </label>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Grupos</label>
+          <input type="text" class="form-control form-control-sm mb-2" id="filtro-grupos-asignar"
+                 placeholder="Filtrar grupos…">
+        </div>
+        <div style="max-height:260px;overflow-y:auto;border:1px solid #e8eaed;border-radius:8px;padding:4px 8px;">
+          {% for g in todos_grupos %}
+          <label class="d-flex align-items-center gap-2 py-1 grupo-asignar-item"
+                 data-nombre="{{ g.name }}">
+            <input type="checkbox" class="form-check-input chk-grupo-asignar" value="{{ g.pk }}">
+            <span class="small">{{ g.name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer gap-2">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirmar-asignar-grupos">
+          <i class="ti ti-check me-1"></i>Aplicar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {# Modal confirmar eliminación #}
 <div class="modal modal-blur fade" id="modalDelUser" tabindex="-1" aria-hidden="true">
@@ -316,86 +418,10 @@
 
 {% block extra_js %}
 <script>
-(function () {
-  const CSRF = '{{ csrf_token }}';
-
-  // ── Eliminar usuario ──────────────────────────────────────
-  let activePk = null;
-  document.querySelectorAll('.btn-del-user').forEach(btn => {
-    btn.addEventListener('click', function () {
-      activePk = this.dataset.pk;
-      document.getElementById('del-user-nombre').textContent = this.dataset.nombre;
-      new bootstrap.Modal(document.getElementById('modalDelUser')).show();
-    });
-  });
-  document.getElementById('btn-confirm-del-user').addEventListener('click', async function () {
-    const res  = await fetch(`/accounts/settings/usuarios/${activePk}/eliminar/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
-    });
-    const data = await res.json();
-    if (data.ok) location.reload();
-    else alert(data.error || 'Error al eliminar.');
-  });
-
-  // ── Toggle permisos (solo superuser) ─────────────────────
-  let togglePk = null;
-  document.querySelectorAll('.btn-toggle-perms').forEach(btn => {
-    btn.addEventListener('click', function () {
-      togglePk = this.dataset.pk;
-      const nombre   = this.dataset.nombre;
-      const puedeVer = this.dataset.puede === 'true';
-      const msg = document.getElementById('toggle-perms-msg');
-      if (msg) {
-        msg.innerHTML = puedeVer
-          ? `¿<strong>Quitar</strong> acceso a Usuarios/Grupos de <strong>${nombre}</strong>?`
-          : `¿<strong>Conceder</strong> acceso a Usuarios/Grupos a <strong>${nombre}</strong>?`;
-      }
-      const btnConfirm = document.getElementById('btn-confirm-toggle-perms');
-      if (btnConfirm) {
-        btnConfirm.className = puedeVer
-          ? 'btn btn-danger'
-          : 'btn btn-success';
-        btnConfirm.innerHTML = puedeVer
-          ? '<i class="ti ti-shield-off me-1"></i>Quitar permiso'
-          : '<i class="ti ti-shield-check me-1"></i>Conceder permiso';
-      }
-      new bootstrap.Modal(document.getElementById('modalTogglePerms')).show();
-    });
-  });
-
-  const btnConfirmToggle = document.getElementById('btn-confirm-toggle-perms');
-  if (btnConfirmToggle) {
-    btnConfirmToggle.addEventListener('click', async function () {
-      const res  = await fetch(`/accounts/settings/usuarios/${togglePk}/toggle-perms/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        // Update badge in-place without reload
-        const badge = document.querySelector(`.perm-badge-${togglePk}`);
-        const toggleBtn = document.querySelector(`.btn-toggle-perms[data-pk="${togglePk}"]`);
-        if (badge) {
-          if (data.puede_ver) {
-            badge.className = `badge bg-green-lt text-green perm-badge-${togglePk}`;
-            badge.innerHTML = '<i class="ti ti-check me-1"></i>Habilitado';
-          } else {
-            badge.className = `badge bg-muted-lt text-muted perm-badge-${togglePk}`;
-            badge.innerHTML = 'No';
-          }
-        }
-        if (toggleBtn) {
-          toggleBtn.dataset.puede = data.puede_ver ? 'true' : 'false';
-        }
-        bootstrap.Modal.getInstance(document.getElementById('modalTogglePerms')).hide();
-      } else {
-        alert(data.error || 'Error al cambiar permiso.');
-      }
-    });
-  }
-})();
+window._PAGE = {
+  csrf: '{{ csrf_token }}',
+  urlAsignarGrupos: '{% url "settings_usuarios_asignar_grupos" %}',
+};
 </script>
+<script src="{% static 'accounts/js/settings_usuarios.js' %}"></script>
 {% endblock %}

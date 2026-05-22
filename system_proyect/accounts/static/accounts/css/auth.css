@@ -1,0 +1,8 @@
+.auth-bg {
+  background: linear-gradient(135deg, #1864ab 0%, #1971c2 50%, #228be6 100%);
+  min-height: 100vh;
+}
+.auth-card {
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}

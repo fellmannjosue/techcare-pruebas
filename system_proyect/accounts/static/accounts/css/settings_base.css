@@ -1,0 +1,4 @@
+.settings-nav .nav-link { border-radius: 6px; color: #495057; padding: .45rem .75rem; font-size: .875rem; }
+.settings-nav .nav-link:hover { background: #f1f3f5; color: #206bc4; }
+.settings-nav .nav-link.active { background: #e8f0fe; color: #206bc4; font-weight: 600; }
+.settings-nav .nav-section { font-size: .7rem; letter-spacing: .08em; color: #adb5bd; font-weight: 700; padding: .5rem .75rem .2rem; text-transform: uppercase; }

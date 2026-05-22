@@ -14,8 +14,8 @@ body {
   box-shadow: 1px 0 4px rgba(20,40,80,0.08);
   background: #222d32;
 }
-.sidebar .nav-link.active, 
-.sidebar .nav-link:focus, 
+.sidebar .nav-link.active,
+.sidebar .nav-link:focus,
 .sidebar .nav-link:hover {
   background: #0069d9;
   color: #fff !important;
@@ -164,3 +164,7 @@ body {
   font-size: 1.05rem !important;
   border-radius: 12px !important;
 }
+
+/* ===== Stat card hover ===== */
+.stat-card-click { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.stat-card-click:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }

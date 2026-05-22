@@ -1,0 +1,9 @@
+.alumno-card { border-left: 3px solid #206bc4; }
+.alumno-card:hover { background: #f8f9fa; }
+.grade-badge { font-size: .72rem; }
+textarea.comentario-txt { resize: vertical; min-height: 60px; font-size: .85rem; }
+.btn-guardar-uno { min-width: 80px; }
+.saved-ok  { color: #2fb344; font-size: .8rem; }
+.saved-err { color: #d63939; font-size: .8rem; }
+.tabs-grado .nav-link  { font-size: .88rem; }
+.tabs-seccion .nav-link { font-size: .8rem; padding: .28rem .7rem; }

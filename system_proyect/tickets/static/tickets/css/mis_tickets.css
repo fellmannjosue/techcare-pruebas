@@ -1,0 +1,14 @@
+.ticket-row { cursor: pointer; }
+.ticket-row:hover td { background: #f8f9fa !important; }
+.chat-scroll-modal { max-height: 340px; overflow-y: auto; padding: .75rem; background: #f8fafc; border-radius: 6px; }
+.chat-bubble-modal {
+  display: inline-block; max-width: 85%; padding: .5rem .85rem;
+  border-radius: 8px; font-size: .85rem; line-height: 1.5; word-break: break-word; margin-bottom: .6rem;
+}
+.bm-usuario { background: #206bc4; color: #fff; border-radius: 8px 0 8px 8px; }
+.bm-tecnico { background: #fff4e6; border: 1px solid #f59f00; border-left: 3px solid #f59f00; color: #354052; border-radius: 0 8px 8px 8px; }
+.bm-sistema { background: #e9ecef; color: #6c757d; border-radius: 4px; text-align: center; font-size: .78rem; display: block; width: 100%; padding: .3rem .5rem; }
+.chat-row-right { text-align: right; }
+.chat-row-right .chat-bubble-modal { text-align: left; }
+.chat-meta { font-size: .71rem; color: #adb5bd; margin-bottom: 2px; }
+.chat-meta.right { text-align: right; }

@@ -54,49 +54,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-$(function() {
-  const $sel  = $('#studentSelect');
-  const $cont = $('#historyContainer');
-  const table = $('#historyTable').DataTable({
-    order: [[1, 'desc']], pageLength: 25, lengthChange: false,
-    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-    columns: [
-      { data: 'index' }, { data: 'date_time' }, { data: 'grade' },
-      { data: 'reason' }, { data: 'treatment' }, { data: 'attendant' }
-    ]
-  });
-
-  $sel.find('option').each(function() {
-    const txt = $(this).text().trim();
-    if (!txt || txt.startsWith('--')) return;
-    const parts = txt.split(' '), t = parts.length;
-    $(this).text(parts.slice(0, t-2).join(' ') + ' ' + parts.slice(t-2).join(' '));
-  });
-
-  $sel.select2({ placeholder: '-- Seleccionar Estudiante --', width: '100%', minimumResultsForSearch: 0 });
-
-  $sel.on('change', function() {
-    const student = $(this).val();
-    const url = $(this).data('url') + '?student=' + encodeURIComponent(student);
-    table.clear().draw(); $cont.hide();
-    if (!student) return;
-    fetch(url, { credentials: 'same-origin' })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then(json => {
-        const lista = json.history || [];
-        if (!lista.length) {
-          table.rows.add([{ index:'', date_time:'<span data-order="">Sin registros.</span>', grade:'', reason:'', treatment:'', attendant:'' }]).draw();
-        } else {
-          table.rows.add(lista.map((h,i) => {
-            const [dt, tm] = h.date_time.split(' '), [dd,mm,yyyy] = dt.split('-');
-            return { index: i+1, date_time: `<span data-order="${yyyy}-${mm}-${dd} ${tm}">${h.date_time}</span>`,
-                     grade: h.grade, reason: h.reason, treatment: h.treatment, attendant: h.attendant };
-          })).draw();
-        }
-        $cont.fadeIn(150);
-      });
-  });
-});
-</script>
+<script src="{% static 'enfermeria/js/medical_history.js' %}"></script>
 {% endblock %}

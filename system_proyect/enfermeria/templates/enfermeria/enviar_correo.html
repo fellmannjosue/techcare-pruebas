@@ -92,9 +92,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-$(function(){
-  $('.select2').select2({ placeholder: '-- Elige un correo --', width: '100%' });
-});
-</script>
+<script src="{% static 'enfermeria/js/enviar_correo.js' %}"></script>
 {% endblock %}

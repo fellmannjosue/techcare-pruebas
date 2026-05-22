@@ -75,8 +75,8 @@ def login_view(request):
                 if _es_coord_maestro:
                     request.session['agenda_modo_maestro'] = is_maestro
                 # Coordinadores con restricción de progress — siempre van al dashboard coordinador
-                if user.groups.filter(name__in=['coord_progress_bl', 'coordinador_bl', 'coordinador_col']).exists():
-                    if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores', 'coordinador_col']).exists():
+                if user.groups.filter(name__in=['coord_progress_bl', 'coordinador_bilingue', 'coordinador_colegio']).exists():
+                    if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
                         return redirect('dashboard_coordinador', area='colegio')
                     return redirect('dashboard_coordinador', area='bilingue')
                 if is_maestro:
@@ -213,13 +213,13 @@ def register_maestro(request):
                 if cargo == 'docente':
                     group_name = 'maestros_bilingue'
                 else:
-                    group_name = 'coordinador_bl'
+                    group_name = 'coordinador_bilingue'
                     user.is_staff = True
             elif area == 'colegio':
                 if cargo == 'docente':
                     group_name = 'maestros_colegio'
                 else:
-                    group_name = 'coordinador_col'
+                    group_name = 'coordinador_colegio'
                     user.is_staff = True
             else:
                 group_name = 'administracion'
@@ -770,38 +770,48 @@ def settings_usuarios(request):
 
     from django.db.models import Q, Subquery, OuterRef
 
-    q = request.GET.get('q', '').strip()
+    q            = request.GET.get('q', '').strip()
+    grupo_filtro = request.GET.get('grupo', '').strip()
 
     def _qs(base):
         return base.prefetch_related('groups').order_by('first_name', 'last_name', 'username')
 
     def _filter(qs):
-        if not q:
-            return qs
-        return qs.filter(
-            Q(username__icontains=q) | Q(first_name__icontains=q) |
-            Q(last_name__icontains=q) | Q(email__icontains=q)
-        )
+        if q:
+            qs = qs.filter(
+                Q(username__icontains=q) | Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) | Q(email__icontains=q)
+            )
+        return qs
 
     superusers  = _filter(_qs(User.objects.filter(is_superuser=True)))
-    reg_users   = _filter(_qs(User.objects.filter(is_staff=False, is_superuser=False)))
 
-    # Annotate staff users with puede_ver to avoid u.perfil access in template
-    # (RelatedObjectDoesNotExist if PerfilUsuario doesn't exist for that user)
+    reg_base = User.objects.filter(is_staff=False, is_superuser=False)
+    if grupo_filtro:
+        reg_base = reg_base.filter(groups__name=grupo_filtro)
+    reg_users = _filter(_qs(reg_base))
+
+    staff_base = User.objects.filter(is_staff=True, is_superuser=False)
+    if grupo_filtro:
+        staff_base = staff_base.filter(groups__name=grupo_filtro)
     staff_users = _filter(
-        _qs(User.objects.filter(is_staff=True, is_superuser=False)).annotate(
+        _qs(staff_base).annotate(
             puede_ver=Subquery(
                 PerfilUsuario.objects.filter(usuario_id=OuterRef('pk')).values('puede_ver_usuarios')[:1]
             )
         )
     )
 
+    todos_grupos = Group.objects.all().order_by('name')
+
     ctx = _settings_ctx(request, 'usuarios')
     ctx.update({
-        'superusers':  superusers,
-        'staff_users': staff_users,
-        'reg_users':   reg_users,
-        'q': q,
+        'superusers':    superusers,
+        'staff_users':   staff_users,
+        'reg_users':     reg_users,
+        'q':             q,
+        'grupo_filtro':  grupo_filtro,
+        'todos_grupos':  todos_grupos,
     })
     return render(request, 'accounts/settings_usuarios.html', ctx)
 
@@ -978,6 +988,39 @@ def settings_grupo_eliminar(request, pk):
     nombre = g.name
     g.delete()
     return JsonResponse({'ok': True, 'nombre': nombre})
+
+
+@login_required
+def settings_usuarios_asignar_grupos(request):
+    if not _can_manage(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    user_pks  = request.POST.getlist('user_pks')
+    group_pks = request.POST.getlist('group_pks')
+    modo      = request.POST.get('modo', 'agregar')
+    if not user_pks or not group_pks:
+        return JsonResponse({'ok': False, 'error': 'Selecciona al menos un usuario y un grupo.'})
+    users  = User.objects.filter(pk__in=user_pks)
+    groups = Group.objects.filter(pk__in=group_pks)
+    for u in users:
+        if modo == 'reemplazar':
+            u.groups.set(groups)
+        else:
+            u.groups.add(*groups)
+    return JsonResponse({'ok': True, 'count': users.count()})
+
+
+@login_required
+def settings_grupo_usuarios(request, pk):
+    if not _can_manage(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    g = get_object_or_404(Group, pk=pk)
+    usuarios = list(
+        g.user_set.values('id', 'username', 'first_name', 'last_name', 'is_active')
+        .order_by('username')
+    )
+    return JsonResponse({'ok': True, 'nombre': g.name, 'usuarios': usuarios})
 
 
 # ── 5. Actividad (superuser) ──────────────────────────────────

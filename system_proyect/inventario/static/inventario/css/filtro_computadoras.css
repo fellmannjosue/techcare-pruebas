@@ -1,0 +1,3 @@
+/* filtro_computadoras.css */
+#computadoras-table { width: 100%; table-layout: fixed; }
+mark.match-bold { background: transparent; font-weight: 700; padding: 0; }

@@ -1,0 +1,37 @@
+/* form_sponsor.css – sponsors module */
+body {
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.form-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 95%;
+    max-width: 1400px;
+}
+
+.box-bordered {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.checkbox-group .form-check {
+    margin-bottom: 5px;
+}
+
+.footer {
+    margin: auto 0 20px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}

@@ -1,0 +1,18 @@
+/* directorio_telefonos.css */
+
+.btn-wa {
+  background-color: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: .8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-wa:hover { background-color: #1ebe5d; color: #fff; }
+
+.sin-tel { color: #adb5bd; font-size: .8rem; font-style: italic; }

@@ -8,12 +8,7 @@
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <style>
-    .settings-nav .nav-link { border-radius: 6px; color: #495057; padding: .45rem .75rem; font-size: .875rem; }
-    .settings-nav .nav-link:hover { background: #f1f3f5; color: #206bc4; }
-    .settings-nav .nav-link.active { background: #e8f0fe; color: #206bc4; font-weight: 600; }
-    .settings-nav .nav-section { font-size: .7rem; letter-spacing: .08em; color: #adb5bd; font-weight: 700; padding: .5rem .75rem .2rem; text-transform: uppercase; }
-  </style>
+  <link rel="stylesheet" href="{% static 'accounts/css/settings_base.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="antialiased">

@@ -1,4 +1,5 @@
 {% extends 'reloj/base_reloj.html' %}
+{% load static %}
 {% block title %}{{ modo }} Cálculo Compensatorio{% endblock %}
 {% block page_pretitle %}Cálculo Compensatorio{% endblock %}
 {% block page_title %}{{ modo }} Cálculo Compensatorio{% endblock %}
@@ -80,32 +81,14 @@
 </div>
 
 <script>
-const MIN_DIA = {{ minutos_dia }};
-
-function actualizarPreview() {
-  const dias = parseFloat(document.querySelector('[name=dias_adeudados]').value);
-  if (isNaN(dias) || dias <= 0) {
-    document.getElementById('preview-calculo').style.display = 'none';
-    return;
+window._PAGE = {
+  minutosDia: {{ minutos_dia }},
+  empMap: {
+    {% for asig in form.fields.emp_code.widget.choices %}
+      {% if asig.0 %}"{{ asig.0 }}": "{{ asig.1 }}",{% endif %}
+    {% endfor %}
   }
-  const minutos = Math.round(dias * 480);
-  const diasHab = Math.ceil(minutos / MIN_DIA);
-  document.getElementById('prev-min').textContent  = minutos.toLocaleString() + ' min';
-  document.getElementById('prev-dias').textContent = diasHab + ' días';
-  document.getElementById('preview-calculo').style.display = '';
-}
-
-document.querySelector('[name=dias_adeudados]').addEventListener('input', actualizarPreview);
-
-// Autocompletar nombre al seleccionar empleado
-const empMap = {
-  {% for asig in form.fields.emp_code.widget.choices %}
-    {% if asig.0 %}"{{ asig.0 }}": "{{ asig.1 }}",{% endif %}
-  {% endfor %}
 };
-document.getElementById('id_emp_code').addEventListener('change', function () {
-  const nombre = empMap[this.value] || '';
-  document.querySelector('[name=nombre_empleado]').value = nombre;
-});
 </script>
+<script src="{% static 'reloj/js/compensatorio_calculo_form.js' %}"></script>
 {% endblock %}

@@ -12,20 +12,8 @@
   <!-- Tabler Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <!-- CSS propio del módulo -->
+  <link rel="stylesheet" href="{% static 'conducta/css/base_conducta.css' %}">
   {% block extra_head %}{% endblock %}
-
-  <style>
-    .navbar-vertical .nav-link.active { background: rgba(255,255,255,.1); border-radius:6px; }
-    .campo-lectura-tabler {
-      background: #f4f6fa; border: 1px solid #e6e7e9;
-      border-radius: 6px; padding: 7px 12px; font-size: .92rem; color: #354052;
-    }
-    .img-evidencia-hover {
-      transition: transform .2s, box-shadow .2s;
-      cursor: zoom-in;
-    }
-    .img-evidencia-hover:hover { transform: scale(3); box-shadow: 0 4px 16px rgba(0,0,0,.3); z-index:99; position:relative; }
-  </style>
 </head>
 
 <body class="antialiased">

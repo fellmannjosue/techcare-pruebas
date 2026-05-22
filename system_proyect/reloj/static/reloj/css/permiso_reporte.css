@@ -1,0 +1,38 @@
+.th-permiso { color: #000; font-weight: 700; text-align: center; vertical-align: middle; white-space: nowrap; }
+.th-ausencias   { background: #00FFFF; }
+.th-otro-pagado { background: #D0CECE; }
+.th-vacaciones  { background: #92D050; }
+.th-enfermedad  { background: #FF33CC; }
+.th-pct25       { background: #FFFFB7; }
+.th-pct50       { background: #FFFF65; }
+.th-pct75       { background: #FFFF05; }
+.th-pct100           { background: #EFDC25; }
+.th-compensatorio    { background: #B4C7E7; }
+
+.btn-permiso-cell {
+  min-width: 52px;
+  font-size: .82rem;
+  font-weight: 600;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  background: transparent;
+  transition: filter .15s;
+}
+.btn-permiso-cell:hover { filter: brightness(.88); }
+.btn-permiso-cell.has-value { color: #000; }
+.btn-permiso-cell.no-value  { background: #f8f9fa; color: #adb5bd; border-style: dashed; }
+
+.cell-ausencias   { background: #00FFFF; }
+.cell-otro-pagado { background: #D0CECE; }
+.cell-vacaciones  { background: #92D050; }
+.cell-enfermedad  { background: #FF33CC; }
+.cell-pct25       { background: #FFFFB7; }
+.cell-pct50       { background: #FFFF65; }
+.cell-pct75       { background: #FFFF05; }
+.cell-pct100          { background: #EFDC25; }
+.cell-compensatorio   { background: #B4C7E7; }
+
+.col-nombre { min-width: 180px; }
+.col-mins   { min-width: 90px; text-align: center; }

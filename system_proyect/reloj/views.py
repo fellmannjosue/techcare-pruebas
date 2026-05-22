@@ -39,6 +39,7 @@ from .models import (
     ReporteComentario,
     FeriadoAsignacion,
     CompensatorioCalculo,
+    DiaNoLaborableANA,
     ReportePermisoMensual,
     PermisoReporte,
     TiempoExtraDia,
@@ -2026,8 +2027,11 @@ def _contar_dias_habiles_rango(desde, hasta, feriados=None):
     return count
 
 
-_ESPECIALES_COMP = ['zuniga', 'caceres', 'banegas', 'alvarado']
-_ESPECIALES_ORDEN = ['zuniga', 'caceres', 'banegas', 'alvarado']
+# Orden deseado por usuario (fragmento único del nombre en minúsculas)
+_ESPECIALES_COMP = ['alvarado', 'caceres', 'banegas', 'zuniga', 'chavez',
+                    'figueroa', 'liliana', 'zavala', 'espino', 'lorena',
+                    'johannys', 'fellmann']
+_ESPECIALES_ORDEN = _ESPECIALES_COMP
 
 def _especial_rank(nombre):
     n = nombre.lower()
@@ -2085,30 +2089,65 @@ def compensatorio_calculo_list(request):
         except Exception as _ex:
             print(f"[WARN] compensatorio_calculo real_comp_map: {_ex}")
 
+    # ── Días no laborables ANA por calculo ──────────────────────────────────
+    ids_calculos = [r.pk for r in todos_registros]
+    dias_no_lab_qs = DiaNoLaborableANA.objects.filter(calculo_id__in=ids_calculos)
+    dias_no_lab_map = {}  # {calculo_pk: [dia, ...]}
+    for d in dias_no_lab_qs:
+        dias_no_lab_map.setdefault(d.calculo_id, []).append(d)
+
     # ── Construir registros_data ─────────────────────────────────────────────
     def _min_to_h(m): return round(m / 60, 1)
 
     registros_data = []
     for r in todos_registros:
         ec           = str(r.emp_code)
-        tiempo_extra = r.minutos_tiempo_extra or 0
         dias_trans   = _contar_dias_habiles_rango(r.fecha_inicio, hoy, feriados)
 
         # Compensado real desde marcas ZKBio (o override manual si existe)
         real_min = real_comp_map.get(ec, 0)
         minutos_compensados = r.minutos_compensados_manual if r.minutos_compensados_manual is not None else real_min
 
-        saldo = max(0, r.minutos_total - minutos_compensados - tiempo_extra)
+        # ── Nueva lógica: total = dias_adeudados × factor + permisos_extras ──
+        dias_nl        = dias_no_lab_map.get(r.pk, [])
+        hrs_no_lab     = round(sum(d.total_horas for d in dias_nl), 2)
+
+        factor         = round(float(r.factor_horas_dia or 8.0), 1)
+        horas_adeudadas = round(float(r.dias_adeudados) * factor, 2)
+        permisos_extras = round(float(r.permisos_extras_horas or 0), 2)
+        total_hrs      = round(horas_adeudadas + permisos_extras, 2)
+        total_min      = round(total_hrs * 60)
+
+        min_dia = r.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
+        dias_hab_calc = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+
+        saldo_min = max(0, total_min - minutos_compensados)
         es_especial = any(k in r.nombre_empleado.lower() for k in _ESPECIALES_COMP)
+
+        # Conversión a días para mostrar en tabla
+        dias_no_lab_display  = round(hrs_no_lab / 8, 2) if hrs_no_lab else 0
+        permisos_extras_dias = round(permisos_extras / factor, 2) if factor else 0
+
         registros_data.append({
-            'r': r, 'saldo': saldo,
-            'dias_transcurridos':  dias_trans,
+            'r':                r,
+            'saldo':            saldo_min,
+            'dias_transcurridos': dias_trans,
             'minutos_compensados': minutos_compensados,
-            'es_especial':         es_especial,
-            'horas_total':         _min_to_h(r.minutos_total),
-            'horas_compensados':   _min_to_h(minutos_compensados),
-            'horas_saldo':         _min_to_h(saldo),
-            'horas_tiempo_extra':  _min_to_h(r.minutos_tiempo_extra) if r.minutos_tiempo_extra else None,
+            'es_especial':      es_especial,
+            # días no lab ANA (referencia)
+            'hrs_no_lab':            hrs_no_lab,
+            'dias_no_lab_display':   dias_no_lab_display,
+            # cálculo principal
+            'factor':           factor,
+            'horas_adeudadas':  horas_adeudadas,
+            'permisos_extras':  permisos_extras,
+            'permisos_extras_dias': permisos_extras_dias,
+            'total_hrs':        total_hrs,
+            'total_min':        total_min,
+            'dias_hab_calc':    dias_hab_calc,
+            # formateados
+            'horas_compensados': _min_to_h(minutos_compensados),
+            'horas_saldo':      _min_to_h(saldo_min),
         })
 
     # Especiales primero (en el orden definido), luego el resto alfabético
@@ -2351,6 +2390,207 @@ def compensatorio_calculo_set_tiempo_extra(request, pk):
         'dias_habiles': dias_hab,
         'fecha_fin': fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '—',
         'saldo': saldo,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_set_dias_adeudados(request, pk):
+    """AJAX POST: actualiza dias_adeudados y recalcula totales."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+        valor = round(float(body.get('dias', 0)), 2)
+        if valor < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    obj.dias_adeudados = valor
+    obj.save(update_fields=['dias_adeudados'])
+
+    factor          = float(obj.factor_horas_dia or 8.0)
+    horas_adeudadas = round(valor * factor, 2)
+    permisos_extras = round(float(obj.permisos_extras_horas or 0), 2)
+    total_hrs       = round(horas_adeudadas + permisos_extras, 2)
+    total_min       = round(total_hrs * 60)
+    min_dia         = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
+    dias_hab        = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+
+    hoy = date.today()
+    from datetime import timedelta as _td
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    auto_comp  = min(dias_trans * min_dia, total_min)
+    comp       = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
+    saldo_min  = max(0, total_min - comp)
+
+    return JsonResponse({
+        'ok': True, 'dias': valor,
+        'horas_adeudadas': horas_adeudadas,
+        'total_hrs': total_hrs, 'total_min': total_min,
+        'saldo_min': saldo_min, 'dias_hab': dias_hab,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_set_factor(request, pk):
+    """AJAX POST: actualiza factor_horas_dia y recalcula totales."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+        valor = round(float(body.get('factor', 8.0)), 1)
+        if valor <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    obj.factor_horas_dia = valor
+    obj.save(update_fields=['factor_horas_dia'])
+
+    horas_adeudadas = round(float(obj.dias_adeudados) * valor, 2)
+    permisos_extras = round(float(obj.permisos_extras_horas or 0), 2)
+    total_hrs       = round(horas_adeudadas + permisos_extras, 2)
+    total_min       = round(total_hrs * 60)
+    min_dia         = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
+    dias_hab        = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+
+    hoy = date.today()
+    from datetime import timedelta as _td
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    auto_comp  = min(dias_trans * min_dia, total_min)
+    comp       = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
+    saldo_min  = max(0, total_min - comp)
+
+    permisos_horas_actual = round(float(obj.permisos_extras_horas or 0), 2)
+    permisos_extras_dias  = round(permisos_horas_actual / valor, 2) if valor else 0
+    return JsonResponse({
+        'ok': True, 'factor': valor,
+        'horas_adeudadas': horas_adeudadas,
+        'permisos_extras_dias': permisos_extras_dias,
+        'total_hrs': total_hrs, 'total_min': total_min,
+        'saldo_min': saldo_min, 'dias_hab': dias_hab,
+    })
+
+
+@login_required
+def compensatorio_dias_no_lab_get(request, pk):
+    """AJAX GET: devuelve lista de días no laborables ANA de un CompensatorioCalculo."""
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    dias = [
+        {'id': d.pk, 'descripcion': d.descripcion, 'horas': float(d.horas)}
+        for d in obj.dias_no_laborables.all()
+    ]
+    total_hrs = round(sum(d['horas'] for d in dias), 2)
+    return JsonResponse({'ok': True, 'dias': dias, 'total_hrs': total_hrs})
+
+
+@login_required
+@require_POST
+def compensatorio_dias_no_lab_add(request, pk):
+    """AJAX POST: agrega un día no laborable ANA."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        body = {}
+    descripcion = body.get('descripcion', '').strip()
+    horas_str   = body.get('horas', '8.8')
+    try:
+        horas = round(float(horas_str), 2)
+        if horas <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor de horas inválido'})
+    dia = DiaNoLaborableANA.objects.create(calculo=obj, descripcion=descripcion, horas=horas)
+    dias = list(obj.dias_no_laborables.all())
+    total_hrs = round(sum(float(d.horas) for d in dias), 2)
+    return JsonResponse({
+        'ok':          True,
+        'id':          dia.pk,
+        'descripcion': dia.descripcion,
+        'horas':       float(dia.horas),
+        'total_hrs':   total_hrs,
+        'count':       len(dias),
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_dias_no_lab_delete(request, dia_pk):
+    """AJAX POST: elimina un día no laborable ANA específico."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    dia = get_object_or_404(DiaNoLaborableANA, pk=dia_pk)
+    calculo_pk = dia.calculo_id
+    dia.delete()
+    dias = list(DiaNoLaborableANA.objects.filter(calculo_id=calculo_pk))
+    total_hrs = round(sum(d.total_horas for d in dias), 2)
+    return JsonResponse({'ok': True, 'total_hrs': total_hrs, 'count': len(dias)})
+
+
+@login_required
+@require_POST
+def compensatorio_set_permisos_extras(request, pk):
+    """AJAX POST: guarda permisos_extras (en días) y recalcula saldo."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+        horas_val = round(float(body.get('horas', 0)), 2)
+        if horas_val < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+
+    factor = round(float(obj.factor_horas_dia or 8.0), 1)
+    obj.permisos_extras_horas = horas_val if horas_val > 0 else None
+    obj.save(update_fields=['permisos_extras_horas'])
+
+    horas_adeudadas = round(float(obj.dias_adeudados) * factor, 2)
+    total_hrs = round(horas_adeudadas + horas_val, 2)
+    total_min = round(total_hrs * 60)
+    min_dia   = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
+    dias_hab  = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+
+    hoy = date.today()
+    from datetime import timedelta as _td
+    feriados = set()
+    for f in Feriado.objects.all():
+        d = f.fecha_inicio
+        while d <= f.fecha_fin:
+            feriados.add(d)
+            d += _td(days=1)
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    auto_comp  = min(dias_trans * min_dia, total_min)
+    comp       = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
+    saldo_min  = max(0, total_min - comp)
+
+    permisos_extras_dias = round(horas_val / factor, 2) if factor else 0
+    return JsonResponse({
+        'ok': True,
+        'permisos_extras_dias': permisos_extras_dias,
+        'total_hrs': total_hrs,
+        'saldo_min': saldo_min,
+        'total_min': total_min,
+        'dias_hab': dias_hab,
     })
 
 
@@ -2819,7 +3059,10 @@ def _years_of_service(fecha_inicio, hoy):
     return max(0, years)
 
 
-def _dias_vacacion(es_docente, fecha_inicio, hoy):
+def _dias_vacacion(es_docente, fecha_inicio, hoy, dias_fijos=None):
+    # Caso especial: días fijos configurados manualmente (ignora todo lo demás)
+    if dias_fijos is not None:
+        return dias_fijos
     if not fecha_inicio:
         return 0
     years = _years_of_service(fecha_inicio, hoy)
@@ -2834,6 +3077,23 @@ def _dias_vacacion(es_docente, fecha_inicio, hoy):
     if years == 3:
         return 15
     return 20
+
+
+def _dias_disponibles_calc(es_docente, dias_corresponden, dias_usados, hoy, es_caso_especial=False):
+    """Días disponibles reales para docentes:
+    - Los 5 días del año escolar (Feb-Nov) siempre se descuentan del total, aunque no se usen.
+    - Feb-Nov: disponibles = max(0, 5 - usados)  [solo pueden tomar hasta 5 en este período]
+    - Dic-Ene: disponibles = max(0, corresponden - max(5, usados))  [60 - al menos 5]
+    - Caso especial (dias_fijos) y no docentes: corresponden - usados normalmente.
+    """
+    usados = float(dias_usados)
+    corresponden = float(dias_corresponden)
+    if es_docente and not es_caso_especial:
+        if hoy.month not in (12, 1):
+            return round(max(0, 5.0 - usados), 2)
+        else:
+            return round(max(0, corresponden - max(5.0, usados)), 2)
+    return round(max(0, corresponden - usados), 2)
 
 
 @login_required
@@ -2875,9 +3135,16 @@ def vacaciones_list(request):
         dias_corresponden = 0
         if cfg and cfg.fecha_inicio_labores:
             años = _years_of_service(cfg.fecha_inicio_labores, hoy)
-            dias_corresponden = _dias_vacacion(cfg.es_docente, cfg.fecha_inicio_labores, hoy)
-        dias_usados      = permisos_map.get(ec, 0)
-        dias_disponibles = dias_corresponden - dias_usados
+            dias_corresponden = _dias_vacacion(
+                cfg.es_docente, cfg.fecha_inicio_labores, hoy,
+                dias_fijos=cfg.dias_fijos,
+            )
+        # PermisoReporte sum + ajuste manual (aditivo para que permiso_reporte sincronice)
+        dias_usados = permisos_map.get(ec, 0) + float(cfg.dias_usados_manual or 0 if cfg else 0)
+        es_caso_especial = bool(cfg and cfg.dias_fijos is not None)
+        dias_disponibles = _dias_disponibles_calc(
+            bool(cfg and cfg.es_docente), dias_corresponden, dias_usados, hoy, es_caso_especial,
+        )
         filas.append({
             'emp_code':         ec,
             'nombre':           nombre,
@@ -2912,6 +3179,7 @@ def vacacion_config_save(request):
     nombre     = body.get('nombre', '').strip()
     es_docente = bool(body.get('es_docente', False))
     fecha_str  = body.get('fecha_inicio', '').strip()
+    dias_fijos_raw = body.get('dias_fijos', None)
 
     if not emp_code:
         return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
@@ -2923,26 +3191,37 @@ def vacacion_config_save(request):
         except ValueError:
             return JsonResponse({'ok': False, 'error': 'Fecha inválida'})
 
+    dias_fijos = None
+    if dias_fijos_raw not in (None, '', 0, '0'):
+        try:
+            dias_fijos = int(dias_fijos_raw)
+            if dias_fijos <= 0:
+                dias_fijos = None
+        except (TypeError, ValueError):
+            dias_fijos = None
+
     VacacionConfig.objects.update_or_create(
         emp_code=emp_code,
         defaults={
             'nombre_empleado':      nombre,
             'es_docente':           es_docente,
             'fecha_inicio_labores': fecha_inicio,
+            'dias_fijos':           dias_fijos,
             'registrado_por':       request.user,
         }
     )
 
     hoy              = date.today()
     años             = _years_of_service(fecha_inicio, hoy) if fecha_inicio else None
-    dias_corresponden= _dias_vacacion(es_docente, fecha_inicio, hoy)
+    dias_corresponden= _dias_vacacion(es_docente, fecha_inicio, hoy, dias_fijos=dias_fijos)
 
     return JsonResponse({
-        'ok':              True,
-        'años':            años,
+        'ok':               True,
+        'años':             años,
         'dias_corresponden': dias_corresponden,
-        'es_docente':      es_docente,
-        'fecha_inicio':    fecha_str,
+        'dias_fijos':       dias_fijos,
+        'es_docente':       es_docente,
+        'fecha_inicio':     fecha_str,
     })
 
 
@@ -2967,12 +3246,16 @@ def vacacion_balance(request):
         tiene_config      = False
         dias_corresponden = 0
 
-    usados_raw   = PermisoReporte.objects.filter(
+    usados_raw = PermisoReporte.objects.filter(
         tipo='vacaciones_dias', emp_code=emp_code,
         fecha__gte=fi, fecha__lte=ff,
     ).aggregate(t=_Sum('dias'))['t'] or 0
-    dias_usados      = float(usados_raw)
-    dias_disponibles = round(dias_corresponden - dias_usados, 2)
+    # Aditivo: suma PermisoReporte + ajuste manual del lápiz
+    ajuste_manual    = float(cfg.dias_usados_manual or 0) if tiene_config and cfg.dias_usados_manual else 0
+    dias_usados      = float(usados_raw) + ajuste_manual
+    es_docente_bal   = tiene_config and cfg.es_docente
+    es_caso_esp_bal  = tiene_config and cfg.dias_fijos is not None
+    dias_disponibles = _dias_disponibles_calc(es_docente_bal, dias_corresponden, dias_usados, hoy, es_caso_esp_bal)
 
     return JsonResponse({
         'ok':               True,
@@ -3011,6 +3294,56 @@ def _norm(s):
     s = s.lower().strip()
     s = unicodedata.normalize('NFD', s)
     return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+
+
+@login_required
+@require_POST
+def vacacion_editar_dias_usados(request):
+    if not _reloj_can(request.user, 'vacaciones', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        body = {}
+    emp_code  = body.get('emp_code', '').strip()
+    dias_str  = body.get('dias_usados', '')
+    nombre    = body.get('nombre', '').strip()
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
+    try:
+        dias = round(float(dias_str), 2)
+        if dias < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    cfg, _ = VacacionConfig.objects.get_or_create(
+        emp_code=emp_code,
+        defaults={'nombre_empleado': nombre, 'registrado_por': request.user},
+    )
+    cfg.dias_usados_manual = dias
+    cfg.save(update_fields=['dias_usados_manual'])
+    hoy = date.today()
+    año = hoy.year
+    fi  = date(año, 2, 1)
+    ff  = date(año, 11, 30)
+    from django.db.models import Sum as _Sum
+    permisos_sum = float(
+        PermisoReporte.objects.filter(
+            tipo='vacaciones_dias', emp_code=emp_code,
+            fecha__gte=fi, fecha__lte=ff,
+        ).aggregate(t=_Sum('dias'))['t'] or 0
+    )
+    dias_corresponden = _dias_vacacion(cfg.es_docente, cfg.fecha_inicio_labores, hoy, dias_fijos=cfg.dias_fijos)
+    total_usados     = round(permisos_sum + dias, 2)
+    dias_disponibles = _dias_disponibles_calc(
+        cfg.es_docente, dias_corresponden, total_usados, hoy, es_caso_especial=cfg.dias_fijos is not None,
+    )
+    return JsonResponse({
+        'ok': True,
+        'dias_usados':       total_usados,
+        'dias_disponibles':  dias_disponibles,
+        'dias_corresponden': dias_corresponden,
+    })
 
 
 @login_required

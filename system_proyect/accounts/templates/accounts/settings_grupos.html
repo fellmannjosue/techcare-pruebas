@@ -1,4 +1,5 @@
 {% extends 'accounts/settings_base.html' %}
+{% load static %}
 {% block title %}Grupos{% endblock %}
 
 {% block settings_content %}
@@ -33,7 +34,11 @@
               </div>
             </td>
             <td class="text-center">
-              <span class="badge bg-blue-lt text-blue fs-6 px-3">
+              <span class="badge bg-blue-lt text-blue fs-6 px-3 btn-ver-usuarios"
+                    style="cursor:pointer"
+                    data-pk="{{ g.pk }}"
+                    data-nombre="{{ g.name }}"
+                    title="Ver usuarios">
                 {{ g.user_set.count }} usuario{{ g.user_set.count|pluralize }}
               </span>
             </td>
@@ -67,6 +72,31 @@
   </div>
 </div>
 
+{# Modal usuarios del grupo #}
+<div class="modal modal-blur fade" id="modalUsuariosGrupo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content">
+      <div class="modal-header bg-blue text-white">
+        <h5 class="modal-title"><i class="ti ti-users me-2"></i>Usuarios en <span id="modal-grupo-nombre"></span></h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="modal-usuarios-loading" class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div>Cargando…
+        </div>
+        <div id="modal-usuarios-empty" class="text-center py-5 text-muted d-none">
+          <i class="ti ti-user-off fs-2 d-block mb-2 opacity-50"></i>
+          No hay usuarios en este grupo.
+        </div>
+        <ul class="list-group list-group-flush" id="modal-usuarios-lista"></ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {# Modal confirmar eliminación #}
 <div class="modal modal-blur fade" id="modalDelGrupo" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
@@ -92,26 +122,9 @@
 
 {% block extra_js %}
 <script>
-(function () {
-  const CSRF = '{{ csrf_token }}';
-  let activePk = null;
-  document.querySelectorAll('.btn-del-grupo').forEach(btn => {
-    btn.addEventListener('click', function () {
-      activePk = this.dataset.pk;
-      document.getElementById('del-grupo-nombre').textContent = this.dataset.nombre;
-      new bootstrap.Modal(document.getElementById('modalDelGrupo')).show();
-    });
-  });
-  document.getElementById('btn-confirm-del-grupo').addEventListener('click', async function () {
-    const res  = await fetch(`/accounts/settings/grupos/${activePk}/eliminar/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF }),
-    });
-    const data = await res.json();
-    if (data.ok) location.reload();
-    else alert(data.error || 'Error al eliminar.');
-  });
-})();
+window._PAGE = {
+  csrf: '{{ csrf_token }}',
+};
 </script>
+<script src="{% static 'accounts/js/settings_grupos.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,48 @@
+/* Usar ancho completo en esta página */
+.page-wrapper .page-header .container-xl,
+.page-wrapper .page-body  .container-xl { max-width: 100% !important; padding-left: 1.5rem; padding-right: 1.5rem; }
+
+.select2-container .select2-selection--single { height: 36px; }
+.select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+.select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+.hora-rojo  { background:#f8d7da !important; color:#842029 !important; font-weight:600; }
+.hora-verde { background:#d1e7dd !important; color:#0f5132 !important; font-weight:600; }
+.hora-azul  { background:#3b8eea !important; color:#fff    !important; font-weight:600; }
+.chip       { padding:2px 7px; border-radius:.25rem; display:inline-block; font-size:.82rem; }
+.hora-feriado  { background:#fff3cd !important; color:#664d03 !important; font-weight:600; }
+tr.table-info td { background:#e8f4fd !important; }
+.cmts-wrap { min-width:200px; max-width:280px; }
+.cmts-list { list-style:none; padding:0; margin:0 0 4px 0; }
+.cmts-list li { display:flex; align-items:flex-start; gap:4px; font-size:.8rem; padding:2px 0; border-bottom:1px solid #f0f0f0; }
+.cmts-list li:last-child { border-bottom:none; }
+.cmts-list li span { flex:1; word-break:break-word; }
+.btn-del-cmt { flex-shrink:0; padding:0 3px; border:none; background:none; color:#aaa; line-height:1; cursor:pointer; }
+.btn-del-cmt:hover { color:#dc3545; }
+.cmt-add-row { display:flex; gap:4px; align-items:center; }
+.cmt-add-row input { flex:1; font-size:.8rem; border:1px solid #dee2e6; border-radius:.375rem; padding:3px 6px; background:#fff; min-width:0; }
+.cmt-add-row input:focus { outline:none; border-color:#86b7fe; box-shadow:0 0 0 2px rgba(13,110,253,.15); }
+.cmt-add-row input:disabled, .btn-add-cmt:disabled { opacity:.45; cursor:not-allowed; }
+.cmt-limit { font-size:.75rem; color:#6c757d; }
+.badge-permiso { font-size:.7rem; padding:2px 6px; }
+
+/* Anchos de columna */
+#tablaAsistencia th:nth-child(1),
+#tablaAsistencia td:nth-child(1) { width: 80px;  min-width: 60px; }   /* ID */
+#tablaAsistencia th:nth-child(2),
+#tablaAsistencia td:nth-child(2) { width: 150px; min-width: 120px; }  /* Empleado */
+#tablaAsistencia th:nth-child(3),
+#tablaAsistencia td:nth-child(3) { width: 160px; min-width: 130px; }  /* Horario */
+#tablaAsistencia th:nth-child(4),
+#tablaAsistencia td:nth-child(4) { width: 130px; min-width: 100px; }  /* Feriado */
+#tablaAsistencia th:nth-child(5),
+#tablaAsistencia td:nth-child(5) { width: 100px; min-width:  90px; }  /* Fecha */
+#tablaAsistencia th:nth-child(6),
+#tablaAsistencia td:nth-child(6) { width: 180px; min-width: 140px; }  /* Marcas */
+#tablaAsistencia th:nth-child(7),
+#tablaAsistencia td:nth-child(7) { width:  90px; min-width:  80px; }  /* Cant. */
+#tablaAsistencia th:nth-child(8),
+#tablaAsistencia td:nth-child(8) { min-width: 200px; }                /* Permiso */
+#tablaAsistencia th:nth-child(9),
+#tablaAsistencia td:nth-child(9) { min-width: 220px; }                /* Comentario */
+#tablaAsistencia th:nth-child(10),
+#tablaAsistencia td:nth-child(10){ width:  60px; min-width:  50px; }  /* Estado */

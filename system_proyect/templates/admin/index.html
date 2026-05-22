@@ -136,57 +136,13 @@
 </div>
 
 <script>
-(function () {
-  const isDark = document.documentElement.classList.contains('dark');
-  const gridColor  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
-  const labelColor = isDark ? '#a1a1aa' : '#71717a';
-
-  const baseOpts = {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
-      y: { grid: { color: gridColor }, ticks: { color: labelColor, stepSize: 1, font: { size: 11 } }, beginAtZero: true },
-    },
-  };
-
-  // Gráfica 1 — Inicios de sesión (naranja)
-  new Chart(document.getElementById('chartLogins'), {
-    type: 'bar',
-    data: {
-      labels: {{ chart_logins_labels|safe }},
-      datasets: [{
-        label: 'Inicios de sesión',
-        data: {{ chart_logins_data|safe }},
-        backgroundColor: 'rgba(234, 88, 12, 0.25)',
-        borderColor: 'rgba(234, 88, 12, 0.9)',
-        borderWidth: 2,
-        borderRadius: 6,
-      }],
-    },
-    options: baseOpts,
-  });
-
-  // Gráfica 2 — Actividad del sistema (azul)
-  new Chart(document.getElementById('chartActivity'), {
-    type: 'line',
-    data: {
-      labels: {{ chart_activity_labels|safe }},
-      datasets: [{
-        label: 'Acciones',
-        data: {{ chart_activity_data|safe }},
-        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-        borderColor: 'rgba(59, 130, 246, 0.9)',
-        borderWidth: 2,
-        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-        pointRadius: 4,
-        tension: 0.4,
-        fill: true,
-      }],
-    },
-    options: baseOpts,
-  });
-})();
+window._PAGE = {
+  loginsLabels:   {{ chart_logins_labels|safe }},
+  loginsData:     {{ chart_logins_data|safe }},
+  activityLabels: {{ chart_activity_labels|safe }},
+  activityData:   {{ chart_activity_data|safe }},
+};
 </script>
+<script src="{% static 'admin/js/index_dashboard.js' %}"></script>
 
 {% endblock %}

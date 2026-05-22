@@ -1,0 +1,27 @@
+.alumno-card:hover { background: #f8f9fa; }
+.grade-badge  { font-size: .72rem; }
+textarea.comentario-txt { resize: vertical; min-height: 60px; font-size: .85rem; }
+.saved-ok  { color: #2fb344; font-size: .8rem; }
+.saved-err { color: #d63939; font-size: .8rem; }
+.asig-banner { background: #f0f4ff; border-bottom: 1px solid #d0dbff; padding: .5rem 1rem; }
+.tabs-grado .nav-link  { font-size: .88rem; }
+.tabs-seccion .nav-link { font-size: .8rem; padding: .28rem .7rem; }
+
+/* ── Carrusel coordinador ── */
+.slide-coord { display: none; }
+.slide-coord.activo { display: block; }
+.reporte-card { border: 1px solid #dee2e6; border-radius: 6px; padding: 1.2rem 1.4rem; background: #fff; font-size: .87rem; }
+.reporte-card .titulo { font-weight: 700; font-size: 1rem; text-align: center; }
+.reporte-card .subtitulo { text-align: center; color: #555; font-size: .82rem; }
+.reporte-card hr { margin: .5rem 0; }
+.reporte-card .info-row { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: .4rem; }
+.reporte-card .info-lbl { font-weight: 600; min-width: 90px; }
+.tabla-notas { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: .5rem; }
+.tabla-notas th, .tabla-notas td { border: 1px solid #ccc; padding: 3px 6px; text-align: center; }
+.tabla-notas th { background: #e9ecef; font-weight: 600; }
+.tabla-notas td.asig { text-align: left; }
+.tabla-notas tr:nth-child(even) td { background: #f8f9fa; }
+.tabla-notas td.nota-baja { color: #d63939; font-weight: 700; }
+.nav-carrusel { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.nav-carrusel .contador { color: #666; font-size: .85rem; min-width: 80px; text-align: center; }
+.comentario-readonly { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: .5rem .75rem; font-size: .85rem; min-height: 48px; color: #495057; white-space: pre-wrap; }

@@ -1,0 +1,27 @@
+/* form_godfather.css – sponsors module */
+.form-label {
+    font-weight: bold;
+}
+.form-section {
+    background-color: #f9f9f9;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    border: 1px solid #ddd;
+}
+.btn-toolbar {
+    display: flex;
+    justify-content: end;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.table th, .table td {
+    vertical-align: middle;
+    text-align: center;
+}
+.footer {
+    margin: auto 0 20px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}

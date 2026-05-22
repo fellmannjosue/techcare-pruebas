@@ -6,23 +6,7 @@
 
 {% block extra_head %}
 <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-<style>
-  .btn-wa {
-    background-color: #25D366;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: .8rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .btn-wa:hover { background-color: #1ebe5d; color: #fff; }
-  .sin-tel { color: #adb5bd; font-size: .8rem; font-style: italic; }
-</style>
+<link rel="stylesheet" href="{% static 'enfermeria/css/directorio_telefonos.css' %}">
 {% endblock %}
 
 {% block page_actions %}
@@ -96,22 +80,5 @@
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script>
-$(function(){
-  $('#tablaDirectorio').DataTable({
-    pageLength: 25,
-    order: [[1, 'asc']],
-    columnDefs: [{ orderable: false, targets: [3] }],
-    language: {
-      search: 'Buscar:',
-      lengthMenu: 'Mostrar _MENU_ registros',
-      zeroRecords: 'Sin resultados',
-      info: 'Mostrando _START_–_END_ de _TOTAL_',
-      infoEmpty: 'Sin registros',
-      infoFiltered: '(filtrado de _MAX_)',
-      paginate: { first:'«', last:'»', next:'›', previous:'‹' }
-    }
-  });
-});
-</script>
+<script src="{% static 'enfermeria/js/directorio_telefonos.js' %}"></script>
 {% endblock %}

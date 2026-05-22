@@ -62,3 +62,64 @@ body {
   }
   .login-title { font-size: 1.3rem; }
 }
+
+/* ── Tabler-based login styles ── */
+.login-bg {
+  background: linear-gradient(135deg, #1864ab 0%, #1971c2 50%, #228be6 100%);
+  min-height: 100vh;
+}
+.login-card {
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+.login-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+.toggle-eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity .2s;
+  z-index: 4;
+}
+.toggle-eye:hover { opacity: 1; }
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear { display: none; }
+
+/* Animación checkbox hint */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+@keyframes arrow-bounce {
+  0%,100% { transform: translateY(0); opacity: 1; }
+  50%      { transform: translateY(-5px); opacity: 0.6; }
+}
+.checkbox-shake { animation: shake 0.5s ease; }
+.checkbox-hint {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #e03131;
+  font-size: 12px;
+  font-weight: 500;
+}
+.checkbox-hint.show { display: flex; }
+.arrow-icon {
+  animation: arrow-bounce 0.7s ease infinite;
+  font-size: 14px;
+}
+.checkbox-highlight .form-check-input {
+  outline: 2px solid #e03131;
+  box-shadow: 0 0 0 3px rgba(224,49,49,0.2);
+}

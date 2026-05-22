@@ -378,6 +378,9 @@ class CompensatorioCalculo(models.Model):
     # Minutos que el empleado está autorizado a compensar por día hábil
     minutos_autorizados_dia = models.PositiveIntegerField("Min. autorizados/día", default=47)
 
+    # Factor de conversión días → horas para días adeudados
+    factor_horas_dia = models.DecimalField("Horas por día (factor)", max_digits=4, decimal_places=1, default=8.0)
+
     # Calculados y guardados
     minutos_total           = models.PositiveIntegerField("Minutos a compensar", default=0)
     dias_habiles_necesarios = models.PositiveIntegerField("Días hábiles necesarios", default=0)
@@ -389,6 +392,11 @@ class CompensatorioCalculo(models.Model):
     # Tiempo extra autorizado registrado manualmente
     minutos_tiempo_extra = models.PositiveIntegerField("Tiempo extra autorizado (min)", null=True, blank=True)
 
+    # Permisos extras en horas (nuevo campo para nueva estructura)
+    permisos_extras_horas = models.DecimalField(
+        "Permisos extras (h)", max_digits=6, decimal_places=2, null=True, blank=True,
+    )
+
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 
     class Meta:
@@ -399,6 +407,28 @@ class CompensatorioCalculo(models.Model):
 
     def __str__(self):
         return f"{self.nombre_empleado} → {self.fecha_fin}"
+
+
+class DiaNoLaborableANA(models.Model):
+    """Entrada de horas no laborables ANA para cálculo compensatorio."""
+    calculo     = models.ForeignKey(
+        CompensatorioCalculo, on_delete=models.CASCADE, related_name='dias_no_laborables',
+    )
+    descripcion = models.CharField("Descripción", max_length=200, blank=True)
+    horas       = models.DecimalField("Horas", max_digits=6, decimal_places=2, default=8.8)
+
+    @property
+    def total_horas(self):
+        return round(float(self.horas), 2)
+
+    class Meta:
+        db_table  = "reloj_dia_no_laborable_ana"
+        verbose_name = "Día no laborable ANA"
+        verbose_name_plural = "Días no laborables ANA"
+        ordering  = ["pk"]
+
+    def __str__(self):
+        return f"{self.calculo.nombre_empleado} – {self.fecha}"
 
 
 class TiempoExtraDia(models.Model):
@@ -500,6 +530,13 @@ class VacacionConfig(models.Model):
     nombre_empleado      = models.CharField("Nombre empleado", max_length=200, blank=True)
     es_docente           = models.BooleanField("Es docente (60 días)", default=False)
     fecha_inicio_labores = models.DateField("Fecha inicio de labores", null=True, blank=True)
+    dias_usados_manual   = models.DecimalField(
+        "Días usados (manual)", max_digits=5, decimal_places=2, null=True, blank=True,
+    )
+    dias_fijos           = models.IntegerField(
+        "Días fijos (caso especial)", null=True, blank=True,
+        help_text="Si se establece, sobreescribe el cálculo automático de días que corresponden."
+    )
     registrado_por       = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='vacacion_configs',

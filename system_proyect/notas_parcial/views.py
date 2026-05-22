@@ -26,11 +26,11 @@ from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada
 
 User = get_user_model()
 
-_GRUPOS_COORD        = {'coordinador_bilingue', 'coordinador_colegio', 'coordinadores_colegio', 'coordinadores', 'coord_notas_parcial', 'coordinador_bl', 'coordinador_col', 'coord_progress_bl', 'notas_revision', 'coord_revision'}
-_GRUPOS_COORD_FULL   = {'coord_notas_parcial'}
-_GRUPOS_MAESTRO      = {'maestros_bilingue', 'maestros_colegio', 'maestros_notas_parcial'}
-_GRUPOS_BL           = {'coordinador_bilingue', 'coordinador_bl', 'coord_progress_bl', 'coord_revision', 'coord_notas_parcial'}
-_GRUPOS_COLEGIO      = {'coordinador_colegio', 'coordinadores_colegio', 'coordinador_col'}
+_GRUPOS_COORD        = {'coordinador_bilingue', 'coordinador_colegio', 'coordinadores_colegio', 'coordinadores', 'coord_notas_parcial', 'coord_notas_parcial_bl', 'coord_notas_parcial_col', 'coordinador_bl', 'coordinador_col', 'coord_progress_bl', 'notas_revision', 'coord_revision'}
+_GRUPOS_COORD_FULL   = {'coord_notas_parcial', 'coord_notas_parcial_bl', 'coord_notas_parcial_col'}
+_GRUPOS_MAESTRO      = {'maestros_bilingue', 'maestros_colegio', 'maestros_notas_parcial', 'maestros_notas_parcial_bl', 'maestros_notas_parcial_col'}
+_GRUPOS_BL           = {'coordinador_bilingue', 'coordinador_bl', 'coord_progress_bl', 'coord_revision', 'coord_notas_parcial', 'coord_notas_parcial_bl', 'maestros_notas_parcial_bl'}
+_GRUPOS_COLEGIO      = {'coordinador_colegio', 'coordinadores_colegio', 'coordinador_col', 'coord_notas_parcial_col', 'maestros_notas_parcial_col'}
 
 AREAS_BL      = [('bl', 'Primaria Bilingüe'), ('colegio_bl', 'Colegio BL')]
 AREAS_COLEGIO = [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')]
@@ -132,11 +132,15 @@ def _destinatarios_para(user):
     if user.is_superuser:
         return ['lchavez@ana-hn.org', 'malvarado@ana-hn.org', _CORREO_PRUEBAS]
     grupos = set(user.groups.values_list('name', flat=True))
-    if 'coordinador_bl' in grupos:
+    es_bl      = bool(grupos & _GRUPOS_BL)
+    es_colegio = bool(grupos & _GRUPOS_COLEGIO)
+    if es_bl and es_colegio:
+        return ['lchavez@ana-hn.org', 'malvarado@ana-hn.org', _CORREO_PRUEBAS]
+    if es_bl:
         return ['lchavez@ana-hn.org', _CORREO_PRUEBAS]
-    if 'coordinador_col' in grupos:
+    if es_colegio:
         return ['malvarado@ana-hn.org', _CORREO_PRUEBAS]
-    # Fallback para usuarios existentes asignados por username
+    # Fallback por username
     dest = _DEST_POR_USUARIO.get(user.username)
     if dest:
         return [dest, _CORREO_PRUEBAS]
@@ -989,15 +993,63 @@ def enviar_pdf_email(request):
         asunto += f' – Grado {grado}'
     if seccion:
         asunto += f' – Sección {seccion}'
-    cuerpo = (
-        f'Se adjunta el reporte de notas a mitad de parcial para imprimir.\n\n'
-        f'Área:     {area_label}\n'
-        f'Parcial:  {parcial} / {anio}\n'
-        f'Grado:    {grado or "Todos"}\n'
-        f'Sección:  {seccion or "Todas"}\n\n'
-        f'Generado por: {remitente}'
-    )
-    mail = DjangoEmailMessage(subject=asunto, body=cuerpo, to=[destinatario])
+
+    cuerpo_html = f"""
+<html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:30px 0;">
+    <tr><td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+
+        <tr><td style="background:#1a56a0;padding:24px 32px;">
+          <h2 style="margin:0;color:#ffffff;font-size:18px;">
+            Centro Educativo Nuevo Amanecer
+          </h2>
+          <p style="margin:4px 0 0;color:#cce0ff;font-size:13px;">Reporte de Notas a Mitad de Parcial</p>
+        </td></tr>
+
+        <tr><td style="padding:28px 32px;">
+          <p style="margin:0 0 20px;color:#333;font-size:15px;">
+            Se adjunta el reporte de notas a mitad de parcial para imprimir.
+          </p>
+
+          <table cellpadding="0" cellspacing="0" width="100%"
+                 style="background:#f0f5ff;border-radius:6px;padding:16px 20px;border-left:4px solid #1a56a0;">
+            <tr>
+              <td style="padding:5px 0;color:#666;font-size:13px;width:90px;">Área</td>
+              <td style="padding:5px 0;color:#1a1a1a;font-size:13px;font-weight:bold;">{area_label}</td>
+            </tr>
+            <tr>
+              <td style="padding:5px 0;color:#666;font-size:13px;">Parcial</td>
+              <td style="padding:5px 0;color:#1a1a1a;font-size:13px;font-weight:bold;">{parcial} / {anio}</td>
+            </tr>
+            <tr>
+              <td style="padding:5px 0;color:#666;font-size:13px;">Grado</td>
+              <td style="padding:5px 0;color:#1a1a1a;font-size:13px;font-weight:bold;">{grado or 'Todos'}</td>
+            </tr>
+            <tr>
+              <td style="padding:5px 0;color:#666;font-size:13px;">Sección</td>
+              <td style="padding:5px 0;color:#1a1a1a;font-size:13px;font-weight:bold;">{seccion or 'Todas'}</td>
+            </tr>
+          </table>
+
+          <p style="margin:24px 0 0;color:#888;font-size:12px;border-top:1px solid #eee;padding-top:16px;">
+            Generado por: <strong style="color:#333;">{remitente}</strong>
+          </p>
+        </td></tr>
+
+        <tr><td style="background:#f8f9fa;padding:14px 32px;text-align:center;">
+          <p style="margin:0;color:#aaa;font-size:11px;">
+            Centro Educativo Nuevo Amanecer &mdash; La Venta D.C.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>
+"""
+    mail = DjangoEmailMessage(subject=asunto, body=cuerpo_html, to=[destinatario])
+    mail.content_subtype = 'html'
     mail.attach(f'notas_parcial_{parcial}_{anio}.pdf', buf.getvalue(), 'application/pdf')
     try:
         mail.send()

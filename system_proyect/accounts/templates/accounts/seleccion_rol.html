@@ -8,70 +8,7 @@
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <style>
-    body {
-      background: linear-gradient(135deg, #1864ab 0%, #1971c2 50%, #228be6 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .rol-card {
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-      max-width: 560px;
-      width: 100%;
-    }
-    .opcion-btn {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 18px 20px;
-      border-radius: 12px;
-      border: 2px solid #e9ecef;
-      background: #fff;
-      text-align: left;
-      width: 100%;
-      cursor: pointer;
-      transition: border-color .2s, box-shadow .2s, transform .1s;
-      text-decoration: none;
-      color: inherit;
-      margin-bottom: 12px;
-    }
-    .opcion-btn:last-child { margin-bottom: 0; }
-    .opcion-btn:hover {
-      border-color: #1971c2;
-      box-shadow: 0 4px 16px rgba(25,113,194,0.15);
-      transform: translateY(-2px);
-      color: inherit;
-    }
-    .opcion-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      flex-shrink: 0;
-    }
-    .icon-coord { background: #dbe4ff; color: #3b5bdb; }
-    .icon-bl    { background: #d3f9d8; color: #2f9e44; }
-    .icon-col   { background: #fff3bf; color: #f08c00; }
-    .icon-reloj { background: #e3fafc; color: #0c8599; }
-    .icon-inv   { background: #fff0f6; color: #c2255c; }
-    .opcion-titulo    { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
-    .opcion-subtitulo { font-size: 12px; color: #868e96; }
-
-    @keyframes fade-up {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .opcion-btn { animation: fade-up .35s ease both; }
-    .opcion-btn:nth-child(1) { animation-delay: .05s; }
-    .opcion-btn:nth-child(2) { animation-delay: .12s; }
-    .opcion-btn:nth-child(3) { animation-delay: .19s; }
-  </style>
+  <link rel="stylesheet" href="{% static 'accounts/css/seleccion_rol.css' %}">
 </head>
 <body>
   <div class="rol-card card mx-3">

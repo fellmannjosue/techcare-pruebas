@@ -80,6 +80,12 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/set-min-dia/', views.compensatorio_calculo_set_min_dia, name='reloj_compensatorio_calculo_set_min_dia'),
     path('compensatorio-calculo/<int:pk>/set-compensado/', views.compensatorio_calculo_set_compensado, name='reloj_compensatorio_calculo_set_compensado'),
     path('compensatorio-calculo/<int:pk>/set-tiempo-extra/', views.compensatorio_calculo_set_tiempo_extra, name='reloj_compensatorio_calculo_set_tiempo_extra'),
+    path('compensatorio-calculo/<int:pk>/set-dias-adeudados/', views.compensatorio_set_dias_adeudados, name='reloj_compensatorio_set_dias_adeudados'),
+    path('compensatorio-calculo/<int:pk>/set-factor/', views.compensatorio_set_factor, name='reloj_compensatorio_set_factor'),
+    path('compensatorio-calculo/<int:pk>/dias-no-lab/', views.compensatorio_dias_no_lab_get, name='reloj_compensatorio_dias_no_lab_get'),
+    path('compensatorio-calculo/<int:pk>/dias-no-lab/add/', views.compensatorio_dias_no_lab_add, name='reloj_compensatorio_dias_no_lab_add'),
+    path('compensatorio-dias-no-lab/<int:dia_pk>/delete/', views.compensatorio_dias_no_lab_delete, name='reloj_compensatorio_dias_no_lab_delete'),
+    path('compensatorio-calculo/<int:pk>/set-permisos-extras/', views.compensatorio_set_permisos_extras, name='reloj_compensatorio_set_permisos_extras'),
 
     # Hook Google Forms (POST Apps Script)
     path('google/compensatorio/ingresar/', views.compensatorio_google_hook, name='compensatorio_google_hook'),
@@ -110,4 +116,5 @@ urlpatterns = [
     path('vacaciones/config/save/', views.vacacion_config_save, name='reloj_vacacion_config_save'),
     path('vacaciones/balance/', views.vacacion_balance, name='reloj_vacacion_balance'),
     path('vacaciones/importar/', views.vacaciones_importar, name='reloj_vacaciones_importar'),
+    path('vacaciones/editar-dias/', views.vacacion_editar_dias_usados, name='reloj_vacacion_editar_dias'),
 ]

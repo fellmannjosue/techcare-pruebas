@@ -1,0 +1,14 @@
+/* inventario_registros.css */
+/* Tablas de registros — tamaño cómodo */
+#tablaComputadoras td, #tablaComputadoras th,
+#tablaImpresoras   td, #tablaImpresoras   th,
+#tablaTelevisores  td, #tablaTelevisores  th,
+#tablaRouters      td, #tablaRouters      th,
+#tablaDataShows    td, #tablaDataShows    th,
+#tablaMonitores    td, #tablaMonitores    th {
+  font-size: .875rem;
+  padding: .6rem .75rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tab-pane .table-responsive { overflow-x: auto; }

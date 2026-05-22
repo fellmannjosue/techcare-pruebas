@@ -220,55 +220,15 @@
 {% endblock %}
 
 {% block extra_js %}
+{% load static %}
 <script>
-const diasLabels = {{ dias_labels_json|safe }};
-const diasData   = {{ dias_data_json|safe }};
-const topLabels  = {{ top_labels_json|safe }};
-const topData    = {{ top_data_json|safe }};
-
-new Chart(document.getElementById('chartLoginsDia'), {
-  type: 'line',
-  data: {
-    labels: diasLabels,
-    datasets: [{
-      label: 'Inicios de sesión',
-      data: diasData,
-      borderColor: '#206bc4',
-      backgroundColor: 'rgba(32,107,196,0.08)',
-      fill: true,
-      tension: 0.4,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
-    }
-  }
-});
-
-{% if top_usuarios %}
-new Chart(document.getElementById('chartTopUsuarios'), {
-  type: 'bar',
-  data: {
-    labels: topLabels,
-    datasets: [{
-      label: 'Accesos',
-      data: topData,
-      backgroundColor: 'rgba(32,107,196,0.7)',
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    indexAxis: 'y',
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: { x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } }
-  }
-});
-{% endif %}
+window._PAGE = {
+  diasLabels: {{ dias_labels_json|safe }},
+  diasData:   {{ dias_data_json|safe }},
+  topLabels:  {{ top_labels_json|safe }},
+  topData:    {{ top_data_json|safe }},
+  hasTop:     {% if top_usuarios %}true{% else %}false{% endif %},
+};
 </script>
+<script src="{% static 'accounts/js/settings_actividad.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,26 @@
+/* Agrandar el selector de permisos y grupos */
+.selector-available select,
+.selector-chosen select,
+select[name="permissions"],
+select[name="user_permissions"],
+select[name="groups"],
+#id_permissions_from, #id_permissions_to,
+#id_user_permissions_from, #id_user_permissions_to,
+#id_groups_from, #id_groups_to {
+  height: 380px !important;
+  min-height: 380px !important;
+}
+
+.selector {
+  width: 100% !important;
+}
+
+.selector-available,
+.selector-chosen {
+  width: 46% !important;
+  min-width: 380px !important;
+}
+
+.selector-filter input {
+  width: 100% !important;
+}

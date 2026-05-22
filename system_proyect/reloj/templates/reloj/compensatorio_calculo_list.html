@@ -19,9 +19,9 @@
   <i class="ti ti-info-circle fs-2"></i>
   <div>
     <strong>Fórmula:</strong>
-    Minutos = Días adeudados × 528 (8.8 h) &nbsp;|&nbsp;
-    Días hábiles = ⌈Minutos ÷ Min.Auto/día⌉ &nbsp;|&nbsp;
-    Saldo = Minutos − (días hábiles transcurridos × Min.Auto/día)
+    Horas adeudadas = Días adeudados × Factor h/día &nbsp;|&nbsp;
+    Total = Horas adeudadas + Permisos extras &nbsp;|&nbsp;
+    Saldo = Total − Compensado hasta hoy
   </div>
   {% if can_edit %}
   <a href="{% url 'reloj_compensatorio_calculo_new' %}" class="btn btn-primary ms-auto text-nowrap">
@@ -30,6 +30,21 @@
   {% endif %}
 </div>
 
+{# ── Bulk action bar ── #}
+{% if can_edit %}
+<div id="bulk-bar" style="display:none" class="bg-blue-lt border border-blue rounded px-3 py-2 mb-3 d-flex align-items-center gap-3 flex-wrap">
+  <span class="fw-semibold text-blue"><span id="bulk-count">0</span> empleado(s) seleccionado(s)</span>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-sm btn-orange" id="btn-bulk-dias-no-lab">
+      <i class="ti ti-calendar-x me-1"></i>Agregar días no laborables
+    </button>
+    <button class="btn btn-sm btn-purple" id="btn-bulk-3dias">
+      <i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras
+    </button>
+  </div>
+</div>
+{% endif %}
+
 {# ── Tabla ── #}
 <div class="card">
   <div class="card-body p-0">
@@ -37,35 +52,122 @@
       <table id="tabla-calculo" class="table table-vcenter table-hover card-table">
         <thead>
           <tr>
+            {% if can_edit %}<th class="text-center" style="width:40px"><input type="checkbox" id="chk-all" class="form-check-input"></th>{% endif %}
             <th>Empleado</th>
+            <th class="text-center">Días no lab. ANA</th>
             <th class="text-center">Días adeudados</th>
-            <th class="text-center">Hrs. a compensar</th>
+            <th class="text-center">Factor h/día</th>
+            <th class="text-center">Horas adeudadas</th>
+            <th class="text-center">3 dias de Permisos extras</th>
+            <th class="text-center">Total a compensar</th>
             <th class="text-center">Min. Auto/día</th>
             <th class="text-center">Compensado hasta hoy</th>
             <th class="text-center">Saldo restante</th>
-            <th class="text-center">Días hábiles</th>
             <th class="text-center">Fecha inicio</th>
             <th class="text-center">Fecha fin estimada</th>
+            <th class="text-center">Días hábiles</th>
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for item in registros_data %}
           {% with r=item.r saldo=item.saldo %}
-          <tr data-pk="{{ r.pk }}">
+          <tr data-pk="{{ r.pk }}" data-total-min="{{ item.total_min }}">
+
+            {% if can_edit %}
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input chk-emp"
+                     data-pk="{{ r.pk }}" data-factor="{{ item.factor }}">
+            </td>
+            {% endif %}
+
+            {# Empleado #}
             <td>
               <div class="fw-semibold">{{ r.nombre_empleado }}</div>
               <div class="text-muted small">{{ r.emp_code }}</div>
             </td>
+
+            {# Días no lab. ANA — referencia, abre modal #}
             <td class="text-center">
-              <span class="badge bg-blue-lt text-blue fs-6 px-3">{{ r.dias_adeudados }}</span>
+              {% if can_edit %}
+              <button class="btn btn-sm btn-ghost-secondary btn-dias-no-lab px-2 py-0"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
+                      title="Ver/editar días no laborables ANA">
+                <span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}">
+                  <i class="ti ti-edit me-1"></i>{% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}
+                </span>
+              </button>
+              {% else %}
+              <span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}">
+                {% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}
+              </span>
+              {% endif %}
             </td>
-            <td class="text-center text-muted font-monospace" data-minutos="{{ r.minutos_total }}">{{ item.horas_total }} h</td>
+
+            {# Días adeudados — editable con lápiz #}
+            <td class="text-center">
+              {% if can_edit %}
+              <button class="btn btn-sm btn-ghost-secondary btn-set-dias-adeudados px-2 py-0"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
+                      data-valor="{{ r.dias_adeudados }}"
+                      title="Editar días adeudados">
+                <span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>
+                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+              </button>
+              {% else %}
+              <span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>
+              {% endif %}
+            </td>
+
+            {# Factor h/día — editable con lápiz #}
+            <td class="text-center">
+              {% if can_edit %}
+              <button class="btn btn-sm btn-ghost-secondary btn-set-factor px-2 py-0"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
+                      data-valor="{{ item.factor }}"
+                      title="Editar factor horas/día">
+                <span class="badge bg-teal-lt text-teal factor-badge-{{ r.pk }}">{{ item.factor }} h/d</span>
+                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+              </button>
+              {% else %}
+              <span class="badge bg-teal-lt text-teal factor-badge-{{ r.pk }}">{{ item.factor }} h/d</span>
+              {% endif %}
+            </td>
+
+            {# Horas adeudadas — calculado #}
+            <td class="text-center font-monospace horas-adeudadas-{{ r.pk }}">
+              {{ item.horas_adeudadas }} h
+            </td>
+
+            {# Permisos extras — editable, en días #}
+            <td class="text-center">
+              {% if can_edit %}
+              <button class="btn btn-sm btn-ghost-secondary btn-set-permisos-extras px-2 py-0"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
+                      data-valor="{{ item.permisos_extras }}"
+                      title="Editar permisos extras">
+                <span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">
+                  {% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}
+                </span>
+                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+              </button>
+              {% else %}
+              <span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">
+                {% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}
+              </span>
+              {% endif %}
+            </td>
+
+            {# Total a compensar #}
+            <td class="text-center font-monospace fw-semibold total-hrs-{{ r.pk }}">
+              {{ item.total_hrs }} h
+            </td>
+
+            {# Min. Auto/día #}
             <td class="text-center">
               {% if can_edit %}
               <button class="btn btn-sm btn-ghost-secondary btn-set-min-dia px-2 py-0"
-                      data-pk="{{ r.pk }}"
-                      data-nombre="{{ r.nombre_empleado }}"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
                       data-valor="{{ r.minutos_autorizados_dia }}"
                       title="Editar min. autorizados/día">
                 <span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>
@@ -75,8 +177,10 @@
               <span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>
               {% endif %}
             </td>
+
+            {# Compensado hasta hoy #}
             <td class="text-center">
-              {% if item.minutos_compensados >= r.minutos_total %}
+              {% if item.minutos_compensados >= item.total_min and item.total_min > 0 %}
                 <span class="badge bg-green-lt text-green compensado-badge-{{ r.pk }}">
                   <i class="ti ti-circle-check me-1"></i>{{ item.horas_compensados }} h
                 </span>
@@ -85,21 +189,16 @@
                   <i class="ti ti-progress me-1"></i>{{ item.horas_compensados }} h
                 </span>
               {% else %}
-                <span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">
-                  0 h
-                </span>
+                <span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">0 h</span>
               {% endif %}
               <div class="text-muted small mt-1 dias-trans-{{ r.pk }}">{{ item.dias_transcurridos }} días háb.</div>
             </td>
 
+            {# Saldo restante — rojo si hay saldo #}
             <td class="text-center">
               {% if saldo == 0 %}
                 <span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}">
                   <i class="ti ti-circle-check me-1"></i>Completado
-                </span>
-              {% elif saldo < r.minutos_total %}
-                <span class="badge bg-yellow-lt text-yellow saldo-badge-{{ r.pk }}">
-                  {{ item.horas_saldo }} h
                 </span>
               {% else %}
                 <span class="badge bg-red-lt text-red saldo-badge-{{ r.pk }}">
@@ -107,10 +206,9 @@
                 </span>
               {% endif %}
             </td>
-            <td class="text-center">
-              <span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ r.dias_habiles_necesarios }} días</span>
-            </td>
+
             <td class="text-center">{{ r.fecha_inicio|date:"d/m/Y" }}</td>
+
             <td class="text-center">
               {% if r.fecha_fin %}
                 <span class="badge bg-green-lt text-green fs-6 px-3 fecha-fin-badge-{{ r.pk }}">
@@ -120,16 +218,20 @@
                 <span class="text-muted fecha-fin-badge-{{ r.pk }}">—</span>
               {% endif %}
             </td>
+
+            {# Días hábiles — al final #}
+            <td class="text-center">
+              <span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span>
+            </td>
+
             <td class="text-center">
               {% if can_edit %}
-              <a href="{% url 'reloj_compensatorio_calculo_edit' r.pk %}"
-                 class="btn btn-sm btn-ghost-primary" title="Editar">
+              <a href="{% url 'reloj_compensatorio_calculo_edit' r.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
                 <i class="ti ti-edit"></i>
               </a>
               {% endif %}
               {% if can_delete %}
-              <a href="{% url 'reloj_compensatorio_calculo_delete' r.pk %}"
-                 class="btn btn-sm btn-ghost-danger" title="Eliminar">
+              <a href="{% url 'reloj_compensatorio_calculo_delete' r.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
                 <i class="ti ti-trash"></i>
               </a>
               {% endif %}
@@ -138,9 +240,8 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
-              <i class="ti ti-calculator-off me-2"></i>
-              Sin registros. Agrega el primer empleado con el botón de arriba.
+            <td colspan="15" class="text-center text-muted py-4">
+              <i class="ti ti-calculator-off me-2"></i>Sin registros.
             </td>
           </tr>
           {% endfor %}
@@ -150,24 +251,187 @@
   </div>
 </div>
 
-{# ── Modal: Compensado manual ── #}
-<div class="modal modal-blur fade" id="modalCompensado" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
+{# ══════════════════════════════════════════════════════════ #}
+{# MODALES                                                    #}
+{# ══════════════════════════════════════════════════════════ #}
+
+{# ── Modal: Bulk días no laborables ── #}
+{% if can_edit %}
+<div class="modal modal-blur fade" id="modalBulkDiasNoLab" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-progress me-2 text-teal"></i>Compensado hasta hoy</h5>
+      <div class="modal-header bg-orange-lt">
+        <h5 class="modal-title text-orange">
+          <i class="ti ti-calendar-x me-2"></i>Agregar días no laborables — <span id="bulk-dnl-count"></span> empleado(s)
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="text-muted small mb-1">Empleado: <strong id="comp-nombre"></strong></p>
-        <p class="text-muted small mb-3">Total a compensar: <strong id="comp-total"></strong> h</p>
-        <label class="form-label fw-semibold">Minutos compensados</label>
-        <input type="number" id="comp-input" class="form-control" min="0" placeholder="Ej: 1500">
-        <p class="text-muted small mt-2">Este valor sobreescribe el cálculo automático.</p>
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label class="form-label fw-semibold">Horas</label>
+            <input type="number" id="bulk-dnl-horas" class="form-control" value="8.8" step="0.1" min="0.1">
+          </div>
+          <div class="col-sm-8">
+            <label class="form-label fw-semibold">Descripción (opcional)</label>
+            <input type="text" id="bulk-dnl-desc" class="form-control" placeholder="Ej: Semana Santa">
+          </div>
+        </div>
+        <div id="bulk-dnl-error" class="d-none mt-2">
+          <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
+        </div>
+        <div id="bulk-dnl-progress" class="d-none mt-3">
+          <div class="progress mb-1"><div class="progress-bar bg-orange" id="bulk-dnl-bar" style="width:0%"></div></div>
+          <div class="text-muted small" id="bulk-dnl-status">Procesando...</div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-guardar-compensado">
+        <button type="button" class="btn btn-orange" id="btn-bulk-dnl-apply">
+          <i class="ti ti-check me-1"></i>Aplicar a todos
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Modal: Días no laborables ANA ── #}
+<div class="modal modal-blur fade" id="modalDiasNoLab" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-orange-lt">
+        <h5 class="modal-title text-orange">
+          <i class="ti ti-calendar-x me-2"></i>Días no laborables ANA — <span id="dnl-nombre"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if can_edit %}
+        <div class="card mb-3">
+          <div class="card-header"><strong>Agregar entrada</strong></div>
+          <div class="card-body">
+            <div class="row g-2 align-items-end">
+              <div class="col-sm-3">
+                <label class="form-label mb-1">Horas</label>
+                <input type="number" id="dnl-horas" class="form-control form-control-sm" value="8.8" step="0.1" min="0.1">
+              </div>
+              <div class="col-sm-7">
+                <label class="form-label mb-1">Descripción (opcional)</label>
+                <input type="text" id="dnl-desc" class="form-control form-control-sm" placeholder="Ej: Semana Santa">
+              </div>
+              <div class="col-sm-2">
+                <button class="btn btn-sm btn-orange w-100" id="btn-dnl-add">
+                  <i class="ti ti-plus me-1"></i>Agregar
+                </button>
+              </div>
+            </div>
+            <div id="dnl-add-error" class="d-none mt-2">
+              <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-orange"></i>Entradas registradas</h6>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-vcenter">
+            <thead>
+              <tr>
+                <th>Descripción</th>
+                <th class="text-center">Horas</th>
+                {% if can_edit %}<th class="text-center">Eliminar</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody id="dnl-tbody">
+              <tr id="dnl-empty"><td colspan="3" class="text-center text-muted py-3">Sin entradas</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
+          <i class="ti ti-sum text-orange fs-3"></i>
+          <div>
+            <div class="text-muted small mb-1">Total días no laborables ANA</div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span class="fw-bold fs-3 text-orange" id="dnl-total-hrs">0</span>
+              <span class="text-muted">horas</span>
+              <span class="text-muted mx-1">→</span>
+              <span class="fw-bold fs-3" id="dnl-total-dias">0</span>
+              <span class="text-muted">días</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Días adeudados ── #}
+<div class="modal modal-blur fade" id="modalDiasAdeudados" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-calendar-due me-2 text-blue"></i>Días adeudados</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Empleado: <strong id="da-nombre"></strong></p>
+        <label class="form-label fw-semibold">Días adeudados</label>
+        <input type="number" id="da-input" class="form-control" min="0" step="0.01" placeholder="Ej: 18.65">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-dias-adeudados">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Factor h/día ── #}
+<div class="modal modal-blur fade" id="modalFactor" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-adjustments me-2 text-teal"></i>Factor horas/día</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Empleado: <strong id="fac-nombre"></strong></p>
+        <label class="form-label fw-semibold">Horas por día</label>
+        <input type="number" id="fac-input" class="form-control" min="0.5" step="0.5" placeholder="Ej: 8.0">
+        <p class="text-muted small mt-2">Se usa para convertir días adeudados a horas.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-factor">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Permisos extras (horas) ── #}
+<div class="modal modal-blur fade" id="modalPermisosExtras" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-clock-plus me-2 text-purple"></i>Permisos extras</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Empleado: <strong id="pe-nombre"></strong></p>
+        <label class="form-label fw-semibold">Horas de permisos extras</label>
+        <input type="number" id="pe-input" class="form-control" min="0" step="0.5" placeholder="Ej: 26.4">
+        <p class="text-muted small mt-2">Se divide por el factor h/día para mostrar como días en la tabla.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-permisos-extras">
           <i class="ti ti-device-floppy me-1"></i>Guardar
         </button>
       </div>
@@ -187,9 +451,7 @@
         <p class="text-muted small mb-3">Empleado: <strong id="min-dia-nombre"></strong></p>
         <label class="form-label fw-semibold">Minutos por día hábil</label>
         <input type="number" id="min-dia-input" class="form-control" min="1" max="480" placeholder="Ej: 47">
-        <p class="text-muted small mt-2">
-          Este valor ajustará los días hábiles necesarios y la fecha fin estimada.
-        </p>
+        <p class="text-muted small mt-2">Ajusta los días hábiles y la fecha fin estimada.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -201,189 +463,12 @@
   </div>
 </div>
 
-
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  if (typeof $.fn.DataTable !== 'undefined') {
-    $('#tabla-calculo').DataTable({
-      order: [[0, 'asc']],
-      pageLength: 25,
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
-    });
-  }
-});
+window._PAGE = {
+  csrf: '{{ csrf_token }}',
+  canEdit: {{ can_edit|yesno:'true,false' }}
+};
 </script>
-
-<script>
-(function(){
-  const CSRF = '{{ csrf_token }}';
-  let activePk = null;
-  let minTotal = 0;
-  const minToH = m => +(m / 60).toFixed(1);
-
-  // ── Modal compensado manual ──
-  let activePkComp = null, minTotalComp = 0;
-
-  document.querySelectorAll('.btn-set-compensado').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      activePkComp = this.dataset.pk;
-      minTotalComp = parseInt(this.dataset.total) || 0;
-      document.getElementById('comp-nombre').textContent = this.dataset.nombre;
-      document.getElementById('comp-total').textContent  = minToH(minTotalComp);
-      document.getElementById('comp-input').value = this.dataset.valor || '';
-      new bootstrap.Modal(document.getElementById('modalCompensado')).show();
-    });
-  });
-
-  document.getElementById('btn-guardar-compensado').addEventListener('click', async function(){
-    const valor = parseInt(document.getElementById('comp-input').value);
-    if (isNaN(valor) || valor < 0) {
-      document.getElementById('comp-input').classList.add('is-invalid');
-      return;
-    }
-    document.getElementById('comp-input').classList.remove('is-invalid');
-    const btn = this;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-
-    const body = new URLSearchParams({ csrfmiddlewaretoken: CSRF, minutos: valor });
-    const res  = await fetch(`/reloj/compensatorio-calculo/${activePkComp}/set-compensado/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-
-    if (data.ok) {
-      // Actualizar badge compensado
-      const compBadge = document.querySelector(`.compensado-badge-${activePkComp}`);
-      if (compBadge) {
-        if (data.minutos_compensados >= minTotalComp) {
-          compBadge.className = `badge bg-green-lt text-green compensado-badge-${activePkComp}`;
-          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${minToH(data.minutos_compensados)} h`;
-        } else if (data.minutos_compensados > 0) {
-          compBadge.className = `badge bg-teal-lt text-teal compensado-badge-${activePkComp}`;
-          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${minToH(data.minutos_compensados)} h`;
-        } else {
-          compBadge.className = `badge bg-secondary-lt text-secondary compensado-badge-${activePkComp}`;
-          compBadge.textContent = '0 h';
-        }
-      }
-      // Actualizar botón data-valor
-      const boton = document.querySelector(`.btn-set-compensado[data-pk="${activePkComp}"]`);
-      if (boton) boton.dataset.valor = data.minutos_compensados;
-      // Actualizar saldo
-      const saldoBadge = document.querySelector(`.saldo-badge-${activePkComp}`);
-      if (saldoBadge) {
-        if (data.saldo === 0) {
-          saldoBadge.className = `badge bg-green-lt text-green saldo-badge-${activePkComp}`;
-          saldoBadge.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
-        } else if (data.saldo < minTotalComp) {
-          saldoBadge.className = `badge bg-yellow-lt text-yellow saldo-badge-${activePkComp}`;
-          saldoBadge.textContent = `${minToH(data.saldo)} h`;
-        } else {
-          saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${activePkComp}`;
-          saldoBadge.textContent = `${minToH(data.saldo)} h`;
-        }
-      }
-      bootstrap.Modal.getInstance(document.getElementById('modalCompensado')).hide();
-    }
-  });
-
-  // Abrir modal
-  document.querySelectorAll('.btn-set-min-dia').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      activePk = this.dataset.pk;
-      document.getElementById('min-dia-nombre').textContent = this.dataset.nombre;
-      document.getElementById('min-dia-input').value = this.dataset.valor || '';
-      // Guardar minutos_total del registro para actualizar saldo en frontend
-      const row = this.closest('tr');
-      const minTotalCell = row.querySelector('td:nth-child(3)');
-      minTotal = parseInt(minTotalCell ? minTotalCell.dataset.minutos : '0') || 0;
-      new bootstrap.Modal(document.getElementById('modalMinDia')).show();
-    });
-  });
-
-  // Guardar
-  document.getElementById('btn-guardar-min-dia').addEventListener('click', async function(){
-    const valor = parseInt(document.getElementById('min-dia-input').value);
-    if (!valor || valor <= 0) {
-      document.getElementById('min-dia-input').classList.add('is-invalid');
-      return;
-    }
-    document.getElementById('min-dia-input').classList.remove('is-invalid');
-
-    const btn = this;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-
-    const body = new URLSearchParams({ csrfmiddlewaretoken: CSRF, minutos: valor });
-    const res  = await fetch(`/reloj/compensatorio-calculo/${activePk}/set-min-dia/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-    const data = await res.json();
-
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-
-    if (data.ok) {
-      // Actualizar badge min/día
-      const minBadge = document.querySelector(`.min-dia-badge-${activePk}`);
-      if (minBadge) minBadge.textContent = `${data.minutos_dia} min`;
-
-      // Actualizar botón data-valor
-      const boton = document.querySelector(`.btn-set-min-dia[data-pk="${activePk}"]`);
-      if (boton) boton.dataset.valor = data.minutos_dia;
-
-      // Actualizar días hábiles
-      const habBadge = document.querySelector(`.dias-hab-badge-${activePk}`);
-      if (habBadge) habBadge.textContent = `${data.dias_habiles} días`;
-
-      // Actualizar fecha fin
-      const ffBadge = document.querySelector(`.fecha-fin-badge-${activePk}`);
-      if (ffBadge) {
-        ffBadge.className = `badge bg-green-lt text-green fs-6 px-3 fecha-fin-badge-${activePk}`;
-        ffBadge.innerHTML = `<i class="ti ti-calendar-check me-1"></i>${data.fecha_fin}`;
-      }
-
-      // Actualizar saldo
-      const saldoBadge = document.querySelector(`.saldo-badge-${activePk}`);
-      if (saldoBadge) {
-        if (data.saldo === 0) {
-          saldoBadge.className = `badge bg-green-lt text-green saldo-badge-${activePk}`;
-          saldoBadge.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
-        } else if (data.saldo < minTotal) {
-          saldoBadge.className = `badge bg-yellow-lt text-yellow saldo-badge-${activePk}`;
-          saldoBadge.textContent = `${minToH(data.saldo)} h`;
-        } else {
-          saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${activePk}`;
-          saldoBadge.textContent = `${minToH(data.saldo)} h`;
-        }
-      }
-
-      // Actualizar compensado hasta hoy
-      const compBadge = document.querySelector(`.compensado-badge-${activePk}`);
-      if (compBadge && data.minutos_compensados !== undefined) {
-        if (data.minutos_compensados >= minTotal) {
-          compBadge.className = `badge bg-green-lt text-green compensado-badge-${activePk}`;
-          compBadge.innerHTML = `<i class="ti ti-circle-check me-1"></i>${minToH(data.minutos_compensados)} h`;
-        } else if (data.minutos_compensados > 0) {
-          compBadge.className = `badge bg-teal-lt text-teal compensado-badge-${activePk}`;
-          compBadge.innerHTML = `<i class="ti ti-progress me-1"></i>${minToH(data.minutos_compensados)} h`;
-        } else {
-          compBadge.className = `badge bg-secondary-lt text-secondary compensado-badge-${activePk}`;
-          compBadge.textContent = '0 h';
-        }
-      }
-
-      bootstrap.Modal.getInstance(document.getElementById('modalMinDia')).hide();
-    }
-  });
-})();
-</script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}"></script>
 
 {% endblock %}
