@@ -745,7 +745,7 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="{% static 'conducta/js/coordinador.js' %}"></script>
+  <script src="{% static 'conducta/js/coordinador.js' %}?v=4"></script>
   <script>
   window._PAGE = {
     csrf:          '{{ csrf_token }}',
@@ -757,7 +757,7 @@
     coordsCOL: ['Profe. Licona','Profe. Felipe','Profe. Gabriela'],
   };
   </script>
-  <script src="{% static 'conducta/js/dashboard_coordinador.js' %}"></script>
+  <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=4"></script>
 
 {# ══════ LIGHTBOX EVIDENCIA ══════ #}
 <div class="modal fade" id="modalLightbox" tabindex="-1" aria-hidden="true">
