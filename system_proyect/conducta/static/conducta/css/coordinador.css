@@ -62,9 +62,12 @@ h2 {
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
-/* Permite que el zoom salga de los bordes del contenedor de tabla */
-.table-responsive {
-    overflow: visible !important;
+/* <--- hecho por claude code: en desktop permite que el zoom de evidencia salga del contenedor;
+   en móvil se mantiene overflow:auto para scroll horizontal. */
+@media (min-width: 768px) {
+    .table-responsive {
+        overflow: visible !important;
+    }
 }
 
 /* ── Select de coordinador en badge ── */

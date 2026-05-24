@@ -321,34 +321,9 @@
       }
     }
 
-    // Click en el botón lápiz (.btn-editar-inline) O en cualquier celda de la fila
-    document.addEventListener('click', async function (e) {
-      // ── 1. Click directo en el botón lápiz ──
-      const btn = e.target.closest('.btn-editar-inline');
-      if (btn) {
-        const pk   = btn.dataset.pk;
-        const tipo = btn.dataset.tipo;
-        const area = btn.dataset.area || 'bilingue';
-        await abrirModalEditar(pk, tipo, area);
-        return;
-      }
-
-      // ── 2. Click en una celda de la fila (excluyendo botones de acción) ──
-      // Ignorar si el clic fue en un botón, enlace, select, input, o su descendiente
-      const interactivo = e.target.closest('button, a, select, input, textarea, .ev-thumb-wrap');
-      if (interactivo) return;
-
-      // Buscar la fila con un botón .btn-editar-inline
-      const fila = e.target.closest('tr');
-      if (!fila) return;
-      const btnFila = fila.querySelector('.btn-editar-inline');
-      if (!btnFila) return;
-
-      const pk   = btnFila.dataset.pk;
-      const tipo = btnFila.dataset.tipo;
-      const area = btnFila.dataset.area || 'bilingue';
-      await abrirModalEditar(pk, tipo, area);
-    });
+    // <--- hecho por claude code: exponer abrirModalEditar para que coordinador.js
+    // (que usa jQuery delegation, compatible con DataTables) pueda invocarlo.
+    window._abrirEditar = abrirModalEditar;
 
     btnGuardar.addEventListener('click', async function () {
       const form = document.getElementById('me-form');

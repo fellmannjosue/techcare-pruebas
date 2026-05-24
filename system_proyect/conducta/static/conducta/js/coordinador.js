@@ -46,6 +46,25 @@ $(function() {
         new bootstrap.Modal(document.getElementById('modalTresFaltas')).show();
     });
 
+    // <--- hecho por claude code: click en botón lápiz O en cualquier celda de la fila.
+    // Usa jQuery delegation (compatible con DataTables) para abrir modal de edición inline.
+    // Llama a window._abrirEditar que se define en dashboard_coordinador.js.
+    $(document).on('click', '.btn-editar-inline', function(e) {
+        e.stopPropagation();
+        var pk   = $(this).data('pk');
+        var tipo = $(this).data('tipo');
+        var area = $(this).data('area') || 'bilingue';
+        if (typeof window._abrirEditar === 'function') window._abrirEditar(pk, tipo, area);
+    });
+    $(document).on('click', '#tabla-academicos tbody tr, #tabla-conductuales tbody tr, #tabla-progress tbody tr', function(e) {
+        if ($(e.target).closest('button, a, select, input, textarea, .ev-thumb-wrap').length) return;
+        var $btn = $(this).find('.btn-editar-inline').first();
+        if (!$btn.length) return;
+        if (typeof window._abrirEditar === 'function') {
+            window._abrirEditar($btn.data('pk'), $btn.data('tipo'), $btn.data('area') || 'bilingue');
+        }
+    });
+
     // <--- hecho por claude code: abrir modal de evidencia con Bootstrap 5 API.
     // $().modal('show') es Bootstrap 4 — en Bootstrap 5 se usa new bootstrap.Modal().
     // Bloquea la apertura si el reporte ya tiene 2 evidencias (máximo permitido).
