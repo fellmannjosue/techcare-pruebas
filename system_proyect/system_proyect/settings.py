@@ -493,3 +493,10 @@ UNFOLD = {
         ],
     },
 }
+
+# ─────────────────────────────────────────────────────────────
+# SYSTEM CHECK SILENCIADOS
+# ─────────────────────────────────────────────────────────────
+# urls.W005: Warning conocido de compatibilidad django-unfold con Django 6.x
+# El namespace 'admin' duplicado es interno de unfold y no afecta funcionamiento
+SILENCED_SYSTEM_CHECKS = ['urls.W005']
