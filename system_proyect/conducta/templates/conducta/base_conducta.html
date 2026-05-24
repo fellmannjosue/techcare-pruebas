@@ -13,9 +13,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <!-- CSS propio del módulo -->
   <link rel="stylesheet" href="{% static 'conducta/css/base_conducta.css' %}">
-  <!-- Responsive global -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
   {% block extra_head %}{% endblock %}
+  <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
 </head>
 
 <body class="antialiased">
