@@ -90,3 +90,16 @@ h2 {
   padding: 0; z-index: 10;
 }
 .ev-thumb-wrap:hover .btn-ev-delete { opacity: 1; }
+
+/* <--- hecho por claude code: filas clickeables para abrir modal de edición */
+#tabla-academicos tbody tr,
+#tabla-conductuales tbody tr,
+#tabla-progress tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+#tabla-academicos tbody tr:hover td,
+#tabla-conductuales tbody tr:hover td,
+#tabla-progress tbody tr:hover td {
+  background: rgba(66, 153, 225, 0.06);
+}

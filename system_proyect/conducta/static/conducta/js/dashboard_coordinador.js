@@ -244,15 +244,8 @@
       });
     }
 
-    document.addEventListener('click', async function (e) {
-      const btn = e.target.closest('.btn-editar-inline');
-      if (!btn) return;
-
-      const pk   = btn.dataset.pk;
-      const tipo = btn.dataset.tipo;
-      const area = btn.dataset.area || 'bilingue';
-
-      // Reset modal
+    // Función reutilizable para abrir modal a partir de un botón .btn-editar-inline
+    async function abrirModalEditar(pk, tipo, area) {
       loading.classList.remove('d-none');
       body.classList.add('d-none');
       document.getElementById('me-title').innerHTML =
@@ -264,14 +257,12 @@
         const data = await res.json();
         if (!data.ok) { alert('Error al cargar el reporte.'); modal.hide(); return; }
 
-        // Campos de solo lectura
         document.getElementById('me-pk').value   = data.pk;
         document.getElementById('me-tipo').value = data.tipo;
         document.getElementById('me-alumno').textContent = data.alumno;
         document.getElementById('me-grado').textContent  = data.grado;
         document.getElementById('me-fecha').textContent  = data.fecha;
 
-        // Docente / Materia
         const rowDocente  = document.getElementById('me-row-docente');
         const rowMateria  = document.getElementById('me-row-materia');
         if (tipo !== 'progress') {
@@ -284,7 +275,6 @@
           rowMateria.classList.add('d-none');
         }
 
-        // Tipo reporte (solo informativo)
         const rowTipo = document.getElementById('me-row-tipo-reporte');
         if (tipo === 'informativo') {
           rowTipo.classList.remove('d-none');
@@ -293,14 +283,11 @@
           rowTipo.classList.add('d-none');
         }
 
-        // Estado
         document.getElementById('me-estado').value = data.estado || 'enviado';
 
-        // Firma (poblar según área)
         poblarFirma(data.area || area);
         document.getElementById('me-firma').value = data.coordinador_firma || '';
 
-        // Comentario docente (no progress)
         const rowComentario = document.getElementById('me-row-comentario');
         if (tipo !== 'progress') {
           rowComentario.classList.remove('d-none');
@@ -309,10 +296,8 @@
           rowComentario.classList.add('d-none');
         }
 
-        // Comentario coordinador
         document.getElementById('me-comentario-coord').value = data.comentario_coordinador || '';
 
-        // Aviso incisos conductual
         const avisoIncisos = document.getElementById('me-aviso-incisos');
         if (tipo === 'conductual') {
           avisoIncisos.classList.remove('d-none');
@@ -320,11 +305,9 @@
           avisoIncisos.classList.add('d-none');
         }
 
-        // Link edición completa
         const linkCompleto = document.getElementById('me-link-completo');
         linkCompleto.href = (URL_BASE[tipo] || '/conducta/') + pk + '/editar/';
 
-        // Título del modal
         const labels = { conductual: 'Conductual', informativo: 'Informativo', progress: 'Progress' };
         document.getElementById('me-title').innerHTML =
           `<i class="ti ti-pencil me-2 text-primary"></i>Editar ${labels[tipo] || ''} #${pk}`;
@@ -336,6 +319,35 @@
         alert('Error de red al cargar el reporte.');
         modal.hide();
       }
+    }
+
+    // Click en el botón lápiz (.btn-editar-inline) O en cualquier celda de la fila
+    document.addEventListener('click', async function (e) {
+      // ── 1. Click directo en el botón lápiz ──
+      const btn = e.target.closest('.btn-editar-inline');
+      if (btn) {
+        const pk   = btn.dataset.pk;
+        const tipo = btn.dataset.tipo;
+        const area = btn.dataset.area || 'bilingue';
+        await abrirModalEditar(pk, tipo, area);
+        return;
+      }
+
+      // ── 2. Click en una celda de la fila (excluyendo botones de acción) ──
+      // Ignorar si el clic fue en un botón, enlace, select, input, o su descendiente
+      const interactivo = e.target.closest('button, a, select, input, textarea, .ev-thumb-wrap');
+      if (interactivo) return;
+
+      // Buscar la fila con un botón .btn-editar-inline
+      const fila = e.target.closest('tr');
+      if (!fila) return;
+      const btnFila = fila.querySelector('.btn-editar-inline');
+      if (!btnFila) return;
+
+      const pk   = btnFila.dataset.pk;
+      const tipo = btnFila.dataset.tipo;
+      const area = btnFila.dataset.area || 'bilingue';
+      await abrirModalEditar(pk, tipo, area);
     });
 
     btnGuardar.addEventListener('click', async function () {
