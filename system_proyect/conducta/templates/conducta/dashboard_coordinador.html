@@ -179,8 +179,8 @@
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-blue-lt text-blue fw-semibold">Informativo / Académico</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
-                <td>{{ r.grado }}</td>
-                <td>{{ r.docente }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
+                <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
                   <select class="coord-badge-select select-coord-reporte"
                           data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -221,7 +221,9 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-primary btn-editar-inline"
+                            data-pk="{{ r.pk }}" data-tipo="informativo" data-area="{{ r.area }}"
+                            title="Editar"><i class="ti ti-pencil"></i></button>
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -256,8 +258,8 @@
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-orange-lt text-orange fw-semibold">Informativo / Conductual</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
-                <td>{{ r.grado }}</td>
-                <td>{{ r.docente }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
+                <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
                   <select class="coord-badge-select select-coord-reporte"
                           data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -297,7 +299,9 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <a href="{% url 'editar_reporte_informativo' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-primary btn-editar-inline"
+                            data-pk="{{ r.pk }}" data-tipo="informativo" data-area="{{ r.area }}"
+                            title="Editar"><i class="ti ti-pencil"></i></button>
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -317,8 +321,8 @@
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-red-lt text-red fw-semibold">Conductual</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
-                <td>{{ r.grado }}</td>
-                <td>{{ r.docente }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
+                <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
                   <select class="coord-badge-select select-coord-reporte"
                           data-pk="{{ r.pk }}" data-tipo="conductual"
@@ -358,7 +362,9 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <a href="{% url 'editar_reporte_conductual' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-primary btn-editar-inline"
+                            data-pk="{{ r.pk }}" data-tipo="conductual" data-area="{{ r.area }}"
+                            title="Editar"><i class="ti ti-pencil"></i></button>
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="conductual"
@@ -393,7 +399,7 @@
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-teal-lt text-teal fw-semibold">Progress Report</span></td>
                 <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
-                <td>{{ r.grado }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.usuario }}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:"—" }}</span></td>{% endif %}
                 <td>
@@ -424,7 +430,9 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <a href="{% url 'editar_progress_report' r.pk %}" class="btn btn-sm btn-primary" title="Editar"><i class="ti ti-pencil"></i></a>
+                    <button class="btn btn-sm btn-primary btn-editar-inline"
+                            data-pk="{{ r.pk }}" data-tipo="progress" data-area="bilingue"
+                            title="Editar"><i class="ti ti-pencil"></i></button>
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                   </div>
                 </td>
@@ -590,6 +598,124 @@
     </div>
   </div>
 </div>
+{# ── Modal Editar Reporte Inline ──────────────────────────────── #}
+{# <--- hecho por claude code: modal de edición inline, reemplaza navegación al editor #}
+<div class="modal modal-blur fade" id="modalEditarReporte" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="me-title">
+          <i class="ti ti-pencil me-2 text-primary"></i>Editar Reporte
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        {# Spinner mientras carga #}
+        <div id="me-loading" class="text-center py-5">
+          <div class="spinner-border text-blue" role="status"></div>
+          <div class="text-muted small mt-2">Cargando datos…</div>
+        </div>
+
+        {# Cuerpo del modal (visible tras carga) #}
+        <div id="me-body" class="d-none">
+
+          {# Fila de info de solo lectura #}
+          <div class="row g-2 mb-3 p-3 rounded" style="background:#f8f9fa;">
+            <div class="col-md-6">
+              <span class="text-muted small text-uppercase" style="font-size:.7rem;">Alumno</span>
+              <div class="fw-semibold" id="me-alumno"></div>
+            </div>
+            <div class="col-md-3">
+              <span class="text-muted small text-uppercase" style="font-size:.7rem;">Grado</span>
+              <div class="fw-semibold" id="me-grado"></div>
+            </div>
+            <div class="col-md-3">
+              <span class="text-muted small text-uppercase" style="font-size:.7rem;">Fecha</span>
+              <div class="fw-semibold text-muted" id="me-fecha"></div>
+            </div>
+            <div class="col-md-6" id="me-row-docente">
+              <span class="text-muted small text-uppercase" style="font-size:.7rem;">Docente</span>
+              <div class="fw-semibold" id="me-docente"></div>
+            </div>
+            <div class="col-md-6" id="me-row-materia">
+              <span class="text-muted small text-uppercase" style="font-size:.7rem;">Materia</span>
+              <div class="fw-semibold" id="me-materia"></div>
+            </div>
+          </div>
+
+          <form id="me-form" autocomplete="off">
+            <input type="hidden" id="me-pk"   name="pk">
+            <input type="hidden" id="me-tipo" name="tipo">
+
+            <div class="row g-3">
+
+              {# Tipo de reporte — solo informativos #}
+              <div class="col-md-6 d-none" id="me-row-tipo-reporte">
+                <label class="form-label fw-bold">Tipo de Reporte</label>
+                <select name="tipo_reporte" id="me-tipo-reporte" class="form-select">
+                  <option value="academico">Académico</option>
+                  <option value="conductual">Conductual</option>
+                </select>
+              </div>
+
+              {# Estado #}
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Estado</label>
+                <select name="estado" id="me-estado" class="form-select">
+                  <option value="enviado">Enviado</option>
+                  <option value="revisando">Revisando</option>
+                  <option value="revisado">Revisado</option>
+                  <option value="aprobado">Aprobado</option>
+                </select>
+              </div>
+
+              {# Firma #}
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Firma del Coordinador</label>
+                <select name="coordinador_firma" id="me-firma" class="form-select">
+                  <option value="">— Sin firma —</option>
+                </select>
+              </div>
+
+              {# Comentario docente — no progress #}
+              <div class="col-12 d-none" id="me-row-comentario">
+                <label class="form-label fw-bold">Comentario del Docente</label>
+                <textarea name="comentario" id="me-comentario" class="form-control" rows="2"
+                          style="background:#f8f9fa;"></textarea>
+              </div>
+
+              {# Comentario coordinador #}
+              <div class="col-12">
+                <label class="form-label fw-bold">Comentario del Coordinador</label>
+                <textarea name="comentario_coordinador" id="me-comentario-coord" class="form-control" rows="2"></textarea>
+              </div>
+
+              {# Aviso incisos conductual #}
+              <div class="col-12 d-none" id="me-aviso-incisos">
+                <div class="alert alert-warning py-2 mb-0">
+                  <i class="ti ti-alert-triangle me-1"></i>
+                  Para editar los <strong>incisos conductuales</strong> usa la edición completa.
+                </div>
+              </div>
+
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="me-link-completo" href="#" class="btn btn-ghost-secondary me-auto">
+          <i class="ti ti-external-link me-1"></i>Edición completa
+        </a>
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="me-btn-guardar">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {# Modal eliminar evidencia (doble confirmación) #}
 <div class="modal fade" id="modalEliminarEvidencia" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm">
@@ -622,10 +748,13 @@
   <script src="{% static 'conducta/js/coordinador.js' %}"></script>
   <script>
   window._PAGE = {
-    csrf:        '{{ csrf_token }}',
-    isSuperuser: {{ request.user.is_superuser|yesno:'true,false' }},
-    urlReenviar: '{% url "reenviar_reportes_coordinadores" %}',
-    urlSetCoord: '{% url "set_coord_reporte" %}'
+    csrf:          '{{ csrf_token }}',
+    isSuperuser:   {{ request.user.is_superuser|yesno:'true,false' }},
+    urlReenviar:   '{% url "reenviar_reportes_coordinadores" %}',
+    urlSetCoord:   '{% url "set_coord_reporte" %}',
+    urlEditarAjax: '{% url "editar_reporte_ajax" %}',
+    coordsBL:  ['Mr. Martinez','Miss Alcerro','Mr. Ruiz','Mrs. Varela'],
+    coordsCOL: ['Profe. Licona','Profe. Felipe','Profe. Gabriela'],
   };
   </script>
   <script src="{% static 'conducta/js/dashboard_coordinador.js' %}"></script>

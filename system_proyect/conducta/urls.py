@@ -46,6 +46,7 @@ urlpatterns = [
 
 
     path('set-coord/', views.set_coord_reporte, name='set_coord_reporte'),
+    path('reporte/editar-ajax/', views.editar_reporte_ajax, name='editar_reporte_ajax'),
 
     # --- EVIDENCIAS ---  <--- hecho por claude code
     # Recibe el POST del modal del dashboard coordinador.

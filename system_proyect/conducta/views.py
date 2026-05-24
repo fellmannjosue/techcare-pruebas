@@ -929,6 +929,63 @@ def set_coord_reporte(request):
     return JsonResponse({'ok': True, 'coord': coord or obj.coord_codigo})
 
 
+# ────────────────────────────────────────────────────────────────
+# EDITAR REPORTE AJAX — modal inline del dashboard coordinador
+# GET  → devuelve JSON con los campos del reporte
+# POST → guarda los cambios y devuelve {'ok': True}
+# ────────────────────────────────────────────────────────────────
+@login_required
+def editar_reporte_ajax(request):
+    if not es_coordinador(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    pk   = request.GET.get('pk')   or request.POST.get('pk')
+    tipo = request.GET.get('tipo') or request.POST.get('tipo')
+
+    if tipo == 'conductual':
+        obj = get_object_or_404(ReporteConductual, pk=pk)
+    elif tipo == 'informativo':
+        obj = get_object_or_404(ReporteInformativo, pk=pk)
+    elif tipo == 'progress':
+        obj = get_object_or_404(ProgressReport, pk=pk)
+    else:
+        return JsonResponse({'ok': False, 'error': 'Tipo inválido'}, status=400)
+
+    if request.method == 'GET':
+        data = {
+            'ok':    True,
+            'pk':    obj.pk,
+            'tipo':  tipo,
+            'alumno': obj.alumno_nombre,
+            'grado':  obj.grado,
+            'fecha':  obj.fecha.strftime('%d/%m/%Y %H:%M') if obj.fecha else '',
+            'estado':              obj.estado,
+            'coordinador_firma':   obj.coordinador_firma or '',
+            'comentario_coordinador': obj.comentario_coordinador or '',
+            'area': getattr(obj, 'area', 'bilingue'),
+        }
+        if tipo in ('conductual', 'informativo'):
+            data['materia']    = obj.materia
+            data['docente']    = obj.docente
+            data['comentario'] = obj.comentario or ''
+        if tipo == 'informativo':
+            data['tipo_reporte'] = obj.tipo_reporte
+        return JsonResponse(data)
+
+    if request.method == 'POST':
+        obj.estado             = request.POST.get('estado', obj.estado)
+        obj.coordinador_firma  = request.POST.get('coordinador_firma', '') or None
+        obj.comentario_coordinador = request.POST.get('comentario_coordinador', '') or None
+        if tipo in ('conductual', 'informativo'):
+            obj.comentario = request.POST.get('comentario', '') or None
+        if tipo == 'informativo':
+            obj.tipo_reporte = request.POST.get('tipo_reporte', obj.tipo_reporte)
+        obj.save()
+        return JsonResponse({'ok': True})
+
+    return JsonResponse({'ok': False}, status=405)
+
+
 # ────────────────
 # EDITAR PROGRESS
 # ────────────────

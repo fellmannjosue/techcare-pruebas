@@ -214,6 +214,185 @@
     document.getElementById('modalEliminarReporte').addEventListener('hidden.bs.modal', resetModal);
   })();
 
+  /* ══════ MODAL EDICIÓN INLINE ══════ */
+  (function () {
+    const modalEl  = document.getElementById('modalEditarReporte');
+    if (!modalEl) return;
+    const modal    = new bootstrap.Modal(modalEl);
+    const loading  = document.getElementById('me-loading');
+    const body     = document.getElementById('me-body');
+    const btnGuardar = document.getElementById('me-btn-guardar');
+
+    // URL bases para edición completa
+    const URL_BASE = {
+      conductual: '/conducta/reporte-conductual/',
+      informativo: '/conducta/reporte-informativo/',
+      progress: '/conducta/progress-report/',
+    };
+
+    function poblarFirma(area) {
+      const sel = document.getElementById('me-firma');
+      sel.innerHTML = '<option value="">— Sin firma —</option>';
+      const lista = area === 'bilingue'
+        ? (window._PAGE.coordsBL  || [])
+        : (window._PAGE.coordsCOL || []);
+      lista.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        sel.appendChild(opt);
+      });
+    }
+
+    document.addEventListener('click', async function (e) {
+      const btn = e.target.closest('.btn-editar-inline');
+      if (!btn) return;
+
+      const pk   = btn.dataset.pk;
+      const tipo = btn.dataset.tipo;
+      const area = btn.dataset.area || 'bilingue';
+
+      // Reset modal
+      loading.classList.remove('d-none');
+      body.classList.add('d-none');
+      document.getElementById('me-title').innerHTML =
+        '<i class="ti ti-pencil me-2 text-primary"></i>Editar Reporte';
+      modal.show();
+
+      try {
+        const res  = await fetch(`${window._PAGE.urlEditarAjax}?pk=${pk}&tipo=${tipo}`);
+        const data = await res.json();
+        if (!data.ok) { alert('Error al cargar el reporte.'); modal.hide(); return; }
+
+        // Campos de solo lectura
+        document.getElementById('me-pk').value   = data.pk;
+        document.getElementById('me-tipo').value = data.tipo;
+        document.getElementById('me-alumno').textContent = data.alumno;
+        document.getElementById('me-grado').textContent  = data.grado;
+        document.getElementById('me-fecha').textContent  = data.fecha;
+
+        // Docente / Materia
+        const rowDocente  = document.getElementById('me-row-docente');
+        const rowMateria  = document.getElementById('me-row-materia');
+        if (tipo !== 'progress') {
+          document.getElementById('me-docente').textContent = data.docente || '—';
+          document.getElementById('me-materia').textContent = data.materia || '—';
+          rowDocente.classList.remove('d-none');
+          rowMateria.classList.remove('d-none');
+        } else {
+          rowDocente.classList.add('d-none');
+          rowMateria.classList.add('d-none');
+        }
+
+        // Tipo reporte (solo informativo)
+        const rowTipo = document.getElementById('me-row-tipo-reporte');
+        if (tipo === 'informativo') {
+          rowTipo.classList.remove('d-none');
+          document.getElementById('me-tipo-reporte').value = data.tipo_reporte || 'academico';
+        } else {
+          rowTipo.classList.add('d-none');
+        }
+
+        // Estado
+        document.getElementById('me-estado').value = data.estado || 'enviado';
+
+        // Firma (poblar según área)
+        poblarFirma(data.area || area);
+        document.getElementById('me-firma').value = data.coordinador_firma || '';
+
+        // Comentario docente (no progress)
+        const rowComentario = document.getElementById('me-row-comentario');
+        if (tipo !== 'progress') {
+          rowComentario.classList.remove('d-none');
+          document.getElementById('me-comentario').value = data.comentario || '';
+        } else {
+          rowComentario.classList.add('d-none');
+        }
+
+        // Comentario coordinador
+        document.getElementById('me-comentario-coord').value = data.comentario_coordinador || '';
+
+        // Aviso incisos conductual
+        const avisoIncisos = document.getElementById('me-aviso-incisos');
+        if (tipo === 'conductual') {
+          avisoIncisos.classList.remove('d-none');
+        } else {
+          avisoIncisos.classList.add('d-none');
+        }
+
+        // Link edición completa
+        const linkCompleto = document.getElementById('me-link-completo');
+        linkCompleto.href = (URL_BASE[tipo] || '/conducta/') + pk + '/editar/';
+
+        // Título del modal
+        const labels = { conductual: 'Conductual', informativo: 'Informativo', progress: 'Progress' };
+        document.getElementById('me-title').innerHTML =
+          `<i class="ti ti-pencil me-2 text-primary"></i>Editar ${labels[tipo] || ''} #${pk}`;
+
+        loading.classList.add('d-none');
+        body.classList.remove('d-none');
+      } catch (err) {
+        console.error(err);
+        alert('Error de red al cargar el reporte.');
+        modal.hide();
+      }
+    });
+
+    btnGuardar.addEventListener('click', async function () {
+      const form = document.getElementById('me-form');
+      const fd   = new FormData(form);
+      btnGuardar.disabled = true;
+      btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+
+      try {
+        const res  = await fetch(window._PAGE.urlEditarAjax, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': window._PAGE.csrf },
+          body: fd,
+        });
+        const data = await res.json();
+        if (data.ok) {
+          modal.hide();
+          // Actualizar badge de estado en la fila sin recargar
+          const pk   = document.getElementById('me-pk').value;
+          const tipo = document.getElementById('me-tipo').value;
+          const row  = document.querySelector(
+            `.btn-editar-inline[data-pk="${pk}"][data-tipo="${tipo}"]`
+          )?.closest('tr');
+          if (row) {
+            const estadoVal = document.getElementById('me-estado').value;
+            const badgesMap = {
+              enviado:   ['bg-secondary-lt', 'text-secondary', 'Enviado'],
+              revisando: ['bg-warning-lt',   'text-warning',   'Revisando'],
+              revisado:  ['bg-blue-lt',      'text-blue',      'Revisado'],
+              aprobado:  ['bg-success-lt',   'text-success',   'Aprobado'],
+            };
+            const [bg, txt, label] = badgesMap[estadoVal] || badgesMap.enviado;
+            const badgeEl = row.querySelector('.badge[class*="bg-secondary-lt"], .badge[class*="bg-warning-lt"], .badge[class*="bg-blue-lt"], .badge[class*="bg-success-lt"]');
+            if (badgeEl && !badgeEl.classList.contains('bg-red-lt') && !badgeEl.classList.contains('bg-orange-lt') && !badgeEl.classList.contains('bg-blue-lt') && !badgeEl.classList.contains('bg-teal-lt')) {
+              badgeEl.className = `badge ${bg} ${txt}`;
+              badgeEl.textContent = label;
+            }
+          }
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo guardar.'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error de red. Intenta de nuevo.');
+      } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
+      }
+    });
+
+    // Reset al cerrar
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      loading.classList.remove('d-none');
+      body.classList.add('d-none');
+    });
+  })();
+
   /* ══════ DROPZONE + PASTE PARA EVIDENCIA ══════ */
   (function () {
     const dropzone    = document.getElementById('ev-dropzone');

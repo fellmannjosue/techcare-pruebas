@@ -1,5 +1,5 @@
 {% extends 'conducta/base_conducta.html' %}
-{% load static %}
+{% load static conducta_tags %}
 
 {% block title %}Historial de Reportes – Maestro{% endblock %}
 {% block page_pretitle %}Maestro{% endblock %}
@@ -155,7 +155,7 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.grado }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.materia }}</td>
                 <td>{{ r.docente }}</td>
                 <td>{{ r.fecha|date:"d/m/Y H:i" }}</td>
@@ -214,7 +214,7 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.grado }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.materia }}</td>
                 <td>{{ r.docente }}</td>
                 <td>{{ r.fecha|date:"d/m/Y H:i" }}</td>
@@ -279,7 +279,7 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.grado }}</td>
+                <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.semana_inicio }}</td>
                 <td>{{ r.semana_fin }}</td>
                 <td>{{ r.fecha|date:"d/m/Y H:i" }}</td>
