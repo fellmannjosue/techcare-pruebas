@@ -100,6 +100,15 @@
                   <a class="nav-link {% if active_tab == 'actividad' %}active{% endif %}" href="{% url 'settings_actividad' %}">
                     <i class="ti ti-activity me-2"></i>Actividad
                   </a>
+                  <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
+                    <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
+                  </a>
+                  <a class="nav-link {% if active_tab == 'correos' %}active{% endif %}" href="{% url 'settings_correos' %}">
+                    <i class="ti ti-mail me-2"></i>Correos
+                  </a>
+                  <a class="nav-link {% if active_tab == 'envio_login' %}active{% endif %}" href="{% url 'settings_envio_login' %}">
+                    <i class="ti ti-send me-2"></i>Enviar instrucciones
+                  </a>
                 </nav>
                 {% endif %}
 
@@ -142,5 +151,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 {% block extra_js %}{% endblock %}
 {% include "accounts/_notif_notas_toast.html" %}
+{% include "accounts/_welcome_overlay.html" %}
 </body>
 </html>

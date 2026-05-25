@@ -158,9 +158,8 @@ var ipPrefijos = {
 };
 
 function toggleEdificio() {
-  var lab = $('input[name="id_prefix"]:checked').val() || 'estandar';
-  $('#campo-edificio').toggleClass('d-none', lab !== 'estandar');
-  if (lab !== 'estandar') $('#id_edificio').val('');
+  // Mostrar edificio para todos los tipos de laboratorio
+  $('#campo-edificio').removeClass('d-none');
 }
 toggleEdificio();
 

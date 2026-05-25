@@ -253,6 +253,165 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ─────────────────────────────────────────────
+  // MODAL: Tiempo extra autorizado
+  // ─────────────────────────────────────────────
+  let modalTE = null, teActivePk = null;
+  const teCanEdit = window._PAGE.canEdit;
+
+  function renderTERows(entries) {
+    const tbody = document.getElementById('te-tbody');
+    const empty = document.getElementById('te-empty');
+    tbody.querySelectorAll('tr:not(#te-empty)').forEach(r => r.remove());
+    if (!entries.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    entries.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.dataset.tePk = e.pk;
+      tr.innerHTML = `
+        <td class="text-center font-monospace small">${e.fecha}</td>
+        <td class="text-center fw-semibold text-cyan">${e.minutos} min</td>
+        <td class="text-muted small">${e.razon}</td>
+        ${teCanEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-te-del" data-te-pk="${e.pk}" title="Eliminar"><i class="ti ti-trash"></i></button></td>` : ''}
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function updateTETotals(totalMin, totalHrs) {
+    document.getElementById('te-total-min').textContent = totalMin;
+    document.getElementById('te-total-hrs').textContent = totalHrs;
+
+    // Update badge in the table row
+    const badge = document.querySelector(`.te-badge-${teActivePk}`);
+    if (badge) {
+      badge.innerHTML = totalMin > 0
+        ? `<i class="ti ti-clock-bolt me-1"></i>${totalHrs} h`
+        : `<i class="ti ti-clock-bolt me-1"></i>—`;
+    }
+
+    // Recalculate saldo
+    const row = document.querySelector(`tr[data-pk="${teActivePk}"]`);
+    if (row) {
+      row.dataset.teMin = totalMin;
+      const compensatorioTotalMin = parseInt(row.dataset.totalMin) || 0;
+      const compensadoMin         = parseInt(row.dataset.compensadoMin) || 0;
+      const saldoMin = Math.max(0, compensatorioTotalMin - compensadoMin - totalMin);
+      updateSaldoBadge(teActivePk, saldoMin);
+    }
+  }
+
+  document.querySelectorAll('.btn-te-modal').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      teActivePk = this.dataset.pk;
+      document.getElementById('te-nombre').textContent = this.dataset.nombre;
+      // Reset form
+      const fechaInput = document.getElementById('te-fecha');
+      if (fechaInput) {
+        const today = new Date().toISOString().split('T')[0];
+        fechaInput.value = today;
+      }
+      if (document.getElementById('te-minutos')) document.getElementById('te-minutos').value = '';
+      if (document.getElementById('te-razon'))   document.getElementById('te-razon').value   = '';
+      document.getElementById('te-add-error')?.classList.add('d-none');
+      if (!modalTE) modalTE = new bootstrap.Modal(document.getElementById('modalTiempoExtra'));
+      modalTE.show();
+      // Load entries
+      const res = await fetch(window._PAGE.urlTeGet.replace('{pk}', teActivePk));
+      const data = await res.json();
+      if (data.ok) { renderTERows(data.entries); updateTETotals(data.total_min, data.total_hrs); }
+    });
+  });
+
+  // ── Registrar por mes ──
+  document.getElementById('btn-te-mes-add')?.addEventListener('click', async function() {
+    const mes      = document.getElementById('te-mes').value;         // "YYYY-MM"
+    const minutos  = parseInt(document.getElementById('te-mes-minutos').value);
+    const razon    = (document.getElementById('te-mes-razon').value || '').trim();
+    const errDiv   = document.getElementById('te-mes-error');
+    errDiv.classList.add('d-none');
+
+    if (!mes) {
+      errDiv.querySelector('.alert').textContent = 'Selecciona un mes.';
+      errDiv.classList.remove('d-none'); return;
+    }
+    if (!minutos || minutos <= 0) {
+      errDiv.querySelector('.alert').textContent = 'Ingresa una cantidad de minutos válida.';
+      errDiv.classList.remove('d-none'); return;
+    }
+    const fecha = mes + '-01';   // primer día del mes
+    const btn = this; btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    const res  = await fetch(window._PAGE.urlTeAdd.replace('{pk}', teActivePk), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({ fecha, minutos, razon }),
+    });
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus me-1"></i>Agregar';
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('te-mes-minutos').value = '';
+      document.getElementById('te-mes-razon').value   = '';
+      renderTERows(data.entries);
+      updateTETotals(data.total_min, data.total_hrs);
+    } else {
+      errDiv.querySelector('.alert').textContent = data.error || 'Error al agregar.';
+      errDiv.classList.remove('d-none');
+    }
+  });
+
+  document.getElementById('btn-te-add')?.addEventListener('click', async function() {
+    const fecha   = document.getElementById('te-fecha').value;
+    const minutos = parseInt(document.getElementById('te-minutos').value);
+    const razon   = document.getElementById('te-razon').value.trim();
+    const errDiv  = document.getElementById('te-add-error');
+    errDiv.classList.add('d-none');
+    if (!fecha) {
+      errDiv.querySelector('.alert').textContent = 'Selecciona una fecha.';
+      errDiv.classList.remove('d-none'); return;
+    }
+    if (!minutos || minutos <= 0) {
+      errDiv.querySelector('.alert').textContent = 'Ingresa un valor de minutos válido.';
+      errDiv.classList.remove('d-none'); return;
+    }
+    const btn = this; btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const res  = await fetch(window._PAGE.urlTeAdd.replace('{pk}', teActivePk), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({fecha, minutos, razon}),
+    });
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus me-1"></i>Agregar';
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('te-minutos').value = '';
+      document.getElementById('te-razon').value   = '';
+      renderTERows(data.entries);
+      updateTETotals(data.total_min, data.total_hrs);
+    } else {
+      errDiv.querySelector('.alert').textContent = data.error || 'Error al agregar.';
+      errDiv.classList.remove('d-none');
+    }
+  });
+
+  document.getElementById('te-tbody').addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-te-del');
+    if (!btn) return;
+    btn.disabled = true;
+    const res  = await fetch(window._PAGE.urlTeDel.replace('{te_pk}', btn.dataset.tePk), {
+      method: 'POST', headers: {'X-CSRFToken': CSRF},
+    });
+    const data = await res.json();
+    if (data.ok) {
+      renderTERows(data.entries);
+      updateTETotals(data.total_min, data.total_hrs);
+    }
+    btn.disabled = false;
+  });
+
+  // ─────────────────────────────────────────────
   // MODAL: Min. autorizados/día
   // ─────────────────────────────────────────────
   let modalMD = null, mdActivePk = null;

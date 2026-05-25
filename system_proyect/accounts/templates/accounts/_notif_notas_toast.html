@@ -1,13 +1,10 @@
 {% load static notas_tags %}
 {% if request.user|es_coord_notas or request.user.is_superuser or request.user.is_staff %}
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
-<script>
-window._NOTIF_NOTAS = {
-  urlNotif: '{% url "notas_parcial_notif_json" %}',
-  urlLeer:  '{% url "notas_parcial_leer_notif" %}',
-  urlCoord: '{% url "notas_parcial_coordinador" %}',
-  csrf:     '{{ csrf_token }}',
-};
-</script>
+<div id="notif-notas-config" hidden
+     data-url-notif="{% url 'notas_parcial_notif_json' %}"
+     data-url-leer="{% url 'notas_parcial_leer_notif' %}"
+     data-url-coord="{% url 'notas_parcial_coordinador' %}"
+     data-csrf="{{ csrf_token }}"></div>
 <script src="{% static 'accounts/js/notif_notas_toast.js' %}"></script>
 {% endif %}

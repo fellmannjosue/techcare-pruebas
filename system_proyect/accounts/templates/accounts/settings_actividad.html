@@ -221,14 +221,11 @@
 
 {% block extra_js %}
 {% load static %}
-<script>
-window._PAGE = {
-  diasLabels: {{ dias_labels_json|safe }},
-  diasData:   {{ dias_data_json|safe }},
-  topLabels:  {{ top_labels_json|safe }},
-  topData:    {{ top_data_json|safe }},
-  hasTop:     {% if top_usuarios %}true{% else %}false{% endif %},
-};
-</script>
+<div id="page-config" hidden
+     data-dias-labels="{{ dias_labels_json }}"
+     data-dias-data="{{ dias_data_json }}"
+     data-top-labels="{{ top_labels_json }}"
+     data-top-data="{{ top_data_json }}"
+     data-has-top="{% if top_usuarios %}true{% else %}false{% endif %}"></div>
 <script src="{% static 'accounts/js/settings_actividad.js' %}"></script>
 {% endblock %}

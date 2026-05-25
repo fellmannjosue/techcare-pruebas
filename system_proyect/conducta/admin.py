@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from core.audit_admin import AuditAdminMixin
 from .models import (
     IncisoConductual,
@@ -38,7 +39,7 @@ class ConfiguracionCoordinadorAdmin(AuditAdminMixin):
     def email_display(self, obj):
         if obj.email:
             return format_html('<a href="mailto:{0}">{0}</a>', obj.email)
-        return format_html('<span style="color:#adb5bd">Sin usuario asignado</span>')
+        return mark_safe('<span style="color:#adb5bd">Sin usuario asignado</span>')
     email_display.short_description = 'Correo electrónico'
 
 
@@ -67,7 +68,7 @@ class MateriaDocenteBilingueAdmin(AuditAdminMixin):
                 f'<span style="background:{col};color:#fff;padding:2px 8px;border-radius:20px;'
                 f'font-size:11px;font-weight:600;margin-right:3px">{label}</span>'
             )
-        return format_html(''.join(badges))
+        return mark_safe(''.join(badges))
     coord_display.short_description = 'Coordinador(es)'
 
 
@@ -85,7 +86,7 @@ class MateriaDocenteColegioAdmin(AuditAdminMixin):
     def coord_colegio_display(self, obj):
         coords = list(obj.coordinadores.filter(activo=True))
         if not coords:
-            return format_html(
+            return mark_safe(
                 '<span style="color:#f59f00;font-size:11px">⚠ Sin asignar (notifica a todos)</span>'
             )
         badges = [
@@ -93,7 +94,7 @@ class MateriaDocenteColegioAdmin(AuditAdminMixin):
             f'font-size:11px;font-weight:600;margin-right:3px">{c.nombre}</span>'
             for c in coords
         ]
-        return format_html(''.join(badges))
+        return mark_safe(''.join(badges))
     coord_colegio_display.short_description = 'Coordinadores'
 
 
@@ -142,7 +143,7 @@ class ConfiguracionNotificacionAdmin(AuditAdminMixin):
             f'font-size:11px;font-weight:600;margin-right:3px">{label}</span>'
             for campo, label, color in self._TIPO_LABELS if getattr(obj, campo)
         ]
-        return format_html(''.join(badges)) if badges else format_html(
+        return mark_safe(''.join(badges)) if badges else mark_safe(
             '<span style="color:#adb5bd;font-size:11px">Sin tipos asignados</span>'
         )
     tipos_display.short_description = 'Tipos de reporte que recibe'

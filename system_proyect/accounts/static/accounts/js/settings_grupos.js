@@ -1,6 +1,7 @@
 (function () {
-  if (typeof window._PAGE === 'undefined') return;
-  const CSRF = window._PAGE.csrf;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
+  const CSRF = _cfg.dataset.csrf;
 
   // ── Modal ver usuarios del grupo ──
   const modalUsuarios = new bootstrap.Modal(document.getElementById('modalUsuariosGrupo'));

@@ -147,11 +147,7 @@
 </div>
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  csrf: '{{ csrf_token }}',
-};
-</script>
+<div id="page-config" hidden data-csrf="{{ csrf_token }}"></div>
 <script src="{% static 'accounts/js/settings_coordinadores.js' %}"></script>
 {% endblock %}
 {% endblock %}

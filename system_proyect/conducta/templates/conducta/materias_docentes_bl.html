@@ -1,0 +1,272 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code: Materias-Docentes Bilingüe con CRUD inline (sin admin) #}
+
+{% block title %}Materias-Docentes Bilingüe{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'conducta/css/materias_docentes_bl.css' %}">
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+.badge-coord {
+  display:inline-block;
+  padding:.28em .65em;
+  border-radius:.4rem;
+  font-size:.78rem;
+  color:#fff;
+  font-weight:600;
+  white-space:nowrap;
+}
+.fila-materia { cursor:pointer; }
+.fila-materia:hover td { background:rgba(32,107,196,.06); }
+.chk-coord-wrap { display:flex; flex-wrap:wrap; gap:.4rem .8rem; }
+</style>
+{% endblock %}
+
+{% block page_pretitle %}Coordinador BL{% endblock %}
+{% block page_title %}
+  <i class="ti ti-table me-2 text-primary"></i>Materias-Docentes Bilingüe
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'dashboard_coordinador' 'bilingue' %}" class="btn btn-ghost-secondary me-2">
+    <i class="ti ti-arrow-left me-1"></i>Dashboard
+  </a>
+  <button class="btn btn-primary" id="btn-nueva-materia">
+    <i class="ti ti-plus me-1"></i>Agregar Materia
+  </button>
+{% endblock %}
+
+{% block sidebar_nav %}
+  <li class="nav-item">
+    <a class="nav-link" href="{{ nav_home_url }}">
+      <span class="nav-link-icon"><i class="ti ti-home"></i></span>
+      <span class="nav-link-title">Menú Principal</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'dashboard_coordinador' 'bilingue' %}">
+      <span class="nav-link-icon"><i class="ti ti-user-check"></i></span>
+      <span class="nav-link-title">Dashboard Coordinador</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="{% url 'materias_docentes_bl' %}">
+      <span class="nav-link-icon"><i class="ti ti-table text-primary"></i></span>
+      <span class="nav-link-title">Materias-Docentes</span>
+    </a>
+  </li>
+{% endblock %}
+
+{% block content %}
+
+{# ── Stats cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-sm-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="avatar bg-blue-lt text-blue rounded"><i class="ti ti-books"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3" id="total-count">{{ total }}</div>
+            <div class="text-muted small">{% if q %}Resultados{% else %}Materias{% endif %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% for cfg in configs %}
+  <div class="col-6 col-sm-3">
+    <div class="card card-sm">
+      <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge" style="background:{{ cfg.color|default:'#6c757d' }};color:#fff;font-size:.8rem;padding:.35em .7em;">
+            {{ cfg.codigo }}
+          </span>
+          <div>
+            <div class="fw-semibold small">{{ cfg.nombre }}</div>
+            <div class="text-muted" style="font-size:.72rem;">
+              {% if cfg.usuario %}{{ cfg.usuario.email }}{% else %}Sin usuario{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Tabla principal ── #}
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+    <i class="ti ti-table text-primary"></i>
+    <h3 class="card-title mb-0">Listado de Materias</h3>
+    <span class="badge bg-blue-lt text-blue" id="badge-total">{{ total }} registros</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-vcenter table-hover mb-0" id="tabla-materias">
+      <thead class="table-light">
+        <tr>
+          <th style="width:35%;">Materia</th>
+          <th style="width:25%;">Docente</th>
+          <th>Coordinador(es)</th>
+          <th class="text-center" style="width:90px;">¿Activo?</th>
+          <th class="text-center" style="width:80px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-materias">
+        {% for m in materias %}
+        <tr class="fila-materia" data-pk="{{ m.pk }}"
+            data-materia="{{ m.materia|escapejs }}"
+            data-docente="{{ m.docente|escapejs }}"
+            data-coordinador="{{ m.coordinador|escapejs }}"
+            data-activo="{{ m.activo|yesno:'1,0' }}">
+          <td class="fw-semibold">{{ m.materia }}</td>
+          <td class="text-muted">{{ m.docente }}</td>
+          <td>
+            {% if m.coordinador %}
+              {% for cfg in configs %}
+                {% if cfg.codigo in m.coordinador %}
+                  <span class="badge-coord me-1"
+                    style="background:{{ cfg.color|default:'#6c757d' }};">
+                    {{ cfg.codigo }} – {{ cfg.nombre }}
+                  </span>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if m.activo %}
+              <span class="badge bg-green-lt text-green fw-semibold activo-badge">
+                <i class="ti ti-check me-1"></i>Sí
+              </span>
+            {% else %}
+              <span class="badge bg-red-lt text-red fw-semibold activo-badge">
+                <i class="ti ti-x me-1"></i>No
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-ghost-primary btn-editar px-2 py-1" title="Editar"
+                    data-pk="{{ m.pk }}">
+              <i class="ti ti-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-ghost-danger btn-eliminar px-2 py-1" title="Eliminar"
+                    data-pk="{{ m.pk }}" data-nombre="{{ m.materia|escapejs }}">
+              <i class="ti ti-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="fila-vacia">
+          <td colspan="5" class="text-center text-muted py-5">
+            <i class="ti ti-mood-empty d-block fs-1 mb-2 opacity-25"></i>
+            {% if q %}No se encontraron resultados para "<strong>{{ q }}</strong>"{% else %}Sin materias registradas{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-footer text-muted small d-flex align-items-center gap-3">
+    <span><i class="ti ti-info-circle me-1"></i><span id="footer-total">{{ total }}</span> materia{% if total != 1 %}s{% endif %} registrada{% if total != 1 %}s{% endif %}</span>
+    <button class="ms-auto btn btn-sm btn-ghost-primary" id="btn-nueva-materia-footer">
+      <i class="ti ti-plus me-1"></i>Agregar Materia
+    </button>
+  </div>
+</div>
+
+{# ── Modal: Crear / Editar ── #}
+<div class="modal modal-blur fade" id="modalMateria" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-titulo">
+          <i class="ti ti-books me-2 text-primary"></i>Nueva Materia
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-pk" value="">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Materia <span class="text-danger">*</span></label>
+          <input type="text" id="edit-materia" class="form-control" maxlength="100"
+                 placeholder="Nombre de la materia…">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Docente <span class="text-danger">*</span></label>
+          <input type="text" id="edit-docente" class="form-control" maxlength="100"
+                 placeholder="Nombre del docente…">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Coordinador(es)</label>
+          <div class="chk-coord-wrap" id="coord-checks">
+            {% for cfg in configs %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox"
+                     id="chk-coord-{{ cfg.codigo }}"
+                     value="{{ cfg.codigo }}"
+                     name="coordinadores">
+              <label class="form-check-label" for="chk-coord-{{ cfg.codigo }}">
+                <span class="badge-coord" style="background:{{ cfg.color|default:'#6c757d' }};font-size:.7rem;">
+                  {{ cfg.codigo }}
+                </span>
+                {{ cfg.nombre }}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-1">
+          <label class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="edit-activo" checked>
+            <span class="form-check-label fw-semibold">¿Activo?</span>
+          </label>
+        </div>
+
+        <div id="modal-error" class="d-none mt-2">
+          <div class="alert alert-danger py-1 px-3 mb-0 small"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-materia">
+          <i class="ti ti-device-floppy me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Config para JS ── #}
+<script>
+window._MATERIAS = {
+  csrf:      '{{ csrf_token }}',
+  urlCreate: '{% url "materia_bl_create" %}',
+  urlUpdate: '/conducta/coordinador/bl/materias/{pk}/editar/',
+  urlDelete: '/conducta/coordinador/bl/materias/{pk}/eliminar/',
+  configs: [
+    {% for cfg in configs %}
+    { codigo: '{{ cfg.codigo }}', nombre: '{{ cfg.nombre|escapejs }}', color: '{{ cfg.color|default:"#6c757d" }}' }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<div id="page-config" hidden data-url-buscar="{% url 'materias_docentes_bl' %}"></div>
+<script src="{% static 'conducta/js/materias_docentes_bl.js' %}?v=3"></script>
+{% endblock %}

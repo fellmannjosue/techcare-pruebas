@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
+
+    // ── Ojo contraseña ─────────────────────────────────────────────────────
     const pwdInput = document.getElementById('password');
-    const eyeIcon = document.getElementById('eyeIcon');
+    const eyeIcon  = document.getElementById('eyeIcon');
     if (pwdInput && eyeIcon) {
         eyeIcon.addEventListener('click', function() {
             if (pwdInput.type === 'password') {
@@ -13,20 +15,66 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Desactiva el botón para evitar doble submit
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', function() {
-            const btn = loginForm.querySelector('button[type="submit"]');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = "Ingresando...";
+    // ── Input @ana-hn.org + toggle admin ──────────────────────────────────
+    const grupoNormal = document.getElementById('inputGrupoDominio');
+    const grupoAdmin  = document.getElementById('inputGrupoAdmin');
+    const shortInput  = document.getElementById('usernameShort');
+    const adminInput  = document.getElementById('usernameAdmin');
+    const hiddenUser  = document.getElementById('username');
+    const toggleBtn   = document.getElementById('toggleAdminMode');
+    const toggleLabel = document.getElementById('toggleAdminLabel');
+    let modoAdmin = false;
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            modoAdmin = !modoAdmin;
+            if (modoAdmin) {
+                grupoNormal.style.display = 'none';
+                grupoAdmin.style.display  = '';
+                toggleLabel.textContent   = 'Modo normal';
+                adminInput.focus();
+            } else {
+                grupoNormal.style.display = '';
+                grupoAdmin.style.display  = 'none';
+                toggleLabel.textContent   = 'Acceso admin';
+                shortInput.focus();
             }
         });
     }
 
+    // ── Submit: armar username real ───────────────────────────────────────
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            // Construir el campo username según el modo
+            if (hiddenUser) {
+                if (modoAdmin) {
+                    hiddenUser.value = (adminInput ? adminInput.value.trim() : '');
+                } else {
+                    const base = shortInput ? shortInput.value.trim() : '';
+                    // Si ya viene con @, no agregar dominio (por si acaso)
+                    hiddenUser.value = base.includes('@') ? base : base + '@ana-hn.org';
+                }
+            }
+            const btn = loginForm.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Ingresando…';
+            }
+        });
+
+        // Enter en shortInput o adminInput activa submit
+        [shortInput, adminInput].forEach(inp => {
+            if (inp) inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); loginForm.requestSubmit(); }
+            });
+        });
+    }
+
     // Mostrar hint checkbox si el servidor lo solicita
-    if (window._PAGE && window._PAGE.showCheckboxHint) {
+    const _cfg = document.getElementById('page-config');
+    if (_cfg && _cfg.dataset.showCheckboxHint === 'true') {
         mostrarHintCheckbox();
     }
 });

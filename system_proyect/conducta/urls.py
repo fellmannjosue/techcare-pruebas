@@ -55,4 +55,8 @@ urlpatterns = [
     path('evidencia/<int:pk>/eliminar/', views.eliminar_evidencia, name='eliminar_evidencia'),
     path('descargar/zip/', views.descargar_zip_reportes, name='descargar_zip_reportes'),
     path('directorio/', views.directorio_telefonos, name='directorio_telefonos'),
+    path('coordinador/bl/materias/', views.materias_docentes_bl, name='materias_docentes_bl'),
+    path('coordinador/bl/materias/crear/', views.materia_bl_create, name='materia_bl_create'),
+    path('coordinador/bl/materias/<int:pk>/editar/', views.materia_bl_update, name='materia_bl_update'),
+    path('coordinador/bl/materias/<int:pk>/eliminar/', views.materia_bl_delete, name='materia_bl_delete'),
 ]

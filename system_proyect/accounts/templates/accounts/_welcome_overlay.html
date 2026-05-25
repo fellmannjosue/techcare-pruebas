@@ -1,0 +1,25 @@
+{% load static %}
+{# <--- hecho por claude code: overlay de bienvenida universal — se incluye en todos los base templates #}
+<link rel="stylesheet" href="{% static 'accounts/css/welcome_overlay.css' %}">
+
+<div id="tcWelcomeOverlay">
+
+  <div id="tcWParticles"></div>
+
+  <img id="tcWLogo" src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo">
+
+  <div style="text-align:center;margin-top:1.4rem;color:#fff;">
+    <div id="tcWBienvenido">¡Bienvenido!</div>
+    <div id="tcWUsuario"></div>
+    <div id="tcWSubtitulo">al Sistema de Reportes TechCare</div>
+  </div>
+
+  <div style="margin-top:2.4rem;width:260px;">
+    <div style="background:rgba(255,255,255,.12);border-radius:99px;height:6px;overflow:hidden;">
+      <div id="tcWBar"></div>
+    </div>
+    <div id="tcWLabel">Cargando…</div>
+  </div>
+</div>
+
+<script src="{% static 'accounts/js/welcome_overlay.js' %}"></script>

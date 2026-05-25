@@ -34,7 +34,6 @@ MATERIAS_COLEGIO_11 = [
     "Economía", "Antropología", "Artística", "Filosofía",
     "Inglés", "Educ. Física",
 ]
-
 _MATERIAS_MAP = {
     'colegio_bl':  MATERIAS_COLEGIO,
     'colegio_7_9': MATERIAS_COLEGIO_7_9,
@@ -57,7 +56,7 @@ def _areas_para_usuario(user, request=None):
         if area == "colegio":
             return ["colegio"]
         return ["primaria", "colegio_bl"]
-    if user.groups.filter(name='coordinador_bilingue').exists():
+    if user.groups.filter(name__in=['coordinador_bilingue', 'coord_progress_bl']).exists():
         return ['primaria', 'colegio_bl']
     if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
         return ['colegio']
@@ -70,7 +69,8 @@ def _areas_para_usuario(user, request=None):
 
 def _es_coordinador(user):
     return user.is_superuser or user.groups.filter(
-        name__in=['coordinador_bilingue', 'coordinadores_colegio', 'coordinadores']
+        name__in=['coordinador_bilingue', 'coord_progress_bl',
+                  'coordinadores_colegio', 'coordinadores']
     ).exists()
 
 

@@ -1,0 +1,258 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+
+{% block title %}Logs del Sistema{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'accounts/css/settings_logs.css' %}">
+{% endblock %}
+
+{% block settings_content %}
+
+{# ══════════ STATS CARDS ══════════ #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="stat-avatar bg-red-lt text-red"><i class="ti ti-alert-triangle"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3" id="stat-errores">—</div>
+            <div class="text-muted small">Errores en log</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="stat-avatar bg-blue-lt text-blue"><i class="ti ti-brand-python"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ django_logs|length }}</div>
+            <div class="text-muted small">Cambios Django</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="stat-avatar bg-green-lt text-green"><i class="ti ti-login"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ accesos|length }}</div>
+            <div class="text-muted small">Accesos recientes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <span class="stat-avatar bg-purple-lt text-purple"><i class="ti ti-network"></i></span>
+          </div>
+          <div class="col">
+            <div class="fw-bold fs-3" id="stat-requests">—</div>
+            <div class="text-muted small">Requests cargados</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ══════════ LOG VIEWER CARD ══════════ #}
+<div class="card">
+
+  {# ── Header ── #}
+  <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+    <i class="ti ti-terminal-2 text-primary" style="font-size:1.25rem;"></i>
+    <h3 class="card-title mb-0">Visor de Logs</h3>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <div class="spinner-border spinner-border-sm text-primary log-spinner" id="main-spinner" role="status"></div>
+      <button class="btn btn-sm btn-ghost-secondary" id="btn-refresh" title="Actualizar log">
+        <i class="ti ti-refresh me-1"></i>Actualizar
+      </button>
+      <button class="btn btn-sm btn-ghost-secondary" id="btn-scroll-top" title="Ir al inicio">
+        <i class="ti ti-arrow-up"></i>
+      </button>
+    </div>
+  </div>
+
+  {# ── Tabs ── #}
+  <div class="card-header p-0 border-top overflow-auto">
+    <ul class="nav log-tabs" id="log-tabs" style="flex-wrap:nowrap;">
+      <li class="nav-item">
+        <a class="nav-link active" data-tab="apache_error">
+          <i class="ti ti-alert-triangle me-1 text-danger"></i>Error Apache
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="apache_access">
+          <i class="ti ti-network me-1 text-cyan"></i>Access Apache
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="apache_general">
+          <i class="ti ti-server me-1 text-muted"></i>General Apache
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="django">
+          <i class="ti ti-brand-python me-1 text-warning"></i>Django
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="accesos">
+          <i class="ti ti-login me-1 text-success"></i>Accesos
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  {# ── Toolbar archivo (dark) ── #}
+  <div class="log-toolbar" id="toolbar-file">
+    <i class="ti ti-search text-muted"></i>
+    <input type="text" class="form-control form-control-sm" id="log-filtro"
+           placeholder="Filtrar líneas…" style="max-width:240px;">
+    <select class="form-select form-select-sm" id="log-lineas" style="max-width:120px;">
+      <option value="100">100 líneas</option>
+      <option value="300" selected>300 líneas</option>
+      <option value="500">500 líneas</option>
+      <option value="1000">1000 líneas</option>
+    </select>
+    <div class="ms-auto d-flex gap-3 small">
+      <span><span class="badge bg-red-lt text-red px-2" id="cnt-error">0</span> errores</span>
+      <span><span class="badge bg-yellow-lt text-yellow px-2" id="cnt-warn">0</span> warnings</span>
+      <span class="text-muted" id="log-total"></span>
+    </div>
+  </div>
+
+  {# ── Toolbar tabla (light) ── #}
+  <div class="card-body border-bottom py-2 px-3" id="toolbar-table" style="display:none;">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="ti ti-search text-muted"></i>
+      <input type="text" class="form-control form-control-sm" id="tbl-filtro"
+             placeholder="Buscar en tabla…" style="max-width:240px;">
+      <span class="text-muted small ms-auto" id="tbl-info"></span>
+    </div>
+  </div>
+
+  {# ── Panel terminal ── #}
+  <div id="panel-file">
+    <div class="log-terminal" id="log-output">
+      <span class="text-muted small">Cargando…</span>
+    </div>
+  </div>
+
+  {# ── Panel Django LogEntry ── #}
+  <div id="panel-django" style="display:none;">
+    <div class="log-table-wrap">
+      <table class="table table-sm table-hover table-vcenter mb-0">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th style="width:130px;">Fecha/Hora</th>
+            <th>Usuario</th>
+            <th style="width:90px;">Acción</th>
+            <th>Módulo</th>
+            <th>Objeto</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in django_logs %}
+          <tr class="dj-row" data-text="{{ e.user|lower }} {{ e.content_type|lower }} {{ e.object_repr|lower }} {{ e.change_message|lower }}">
+            <td class="text-muted small text-nowrap">{{ e.action_time|date:"d/m/Y H:i:s" }}</td>
+            <td>
+              <span class="avatar avatar-xs rounded me-1 bg-blue-lt text-blue">{{ e.user|slice:":1"|upper }}</span>
+              <span class="small fw-semibold">{{ e.user }}</span>
+            </td>
+            <td>
+              {% if e.action_flag == 1 %}<span class="badge bg-green-lt text-green"><i class="ti ti-plus me-1"></i>Creado</span>
+              {% elif e.action_flag == 2 %}<span class="badge bg-blue-lt text-blue"><i class="ti ti-pencil me-1"></i>Editado</span>
+              {% else %}<span class="badge bg-red-lt text-red"><i class="ti ti-trash me-1"></i>Borrado</span>{% endif %}
+            </td>
+            <td class="small text-muted">{{ e.content_type }}</td>
+            <td class="small fw-semibold">{{ e.object_repr|truncatechars:38 }}</td>
+            <td class="small text-muted">{{ e.change_message|truncatechars:55 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-5">
+            <i class="ti ti-mood-empty d-block fs-1 mb-2 opacity-25"></i>Sin registros
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Panel Accesos ── #}
+  <div id="panel-accesos" style="display:none;">
+    <div class="log-table-wrap">
+      <table class="table table-sm table-hover table-vcenter mb-0">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th style="width:130px;">Fecha/Hora</th>
+            <th>Usuario</th>
+            <th>IP</th>
+            <th>Dispositivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in accesos %}
+          <tr class="ac-row" data-text="{{ a.username|lower }} {{ a.ip }}">
+            <td class="text-muted small text-nowrap">{{ a.fecha_hora|date:"d/m/Y H:i:s" }}</td>
+            <td>
+              <span class="avatar avatar-xs rounded me-1 bg-green-lt text-green">{{ a.username|slice:":1"|upper }}</span>
+              <span class="small fw-semibold">{{ a.username }}</span>
+            </td>
+            <td class="font-monospace small">{{ a.ip|default:"—" }}</td>
+            <td class="small text-muted text-truncate" style="max-width:200px;" title="{{ a.agente }}">
+              {# Detectar dispositivo básico #}
+              {% if "Mobile" in a.agente or "Android" in a.agente %}
+                <i class="ti ti-device-mobile me-1 text-cyan"></i>
+              {% elif "iPad" in a.agente or "Tablet" in a.agente %}
+                <i class="ti ti-device-tablet me-1 text-purple"></i>
+              {% else %}
+                <i class="ti ti-device-desktop me-1 text-muted"></i>
+              {% endif %}
+              {{ a.agente|default:"—"|truncatechars:50 }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-5">
+            <i class="ti ti-mood-empty d-block fs-1 mb-2 opacity-25"></i>Sin registros
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Footer ── #}
+  <div class="card-footer text-muted small d-flex align-items-center gap-2">
+    <i class="ti ti-clock me-1"></i>
+    Última actualización: <span id="last-update">—</span>
+    <span class="ms-auto">
+      <span class="badge bg-green-lt text-green me-1"><i class="ti ti-circle-filled" style="font-size:.5rem;"></i> En vivo</span>
+    </span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<div id="logs-config" hidden data-api-url="{% url 'settings_logs_api' %}"></div>
+<script src="{% static 'accounts/js/settings_logs.js' %}"></script>
+{% endblock %}

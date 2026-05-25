@@ -1,0 +1,84 @@
+/* <--- hecho por claude code: estilos del overlay de bienvenida (extraído de _welcome_overlay.html) */
+
+/* Overlay principal */
+#tcWelcomeOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: linear-gradient(135deg, #1a2744 0%, #0f172a 60%, #1e3a5f 100%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#tcWParticles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#tcWLogo {
+  width: 82px;
+  opacity: 0;
+  transform: scale(.6);
+  transition: all .55s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+#tcWBienvenido {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: all .5s ease .2s;
+  text-align: center;
+  color: #fff;
+}
+
+#tcWUsuario {
+  font-size: 1.15rem;
+  color: #93c5fd;
+  font-weight: 600;
+  margin-top: .3rem;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all .5s ease .38s;
+}
+
+#tcWSubtitulo {
+  font-size: .88rem;
+  color: rgba(255, 255, 255, .5);
+  margin-top: .2rem;
+  opacity: 0;
+  transition: opacity .5s ease .52s;
+}
+
+/* Barra de progreso */
+#tcWBar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+  border-radius: 99px;
+  transition: width 2.6s cubic-bezier(.4, 0, .2, 1);
+}
+
+#tcWLabel {
+  text-align: center;
+  margin-top: .55rem;
+  font-size: .76rem;
+  color: rgba(255, 255, 255, .38);
+}
+
+/* Partículas */
+@keyframes tcSpark {
+  0%   { opacity: .75; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(0) translateY(-50px); }
+}
+
+#tcWelcomeOverlay .tc-p {
+  position: absolute;
+  border-radius: 50%;
+  animation: tcSpark 1.8s ease-out forwards;
+}

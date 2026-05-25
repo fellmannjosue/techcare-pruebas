@@ -1,0 +1,76 @@
+/* <--- hecho por claude code: estilos de la página de configuración de correos */
+
+/* ── Tabla con badge de estado ── */
+.email-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .76rem;
+  font-weight: 600;
+  padding: .2em .65em;
+  border-radius: 20px;
+}
+.email-badge.ok    { background: #d3f9d8; color: #2f9e44; }
+.email-badge.warn  { background: #fff3bf; color: #e67700; }
+.email-badge.error { background: #ffe3e3; color: #e03131; }
+
+/* ── Tarjeta SMTP ── */
+.smtp-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 0;
+  border-bottom: 1px solid #f1f3f5;
+  font-size: .86rem;
+}
+.smtp-card-row:last-child { border-bottom: none; }
+.smtp-label { color: #6c757d; font-weight: 500; }
+.smtp-value { font-weight: 600; font-family: monospace; font-size: .82rem; }
+
+/* ── Test email ── */
+.test-result { display: none; margin-top: .75rem; }
+.test-result.show { display: block; }
+
+/* ── Tabla de usuarios ── */
+.correos-table-wrap { max-height: 480px; overflow-y: auto; }
+.correos-table-wrap::-webkit-scrollbar { width: 5px; }
+.correos-table-wrap::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 3px; }
+
+/* ── Avatar mini ── */
+.ava-mini {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Grupo pills ── */
+.grupo-pill {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 600;
+  padding: .15em .5em;
+  border-radius: 10px;
+  margin-right: 2px;
+  margin-bottom: 2px;
+}
+.grupo-pill.bl  { background: #dbe4ff; color: #3b5bdb; }
+.grupo-pill.col { background: #d3f9d8; color: #2f9e44; }
+.grupo-pill.sta { background: #f3f0ff; color: #7048e8; }
+.grupo-pill.oth { background: #f1f3f5; color: #495057; }
+
+/* ── Tabs ── */
+.correos-tabs .nav-link { color: #6c757d; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: .55rem .9rem; font-size: .86rem; white-space: nowrap; }
+.correos-tabs .nav-link.active { color: #206bc4; border-bottom-color: #206bc4; background: transparent; font-weight: 600; }
+.correos-tabs .nav-link:hover:not(.active) { color: #333; border-bottom-color: #dee2e6; }
+
+/* ── Stat avatar ── */
+.correo-stat { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; }
+
+/* ── Grid notif ── */
+.notif-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .75rem; }
+.notif-card { border: 1px solid #dee2e6; border-radius: 8px; padding: .85rem 1rem; }
+.notif-card .notif-name { font-weight: 700; font-size: .9rem; }
+.notif-card .notif-email { font-size: .78rem; color: #6c757d; margin-bottom: .5rem; }
+.notif-tipo-badge { display: inline-block; font-size: .68rem; font-weight: 600; padding: .18em .6em; border-radius: 10px; margin: 1px; }

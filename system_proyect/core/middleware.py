@@ -114,11 +114,12 @@ class MaintenanceModeMiddleware:
                     if user.email.lower() in _STAFF_EXCEPTIONS_ALL:
                         return self.get_response(request)
                 elif area == 'all':
-                    # Bloquear todos excepto staff
-                    if is_staff_user:
+                    # <--- hecho por claude code: bloquear TODOS (incluso staff). Solo superuser pasa (ya comprobado arriba).
+                    if not is_auth:
                         return self.get_response(request)
+                    # Todos los usuarios autenticados (no superuser) son bloqueados
                 else:
-                    # Área específica (bilingue/colegio): solo maestros del área; staff siempre exentos
+                    # Área específica (bilingue/colegio): solo maestros del área; staff siempre exento
                     if is_staff_user:
                         return self.get_response(request)
                     grupos = _AREA_GROUPS.get(area, ())

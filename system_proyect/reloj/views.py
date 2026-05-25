@@ -1785,6 +1785,10 @@ def compensatorio_list(request):
         f['extra_comentario']   = ex.comentario if ex else ''
         f['extra_autorizado_por'] = ex.autorizado_por if ex else ''
 
+    # Suma el tiempo extra autorizado al total acumulado  <--- hecho por claude code
+    total_extra_emp = sum(f['extra_min'] for f in filas)
+    total_min_emp   = total_min_emp + total_extra_emp
+
     u = request.user
     can_edit_extra = _reloj_can(u, 'compensatorio', 'editar')
 
@@ -1800,6 +1804,7 @@ def compensatorio_list(request):
         "total_horas_emp":  total_min_emp // 60,
         "total_mins_emp":   total_min_emp % 60,
         "total_dias_emp":   total_dias_emp,
+        "total_extra_emp":  total_extra_emp,
         "can_edit_extra":   can_edit_extra,
         "can_edit":         _reloj_can(u, 'compensatorio', 'editar'),
         "can_delete":       _reloj_can(u, 'compensatorio', 'eliminar'),
@@ -2096,6 +2101,19 @@ def compensatorio_calculo_list(request):
     for d in dias_no_lab_qs:
         dias_no_lab_map.setdefault(d.calculo_id, []).append(d)
 
+    # ── Tiempos extra por empleado (TiempoExtraDia) ──────────────────────────
+    # <--- hecho por claude code: suma todos los TiempoExtraDia por emp_code
+    emp_codes_list = [str(r.emp_code) for r in todos_registros]
+    te_sum_map    = {}   # {emp_code: total_minutos}
+    te_detail_map = {}   # {emp_code: [lista TiempoExtraDia]}
+    if emp_codes_list:
+        for te in TiempoExtraDia.objects.filter(
+            emp_code__in=emp_codes_list
+        ).order_by('fecha'):
+            ec_s = str(te.emp_code)
+            te_detail_map.setdefault(ec_s, []).append(te)
+            te_sum_map[ec_s] = te_sum_map.get(ec_s, 0) + te.minutos
+
     # ── Construir registros_data ─────────────────────────────────────────────
     def _min_to_h(m): return round(m / 60, 1)
 
@@ -2121,7 +2139,11 @@ def compensatorio_calculo_list(request):
         min_dia = r.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
         dias_hab_calc = _math.ceil(total_min / min_dia) if total_min > 0 else 0
 
-        saldo_min = max(0, total_min - minutos_compensados)
+        # Tiempo extra autorizado (suma de TiempoExtraDia del empleado)
+        tiempo_extra_min = te_sum_map.get(ec, 0)
+
+        # Saldo: descuenta compensado Y tiempo extra autorizado
+        saldo_min = max(0, total_min - minutos_compensados - tiempo_extra_min)
         es_especial = any(k in r.nombre_empleado.lower() for k in _ESPECIALES_COMP)
 
         # Conversión a días para mostrar en tabla
@@ -2145,6 +2167,10 @@ def compensatorio_calculo_list(request):
             'total_hrs':        total_hrs,
             'total_min':        total_min,
             'dias_hab_calc':    dias_hab_calc,
+            # tiempo extra autorizado (múltiples entradas)
+            'tiempo_extra_min':     tiempo_extra_min,
+            'tiempo_extra_hrs':     _min_to_h(tiempo_extra_min),
+            'tiempo_extra_detalle': te_detail_map.get(ec, []),
             # formateados
             'horas_compensados': _min_to_h(minutos_compensados),
             'horas_saldo':      _min_to_h(saldo_min),
@@ -2391,6 +2417,152 @@ def compensatorio_calculo_set_tiempo_extra(request, pk):
         'fecha_fin': fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '—',
         'saldo': saldo,
     })
+
+
+@login_required
+def compensatorio_calculo_get_tiempo_extra(request, pk):
+    """
+    AJAX GET: devuelve las entradas TiempoExtraDia del empleado en el calculo.
+    <--- hecho por claude code
+    """
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    qs = TiempoExtraDia.objects.filter(emp_code=obj.emp_code).order_by('fecha')
+    total_te = sum(t.minutos for t in qs)
+    entries = [
+        {
+            'pk':      t.pk,
+            'fecha':   t.fecha.strftime('%d/%m/%Y'),
+            'minutos': t.minutos,
+            'razon':   t.razon or '—',
+        }
+        for t in qs
+    ]
+    return JsonResponse({
+        'ok':        True,
+        'total_min': total_te,
+        'total_hrs': round(total_te / 60, 1),
+        'entries':   entries,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_calculo_add_tiempo_extra_entrada(request, pk):
+    """
+    AJAX: agrega (o suma a) una entrada TiempoExtraDia para el empleado del calculo.
+    Permite múltiples entradas usando fechas distintas.
+    Si ya existe una entrada para esa fecha, suma los minutos.
+    <--- hecho por claude code
+    """
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body    = json.loads(request.body or b'{}')
+        fecha   = date.fromisoformat(body.get('fecha', '').strip())
+        minutos = int(body.get('minutos', 0))
+        razon   = body.get('razon', '').strip()[:300]
+        if minutos <= 0:
+            raise ValueError('minutos <= 0')
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Datos inválidos: {e}'})
+
+    te, created = TiempoExtraDia.objects.get_or_create(
+        emp_code=obj.emp_code,
+        fecha=fecha,
+        defaults={'minutos': minutos, 'razon': razon, 'registrado_por': request.user}
+    )
+    if not created:
+        te.minutos        += minutos   # Suma al existente de esa fecha
+        te.razon           = razon or te.razon
+        te.registrado_por  = request.user
+        te.save()
+
+    # Total acumulado
+    total_te = sum(
+        t.minutos for t in TiempoExtraDia.objects.filter(emp_code=obj.emp_code)
+    )
+    entries = [
+        {
+            'pk':      t.pk,
+            'fecha':   t.fecha.strftime('%d/%m/%Y'),
+            'minutos': t.minutos,
+            'razon':   t.razon or '—',
+        }
+        for t in TiempoExtraDia.objects.filter(emp_code=obj.emp_code).order_by('fecha')
+    ]
+    return JsonResponse({
+        'ok':        True,
+        'total_min': total_te,
+        'total_hrs': round(total_te / 60, 1),
+        'entries':   entries,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_calculo_del_tiempo_extra_entrada(request, te_pk):
+    """
+    AJAX: elimina una entrada TiempoExtraDia específica.
+    <--- hecho por claude code
+    """
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    te = get_object_or_404(TiempoExtraDia, pk=te_pk)
+    emp_code = str(te.emp_code)
+    te.delete()
+    total_te = sum(
+        t.minutos for t in TiempoExtraDia.objects.filter(emp_code=emp_code)
+    )
+    entries = [
+        {
+            'pk':      t.pk,
+            'fecha':   t.fecha.strftime('%d/%m/%Y'),
+            'minutos': t.minutos,
+            'razon':   t.razon or '—',
+        }
+        for t in TiempoExtraDia.objects.filter(emp_code=emp_code).order_by('fecha')
+    ]
+    return JsonResponse({
+        'ok':        True,
+        'total_min': total_te,
+        'total_hrs': round(total_te / 60, 1),
+        'entries':   entries,
+    })
+
+
+@login_required
+@require_POST
+def compensatorio_add_tiempo_extra_byemp(request, emp_code):
+    """
+    AJAX: agrega una entrada TiempoExtraDia directamente por emp_code.
+    Usado desde compensatorio_list cuando se filtra un empleado.
+    <--- hecho por claude code
+    """
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        body    = json.loads(request.body or b'{}')
+        fecha   = date.fromisoformat(body.get('fecha', '').strip())
+        minutos = int(body.get('minutos', 0))
+        razon   = body.get('razon', '').strip()[:300]
+        if minutos <= 0:
+            raise ValueError('minutos <= 0')
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Datos inválidos: {e}'})
+
+    te, created = TiempoExtraDia.objects.get_or_create(
+        emp_code=emp_code,
+        fecha=fecha,
+        defaults={'minutos': minutos, 'razon': razon, 'registrado_por': request.user}
+    )
+    if not created:
+        te.minutos       += minutos
+        te.razon          = razon or te.razon
+        te.registrado_por = request.user
+        te.save()
+
+    return JsonResponse({'ok': True, 'fecha': str(fecha), 'minutos': te.minutos})
 
 
 @login_required

@@ -2,6 +2,7 @@ import io, os, json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib.auth.models import User
 from core.utils_notifications import crear_notificacion
 from django.template.loader import render_to_string
@@ -2196,6 +2197,109 @@ def dashboard_coordi_bl(request):
         'strikes': {}, 'today': timezone.now().strftime('%Y-%m-%d'),
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
     })
+
+@login_required
+def materias_docentes_bl(request):
+    """Página independiente: tabla Materia-Docente Bilingüe. Solo superuser."""
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    from .models import MateriaDocenteBilingue
+    q = request.GET.get('q', '').strip()
+    materias = MateriaDocenteBilingue.objects.order_by('materia', 'docente')
+    if q:
+        materias = materias.filter(materia__icontains=q) | materias.filter(docente__icontains=q)
+        materias = materias.order_by('materia', 'docente')
+    configs = ConfiguracionCoordinador.objects.filter(area='bilingue', activo=True)
+    color_map = {'C1': '#c92a2a', 'C2': '#1971c2', 'C3': '#2f9e44', 'C4': '#e67700'}
+    # Construir mapa código → nombre para usar en template
+    coord_names = {c.codigo: c.nombre for c in configs}
+    return render(request, 'conducta/materias_docentes_bl.html', {
+        'materias':    materias,
+        'configs':     configs,
+        'coord_names': coord_names,
+        'color_map':   color_map,
+        'q':           q,
+        'total':       materias.count(),
+        'nav_home_url': '/',
+    })
+
+
+# ── CRUD AJAX: MateriaDocenteBilingue ──────────────────────────────
+# <--- hecho por claude code: crear, editar y eliminar materias desde la UI sin admin
+
+def _superuser_required(request):
+    """Shortcut: devuelve error JSON si no es superuser."""
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    return None
+
+
+@login_required
+@require_POST
+def materia_bl_create(request):
+    """AJAX POST: crea una nueva MateriaDocenteBilingue."""
+    err = _superuser_required(request)
+    if err:
+        return err
+    try:
+        body     = json.loads(request.body or b'{}')
+        materia  = body.get('materia', '').strip()[:100]
+        docente  = body.get('docente', '').strip()[:100]
+        coord    = ','.join(c.strip() for c in body.get('coordinadores', []) if c.strip())
+        activo   = bool(body.get('activo', True))
+        if not materia or not docente:
+            return JsonResponse({'ok': False, 'error': 'Materia y docente son obligatorios.'})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+    obj = MateriaDocenteBilingue.objects.create(
+        materia=materia, docente=docente,
+        coordinador=coord or 'C2', activo=activo
+    )
+    return JsonResponse({'ok': True, 'pk': obj.pk, 'materia': obj.materia, 'docente': obj.docente,
+                         'coordinador': obj.coordinador, 'activo': obj.activo})
+
+
+@login_required
+@require_POST
+def materia_bl_update(request, pk):
+    """AJAX POST: actualiza un MateriaDocenteBilingue existente."""
+    err = _superuser_required(request)
+    if err:
+        return err
+    obj = get_object_or_404(MateriaDocenteBilingue, pk=pk)
+    try:
+        body    = json.loads(request.body or b'{}')
+        materia = body.get('materia', '').strip()[:100]
+        docente = body.get('docente', '').strip()[:100]
+        coord   = ','.join(c.strip() for c in body.get('coordinadores', []) if c.strip())
+        activo  = bool(body.get('activo', True))
+        if not materia or not docente:
+            return JsonResponse({'ok': False, 'error': 'Materia y docente son obligatorios.'})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+    obj.materia     = materia
+    obj.docente     = docente
+    obj.coordinador = coord or 'C2'
+    obj.activo      = activo
+    obj.save()
+    return JsonResponse({'ok': True, 'pk': obj.pk, 'materia': obj.materia, 'docente': obj.docente,
+                         'coordinador': obj.coordinador, 'activo': obj.activo})
+
+
+@login_required
+@require_POST
+def materia_bl_delete(request, pk):
+    """AJAX POST: elimina un MateriaDocenteBilingue."""
+    err = _superuser_required(request)
+    if err:
+        return err
+    obj = get_object_or_404(MateriaDocenteBilingue, pk=pk)
+    obj.delete()
+    return JsonResponse({'ok': True})
+
 
 @login_required
 def historial_alumno_coordinador(request, alumno_id):

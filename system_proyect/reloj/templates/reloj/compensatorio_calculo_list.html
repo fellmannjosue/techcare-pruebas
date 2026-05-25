@@ -62,6 +62,7 @@
             <th class="text-center">Total a compensar</th>
             <th class="text-center">Min. Auto/día</th>
             <th class="text-center">Compensado hasta hoy</th>
+            <th class="text-center">T. Extra</th>
             <th class="text-center">Saldo restante</th>
             <th class="text-center">Fecha inicio</th>
             <th class="text-center">Fecha fin estimada</th>
@@ -72,7 +73,7 @@
         <tbody>
           {% for item in registros_data %}
           {% with r=item.r saldo=item.saldo %}
-          <tr data-pk="{{ r.pk }}" data-total-min="{{ item.total_min }}">
+          <tr data-pk="{{ r.pk }}" data-total-min="{{ item.total_min }}" data-compensado-min="{{ item.minutos_compensados }}" data-te-min="{{ item.tiempo_extra_min }}">
 
             {% if can_edit %}
             <td class="text-center">
@@ -194,6 +195,17 @@
               <div class="text-muted small mt-1 dias-trans-{{ r.pk }}">{{ item.dias_transcurridos }} días háb.</div>
             </td>
 
+            {# Tiempo extra autorizado — clic abre modal (ver/editar según permiso) #}
+            <td class="text-center">
+              <button class="btn btn-sm btn-ghost-secondary btn-te-modal px-2 py-0"
+                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
+                      title="Ver días de tiempo extra autorizado">
+                <span class="badge bg-cyan-lt text-cyan te-badge-{{ r.pk }}">
+                  <i class="ti ti-clock-bolt me-1"></i>{% if item.tiempo_extra_min > 0 %}{{ item.tiempo_extra_hrs }} h{% else %}—{% endif %}
+                </span>
+              </button>
+            </td>
+
             {# Saldo restante — rojo si hay saldo #}
             <td class="text-center">
               {% if saldo == 0 %}
@@ -240,7 +252,7 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="15" class="text-center text-muted py-4">
+            <td colspan="16" class="text-center text-muted py-4">
               <i class="ti ti-calculator-off me-2"></i>Sin registros.
             </td>
           </tr>
@@ -463,12 +475,103 @@
   </div>
 </div>
 
+{# ── Modal: Tiempo extra autorizado (múltiples entradas) ── #}
+<div class="modal modal-blur fade" id="modalTiempoExtra" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#e0f5fb;">
+        <h5 class="modal-title text-cyan">
+          <i class="ti ti-clock-bolt me-2"></i>Tiempo extra autorizado — <span id="te-nombre"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {# ── Formulario: Registrar por mes ── #}
+        {% if can_edit %}
+        <div class="card mb-3 border-0 bg-cyan-lt">
+          <div class="card-body py-2 px-3">
+            <div class="fw-semibold text-cyan small mb-2">
+              <i class="ti ti-calendar-plus me-1"></i>Registrar tiempo extra por mes
+            </div>
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
+                <label class="form-label form-label-sm mb-1">Mes</label>
+                <input type="month" id="te-mes" class="form-control form-control-sm" style="min-width:140px;">
+              </div>
+              <div class="col-auto">
+                <label class="form-label form-label-sm mb-1">Minutos</label>
+                <input type="number" id="te-mes-minutos" class="form-control form-control-sm" min="1" max="9999" placeholder="ej. 113" style="width:100px;">
+              </div>
+              <div class="col">
+                <label class="form-label form-label-sm mb-1">Razón <span class="text-muted">(opc.)</span></label>
+                <input type="text" id="te-mes-razon" class="form-control form-control-sm" maxlength="300" placeholder="Motivo...">
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-sm btn-cyan" id="btn-te-mes-add">
+                  <i class="ti ti-plus me-1"></i>Agregar
+                </button>
+              </div>
+            </div>
+            <div id="te-mes-error" class="d-none mt-1">
+              <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {# Campos ocultos para JS (no se muestran en el modal) #}
+        <input type="hidden" id="te-fecha">
+        <input type="hidden" id="te-minutos">
+        <input type="hidden" id="te-razon">
+        <div id="te-add-error" class="d-none">
+          <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
+        </div>
+        <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-cyan"></i>Entradas registradas</h6>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-vcenter">
+            <thead>
+              <tr>
+                <th class="text-center" style="width:110px;">Fecha</th>
+                <th class="text-center" style="width:90px;">Minutos</th>
+                <th>Razón</th>
+                {% if can_edit %}<th class="text-center" style="width:60px;">Eliminar</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody id="te-tbody">
+              <tr id="te-empty"><td colspan="4" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas registradas</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
+          <i class="ti ti-sum text-cyan fs-3"></i>
+          <div>
+            <div class="text-muted small mb-1">Total tiempo extra autorizado</div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span class="fw-bold fs-3 text-cyan" id="te-total-min">0</span>
+              <span class="text-muted">min</span>
+              <span class="text-muted mx-1">≈</span>
+              <span class="fw-bold fs-3" id="te-total-hrs">0</span>
+              <span class="text-muted">h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 window._PAGE = {
-  csrf: '{{ csrf_token }}',
-  canEdit: {{ can_edit|yesno:'true,false' }}
+  csrf:         '{{ csrf_token }}',
+  canEdit:      {{ can_edit|yesno:'true,false' }},
+  urlTeGet:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/',
+  urlTeAdd:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/add/',
+  urlTeDel:     '/reloj/compensatorio-te/{te_pk}/delete/',
 };
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=3"></script>
 
 {% endblock %}

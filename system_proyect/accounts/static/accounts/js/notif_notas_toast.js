@@ -1,10 +1,11 @@
 (function(){
-  if (typeof window._NOTIF_NOTAS === 'undefined') return;
+  const _cfg = document.getElementById('notif-notas-config');
+  if (!_cfg) return;
 
-  const URL_NOTIF = window._NOTIF_NOTAS.urlNotif;
-  const URL_LEER  = window._NOTIF_NOTAS.urlLeer;
-  const URL_COORD = window._NOTIF_NOTAS.urlCoord;
-  const CSRF      = window._NOTIF_NOTAS.csrf;
+  const URL_NOTIF = _cfg.dataset.urlNotif;
+  const URL_LEER  = _cfg.dataset.urlLeer;
+  const URL_COORD = _cfg.dataset.urlCoord;
+  const CSRF      = _cfg.dataset.csrf;
   const seen      = new Set();
 
   async function checkNotifs(){

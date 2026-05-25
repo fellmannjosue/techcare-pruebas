@@ -1,0 +1,71 @@
+/* <--- hecho por claude code: estilos del visor de logs (extraído de settings_logs.html) */
+
+/* ── Terminal ── */
+.log-terminal {
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: .73rem;
+  line-height: 1.65;
+  border-radius: 0 0 8px 8px;
+  padding: 1rem 1.1rem;
+  min-height: 460px;
+  max-height: 520px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.log-terminal::-webkit-scrollbar { width: 5px; }
+.log-terminal::-webkit-scrollbar-track { background: #161b22; }
+.log-terminal::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+.log-line         { display: flex; align-items: baseline; gap: .5rem; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+.log-line.lvl-error  { color: #f85149; background: rgba(248,81,73,.07); border-radius: 3px; }
+.log-line.lvl-warning{ color: #e3b341; }
+.log-line.lvl-info   { color: #79c0ff; }
+.log-line.lvl-default{ color: #c9d1d9; }
+.log-num { color: #484f58; font-size: .68rem; min-width: 2.8rem; text-align: right; user-select: none; flex-shrink: 0; }
+.log-txt { flex: 1; }
+.log-hl  { background: rgba(255,215,0,.3); border-radius: 2px; padding: 0 2px; }
+
+/* ── Tab pills ── */
+.log-tabs .nav-link         { color: #6c757d; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: .55rem .9rem; font-size: .85rem; white-space: nowrap; }
+.log-tabs .nav-link.active  { color: #206bc4; border-bottom-color: #206bc4; background: transparent; font-weight: 600; }
+.log-tabs .nav-link:hover:not(.active) { color: #333; border-bottom-color: #dee2e6; }
+
+/* ── Toolbar dark ── */
+.log-toolbar {
+  background: #161b22;
+  border-top: 1px solid #30363d;
+  border-bottom: 1px solid #30363d;
+  padding: .5rem .9rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.log-toolbar .form-control,
+.log-toolbar .form-select {
+  background: #0d1117;
+  border-color: #30363d;
+  color: #c9d1d9;
+  font-size: .78rem;
+}
+.log-toolbar .form-control::placeholder { color: #484f58; }
+.log-toolbar .form-control:focus,
+.log-toolbar .form-select:focus { border-color: #388bfd; box-shadow: 0 0 0 2px rgba(56,139,253,.2); }
+
+/* ── Stat avatars ── */
+.stat-avatar { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+/* ── Badge nivel ── */
+.badge-lvl { font-size: .68rem; padding: .2em .5em; border-radius: 4px; font-weight: 600; }
+
+/* ── Tabla logs ── */
+.log-table-wrap { max-height: 520px; overflow-y: auto; }
+.log-table-wrap::-webkit-scrollbar { width: 5px; }
+.log-table-wrap::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 3px; }
+
+/* ── Spinner ── */
+.log-spinner { display: none; }
+.is-loading  .log-spinner { display: inline-block; }

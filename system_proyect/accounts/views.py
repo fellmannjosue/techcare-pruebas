@@ -46,27 +46,32 @@ def login_view(request):
                     agente=request.META.get('HTTP_USER_AGENT', '')[:500],
                 )
 
+            # <--- hecho por claude code: cookie de bienvenida universal (funciona en cualquier página destino)
+            def _welcome_redirect(url_name, *args, **kwargs):
+                resp = redirect(url_name, *args, **kwargs)
+                nombre = user.get_full_name() or user.username
+                resp.set_cookie('tc_welcome', nombre, max_age=30, httponly=False, samesite='Lax')
+                return resp
+
             # Superuser: checkbox false → menú, checkbox true → dashboard maestro
             if user.is_superuser:
                 login(request, user)
                 _registrar_acceso(user)
-                request.session['show_welcome'] = True
-                return redirect('dashboard_maestro' if is_maestro else 'menu')
+                return _welcome_redirect('dashboard_maestro' if is_maestro else 'menu')
 
             # Staff: redirección según usuario/grupo
             if user.is_staff:
                 login(request, user)
                 _registrar_acceso(user)
-                request.session['show_welcome'] = True
                 if user.username == 'druiz@ana-hn.org':
-                    return redirect('seleccion_rol')
+                    return _welcome_redirect('seleccion_rol')
                 if user.username == 'glorenzo@ana-hn.org':
-                    return redirect('seleccion_rol')
+                    return _welcome_redirect('seleccion_rol')
                 if user.username == 'yzavala@ana-hn.org' or user.groups.filter(name='reloj').exists():
-                    return redirect('reloj_dashboard')
+                    return _welcome_redirect('reloj_dashboard')
                 # Cualquier usuario del área Administración → solo tickets
                 if user.groups.filter(name='administracion').exists():
-                    return redirect('dashboard_administracion')
+                    return _welcome_redirect('dashboard_administracion')
                 # Coord-maestros: el checkbox determina el modo de agendas
                 try:
                     _es_coord_maestro = user.perfil.es_coord_maestro
@@ -77,13 +82,13 @@ def login_view(request):
                 # Coordinadores con restricción de progress — siempre van al dashboard coordinador
                 if user.groups.filter(name__in=['coord_progress_bl', 'coordinador_bilingue', 'coordinador_colegio']).exists():
                     if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
-                        return redirect('dashboard_coordinador', area='colegio')
-                    return redirect('dashboard_coordinador', area='bilingue')
+                        return _welcome_redirect('dashboard_coordinador', area='colegio')
+                    return _welcome_redirect('dashboard_coordinador', area='bilingue')
                 if is_maestro:
-                    return redirect('dashboard_maestro')
+                    return _welcome_redirect('dashboard_maestro')
                 if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
-                    return redirect('dashboard_coordinador', area='colegio')
-                return redirect('dashboard_coordinador', area='bilingue')
+                    return _welcome_redirect('dashboard_coordinador', area='colegio')
+                return _welcome_redirect('dashboard_coordinador', area='bilingue')
 
             # Construir lista de roles a partir de los grupos del usuario (case-insensitive)
             roles_disponibles = [
@@ -99,11 +104,10 @@ def login_view(request):
 
             login(request, user)
             _registrar_acceso(user)
-            request.session['show_welcome'] = True
 
             if len(roles_disponibles) == 1:
-                return redirect(roles_disponibles[0]['url'])
-            return redirect('seleccion_rol')
+                return _welcome_redirect(roles_disponibles[0]['url'])
+            return _welcome_redirect('seleccion_rol')
 
         messages.error(request, 'Credenciales inválidas.')
 
@@ -482,9 +486,10 @@ def menu_view(request):
         'show_calculadoras':   is_admin or is_group_reloj,
     }
 
-    # <--- hecho por claude code: limpiar session welcome después de renderizar
-    # para que solo aparezca una vez al entrar, no en cada recarga.
-    request.session.pop('show_welcome', None)
+    # <--- hecho por claude code: pasar show_welcome al contexto antes de limpiar la sesión
+    show_welcome = request.session.pop('show_welcome', False)
+    context['show_welcome'] = show_welcome
+    context['welcome_name']  = request.user.get_full_name() or request.user.username
 
     return render(request, 'accounts/menu.html', context)
 
@@ -1327,3 +1332,569 @@ self.addEventListener('fetch', e => {
 """
     return HttpResponse(sw.strip(), content_type='application/javascript',
                         headers={'Service-Worker-Allowed': '/'})
+
+
+# ── Visor de Logs del Sistema ────────────────────────────────────────────────
+import subprocess as _subprocess
+import re as _re
+
+_LOG_FILES = {
+    'apache_error':   '/var/log/apache2/servicios_ana_error.log',
+    'apache_access':  '/var/log/apache2/servicios_ana_access.log',
+    'apache_general': '/var/log/apache2/error.log',
+}
+
+def _leer_log(path, lineas=300):
+    try:
+        result = _subprocess.run(
+            ['tail', '-n', str(lineas), path],
+            capture_output=True, text=True, timeout=5
+        )
+        return result.stdout.strip().splitlines()
+    except Exception as e:
+        return [f'[ERROR leyendo log: {e}]']
+
+
+@login_required
+def settings_logs(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Solo superusuarios pueden ver los logs del sistema.')
+        return redirect('settings_perfil')
+
+    from django.contrib.admin.models import LogEntry
+
+    # Django LogEntry — últimas 200 entradas
+    django_logs = (
+        LogEntry.objects
+        .select_related('user', 'content_type')
+        .order_by('-action_time')[:200]
+    )
+
+    # Accesos recientes
+    accesos = RegistroAcceso.objects.select_related('usuario').order_by('-fecha_hora')[:100]
+
+    ctx = _settings_ctx(request, 'logs')
+    ctx.update({
+        'django_logs':  django_logs,
+        'accesos':      accesos,
+        'log_files':    list(_LOG_FILES.keys()),
+    })
+    return render(request, 'accounts/settings_logs.html', ctx)
+
+
+@login_required
+def settings_logs_api(request):
+    """API endpoint para cargar líneas de un archivo de log vía AJAX."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+
+    log_key = request.GET.get('log', 'apache_error')
+    lineas  = min(int(request.GET.get('lineas', 300)), 1000)
+    filtro  = request.GET.get('q', '').strip().lower()
+
+    path = _LOG_FILES.get(log_key)
+    if not path:
+        return JsonResponse({'ok': False, 'error': 'Log no encontrado'}, status=404)
+
+    lines = _leer_log(path, lineas)
+
+    # Invertir para mostrar más recientes arriba
+    lines = list(reversed(lines))
+
+    if filtro:
+        lines = [l for l in lines if filtro in l.lower()]
+
+    # Detectar nivel para colorear en frontend
+    def _nivel(line):
+        ll = line.lower()
+        if 'error' in ll or 'critical' in ll or 'crit' in ll:
+            return 'error'
+        if 'warn' in ll or 'notice' in ll:
+            return 'warning'
+        if '200' in ll or 'info' in ll:
+            return 'info'
+        return 'default'
+
+    data = [{'text': l, 'nivel': _nivel(l)} for l in lines]
+    return JsonResponse({'ok': True, 'lines': data, 'total': len(data)})
+
+
+# ── Configuración de Correos ──────────────────────────────────────────────────
+
+@login_required
+def settings_correos(request):
+    """Página de diagnóstico y configuración del sistema de correo."""
+    if not request.user.is_superuser:
+        return redirect('menu')
+
+    from django.conf import settings as dj_settings
+    from django.contrib.auth.models import User
+    from conducta.models import ConfiguracionNotificacion
+    from notas_parcial.views import (
+        _GRUPOS_BL, _GRUPOS_COLEGIO, _CORREOS_VALIDOS,
+        _DEST_POR_USUARIO, _CORREO_PRUEBAS,
+    )
+
+    email_config = {
+        'backend':      dj_settings.EMAIL_BACKEND,
+        'host':         dj_settings.EMAIL_HOST,
+        'port':         dj_settings.EMAIL_PORT,
+        'use_tls':      getattr(dj_settings, 'EMAIL_USE_TLS', False),
+        'user':         dj_settings.EMAIL_HOST_USER,
+        'password_set': bool(dj_settings.EMAIL_HOST_PASSWORD),
+        'from_email':   dj_settings.DEFAULT_FROM_EMAIL,
+    }
+
+    usuarios = User.objects.filter(is_active=True).prefetch_related('groups').order_by('first_name', 'last_name')
+    total_usuarios   = usuarios.count()
+    con_email        = usuarios.exclude(email='').count()
+    sin_email        = total_usuarios - con_email
+
+    notif_conducta   = (ConfiguracionNotificacion.objects
+                        .select_related('coordinador', 'coordinador__usuario')
+                        .order_by('area', 'coordinador__nombre'))
+
+    _grupos_bl_sin_progress = _GRUPOS_BL - {'coord_progress_bl'}
+    _grupos_col_extra = _GRUPOS_COLEGIO | {'coordinadores', 'coord_notas_parcial'}
+
+    usuarios_notif_bl = (User.objects
+                         .filter(groups__name__in=_grupos_bl_sin_progress, is_active=True)
+                         .exclude(email='').distinct().order_by('first_name', 'last_name'))
+
+    usuarios_notif_col = (User.objects
+                          .filter(groups__name__in=_grupos_col_extra, is_active=True)
+                          .exclude(email='').distinct().order_by('first_name', 'last_name'))
+
+    ctx = _settings_ctx(request, 'correos')
+    ctx.update({
+        'nav_home_url':          '/',
+        'email_config':          email_config,
+        'usuarios':              usuarios,
+        'total_usuarios':        total_usuarios,
+        'con_email':             con_email,
+        'sin_email':             sin_email,
+        'notif_conducta':        notif_conducta,
+        'total_notif_conducta':  notif_conducta.count(),
+        'usuarios_notif_bl':     usuarios_notif_bl,
+        'usuarios_notif_col':    usuarios_notif_col,
+        'correos_validos_pdf':   sorted(_CORREOS_VALIDOS),
+        'correo_pruebas':        _CORREO_PRUEBAS,
+        'dest_por_usuario':      _DEST_POR_USUARIO,
+    })
+    return render(request, 'accounts/settings_correos.html', ctx)
+
+
+@login_required
+def settings_correos_smtp(request):
+    """Verifica la conexión SMTP y retorna JSON."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    try:
+        from django.core.mail import get_connection
+        conn = get_connection()
+        conn.open()
+        conn.close()
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+def settings_correos_test(request):
+    """Envía un correo de prueba y retorna JSON."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no permitido'}, status=405)
+
+    import json as _json
+    from django.core.mail import EmailMultiAlternatives as _EMA
+    try:
+        data = _json.loads(request.body)
+        dest = data.get('dest', '').strip()
+    except Exception:
+        dest = ''
+
+    if not dest:
+        return JsonResponse({'ok': False, 'error': 'Correo de destino vacío'})
+
+    try:
+        asunto = '[TechCare] Correo de prueba del sistema'
+        texto  = f'Este es un correo de prueba enviado desde TechCare por {request.user.get_full_name() or request.user.username}.'
+        html   = f'''<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px;">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.1);">
+  <p style="font-size:22px;font-weight:700;color:#1864ab;margin:0 0 12px;">✅ TechCare — Prueba de correo</p>
+  <p style="color:#495057;">{texto}</p>
+  <p style="color:#adb5bd;font-size:12px;margin-top:24px;">Enviado desde Configuración › Correos</p>
+</div></body></html>'''
+        msg = _EMA(asunto, texto, None, [dest])
+        msg.attach_alternative(html, 'text/html')
+        msg.send(fail_silently=False)
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+# ── Envío de instrucciones de login ────────────────────────────────────────────
+# <--- hecho por claude code
+
+_LOGIN_EMAIL_DEFAULTS = {
+    'asunto':   'Nuevo método de inicio de sesión – TechCare',
+    'intro':    'Hemos actualizado la pantalla de acceso a TechCare. A continuación puedes ver los pasos según tu rol para ingresar sin problemas.',
+    'paso_m1':  'En el campo Usuario escribe solo tu nombre (ej: jmartinez), sin el @ana-hn.org — el sistema lo agrega automáticamente.',
+    'paso_m2':  'Escribe tu contraseña de siempre.',
+    'paso_m3':  'Marca la casilla "Soy maestro" antes de hacer clic en Iniciar Sesión. Sin este paso el sistema no te reconocerá como docente.',
+    'paso_m4':  'Haz clic en Iniciar Sesión. ¡Listo!',
+    'paso_c1':  'En el campo Usuario escribe solo tu nombre (ej: jmartinez).',
+    'paso_c2':  'Escribe tu contraseña.',
+    'paso_c3':  'Haz clic en Iniciar Sesión — no es necesario marcar el checkbox.',
+    'paso_a1':  'En la pantalla de login, haz clic en el enlace "Acceso admin" (arriba a la derecha del campo usuario).',
+    'paso_a2':  'Escribe tu nombre de usuario completo y tu contraseña.',
+    'paso_a3':  'Haz clic en Iniciar Sesión.',
+    'tip':      'En la pantalla de login encontrarás el enlace "Olvidé mi contraseña" para restablecerla por correo electrónico.',
+}
+
+
+def _build_login_email_html(d, nombre_dest=''):
+    """Construye el HTML del correo de instrucciones de login (compatible con Outlook)."""
+    import html as _h
+    import datetime as _dt
+
+    def esc(s):
+        return _h.escape(str(s or ''))
+
+    anio  = _dt.datetime.now().year
+    saludo = f'Hola, {nombre_dest}' if nombre_dest else 'Hola,'
+
+    def _paso_row(num, texto, color, importante=False):
+        bg  = '#dc2626' if importante else color
+        pre = '<strong style="color:#dc2626;">Importante: </strong>' if importante else ''
+        return f"""
+        <tr>
+          <td width="26" valign="top" style="padding-top:2px;padding-bottom:10px;">
+            <table cellpadding="0" cellspacing="0" style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+              <tr><td width="24" height="24" align="center" valign="middle"
+                      bgcolor="{bg}" style="background:{bg};width:24px;height:24px;">
+                <span style="color:#ffffff;font-size:12px;font-weight:700;
+                             font-family:Arial,sans-serif;line-height:24px;">{num}</span>
+              </td></tr>
+            </table>
+          </td>
+          <td style="padding-left:10px;padding-bottom:10px;color:#1e293b;font-size:14px;
+                     line-height:1.6;font-family:Arial,sans-serif;">
+            {pre}{esc(texto)}
+          </td>
+        </tr>"""
+
+    pasos_m = (
+        _paso_row('1', d.get('paso_m1',''), '#1d4ed8') +
+        _paso_row('2', d.get('paso_m2',''), '#1d4ed8') +
+        _paso_row('3', d.get('paso_m3',''), '#1d4ed8', importante=True) +
+        _paso_row('4', d.get('paso_m4',''), '#1d4ed8')
+    )
+    pasos_c = (
+        _paso_row('1', d.get('paso_c1',''), '#16a34a') +
+        _paso_row('2', d.get('paso_c2',''), '#16a34a') +
+        _paso_row('3', d.get('paso_c3',''), '#16a34a')
+    )
+    pasos_a = (
+        _paso_row('1', d.get('paso_a1',''), '#7c3aed') +
+        _paso_row('2', d.get('paso_a2',''), '#7c3aed') +
+        _paso_row('3', d.get('paso_a3',''), '#7c3aed')
+    )
+
+    return f"""<!DOCTYPE html>
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+      xmlns:o="urn:schemas-microsoft-com:office:office" lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--[if mso]><noscript><xml>
+    <o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings>
+  </xml></noscript><![endif]-->
+  <title>{esc(d.get('asunto','TechCare'))}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="background:#f0f4f8;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+<tr><td align="center" style="padding:32px 16px;">
+
+  <table width="600" cellpadding="0" cellspacing="0" align="center"
+         style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+
+    <!-- HEADER -->
+    <tr>
+      <td align="center" bgcolor="#1a56db"
+          style="background:#1a56db;padding:32px 24px 24px;">
+        <p style="margin:0 0 4px;font-size:26px;font-weight:700;color:#ffffff;
+                  font-family:Arial,sans-serif;">TechCare</p>
+        <p style="margin:0;font-size:13px;color:#bfdbfe;font-family:Arial,sans-serif;">
+          Asociaci&oacute;n Nuevo Amanecer
+        </p>
+      </td>
+    </tr>
+
+    <!-- BODY -->
+    <tr>
+      <td bgcolor="#ffffff"
+          style="background:#ffffff;padding:36px 36px 28px;
+                 border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+
+        <p style="margin:0 0 4px;font-size:20px;font-weight:700;color:#1e293b;
+                  font-family:Arial,sans-serif;">{esc(saludo)}</p>
+        <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.6;
+                  font-family:Arial,sans-serif;">{esc(d.get('intro',''))}</p>
+
+        <!-- ─ MAESTROS ─ -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:20px;">
+          <tr>
+            <td bgcolor="#eff6ff"
+                style="background:#eff6ff;border:1px solid #bfdbfe;padding:18px 20px;">
+              <p style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1d4ed8;
+                        font-family:Arial,sans-serif;">
+                Si eres
+                <span style="background:#1d4ed8;color:#ffffff;padding:2px 10px;
+                             font-size:13px;font-family:Arial,sans-serif;">Maestro/a</span>
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                {pasos_m}
+              </table>
+              <!-- mockup formulario -->
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="mso-table-lspace:0pt;mso-table-rspace:0pt;margin-top:14px;">
+                <tr><td align="center">
+                  <table cellpadding="0" cellspacing="0" width="300"
+                         style="mso-table-lspace:0pt;mso-table-rspace:0pt;
+                                background:#ffffff;border:1px solid #cbd5e1;">
+                    <tr><td style="padding:12px 16px 4px;" align="center">
+                      <p style="margin:0 0 8px;font-size:10px;color:#94a3b8;
+                                text-transform:uppercase;letter-spacing:.05em;
+                                font-weight:600;font-family:Arial,sans-serif;">
+                        Vista previa del formulario
+                      </p>
+                    </td></tr>
+                    <tr><td style="padding:0 16px 8px;">
+                      <p style="margin:0 0 3px;font-size:11px;color:#475569;
+                                font-weight:600;font-family:Arial,sans-serif;">Usuario</p>
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                        <tr>
+                          <td width="30" bgcolor="#f1f5f9"
+                              style="background:#f1f5f9;border:1px solid #cbd5e1;
+                                     padding:7px 6px;text-align:center;
+                                     font-size:13px;font-family:Arial,sans-serif;">&#128100;</td>
+                          <td bgcolor="#f8fafc"
+                              style="background:#f8fafc;border:1px solid #cbd5e1;
+                                     border-left:none;padding:7px 10px;font-size:13px;
+                                     color:#334155;font-family:Arial,sans-serif;">jmartinez</td>
+                          <td bgcolor="#f1f5f9"
+                              style="background:#f1f5f9;border:1px solid #cbd5e1;
+                                     border-left:none;padding:7px 8px;font-size:12px;
+                                     color:#64748b;white-space:nowrap;
+                                     font-family:Arial,sans-serif;">@ana-hn.org</td>
+                        </tr>
+                      </table>
+                    </td></tr>
+                    <tr><td style="padding:0 16px 8px;">
+                      <p style="margin:0 0 3px;font-size:11px;color:#475569;
+                                font-weight:600;font-family:Arial,sans-serif;">Contrase&ntilde;a</p>
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                        <tr>
+                          <td width="30" bgcolor="#f1f5f9"
+                              style="background:#f1f5f9;border:1px solid #cbd5e1;
+                                     padding:7px 6px;text-align:center;
+                                     font-size:13px;font-family:Arial,sans-serif;">&#128274;</td>
+                          <td bgcolor="#f8fafc"
+                              style="background:#f8fafc;border:1px solid #cbd5e1;
+                                     border-left:none;padding:7px 10px;font-size:14px;
+                                     color:#94a3b8;letter-spacing:4px;
+                                     font-family:Arial,sans-serif;">
+                            &#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;
+                          </td>
+                        </tr>
+                      </table>
+                    </td></tr>
+                    <tr><td style="padding:6px 16px 10px;">
+                      <table cellpadding="0" cellspacing="0"
+                             style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                        <tr>
+                          <td width="18" height="18" bgcolor="#1d4ed8"
+                              style="background:#1d4ed8;text-align:center;
+                                     vertical-align:middle;">
+                            <span style="color:#ffffff;font-size:11px;font-weight:700;
+                                         font-family:Arial,sans-serif;">&#10003;</span>
+                          </td>
+                          <td style="padding-left:8px;font-size:13px;color:#1e293b;
+                                     font-weight:600;font-family:Arial,sans-serif;">
+                            Soy maestro
+                          </td>
+                          <td style="padding-left:8px;font-size:10px;color:#b45309;
+                                     font-weight:600;font-family:Arial,sans-serif;
+                                     background:#fef9c3;">&nbsp;&#8592; &#161;No olvidar!&nbsp;</td>
+                        </tr>
+                      </table>
+                    </td></tr>
+                    <tr><td style="padding:0 16px 14px;" align="center">
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                        <tr>
+                          <td align="center" bgcolor="#1d4ed8"
+                              style="background:#1d4ed8;padding:10px;">
+                            <span style="color:#ffffff;font-size:13px;font-weight:700;
+                                         font-family:Arial,sans-serif;">Iniciar Sesi&oacute;n</span>
+                          </td>
+                        </tr>
+                      </table>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ─ COORDINADORES ─ -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:20px;">
+          <tr>
+            <td bgcolor="#f0fdf4"
+                style="background:#f0fdf4;border:1px solid #bbf7d0;padding:18px 20px;">
+              <p style="margin:0 0 14px;font-size:15px;font-weight:700;color:#166534;
+                        font-family:Arial,sans-serif;">
+                Si eres
+                <span style="background:#16a34a;color:#ffffff;padding:2px 10px;
+                             font-size:13px;font-family:Arial,sans-serif;">Coordinador/a</span>
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                {pasos_c}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ─ ADMINISTRADORES ─ -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:20px;">
+          <tr>
+            <td bgcolor="#faf5ff"
+                style="background:#faf5ff;border:1px solid #e9d5ff;padding:18px 20px;">
+              <p style="margin:0 0 14px;font-size:15px;font-weight:700;color:#6b21a8;
+                        font-family:Arial,sans-serif;">
+                Si eres
+                <span style="background:#7c3aed;color:#ffffff;padding:2px 10px;
+                             font-size:13px;font-family:Arial,sans-serif;">Administrador</span>
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                {pasos_a}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ─ TIP ─ -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="mso-table-lspace:0pt;mso-table-rspace:0pt;">
+          <tr>
+            <td bgcolor="#fff7ed"
+                style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 18px;">
+              <p style="margin:0;font-size:14px;color:#431407;line-height:1.6;
+                        font-family:Arial,sans-serif;">
+                <strong>&#128161; &iquest;Olvidaste tu contrase&ntilde;a?</strong><br>
+                {esc(d.get('tip',''))}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td bgcolor="#1e293b"
+          style="background:#1e293b;padding:20px 24px;text-align:center;">
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:13px;
+                  font-family:Arial,sans-serif;">
+          Si tienes alguna duda o problema para ingresar, contacta a soporte t&eacute;cnico.
+        </p>
+        <p style="margin:0;color:#64748b;font-size:12px;font-family:Arial,sans-serif;">
+          &copy; {anio} Soporte T&eacute;cnico &ndash; Asociaci&oacute;n Nuevo Amanecer
+        </p>
+      </td>
+    </tr>
+
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
+@login_required
+def settings_envio_login(request):
+    """Página para redactar y enviar el correo de instrucciones de login."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        data    = {k: request.POST.get(k, v) for k, v in _LOGIN_EMAIL_DEFAULTS.items()}
+        ids     = request.POST.getlist('usuario_ids')
+        asunto  = data.get('asunto', 'Nuevo método de inicio de sesión – TechCare')
+        enviados = 0
+        errores  = []
+
+        if not ids:
+            return JsonResponse({'ok': False, 'error': 'No se seleccionó ningún usuario.'})
+
+        usuarios = User.objects.filter(id__in=ids, is_active=True).exclude(email='')
+
+        for u in usuarios:
+            nombre = u.get_full_name() or u.username
+            html   = _build_login_email_html(data, nombre_dest=nombre)
+            texto  = (
+                f'Hola {nombre},\n\n'
+                f'{data.get("intro","")}\n\n'
+                f'Accede en: https://servicios.ana-hn.org:437'
+            )
+            try:
+                msg = EmailMultiAlternatives(asunto, texto,
+                                             settings.DEFAULT_FROM_EMAIL, [u.email])
+                msg.attach_alternative(html, 'text/html')
+                msg.send(fail_silently=False)
+                enviados += 1
+            except Exception:
+                errores.append(u.email)
+
+        return JsonResponse({'ok': True, 'enviados': enviados, 'errores': errores})
+
+    # GET — lista de usuarios activos con email
+    ctx = _settings_ctx(request, 'envio_login')
+    ctx['defaults'] = _LOGIN_EMAIL_DEFAULTS
+    ctx['usuarios_lista'] = (
+        User.objects
+        .filter(is_active=True)
+        .exclude(email='')
+        .order_by('first_name', 'last_name', 'username')
+        .values('id', 'first_name', 'last_name', 'username', 'email')
+    )
+    return render(request, 'accounts/settings_envio_login.html', ctx)
+
+
+@login_required
+def settings_envio_login_preview(request):
+    """Devuelve el HTML renderizado del correo para la vista previa (POST)."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    data = {k: request.POST.get(k, v) for k, v in _LOGIN_EMAIL_DEFAULTS.items()}
+    html = _build_login_email_html(data, nombre_dest='[Nombre del usuario]')
+    return JsonResponse({'html': html})

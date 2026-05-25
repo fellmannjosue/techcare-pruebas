@@ -417,11 +417,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  csrf: '{{ csrf_token }}',
-  urlAsignarGrupos: '{% url "settings_usuarios_asignar_grupos" %}',
-};
-</script>
+<div id="page-config" hidden
+     data-csrf="{{ csrf_token }}"
+     data-url-asignar-grupos="{% url 'settings_usuarios_asignar_grupos' %}"></div>
 <script src="{% static 'accounts/js/settings_usuarios.js' %}"></script>
 {% endblock %}

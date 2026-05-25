@@ -189,7 +189,7 @@ def _llamar_sp(area, parcial, anio, curso=None):
         cache.set(key, (rows, cols), _CACHE_TTL)
         return rows, cols
 
-    # 3. Llamar SP (lento — también puebla la staging table)
+    # 3. Llamar SP (lento — puebla la staging table y devuelve el result set)
     entry = SP_MAP.get(area)
     if not entry:
         return [], []
@@ -201,17 +201,38 @@ def _llamar_sp(area, parcial, anio, curso=None):
             else:
                 sql = f"EXEC {sp} @Parcial={int(parcial)}, @Año={int(anio)}"
             cursor.execute(sql)
+            # El SP hace varias operaciones INSERT antes del SELECT final;
+            # avanzamos con nextset() hasta encontrar un result set con columnas.
             while cursor.description is None:
                 if not cursor.nextset():
-                    return [], []
-            cols = [c[0] for c in cursor.description]
-            rows = [dict(zip(cols, r)) for r in cursor.fetchall()]
-        if rows:
-            cache.set(key, (rows, cols), _CACHE_TTL)
-        return rows, cols
+                    break  # <--- hecho por claude code: no cortamos, intentamos staging abajo
+            if cursor.description is not None:
+                cols = [c[0] for c in cursor.description]
+                rows = [dict(zip(cols, r)) for r in cursor.fetchall()]
+            else:
+                rows, cols = [], []
     except Exception as e:
         print(f">>> ERROR SP {sp}:", e)
-        return [], []
+        rows, cols = [], []
+
+    # 3b. Si el SP no retornó filas por su result set, re-leer staging
+    if not rows:
+        rows, cols = _leer_staging_directo(area, parcial, anio, curso)
+
+    # 3c. Normalizar Decimal → float para que pickle del cache no falle
+    # (pyodbc devuelve decimal.Decimal que puede diferir del módulo estándar)
+    if rows:
+        import decimal as _dec
+        def _normalizar(v):
+            return float(v) if isinstance(v, _dec.Decimal) else v
+        rows = [{k: _normalizar(v) for k, v in r.items()} for r in rows]  # <--- hecho por claude code: fix "Can't pickle Decimal"
+
+    if rows:
+        try:
+            cache.set(key, (rows, cols), _CACHE_TTL)
+        except Exception as e_cache:
+            print(f">>> CACHE SET ERROR ({sp}):", e_cache)
+    return rows, cols
 
 
 def _get(row, *keys, default=''):

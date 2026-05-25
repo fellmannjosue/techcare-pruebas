@@ -59,6 +59,14 @@
       <span class="nav-link-title">Agendas</span>
     </a>
   </li>
+  {% if request.user.is_superuser %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'materias_docentes_bl' %}">
+      <span class="nav-link-icon"><i class="ti ti-table text-primary"></i></span>
+      <span class="nav-link-title">Materias-Docentes</span>
+    </a>
+  </li>
+  {% endif %}
   {% endif %}
 {% endblock %}
 
@@ -110,6 +118,20 @@
           <div class="mb-2"><i class="ti ti-file-certificate text-blue" style="font-size:2.2rem;"></i></div>
           <div class="fw-bold">Notas Mitad de Parcial</div>
           <div class="text-muted small mt-1">Reportes de notas parcial</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
+  {% if request.user.is_superuser and area == 'bilingue' %}
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'materias_docentes_bl' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3">
+        <div class="card-body">
+          <div class="mb-2"><i class="ti ti-table text-primary" style="font-size:2.2rem;"></i></div>
+          <div class="fw-bold">Materias-Docentes</div>
+          <div class="text-muted small mt-1">Tabla de materias BL</div>
         </div>
       </div>
     </a>
@@ -447,6 +469,8 @@
     </div>
   </div>
 </div>
+
+
 {% endblock %}
 
 {% block modals %}

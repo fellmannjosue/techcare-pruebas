@@ -123,8 +123,8 @@
             {% for e in form.fecha_instalado.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
-          {# ── Edificio (solo General) ── #}
-          <div class="col-md-4 d-none" id="campo-edificio">
+          {# ── Edificio — visible para todos los tipos de laboratorio ── #}
+          <div class="col-md-4" id="campo-edificio">
             <label class="form-label fw-semibold">Edificio</label>
             <select name="edificio" class="form-select" id="id_edificio">
               <option value="">— Seleccionar edificio —</option>

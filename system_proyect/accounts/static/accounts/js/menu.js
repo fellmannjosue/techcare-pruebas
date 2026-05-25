@@ -1,9 +1,10 @@
 (function(){
-  if (typeof window._PAGE === 'undefined') return;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
 
-  const CSRF         = window._PAGE.csrf;
-  const URL_ESTADO   = window._PAGE.urlEstadoMantenimiento;
-  const URL_TOGGLE   = window._PAGE.urlToggleMantenimiento;
+  const CSRF         = _cfg.dataset.csrf;
+  const URL_ESTADO   = _cfg.dataset.urlEstadoMantenimiento;
+  const URL_TOGGLE   = _cfg.dataset.urlToggleMantenimiento;
 
   const badge        = document.getElementById('mant-badge');
   const badgeTxt     = document.getElementById('mant-badge-txt');
@@ -35,7 +36,7 @@
       const groups  = tr.dataset.groups || '';
       let visible = false;
       if (area === 'staff')         visible = isStaff;
-      else if (area === 'all')      visible = !isStaff;
+      else if (area === 'all')      visible = true; // <--- hecho por claude code: todas las áreas = todos (staff + maestros)
       else if (area === 'bilingue') visible = !isStaff && groups.includes('maestros_bilingue');
       else if (area === 'colegio')  visible = !isStaff && groups.includes('maestros_colegio');
       tr.style.display = visible ? '' : 'none';

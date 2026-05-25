@@ -1,9 +1,10 @@
 (function(){
-  if (typeof window._USER_DROPDOWN === 'undefined') return;
+  const _cfg = document.getElementById('user-dropdown-config');
+  if (!_cfg) return;
 
-  const URL_REENVIAR  = window._USER_DROPDOWN.urlReenviar;
-  const URL_USUARIOS  = window._USER_DROPDOWN.urlUsuarios;
-  const CSRF          = window._USER_DROPDOWN.csrf;
+  const URL_REENVIAR  = _cfg.dataset.urlReenviar;
+  const URL_USUARIOS  = _cfg.dataset.urlUsuarios;
+  const CSRF          = _cfg.dataset.csrf;
   let usuariosCargados = false;
 
   function getMensaje(){

@@ -1,7 +1,8 @@
 (function () {
-  if (typeof window._PAGE === 'undefined') return;
-  const CSRF = window._PAGE.csrf;
-  const URL_ASIGNAR_GRUPOS = window._PAGE.urlAsignarGrupos;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
+  const CSRF = _cfg.dataset.csrf;
+  const URL_ASIGNAR_GRUPOS = _cfg.dataset.urlAsignarGrupos;
 
   // ── Selección múltiple ────────────────────────────────────
   const barra      = document.getElementById('barra-seleccion');

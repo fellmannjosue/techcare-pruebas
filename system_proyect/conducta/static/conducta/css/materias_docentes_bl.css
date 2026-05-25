@@ -1,0 +1,32 @@
+/* materias_docentes_bl.css — hecho por claude code */
+
+/* ── Badge coordinador (pill de color) ── */
+.badge-coord {
+  display: inline-block;
+  color: #fff;
+  padding: .25em .75em;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+/* ── Tabla ── */
+#tabla-materias tbody tr {
+  cursor: default;
+}
+
+#tabla-materias thead th {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--tblr-muted, #6c757d);
+}
+
+/* ── Buscador responsive ── */
+@media (max-width: 575px) {
+  #input-buscar {
+    min-width: 140px !important;
+  }
+}

@@ -1,0 +1,64 @@
+/* settings_envio_login.css — hecho por claude code */
+
+/* ── Cards por rol ── */
+.card-maestros { border-top: 3px solid #1d4ed8; }
+.card-coords   { border-top: 3px solid #16a34a; }
+.card-admins   { border-top: 3px solid #7c3aed; }
+.card-tip      { border-top: 3px solid #f97316; }
+
+.card-header-maestros { background: #eff6ff; border-bottom: 1px solid #bfdbfe; }
+.card-header-coords   { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; }
+.card-header-admins   { background: #faf5ff; border-bottom: 1px solid #e9d5ff; }
+.card-header-tip      { background: #fff7ed; border-bottom: 1px solid #fed7aa; }
+
+/* ── Etiquetas de paso ── */
+.label-paso {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #64748b;
+  margin-bottom: .25rem;
+}
+
+/* ── Lista de usuarios con checkboxes ── */
+.users-check-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--tblr-border-color, #e6e7e9);
+  border-radius: 6px;
+}
+
+.user-check-item {
+  cursor: pointer;
+  border-bottom: 1px solid var(--tblr-border-color, #f1f3f4);
+  transition: background .12s;
+}
+.user-check-item:last-child { border-bottom: none; }
+.user-check-item:hover { background: #f8fafc; }
+.user-check-item:has(.chk-usuario:checked) {
+  background: #eff6ff;
+}
+
+/* ── Preview fija en desktop ── */
+@media (min-width: 1200px) {
+  .preview-card {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+/* ── Iframe sin borde visible al fondo ── */
+#iframe-preview {
+  display: block;
+  border-radius: 0 0 4px 4px;
+}
+
+/* ── Badge estado preview ── */
+#badge-preview-estado {
+  font-size: .7rem;
+}
+
+/* ── Colores texto ── */
+.text-purple { color: #7c3aed !important; }
+.text-orange { color: #ea580c !important; }

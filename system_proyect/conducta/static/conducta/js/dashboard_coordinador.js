@@ -496,3 +496,21 @@
   } catch(e) { console.error('[dropzone]', e); }
 
 })();
+
+// ── Filtro tabla Materia-Docente BL (solo superuser) ──────────────────────────
+(function(){
+  const filtro = document.getElementById('filtro-materias-bl');
+  if (!filtro) return;
+  filtro.addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.fila-materia-bl').forEach(tr => {
+      tr.style.display = !q || tr.dataset.search.includes(q) ? '' : 'none';
+    });
+  });
+  const collapseEl = document.getElementById('collapse-materias-bl');
+  const icon = document.getElementById('icon-materias-bl');
+  if (collapseEl && icon) {
+    collapseEl.addEventListener('show.bs.collapse', () => icon.className = 'ti ti-chevron-up');
+    collapseEl.addEventListener('hide.bs.collapse', () => icon.className = 'ti ti-chevron-down');
+  }
+})();

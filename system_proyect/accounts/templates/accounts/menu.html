@@ -89,14 +89,9 @@
 
         {% if show_cards %}
 
-        {# Alerta de bienvenida #}
-        {% if request.session.show_welcome %}
-        <div class="alert alert-success alert-dismissible mb-4" role="alert" id="alertBienvenido">
-          <i class="ti ti-circle-check me-2"></i>
-          <strong>¡Bienvenido, {{ request.user.first_name|default:request.user.username }}!</strong>
-          Has iniciado sesión correctamente.
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+        {# Alerta de bienvenida — sin animación (fallback, nunca se usa si hay overlay) #}
+        {% if show_welcome %}
+        <div id="alertBienvenido" style="display:none;"></div>
         {% endif %}
 
         {# ===== TARJETAS RESUMEN ===== #}
@@ -442,96 +437,10 @@
   </div>
 </div>
 
-<script>
-(function(){
-  const URL_REENVIAR = "{% url 'reenviar_bienvenida' %}";
-  const CSRF = "{{ csrf_token }}";
-
-  function getMensaje() {
-    const el = document.getElementById('mensajeExtra');
-    return el ? el.value.trim() : '';
-  }
-
-  async function enviar(modo, email) {
-    const body = new URLSearchParams({ modo, email: email || '', mensaje_extra: getMensaje() });
-    const res = await fetch(URL_REENVIAR, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-    return res.json();
-  }
-
-  function toast(msg, ok) {
-    const el = document.createElement('div');
-    el.className = `alert alert-${ok ? 'success' : 'danger'} alert-dismissible position-fixed bottom-0 end-0 m-3`;
-    el.style.zIndex = 9999;
-    el.innerHTML = `<i class="ti ti-${ok ? 'check' : 'x'} me-1"></i>${msg}<button class="btn-close" data-bs-dismiss="alert"></button>`;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 4000);
-  }
-
-  function actualizarContador() {
-    const n = document.querySelectorAll('.chk-usuario:checked').length;
-    document.getElementById('contadorSel').textContent = n + ' seleccionados';
-  }
-
-  document.getElementById('buscadorUsuarios').addEventListener('input', function(){
-    const q = this.value.toLowerCase();
-    document.querySelectorAll('.fila-usuario').forEach(tr => {
-      const coincide = tr.dataset.nombre.includes(q) || tr.dataset.email.includes(q);
-      tr.style.display = coincide ? '' : 'none';
-    });
-  });
-
-  document.getElementById('btnSelTodos').addEventListener('click', () => {
-    document.querySelectorAll('.fila-usuario:not([style*="none"]) .chk-usuario').forEach(c => c.checked = true);
-    document.getElementById('chkTodosHeader').checked = true;
-    actualizarContador();
-  });
-
-  document.getElementById('btnDeselTodos').addEventListener('click', () => {
-    document.querySelectorAll('.chk-usuario').forEach(c => c.checked = false);
-    document.getElementById('chkTodosHeader').checked = false;
-    actualizarContador();
-  });
-
-  document.getElementById('chkTodosHeader').addEventListener('change', function(){
-    document.querySelectorAll('.fila-usuario:not([style*="none"]) .chk-usuario').forEach(c => c.checked = this.checked);
-    actualizarContador();
-  });
-
-  document.querySelectorAll('.chk-usuario').forEach(c => c.addEventListener('change', actualizarContador));
-
-  document.querySelectorAll('.btn-enviar-uno').forEach(btn => {
-    btn.addEventListener('click', async function(){
-      const email = this.dataset.email;
-      const nombre = this.dataset.nombre;
-      this.disabled = true;
-      this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-      const data = await enviar('uno', email);
-      this.disabled = false;
-      this.innerHTML = '<i class="ti ti-send me-1"></i>Enviar';
-      toast(data.ok ? `Correo enviado a ${nombre}` : `Error: ${data.error}`, data.ok);
-    });
-  });
-
-  document.getElementById('btnEnviarSeleccionados').addEventListener('click', async function(){
-    const seleccionados = [...document.querySelectorAll('.chk-usuario:checked')].map(c => c.value);
-    if (!seleccionados.length) { toast('Selecciona al menos un usuario.', false); return; }
-    this.disabled = true;
-    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
-    let ok = 0, err = 0;
-    for (const email of seleccionados) {
-      const data = await enviar('uno', email);
-      data.ok ? ok++ : err++;
-    }
-    this.disabled = false;
-    this.innerHTML = '<i class="ti ti-mail me-1"></i>Enviar a seleccionados';
-    toast(`Enviados: ${ok}${err ? ` | Errores: ${err}` : ''}`, err === 0);
-  });
-})();
-</script>
+<div id="bienvenida-config" hidden
+     data-url-reenviar="{% url 'reenviar_bienvenida' %}"
+     data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'accounts/js/menu_bienvenida.js' %}"></script>
 {% endif %}
 
 {% if request.user.is_superuser %}
@@ -569,7 +478,7 @@
           </div>
           <div class="text-muted small mt-1" id="mant-area-hint">
             <span id="mant-hint-all">
-              Bloquea solo usuarios regulares (maestros de todas las áreas). El <strong>staff siempre queda exento</strong>.
+              Bloquea <strong>todos los usuarios</strong> incluyendo staff. Solo el superadmin queda exento.
             </span>
             <span id="mant-hint-bilingue" style="display:none">
               Solo bloquea usuarios con el grupo <strong>maestros_bilingue</strong>. Staff y Colegio acceden normalmente.
@@ -681,16 +590,16 @@
 </div>
 <!-- ══════════════════════════════════════════════════════════════════ -->
 
-<script>
-window._PAGE = {
-  csrf: '{{ csrf_token }}',
-  urlEstadoMantenimiento: '{% url "estado_mantenimiento" %}',
-  urlToggleMantenimiento: '{% url "toggle_mantenimiento" %}',
-};
-</script>
+<div id="page-config" hidden
+     data-csrf="{{ csrf_token }}"
+     data-url-estado-mantenimiento="{% url 'estado_mantenimiento' %}"
+     data-url-toggle-mantenimiento="{% url 'toggle_mantenimiento' %}"></div>
 <script src="{% static 'accounts/js/menu.js' %}"></script>
 {% endif %}
 
 {% include "accounts/_notif_notas_toast.html" %}
+
+{% include "accounts/_welcome_overlay.html" %}
+
 </body>
 </html>

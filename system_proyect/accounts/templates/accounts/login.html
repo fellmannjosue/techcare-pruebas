@@ -46,13 +46,29 @@
               {% csrf_token %}
 
               <div class="mb-3">
-                <label for="username" class="form-label">Usuario</label>
-                <div class="input-group">
+                <label for="username" class="form-label d-flex justify-content-between align-items-center">
+                  <span>Usuario</span>
+                  <a href="#" class="text-muted small text-decoration-none" id="toggleAdminMode">
+                    <i class="ti ti-shield-lock me-1"></i><span id="toggleAdminLabel">Acceso admin</span>
+                  </a>
+                </label>
+                {# Modo normal: @ana-hn.org #}
+                <div class="input-group" id="inputGrupoDominio">
                   <span class="input-group-text"><i class="ti ti-user"></i></span>
-                  <input type="text" id="username" name="username"
-                         class="form-control" required autocomplete="username"
-                         placeholder="Tu nombre de usuario">
+                  <input type="text" id="usernameShort"
+                         class="form-control" autocomplete="username"
+                         placeholder="tu.nombre">
+                  <span class="input-group-text text-muted fw-semibold">@ana-hn.org</span>
                 </div>
+                {# Modo admin: campo libre #}
+                <div class="input-group" id="inputGrupoAdmin" style="display:none;">
+                  <span class="input-group-text text-warning"><i class="ti ti-shield"></i></span>
+                  <input type="text" id="usernameAdmin"
+                         class="form-control" autocomplete="username"
+                         placeholder="Nombre de usuario completo">
+                </div>
+                {# Hidden real field #}
+                <input type="hidden" id="username" name="username">
               </div>
 
               <div class="mb-3">
@@ -105,11 +121,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js" defer></script>
-  <script>
-  window._PAGE = {
-    showCheckboxHint: {% if show_checkbox_hint %}true{% else %}{% for message in messages %}{% if message.message == 'checkbox_hint' %}true{% endif %}{% endfor %}false{% endif %}
-  };
-  </script>
+  <div id="page-config" hidden
+       data-show-checkbox-hint="{% if show_checkbox_hint %}true{% else %}false{% endif %}"></div>
   <script src="{% static 'accounts/js/login.js' %}" defer></script>
 </body>
 </html>

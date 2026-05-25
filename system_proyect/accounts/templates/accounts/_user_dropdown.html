@@ -44,8 +44,8 @@
 
       {% if request.user.is_staff %}
       <li>
-        <a class="dropdown-item" href="{% url 'admin:index' %}">
-          <i class="ti ti-layout-dashboard me-2"></i>Ventana Admin
+        <a class="dropdown-item" href="{% url 'admin:index' %}" target="_blank" rel="noopener noreferrer">
+          <i class="ti ti-layout-dashboard me-2"></i>Ventana Admin <i class="ti ti-external-link ms-1 text-muted" style="font-size:.75rem;"></i>
         </a>
       </li>
       {% endif %}
@@ -121,12 +121,9 @@
   </div>
 </div>
 
-<script>
-window._USER_DROPDOWN = {
-  urlReenviar: '{% url "reenviar_bienvenida" %}',
-  urlUsuarios: '{% url "usuarios_lista_json" %}',
-  csrf:        '{{ csrf_token }}',
-};
-</script>
+<div id="user-dropdown-config" hidden
+     data-url-reenviar="{% url 'reenviar_bienvenida' %}"
+     data-url-usuarios="{% url 'usuarios_lista_json' %}"
+     data-csrf="{{ csrf_token }}"></div>
 <script src="{% static 'accounts/js/user_dropdown.js' %}"></script>
 {% endif %}

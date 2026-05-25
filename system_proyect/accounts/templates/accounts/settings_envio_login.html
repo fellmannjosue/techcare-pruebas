@@ -1,0 +1,279 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{# <--- hecho por claude code: página de redacción y envío del correo de instrucciones de login #}
+
+{% block title %}Enviar instrucciones de login{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'accounts/css/settings_envio_login.css' %}">
+{% endblock %}
+
+{% block settings_content %}
+
+<div class="card mb-3">
+  <div class="card-body py-3 d-flex align-items-center gap-3 flex-wrap">
+    <div>
+      <h3 class="card-title mb-1">
+        <i class="ti ti-send me-2 text-primary"></i>Enviar instrucciones de inicio de sesión
+      </h3>
+      <p class="text-muted small mb-0">
+        Redacta el correo, edita cualquier texto y envíalo a los usuarios.
+        Los cambios solo afectan a este envío — no se guardan de forma permanente.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  {# ── Columna izquierda: formulario ── #}
+  <div class="col-12 col-xl-7">
+    <form id="form-envio-login" novalidate>
+      {% csrf_token %}
+
+      {# ── Configuración del envío ── #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title mb-0"><i class="ti ti-settings me-2 text-muted"></i>Configuración del envío</h4>
+        </div>
+        <div class="card-body">
+          <label class="form-label fw-semibold">Asunto del correo</label>
+          <input type="text" name="asunto" class="form-control preview-field"
+                 value="{{ defaults.asunto }}">
+        </div>
+      </div>
+
+      {# ── Destinatarios (lista con checkboxes) ── #}
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+          <h4 class="card-title mb-0">
+            <i class="ti ti-users me-2 text-muted"></i>Destinatarios
+          </h4>
+          <span class="badge bg-blue-lt text-blue ms-1" id="badge-seleccionados">
+            0 seleccionados
+          </span>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" id="btn-sel-todos" class="btn btn-sm btn-outline-primary">
+              <i class="ti ti-checkbox me-1"></i>Todos
+            </button>
+            <button type="button" id="btn-sel-ninguno" class="btn btn-sm btn-outline-secondary">
+              <i class="ti ti-square me-1"></i>Ninguno
+            </button>
+          </div>
+        </div>
+        <div class="card-body pb-2">
+          {# Buscador #}
+          <div class="input-group input-group-sm mb-2">
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" id="input-buscar-usuarios" class="form-control"
+                   placeholder="Buscar por nombre o correo…">
+          </div>
+          {# Lista scrollable #}
+          <div class="users-check-list" id="lista-usuarios">
+            {% for u in usuarios_lista %}
+            <label class="user-check-item d-flex align-items-center gap-2 py-1 px-2"
+                   data-nombre="{{ u.first_name }} {{ u.last_name }}"
+                   data-email="{{ u.email }}">
+              <input type="checkbox" name="usuario_ids" value="{{ u.id }}"
+                     class="form-check-input m-0 flex-shrink-0 chk-usuario">
+              <div class="min-w-0">
+                <div class="fw-semibold small text-truncate">
+                  {% if u.first_name or u.last_name %}
+                    {{ u.first_name }} {{ u.last_name }}
+                  {% else %}
+                    {{ u.username }}
+                  {% endif %}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">{{ u.email }}</div>
+              </div>
+            </label>
+            {% empty %}
+            <p class="text-muted small py-3 text-center mb-0">No hay usuarios activos con correo.</p>
+            {% endfor %}
+          </div>
+          <div class="text-muted small pt-2 border-top" id="texto-sin-resultados" style="display:none;">
+            Sin resultados para la búsqueda.
+          </div>
+        </div>
+      </div>
+
+      {# ── Introducción ── #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title mb-0"><i class="ti ti-text-size me-2 text-muted"></i>Texto de introducción</h4>
+        </div>
+        <div class="card-body">
+          <textarea name="intro" class="form-control preview-field" rows="3">{{ defaults.intro }}</textarea>
+        </div>
+      </div>
+
+      {# ── Maestros ── #}
+      <div class="card mb-3 card-maestros">
+        <div class="card-header card-header-maestros">
+          <h4 class="card-title mb-0 text-blue">
+            <i class="ti ti-school me-2"></i>Pasos para Maestros
+          </h4>
+        </div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 1</label>
+            <input type="text" name="paso_m1" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_m1 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 2</label>
+            <input type="text" name="paso_m2" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_m2 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label label-paso label-importante">
+              Paso 3 <span class="badge bg-red-lt text-red ms-1">Importante</span>
+            </label>
+            <input type="text" name="paso_m3" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_m3 }}">
+          </div>
+          <div class="mb-0">
+            <label class="form-label label-paso">Paso 4</label>
+            <input type="text" name="paso_m4" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_m4 }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Coordinadores ── #}
+      <div class="card mb-3 card-coords">
+        <div class="card-header card-header-coords">
+          <h4 class="card-title mb-0 text-green">
+            <i class="ti ti-user-check me-2"></i>Pasos para Coordinadores
+          </h4>
+        </div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 1</label>
+            <input type="text" name="paso_c1" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_c1 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 2</label>
+            <input type="text" name="paso_c2" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_c2 }}">
+          </div>
+          <div class="mb-0">
+            <label class="form-label label-paso">Paso 3</label>
+            <input type="text" name="paso_c3" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_c3 }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Admins ── #}
+      <div class="card mb-3 card-admins">
+        <div class="card-header card-header-admins">
+          <h4 class="card-title mb-0 text-purple">
+            <i class="ti ti-shield me-2"></i>Pasos para Administradores
+          </h4>
+        </div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 1</label>
+            <input type="text" name="paso_a1" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_a1 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label label-paso">Paso 2</label>
+            <input type="text" name="paso_a2" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_a2 }}">
+          </div>
+          <div class="mb-0">
+            <label class="form-label label-paso">Paso 3</label>
+            <input type="text" name="paso_a3" class="form-control form-control-sm preview-field"
+                   value="{{ defaults.paso_a3 }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Tip contraseña ── #}
+      <div class="card mb-3 card-tip">
+        <div class="card-header card-header-tip">
+          <h4 class="card-title mb-0 text-orange">
+            <i class="ti ti-bulb me-2"></i>Consejo — ¿Olvidaste tu contraseña?
+          </h4>
+        </div>
+        <div class="card-body">
+          <textarea name="tip" class="form-control form-control-sm preview-field" rows="2">{{ defaults.tip }}</textarea>
+        </div>
+      </div>
+
+      {# ── Botones ── #}
+      <div class="card">
+        <div class="card-body d-flex align-items-center gap-2 flex-wrap">
+          <button type="button" id="btn-preview" class="btn btn-outline-secondary">
+            <i class="ti ti-eye me-1"></i>Actualizar vista previa
+          </button>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" id="btn-enviar" class="btn btn-primary">
+              <i class="ti ti-send me-1"></i>Enviar correo
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+  {# ── Columna derecha: preview ── #}
+  <div class="col-12 col-xl-5">
+    <div class="card preview-card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="ti ti-mail text-primary"></i>
+        <h4 class="card-title mb-0">Vista previa del correo</h4>
+        <span class="badge bg-blue-lt text-blue ms-auto" id="badge-preview-estado">
+          Sin actualizar
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <iframe id="iframe-preview"
+                style="width:100%;height:640px;border:none;"
+                srcdoc="<html><body style='font-family:Arial,sans-serif;color:#94a3b8;
+                  display:flex;align-items:center;justify-content:center;height:100%;margin:0;
+                  background:#f8fafc;'>
+                  <div style='text-align:center;padding:40px;'>
+                    <div style='font-size:40px;margin-bottom:12px;'>✉️</div>
+                    <p style='margin:0;font-size:14px;'>
+                      Haz clic en <strong>«Actualizar vista previa»</strong><br>
+                      para ver cómo se verá el correo.
+                    </p>
+                  </div>
+                </body></html>">
+        </iframe>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Modal resultado de envío ── #}
+<div class="modal fade" id="modal-resultado" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" id="modal-resultado-header">
+        <h5 class="modal-title" id="modal-resultado-title">Resultado del envío</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-resultado-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<div id="page-config" hidden
+     data-url-preview="{% url 'settings_envio_login_preview' %}"
+     data-url-send="{% url 'settings_envio_login' %}"
+     data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'accounts/js/settings_envio_login.js' %}"></script>
+{% endblock %}

@@ -102,6 +102,15 @@ class ConfiguracionCoordinador(AuditModel):
     def email(self):
         return self.usuario.email if self.usuario_id else ''
 
+    @property
+    def color(self):
+        """Color hex asociado al código de coordinador."""
+        _COLORS = {
+            'C1': '#c92a2a', 'C2': '#1971c2', 'C3': '#2f9e44',
+            'C4': '#e67700', 'C5': '#9c36b5', 'C6': '#0c8599',
+        }
+        return _COLORS.get(self.codigo, '#6c757d')
+
 
 # ────────────────
 # Materia-Docente (Colegio)

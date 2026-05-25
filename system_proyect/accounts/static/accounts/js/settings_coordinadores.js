@@ -1,6 +1,7 @@
 (function(){
-  if (typeof window._PAGE === 'undefined') return;
-  const CSRF = window._PAGE.csrf;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
+  const CSRF = _cfg.dataset.csrf;
   let eliminarPk = null;
 
   window.abrirNuevo = function() {

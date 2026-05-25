@@ -1,7 +1,8 @@
 (function(){
-  if (typeof window._PAGE === 'undefined') return;
-  const CSRF = window._PAGE.csrf;
-  const URL  = window._PAGE.url;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
+  const CSRF = _cfg.dataset.csrf;
+  const URL  = _cfg.dataset.url;
   let badgeTimer;
 
   document.querySelectorAll('.perm-toggle').forEach(function(chk){

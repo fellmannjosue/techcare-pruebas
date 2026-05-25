@@ -1,14 +1,65 @@
 {% extends 'calculadoras/base_calculadoras.html' %}
 {% load static %}
+{# <--- hecho por claude code: calculadoras de tiempo — entre horas, horas→días, minutos→horas, fecha a fecha #}
 {% block title %}Tiempo{% endblock %}
 {% block page_pretitle %}Calculadoras{% endblock %}
 {% block page_title %}Calculadoras de Tiempo{% endblock %}
 
 {% block content %}
-<div class="row g-4">
 
-  <!-- Horas a Días -->
-  <div class="col-12 col-md-4" id="horas-dias">
+{# ── Fila 1: Entre dos horas (tarjeta ancha) ── #}
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-6" id="entre-horas">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-clock-bolt text-teal me-2"></i>Entre dos horas</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold">Hora inicio</label>
+            <input type="time" id="inp-hora-inicio" class="form-control" step="60">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold">Hora fin</label>
+            <input type="time" id="inp-hora-fin" class="form-control" step="60">
+          </div>
+        </div>
+
+        <div class="mt-3 p-3 rounded d-none" id="res-entre-horas"
+             style="background:linear-gradient(135deg,#e0fdf4,#ccfbf1);border:1px solid #5eead4;">
+          <div class="text-center mb-3">
+            <div class="text-teal fw-bold" style="font-size:2rem;" id="res-eh-principal">—</div>
+            <div class="text-muted small">diferencia de tiempo</div>
+          </div>
+          <div class="row text-center g-2">
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:#ccfbf1;">
+                <div class="fw-bold fs-3 text-teal" id="res-eh-horas-dec">—</div>
+                <div class="text-muted small">horas decimales</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded" style="background:#cffafe;">
+                <div class="fw-bold fs-3 text-cyan" id="res-eh-minutos">—</div>
+                <div class="text-muted small">minutos totales</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-center mt-2 text-muted small" id="res-eh-nota"></div>
+        </div>
+
+        <div class="mt-3 d-none text-center" id="res-eh-error">
+          <span class="badge bg-red-lt text-red py-2 px-3">
+            <i class="ti ti-alert-triangle me-1"></i>La hora fin debe ser posterior a la hora inicio
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Horas a Días ── #}
+  <div class="col-12 col-sm-6 col-lg-3" id="horas-dias">
     <div class="card h-100">
       <div class="card-header"><h3 class="card-title"><i class="ti ti-clock-hour-4 text-cyan me-2"></i>Horas → Días</h3></div>
       <div class="card-body">
@@ -23,10 +74,10 @@
     </div>
   </div>
 
-  <!-- Minutos a Horas -->
-  <div class="col-12 col-md-4" id="minutos">
+  {# ── Minutos a Horas ── #}
+  <div class="col-12 col-sm-6 col-lg-3" id="minutos">
     <div class="card h-100">
-      <div class="card-header"><h3 class="card-title"><i class="ti ti-stopwatch text-yellow me-2"></i>Minutos → Horas</h3></div>
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-hourglass text-yellow me-2"></i>Minutos → Horas</h3></div>
       <div class="card-body">
         <label class="form-label">Minutos</label>
         <input type="number" id="inp-minutos" class="form-control" min="0" placeholder="Ej. 90">
@@ -38,10 +89,12 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Fecha a Fecha -->
-  <div class="col-12 col-md-4" id="fechas">
-    <div class="card h-100">
+{# ── Fila 2: Fecha a Fecha ── #}
+<div class="row g-4">
+  <div class="col-12 col-md-5" id="fechas">
+    <div class="card">
       <div class="card-header"><h3 class="card-title"><i class="ti ti-calendar-stats text-purple me-2"></i>De Fecha a Fecha</h3></div>
       <div class="card-body">
         <label class="form-label">Fecha inicio</label>
@@ -68,8 +121,9 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'calculadoras/js/tiempo.js' %}"></script>
+<script src="{% static 'calculadoras/js/tiempo.js' %}?v=2"></script>
 {% endblock %}

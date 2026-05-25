@@ -1,11 +1,12 @@
 (function(){
-  if (typeof window._PAGE === 'undefined') return;
+  const _cfg = document.getElementById('page-config');
+  if (!_cfg) return;
 
-  const diasLabels = window._PAGE.diasLabels;
-  const diasData   = window._PAGE.diasData;
-  const topLabels  = window._PAGE.topLabels;
-  const topData    = window._PAGE.topData;
-  const hasTop     = window._PAGE.hasTop;
+  const diasLabels = JSON.parse(_cfg.dataset.diasLabels || '[]');
+  const diasData   = JSON.parse(_cfg.dataset.diasData   || '[]');
+  const topLabels  = JSON.parse(_cfg.dataset.topLabels  || '[]');
+  const topData    = JSON.parse(_cfg.dataset.topData    || '[]');
+  const hasTop     = _cfg.dataset.hasTop === 'true';
 
   new Chart(document.getElementById('chartLoginsDia'), {
     type: 'line',

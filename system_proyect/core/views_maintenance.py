@@ -28,7 +28,7 @@ def _usuarios_area(area):
     if area == 'staff':
         return qs.filter(is_staff=True)
     elif area == 'all':
-        return qs.filter(is_staff=False)
+        return qs  # <--- hecho por claude code: "Todas las áreas" incluye staff + maestros
     else:
         grupos = _AREA_GROUPS.get(area, ())
         if grupos:
