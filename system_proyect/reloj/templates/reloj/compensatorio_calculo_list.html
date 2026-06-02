@@ -330,6 +330,7 @@ window._PAGE = {
   urlEmpBuscar: '{% url "reloj_compensatorio_emp_buscar" %}',
   urlSetHorasAdeudadas: '/reloj/compensatorio-calculo/{pk}/set-horas-adeudadas/',
   urlSetTomado: '/reloj/compensatorio-calculo/{pk}/set-tomado/',
+  urlGetTomado: '/reloj/compensatorio-calculo/{pk}/tomado/',
   urlMensualAdd:    '{% url "reloj_compensatorio_mensual_add" %}',
   urlMensualCell:   '{% url "reloj_compensatorio_mensual_cell" %}',
   urlMensualDel:    '/reloj/compensatorio-mensual/{pk}/delete/',
@@ -338,6 +339,6 @@ window._PAGE = {
   urlInstructorDel: '/reloj/compensatorio-instructor/{pk}/delete/',
 };
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=4"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=5"></script>
 
 {% endblock %}

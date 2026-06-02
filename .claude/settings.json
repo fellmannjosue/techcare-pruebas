@@ -16,7 +16,9 @@
       "Bash(grep -rln \"dias_laborables\" --include=\"*.py\" .)",
       "Bash(git commit *)",
       "Bash(sudo -S ../venv313/bin/python manage.py collectstatic --noinput)",
-      "Bash(echo \"restart exit: $?\")"
+      "Bash(echo \"restart exit: $?\")",
+      "Bash(sed -n '1,5p')",
+      "Bash(awk '/def compensatorio_calculo_get_tiempo_extra/,/^    \\\\}\\\\\\)/' reloj/views.py)"
     ]
   }
 }

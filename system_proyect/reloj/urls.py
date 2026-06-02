@@ -89,6 +89,7 @@ urlpatterns = [
     # Tabs nuevas de compensatorio  <--- hecho por claude code
     path('compensatorio-calculo/<int:pk>/set-horas-adeudadas/', views.compensatorio_set_horas_adeudadas, name='reloj_compensatorio_set_horas_adeudadas'),
     path('compensatorio-calculo/<int:pk>/set-tomado/', views.compensatorio_set_tomado, name='reloj_compensatorio_set_tomado'),
+    path('compensatorio-calculo/<int:pk>/tomado/', views.compensatorio_calculo_get_tomado, name='reloj_compensatorio_get_tomado'),
     path('compensatorio/emp-buscar/', views.compensatorio_emp_buscar, name='reloj_compensatorio_emp_buscar'),
     path('compensatorio-mensual/add/', views.compensatorio_mensual_add, name='reloj_compensatorio_mensual_add'),
     path('compensatorio-mensual/cell/', views.compensatorio_mensual_cell, name='reloj_compensatorio_mensual_cell'),

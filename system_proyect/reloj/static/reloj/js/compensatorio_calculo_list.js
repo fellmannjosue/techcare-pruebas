@@ -125,22 +125,52 @@ document.addEventListener('DOMContentLoaded', function () {
       updateRowTotals(pk, data);
     },
   });
-  // Tiempo extra tomado (override)
-  bindEditModal({
-    btnSel: '.btn-set-tomado', modalId: 'modalTomado', nombreEl: 'tom-nombre',
-    inputEl: 'tom-input', saveBtn: 'btn-guardar-tomado',
-    url: window._PAGE.urlSetTomado,
-    payload: raw => ({ horas: raw === '' ? '' : (parseFloat(raw) || 0) }),
-    onOk: (pk, raw, data) => {
-      const badge = document.querySelector(`.tomado-badge-${pk}`);
+  // Tiempo extra tomado (detalle permiso compensatorio + override)
+  let modalTom = null, tomPk = null;
+  function renderTomado(entries) {
+    const tbody = document.getElementById('tom-tbody'), empty = document.getElementById('tom-empty');
+    tbody.querySelectorAll('tr:not(#tom-empty)').forEach(r => r.remove());
+    if (!entries.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    entries.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-pink">${e.horas} h</td><td class="text-muted small">${e.razon}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  document.querySelectorAll('.btn-set-tomado').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      tomPk = this.dataset.pk;
+      document.getElementById('tom-nombre').textContent = this.dataset.nombre || '';
+      const inp = document.getElementById('tom-input');
+      if (inp) inp.value = this.dataset.valor || '';
+      if (!modalTom) modalTom = new bootstrap.Modal(document.getElementById('modalTomado'));
+      modalTom.show();
+      const d = await (await fetch(window._PAGE.urlGetTomado.replace('{pk}', tomPk))).json();
+      if (d.ok) {
+        renderTomado(d.entries);
+        document.getElementById('tom-total-permiso').textContent = d.total_permiso;
+        if (inp) inp.placeholder = `Vacío = usar permiso (${d.total_permiso} h)`;
+      }
+    });
+  });
+  document.getElementById('btn-guardar-tomado')?.addEventListener('click', async function () {
+    const inp = document.getElementById('tom-input');
+    const raw = inp.value;
+    this.disabled = true;
+    const data = await jpost(window._PAGE.urlSetTomado.replace('{pk}', tomPk), { horas: raw === '' ? '' : (parseFloat(raw) || 0) });
+    this.disabled = false;
+    if (data.ok) {
+      const badge = document.querySelector(`.tomado-badge-${tomPk}`);
       if (badge) {
-        badge.className = `badge ${data.es_override ? 'bg-yellow-lt text-yellow' : 'bg-pink-lt text-pink'} tomado-badge-${pk}`;
+        badge.className = `badge ${data.es_override ? 'bg-yellow-lt text-yellow' : 'bg-pink-lt text-pink'} tomado-badge-${tomPk}`;
         badge.innerHTML = `<i class="ti ti-calendar-minus me-1"></i>${data.tomado_hrs > 0 ? data.tomado_hrs + ' h' : '—'}`;
       }
-      const b = document.querySelector(`.btn-set-tomado[data-pk="${pk}"]`); if (b) b.dataset.valor = data.es_override ? data.tomado_hrs : '';
-      const row = document.querySelector(`tr[data-pk="${pk}"]`); if (row) row.dataset.tomadoMin = data.tomado_hrs * 60;
-      updateSaldoBadge(pk, data.saldo_min);
-    },
+      const b = document.querySelector(`.btn-set-tomado[data-pk="${tomPk}"]`); if (b) b.dataset.valor = data.es_override ? data.tomado_hrs : '';
+      const row = document.querySelector(`tr[data-pk="${tomPk}"]`); if (row) row.dataset.tomadoMin = data.tomado_hrs * 60;
+      updateSaldoBadge(tomPk, data.saldo_min);
+      if (modalTom) modalTom.hide();
+    }
   });
 
   // Min. autorizados/día (POST form-urlencoded)

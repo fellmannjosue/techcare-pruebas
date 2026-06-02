@@ -2949,6 +2949,28 @@ def _recalc_calculo(obj, feriados=None):
 
 
 @login_required
+def compensatorio_calculo_get_tomado(request, pk):
+    """AJAX GET: detalle del permiso compensatorio (tomado) de un empleado."""
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    qs = PermisoReporte.objects.filter(
+        emp_code=obj.emp_code, tipo__in=_TIPOS_PERMISO_COMP
+    ).order_by('fecha')
+    entries = [
+        {'fecha': p.fecha.strftime('%d/%m/%Y'),
+         'horas': round(float(p.horas or 0), 2),
+         'razon': p.razon or '—'}
+        for p in qs
+    ]
+    total_permiso = round(sum(e['horas'] for e in entries), 2)
+    override = (float(obj.horas_tiempo_extra_tomado_manual)
+                if obj.horas_tiempo_extra_tomado_manual is not None else None)
+    return JsonResponse({
+        'ok': True, 'entries': entries,
+        'total_permiso': total_permiso, 'override': override,
+    })
+
+
+@login_required
 @require_POST
 def compensatorio_set_horas_adeudadas(request, pk):
     """AJAX: guarda horas_adeudadas directo (reemplaza días × factor) y recalcula."""
