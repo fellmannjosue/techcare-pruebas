@@ -92,15 +92,8 @@
             </button>
             {% else %}<span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>{% endif %}
           </td>
-          {# Horas adeudadas (editable directo) #}
-          <td class="text-center">
-            {% if can_edit %}
-            <button class="btn btn-sm btn-ghost-secondary btn-set-horas-adeudadas px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ item.horas_adeudadas }}" title="Editar horas adeudadas">
-              <span class="badge bg-cyan-lt text-cyan horas-adeudadas-{{ r.pk }}">{{ item.horas_adeudadas }} h</span>
-              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
-            </button>
-            {% else %}<span class="badge bg-cyan-lt text-cyan horas-adeudadas-{{ r.pk }}">{{ item.horas_adeudadas }} h</span>{% endif %}
-          </td>
+          {# Horas adeudadas (calculado, no editable) #}
+          <td class="text-center font-monospace"><span class="horas-adeudadas-{{ r.pk }}">{{ item.horas_adeudadas }} h</span></td>
           {# Permisos extras #}
           <td class="text-center">
             {% if can_edit %}
@@ -339,6 +332,6 @@ window._PAGE = {
   urlInstructorDel: '/reloj/compensatorio-instructor/{pk}/delete/',
 };
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=5"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=6"></script>
 
 {% endblock %}

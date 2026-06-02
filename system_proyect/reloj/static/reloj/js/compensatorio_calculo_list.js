@@ -97,18 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
     onOk: (pk, raw, data) => {
       document.querySelector(`.dias-adeudados-badge-${pk}`).textContent = data.dias;
       const b = document.querySelector(`.btn-set-dias-adeudados[data-pk="${pk}"]`); if (b) b.dataset.valor = data.dias;
-      updateRowTotals(pk, data);
-    },
-  });
-  // Horas adeudadas (directo)
-  bindEditModal({
-    btnSel: '.btn-set-horas-adeudadas', modalId: 'modalHorasAdeudadas', nombreEl: 'ha-nombre',
-    inputEl: 'ha-input', saveBtn: 'btn-guardar-horas-adeudadas',
-    url: window._PAGE.urlSetHorasAdeudadas,
-    payload: raw => ({ horas: parseFloat(raw) || 0 }),
-    onOk: (pk, raw, data) => {
-      const hc = document.querySelector(`.horas-adeudadas-${pk}`); if (hc) hc.textContent = `${data.horas_adeudadas} h`;
-      const b = document.querySelector(`.btn-set-horas-adeudadas[data-pk="${pk}"]`); if (b) b.dataset.valor = data.horas_adeudadas;
+      const hc = document.querySelector(`.horas-adeudadas-${pk}`); if (hc && data.horas_adeudadas !== undefined) hc.textContent = `${data.horas_adeudadas} h`;
       updateRowTotals(pk, data);
     },
   });
