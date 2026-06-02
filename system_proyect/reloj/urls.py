@@ -90,10 +90,6 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/tiempo-extra/add/', views.compensatorio_calculo_add_tiempo_extra_entrada, name='reloj_compensatorio_calculo_add_te'),
     path('compensatorio-te/<int:te_pk>/delete/', views.compensatorio_calculo_del_tiempo_extra_entrada, name='reloj_compensatorio_calculo_del_te'),
     path('compensatorio/emp/<str:emp_code>/tiempo-extra/add/', views.compensatorio_add_tiempo_extra_byemp, name='reloj_add_te_byemp'),
-    # Tiempo extra por mes (con opción "mes completo")  <--- hecho por claude code
-    path('compensatorio/emp/<str:emp_code>/te-mes/save/',   views.compensatorio_te_mes_save,   name='reloj_te_mes_save'),
-    path('compensatorio/emp/<str:emp_code>/te-mes/list/',   views.compensatorio_te_mes_list,   name='reloj_te_mes_list'),
-    path('compensatorio/emp/<str:emp_code>/te-mes/delete/', views.compensatorio_te_mes_delete, name='reloj_te_mes_delete'),
 
     # Hook Google Forms (POST Apps Script)
     path('google/compensatorio/ingresar/', views.compensatorio_google_hook, name='compensatorio_google_hook'),
