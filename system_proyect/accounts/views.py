@@ -1581,56 +1581,141 @@ def settings_logs_api(request):
     return JsonResponse({'ok': True, 'lines': data, 'total': len(data)})
 
 
-# ── Auditoría (triggers MySQL → core_audit_log) ──────────────────────────────
+# ── Auditoría (django-simple-history: usuario + qué cambió) ──────────────────
+# <--- hecho por claude code: visor de auditoría sobre los modelos Historical*
+_AUDIT_TIPO = {'+': ('Creó', 'green', 'ti-plus'),
+               '~': ('Editó', 'yellow', 'ti-pencil'),
+               '-': ('Eliminó', 'red', 'ti-trash')}
+_AUDIT_OP_GET = {'creo': '+', 'edito': '~', 'elimino': '-'}
+
+
+def _audited_models():
+    """Devuelve los modelos registrados en django-simple-history, ordenados."""
+    from django.apps import apps
+    out = []
+    for m in apps.get_models():
+        mgr = getattr(m, 'history', None)
+        if mgr is not None and hasattr(mgr, 'model'):
+            out.append(m)
+    out.sort(key=lambda m: (m._meta.app_label, m._meta.object_name))
+    return out
+
+
+def _audit_model_key(m):
+    return f'{m._meta.app_label}.{m._meta.object_name}'
+
+
+def _fmt_val(v):
+    if v is None or v == '':
+        return '—'
+    s = str(v)
+    return (s[:120] + '…') if len(s) > 120 else s
+
+
+def _build_audit_event(hr, with_table=False, model=None):
+    """Convierte un registro Historical* en un evento legible para la tabla."""
+    tipo, color, icon = _AUDIT_TIPO.get(hr.history_type, ('?', 'secondary', 'ti-help'))
+    cambios = []
+    sin_baseline = False
+    if hr.history_type == '~':
+        try:
+            prev = hr.prev_record
+            if prev is not None:
+                for c in hr.diff_against(prev).changes:
+                    cambios.append({'campo': c.field,
+                                    'old': _fmt_val(c.old),
+                                    'new': _fmt_val(c.new)})
+            else:
+                sin_baseline = True
+        except Exception:
+            pass
+    try:
+        registro = str(hr.instance)
+    except Exception:
+        registro = f'#{getattr(hr, "id", "?")}'
+    u = hr.history_user
+    ev = {
+        'fecha':   hr.history_date,
+        'usuario': (u.get_full_name() or u.username) if u else None,
+        'tipo':    tipo, 'color': color, 'icon': icon,
+        'es_edicion': hr.history_type == '~',
+        'sin_baseline': sin_baseline,
+        'registro': registro,
+        'cambios':  cambios,
+    }
+    if with_table and model is not None:
+        ev['tabla'] = model._meta.verbose_name.title()
+    return ev
+
+
 @login_required
 def settings_auditoria(request):
-    """Visor de la auditoría de bajo nivel capturada por los triggers MySQL
-    en core_audit_log (INSERT/UPDATE/DELETE por tabla). Solo superuser."""
+    """Auditoría completa vía django-simple-history: quién creó/editó/eliminó
+    cada registro, cuándo y qué cambió (valor anterior → nuevo). Solo superuser."""
     if not request.user.is_superuser:
         messages.error(request, 'Solo superusuarios pueden ver la auditoría del sistema.')
         return redirect('settings_perfil')
 
-    from core.models import AuditLog
     from django.core.paginator import Paginator
     from django.db.models import Count
 
-    tabla     = (request.GET.get('tabla') or '').strip()
-    operacion = (request.GET.get('op') or '').strip().upper()
-    q         = (request.GET.get('q') or '').strip()
+    modelos = _audited_models()
+    modelos_ctx = [{'key': _audit_model_key(m),
+                    'label': m._meta.verbose_name.title(),
+                    'app': m._meta.app_label} for m in modelos]
 
-    qs = AuditLog.objects.all()
-    if tabla:
-        qs = qs.filter(table_name=tabla)
-    if operacion in ('INSERT', 'UPDATE', 'DELETE'):
-        qs = qs.filter(operation=operacion)
-    if q:
-        qs = qs.filter(record_pk__icontains=q)
+    f_tabla = (request.GET.get('tabla') or '').strip()
+    f_op    = (request.GET.get('op') or '').strip().lower()
+    op_db   = _AUDIT_OP_GET.get(f_op)
 
-    # Stats globales (sin filtro de tabla/op/q, sobre todo el log)
-    base = AuditLog.objects.all()
-    total      = base.count()
-    por_op     = {row['operation']: row['total']
-                  for row in base.values('operation').annotate(total=Count('id'))}
-    tablas     = list(base.values_list('table_name', flat=True).distinct().order_by('table_name'))
-    top_tablas = list(base.values('table_name')
-                          .annotate(total=Count('id'))
-                          .order_by('-total')[:10])
+    sel_model = next((m for m in modelos if _audit_model_key(m) == f_tabla), None)
 
-    paginator = Paginator(qs, 100)
-    page_obj  = paginator.get_page(request.GET.get('page'))
+    eventos = []
+    page_obj = None
+    total = creados = editados = eliminados = 0
+    es_global = sel_model is None
+
+    if sel_model is not None:
+        H = sel_model.history.model
+        base = H.objects.all()
+        cnts = {r['history_type']: r['c']
+                for r in base.values('history_type').annotate(c=Count('history_id'))}
+        creados, editados, eliminados = cnts.get('+', 0), cnts.get('~', 0), cnts.get('-', 0)
+        total = creados + editados + eliminados
+
+        qs = base.select_related('history_user').order_by('-history_date')
+        if op_db:
+            qs = qs.filter(history_type=op_db)
+        paginator = Paginator(qs, 40)
+        page_obj  = paginator.get_page(request.GET.get('page'))
+        eventos   = [_build_audit_event(hr) for hr in page_obj]
+    else:
+        # Feed global: últimos eventos de cada tabla, mezclados por fecha
+        merged = []
+        for m in modelos:
+            q = m.history.model.objects.select_related('history_user').order_by('-history_date')
+            if op_db:
+                q = q.filter(history_type=op_db)
+            for hr in q[:8]:
+                merged.append((hr.history_date, hr, m))
+        merged.sort(key=lambda t: t[0], reverse=True)
+        eventos = [_build_audit_event(hr, with_table=True, model=m)
+                   for _, hr, m in merged[:120]]
 
     ctx = _settings_ctx(request, 'auditoria')
     ctx.update({
-        'page_obj':     page_obj,
-        'total':        total,
-        'inserts':      por_op.get('INSERT', 0),
-        'updates':      por_op.get('UPDATE', 0),
-        'deletes':      por_op.get('DELETE', 0),
-        'tablas':       tablas,
-        'top_tablas':   top_tablas,
-        'f_tabla':      tabla,
-        'f_op':         operacion,
-        'f_q':          q,
+        'modelos':    modelos_ctx,
+        'eventos':    eventos,
+        'page_obj':   page_obj,
+        'es_global':  es_global,
+        'sel_label':  sel_model._meta.verbose_name.title() if sel_model else '',
+        'total':      total,
+        'creados':    creados,
+        'editados':   editados,
+        'eliminados': eliminados,
+        'n_tablas':   len(modelos),
+        'f_tabla':    f_tabla,
+        'f_op':       f_op,
     })
     return render(request, 'accounts/settings_auditoria.html', ctx)
 
