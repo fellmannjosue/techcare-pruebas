@@ -397,6 +397,17 @@ class CompensatorioCalculo(models.Model):
         "Permisos extras (h)", max_digits=6, decimal_places=2, null=True, blank=True,
     )
 
+    # Horas adeudadas capturadas directamente (reemplaza días × factor)  <--- hecho por claude code
+    horas_adeudadas_manual = models.DecimalField(
+        "Horas adeudadas", max_digits=7, decimal_places=2, null=True, blank=True,
+        help_text="Horas adeudadas capturadas directamente. Si está vacío, usa días × 8.",
+    )
+
+    # Tiempo extra tomado (override). Si es null, se calcula del permiso compensatorio.
+    horas_tiempo_extra_tomado_manual = models.DecimalField(
+        "Tiempo extra tomado (h, override)", max_digits=7, decimal_places=2, null=True, blank=True,
+    )
+
     actualizado_en = models.DateTimeField("Actualizado en", auto_now=True)
 
     class Meta:
@@ -428,7 +439,73 @@ class DiaNoLaborableANA(models.Model):
         ordering  = ["pk"]
 
     def __str__(self):
-        return f"{self.calculo.nombre_empleado} – {self.fecha}"
+        return f"{self.calculo.nombre_empleado} – {self.descripcion}"
+
+
+# ── Compensatorio: matriz mensual (Horas Trabajadas / Horas Tomadas) ──────────
+# <--- hecho por claude code: tabs 3 y 4 comparten lista de empleados (manual,
+# desde ZKBio). Cada empleado tiene valores por mes/año, editables.
+class CompensatorioMensualEmpleado(models.Model):
+    """Empleado agregado manualmente a la matriz mensual (tabs Horas Trabajadas/Tomadas)."""
+    emp_code        = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
+    nombre_empleado = models.CharField("Nombre empleado", max_length=200)
+    creado_en       = models.DateTimeField("Creado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_mensual_empleado"
+        verbose_name = "Empleado compensatorio mensual"
+        verbose_name_plural = "Empleados compensatorio mensual"
+        ordering = ["nombre_empleado"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} ({self.emp_code})"
+
+
+class CompensatorioMensualValor(models.Model):
+    """Valor por mes/año de un empleado en la matriz mensual.
+    horas_trabajadas = manual (compensatorio hecho).
+    horas_tomadas    = override; si es null se toma del permiso compensatorio del mes."""
+    empleado         = models.ForeignKey(
+        CompensatorioMensualEmpleado, on_delete=models.CASCADE, related_name='valores',
+    )
+    anio             = models.PositiveIntegerField("Año")
+    mes              = models.PositiveSmallIntegerField("Mes")  # 1-12
+    horas_trabajadas = models.DecimalField("Horas trabajadas", max_digits=7, decimal_places=2, default=0)
+    horas_tomadas    = models.DecimalField("Horas tomadas (override)", max_digits=7, decimal_places=2,
+                                           null=True, blank=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_mensual_valor"
+        verbose_name = "Valor compensatorio mensual"
+        verbose_name_plural = "Valores compensatorio mensual"
+        unique_together = ("empleado", "anio", "mes")
+        ordering = ["anio", "mes"]
+
+    def __str__(self):
+        return f"{self.empleado.emp_code} {self.anio}-{self.mes:02d}"
+
+
+class CompensatorioInstructor(models.Model):
+    """Tab 5 — instructores (lista aparte, manual desde ZKBio).
+    Solo 'minutos_tiempo_extra' y el override de permiso tomado son manuales;
+    el resto (horario, compensado, total, saldo) se calcula en la vista."""
+    emp_code            = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
+    nombre_empleado     = models.CharField("Nombre empleado", max_length=200)
+    minutos_tiempo_extra = models.PositiveIntegerField("Tiempo extra autorizado (min)", default=0)
+    # Override del permiso tomado (h). Si es null, se calcula del permiso compensatorio.
+    permiso_tomado_horas = models.DecimalField(
+        "Permiso tomado (h, override)", max_digits=7, decimal_places=2, null=True, blank=True,
+    )
+    creado_en           = models.DateTimeField("Creado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_instructor"
+        verbose_name = "Compensatorio instructor"
+        verbose_name_plural = "Compensatorio instructores"
+        ordering = ["nombre_empleado"]
+
+    def __str__(self):
+        return f"{self.nombre_empleado} ({self.emp_code})"
 
 
 class TiempoExtraDia(models.Model):

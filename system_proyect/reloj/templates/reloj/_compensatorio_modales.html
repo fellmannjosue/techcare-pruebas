@@ -1,0 +1,170 @@
+{# <--- hecho por claude code: modales del cálculo compensatorio #}
+
+{# ── Modal: Bulk días no laborables ── #}
+{% if can_edit %}
+<div class="modal modal-blur fade" id="modalBulkDiasNoLab" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header bg-orange-lt">
+      <h5 class="modal-title text-orange"><i class="ti ti-calendar-x me-2"></i>Agregar días no laborables — <span id="bulk-dnl-count"></span> empleado(s)</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-sm-4"><label class="form-label fw-semibold">Horas</label><input type="number" id="bulk-dnl-horas" class="form-control" value="8.8" step="0.1" min="0.1"></div>
+        <div class="col-sm-8"><label class="form-label fw-semibold">Descripción (opcional)</label><input type="text" id="bulk-dnl-desc" class="form-control" placeholder="Ej: Semana Santa"></div>
+      </div>
+      <div id="bulk-dnl-error" class="d-none mt-2"><div class="alert alert-danger py-1 px-2 mb-0 small"></div></div>
+      <div id="bulk-dnl-progress" class="d-none mt-3">
+        <div class="progress mb-1"><div class="progress-bar bg-orange" id="bulk-dnl-bar" style="width:0%"></div></div>
+        <div class="text-muted small" id="bulk-dnl-status">Procesando...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button type="button" class="btn btn-orange" id="btn-bulk-dnl-apply"><i class="ti ti-check me-1"></i>Aplicar a todos</button>
+    </div>
+  </div></div>
+</div>
+{% endif %}
+
+{# ── Modal: Días no laborables ANA ── #}
+<div class="modal modal-blur fade" id="modalDiasNoLab" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header bg-orange-lt">
+      <h5 class="modal-title text-orange"><i class="ti ti-calendar-x me-2"></i>Días no laborables ANA — <span id="dnl-nombre"></span></h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      {% if can_edit %}
+      <div class="card mb-3"><div class="card-header"><strong>Agregar entrada</strong></div><div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-3"><label class="form-label mb-1">Horas</label><input type="number" id="dnl-horas" class="form-control form-control-sm" value="8.8" step="0.1" min="0.1"></div>
+          <div class="col-sm-7"><label class="form-label mb-1">Descripción (opcional)</label><input type="text" id="dnl-desc" class="form-control form-control-sm" placeholder="Ej: Semana Santa"></div>
+          <div class="col-sm-2"><button class="btn btn-sm btn-orange w-100" id="btn-dnl-add"><i class="ti ti-plus me-1"></i>Agregar</button></div>
+        </div>
+        <div id="dnl-add-error" class="d-none mt-2"><div class="alert alert-danger py-1 px-2 mb-0 small"></div></div>
+      </div></div>
+      {% endif %}
+      <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-orange"></i>Entradas registradas</h6>
+      <div class="table-responsive mb-3"><table class="table table-sm table-vcenter">
+        <thead><tr><th>Descripción</th><th class="text-center">Horas</th>{% if can_edit %}<th class="text-center">Eliminar</th>{% endif %}</tr></thead>
+        <tbody id="dnl-tbody"><tr id="dnl-empty"><td colspan="3" class="text-center text-muted py-3">Sin entradas</td></tr></tbody>
+      </table></div>
+      <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
+        <i class="ti ti-sum text-orange fs-3"></i>
+        <div><div class="text-muted small mb-1">Total días no laborables ANA</div>
+          <div class="d-flex align-items-baseline gap-2"><span class="fw-bold fs-3 text-orange" id="dnl-total-hrs">0</span><span class="text-muted">horas</span><span class="text-muted mx-1">→</span><span class="fw-bold fs-3" id="dnl-total-dias">0</span><span class="text-muted">días</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Días adeudados ── #}
+<div class="modal modal-blur fade" id="modalDiasAdeudados" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-calendar-due me-2 text-blue"></i>Días adeudados</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small mb-3">Empleado: <strong id="da-nombre"></strong></p>
+      <label class="form-label fw-semibold">Días adeudados</label>
+      <input type="number" id="da-input" class="form-control" min="0" step="0.01" placeholder="Ej: 18.65">
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btn-guardar-dias-adeudados"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Horas adeudadas (directo) ── #}
+<div class="modal modal-blur fade" id="modalHorasAdeudadas" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-clock-hour-4 me-2 text-cyan"></i>Horas adeudadas</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small mb-3">Empleado: <strong id="ha-nombre"></strong></p>
+      <label class="form-label fw-semibold">Horas adeudadas</label>
+      <input type="number" id="ha-input" class="form-control" min="0" step="0.01" placeholder="Ej: 125.04">
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btn-guardar-horas-adeudadas"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Permisos extras (horas) ── #}
+<div class="modal modal-blur fade" id="modalPermisosExtras" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-clock-plus me-2 text-purple"></i>Permisos extras</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small mb-3">Empleado: <strong id="pe-nombre"></strong></p>
+      <label class="form-label fw-semibold">Horas de permisos extras</label>
+      <input type="number" id="pe-input" class="form-control" min="0" step="0.5" placeholder="Ej: 26.4">
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btn-guardar-permisos-extras"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Min. autorizados/día ── #}
+<div class="modal modal-blur fade" id="modalMinDia" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-clock-edit me-2 text-indigo"></i>Min. autorizados/día</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small mb-3">Empleado: <strong id="min-dia-nombre"></strong></p>
+      <label class="form-label fw-semibold">Minutos por día hábil</label>
+      <input type="number" id="min-dia-input" class="form-control" min="1" max="480" placeholder="Ej: 47">
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btn-guardar-min-dia"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Tiempo extra tomado (override) ── #}
+<div class="modal modal-blur fade" id="modalTomado" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-calendar-minus me-2 text-pink"></i>Tiempo extra tomado</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small mb-3">Empleado: <strong id="tom-nombre"></strong></p>
+      <label class="form-label fw-semibold">Horas tomadas (override)</label>
+      <input type="number" id="tom-input" class="form-control" min="0" step="0.01" placeholder="Vacío = usar permiso compensatorio">
+      <p class="text-muted small mt-2">Deja vacío para volver al valor del permiso compensatorio.</p>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btn-guardar-tomado"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Tiempo extra autorizado (lista) ── #}
+<div class="modal modal-blur fade" id="modalTiempoExtra" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header" style="background:#e0f5fb;"><h5 class="modal-title text-cyan"><i class="ti ti-clock-bolt me-2"></i>Tiempo extra autorizado — <span id="te-nombre"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="te-fecha"><input type="hidden" id="te-minutos"><input type="hidden" id="te-razon">
+      <div id="te-add-error" class="d-none"><div class="alert alert-danger py-1 px-2 mb-0 small"></div></div>
+      <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-cyan"></i>Entradas registradas</h6>
+      <div class="table-responsive mb-3"><table class="table table-sm table-vcenter">
+        <thead><tr><th class="text-center" style="width:110px;">Fecha</th><th class="text-center" style="width:90px;">Minutos</th><th>Razón</th>{% if can_edit %}<th class="text-center" style="width:60px;">Eliminar</th>{% endif %}</tr></thead>
+        <tbody id="te-tbody"><tr id="te-empty"><td colspan="4" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas registradas</td></tr></tbody>
+      </table></div>
+      <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
+        <i class="ti ti-sum text-cyan fs-3"></i>
+        <div><div class="text-muted small mb-1">Total tiempo extra autorizado</div>
+          <div class="d-flex align-items-baseline gap-2"><span class="fw-bold fs-3 text-cyan" id="te-total-min">0</span><span class="text-muted">min</span><span class="text-muted mx-1">≈</span><span class="fw-bold fs-3" id="te-total-hrs">0</span><span class="text-muted">h</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
+{# ── Modal: Agregar empleado (buscador ZKBio) — compartido tabs 3/4 y 5 ── #}
+{% if can_edit %}
+<div class="modal modal-blur fade" id="modalAgregarEmp" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title"><i class="ti ti-user-plus me-2 text-primary"></i><span id="ae-titulo">Agregar empleado</span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ae-destino">
+      <label class="form-label fw-semibold">Buscar empleado</label>
+      <input type="text" id="ae-buscar" class="form-control mb-2" placeholder="Nombre o código...">
+      <div id="ae-error" class="d-none"><div class="alert alert-danger py-1 px-2 mb-2 small"></div></div>
+      <div class="list-group" id="ae-resultados" style="max-height:320px;overflow:auto;">
+        <div class="text-muted small p-2">Escribe para buscar…</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+{% endif %}

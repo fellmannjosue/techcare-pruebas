@@ -100,14 +100,16 @@ def register_all():
 
     # ── reloj ──
     from reloj.models import (
-        CompensatorioCalculo, DiaNoLaborableANA, EmployeeScheduleAssignment,
+        CompensatorioCalculo, CompensatorioInstructor, CompensatorioMensualEmpleado,
+        CompensatorioMensualValor, DiaNoLaborableANA, EmployeeScheduleAssignment,
         Feriado, FeriadoAsignacion, OvertimeRequest, PermisoEmpleado, PermisoReporte,
         RelojConfigGlobal, RelojPermiso, ReporteComentario, ReporteNota,
         ReportePermisoMensual, SabadoAsignacion, SabadoEspecial, ScheduleRule,
         ScheduleTemplate, TiempoCompensatorio, TiempoExtraDia, VacacionConfig,
     )
     for m in (
-        CompensatorioCalculo, DiaNoLaborableANA, EmployeeScheduleAssignment,
+        CompensatorioCalculo, CompensatorioInstructor, CompensatorioMensualEmpleado,
+        CompensatorioMensualValor, DiaNoLaborableANA, EmployeeScheduleAssignment,
         Feriado, FeriadoAsignacion, OvertimeRequest, PermisoEmpleado, PermisoReporte,
         RelojConfigGlobal, RelojPermiso, ReporteComentario, ReporteNota,
         ReportePermisoMensual, SabadoAsignacion, SabadoEspecial, ScheduleRule,

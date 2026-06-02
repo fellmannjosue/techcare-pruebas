@@ -15,7 +15,8 @@
       "Bash(grep -rl \"ConfiguracionCoordinador\" --include=\"*.py\" .)",
       "Bash(grep -rln \"dias_laborables\" --include=\"*.py\" .)",
       "Bash(git commit *)",
-      "Bash(sudo -S ../venv313/bin/python manage.py collectstatic --noinput)"
+      "Bash(sudo -S ../venv313/bin/python manage.py collectstatic --noinput)",
+      "Bash(echo \"restart exit: $?\")"
     ]
   }
 }

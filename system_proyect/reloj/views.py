@@ -39,6 +39,9 @@ from .models import (
     ReporteComentario,
     FeriadoAsignacion,
     CompensatorioCalculo,
+    CompensatorioInstructor,
+    CompensatorioMensualEmpleado,
+    CompensatorioMensualValor,
     DiaNoLaborableANA,
     ReportePermisoMensual,
     PermisoReporte,
@@ -2046,6 +2049,150 @@ def _especial_rank(nombre):
             return i
     return len(_ESPECIALES_ORDEN)
 
+# ── Permiso compensatorio tomado (fuente: PermisoReporte tipo compensatorio) ──
+# <--- hecho por claude code
+_TIPOS_PERMISO_COMP = ('compensatorio_dias',)
+
+
+def _permiso_comp_horas(emp_codes, anio=None):
+    """Σ horas de permiso compensatorio por emp_code. Si anio, filtra ese año.
+    Usa el campo `horas` del permiso directamente (0 si null)."""
+    from django.db.models import Sum
+    qs = PermisoReporte.objects.filter(emp_code__in=emp_codes, tipo__in=_TIPOS_PERMISO_COMP)
+    if anio:
+        qs = qs.filter(fecha__year=anio)
+    out = {}
+    for row in qs.values('emp_code').annotate(t=Sum('horas')):
+        out[str(row['emp_code'])] = float(row['t'] or 0)
+    return out
+
+
+def _permiso_comp_horas_por_mes(emp_codes, anio):
+    """{emp_code: {mes: horas}} de permiso compensatorio en un año."""
+    qs = PermisoReporte.objects.filter(
+        emp_code__in=emp_codes, tipo__in=_TIPOS_PERMISO_COMP, fecha__year=anio,
+    ).values('emp_code', 'fecha', 'horas')
+    out = {}
+    for row in qs:
+        ec = str(row['emp_code'])
+        mes = row['fecha'].month
+        out.setdefault(ec, {})
+        out[ec][mes] = out[ec].get(mes, 0.0) + float(row['horas'] or 0)
+    return out
+
+
+_MESES_CORTO = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+
+def _compensado_real_map(emp_codes, fi, ff, tope=47):
+    """Σ minutos compensatorios reales (marcas ZKBio) por emp_code en un rango."""
+    out = {}
+    if not emp_codes:
+        return out
+    codigos_sql = ', '.join(f"'{c}'" for c in emp_codes)
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cur:
+            cur.execute(f"""
+                SELECT CAST(t.emp_code AS VARCHAR(20)),
+                       CONVERT(DATE, t.punch_time),
+                       MIN(CAST(t.punch_time AS TIME)),
+                       MAX(CAST(t.punch_time AS TIME))
+                FROM dbo.iclock_transaction t
+                WHERE CONVERT(DATE, t.punch_time) BETWEEN '{fi}' AND '{ff}'
+                  AND t.emp_code IN ({codigos_sql})
+                GROUP BY t.emp_code, CONVERT(DATE, t.punch_time)
+            """)
+            for emp_code, _fecha, primera, ultima in cur.fetchall():
+                ec = str(emp_code).strip()
+                comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), tope)
+                if comp_min > 0:
+                    out[ec] = out.get(ec, 0) + comp_min
+    except Exception as ex:
+        print(f"[WARN] _compensado_real_map: {ex}")
+    return out
+
+
+def _mensual_rows(anio):
+    """Filas de la matriz mensual (tabs Horas Trabajadas / Horas Tomadas) para un año."""
+    empleados = list(CompensatorioMensualEmpleado.objects.all())
+    ecs = [str(e.emp_code) for e in empleados]
+    valores = {
+        (v.empleado_id, v.mes): v
+        for v in CompensatorioMensualValor.objects.filter(empleado__in=empleados, anio=anio)
+    }
+    permiso_mes = _permiso_comp_horas_por_mes(ecs, anio)  # {emp: {mes: horas}}
+    rows = []
+    for e in empleados:
+        trabajadas, tomadas, tomadas_permiso = [], [], []
+        tot_trab = tot_tom = 0.0
+        perm = permiso_mes.get(str(e.emp_code), {})
+        for mes in range(1, 13):
+            v = valores.get((e.pk, mes))
+            t = float(v.horas_trabajadas) if v else 0.0
+            perm_mes = round(perm.get(mes, 0.0), 2)
+            # tomadas: override si existe, si no el permiso compensatorio del mes
+            if v and v.horas_tomadas is not None:
+                tm = float(v.horas_tomadas)
+            else:
+                tm = perm_mes
+            trabajadas.append(round(t, 2))
+            tomadas.append(round(tm, 2))
+            tomadas_permiso.append(perm_mes)
+            tot_trab += t
+            tot_tom += tm
+        rows.append({
+            'emp': e,
+            'meses': list(zip(range(1, 13), [round(x, 2) for x in trabajadas],
+                              [round(x, 2) for x in tomadas], tomadas_permiso)),
+            'trabajadas': trabajadas,
+            'tomadas': tomadas,
+            'total_trab': round(tot_trab, 2),
+            'total_tom': round(tot_tom, 2),
+        })
+    return rows
+
+
+def _instructores_rows(anio, hoy):
+    """Filas del tab Instructores (todo calculado menos tiempo extra autorizado)."""
+    instructores = list(CompensatorioInstructor.objects.all())
+    ecs = [str(i.emp_code) for i in instructores]
+    fi = date(anio, 1, 1)
+    ff = min(hoy, date(anio, 12, 31))
+    comp_map    = _compensado_real_map(ecs, fi, ff, tope=47)
+    permiso_map = _permiso_comp_horas(ecs, anio)
+    # Horario programado (plantilla activa)
+    horario_map = {}
+    for a in EmployeeScheduleAssignment.objects.filter(emp_code__in=ecs, activo=True).select_related('template'):
+        horario_map.setdefault(str(a.emp_code), a.template.nombre)
+    rows = []
+    for i in instructores:
+        ec = str(i.emp_code)
+        comp_min  = comp_map.get(ec, 0)
+        comp_hrs  = round(comp_min / 60, 2)
+        te_hrs    = round((i.minutos_tiempo_extra or 0) / 60, 2)
+        total_hrs = round(comp_hrs + te_hrs, 2)
+        tomado_permiso = round(permiso_map.get(ec, 0), 2)
+        if i.permiso_tomado_horas is not None:
+            tomado_hrs = round(float(i.permiso_tomado_horas), 2)
+        else:
+            tomado_hrs = tomado_permiso
+        saldo_hrs = round(max(0.0, total_hrs - tomado_hrs), 2)
+        rows.append({
+            'i': i,
+            'horario': horario_map.get(ec, '—'),
+            'comp_hrs': comp_hrs,
+            'te_min': i.minutos_tiempo_extra or 0,
+            'te_hrs': te_hrs,
+            'total_hrs': total_hrs,
+            'tomado_hrs': tomado_hrs,
+            'tomado_permiso': tomado_permiso,
+            'tomado_es_override': i.permiso_tomado_horas is not None,
+            'saldo_hrs': saldo_hrs,
+        })
+    return rows
+
+
 @login_required
 def compensatorio_calculo_list(request):
     from datetime import timedelta as _td
@@ -2115,6 +2262,9 @@ def compensatorio_calculo_list(request):
             te_detail_map.setdefault(ec_s, []).append(te)
             te_sum_map[ec_s] = te_sum_map.get(ec_s, 0) + te.minutos
 
+    # ── Permiso compensatorio tomado (todas las fechas) por empleado ──────────
+    permiso_comp_map = _permiso_comp_horas(emp_codes_list)  # {emp: horas}
+
     # ── Construir registros_data ─────────────────────────────────────────────
     def _min_to_h(m): return round(m / 60, 1)
 
@@ -2127,12 +2277,16 @@ def compensatorio_calculo_list(request):
         real_min = real_comp_map.get(ec, 0)
         minutos_compensados = r.minutos_compensados_manual if r.minutos_compensados_manual is not None else real_min
 
-        # ── Nueva lógica: total = dias_adeudados × factor + permisos_extras ──
+        # ── Total = Horas adeudadas (directo) + Permisos extras ──
         dias_nl        = dias_no_lab_map.get(r.pk, [])
         hrs_no_lab     = round(sum(d.total_horas for d in dias_nl), 2)
 
-        factor         = round(float(r.factor_horas_dia or 8.0), 1)
-        horas_adeudadas = round(float(r.dias_adeudados) * factor, 2)
+        factor         = round(float(r.factor_horas_dia or 8.0), 1)  # solo fallback
+        # Horas adeudadas: valor directo si existe; si no, días × 8 (compatibilidad)
+        if r.horas_adeudadas_manual is not None:
+            horas_adeudadas = round(float(r.horas_adeudadas_manual), 2)
+        else:
+            horas_adeudadas = round(float(r.dias_adeudados) * factor, 2)
         permisos_extras = round(float(r.permisos_extras_horas or 0), 2)
         total_hrs      = round(horas_adeudadas + permisos_extras, 2)
         total_min      = round(total_hrs * 60)
@@ -2140,11 +2294,18 @@ def compensatorio_calculo_list(request):
         min_dia = r.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
         dias_hab_calc = _math.ceil(total_min / min_dia) if total_min > 0 else 0
 
-        # Tiempo extra autorizado (suma de TiempoExtraDia del empleado)
+        # Tiempo extra autorizado (suma de TiempoExtraDia del empleado) — informativo
         tiempo_extra_min = te_sum_map.get(ec, 0)
 
-        # Saldo: descuenta compensado Y tiempo extra autorizado
-        saldo_min = max(0, total_min - minutos_compensados - tiempo_extra_min)
+        # Tiempo extra TOMADO: override manual o permiso compensatorio (horas)
+        if r.horas_tiempo_extra_tomado_manual is not None:
+            tomado_hrs = round(float(r.horas_tiempo_extra_tomado_manual), 2)
+        else:
+            tomado_hrs = round(permiso_comp_map.get(ec, 0), 2)
+        tomado_min = round(tomado_hrs * 60)
+
+        # Saldo = Total − Compensado hasta hoy − Tiempo extra tomado
+        saldo_min = max(0, total_min - minutos_compensados - tomado_min)
         es_especial = any(k in r.nombre_empleado.lower() for k in _ESPECIALES_COMP)
 
         # Conversión a días para mostrar en tabla
@@ -2172,6 +2333,10 @@ def compensatorio_calculo_list(request):
             'tiempo_extra_min':     tiempo_extra_min,
             'tiempo_extra_hrs':     _min_to_h(tiempo_extra_min),
             'tiempo_extra_detalle': te_detail_map.get(ec, []),
+            # tiempo extra tomado (override o permiso compensatorio)
+            'tomado_hrs':           tomado_hrs,
+            'tomado_min':           tomado_min,
+            'tomado_es_override':   r.horas_tiempo_extra_tomado_manual is not None,
             # formateados
             'horas_compensados': _min_to_h(minutos_compensados),
             'horas_saldo':      _min_to_h(saldo_min),
@@ -2183,11 +2348,25 @@ def compensatorio_calculo_list(request):
         x['r'].nombre_empleado.lower()
     ))
 
+    # Especiales primero (en el orden definido), luego el resto alfabético
     u = request.user
     can_edit              = _reloj_can(u, 'calculo_comp', 'editar')
     can_delete            = _reloj_can(u, 'calculo_comp', 'eliminar')
     can_edit_compensado   = _reloj_can(u, 'calculo_comp', 'editar')
     can_edit_tiempo_extra = _reloj_can(u, 'calculo_comp', 'editar')
+
+    # ── Año seleccionado (tabs 3/4/5) ──
+    try:
+        anio_sel = int(request.GET.get('anio') or hoy.year)
+    except (TypeError, ValueError):
+        anio_sel = hoy.year
+    anios_set = set(CompensatorioMensualValor.objects.values_list('anio', flat=True))
+    anios_set.update({hoy.year, hoy.year - 1, hoy.year + 1, anio_sel})
+    anios = sorted(anios_set, reverse=True)
+
+    # ── Datos tabs 3/4 (matriz mensual) y tab 5 (instructores) ──
+    mensual_rows     = _mensual_rows(anio_sel)
+    instructor_rows  = _instructores_rows(anio_sel, hoy)
 
     cfg = RelojConfigGlobal.get()
     return render(request, "reloj/compensatorio_calculo_list.html", {
@@ -2200,6 +2379,12 @@ def compensatorio_calculo_list(request):
         "can_edit_tiempo_extra": can_edit_tiempo_extra,
         "url_set_compensado":    "reloj_compensatorio_calculo_set_compensado",
         "factor_visible":        cfg.factor_horas_visible,
+        # tabs 3/4/5
+        "anio_sel":        anio_sel,
+        "anios":           anios,
+        "meses_corto":     _MESES_CORTO[1:],
+        "mensual_rows":    mensual_rows,
+        "instructor_rows": instructor_rows,
     })
 
 
@@ -2584,34 +2769,10 @@ def compensatorio_set_dias_adeudados(request, pk):
         return JsonResponse({'ok': False, 'error': 'Valor inválido'})
     obj.dias_adeudados = valor
     obj.save(update_fields=['dias_adeudados'])
-
-    factor          = float(obj.factor_horas_dia or 8.0)
-    horas_adeudadas = round(valor * factor, 2)
-    permisos_extras = round(float(obj.permisos_extras_horas or 0), 2)
-    total_hrs       = round(horas_adeudadas + permisos_extras, 2)
-    total_min       = round(total_hrs * 60)
-    min_dia         = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
-    dias_hab        = _math.ceil(total_min / min_dia) if total_min > 0 else 0
-
-    hoy = date.today()
-    from datetime import timedelta as _td
-    feriados = set()
-    for f in Feriado.objects.all():
-        d = f.fecha_inicio
-        while d <= f.fecha_fin:
-            feriados.add(d)
-            d += _td(days=1)
-    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
-    auto_comp  = min(dias_trans * min_dia, total_min)
-    comp       = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
-    saldo_min  = max(0, total_min - comp)
-
-    return JsonResponse({
-        'ok': True, 'dias': valor,
-        'horas_adeudadas': horas_adeudadas,
-        'total_hrs': total_hrs, 'total_min': total_min,
-        'saldo_min': saldo_min, 'dias_hab': dias_hab,
-    })
+    # Días adeudados es informativo; las horas adeudadas se editan aparte.
+    data = _recalc_calculo(obj)
+    data.update({'ok': True, 'dias': valor})
+    return JsonResponse(data)
 
 
 @login_required
@@ -2739,34 +2900,222 @@ def compensatorio_set_permisos_extras(request, pk):
     obj.permisos_extras_horas = horas_val if horas_val > 0 else None
     obj.save(update_fields=['permisos_extras_horas'])
 
-    horas_adeudadas = round(float(obj.dias_adeudados) * factor, 2)
-    total_hrs = round(horas_adeudadas + horas_val, 2)
+    data = _recalc_calculo(obj)
+    data['ok'] = True
+    data['permisos_extras_dias'] = round(horas_val / factor, 2) if factor else 0
+    return JsonResponse(data)
+
+
+# ── Recálculo central de un CompensatorioCalculo (tabs 1-2) ──────────────────
+# <--- hecho por claude code
+def _recalc_calculo(obj, feriados=None):
+    from datetime import timedelta as _td
+    factor = float(obj.factor_horas_dia or 8.0)
+    if obj.horas_adeudadas_manual is not None:
+        horas_adeudadas = round(float(obj.horas_adeudadas_manual), 2)
+    else:
+        horas_adeudadas = round(float(obj.dias_adeudados) * factor, 2)
+    permisos  = round(float(obj.permisos_extras_horas or 0), 2)
+    total_hrs = round(horas_adeudadas + permisos, 2)
     total_min = round(total_hrs * 60)
     min_dia   = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
     dias_hab  = _math.ceil(total_min / min_dia) if total_min > 0 else 0
 
-    hoy = date.today()
-    from datetime import timedelta as _td
-    feriados = set()
-    for f in Feriado.objects.all():
-        d = f.fecha_inicio
-        while d <= f.fecha_fin:
-            feriados.add(d)
-            d += _td(days=1)
-    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, hoy, feriados)
+    if feriados is None:
+        feriados = set()
+        for f in Feriado.objects.all():
+            d = f.fecha_inicio
+            while d <= f.fecha_fin:
+                feriados.add(d)
+                d += _td(days=1)
+    dias_trans = _contar_dias_habiles_rango(obj.fecha_inicio, date.today(), feriados)
     auto_comp  = min(dias_trans * min_dia, total_min)
     comp       = obj.minutos_compensados_manual if obj.minutos_compensados_manual is not None else auto_comp
-    saldo_min  = max(0, total_min - comp)
 
-    permisos_extras_dias = round(horas_val / factor, 2) if factor else 0
-    return JsonResponse({
-        'ok': True,
-        'permisos_extras_dias': permisos_extras_dias,
-        'total_hrs': total_hrs,
-        'saldo_min': saldo_min,
-        'total_min': total_min,
-        'dias_hab': dias_hab,
-    })
+    # Tiempo extra tomado: override o permiso compensatorio
+    if obj.horas_tiempo_extra_tomado_manual is not None:
+        tomado_hrs = round(float(obj.horas_tiempo_extra_tomado_manual), 2)
+    else:
+        tomado_hrs = round(_permiso_comp_horas([str(obj.emp_code)]).get(str(obj.emp_code), 0), 2)
+    tomado_min = round(tomado_hrs * 60)
+
+    saldo_min = max(0, total_min - comp - tomado_min)
+    return {
+        'horas_adeudadas': horas_adeudadas,
+        'total_hrs': total_hrs, 'total_min': total_min,
+        'dias_hab': dias_hab, 'saldo_min': saldo_min,
+        'tomado_hrs': tomado_hrs,
+    }
+
+
+@login_required
+@require_POST
+def compensatorio_set_horas_adeudadas(request, pk):
+    """AJAX: guarda horas_adeudadas directo (reemplaza días × factor) y recalcula."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+        valor = round(float(body.get('horas', 0)), 2)
+        if valor < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    obj.horas_adeudadas_manual = valor
+    obj.save(update_fields=['horas_adeudadas_manual'])
+    data = _recalc_calculo(obj)
+    data['ok'] = True
+    return JsonResponse(data)
+
+
+@login_required
+@require_POST
+def compensatorio_set_tomado(request, pk):
+    """AJAX: guarda override de tiempo extra tomado (h). Vacío → vuelve al permiso."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    try:
+        body = json.loads(request.body or b'{}')
+        raw = body.get('horas', None)
+        if raw in (None, ''):
+            obj.horas_tiempo_extra_tomado_manual = None
+        else:
+            v = round(float(raw), 2)
+            if v < 0:
+                raise ValueError
+            obj.horas_tiempo_extra_tomado_manual = v
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    obj.save(update_fields=['horas_tiempo_extra_tomado_manual'])
+    data = _recalc_calculo(obj)
+    data['ok'] = True
+    data['es_override'] = obj.horas_tiempo_extra_tomado_manual is not None
+    return JsonResponse(data)
+
+
+# ── Buscador de empleados ZKBio (para "Agregar empleado" tabs 3/4/5) ──────────
+@login_required
+def compensatorio_emp_buscar(request):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    q = (request.GET.get('q') or '').strip()
+    empleados = []
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cur:
+            cur.execute("""
+                SELECT TOP 50 CAST(e.emp_code AS VARCHAR(20)) AS emp_code,
+                       e.first_name + ' ' + ISNULL(e.last_name,'') AS nombre
+                FROM dbo.personnel_employee e
+                WHERE (%s = '' OR e.first_name + ' ' + ISNULL(e.last_name,'') LIKE %s
+                       OR CAST(e.emp_code AS VARCHAR(20)) LIKE %s)
+                ORDER BY e.first_name, e.last_name
+            """, [q, f'%{q}%', f'%{q}%'])
+            for code, nombre in cur.fetchall():
+                empleados.append({'emp_code': (code or '').strip(), 'nombre': (nombre or '').strip()})
+    except Exception as ex:
+        return JsonResponse({'ok': False, 'error': str(ex)})
+    return JsonResponse({'ok': True, 'empleados': empleados})
+
+
+# ── Tabs 3/4: matriz mensual ──────────────────────────────────────────────────
+@login_required
+@require_POST
+def compensatorio_mensual_add(request):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    body = json.loads(request.body or b'{}')
+    emp_code = (body.get('emp_code') or '').strip()
+    nombre   = (body.get('nombre') or '').strip()
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'Falta empleado'}, status=400)
+    obj, created = CompensatorioMensualEmpleado.objects.get_or_create(
+        emp_code=emp_code, defaults={'nombre_empleado': nombre or emp_code})
+    return JsonResponse({'ok': True, 'created': created})
+
+
+@login_required
+@require_POST
+def compensatorio_mensual_cell(request):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    body = json.loads(request.body or b'{}')
+    try:
+        emp_id = int(body.get('empleado_id'))
+        anio   = int(body.get('anio'))
+        mes    = int(body.get('mes'))
+        campo  = (body.get('campo') or '').strip()  # 'trabajadas' | 'tomadas'
+        raw    = body.get('valor', '')
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    if campo not in ('trabajadas', 'tomadas') or not (1 <= mes <= 12):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    emp = get_object_or_404(CompensatorioMensualEmpleado, pk=emp_id)
+    val, _ = CompensatorioMensualValor.objects.get_or_create(empleado=emp, anio=anio, mes=mes)
+    if campo == 'trabajadas':
+        val.horas_trabajadas = round(float(raw or 0), 2)
+    else:  # tomadas (override; vacío → null = vuelve al permiso)
+        val.horas_tomadas = None if raw in (None, '') else round(float(raw), 2)
+    val.save()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def compensatorio_mensual_delete(request, pk):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    get_object_or_404(CompensatorioMensualEmpleado, pk=pk).delete()
+    return JsonResponse({'ok': True})
+
+
+# ── Tab 5: instructores ─────────────────────────────────────────────────────
+@login_required
+@require_POST
+def compensatorio_instructor_add(request):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    body = json.loads(request.body or b'{}')
+    emp_code = (body.get('emp_code') or '').strip()
+    nombre   = (body.get('nombre') or '').strip()
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'Falta empleado'}, status=400)
+    obj, created = CompensatorioInstructor.objects.get_or_create(
+        emp_code=emp_code, defaults={'nombre_empleado': nombre or emp_code})
+    return JsonResponse({'ok': True, 'created': created})
+
+
+@login_required
+@require_POST
+def compensatorio_instructor_set(request, pk):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = get_object_or_404(CompensatorioInstructor, pk=pk)
+    body = json.loads(request.body or b'{}')
+    campo = (body.get('campo') or '').strip()  # 'te' | 'tomado'
+    raw   = body.get('valor', '')
+    try:
+        if campo == 'te':
+            obj.minutos_tiempo_extra = int(round(float(raw or 0)))
+            obj.save(update_fields=['minutos_tiempo_extra'])
+        elif campo == 'tomado':
+            obj.permiso_tomado_horas = None if raw in (None, '') else round(float(raw), 2)
+            obj.save(update_fields=['permiso_tomado_horas'])
+        else:
+            return JsonResponse({'ok': False, 'error': 'Campo inválido'}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'}, status=400)
+    return JsonResponse({'ok': True, 'te_hrs': round((obj.minutos_tiempo_extra or 0) / 60, 2)})
+
+
+@login_required
+@require_POST
+def compensatorio_instructor_delete(request, pk):
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    get_object_or_404(CompensatorioInstructor, pk=pk).delete()
+    return JsonResponse({'ok': True})
 
 
 @login_required

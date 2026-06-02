@@ -13,6 +13,7 @@
 {% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code: reestructura en 5 tabs #}
 
 {% if messages %}
   {% for m in messages %}
@@ -22,531 +23,321 @@
   {% endfor %}
 {% endif %}
 
-{# ── Resumen fórmula ── #}
-<div class="alert alert-info d-flex gap-3 align-items-center mb-4">
-  <i class="ti ti-info-circle fs-2"></i>
-  <div>
-    <strong>Fórmula:</strong>
-    Horas adeudadas = Días adeudados × Factor h/día &nbsp;|&nbsp;
-    Total = Horas adeudadas + Permisos extras &nbsp;|&nbsp;
-    Saldo = Total − Compensado hasta hoy
-  </div>
+{# ── Tabs ── #}
+<ul class="nav nav-tabs mb-3" id="comp-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab1" type="button">Control adeudados</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab2" type="button">Adeudados 2</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab3" type="button">Horas Trabajadas</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab4" type="button">Horas Tomadas</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab5" type="button">Instructores</button></li>
+  <li class="nav-item ms-auto d-flex align-items-center gap-2">
+    <span class="text-muted small">Año:</span>
+    <select id="anio-sel" class="form-select form-select-sm" style="width:auto;">
+      {% for a in anios %}<option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+{# ══════════════════ TAB 1 — CONTROL ADEUDADOS ══════════════════ #}
+<div class="tab-pane fade show active" id="tab1">
   {% if can_edit %}
-  <a href="{% url 'reloj_compensatorio_calculo_new' %}" class="btn btn-primary ms-auto text-nowrap">
-    <i class="ti ti-plus me-1"></i>Agregar empleado
-  </a>
+  <div class="d-flex justify-content-end mb-2">
+    <a href="{% url 'reloj_compensatorio_calculo_new' %}" class="btn btn-primary">
+      <i class="ti ti-plus me-1"></i>Agregar empleado
+    </a>
+  </div>
+  <div id="bulk-bar" style="display:none" class="bg-blue-lt border border-blue rounded px-3 py-2 mb-3 d-flex align-items-center gap-3 flex-wrap">
+    <span class="fw-semibold text-blue"><span id="bulk-count">0</span> empleado(s) seleccionado(s)</span>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <button class="btn btn-sm btn-orange" id="btn-bulk-dias-no-lab"><i class="ti ti-calendar-x me-1"></i>Agregar días no laborables</button>
+      <button class="btn btn-sm btn-purple" id="btn-bulk-3dias"><i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras</button>
+    </div>
+  </div>
   {% endif %}
-</div>
-
-{# ── Bulk action bar ── #}
-{% if can_edit %}
-<div id="bulk-bar" style="display:none" class="bg-blue-lt border border-blue rounded px-3 py-2 mb-3 d-flex align-items-center gap-3 flex-wrap">
-  <span class="fw-semibold text-blue"><span id="bulk-count">0</span> empleado(s) seleccionado(s)</span>
-  <div class="ms-auto d-flex gap-2 flex-wrap">
-    <button class="btn btn-sm btn-orange" id="btn-bulk-dias-no-lab">
-      <i class="ti ti-calendar-x me-1"></i>Agregar días no laborables
-    </button>
-    <button class="btn btn-sm btn-purple" id="btn-bulk-3dias">
-      <i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras
-    </button>
-  </div>
-</div>
-{% endif %}
-
-{# ── Tabla ── #}
-<div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table id="tabla-calculo" class="table table-vcenter table-hover card-table">
-        <thead>
-          <tr>
-            {% if can_edit %}<th class="text-center" style="width:40px"><input type="checkbox" id="chk-all" class="form-check-input"></th>{% endif %}
-            <th>Empleado</th>
-            <th class="text-center">Días no lab. ANA</th>
-            <th class="text-center">Días adeudados</th>
-            {% if request.user.is_superuser %}<th class="text-center">Factor h/día</th>{% endif %}
-            <th class="text-center">Horas adeudadas</th>
-            <th class="text-center">3 dias de Permisos extras</th>
-            <th class="text-center">Total a compensar</th>
-            <th class="text-center">Min. Auto/día</th>
-            <th class="text-center">Compensado hasta hoy</th>
-            <th class="text-center">T. Extra</th>
-            <th class="text-center">Saldo restante</th>
-            <th class="text-center">Fecha inicio</th>
-            <th class="text-center">Fecha fin estimada</th>
-            {% if request.user.is_superuser %}<th class="text-center">Días hábiles</th>{% endif %}
-            <th class="text-center">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in registros_data %}
-          {% with r=item.r saldo=item.saldo %}
-          <tr data-pk="{{ r.pk }}" data-total-min="{{ item.total_min }}" data-compensado-min="{{ item.minutos_compensados }}" data-te-min="{{ item.tiempo_extra_min }}">
-
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table id="tabla-calculo" class="table table-vcenter table-hover card-table">
+      <thead><tr>
+        {% if can_edit %}<th class="text-center" style="width:40px"><input type="checkbox" id="chk-all" class="form-check-input"></th>{% endif %}
+        <th>Empleado</th>
+        <th class="text-center">Días no lab. ANA</th>
+        <th class="text-center">Días adeudados</th>
+        <th class="text-center">Horas adeudadas</th>
+        <th class="text-center">3 días permisos extras</th>
+        <th class="text-center">Total a compensar</th>
+        <th class="text-center">Min. Auto/día</th>
+        <th class="text-center">Días hábiles</th>
+        <th class="text-center">Acciones</th>
+      </tr></thead>
+      <tbody>
+        {% for item in registros_data %}{% with r=item.r %}
+        <tr data-pk="{{ r.pk }}" data-total-min="{{ item.total_min }}" data-compensado-min="{{ item.minutos_compensados }}" data-te-min="{{ item.tiempo_extra_min }}" data-tomado-min="{{ item.tomado_min }}">
+          {% if can_edit %}<td class="text-center"><input type="checkbox" class="form-check-input chk-emp" data-pk="{{ r.pk }}" data-factor="{{ item.factor }}"></td>{% endif %}
+          <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
+          {# Días no lab ANA #}
+          <td class="text-center">
             {% if can_edit %}
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input chk-emp"
-                     data-pk="{{ r.pk }}" data-factor="{{ item.factor }}">
-            </td>
-            {% endif %}
-
-            {# Empleado #}
-            <td>
-              <div class="fw-semibold">{{ r.nombre_empleado }}</div>
-              <div class="text-muted small">{{ r.emp_code }}</div>
-            </td>
-
-            {# Días no lab. ANA — referencia, abre modal #}
-            <td class="text-center">
-              {% if can_edit %}
-              <button class="btn btn-sm btn-ghost-secondary btn-dias-no-lab px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      title="Ver/editar días no laborables ANA">
-                <span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}">
-                  <i class="ti ti-edit me-1"></i>{% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}
-                </span>
-              </button>
-              {% else %}
-              <span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}">
-                {% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}
-              </span>
-              {% endif %}
-            </td>
-
-            {# Días adeudados — editable con lápiz #}
-            <td class="text-center">
-              {% if can_edit %}
-              <button class="btn btn-sm btn-ghost-secondary btn-set-dias-adeudados px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      data-valor="{{ r.dias_adeudados }}"
-                      title="Editar días adeudados">
-                <span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>
-                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
-              </button>
-              {% else %}
+            <button class="btn btn-sm btn-ghost-secondary btn-dias-no-lab px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" title="Ver/editar días no laborables ANA">
+              <span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}"><i class="ti ti-edit me-1"></i>{% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}</span>
+            </button>
+            {% else %}<span class="badge bg-orange-lt text-orange dias-no-lab-badge-{{ r.pk }}">{% if item.dias_no_lab_display > 0 %}{{ item.dias_no_lab_display }} días{% else %}—{% endif %}</span>{% endif %}
+          </td>
+          {# Días adeudados (informativo, editable) #}
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-set-dias-adeudados px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ r.dias_adeudados }}" title="Editar días adeudados">
               <span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>
-              {% endif %}
-            </td>
-
-            {# Factor h/día — editable con lápiz #}
-            {% if request.user.is_superuser %}<td class="text-center">
-              {% if can_edit %}
-              <button class="btn btn-sm btn-ghost-secondary btn-set-factor px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      data-valor="{{ item.factor }}"
-                      title="Editar factor horas/día">
-                <span class="badge bg-teal-lt text-teal factor-badge-{{ r.pk }}">{{ item.factor }} h/d</span>
-                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
-              </button>
-              {% else %}
-              <span class="badge bg-teal-lt text-teal factor-badge-{{ r.pk }}">{{ item.factor }} h/d</span>
-              {% endif %}
-            </td>{% endif %}
-
-            {# Horas adeudadas — calculado #}
-            <td class="text-center font-monospace horas-adeudadas-{{ r.pk }}">
-              {{ item.horas_adeudadas }} h
-            </td>
-
-            {# Permisos extras — editable, en días #}
-            <td class="text-center">
-              {% if can_edit %}
-              <button class="btn btn-sm btn-ghost-secondary btn-set-permisos-extras px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      data-valor="{{ item.permisos_extras }}"
-                      title="Editar permisos extras">
-                <span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">
-                  {% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}
-                </span>
-                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
-              </button>
-              {% else %}
-              <span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">
-                {% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}
-              </span>
-              {% endif %}
-            </td>
-
-            {# Total a compensar #}
-            <td class="text-center font-monospace fw-semibold total-hrs-{{ r.pk }}">
-              {{ item.total_hrs }} h
-            </td>
-
-            {# Min. Auto/día #}
-            <td class="text-center">
-              {% if can_edit %}
-              <button class="btn btn-sm btn-ghost-secondary btn-set-min-dia px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      data-valor="{{ r.minutos_autorizados_dia }}"
-                      title="Editar min. autorizados/día">
-                <span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>
-                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
-              </button>
-              {% else %}
+              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+            </button>
+            {% else %}<span class="badge bg-blue-lt text-blue dias-adeudados-badge-{{ r.pk }}">{{ r.dias_adeudados }}</span>{% endif %}
+          </td>
+          {# Horas adeudadas (editable directo) #}
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-set-horas-adeudadas px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ item.horas_adeudadas }}" title="Editar horas adeudadas">
+              <span class="badge bg-cyan-lt text-cyan horas-adeudadas-{{ r.pk }}">{{ item.horas_adeudadas }} h</span>
+              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+            </button>
+            {% else %}<span class="badge bg-cyan-lt text-cyan horas-adeudadas-{{ r.pk }}">{{ item.horas_adeudadas }} h</span>{% endif %}
+          </td>
+          {# Permisos extras #}
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-set-permisos-extras px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ item.permisos_extras }}" title="Editar permisos extras">
+              <span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">{% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}</span>
+              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+            </button>
+            {% else %}<span class="badge bg-purple-lt text-purple permisos-extras-badge-{{ r.pk }}">{% if item.permisos_extras > 0 %}{{ item.permisos_extras }} h{% else %}—{% endif %}</span>{% endif %}
+          </td>
+          {# Total a compensar #}
+          <td class="text-center font-monospace fw-semibold total-hrs-{{ r.pk }}">{{ item.total_hrs }} h</td>
+          {# Min auto/día #}
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-set-min-dia px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ r.minutos_autorizados_dia }}" title="Editar min. autorizados/día">
               <span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>
-              {% endif %}
-            </td>
+              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+            </button>
+            {% else %}<span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>{% endif %}
+          </td>
+          {# Días hábiles #}
+          <td class="text-center"><span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span></td>
+          <td class="text-center">
+            {% if can_edit %}<a href="{% url 'reloj_compensatorio_calculo_edit' r.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>{% endif %}
+            {% if can_delete %}<a href="{% url 'reloj_compensatorio_calculo_delete' r.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar"><i class="ti ti-trash"></i></a>{% endif %}
+          </td>
+        </tr>
+        {% endwith %}{% empty %}
+        <tr><td colspan="10" class="text-center text-muted py-4"><i class="ti ti-calculator-off me-2"></i>Sin registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div></div>
+</div>
 
-            {# Compensado hasta hoy #}
-            <td class="text-center">
-              {% if item.minutos_compensados >= item.total_min and item.total_min > 0 %}
-                <span class="badge bg-green-lt text-green compensado-badge-{{ r.pk }}">
-                  <i class="ti ti-circle-check me-1"></i>{{ item.horas_compensados }} h
-                </span>
-              {% elif item.minutos_compensados > 0 %}
-                <span class="badge bg-teal-lt text-teal compensado-badge-{{ r.pk }}">
-                  <i class="ti ti-progress me-1"></i>{{ item.horas_compensados }} h
-                </span>
-              {% else %}
-                <span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">0 h</span>
-              {% endif %}
-              <div class="text-muted small mt-1 dias-trans-{{ r.pk }}">{{ item.dias_transcurridos }} días háb.</div>
-            </td>
+{# ══════════════════ TAB 2 — ADEUDADOS 2 ══════════════════ #}
+<div class="tab-pane fade" id="tab2">
+  <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>Saldo = Total a compensar − Compensado hasta hoy − Tiempo extra tomado. El "tomado" se toma del permiso compensatorio (editable).</div>
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table id="tabla-calculo2" class="table table-vcenter table-hover card-table">
+      <thead><tr>
+        <th>Empleado</th>
+        <th class="text-center">Total a compensar</th>
+        <th class="text-center">Min. Auto/día</th>
+        <th class="text-center">Compensado hasta hoy</th>
+        <th class="text-center">Tiempo extra</th>
+        <th class="text-center">Tiempo extra tomado</th>
+        <th class="text-center">Saldo restante</th>
+        <th class="text-center">Fecha fin estimada</th>
+      </tr></thead>
+      <tbody>
+        {% for item in registros_data %}{% with r=item.r %}
+        <tr>
+          <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
+          <td class="text-center font-monospace fw-semibold total-hrs-{{ r.pk }}">{{ item.total_hrs }} h</td>
+          <td class="text-center"><span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span></td>
+          <td class="text-center">
+            {% if item.minutos_compensados >= item.total_min and item.total_min > 0 %}
+              <span class="badge bg-green-lt text-green compensado-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>{{ item.horas_compensados }} h</span>
+            {% elif item.minutos_compensados > 0 %}
+              <span class="badge bg-teal-lt text-teal compensado-badge-{{ r.pk }}"><i class="ti ti-progress me-1"></i>{{ item.horas_compensados }} h</span>
+            {% else %}<span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">0 h</span>{% endif %}
+            <div class="text-muted small mt-1">{{ item.dias_transcurridos }} días háb.</div>
+          </td>
+          {# Tiempo extra autorizado (informativo, modal) #}
+          <td class="text-center">
+            <button class="btn btn-sm btn-ghost-secondary btn-te-modal px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" title="Ver tiempo extra autorizado">
+              <span class="badge bg-cyan-lt text-cyan te-badge-{{ r.pk }}"><i class="ti ti-clock-bolt me-1"></i>{% if item.tiempo_extra_min > 0 %}{{ item.tiempo_extra_hrs }} h{% else %}—{% endif %}</span>
+            </button>
+          </td>
+          {# Tiempo extra tomado (override editable; default = permiso compensatorio) #}
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-set-tomado px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{% if item.tomado_es_override %}{{ item.tomado_hrs }}{% endif %}" title="Editar tiempo extra tomado">
+              <span class="badge {% if item.tomado_es_override %}bg-yellow-lt text-yellow{% else %}bg-pink-lt text-pink{% endif %} tomado-badge-{{ r.pk }}"><i class="ti ti-calendar-minus me-1"></i>{% if item.tomado_hrs > 0 %}{{ item.tomado_hrs }} h{% else %}—{% endif %}</span>
+              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+            </button>
+            {% else %}<span class="badge bg-pink-lt text-pink tomado-badge-{{ r.pk }}">{% if item.tomado_hrs > 0 %}{{ item.tomado_hrs }} h{% else %}—{% endif %}</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if item.saldo == 0 %}<span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>
+            {% else %}<span class="badge bg-red-lt text-red saldo-badge-{{ r.pk }}">{{ item.horas_saldo }} h</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if r.fecha_fin %}<span class="badge bg-green-lt text-green fecha-fin-badge-{{ r.pk }}"><i class="ti ti-calendar-check me-1"></i>{{ r.fecha_fin|date:"d/m/Y" }}</span>
+            {% else %}<span class="text-muted fecha-fin-badge-{{ r.pk }}">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endwith %}{% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Sin registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div></div>
+</div>
 
-            {# Tiempo extra autorizado — clic abre modal (ver/editar según permiso) #}
-            <td class="text-center">
-              <button class="btn btn-sm btn-ghost-secondary btn-te-modal px-2 py-0"
-                      data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
-                      title="Ver días de tiempo extra autorizado">
-                <span class="badge bg-cyan-lt text-cyan te-badge-{{ r.pk }}">
-                  <i class="ti ti-clock-bolt me-1"></i>{% if item.tiempo_extra_min > 0 %}{{ item.tiempo_extra_hrs }} h{% else %}—{% endif %}
-                </span>
-              </button>
-            </td>
-
-            {# Saldo restante — rojo si hay saldo #}
-            <td class="text-center">
-              {% if saldo == 0 %}
-                <span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}">
-                  <i class="ti ti-circle-check me-1"></i>Completado
-                </span>
-              {% else %}
-                <span class="badge bg-red-lt text-red saldo-badge-{{ r.pk }}">
-                  {{ item.horas_saldo }} h
-                </span>
-              {% endif %}
-            </td>
-
-            <td class="text-center">{{ r.fecha_inicio|date:"d/m/Y" }}</td>
-
-            <td class="text-center">
-              {% if r.fecha_fin %}
-                <span class="badge bg-green-lt text-green fs-6 px-3 fecha-fin-badge-{{ r.pk }}">
-                  <i class="ti ti-calendar-check me-1"></i>{{ r.fecha_fin|date:"d/m/Y" }}
-                </span>
-              {% else %}
-                <span class="text-muted fecha-fin-badge-{{ r.pk }}">—</span>
-              {% endif %}
-            </td>
-
-            {% if request.user.is_superuser %}{# Días hábiles #}
-            <td class="text-center">
-              <span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span>
-            </td>{% endif %}
-
-            <td class="text-center">
-              {% if can_edit %}
-              <a href="{% url 'reloj_compensatorio_calculo_edit' r.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
-                <i class="ti ti-edit"></i>
-              </a>
-              {% endif %}
-              {% if can_delete %}
-              <a href="{% url 'reloj_compensatorio_calculo_delete' r.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
-                <i class="ti ti-trash"></i>
-              </a>
-              {% endif %}
-            </td>
-          </tr>
-          {% endwith %}
-          {% empty %}
-          <tr>
-            <td colspan="16" class="text-center text-muted py-4">
-              <i class="ti ti-calculator-off me-2"></i>Sin registros.
-            </td>
-          </tr>
+{# ══════════════════ TAB 3 — HORAS TRABAJADAS ══════════════════ #}
+<div class="tab-pane fade" id="tab3">
+  {% if can_edit %}
+  <div class="d-flex justify-content-end mb-2">
+    <button class="btn btn-primary" id="btn-add-mensual"><i class="ti ti-plus me-1"></i>Agregar empleado</button>
+  </div>
+  {% endif %}
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-vcenter table-sm card-table">
+      <thead class="table-light"><tr>
+        <th style="min-width:160px;">Empleado</th>
+        {% for m in meses_corto %}<th class="text-center">{{ m }}</th>{% endfor %}
+        <th class="text-center">Total</th>
+        {% if can_edit %}<th></th>{% endif %}
+      </tr></thead>
+      <tbody>
+        {% for row in mensual_rows %}
+        <tr data-emp-id="{{ row.emp.pk }}">
+          <td><div class="fw-semibold small">{{ row.emp.nombre_empleado }}</div><div class="text-muted" style="font-size:.7rem;">{{ row.emp.emp_code }}</div></td>
+          {% for mes, trab, tom, tomp in row.meses %}
+          <td class="p-1">
+            {% if can_edit %}
+            <input type="number" step="0.01" min="0" class="form-control form-control-sm text-center cell-trab" style="width:62px;padding:.15rem .2rem;" data-emp="{{ row.emp.pk }}" data-mes="{{ mes }}" value="{% if trab %}{{ trab|floatformat:'-2' }}{% endif %}">
+            {% else %}<span class="small">{% if trab %}{{ trab|floatformat:'-2' }}{% else %}—{% endif %}</span>{% endif %}
+          </td>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
+          <td class="text-center fw-semibold mtot-trab-{{ row.emp.pk }}">{{ row.total_trab|floatformat:'-2' }}</td>
+          {% if can_edit %}<td class="text-center"><button class="btn btn-sm btn-ghost-danger px-1 py-0 btn-del-mensual" data-pk="{{ row.emp.pk }}" data-nombre="{{ row.emp.nombre_empleado }}" title="Eliminar"><i class="ti ti-trash"></i></button></td>{% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="15" class="text-center text-muted py-4">Sin empleados. Usa "Agregar empleado".</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div></div>
 </div>
 
-{# ══════════════════════════════════════════════════════════ #}
-{# MODALES                                                    #}
-{# ══════════════════════════════════════════════════════════ #}
-
-{# ── Modal: Bulk días no laborables ── #}
-{% if can_edit %}
-<div class="modal modal-blur fade" id="modalBulkDiasNoLab" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-orange-lt">
-        <h5 class="modal-title text-orange">
-          <i class="ti ti-calendar-x me-2"></i>Agregar días no laborables — <span id="bulk-dnl-count"></span> empleado(s)
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row g-3">
-          <div class="col-sm-4">
-            <label class="form-label fw-semibold">Horas</label>
-            <input type="number" id="bulk-dnl-horas" class="form-control" value="8.8" step="0.1" min="0.1">
-          </div>
-          <div class="col-sm-8">
-            <label class="form-label fw-semibold">Descripción (opcional)</label>
-            <input type="text" id="bulk-dnl-desc" class="form-control" placeholder="Ej: Semana Santa">
-          </div>
-        </div>
-        <div id="bulk-dnl-error" class="d-none mt-2">
-          <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
-        </div>
-        <div id="bulk-dnl-progress" class="d-none mt-3">
-          <div class="progress mb-1"><div class="progress-bar bg-orange" id="bulk-dnl-bar" style="width:0%"></div></div>
-          <div class="text-muted small" id="bulk-dnl-status">Procesando...</div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-orange" id="btn-bulk-dnl-apply">
-          <i class="ti ti-check me-1"></i>Aplicar a todos
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{# ── Modal: Días no laborables ANA ── #}
-<div class="modal modal-blur fade" id="modalDiasNoLab" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header bg-orange-lt">
-        <h5 class="modal-title text-orange">
-          <i class="ti ti-calendar-x me-2"></i>Días no laborables ANA — <span id="dnl-nombre"></span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {% if can_edit %}
-        <div class="card mb-3">
-          <div class="card-header"><strong>Agregar entrada</strong></div>
-          <div class="card-body">
-            <div class="row g-2 align-items-end">
-              <div class="col-sm-3">
-                <label class="form-label mb-1">Horas</label>
-                <input type="number" id="dnl-horas" class="form-control form-control-sm" value="8.8" step="0.1" min="0.1">
-              </div>
-              <div class="col-sm-7">
-                <label class="form-label mb-1">Descripción (opcional)</label>
-                <input type="text" id="dnl-desc" class="form-control form-control-sm" placeholder="Ej: Semana Santa">
-              </div>
-              <div class="col-sm-2">
-                <button class="btn btn-sm btn-orange w-100" id="btn-dnl-add">
-                  <i class="ti ti-plus me-1"></i>Agregar
-                </button>
-              </div>
-            </div>
-            <div id="dnl-add-error" class="d-none mt-2">
-              <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-        <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-orange"></i>Entradas registradas</h6>
-        <div class="table-responsive mb-3">
-          <table class="table table-sm table-vcenter">
-            <thead>
-              <tr>
-                <th>Descripción</th>
-                <th class="text-center">Horas</th>
-                {% if can_edit %}<th class="text-center">Eliminar</th>{% endif %}
-              </tr>
-            </thead>
-            <tbody id="dnl-tbody">
-              <tr id="dnl-empty"><td colspan="3" class="text-center text-muted py-3">Sin entradas</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
-          <i class="ti ti-sum text-orange fs-3"></i>
-          <div>
-            <div class="text-muted small mb-1">Total días no laborables ANA</div>
-            <div class="d-flex align-items-baseline gap-2">
-              <span class="fw-bold fs-3 text-orange" id="dnl-total-hrs">0</span>
-              <span class="text-muted">horas</span>
-              <span class="text-muted mx-1">→</span>
-              <span class="fw-bold fs-3" id="dnl-total-dias">0</span>
-              <span class="text-muted">días</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
-    </div>
-  </div>
+{# ══════════════════ TAB 4 — HORAS TOMADAS ══════════════════ #}
+<div class="tab-pane fade" id="tab4">
+  <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>Precargado del permiso compensatorio del mes. Editable como override; vacía la celda para volver al valor del permiso.</div>
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-vcenter table-sm card-table">
+      <thead class="table-light"><tr>
+        <th style="min-width:160px;">Empleado</th>
+        {% for m in meses_corto %}<th class="text-center">{{ m }}</th>{% endfor %}
+        <th class="text-center">Total</th>
+      </tr></thead>
+      <tbody>
+        {% for row in mensual_rows %}
+        <tr data-emp-id="{{ row.emp.pk }}">
+          <td><div class="fw-semibold small">{{ row.emp.nombre_empleado }}</div><div class="text-muted" style="font-size:.7rem;">{{ row.emp.emp_code }}</div></td>
+          {% for mes, trab, tom, tomp in row.meses %}
+          <td class="p-1">
+            {% if can_edit %}
+            <input type="number" step="0.01" min="0" class="form-control form-control-sm text-center cell-tom" style="width:62px;padding:.15rem .2rem;" data-emp="{{ row.emp.pk }}" data-mes="{{ mes }}" data-permiso="{{ tomp|floatformat:'-2' }}" value="{% if tom %}{{ tom|floatformat:'-2' }}{% endif %}">
+            {% else %}<span class="small">{% if tom %}{{ tom|floatformat:'-2' }}{% else %}—{% endif %}</span>{% endif %}
+          </td>
+          {% endfor %}
+          <td class="text-center fw-semibold mtot-tom-{{ row.emp.pk }}">{{ row.total_tom|floatformat:'-2' }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="14" class="text-center text-muted py-4">Sin empleados (agrégalos en "Horas Trabajadas").</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div></div>
 </div>
 
-{# ── Modal: Días adeudados ── #}
-<div class="modal modal-blur fade" id="modalDiasAdeudados" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-calendar-due me-2 text-blue"></i>Días adeudados</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">Empleado: <strong id="da-nombre"></strong></p>
-        <label class="form-label fw-semibold">Días adeudados</label>
-        <input type="number" id="da-input" class="form-control" min="0" step="0.01" placeholder="Ej: 18.65">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-guardar-dias-adeudados">
-          <i class="ti ti-device-floppy me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
+{# ══════════════════ TAB 5 — INSTRUCTORES ══════════════════ #}
+<div class="tab-pane fade" id="tab5">
+  {% if can_edit %}
+  <div class="d-flex justify-content-end mb-2">
+    <button class="btn btn-primary" id="btn-add-instructor"><i class="ti ti-plus me-1"></i>Agregar instructor</button>
   </div>
+  {% endif %}
+  <div class="card"><div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-vcenter table-hover card-table">
+      <thead><tr>
+        <th>Empleado</th>
+        <th class="text-center">Horario programado</th>
+        <th class="text-center">Min/día</th>
+        <th class="text-center">Tiempo extra autorizado</th>
+        <th class="text-center">Compensado hasta hoy</th>
+        <th class="text-center">Total tiempo compensatorio</th>
+        <th class="text-center">Permiso tomado</th>
+        <th class="text-center">Saldo restante</th>
+        {% if can_edit %}<th></th>{% endif %}
+      </tr></thead>
+      <tbody>
+        {% for row in instructor_rows %}
+        <tr data-inst-id="{{ row.i.pk }}" data-comp-hrs="{{ row.comp_hrs }}">
+          <td><div class="fw-semibold">{{ row.i.nombre_empleado }}</div><div class="text-muted small">{{ row.i.emp_code }}</div></td>
+          <td class="text-center"><span class="badge bg-azure-lt text-azure">{{ row.horario }}</span></td>
+          <td class="text-center"><span class="badge bg-secondary-lt">47 min</span></td>
+          <td class="text-center">
+            {% if can_edit %}<input type="number" min="0" step="1" class="form-control form-control-sm text-center inst-te d-inline-block" style="width:80px;" data-id="{{ row.i.pk }}" value="{{ row.te_min }}"> min
+            {% else %}{{ row.te_min }} min{% endif %}
+          </td>
+          <td class="text-center font-monospace">{{ row.comp_hrs|floatformat:'-2' }} h</td>
+          <td class="text-center font-monospace fw-semibold inst-total-{{ row.i.pk }}">{{ row.total_hrs|floatformat:'-2' }} h</td>
+          <td class="text-center">
+            {% if can_edit %}<input type="number" min="0" step="0.01" class="form-control form-control-sm text-center inst-tomado d-inline-block" style="width:80px;" data-id="{{ row.i.pk }}" data-permiso="{{ row.tomado_permiso|floatformat:'-2' }}" value="{{ row.tomado_hrs|floatformat:'-2' }}"> h
+            {% else %}{{ row.tomado_hrs|floatformat:'-2' }} h{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.saldo_hrs == 0 %}<span class="badge bg-green-lt text-green inst-saldo-{{ row.i.pk }}"><i class="ti ti-circle-check me-1"></i>0 h</span>
+            {% else %}<span class="badge bg-red-lt text-red inst-saldo-{{ row.i.pk }}">{{ row.saldo_hrs|floatformat:'-2' }} h</span>{% endif %}
+          </td>
+          {% if can_edit %}<td class="text-center"><button class="btn btn-sm btn-ghost-danger px-1 py-0 btn-del-instructor" data-pk="{{ row.i.pk }}" data-nombre="{{ row.i.nombre_empleado }}" title="Eliminar"><i class="ti ti-trash"></i></button></td>{% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center text-muted py-4">Sin instructores. Usa "Agregar instructor".</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div></div>
 </div>
 
-{# ── Modal: Factor h/día ── #}
-<div class="modal modal-blur fade" id="modalFactor" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-adjustments me-2 text-teal"></i>Factor horas/día</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">Empleado: <strong id="fac-nombre"></strong></p>
-        <label class="form-label fw-semibold">Horas por día</label>
-        <input type="number" id="fac-input" class="form-control" min="0.5" step="0.5" placeholder="Ej: 8.0">
-        <p class="text-muted small mt-2">Se usa para convertir días adeudados a horas.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-guardar-factor">
-          <i class="ti ti-device-floppy me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+</div>{# /tab-content #}
 
-{# ── Modal: Permisos extras (horas) ── #}
-<div class="modal modal-blur fade" id="modalPermisosExtras" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-clock-plus me-2 text-purple"></i>Permisos extras</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">Empleado: <strong id="pe-nombre"></strong></p>
-        <label class="form-label fw-semibold">Horas de permisos extras</label>
-        <input type="number" id="pe-input" class="form-control" min="0" step="0.5" placeholder="Ej: 26.4">
-        <p class="text-muted small mt-2">Se divide por el factor h/día para mostrar como días en la tabla.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-guardar-permisos-extras">
-          <i class="ti ti-device-floppy me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-{# ── Modal: Min. autorizados/día ── #}
-<div class="modal modal-blur fade" id="modalMinDia" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-clock-edit me-2 text-indigo"></i>Min. autorizados/día</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">Empleado: <strong id="min-dia-nombre"></strong></p>
-        <label class="form-label fw-semibold">Minutos por día hábil</label>
-        <input type="number" id="min-dia-input" class="form-control" min="1" max="480" placeholder="Ej: 47">
-        <p class="text-muted small mt-2">Ajusta los días hábiles y la fecha fin estimada.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-guardar-min-dia">
-          <i class="ti ti-device-floppy me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-{# ── Modal: Tiempo extra autorizado (múltiples entradas) ── #}
-<div class="modal modal-blur fade" id="modalTiempoExtra" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header" style="background:#e0f5fb;">
-        <h5 class="modal-title text-cyan">
-          <i class="ti ti-clock-bolt me-2"></i>Tiempo extra autorizado — <span id="te-nombre"></span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        {# Campos ocultos para JS (no se muestran en el modal) #}
-        <input type="hidden" id="te-fecha">
-        <input type="hidden" id="te-minutos">
-        <input type="hidden" id="te-razon">
-        <div id="te-add-error" class="d-none">
-          <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
-        </div>
-        <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-cyan"></i>Entradas registradas</h6>
-        <div class="table-responsive mb-3">
-          <table class="table table-sm table-vcenter">
-            <thead>
-              <tr>
-                <th class="text-center" style="width:110px;">Fecha</th>
-                <th class="text-center" style="width:90px;">Minutos</th>
-                <th>Razón</th>
-                {% if can_edit %}<th class="text-center" style="width:60px;">Eliminar</th>{% endif %}
-              </tr>
-            </thead>
-            <tbody id="te-tbody">
-              <tr id="te-empty"><td colspan="4" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas registradas</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
-          <i class="ti ti-sum text-cyan fs-3"></i>
-          <div>
-            <div class="text-muted small mb-1">Total tiempo extra autorizado</div>
-            <div class="d-flex align-items-baseline gap-2">
-              <span class="fw-bold fs-3 text-cyan" id="te-total-min">0</span>
-              <span class="text-muted">min</span>
-              <span class="text-muted mx-1">≈</span>
-              <span class="fw-bold fs-3" id="te-total-hrs">0</span>
-              <span class="text-muted">h</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include 'reloj/_compensatorio_modales.html' %}
 
 <script>
 window._PAGE = {
   csrf:         '{{ csrf_token }}',
   canEdit:      {{ can_edit|yesno:'true,false' }},
+  anio:         {{ anio_sel }},
   urlTeGet:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/',
   urlTeAdd:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/add/',
   urlTeDel:     '/reloj/compensatorio-te/{te_pk}/delete/',
+  urlEmpBuscar: '{% url "reloj_compensatorio_emp_buscar" %}',
+  urlSetHorasAdeudadas: '/reloj/compensatorio-calculo/{pk}/set-horas-adeudadas/',
+  urlSetTomado: '/reloj/compensatorio-calculo/{pk}/set-tomado/',
+  urlMensualAdd:    '{% url "reloj_compensatorio_mensual_add" %}',
+  urlMensualCell:   '{% url "reloj_compensatorio_mensual_cell" %}',
+  urlMensualDel:    '/reloj/compensatorio-mensual/{pk}/delete/',
+  urlInstructorAdd: '{% url "reloj_compensatorio_instructor_add" %}',
+  urlInstructorSet: '/reloj/compensatorio-instructor/{pk}/set/',
+  urlInstructorDel: '/reloj/compensatorio-instructor/{pk}/delete/',
 };
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=3"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=4"></script>
 
 {% endblock %}

@@ -1,19 +1,50 @@
-// ── DataTables init ──
+// ── Cálculo compensatorio — 5 tabs ──  // <--- hecho por claude code
+const CSRF = window._PAGE.csrf;
+const minToH = m => +(m / 60).toFixed(1);
+
+function jpost(url, payload) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+    body: JSON.stringify(payload || {}),
+  }).then(r => r.json());
+}
+
+// ── DataTables + tabs + año ──
+let dt1 = null, dt2 = null;
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof $.fn.DataTable !== 'undefined') {
-    $('#tabla-calculo').DataTable({
-      order: [], pageLength: 25,
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
-    });
+    const lang = { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' };
+    if (document.getElementById('tabla-calculo'))  dt1 = $('#tabla-calculo').DataTable({ order: [], pageLength: 25, language: lang });
+    if (document.getElementById('tabla-calculo2')) dt2 = $('#tabla-calculo2').DataTable({ order: [], pageLength: 25, language: lang });
   }
+
+  // Activar tab desde el hash
+  const hash = location.hash;
+  if (hash) {
+    const tb = document.querySelector(`#comp-tabs button[data-bs-target="${hash}"]`);
+    if (tb) new bootstrap.Tab(tb).show();
+  }
+  // Guardar tab activo + ajustar DataTables
+  document.querySelectorAll('#comp-tabs button[data-bs-toggle="tab"]').forEach(b => {
+    b.addEventListener('shown.bs.tab', function (e) {
+      history.replaceState(null, '', e.target.dataset.bsTarget);
+      if (e.target.dataset.bsTarget === '#tab1' && dt1) dt1.columns.adjust();
+      if (e.target.dataset.bsTarget === '#tab2' && dt2) dt2.columns.adjust();
+    });
+  });
+  // Selector de año (recarga preservando tab)
+  const anioSel = document.getElementById('anio-sel');
+  if (anioSel) anioSel.addEventListener('change', function () {
+    const u = new URL(location.href);
+    u.searchParams.set('anio', this.value);
+    u.hash = location.hash || '#tab3';
+    location.href = u.toString();
+  });
 });
 
-// ── Main IIFE ──
-(function(){
-  const CSRF   = window._PAGE.csrf;
-  const minToH = m => +(m / 60).toFixed(1);
-
-  // ── Saldo badge ──
+// ══════════════ TABS 1-2: edición de adeudados ══════════════
+(function () {
   function updateSaldoBadge(pk, saldoMin) {
     const b = document.querySelector(`.saldo-badge-${pk}`);
     if (!b) return;
@@ -25,524 +56,398 @@ document.addEventListener('DOMContentLoaded', function () {
       b.textContent = `${minToH(saldoMin)} h`;
     }
   }
-
-  // ── Actualizar total y saldo en la fila ──
   function updateRowTotals(pk, data) {
-    const totalCell = document.querySelector(`.total-hrs-${pk}`);
-    if (totalCell) totalCell.textContent = `${data.total_hrs} h`;
+    document.querySelectorAll(`.total-hrs-${pk}`).forEach(c => c.textContent = `${data.total_hrs} h`);
     const row = document.querySelector(`tr[data-pk="${pk}"]`);
     if (row) row.dataset.totalMin = data.total_min;
-    updateSaldoBadge(pk, data.saldo_min);
-    const habBadge = document.querySelector(`.dias-hab-badge-${pk}`);
-    if (habBadge) habBadge.textContent = `${data.dias_hab} días`;
+    if (data.saldo_min !== undefined) updateSaldoBadge(pk, data.saldo_min);
+    const hab = document.querySelector(`.dias-hab-badge-${pk}`);
+    if (hab && data.dias_hab !== undefined) hab.textContent = `${data.dias_hab} días`;
   }
 
-  // ─────────────────────────────────────────────
-  // MODAL: Días no laborables ANA
-  // ─────────────────────────────────────────────
-  let modalDNL = null, dnlActivePk = null;
-  const dnlCanEdit = window._PAGE.canEdit;
-
-  function renderDNLRows(dias) {
-    const tbody = document.getElementById('dnl-tbody');
-    const empty = document.getElementById('dnl-empty');
-    tbody.querySelectorAll('tr:not(#dnl-empty)').forEach(r => r.remove());
-    if (!dias.length) { empty.style.display = ''; return; }
-    empty.style.display = 'none';
-    dias.forEach(d => {
-      const tr = document.createElement('tr');
-      tr.dataset.id = d.id;
-      tr.innerHTML = `
-        <td class="text-muted small">${d.descripcion || '—'}</td>
-        <td class="text-center fw-semibold text-orange">${d.horas} h</td>
-        ${dnlCanEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${d.id}"><i class="ti ti-trash"></i></button></td>` : ''}
-      `;
-      tbody.appendChild(tr);
+  // helper genérico para modales de un solo campo
+  function bindEditModal(opts) {
+    let modal = null, activePk = null;
+    document.querySelectorAll(opts.btnSel).forEach(btn => {
+      btn.addEventListener('click', function () {
+        activePk = this.dataset.pk;
+        document.getElementById(opts.nombreEl).textContent = this.dataset.nombre || '';
+        document.getElementById(opts.inputEl).value = this.dataset.valor || '';
+        if (!modal) modal = new bootstrap.Modal(document.getElementById(opts.modalId));
+        modal.show();
+      });
     });
-  }
-
-  function updateDNLTotals(totalHrs) {
-    const diasEquiv = totalHrs > 0 ? +(totalHrs / 8).toFixed(2) : 0;
-    document.getElementById('dnl-total-hrs').textContent  = totalHrs;
-    document.getElementById('dnl-total-dias').textContent = diasEquiv;
-    const badge = document.querySelector(`.dias-no-lab-badge-${dnlActivePk}`);
-    if (badge) badge.innerHTML = diasEquiv > 0
-      ? `<i class="ti ti-edit me-1"></i>${diasEquiv} días`
-      : `<i class="ti ti-edit me-1"></i>—`;
-  }
-
-  document.querySelectorAll('.btn-dias-no-lab').forEach(btn => {
-    btn.addEventListener('click', async function() {
-      dnlActivePk = this.dataset.pk;
-      document.getElementById('dnl-nombre').textContent = this.dataset.nombre;
-      if (document.getElementById('dnl-horas')) document.getElementById('dnl-horas').value = '8.8';
-      if (document.getElementById('dnl-desc'))  document.getElementById('dnl-desc').value  = '';
-      document.getElementById('dnl-add-error')?.classList.add('d-none');
-      if (!modalDNL) modalDNL = new bootstrap.Modal(document.getElementById('modalDiasNoLab'));
-      modalDNL.show();
-      const res = await fetch(`/reloj/compensatorio-calculo/${dnlActivePk}/dias-no-lab/`);
-      const data = await res.json();
-      if (data.ok) { renderDNLRows(data.dias); updateDNLTotals(data.total_hrs); }
-    });
-  });
-
-  document.getElementById('btn-dnl-add')?.addEventListener('click', async function() {
-    const horas  = document.getElementById('dnl-horas').value;
-    const desc   = document.getElementById('dnl-desc').value;
-    const errDiv = document.getElementById('dnl-add-error');
-    errDiv.classList.add('d-none');
-    if (!horas || parseFloat(horas) <= 0) {
-      errDiv.querySelector('.alert').textContent = 'Ingresa un valor de horas válido.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    const btn = this; btn.disabled = true;
-    const res  = await fetch(`/reloj/compensatorio-calculo/${dnlActivePk}/dias-no-lab/add/`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({ horas: parseFloat(horas), descripcion: desc }),
-    });
-    btn.disabled = false;
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('dnl-horas').value = '8.8';
-      document.getElementById('dnl-desc').value  = '';
-      const r2 = await fetch(`/reloj/compensatorio-calculo/${dnlActivePk}/dias-no-lab/`);
-      const d2 = await r2.json();
-      if (d2.ok) { renderDNLRows(d2.dias); updateDNLTotals(d2.total_hrs); }
-    } else {
-      errDiv.querySelector('.alert').textContent = data.error || 'Error al agregar.';
-      errDiv.classList.remove('d-none');
-    }
-  });
-
-  document.getElementById('dnl-tbody').addEventListener('click', async function(e) {
-    const btn = e.target.closest('.btn-dnl-del');
-    if (!btn) return;
-    btn.disabled = true;
-    const res  = await fetch(`/reloj/compensatorio-dias-no-lab/${btn.dataset.id}/delete/`, {
-      method: 'POST', headers: {'X-CSRFToken': CSRF},
-    });
-    const data = await res.json();
-    if (data.ok) {
-      const r2 = await fetch(`/reloj/compensatorio-calculo/${dnlActivePk}/dias-no-lab/`);
-      const d2 = await r2.json();
-      if (d2.ok) { renderDNLRows(d2.dias); updateDNLTotals(d2.total_hrs); }
-    }
-    btn.disabled = false;
-  });
-
-  // ─────────────────────────────────────────────
-  // MODAL: Días adeudados
-  // ─────────────────────────────────────────────
-  let modalDA = null, daActivePk = null;
-
-  document.querySelectorAll('.btn-set-dias-adeudados').forEach(btn => {
-    btn.addEventListener('click', function() {
-      daActivePk = this.dataset.pk;
-      document.getElementById('da-nombre').textContent = this.dataset.nombre;
-      document.getElementById('da-input').value = this.dataset.valor || '';
-      if (!modalDA) modalDA = new bootstrap.Modal(document.getElementById('modalDiasAdeudados'));
-      modalDA.show();
-    });
-  });
-
-  document.getElementById('btn-guardar-dias-adeudados').addEventListener('click', async function() {
-    const val = parseFloat(document.getElementById('da-input').value);
-    if (isNaN(val) || val < 0) { document.getElementById('da-input').classList.add('is-invalid'); return; }
-    document.getElementById('da-input').classList.remove('is-invalid');
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
-    const res  = await fetch(`/reloj/compensatorio-calculo/${daActivePk}/set-dias-adeudados/`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({ dias: val }),
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-    if (data.ok) {
-      const badge = document.querySelector(`.dias-adeudados-badge-${daActivePk}`);
-      if (badge) badge.textContent = data.dias;
-      const daBtn = document.querySelector(`.btn-set-dias-adeudados[data-pk="${daActivePk}"]`);
-      if (daBtn) daBtn.dataset.valor = data.dias;
-      const hCell = document.querySelector(`.horas-adeudadas-${daActivePk}`);
-      if (hCell) hCell.textContent = `${data.horas_adeudadas} h`;
-      updateRowTotals(daActivePk, data);
-      if (modalDA) modalDA.hide();
-    }
-  });
-
-  // ─────────────────────────────────────────────
-  // MODAL: Factor h/día
-  // ─────────────────────────────────────────────
-  let modalFac = null, facActivePk = null;
-
-  document.querySelectorAll('.btn-set-factor').forEach(btn => {
-    btn.addEventListener('click', function() {
-      facActivePk = this.dataset.pk;
-      document.getElementById('fac-nombre').textContent = this.dataset.nombre;
-      document.getElementById('fac-input').value = this.dataset.valor || '8';
-      if (!modalFac) modalFac = new bootstrap.Modal(document.getElementById('modalFactor'));
-      modalFac.show();
-    });
-  });
-
-  document.getElementById('btn-guardar-factor').addEventListener('click', async function() {
-    const val = parseFloat(document.getElementById('fac-input').value);
-    if (isNaN(val) || val <= 0) { document.getElementById('fac-input').classList.add('is-invalid'); return; }
-    document.getElementById('fac-input').classList.remove('is-invalid');
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
-    const res  = await fetch(`/reloj/compensatorio-calculo/${facActivePk}/set-factor/`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({ factor: val }),
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-    if (data.ok) {
-      const badge = document.querySelector(`.factor-badge-${facActivePk}`);
-      if (badge) badge.textContent = `${data.factor} h/d`;
-      const facBtn = document.querySelector(`.btn-set-factor[data-pk="${facActivePk}"]`);
-      if (facBtn) facBtn.dataset.valor = data.factor;
-      const hCell = document.querySelector(`.horas-adeudadas-${facActivePk}`);
-      if (hCell) hCell.textContent = `${data.horas_adeudadas} h`;
-      updateRowTotals(facActivePk, data);
-      if (modalFac) modalFac.hide();
-    }
-  });
-
-  // ─────────────────────────────────────────────
-  // MODAL: Permisos extras (horas directas)
-  // ─────────────────────────────────────────────
-  let modalPE = null, peActivePk = null;
-
-  document.querySelectorAll('.btn-set-permisos-extras').forEach(btn => {
-    btn.addEventListener('click', function() {
-      peActivePk = this.dataset.pk;
-      document.getElementById('pe-nombre').textContent = this.dataset.nombre;
-      document.getElementById('pe-input').value = this.dataset.valor || '';
-      if (!modalPE) modalPE = new bootstrap.Modal(document.getElementById('modalPermisosExtras'));
-      modalPE.show();
-    });
-  });
-
-  document.getElementById('btn-guardar-permisos-extras').addEventListener('click', async function() {
-    const val = parseFloat(document.getElementById('pe-input').value);
-    if (isNaN(val) || val < 0) { document.getElementById('pe-input').classList.add('is-invalid'); return; }
-    document.getElementById('pe-input').classList.remove('is-invalid');
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
-    const res  = await fetch(`/reloj/compensatorio-calculo/${peActivePk}/set-permisos-extras/`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({ horas: val }),
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-    if (data.ok) {
-      const badge = document.querySelector(`.permisos-extras-badge-${peActivePk}`);
-      if (badge) badge.textContent = val > 0 ? `${val} h` : '—';
-      const peBtn = document.querySelector(`.btn-set-permisos-extras[data-pk="${peActivePk}"]`);
-      if (peBtn) peBtn.dataset.valor = val;
-      updateRowTotals(peActivePk, data);
-      if (modalPE) modalPE.hide();
-    }
-  });
-
-  // ─────────────────────────────────────────────
-  // MODAL: Tiempo extra autorizado
-  // ─────────────────────────────────────────────
-  let modalTE = null, teActivePk = null;
-  const teCanEdit = window._PAGE.canEdit;
-
-  function renderTERows(entries) {
-    const tbody = document.getElementById('te-tbody');
-    const empty = document.getElementById('te-empty');
-    tbody.querySelectorAll('tr:not(#te-empty)').forEach(r => r.remove());
-    if (!entries.length) { empty.style.display = ''; return; }
-    empty.style.display = 'none';
-    entries.forEach(e => {
-      const tr = document.createElement('tr');
-      tr.dataset.tePk = e.pk;
-      tr.innerHTML = `
-        <td class="text-center font-monospace small">${e.fecha}</td>
-        <td class="text-center fw-semibold text-cyan">${e.minutos} min</td>
-        <td class="text-muted small">${e.razon}</td>
-        ${teCanEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-te-del" data-te-pk="${e.pk}" title="Eliminar"><i class="ti ti-trash"></i></button></td>` : ''}
-      `;
-      tbody.appendChild(tr);
+    document.getElementById(opts.saveBtn)?.addEventListener('click', async function () {
+      const inp = document.getElementById(opts.inputEl);
+      const raw = inp.value;
+      const btn = this; btn.disabled = true;
+      const data = await jpost(opts.url.replace('{pk}', activePk), opts.payload(raw));
+      btn.disabled = false;
+      if (data.ok) { opts.onOk(activePk, raw, data); if (modal) modal.hide(); }
+      else { inp.classList.add('is-invalid'); }
     });
   }
 
-  function updateTETotals(totalMin, totalHrs) {
-    document.getElementById('te-total-min').textContent = totalMin;
-    document.getElementById('te-total-hrs').textContent = totalHrs;
-
-    // Update badge in the table row
-    const badge = document.querySelector(`.te-badge-${teActivePk}`);
-    if (badge) {
-      badge.innerHTML = totalMin > 0
-        ? `<i class="ti ti-clock-bolt me-1"></i>${totalHrs} h`
-        : `<i class="ti ti-clock-bolt me-1"></i>—`;
-    }
-
-    // Recalculate saldo
-    const row = document.querySelector(`tr[data-pk="${teActivePk}"]`);
-    if (row) {
-      row.dataset.teMin = totalMin;
-      const compensatorioTotalMin = parseInt(row.dataset.totalMin) || 0;
-      const compensadoMin         = parseInt(row.dataset.compensadoMin) || 0;
-      const saldoMin = Math.max(0, compensatorioTotalMin - compensadoMin - totalMin);
-      updateSaldoBadge(teActivePk, saldoMin);
-    }
-  }
-
-  document.querySelectorAll('.btn-te-modal').forEach(btn => {
-    btn.addEventListener('click', async function() {
-      teActivePk = this.dataset.pk;
-      document.getElementById('te-nombre').textContent = this.dataset.nombre;
-      // Reset form
-      const fechaInput = document.getElementById('te-fecha');
-      if (fechaInput) {
-        const today = new Date().toISOString().split('T')[0];
-        fechaInput.value = today;
+  // Días adeudados (informativo)
+  bindEditModal({
+    btnSel: '.btn-set-dias-adeudados', modalId: 'modalDiasAdeudados', nombreEl: 'da-nombre',
+    inputEl: 'da-input', saveBtn: 'btn-guardar-dias-adeudados',
+    url: '/reloj/compensatorio-calculo/{pk}/set-dias-adeudados/',
+    payload: raw => ({ dias: parseFloat(raw) || 0 }),
+    onOk: (pk, raw, data) => {
+      document.querySelector(`.dias-adeudados-badge-${pk}`).textContent = data.dias;
+      const b = document.querySelector(`.btn-set-dias-adeudados[data-pk="${pk}"]`); if (b) b.dataset.valor = data.dias;
+      updateRowTotals(pk, data);
+    },
+  });
+  // Horas adeudadas (directo)
+  bindEditModal({
+    btnSel: '.btn-set-horas-adeudadas', modalId: 'modalHorasAdeudadas', nombreEl: 'ha-nombre',
+    inputEl: 'ha-input', saveBtn: 'btn-guardar-horas-adeudadas',
+    url: window._PAGE.urlSetHorasAdeudadas,
+    payload: raw => ({ horas: parseFloat(raw) || 0 }),
+    onOk: (pk, raw, data) => {
+      const hc = document.querySelector(`.horas-adeudadas-${pk}`); if (hc) hc.textContent = `${data.horas_adeudadas} h`;
+      const b = document.querySelector(`.btn-set-horas-adeudadas[data-pk="${pk}"]`); if (b) b.dataset.valor = data.horas_adeudadas;
+      updateRowTotals(pk, data);
+    },
+  });
+  // Permisos extras
+  bindEditModal({
+    btnSel: '.btn-set-permisos-extras', modalId: 'modalPermisosExtras', nombreEl: 'pe-nombre',
+    inputEl: 'pe-input', saveBtn: 'btn-guardar-permisos-extras',
+    url: '/reloj/compensatorio-calculo/{pk}/set-permisos-extras/',
+    payload: raw => ({ horas: parseFloat(raw) || 0 }),
+    onOk: (pk, raw, data) => {
+      const v = parseFloat(raw) || 0;
+      const badge = document.querySelector(`.permisos-extras-badge-${pk}`); if (badge) badge.textContent = v > 0 ? `${v} h` : '—';
+      const b = document.querySelector(`.btn-set-permisos-extras[data-pk="${pk}"]`); if (b) b.dataset.valor = v;
+      updateRowTotals(pk, data);
+    },
+  });
+  // Tiempo extra tomado (override)
+  bindEditModal({
+    btnSel: '.btn-set-tomado', modalId: 'modalTomado', nombreEl: 'tom-nombre',
+    inputEl: 'tom-input', saveBtn: 'btn-guardar-tomado',
+    url: window._PAGE.urlSetTomado,
+    payload: raw => ({ horas: raw === '' ? '' : (parseFloat(raw) || 0) }),
+    onOk: (pk, raw, data) => {
+      const badge = document.querySelector(`.tomado-badge-${pk}`);
+      if (badge) {
+        badge.className = `badge ${data.es_override ? 'bg-yellow-lt text-yellow' : 'bg-pink-lt text-pink'} tomado-badge-${pk}`;
+        badge.innerHTML = `<i class="ti ti-calendar-minus me-1"></i>${data.tomado_hrs > 0 ? data.tomado_hrs + ' h' : '—'}`;
       }
-      if (document.getElementById('te-minutos')) document.getElementById('te-minutos').value = '';
-      if (document.getElementById('te-razon'))   document.getElementById('te-razon').value   = '';
-      document.getElementById('te-add-error')?.classList.add('d-none');
-      if (!modalTE) modalTE = new bootstrap.Modal(document.getElementById('modalTiempoExtra'));
-      modalTE.show();
-      // Load entries
-      const res = await fetch(window._PAGE.urlTeGet.replace('{pk}', teActivePk));
-      const data = await res.json();
-      if (data.ok) { renderTERows(data.entries); updateTETotals(data.total_min, data.total_hrs); }
-    });
+      const b = document.querySelector(`.btn-set-tomado[data-pk="${pk}"]`); if (b) b.dataset.valor = data.es_override ? data.tomado_hrs : '';
+      const row = document.querySelector(`tr[data-pk="${pk}"]`); if (row) row.dataset.tomadoMin = data.tomado_hrs * 60;
+      updateSaldoBadge(pk, data.saldo_min);
+    },
   });
 
-  document.getElementById('btn-te-add')?.addEventListener('click', async function() {
-    const fecha   = document.getElementById('te-fecha').value;
-    const minutos = parseInt(document.getElementById('te-minutos').value);
-    const razon   = document.getElementById('te-razon').value.trim();
-    const errDiv  = document.getElementById('te-add-error');
-    errDiv.classList.add('d-none');
-    if (!fecha) {
-      errDiv.querySelector('.alert').textContent = 'Selecciona una fecha.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    if (!minutos || minutos <= 0) {
-      errDiv.querySelector('.alert').textContent = 'Ingresa un valor de minutos válido.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    const res  = await fetch(window._PAGE.urlTeAdd.replace('{pk}', teActivePk), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({fecha, minutos, razon}),
-    });
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-plus me-1"></i>Agregar';
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('te-minutos').value = '';
-      document.getElementById('te-razon').value   = '';
-      renderTERows(data.entries);
-      updateTETotals(data.total_min, data.total_hrs);
-    } else {
-      errDiv.querySelector('.alert').textContent = data.error || 'Error al agregar.';
-      errDiv.classList.remove('d-none');
-    }
-  });
-
-  document.getElementById('te-tbody').addEventListener('click', async function(e) {
-    const btn = e.target.closest('.btn-te-del');
-    if (!btn) return;
-    btn.disabled = true;
-    const res  = await fetch(window._PAGE.urlTeDel.replace('{te_pk}', btn.dataset.tePk), {
-      method: 'POST', headers: {'X-CSRFToken': CSRF},
-    });
-    const data = await res.json();
-    if (data.ok) {
-      renderTERows(data.entries);
-      updateTETotals(data.total_min, data.total_hrs);
-    }
-    btn.disabled = false;
-  });
-
-  // ─────────────────────────────────────────────
-  // MODAL: Min. autorizados/día
-  // ─────────────────────────────────────────────
-  let modalMD = null, mdActivePk = null;
-
+  // Min. autorizados/día (POST form-urlencoded)
+  let modalMD = null, mdPk = null;
   document.querySelectorAll('.btn-set-min-dia').forEach(btn => {
-    btn.addEventListener('click', function() {
-      mdActivePk = this.dataset.pk;
+    btn.addEventListener('click', function () {
+      mdPk = this.dataset.pk;
       document.getElementById('min-dia-nombre').textContent = this.dataset.nombre;
       document.getElementById('min-dia-input').value = this.dataset.valor || '';
       if (!modalMD) modalMD = new bootstrap.Modal(document.getElementById('modalMinDia'));
       modalMD.show();
     });
   });
-
-  document.getElementById('btn-guardar-min-dia').addEventListener('click', async function() {
+  document.getElementById('btn-guardar-min-dia')?.addEventListener('click', async function () {
     const valor = parseInt(document.getElementById('min-dia-input').value);
     if (!valor || valor <= 0) { document.getElementById('min-dia-input').classList.add('is-invalid'); return; }
-    document.getElementById('min-dia-input').classList.remove('is-invalid');
     const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-    const body = new URLSearchParams({ csrfmiddlewaretoken: CSRF, minutos: valor });
-    const res  = await fetch(`/reloj/compensatorio-calculo/${mdActivePk}/set-min-dia/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
+    const res = await fetch(`/reloj/compensatorio-calculo/${mdPk}/set-min-dia/`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF, minutos: valor }),
     });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
+    const data = await res.json(); btn.disabled = false;
     if (data.ok) {
-      const minBadge = document.querySelector(`.min-dia-badge-${mdActivePk}`);
-      if (minBadge) minBadge.textContent = `${data.minutos_dia} min`;
-      const habBadge = document.querySelector(`.dias-hab-badge-${mdActivePk}`);
-      if (habBadge) habBadge.textContent = `${data.dias_habiles} días`;
-      const ffBadge = document.querySelector(`.fecha-fin-badge-${mdActivePk}`);
-      if (ffBadge) {
-        ffBadge.className = `badge bg-green-lt text-green fs-6 px-3 fecha-fin-badge-${mdActivePk}`;
-        ffBadge.innerHTML = `<i class="ti ti-calendar-check me-1"></i>${data.fecha_fin}`;
-      }
-      const row = document.querySelector(`tr[data-pk="${mdActivePk}"]`);
-      const totalMin = parseInt(row?.dataset.totalMin) || 0;
-      if (data.saldo !== undefined) updateSaldoBadge(mdActivePk, data.saldo);
+      document.querySelectorAll(`.min-dia-badge-${mdPk}`).forEach(b => b.textContent = `${data.minutos_dia} min`);
+      const hab = document.querySelector(`.dias-hab-badge-${mdPk}`); if (hab) hab.textContent = `${data.dias_habiles} días`;
+      document.querySelectorAll(`.fecha-fin-badge-${mdPk}`).forEach(ff => { ff.className = `badge bg-green-lt text-green fecha-fin-badge-${mdPk}`; ff.innerHTML = `<i class="ti ti-calendar-check me-1"></i>${data.fecha_fin}`; });
       if (modalMD) modalMD.hide();
     }
   });
 
+  // ── Días no laborables ANA (modal lista) ──
+  let modalDNL = null, dnlPk = null;
+  const canEdit = window._PAGE.canEdit;
+  function renderDNL(dias) {
+    const tbody = document.getElementById('dnl-tbody'), empty = document.getElementById('dnl-empty');
+    tbody.querySelectorAll('tr:not(#dnl-empty)').forEach(r => r.remove());
+    if (!dias.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    dias.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-muted small">${d.descripcion || '—'}</td><td class="text-center fw-semibold text-orange">${d.horas} h</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${d.id}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tbody.appendChild(tr);
+    });
+  }
+  function updateDNLTotals(totalHrs) {
+    const dias = totalHrs > 0 ? +(totalHrs / 8).toFixed(2) : 0;
+    document.getElementById('dnl-total-hrs').textContent = totalHrs;
+    document.getElementById('dnl-total-dias').textContent = dias;
+    const badge = document.querySelector(`.dias-no-lab-badge-${dnlPk}`);
+    if (badge) badge.innerHTML = `<i class="ti ti-edit me-1"></i>${dias > 0 ? dias + ' días' : '—'}`;
+  }
+  async function reloadDNL() {
+    const d = await (await fetch(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/`)).json();
+    if (d.ok) { renderDNL(d.dias); updateDNLTotals(d.total_hrs); }
+  }
+  document.querySelectorAll('.btn-dias-no-lab').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      dnlPk = this.dataset.pk;
+      document.getElementById('dnl-nombre').textContent = this.dataset.nombre;
+      if (document.getElementById('dnl-horas')) document.getElementById('dnl-horas').value = '8.8';
+      if (document.getElementById('dnl-desc')) document.getElementById('dnl-desc').value = '';
+      if (!modalDNL) modalDNL = new bootstrap.Modal(document.getElementById('modalDiasNoLab'));
+      modalDNL.show(); reloadDNL();
+    });
+  });
+  document.getElementById('btn-dnl-add')?.addEventListener('click', async function () {
+    const horas = parseFloat(document.getElementById('dnl-horas').value);
+    const desc = document.getElementById('dnl-desc').value;
+    const err = document.getElementById('dnl-add-error');
+    if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Horas inválidas.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none'); this.disabled = true;
+    await jpost(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/add/`, { horas, descripcion: desc });
+    this.disabled = false;
+    document.getElementById('dnl-horas').value = '8.8'; document.getElementById('dnl-desc').value = '';
+    reloadDNL();
+  });
+  document.getElementById('dnl-tbody')?.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-dnl-del'); if (!btn) return;
+    btn.disabled = true;
+    await fetch(`/reloj/compensatorio-dias-no-lab/${btn.dataset.id}/delete/`, { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+    reloadDNL();
+  });
+
+  // ── Tiempo extra autorizado (modal lista, informativo) ──
+  let modalTE = null, tePk = null;
+  function renderTE(entries) {
+    const tbody = document.getElementById('te-tbody'), empty = document.getElementById('te-empty');
+    tbody.querySelectorAll('tr:not(#te-empty)').forEach(r => r.remove());
+    if (!entries.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    entries.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-cyan">${e.minutos} min</td><td class="text-muted small">${e.razon}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-te-del" data-te-pk="${e.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tbody.appendChild(tr);
+    });
+  }
+  function updateTEBadge(totalMin, totalHrs) {
+    document.getElementById('te-total-min').textContent = totalMin;
+    document.getElementById('te-total-hrs').textContent = totalHrs;
+    const badge = document.querySelector(`.te-badge-${tePk}`);
+    if (badge) badge.innerHTML = `<i class="ti ti-clock-bolt me-1"></i>${totalMin > 0 ? totalHrs + ' h' : '—'}`;
+  }
+  document.querySelectorAll('.btn-te-modal').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      tePk = this.dataset.pk;
+      document.getElementById('te-nombre').textContent = this.dataset.nombre;
+      if (!modalTE) modalTE = new bootstrap.Modal(document.getElementById('modalTiempoExtra'));
+      modalTE.show();
+      const d = await (await fetch(window._PAGE.urlTeGet.replace('{pk}', tePk))).json();
+      if (d.ok) { renderTE(d.entries); updateTEBadge(d.total_min, d.total_hrs); }
+    });
+  });
+  document.getElementById('te-tbody')?.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-te-del'); if (!btn) return;
+    btn.disabled = true;
+    const d = await (await fetch(window._PAGE.urlTeDel.replace('{te_pk}', btn.dataset.tePk), { method: 'POST', headers: { 'X-CSRFToken': CSRF } })).json();
+    if (d.ok) { renderTE(d.entries); updateTEBadge(d.total_min, d.total_hrs); }
+  });
 })();
 
-// ── Bulk actions IIFE (only when canEdit) ──
-if (window._PAGE.canEdit) {
-(function(){
-  const CSRF = window._PAGE.csrf;
-
+// ══════════════ Bulk (tab 1) ══════════════
+if (window._PAGE.canEdit) (function () {
   const getChecked = () => [...document.querySelectorAll('.chk-emp:checked')];
-
-  function updateBulkBar() {
-    const n = getChecked().length;
-    const bar = document.getElementById('bulk-bar');
-    bar.style.display = n > 0 ? 'flex' : 'none';
-    document.getElementById('bulk-count').textContent = n;
+  function updateBar() {
+    const n = getChecked().length, bar = document.getElementById('bulk-bar');
+    if (bar) { bar.style.display = n > 0 ? 'flex' : 'none'; document.getElementById('bulk-count').textContent = n; }
   }
-
-  document.getElementById('chk-all').addEventListener('change', function() {
-    document.querySelectorAll('.chk-emp').forEach(c => c.checked = this.checked);
-    updateBulkBar();
+  document.getElementById('chk-all')?.addEventListener('change', function () {
+    document.querySelectorAll('.chk-emp').forEach(c => c.checked = this.checked); updateBar();
   });
+  document.querySelectorAll('.chk-emp').forEach(c => c.addEventListener('change', updateBar));
 
-  document.querySelectorAll('.chk-emp').forEach(c => c.addEventListener('change', updateBulkBar));
-
-  // ── Bulk: días no laborables ──
-  let modalBulkDNL = null;
-
-  document.getElementById('btn-bulk-dias-no-lab').addEventListener('click', function() {
-    const n = getChecked().length;
-    if (!n) return;
+  let modalBulk = null;
+  document.getElementById('btn-bulk-dias-no-lab')?.addEventListener('click', function () {
+    const n = getChecked().length; if (!n) return;
     document.getElementById('bulk-dnl-count').textContent = n;
     document.getElementById('bulk-dnl-horas').value = '8.8';
-    document.getElementById('bulk-dnl-desc').value  = '';
+    document.getElementById('bulk-dnl-desc').value = '';
     document.getElementById('bulk-dnl-error').classList.add('d-none');
     document.getElementById('bulk-dnl-progress').classList.add('d-none');
-    if (!modalBulkDNL) modalBulkDNL = new bootstrap.Modal(document.getElementById('modalBulkDiasNoLab'));
-    modalBulkDNL.show();
+    if (!modalBulk) modalBulk = new bootstrap.Modal(document.getElementById('modalBulkDiasNoLab'));
+    modalBulk.show();
   });
-
-  document.getElementById('btn-bulk-dnl-apply').addEventListener('click', async function() {
+  document.getElementById('btn-bulk-dnl-apply')?.addEventListener('click', async function () {
     const horas = parseFloat(document.getElementById('bulk-dnl-horas').value);
-    const desc  = document.getElementById('bulk-dnl-desc').value.trim();
-    const errDiv = document.getElementById('bulk-dnl-error');
-    errDiv.classList.add('d-none');
-    if (!horas || horas <= 0) {
-      errDiv.querySelector('.alert').textContent = 'Ingresa un valor de horas válido.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    const checked = getChecked();
-    const btn = this; btn.disabled = true;
-    const progDiv = document.getElementById('bulk-dnl-progress');
-    const progBar = document.getElementById('bulk-dnl-bar');
-    const progStatus = document.getElementById('bulk-dnl-status');
-    progDiv.classList.remove('d-none');
-
+    const desc = document.getElementById('bulk-dnl-desc').value.trim();
+    const err = document.getElementById('bulk-dnl-error');
+    if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Horas inválidas.'; err.classList.remove('d-none'); return; }
+    const checked = getChecked(); this.disabled = true;
+    const prog = document.getElementById('bulk-dnl-progress'), bar = document.getElementById('bulk-dnl-bar'), st = document.getElementById('bulk-dnl-status');
+    prog.classList.remove('d-none');
     for (let i = 0; i < checked.length; i++) {
       const pk = checked[i].dataset.pk;
-      progStatus.textContent = `Procesando ${i + 1} de ${checked.length}...`;
-      progBar.style.width = `${Math.round((i / checked.length) * 100)}%`;
-      await fetch(`/reloj/compensatorio-calculo/${pk}/dias-no-lab/add/`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-        body: JSON.stringify({horas, descripcion: desc}),
-      });
-      // refresh badge for this row
-      const r2 = await fetch(`/reloj/compensatorio-calculo/${pk}/dias-no-lab/`);
-      const d2 = await r2.json();
+      st.textContent = `Procesando ${i + 1} de ${checked.length}...`;
+      bar.style.width = `${Math.round((i / checked.length) * 100)}%`;
+      await jpost(`/reloj/compensatorio-calculo/${pk}/dias-no-lab/add/`, { horas, descripcion: desc });
+      const d2 = await (await fetch(`/reloj/compensatorio-calculo/${pk}/dias-no-lab/`)).json();
       if (d2.ok) {
-        const diasEquiv = d2.total_hrs > 0 ? +(d2.total_hrs / 8).toFixed(2) : 0;
+        const dias = d2.total_hrs > 0 ? +(d2.total_hrs / 8).toFixed(2) : 0;
         const badge = document.querySelector(`.dias-no-lab-badge-${pk}`);
-        if (badge) badge.innerHTML = diasEquiv > 0
-          ? `<i class="ti ti-edit me-1"></i>${diasEquiv} días`
-          : `<i class="ti ti-edit me-1"></i>—`;
+        if (badge) badge.innerHTML = `<i class="ti ti-edit me-1"></i>${dias > 0 ? dias + ' días' : '—'}`;
       }
     }
-    progBar.style.width = '100%';
-    progStatus.textContent = '¡Completado!';
-    btn.disabled = false;
-    setTimeout(() => { if (modalBulkDNL) modalBulkDNL.hide(); }, 800);
+    bar.style.width = '100%'; st.textContent = '¡Completado!'; this.disabled = false;
+    setTimeout(() => { if (modalBulk) modalBulk.hide(); }, 800);
   });
 
-  // ── Bulk: 3 días permisos extras ──
-  document.getElementById('btn-bulk-3dias').addEventListener('click', async function() {
-    const checked = getChecked();
-    if (!checked.length) return;
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aplicando...';
-
+  document.getElementById('btn-bulk-3dias')?.addEventListener('click', async function () {
+    const checked = getChecked(); if (!checked.length) return;
+    this.disabled = true; this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aplicando...';
     for (const chk of checked) {
-      const pk     = chk.dataset.pk;
-      const factor = parseFloat(chk.dataset.factor) || 8.0;
-      const horas  = Math.round(3 * factor * 100) / 100;
-      const res    = await fetch(`/reloj/compensatorio-calculo/${pk}/set-permisos-extras/`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-        body: JSON.stringify({horas}),
-      });
-      const data = await res.json();
+      const pk = chk.dataset.pk, factor = parseFloat(chk.dataset.factor) || 8.0;
+      const horas = Math.round(3 * factor * 100) / 100;
+      const data = await jpost(`/reloj/compensatorio-calculo/${pk}/set-permisos-extras/`, { horas });
       if (data.ok) {
-        const badge = document.querySelector(`.permisos-extras-badge-${pk}`);
-        if (badge) badge.textContent = `${horas} h`;
-        const peBtn = document.querySelector(`.btn-set-permisos-extras[data-pk="${pk}"]`);
-        if (peBtn) peBtn.dataset.valor = horas;
-        const totalCell = document.querySelector(`.total-hrs-${pk}`);
-        if (totalCell && data.total_hrs !== undefined) totalCell.textContent = `${data.total_hrs} h`;
-        const habBadge = document.querySelector(`.dias-hab-badge-${pk}`);
-        if (habBadge && data.dias_hab !== undefined) habBadge.textContent = `${data.dias_hab} días`;
-        const row = document.querySelector(`tr[data-pk="${pk}"]`);
-        if (row && data.total_min !== undefined) row.dataset.totalMin = data.total_min;
-        // update saldo badge
-        const saldoBadge = document.querySelector(`.saldo-badge-${pk}`);
-        if (saldoBadge && data.saldo_min !== undefined) {
-          if (data.saldo_min === 0) {
-            saldoBadge.className = `badge bg-green-lt text-green saldo-badge-${pk}`;
-            saldoBadge.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
-          } else {
-            saldoBadge.className = `badge bg-red-lt text-red saldo-badge-${pk}`;
-            saldoBadge.textContent = `${+(data.saldo_min / 60).toFixed(1)} h`;
-          }
+        const badge = document.querySelector(`.permisos-extras-badge-${pk}`); if (badge) badge.textContent = `${horas} h`;
+        const b = document.querySelector(`.btn-set-permisos-extras[data-pk="${pk}"]`); if (b) b.dataset.valor = horas;
+        document.querySelectorAll(`.total-hrs-${pk}`).forEach(c => c.textContent = `${data.total_hrs} h`);
+        const hab = document.querySelector(`.dias-hab-badge-${pk}`); if (hab) hab.textContent = `${data.dias_hab} días`;
+        const saldo = document.querySelector(`.saldo-badge-${pk}`);
+        if (saldo && data.saldo_min !== undefined) {
+          if (data.saldo_min === 0) { saldo.className = `badge bg-green-lt text-green saldo-badge-${pk}`; saldo.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado'; }
+          else { saldo.className = `badge bg-red-lt text-red saldo-badge-${pk}`; saldo.textContent = `${minToH(data.saldo_min)} h`; }
         }
       }
     }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras';
+    this.disabled = false; this.innerHTML = '<i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras';
   });
-
 })();
-}
+
+// ══════════════ Buscador empleados ZKBio (agregar) ══════════════
+if (window._PAGE.canEdit) (function () {
+  let modal = null, destino = null, timer = null;
+  function open(dest, titulo) {
+    destino = dest;
+    document.getElementById('ae-titulo').textContent = titulo;
+    document.getElementById('ae-buscar').value = '';
+    document.getElementById('ae-resultados').innerHTML = '<div class="text-muted small p-2">Escribe para buscar…</div>';
+    document.getElementById('ae-error').classList.add('d-none');
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('modalAgregarEmp'));
+    modal.show();
+  }
+  document.getElementById('btn-add-mensual')?.addEventListener('click', () => open('mensual', 'Agregar empleado'));
+  document.getElementById('btn-add-instructor')?.addEventListener('click', () => open('instructor', 'Agregar instructor'));
+
+  document.getElementById('ae-buscar')?.addEventListener('input', function () {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    timer = setTimeout(async () => {
+      const cont = document.getElementById('ae-resultados');
+      cont.innerHTML = '<div class="text-muted small p-2">Buscando…</div>';
+      const d = await (await fetch(`${window._PAGE.urlEmpBuscar}?q=${encodeURIComponent(q)}`)).json();
+      if (!d.ok) { cont.innerHTML = `<div class="text-danger small p-2">${d.error || 'Error'}</div>`; return; }
+      if (!d.empleados.length) { cont.innerHTML = '<div class="text-muted small p-2">Sin resultados.</div>'; return; }
+      cont.innerHTML = '';
+      d.empleados.forEach(e => {
+        const a = document.createElement('button');
+        a.type = 'button';
+        a.className = 'list-group-item list-group-item-action ae-item';
+        a.dataset.emp = e.emp_code; a.dataset.nombre = e.nombre;
+        a.innerHTML = `<span class="fw-semibold">${e.nombre}</span> <span class="text-muted small">· ${e.emp_code}</span>`;
+        cont.appendChild(a);
+      });
+    }, 300);
+  });
+  document.getElementById('ae-resultados')?.addEventListener('click', async function (e) {
+    const it = e.target.closest('.ae-item'); if (!it) return;
+    const url = destino === 'instructor' ? window._PAGE.urlInstructorAdd : window._PAGE.urlMensualAdd;
+    const d = await jpost(url, { emp_code: it.dataset.emp, nombre: it.dataset.nombre });
+    if (d.ok) { location.reload(); }
+    else { const err = document.getElementById('ae-error'); err.querySelector('.alert') && (err.querySelector('.alert').textContent = d.error || 'Error'); err.classList.remove('d-none'); }
+  });
+})();
+
+// ══════════════ Tabs 3-4: grilla mensual ══════════════
+if (window._PAGE.canEdit) (function () {
+  const ANIO = window._PAGE.anio;
+  function sumRow(tr, sel, totalSel) {
+    let s = 0;
+    tr.querySelectorAll(sel).forEach(inp => { s += parseFloat(inp.value) || 0; });
+    const tot = document.querySelector(totalSel);
+    if (tot) tot.textContent = (Math.round(s * 100) / 100).toFixed(2);
+  }
+  // Horas trabajadas
+  document.querySelectorAll('.cell-trab').forEach(inp => {
+    inp.addEventListener('change', async function () {
+      const empId = this.dataset.emp, mes = this.dataset.mes;
+      await jpost(window._PAGE.urlMensualCell, { empleado_id: empId, anio: ANIO, mes, campo: 'trabajadas', valor: this.value });
+      sumRow(this.closest('tr'), '.cell-trab', `.mtot-trab-${empId}`);
+    });
+  });
+  // Horas tomadas (override; vacío vuelve al permiso)
+  document.querySelectorAll('.cell-tom').forEach(inp => {
+    inp.addEventListener('change', async function () {
+      const empId = this.dataset.emp, mes = this.dataset.mes;
+      const raw = this.value;
+      await jpost(window._PAGE.urlMensualCell, { empleado_id: empId, anio: ANIO, mes, campo: 'tomadas', valor: raw });
+      if (raw === '') this.value = this.dataset.permiso && parseFloat(this.dataset.permiso) ? this.dataset.permiso : '';
+      sumRow(this.closest('tr'), '.cell-tom', `.mtot-tom-${empId}`);
+    });
+  });
+  // Eliminar empleado mensual
+  document.querySelectorAll('.btn-del-mensual').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      if (!confirm(`¿Eliminar a ${this.dataset.nombre} de la matriz mensual?`)) return;
+      const d = await jpost(window._PAGE.urlMensualDel.replace('{pk}', this.dataset.pk));
+      if (d.ok) location.reload();
+    });
+  });
+})();
+
+// ══════════════ Tab 5: instructores ══════════════
+if (window._PAGE.canEdit) (function () {
+  function recompute(id) {
+    const tr = document.querySelector(`tr[data-inst-id="${id}"]`); if (!tr) return;
+    const comp = parseFloat(tr.dataset.compHrs) || 0;
+    const teMin = parseFloat(tr.querySelector('.inst-te')?.value) || 0;
+    const tomado = parseFloat(tr.querySelector('.inst-tomado')?.value) || 0;
+    const total = Math.round((comp + teMin / 60) * 100) / 100;
+    const saldo = Math.max(0, Math.round((total - tomado) * 100) / 100);
+    const tCell = document.querySelector(`.inst-total-${id}`); if (tCell) tCell.textContent = `${total.toFixed(2)} h`;
+    const sCell = document.querySelector(`.inst-saldo-${id}`);
+    if (sCell) {
+      if (saldo === 0) { sCell.className = `badge bg-green-lt text-green inst-saldo-${id}`; sCell.innerHTML = '<i class="ti ti-circle-check me-1"></i>0 h'; }
+      else { sCell.className = `badge bg-red-lt text-red inst-saldo-${id}`; sCell.textContent = `${saldo.toFixed(2)} h`; }
+    }
+  }
+  document.querySelectorAll('.inst-te').forEach(inp => {
+    inp.addEventListener('change', async function () {
+      const id = this.dataset.id;
+      await jpost(window._PAGE.urlInstructorSet.replace('{pk}', id), { campo: 'te', valor: this.value });
+      recompute(id);
+    });
+  });
+  document.querySelectorAll('.inst-tomado').forEach(inp => {
+    inp.addEventListener('change', async function () {
+      const id = this.dataset.id, raw = this.value;
+      await jpost(window._PAGE.urlInstructorSet.replace('{pk}', id), { campo: 'tomado', valor: raw });
+      if (raw === '') this.value = this.dataset.permiso && parseFloat(this.dataset.permiso) ? this.dataset.permiso : '';
+      recompute(id);
+    });
+  });
+  document.querySelectorAll('.btn-del-instructor').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      if (!confirm(`¿Eliminar al instructor ${this.dataset.nombre}?`)) return;
+      const d = await jpost(window._PAGE.urlInstructorDel.replace('{pk}', this.dataset.pk));
+      if (d.ok) location.reload();
+    });
+  });
+})();
