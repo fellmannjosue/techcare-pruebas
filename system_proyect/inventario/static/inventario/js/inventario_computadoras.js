@@ -1,8 +1,22 @@
 /* inventario_computadoras.js — uses window._COMP_PAGE bridge set in template */
 $(function(){
-  $('#computadoras-table').DataTable({
-    pageLength: 10, scrollX: true, order: [[0,'desc']],
+  const dt = $('#computadoras-table').DataTable({
+    pageLength: 25, scrollX: true, order: [[0,'desc']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+  });
+
+  // ── Tabs por prefijo de Asset ID ─────────────────────────────────────────
+  // Columna 1 = Asset ID
+  $('#tabs-prefijo').on('click', 'button', function () {
+    $('#tabs-prefijo button').removeClass('active');
+    $(this).addClass('active');
+
+    const prefijo = $(this).data('prefijo');
+    if (prefijo) {
+      dt.column(1).search('^' + prefijo, true, false).draw();
+    } else {
+      dt.column(1).search('').draw();
+    }
   });
 });
 

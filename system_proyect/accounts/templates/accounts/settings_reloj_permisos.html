@@ -3,77 +3,165 @@
 {% block title %}Permisos Reloj{% endblock %}
 
 {% block settings_content %}
+<style>
+  .ava-mini {
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:50%; font-weight:700; flex-shrink:0;
+  }
+  .perm-mod-header { font-size:.68rem; white-space:nowrap; }
+  .perm-subhead    { font-size:.7rem; color:#64748b; font-weight:600; }
+  /* Visualizar global */
+  .col-ver-global     { border-left: 3px solid #6366f1 !important; background:#f5f3ff; }
+  .col-ver-global-hd  { background:#ede9fe !important; }
+  /* Columna Ver por módulo */
+  .col-ver-mod        { background:#f0fdf4; }
+  .col-ver-mod-hd     { background:#dcfce7 !important; color:#166534 !important; }
+  /* Separador entre grupos de módulo */
+  .col-mod-first      { border-left: 2px solid #e2e8f0 !important; }
+  /* Celda vacía para módulos solo-ver */
+  .cell-na            { color:#cbd5e1; font-size:.8rem; }
+</style>
+
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-shield-check me-2 text-primary"></i>Permisos de edición/eliminación – Módulos Reloj</h3>
+    <h3 class="card-title">
+      <i class="ti ti-shield-check me-2 text-primary"></i>
+      Permisos de edición/eliminación – Módulos Reloj
+    </h3>
     <div class="card-options">
-      <span class="badge bg-green" id="badge-saved" style="display:none">
+      <span class="badge bg-green badge-saved" style="display:none">
         <i class="ti ti-check me-1"></i>Guardado
       </span>
     </div>
   </div>
-  <div class="card-body p-0">
-    {% if not usuarios %}
-    <div class="text-center text-muted py-5">
-      <i class="ti ti-users-off" style="font-size:2rem"></i>
-      <div class="mt-2">No hay usuarios staff configurados.</div>
-    </div>
-    {% else %}
-    <div class="table-responsive">
-      <table class="table table-vcenter card-table">
-        <thead>
-          <tr>
-            <th style="min-width:180px">Módulo</th>
-            {% for u in usuarios %}
-            <th class="text-center" colspan="2" style="min-width:140px">
-              <div class="fw-bold">{{ u.username }}</div>
-              {% if u.get_full_name %}<div class="text-muted small">{{ u.get_full_name }}</div>{% endif %}
-            </th>
-            {% endfor %}
-          </tr>
-          <tr class="table-light text-center">
-            <th></th>
-            {% for u in usuarios %}
-            <th class="small text-muted fw-semibold" style="width:70px">
-              <i class="ti ti-pencil me-1"></i>Editar
-            </th>
-            <th class="small text-muted fw-semibold" style="width:70px">
-              <i class="ti ti-trash me-1"></i>Eliminar
-            </th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for fila in matrix %}
-          <tr>
-            <td>
-              <i class="ti {{ fila.icon }} me-2 text-muted"></i>
-              <span class="fw-semibold">{{ fila.label }}</span>
-            </td>
-            {% for celda in fila.celdas %}
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input perm-toggle"
-                     data-user="{{ celda.user_id }}"
-                     data-campo="{{ fila.key }}_editar"
-                     {% if celda.editar %}checked{% endif %}>
-            </td>
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input perm-toggle"
-                     data-user="{{ celda.user_id }}"
-                     data-campo="{{ fila.key }}_eliminar"
-                     {% if celda.eliminar %}checked{% endif %}>
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
+
+  {% if not matrix_usuarios %}
+  <div class="card-body text-center text-muted py-5">
+    <i class="ti ti-users-off" style="font-size:2rem"></i>
+    <div class="mt-2">No hay usuarios staff configurados.</div>
   </div>
+  {% else %}
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm table-bordered mb-0">
+      <thead class="table-light">
+
+        {# ── Fila 1: cabeceras de grupos ── #}
+        <tr>
+          <th style="min-width:170px; vertical-align:middle;">Usuario</th>
+
+          {# Visualizar global (ver todos los empleados) #}
+          <th class="text-center px-1 col-ver-global-hd perm-mod-header col-ver-global"
+              style="min-width:72px;" rowspan="2"
+              title="Ver todos los empleados o solo los asignados">
+            <i class="ti ti-eye d-block mb-1" style="font-size:1rem;"></i>
+            Visualizar<br><small style="font-size:.6rem;">(empleados)</small>
+          </th>
+
+          {# Módulos: has_edit=True → colspan 3; has_edit=False → colspan 1 #}
+          {% for mod in modulos %}
+          <th class="text-center px-1 perm-mod-header col-mod-first"
+              colspan="{% if mod.has_edit %}3{% else %}1{% endif %}"
+              title="{{ mod.label }}">
+            <i class="ti {{ mod.icon }} d-block mb-1" style="font-size:1rem;"></i>
+            {{ mod.label|truncatechars:13 }}
+          </th>
+          {% endfor %}
+        </tr>
+
+        {# ── Fila 2: sub-cabeceras ── #}
+        <tr>
+          {# sin celda para Usuario ni Visualizar (rowspan=2) #}
+
+          {% for mod in modulos %}
+          {# Ver #}
+          <th class="text-center perm-subhead col-ver-mod-hd col-mod-first" style="width:50px;">
+            <i class="ti ti-eye me-1"></i>Ver
+          </th>
+          {% if mod.has_edit %}
+          {# Editar #}
+          <th class="text-center perm-subhead" style="width:50px;">
+            <i class="ti ti-pencil me-1"></i>Edit.
+          </th>
+          {# Eliminar #}
+          <th class="text-center perm-subhead" style="width:50px;">
+            <i class="ti ti-trash me-1"></i>Elim.
+          </th>
+          {% endif %}
+          {% endfor %}
+        </tr>
+
+      </thead>
+      <tbody>
+        {% for fila in matrix_usuarios %}
+        <tr>
+
+          {# ── Columna usuario ── #}
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="ava-mini bg-{{ fila.color }}-lt text-{{ fila.color }}"
+                    style="font-size:.75rem; width:28px; height:28px;">
+                {{ fila.initials }}
+              </span>
+              <div>
+                <div class="fw-semibold small">{{ fila.user.get_full_name|default:fila.user.username }}</div>
+                <div class="text-muted font-monospace" style="font-size:.65rem;">{{ fila.user.email }}</div>
+              </div>
+            </div>
+          </td>
+
+          {# ── Visualizar global ── #}
+          <td class="text-center align-middle col-ver-global">
+            <input type="checkbox" class="form-check-input perm-toggle"
+                   data-user="{{ fila.user.pk }}"
+                   data-campo="ver_todos"
+                   {% if fila.ver_todos %}checked{% endif %}>
+            <div class="small mt-1 ver-todos-label" style="font-size:.6rem; color:#6366f1; line-height:1.2;">
+              {% if fila.ver_todos %}Todos{% else %}Asig.{% endif %}
+            </div>
+          </td>
+
+          {# ── Celdas por módulo ── #}
+          {% for celda in fila.celdas %}
+
+          {# Ver #}
+          <td class="text-center align-middle col-ver-mod col-mod-first">
+            <input type="checkbox" class="form-check-input perm-toggle"
+                   data-user="{{ fila.user.pk }}"
+                   data-campo="{{ celda.key }}_ver"
+                   {% if celda.ver %}checked{% endif %}>
+          </td>
+
+          {% if celda.has_edit %}
+          {# Editar #}
+          <td class="text-center align-middle">
+            <input type="checkbox" class="form-check-input perm-toggle"
+                   data-user="{{ fila.user.pk }}"
+                   data-campo="{{ celda.key }}_editar"
+                   {% if celda.editar %}checked{% endif %}>
+          </td>
+          {# Eliminar #}
+          <td class="text-center align-middle">
+            <input type="checkbox" class="form-check-input perm-toggle"
+                   data-user="{{ fila.user.pk }}"
+                   data-campo="{{ celda.key }}_eliminar"
+                   {% if celda.eliminar %}checked{% endif %}>
+          </td>
+          {% endif %}
+
+          {% endfor %}
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
   <div class="card-footer text-muted small">
     <i class="ti ti-info-circle me-1"></i>
-    El superusuario siempre tiene acceso completo. Los cambios se guardan automáticamente al marcar/desmarcar.
+    El superusuario siempre tiene acceso completo. Los cambios se guardan automáticamente.
+    <span class="ms-2"><i class="ti ti-eye me-1 text-success"></i><strong>Ver</strong>: acceso lectura al módulo.</span>
+    <span class="ms-2 text-indigo"><i class="ti ti-eye me-1"></i><strong>Visualizar (empleados)</strong>: todos vs. asignados.</span>
   </div>
 </div>
 

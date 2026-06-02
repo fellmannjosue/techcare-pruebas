@@ -1,0 +1,78 @@
+{# <--- hecho por claude code: partial tabla permisos reloj — reutilizable para staff y coordinadores #}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="ti ti-shield-check me-2 text-primary"></i>
+      Permisos de edición/eliminación – {{ titulo }}
+    </h3>
+    <div class="card-options">
+      <span class="text-muted small">{{ subtitulo }}</span>
+      <span class="badge bg-green ms-3 badge-saved" style="display:none">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if not usuarios %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off" style="font-size:2rem"></i>
+      <div class="mt-2">No hay usuarios configurados.</div>
+    </div>
+    {% else %}
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead>
+          <tr>
+            <th style="min-width:185px">Módulo</th>
+            {% for u in usuarios %}
+            <th class="text-center" colspan="2" style="min-width:130px">
+              <div class="fw-bold" style="font-size:.78rem;">{{ u.email|upper }}</div>
+              {% if u.get_full_name %}<div class="text-muted small">{{ u.get_full_name }}</div>{% endif %}
+            </th>
+            {% endfor %}
+          </tr>
+          <tr class="table-light text-center">
+            <th></th>
+            {% for u in usuarios %}
+            <th class="small text-muted fw-semibold" style="width:65px">
+              <i class="ti ti-pencil me-1"></i>Editar
+            </th>
+            <th class="small text-muted fw-semibold" style="width:65px">
+              <i class="ti ti-trash me-1"></i>Eliminar
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in matrix %}
+          <tr>
+            <td>
+              <i class="ti {{ fila.icon }} me-2 text-muted"></i>
+              <span class="fw-semibold">{{ fila.label }}</span>
+            </td>
+            {% for celda in fila.celdas %}
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input perm-toggle"
+                     data-user="{{ celda.user_id }}"
+                     data-campo="{{ fila.key }}_editar"
+                     {% if celda.editar %}checked{% endif %}>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input perm-toggle"
+                     data-user="{{ celda.user_id }}"
+                     data-campo="{{ fila.key }}_eliminar"
+                     {% if celda.eliminar %}checked{% endif %}>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  <div class="card-footer text-muted small">
+    <i class="ti ti-info-circle me-1"></i>
+    El superusuario siempre tiene acceso completo. Los cambios se guardan automáticamente al marcar/desmarcar.
+  </div>
+</div>

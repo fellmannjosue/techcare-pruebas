@@ -5,6 +5,14 @@
 {% block page_title %}Tiempo Compensatorio – Horario Asistentes{% endblock %}
 {% block nav_compensatorio %}active{% endblock %}
 
+{% block page_actions %}
+<div class="col-auto">
+  <a href="{% url 'reloj_dashboard' %}" class="btn btn-outline-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+</div>
+{% endblock %}
+
 {% block content %}
 
 {# ── Filtros ── #}

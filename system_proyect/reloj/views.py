@@ -2790,6 +2790,19 @@ def compensatorio_calculo_delete(request, pk):
 
 _CARGOS_EXCLUIDOS_TARDE = ('hora', 'vigilante')
 
+# date.weekday() (0=Lunes .. 6=Domingo) → código usado en dias_laborables
+_WEEKDAY_COD = {0: 'L', 1: 'M', 2: 'X', 3: 'J', 4: 'V', 5: 'S', 6: 'D'}
+_DIAS_LABORABLES_DEFAULT = {'L', 'M', 'X', 'J', 'V'}
+
+
+def _parse_dias_laborables(valor: str) -> set:
+    """Convierte 'L,M,X,J,V' → {'L','M','X','J','V'}. Vacío → default L-V."""
+    if not valor:
+        return set(_DIAS_LABORABLES_DEFAULT)
+    cods = {c.strip().upper() for c in valor.split(',') if c.strip()}
+    return cods or set(_DIAS_LABORABLES_DEFAULT)
+
+
 CAMPOS_PERMISO = [
     ('compensatorio_dias', 'Compensatorio', '#D0CECE'),
     ('ausencias_dias',     'No Pagado',     '#00FFFF'),
@@ -2836,6 +2849,13 @@ def permiso_reporte_list(request):
     # {emp_code: [minutos_tarde_por_dia, ...]}
     tarde_por_dia_map: dict = {}
     error_sql = None
+
+    # Días laborables configurados por empleado para este mes (controla qué
+    # marcas tardías cuentan: una marca en un día no laborable se ignora).
+    dias_lab_map = {
+        r.emp_code: _parse_dias_laborables(r.dias_laborables)
+        for r in ReportePermisoMensual.objects.filter(mes=mes_inicio)
+    }
 
     try:
         with connections['zkbio_sqlserver'].cursor() as cursor:
@@ -2890,6 +2910,10 @@ def permiso_reporte_list(request):
                 if any(exc in cargo_l for exc in _CARGOS_EXCLUIDOS_TARDE):
                     continue
                 if ec in excluir_codes:
+                    continue
+                # Solo contar la tardanza si el día es laborable para el empleado.
+                dias_lab = dias_lab_map.get(ec, _DIAS_LABORABLES_DEFAULT)
+                if _fecha is not None and _WEEKDAY_COD.get(_fecha.weekday()) not in dias_lab:
                     continue
                 tarde_por_dia_map.setdefault(ec, []).append(int(mins or 0))
 

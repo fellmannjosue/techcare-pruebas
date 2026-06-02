@@ -97,13 +97,38 @@
         </a>
       </li>
       <li class="nav-item">
+        <a class="nav-link correos-tab-link" data-tab="progress">
+          <i class="ti ti-chart-bar me-1 text-cyan"></i>Progress
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link correos-tab-link" data-tab="enfermeria">
+          <i class="ti ti-stethoscope me-1 text-red"></i>Enfermería
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link correos-tab-link" data-tab="notas">
           <i class="ti ti-book me-1 text-warning"></i>Notas Parcial
         </a>
       </li>
       <li class="nav-item">
+        <a class="nav-link correos-tab-link" data-tab="tickets">
+          <i class="ti ti-ticket me-1 text-purple"></i>Tickets
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link correos-tab-link" data-tab="salidas">
+          <i class="ti ti-door-exit me-1 text-orange"></i>Salidas Baño
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link correos-tab-link" data-tab="mitad">
           <i class="ti ti-file-text me-1 text-cyan"></i>Mitad de Parcial (PDF)
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link correos-tab-link" data-tab="notificaciones">
+          <i class="ti ti-bell-ringing me-1 text-primary"></i>Notificaciones
         </a>
       </li>
       <li class="nav-item">
@@ -201,127 +226,287 @@
 
   {# ══ PANEL: Conducta ══ #}
   <div id="panel-conducta" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-clipboard-check text-danger"></i>
+      <span class="text-muted small">
+        Usuarios que reciben correo cuando un docente registra un reporte conductual o informativo.
+        Los cambios se guardan automáticamente.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+    {% if conducta_data %}
     <div class="card-body">
-      <p class="text-muted small mb-3">
-        <i class="ti ti-info-circle me-1"></i>
-        Coordinadores que reciben notificaciones cuando un docente registra un reporte conductual o informativo.
-      </p>
-      <div class="notif-grid">
-        {% for n in notif_conducta %}
-        <div class="notif-card">
-          <div class="notif-name">
-            {% if n.area == 'bilingue' %}
-              <span class="badge bg-blue-lt text-blue me-1">Bilingüe</span>
-            {% else %}
-              <span class="badge bg-green-lt text-green me-1">Colegio</span>
-            {% endif %}
-            {{ n.coordinador.nombre }}
+      <div class="row g-3">
+        {% for item in conducta_data %}
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card h-100 border-0" style="background:#fff5f5;">
+            <div class="card-header py-2 px-3 border-0" style="background:#ffe3e3;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-red-lt text-red" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username|cut:"@ana-hn.org" }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem; word-break:break-all;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
+              {% else %}
+              <div class="text-danger small mb-2"><i class="ti ti-mail-off me-1"></i>Sin correo</div>
+              {% endif %}
+              <div class="d-flex flex-column gap-2">
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}" data-campo="conducta_bl"
+                         {% if item.conducta_bl %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-blue-lt text-blue me-1" style="font-size:.62rem;">BL</span>
+                    Reportes Bilingüe
+                  </span>
+                </label>
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}" data-campo="conducta_col"
+                         {% if item.conducta_col %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-green-lt text-green me-1" style="font-size:.62rem;">Col</span>
+                    Reportes Colegio
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="notif-email">
-            {% if n.coordinador.email %}
-              <a href="mailto:{{ n.coordinador.email }}">{{ n.coordinador.email }}</a>
-            {% else %}
-              <span class="text-danger"><i class="ti ti-mail-off me-1"></i>Sin correo</span>
-            {% endif %}
-          </div>
-          <div>
-            {% if n.recibe_conductual %}
-              <span class="notif-tipo-badge" style="background:#ffe3e3;color:#c92a2a;">Conductual</span>
-            {% endif %}
-            {% if n.recibe_informativo_academico %}
-              <span class="notif-tipo-badge" style="background:#dbe4ff;color:#3b5bdb;">Inf. Académico</span>
-            {% endif %}
-            {% if n.recibe_informativo_conductual %}
-              <span class="notif-tipo-badge" style="background:#fff3bf;color:#e67700;">Inf. Conductual</span>
-            {% endif %}
-            {% if n.recibe_progress %}
-              <span class="notif-tipo-badge" style="background:#d3f9d8;color:#2f9e44;">Progress</span>
-            {% endif %}
-            {% if not n.recibe_conductual and not n.recibe_informativo_academico and not n.recibe_informativo_conductual and not n.recibe_progress %}
-              <span class="text-muted small">Sin tipos asignados</span>
-            {% endif %}
-          </div>
-          {% if not n.activo %}
-            <div class="mt-2"><span class="badge bg-secondary">Inactivo</span></div>
-          {% endif %}
-        </div>
-        {% empty %}
-        <div class="text-muted py-5 text-center">
-          <i class="ti ti-mood-empty d-block fs-1 mb-2 opacity-25"></i>
-          Sin configuraciones de notificación
         </div>
         {% endfor %}
       </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>No hay usuarios staff con correo.
+    </div>
+    {% endif %}
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Los usuarios marcados reciben una copia de cada reporte conductual o informativo enviado.
+    </div>
+  </div>
+
+  {# ══ PANEL: Progress ══ #}
+  <div id="panel-progress" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-chart-bar text-cyan"></i>
+      <span class="text-muted small">
+        Usuarios que reciben el reporte de <strong>Progress BL</strong> cuando se genera.
+        Los cambios se guardan automáticamente.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+    {% if progress_data %}
+    <div class="card-body">
+      <div class="row g-3">
+        {% for item in progress_data %}
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card h-100 border-0" style="background:#f0fffe;">
+            <div class="card-header py-2 px-3 border-0" style="background:#c5f6fa;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-cyan-lt text-cyan" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username|cut:"@ana-hn.org" }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem; word-break:break-all;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
+              {% else %}
+              <div class="text-danger small mb-2"><i class="ti ti-mail-off me-1"></i>Sin correo</div>
+              {% endif %}
+              <label class="d-flex align-items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="form-check-input notif-toggle"
+                       data-user="{{ item.user.pk }}" data-campo="progress_bl"
+                       {% if item.progress_bl %}checked{% endif %}>
+                <span class="small">
+                  <span class="badge bg-cyan-lt text-cyan me-1" style="font-size:.62rem;">BL</span>
+                  Recibir Progress BL
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>No hay usuarios staff con correo.
+    </div>
+    {% endif %}
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Los usuarios marcados reciben el reporte de Progress BL cuando se genera.
     </div>
   </div>
 
   {# ══ PANEL: Notas Parcial ══ #}
   <div id="panel-notas" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-book text-warning"></i>
+      <span class="text-muted small">
+        Usuarios que reciben correo cuando un maestro confirma revisión a mitad de parcial.
+        Los cambios se guardan automáticamente.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+    {% if notas_data %}
     <div class="card-body">
-      <p class="text-muted small mb-3">
-        <i class="ti ti-info-circle me-1"></i>
-        Cuando un maestro marca su revisión como completada, se envía una notificación a estos coordinadores.
-      </p>
-
       <div class="row g-3">
-        <div class="col-12 col-md-6">
-          <div class="card border-primary">
-            <div class="card-header py-2">
-              <span class="badge bg-blue me-2">Bilingüe</span>
-              <span class="small fw-semibold">Reciben notificación de revisión completada</span>
+        {% for item in notas_data %}
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card h-100 border-0" style="background:#fffbf0;">
+            <div class="card-header py-2 px-3 border-0" style="background:#fff3bf;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-yellow-lt text-yellow" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username|cut:"@ana-hn.org" }}</div>
+                </div>
+              </div>
             </div>
-            <div class="correos-table-wrap">
-              <table class="table table-sm table-vcenter mb-0">
-                <tbody>
-                  {% for u in usuarios_notif_bl %}
-                  <tr>
-                    <td>
-                      <div class="fw-semibold small">{{ u.get_full_name|default:u.username }}</div>
-                    </td>
-                    <td class="font-monospace small text-muted">{{ u.email }}</td>
-                  </tr>
-                  {% empty %}
-                  <tr><td class="text-muted small py-3">Ninguno configurado</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div class="col-12 col-md-6">
-          <div class="card border-success">
-            <div class="card-header py-2">
-              <span class="badge bg-green me-2">Colegio</span>
-              <span class="small fw-semibold">Reciben notificación de revisión completada</span>
-            </div>
-            <div class="correos-table-wrap">
-              <table class="table table-sm table-vcenter mb-0">
-                <tbody>
-                  {% for u in usuarios_notif_col %}
-                  <tr>
-                    <td>
-                      <div class="fw-semibold small">{{ u.get_full_name|default:u.username }}</div>
-                    </td>
-                    <td class="font-monospace small text-muted">{{ u.email }}</td>
-                  </tr>
-                  {% empty %}
-                  <tr><td class="text-muted small py-3">Ninguno configurado</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem; word-break:break-all;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
+              {% else %}
+              <div class="text-danger small mb-2"><i class="ti ti-mail-off me-1"></i>Sin correo</div>
+              {% endif %}
+              <div class="d-flex flex-column gap-2">
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}" data-campo="notas_parcial_bl"
+                         {% if item.notas_parcial_bl %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-blue-lt text-blue me-1" style="font-size:.62rem;">BL</span>
+                    Notas Bilingüe
+                  </span>
+                </label>
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}" data-campo="notas_parcial_col"
+                         {% if item.notas_parcial_col %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-green-lt text-green me-1" style="font-size:.62rem;">Col</span>
+                    Notas Colegio
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
+        {% endfor %}
       </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>No hay usuarios staff con correo.
+    </div>
+    {% endif %}
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Los usuarios marcados reciben una copia cuando un maestro confirma la revisión de mitad de parcial.
+    </div>
+  </div>
 
-      <div class="alert alert-info mt-3 py-2 small">
-        <i class="ti ti-info-circle me-1"></i>
-        Grupos que reciben notificación <strong>Bilingüe</strong>:
-        <code>coordinador_bilingue, coord_revision, coord_notas_parcial_bl, maestros_notas_parcial_bl</code>
-        &nbsp;|&nbsp;
-        <strong>Colegio</strong>:
-        <code>coordinador_colegio, coord_notas_parcial_col, maestros_notas_parcial_col, coordinadores</code>
+  {# ══ PANEL: Enfermería ══ #}
+  <div id="panel-enfermeria" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-stethoscope text-red"></i>
+      <span class="text-muted small">
+        Usuarios que reciben copia de la ficha médica enviada desde Enfermería.
+        Los cambios se guardan automáticamente.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+
+    {# Dirección fija siempre incluida #}
+    <div class="card-body pb-0">
+      <div class="alert alert-danger py-2 small d-flex align-items-center gap-2 mb-0">
+        <i class="ti ti-send text-red fs-4"></i>
+        <div>
+          <strong>Siempre incluido:</strong>
+          <span class="font-monospace ms-1">enfermeria@ana-hn.org</span>
+          <span class="text-muted ms-2">— siempre recibe copia vía Gmail (no configurable)</span>
+        </div>
       </div>
+    </div>
+
+    {% if enfermeria_data %}
+    <div class="card-body">
+      <div class="row g-3">
+        {% for item in enfermeria_data %}
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card h-100 border-0" style="background:#fff5f5;">
+            <div class="card-header py-2 px-3 border-0" style="background:#ffe3e3;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-red-lt text-red" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username|cut:"@ana-hn.org" }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem; word-break:break-all;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
+              {% else %}
+              <div class="text-danger small mb-2"><i class="ti ti-mail-off me-1"></i>Sin correo</div>
+              {% endif %}
+              <label class="d-flex align-items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="form-check-input notif-toggle"
+                       data-user="{{ item.user.pk }}" data-campo="enfermeria"
+                       {% if item.enfermeria %}checked{% endif %}>
+                <span class="small">Recibir ficha médica</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>No hay usuarios staff con correo.
+    </div>
+    {% endif %}
+
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Cuando la enfermera envía la ficha médica, <strong>enfermeria@ana-hn.org</strong> siempre recibe copia;
+      los usuarios marcados reciben un CC adicional.
     </div>
   </div>
 
@@ -388,78 +573,425 @@
     </div>
   </div>
 
-  {# ══ PANEL: SMTP / Prueba ══ #}
-  <div id="panel-smtp" class="correos-panel" style="display:none;">
+  {# ══ PANEL: Notificaciones — solo lectura ══ #}
+  <div id="panel-notificaciones" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-bell-ringing text-primary"></i>
+      <span class="text-muted small">
+        Resumen de qué correos recibirá cada usuario según la configuración de cada módulo.
+        <strong>Solo lectura</strong> — configura desde los tabs individuales.
+      </span>
+    </div>
+
+    {% if matrix_usuarios %}
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table table-sm table-bordered mb-0" id="tabla-notif-email">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:170px;">Usuario</th>
+            {% for mod in matrix_modulos %}
+            <th class="text-center px-1" style="min-width:64px; font-size:.68rem; white-space:nowrap;"
+                title="{{ mod.label }}">
+              <i class="ti {{ mod.icon }} d-block mb-1" style="font-size:1rem;"></i>
+              {{ mod.label|truncatechars:10 }}
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in matrix_usuarios %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-blue-lt text-blue" style="font-size:.75rem; width:28px; height:28px;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted font-monospace" style="font-size:.65rem;">{{ item.user.email }}</div>
+                </div>
+              </div>
+            </td>
+            {% for c in item.celdas %}
+            <td class="text-center px-1">
+              {% if c.activo %}
+                <span class="text-success" title="Activo"><i class="ti ti-circle-check fs-4"></i></span>
+              {% else %}
+                <span class="text-muted opacity-25"><i class="ti ti-circle fs-4"></i></span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>
+      No hay usuarios staff con correo configurado.
+    </div>
+    {% endif %}
+
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Para activar o desactivar correos usa los tabs: Conducta, Progress, Notas Parcial, Enfermería, Salidas Baño.
+    </div>
+  </div>
+
+  {# ══ PANEL: Tickets ══ #}
+  <div id="panel-tickets" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-ticket text-purple"></i>
+      <span class="text-muted small">
+        Cuando se crea o resuelve un ticket, <strong>techcare.app2024@gmail.com</strong> siempre recibe notificación.
+        Activa aquí si también deseas recibirlo en tu correo de trabajo.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+
+    {# Dirección fija siempre incluida #}
+    <div class="card-body pb-0">
+      <div class="alert alert-purple py-2 small d-flex align-items-center gap-2 mb-0"
+           style="background:#f3f0ff; border-color:#ae3ec9; color:#862e9c;">
+        <i class="ti ti-send fs-4"></i>
+        <div>
+          <strong>Siempre incluido:</strong>
+          <span class="font-monospace ms-1">techcare.app2024@gmail.com</span>
+          <span class="text-muted ms-2">— recibe todos los tickets (no configurable)</span>
+        </div>
+      </div>
+    </div>
+
+    {% if tickets_data %}
     <div class="card-body">
-      <div class="row g-4">
-
-        {# Config SMTP #}
-        <div class="col-12 col-md-6">
-          <h4 class="card-title">Configuración SMTP</h4>
-          <div class="smtp-card-row">
-            <span class="smtp-label">Backend</span>
-            <span class="smtp-value text-muted">smtp</span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">Servidor</span>
-            <span class="smtp-value">{{ email_config.host }}</span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">Puerto</span>
-            <span class="smtp-value">{{ email_config.port }}</span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">TLS</span>
-            <span class="smtp-value">
-              {% if email_config.use_tls %}
-                <span class="badge bg-green-lt text-green">Activo</span>
+      <div class="row g-3">
+        {% for item in tickets_data %}
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card border-0" style="background:#f9f0ff;">
+            <div class="card-header py-2 px-3 border-0" style="background:#e9d5ff;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-purple-lt text-purple" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
               {% else %}
-                <span class="badge bg-red-lt text-red">Desactivado</span>
+              <div class="text-danger small mb-2"><i class="ti ti-mail-off me-1"></i>Sin correo</div>
               {% endif %}
-            </span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">Cuenta</span>
-            <span class="smtp-value">{{ email_config.user }}</span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">Contraseña</span>
-            <span class="smtp-value">
-              {% if email_config.password_set %}
-                <span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>Configurada</span>
-              {% else %}
-                <span class="badge bg-red-lt text-red"><i class="ti ti-x me-1"></i>No configurada</span>
-              {% endif %}
-            </span>
-          </div>
-          <div class="smtp-card-row">
-            <span class="smtp-label">From</span>
-            <span class="smtp-value">{{ email_config.from_email }}</span>
-          </div>
-
-          <div class="mt-3 small" id="smtp-status-result">
-            <span class="text-muted"><i class="ti ti-loader me-1"></i>Esperando verificación…</span>
+              <label class="d-flex align-items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="form-check-input notif-toggle"
+                       data-user="{{ item.user.pk }}" data-campo="tickets"
+                       {% if item.tickets %}checked{% endif %}>
+                <span class="small">
+                  <span class="badge bg-purple-lt text-purple me-1" style="font-size:.62rem;">Trabajo</span>
+                  Recibir en correo de trabajo
+                </span>
+              </label>
+            </div>
           </div>
         </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
-        {# Prueba de envío #}
-        <div class="col-12 col-md-6">
-          <h4 class="card-title">Enviar correo de prueba</h4>
-          <p class="text-muted small mb-3">
-            Envía un correo de prueba para verificar que el servidor SMTP funciona correctamente.
-          </p>
-          <div class="mb-3">
-            <label class="form-label fw-semibold small">Correo de destino</label>
-            <input type="email" id="test-dest" class="form-control"
-                   placeholder="destino@ejemplo.com"
-                   value="{{ request.user.email }}">
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Si está activo, cada ticket nuevo o resuelto llegará también a <strong>{{ tickets_data.0.user.email|default:"—" }}</strong>.
+    </div>
+  </div>
+
+  {# ══ PANEL: Salidas Baño ══ #}
+  <div id="panel-salidas" class="correos-panel" style="display:none;">
+    <div class="card-body border-bottom py-2 px-3 d-flex align-items-center gap-2">
+      <i class="ti ti-door-exit text-orange"></i>
+      <span class="text-muted small">
+        Usuarios que reciben la <strong>Alerta Negra</strong> de Salidas al Baño.
+        Los cambios se guardan automáticamente.
+      </span>
+      <span class="badge bg-green badge-notif-saved ms-auto" style="display:none;">
+        <i class="ti ti-check me-1"></i>Guardado
+      </span>
+    </div>
+
+    {% if salidas_bano_data %}
+    <div class="card-body">
+      <div class="row g-3">
+        {% for item in salidas_bano_data %}
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card h-100 border-0" style="background:#fff8f0;">
+            <div class="card-header py-2 px-3 border-0" style="background:#ffe8cc;">
+              <div class="d-flex align-items-center gap-2">
+                <span class="ava-mini bg-orange-lt text-orange" style="font-size:.8rem;">
+                  {{ item.user.first_name|slice:":1"|upper }}{{ item.user.last_name|slice:":1"|upper }}
+                </span>
+                <div>
+                  <div class="fw-semibold small">{{ item.user.get_full_name|default:item.user.username }}</div>
+                  <div class="text-muted" style="font-size:.68rem;">@{{ item.user.username|cut:"@ana-hn.org" }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% if item.user.email %}
+              <div class="text-muted small mb-2 font-monospace" style="font-size:.68rem; word-break:break-all;">
+                <i class="ti ti-mail me-1"></i>{{ item.user.email }}
+              </div>
+              {% else %}
+              <div class="text-danger small mb-2">
+                <i class="ti ti-mail-off me-1"></i>Sin correo
+              </div>
+              {% endif %}
+
+              <div class="d-flex flex-column gap-2">
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}"
+                         data-campo="salidas_negro_col"
+                         {% if item.negro_col %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-green-lt text-green me-1" style="font-size:.62rem;">Colegio</span>
+                    Alerta negra colegio
+                  </span>
+                </label>
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}"
+                         data-campo="salidas_negro_bach"
+                         {% if item.negro_bach %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-blue-lt text-blue me-1" style="font-size:.62rem;">Bachillerato</span>
+                    Alerta negra bachillerato
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
-          <button type="button" class="btn btn-primary" id="btn-test-email">
-            <i class="ti ti-send me-1"></i>Enviar prueba
-          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="ti ti-users-off d-block fs-1 mb-2 opacity-25"></i>
+      No se encontraron los usuarios de Salidas Baño.
+    </div>
+    {% endif %}
+
+    <div class="card-footer text-muted small">
+      <i class="ti ti-info-circle me-1"></i>
+      Cuando un alumno supera el límite de salidas al baño, se envía un correo de <strong>Alerta Negra</strong> a los usuarios marcados.
+    </div>
+  </div>
+
+  {# ══ PANEL: SMTP / Prueba ══ #}
+  <div id="panel-smtp" class="correos-panel" style="display:none;">
+    <div class="card-body pb-2">
+
+      {# ── SMTP Principal (Gmail) ── #}
+      <h5 class="fw-semibold mb-3 d-flex align-items-center gap-2">
+        <i class="ti ti-brand-gmail text-danger"></i> SMTP Principal (Gmail — fallback global)
+      </h5>
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-md-5">
+          <div class="card card-sm border-0 bg-light">
+            <div class="card-body py-2 px-3">
+              {% include "accounts/_smtp_rows.html" with cfg=email_config %}
+              <div class="mt-2 small" id="smtp-status-result">
+                <span class="text-muted"><i class="ti ti-loader me-1"></i>Esperando verificación…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-7">
+          <p class="text-muted small mb-2">
+            Envía un correo de prueba usando esta cuenta.
+          </p>
+          <div class="input-group input-group-sm mb-2" style="max-width:360px;">
+            <input type="email" id="test-dest" class="form-control"
+                   placeholder="destino@ejemplo.com" value="{{ request.user.email }}">
+            <button class="btn btn-primary" id="btn-test-email">
+              <i class="ti ti-send me-1"></i>Enviar
+            </button>
+          </div>
           <div id="test-result" class="test-result"></div>
         </div>
       </div>
+
+      <hr class="my-3">
+
+      {# ── SMTP por Módulo ── #}
+      <h5 class="fw-semibold mb-1 d-flex align-items-center gap-2">
+        <i class="ti ti-server text-primary"></i> SMTP por Módulo
+        <span class="text-muted fw-normal small ms-1">(ana-hn.org)</span>
+      </h5>
+      <p class="text-muted small mb-3">
+        Cada módulo usa su propia cuenta SMTP. Si la contraseña no está configurada, cae al Gmail.
+        Para cambiar las contraseñas edita el archivo <code>.env</code> en el servidor y reinicia Apache.
+      </p>
+
+      <div class="row g-3 mb-3">
+
+        {# ── Enfermería ── #}
+        <div class="col-12 col-md-4">
+          <div class="card h-100 border-0" style="background:#fff5f5;">
+            <div class="card-header py-2 px-3 border-0" style="background:#ffe3e3;">
+              <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-heart text-red"></i>
+                <span class="fw-semibold small text-red">Enfermería</span>
+                {% if email_modulos.enfermeria.password_set %}
+                  <span class="badge bg-green-lt text-green ms-auto" style="font-size:.68rem;">Activo</span>
+                {% else %}
+                  <span class="badge bg-yellow-lt text-yellow ms-auto" style="font-size:.68rem;">Sin clave</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% with m=email_modulos.enfermeria %}
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Servidor</span><span class="font-monospace" style="font-size:.75rem;">{{ m.host }}:{{ m.port }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">TLS/SSL</span>
+                {% if m.use_tls %}<span class="badge bg-green-lt text-green" style="font-size:.65rem;">TLS</span>
+                {% elif m.use_ssl %}<span class="badge bg-blue-lt text-blue" style="font-size:.65rem;">SSL</span>
+                {% else %}<span class="badge bg-secondary" style="font-size:.65rem;">Ninguno</span>{% endif %}
+              </div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Cuenta</span><span class="font-monospace text-muted" style="font-size:.72rem;">{{ m.user }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">FROM</span><span class="text-muted" style="font-size:.72rem;">{{ m.from_email }}</span></div>
+              {% endwith %}
+              <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button class="btn btn-xs btn-ghost-secondary btn-modulo-ping" data-modulo="enfermeria" title="Verificar conexión">
+                  <span class="spinner-modulo d-none spinner-border spinner-border-sm"></span>
+                  <i class="ti ti-wifi modulo-icon"></i> Ping
+                </button>
+                <button class="btn btn-xs btn-ghost-danger btn-modulo-test" data-modulo="enfermeria" title="Enviar correo de prueba">
+                  <i class="ti ti-send"></i> Test
+                </button>
+              </div>
+              <div class="modulo-status mt-1 small d-none"></div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Coordinación BL ── #}
+        <div class="col-12 col-md-4">
+          <div class="card h-100 border-0" style="background:#f0f8ff;">
+            <div class="card-header py-2 px-3 border-0" style="background:#dbe4ff;">
+              <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-school text-blue"></i>
+                <span class="fw-semibold small text-blue">Coordinación BL</span>
+                {% if email_modulos.bl.password_set %}
+                  <span class="badge bg-green-lt text-green ms-auto" style="font-size:.68rem;">Activo</span>
+                {% else %}
+                  <span class="badge bg-yellow-lt text-yellow ms-auto" style="font-size:.68rem;">Sin clave</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% with m=email_modulos.bl %}
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Servidor</span><span class="font-monospace" style="font-size:.75rem;">{{ m.host }}:{{ m.port }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">TLS/SSL</span>
+                {% if m.use_tls %}<span class="badge bg-green-lt text-green" style="font-size:.65rem;">TLS</span>
+                {% elif m.use_ssl %}<span class="badge bg-blue-lt text-blue" style="font-size:.65rem;">SSL</span>
+                {% else %}<span class="badge bg-secondary" style="font-size:.65rem;">Ninguno</span>{% endif %}
+              </div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Cuenta</span><span class="font-monospace text-muted" style="font-size:.72rem;">{{ m.user }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">FROM</span><span class="text-muted" style="font-size:.72rem;">{{ m.from_email }}</span></div>
+              {% endwith %}
+              <p class="text-muted mt-1 mb-1" style="font-size:.7rem;">
+                <i class="ti ti-info-circle me-1"></i>Reportes conducta BL, notas parcial BL, confirmaciones
+              </p>
+              <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button class="btn btn-xs btn-ghost-secondary btn-modulo-ping" data-modulo="bl" title="Verificar conexión">
+                  <span class="spinner-modulo d-none spinner-border spinner-border-sm"></span>
+                  <i class="ti ti-wifi modulo-icon"></i> Ping
+                </button>
+                <button class="btn btn-xs btn-ghost-primary btn-modulo-test" data-modulo="bl" title="Enviar correo de prueba">
+                  <i class="ti ti-send"></i> Test
+                </button>
+              </div>
+              <div class="modulo-status mt-1 small d-none"></div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Coordinación Colegio ── #}
+        <div class="col-12 col-md-4">
+          <div class="card h-100 border-0" style="background:#f0fff4;">
+            <div class="card-header py-2 px-3 border-0" style="background:#d3f9d8;">
+              <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-building text-green"></i>
+                <span class="fw-semibold small text-green">Coordinación Colegio</span>
+                {% if email_modulos.col.password_set %}
+                  <span class="badge bg-green-lt text-green ms-auto" style="font-size:.68rem;">Activo</span>
+                {% else %}
+                  <span class="badge bg-yellow-lt text-yellow ms-auto" style="font-size:.68rem;">Sin clave</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="card-body py-2 px-3">
+              {% with m=email_modulos.col %}
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Servidor</span><span class="font-monospace" style="font-size:.75rem;">{{ m.host }}:{{ m.port }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">TLS/SSL</span>
+                {% if m.use_tls %}<span class="badge bg-green-lt text-green" style="font-size:.65rem;">TLS</span>
+                {% elif m.use_ssl %}<span class="badge bg-blue-lt text-blue" style="font-size:.65rem;">SSL</span>
+                {% else %}<span class="badge bg-secondary" style="font-size:.65rem;">Ninguno</span>{% endif %}
+              </div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">Cuenta</span><span class="font-monospace text-muted" style="font-size:.72rem;">{{ m.user }}</span></div>
+              <div class="smtp-mini-row"><span class="smtp-mini-label">FROM</span><span class="text-muted" style="font-size:.72rem;">{{ m.from_email }}</span></div>
+              {% endwith %}
+              <p class="text-muted mt-1 mb-1" style="font-size:.7rem;">
+                <i class="ti ti-info-circle me-1"></i>Reportes conducta Colegio, notas parcial Colegio
+              </p>
+              <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button class="btn btn-xs btn-ghost-secondary btn-modulo-ping" data-modulo="col" title="Verificar conexión">
+                  <span class="spinner-modulo d-none spinner-border spinner-border-sm"></span>
+                  <i class="ti ti-wifi modulo-icon"></i> Ping
+                </button>
+                <button class="btn btn-xs btn-ghost-success btn-modulo-test" data-modulo="col" title="Enviar correo de prueba">
+                  <i class="ti ti-send"></i> Test
+                </button>
+              </div>
+              <div class="modulo-status mt-1 small d-none"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>{# /row módulos #}
+
+      {# Modal destino para test de módulo #}
+      <div class="modal modal-blur fade" id="modal-modulo-test" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="ti ti-send me-2 text-primary"></i>Correo de prueba</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted small mb-2">Módulo: <strong id="modal-modulo-nombre">—</strong></p>
+              <input type="email" id="modal-modulo-dest" class="form-control"
+                     placeholder="destino@ejemplo.com" value="{{ request.user.email }}">
+              <div id="modal-modulo-result" class="mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-modal-modulo-enviar">
+                <i class="ti ti-send me-1"></i>Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -476,6 +1008,8 @@
 <div id="page-config" hidden
      data-csrf="{{ csrf_token }}"
      data-url-test="{% url 'settings_correos_test' %}"
-     data-url-smtp="{% url 'settings_correos_smtp' %}"></div>
-<script src="{% static 'accounts/js/settings_correos.js' %}"></script>
+     data-url-smtp="{% url 'settings_correos_smtp' %}"
+     data-url-modulo-test="{% url 'settings_correos_modulo_test' %}"
+     data-url-notif-toggle="{% url 'settings_correos_notif_toggle' %}"></div>
+<script src="{% static 'accounts/js/settings_correos.js' %}?v=4"></script>
 {% endblock %}

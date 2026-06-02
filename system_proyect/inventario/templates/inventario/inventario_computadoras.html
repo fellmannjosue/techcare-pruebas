@@ -169,6 +169,24 @@
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-device-desktop me-2"></i>Computadoras Registradas</h3>
       </div>
+      <div class="card-header" style="padding-top:0; border-top:0;">
+        <ul class="nav nav-tabs card-header-tabs" id="tabs-prefijo">
+          <li class="nav-item">
+            <button class="nav-link active fw-semibold" data-prefijo="">
+              Todos <span class="badge bg-secondary ms-1">{{ total_comp }}</span>
+            </button>
+          </li>
+          {% for tab in prefijos_tabs %}
+          {% if tab.count > 0 %}
+          <li class="nav-item">
+            <button class="nav-link fw-semibold" data-prefijo="{{ tab.key }}">
+              {{ tab.label }} <span class="badge bg-blue-lt text-blue ms-1">{{ tab.count }}</span>
+            </button>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
       <div class="card-body p-0">
         <div class="table-responsive">
           <table id="computadoras-table" class="table table-vcenter table-hover card-table nowrap" style="width:100%;">

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.contrib.auth.models import User, Group
 from django.core.mail import send_mail, EmailMultiAlternatives
@@ -12,7 +13,7 @@ import datetime
 from core.utils_notifications import crear_notificacion
 
 from .forms import MaestroRegisterForm
-from .models import RegistroAcceso, PerfilUsuario
+from .models import RegistroAcceso, PerfilUsuario, CoordPermiso
 from tickets.models import Ticket
 from reloj.models import RelojPermiso
 
@@ -27,6 +28,14 @@ def login_view(request):
     - Técnicos → dashboard tickets
     - Superuser → menú principal
     """
+    # <--- hecho por claude code: si ya está autenticado, redirigir al home correcto
+    # (evita que el botón "atrás" del navegador muestre el login cuando ya está logueado)
+    if request.user.is_authenticated:
+        next_url = request.GET.get('next', '')
+        if next_url and next_url.startswith('/'):
+            return redirect(next_url)
+        return redirect('menu')
+
     year = datetime.datetime.now().year
     if request.method == 'POST':
         username = request.POST['username']
@@ -484,6 +493,13 @@ def menu_view(request):
         'show_agendas':        is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
         'show_directorio':     is_admin or is_coord_bilingue or is_coord_colegio,
         'show_calculadoras':   is_admin or is_group_reloj,
+
+        # Apps en construcción — solo superuser
+        'show_atencion_padres': user.is_superuser,
+        'show_salidas_bano':    user.is_superuser or user.groups.filter(
+                                    name__in=['control baño coord', 'control baños col']
+                                ).exists(),
+        'show_camaras':         user.is_superuser,
     }
 
     # <--- hecho por claude code: pasar show_welcome al contexto antes de limpiar la sesión
@@ -1256,30 +1272,32 @@ def settings_reloj_permisos(request):
     if not request.user.is_superuser:
         return redirect('settings_perfil')
 
-    # Solo estos dos staff con permisos de edición en el reloj
     EMAILS_RELOJ = ['glorenzo@ana-hn.org', 'yzavala@ana-hn.org']
-    usuarios = User.objects.filter(email__in=EMAILS_RELOJ, is_active=True).order_by('username')
+    usuarios = list(
+        User.objects.filter(email__in=EMAILS_RELOJ, is_active=True).order_by('first_name', 'last_name')
+    )
 
-    # Garantizar que cada usuario tenga un RelojPermiso
     for u in usuarios:
         RelojPermiso.objects.get_or_create(user=u)
 
+    # has_edit=True: módulo tiene Ver+Editar+Eliminar. False: solo Ver.
     MODULOS = [
-        ('reporte',       'Generar Reporte',        'ti-table'),
-        ('plantilla',     'Plantilla de Horario',   'ti-stack'),
-        ('asignacion',    'Asignación de Horario',  'ti-calendar-user'),
-        ('compensatorio', 'Tiempo Compensatorio',   'ti-clock-check'),
-        ('feriado',       'Feriados',               'ti-calendar'),
-        ('sabado',        'Sábados Especiales',     'ti-calendar-week'),
-        ('calculo_comp',  'Cálculo Compensatorio',  'ti-calculator'),
-        ('vacaciones',    'Vacaciones',             'ti-beach'),
+        ('reporte',       'Generar Reporte',        'ti-table',         True),
+        ('plantilla',     'Plantilla de Horario',   'ti-stack',         True),
+        ('asignacion',    'Asignación de Horario',  'ti-calendar-user', True),
+        ('compensatorio', 'Tiempo Compensatorio',   'ti-clock-check',   True),
+        ('feriado',       'Feriados',               'ti-calendar',      True),
+        ('sabado',        'Sábados Especiales',     'ti-calendar-week', True),
+        ('calculo_comp',  'Cálculo Compensatorio',  'ti-calculator',    True),
+        ('vacaciones',    'Vacaciones',             'ti-beach',         True),
+        ('permisos',      'Permisos Emp.',          'ti-license',       False),
     ]
 
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
         import json as _json
-        body = _json.loads(request.body or b'{}')
-        user_id = body.get('user_id')
-        campo   = body.get('campo')
+        body    = _json.loads(request.body or b'{}')
+        user_id = int(body.get('user_id', 0))
+        campo   = body.get('campo', '')
         valor   = bool(body.get('valor', False))
         try:
             u   = User.objects.get(pk=user_id, email__in=EMAILS_RELOJ)
@@ -1292,27 +1310,171 @@ def settings_reloj_permisos(request):
             pass
         return JsonResponse({'ok': False}, status=400)
 
-    # Construir matriz: filas=módulos, columnas=usuarios
-    usuarios_list = list(usuarios)
-    matrix = []
-    for mod_key, mod_label, mod_icon in MODULOS:
-        fila = {'key': mod_key, 'label': mod_label, 'icon': mod_icon, 'celdas': []}
-        for u in usuarios_list:
+    # Construir matrix transpuesta: usuario-centric
+    _AVATAR_COLORS = ['blue','teal','green','orange','red','purple','cyan','pink']
+    modulos_info = [
+        {'key': k, 'label': l, 'icon': i, 'has_edit': he}
+        for k, l, i, he in MODULOS
+    ]
+
+    matrix_usuarios = []
+    for idx, u in enumerate(usuarios):
+        try:
             perms = u.reloj_permiso
-            fila['celdas'].append({
-                'user_id':  u.pk,
-                'editar':   getattr(perms, f'{mod_key}_editar',   False),
-                'eliminar': getattr(perms, f'{mod_key}_eliminar', False),
+        except Exception:
+            continue
+        nombre = u.get_full_name() or u.username
+        partes = nombre.split()
+        initials = (partes[0][0] + partes[-1][0]).upper() if len(partes) >= 2 else nombre[:2].upper()
+        celdas = []
+        for mod_key, _, _, has_edit in MODULOS:
+            celdas.append({
+                'key':      mod_key,
+                'has_edit': has_edit,
+                'ver':      getattr(perms, f'{mod_key}_ver',     False),
+                'editar':   getattr(perms, f'{mod_key}_editar',  False) if has_edit else None,
+                'eliminar': getattr(perms, f'{mod_key}_eliminar',False) if has_edit else None,
             })
-        matrix.append(fila)
+        matrix_usuarios.append({
+            'user':     u,
+            'initials': initials,
+            'color':    _AVATAR_COLORS[idx % len(_AVATAR_COLORS)],
+            'ver_todos': perms.ver_todos,
+            'celdas':   celdas,
+        })
 
     return render(request, 'accounts/settings_reloj_permisos.html', {
         'active_tab':       'reloj_permisos',
         'nav_home_url':     '/',
         'can_manage_users': request.user.is_superuser,
         'can_see_activity': request.user.is_superuser,
-        'usuarios':         usuarios_list,
-        'matrix':           matrix,
+        'modulos':          modulos_info,
+        'matrix_usuarios':  matrix_usuarios,
+    })
+
+
+@login_required
+def settings_coord_permisos(request):
+    """Panel de permisos Editar/Eliminar para coordinadores BL y Colegio."""
+    from django.utils import timezone as _tz
+    import datetime as _dt
+
+    _DURACION_ELIMINAR = _dt.timedelta(hours=24)
+
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+
+    COORD_GRUPOS = [
+        'coordinadores_colegio', 'coordinador_colegio', 'coordinadores', 'coordinador_col',
+        'coordinador_bilingue',  'coordinador_bl',      'coord_progress_bl',
+        'control baño coord',
+    ]
+
+    usuarios = list(
+        User.objects.filter(groups__name__in=COORD_GRUPOS, is_active=True)
+            .exclude(is_superuser=True)
+            .distinct()
+            .order_by('first_name', 'last_name')
+    )
+
+    for u in usuarios:
+        CoordPermiso.objects.get_or_create(user=u)
+
+    MODULOS = [
+        ('notas',      'Notas Mitad de Parcial',    'ti-file-certificate'),
+        ('salidas',    'Salidas Baño',               'ti-door-exit'),
+        ('agenda',     'Agenda',                     'ti-calendar-week'),
+        ('dashboard',  'Dashboard Coordinador',      'ti-layout-dashboard'),
+    ]
+
+    # Auto-expirar permisos de eliminación vencidos
+    ahora = _tz.now()
+    for u in usuarios:
+        try:
+            obj = u.coord_permiso
+            changed_fields = []
+            for mod_key, _, _ in MODULOS:
+                hasta = getattr(obj, f'{mod_key}_eliminar_hasta', None)
+                if hasta and hasta < ahora:
+                    setattr(obj, f'{mod_key}_eliminar', False)
+                    setattr(obj, f'{mod_key}_eliminar_hasta', None)
+                    changed_fields += [f'{mod_key}_eliminar', f'{mod_key}_eliminar_hasta']
+            if changed_fields:
+                obj.save(update_fields=changed_fields)
+        except Exception:
+            pass
+
+    ids_permitidos = {u.pk for u in usuarios}
+
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        import json as _json
+        body    = _json.loads(request.body or b'{}')
+        user_id = int(body.get('user_id', 0))
+        campo   = body.get('campo', '')
+        valor   = bool(body.get('valor', False))
+        try:
+            if user_id not in ids_permitidos:
+                return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+            u   = User.objects.get(pk=user_id)
+            obj = CoordPermiso.objects.get(user=u)
+            if not hasattr(obj, campo):
+                return JsonResponse({'ok': False}, status=400)
+            setattr(obj, campo, valor)
+            hasta_iso = None
+            if campo.endswith('_eliminar'):
+                mod       = campo[:-len('_eliminar')]
+                hasta_fld = f'{mod}_eliminar_hasta'
+                if hasattr(obj, hasta_fld):
+                    nueva_hasta = (_tz.now() + _DURACION_ELIMINAR) if valor else None
+                    setattr(obj, hasta_fld, nueva_hasta)
+                    obj.save(update_fields=[campo, hasta_fld])
+                    hasta_iso = nueva_hasta.isoformat() if nueva_hasta else None
+                else:
+                    obj.save(update_fields=[campo])
+            else:
+                obj.save(update_fields=[campo])
+            return JsonResponse({'ok': True, 'hasta': hasta_iso})
+        except Exception:
+            pass
+        return JsonResponse({'ok': False}, status=400)
+
+    # Construir matrix transpuesta: usuario-centric (filas=usuarios, columnas=módulos)
+    _AVATAR_COLORS = ['blue','teal','green','orange','red','purple','cyan','pink','yellow','indigo']
+    modulos_info = [{'key': k, 'label': l, 'icon': i} for k, l, i in MODULOS]
+
+    matrix_usuarios = []
+    for idx, u in enumerate(usuarios):
+        try:
+            perms = u.coord_permiso
+        except Exception:
+            continue
+        nombre = u.get_full_name() or u.username
+        partes = nombre.split()
+        initials = (partes[0][0] + partes[-1][0]).upper() if len(partes) >= 2 else nombre[:2].upper()
+        celdas = []
+        for mod_key, _, _ in MODULOS:
+            hasta     = getattr(perms, f'{mod_key}_eliminar_hasta', None)
+            hasta_iso = hasta.isoformat() if hasta else ''
+            celdas.append({
+                'key':            mod_key,
+                'editar':         getattr(perms, f'{mod_key}_editar',   False),
+                'eliminar':       getattr(perms, f'{mod_key}_eliminar', False),
+                'eliminar_hasta': hasta_iso,
+            })
+        matrix_usuarios.append({
+            'user':     u,
+            'initials': initials,
+            'color':    _AVATAR_COLORS[idx % len(_AVATAR_COLORS)],
+            'celdas':   celdas,
+        })
+
+    return render(request, 'accounts/settings_coord_permisos.html', {
+        'active_tab':       'coord_permisos',
+        'nav_home_url':     '/',
+        'can_manage_users': True,
+        'can_see_activity': True,
+        'modulos':          modulos_info,
+        'matrix_usuarios':  matrix_usuarios,
     })
 
 
@@ -1419,6 +1581,60 @@ def settings_logs_api(request):
     return JsonResponse({'ok': True, 'lines': data, 'total': len(data)})
 
 
+# ── Auditoría (triggers MySQL → core_audit_log) ──────────────────────────────
+@login_required
+def settings_auditoria(request):
+    """Visor de la auditoría de bajo nivel capturada por los triggers MySQL
+    en core_audit_log (INSERT/UPDATE/DELETE por tabla). Solo superuser."""
+    if not request.user.is_superuser:
+        messages.error(request, 'Solo superusuarios pueden ver la auditoría del sistema.')
+        return redirect('settings_perfil')
+
+    from core.models import AuditLog
+    from django.core.paginator import Paginator
+    from django.db.models import Count
+
+    tabla     = (request.GET.get('tabla') or '').strip()
+    operacion = (request.GET.get('op') or '').strip().upper()
+    q         = (request.GET.get('q') or '').strip()
+
+    qs = AuditLog.objects.all()
+    if tabla:
+        qs = qs.filter(table_name=tabla)
+    if operacion in ('INSERT', 'UPDATE', 'DELETE'):
+        qs = qs.filter(operation=operacion)
+    if q:
+        qs = qs.filter(record_pk__icontains=q)
+
+    # Stats globales (sin filtro de tabla/op/q, sobre todo el log)
+    base = AuditLog.objects.all()
+    total      = base.count()
+    por_op     = {row['operation']: row['total']
+                  for row in base.values('operation').annotate(total=Count('id'))}
+    tablas     = list(base.values_list('table_name', flat=True).distinct().order_by('table_name'))
+    top_tablas = list(base.values('table_name')
+                          .annotate(total=Count('id'))
+                          .order_by('-total')[:10])
+
+    paginator = Paginator(qs, 100)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    ctx = _settings_ctx(request, 'auditoria')
+    ctx.update({
+        'page_obj':     page_obj,
+        'total':        total,
+        'inserts':      por_op.get('INSERT', 0),
+        'updates':      por_op.get('UPDATE', 0),
+        'deletes':      por_op.get('DELETE', 0),
+        'tablas':       tablas,
+        'top_tablas':   top_tablas,
+        'f_tabla':      tabla,
+        'f_op':         operacion,
+        'f_q':          q,
+    })
+    return render(request, 'accounts/settings_auditoria.html', ctx)
+
+
 # ── Configuración de Correos ──────────────────────────────────────────────────
 
 @login_required
@@ -1429,10 +1645,15 @@ def settings_correos(request):
 
     from django.conf import settings as dj_settings
     from django.contrib.auth.models import User
-    from conducta.models import ConfiguracionNotificacion
+    from .models import DestinatarioEmail
     from notas_parcial.views import (
-        _GRUPOS_BL, _GRUPOS_COLEGIO, _CORREOS_VALIDOS,
+        _CORREOS_VALIDOS,
         _DEST_POR_USUARIO, _CORREO_PRUEBAS,
+    )
+    from core.email_utils import (
+        get_enfermeria_from,
+        get_coord_bl_from,
+        get_coord_col_from,
     )
 
     email_config = {
@@ -1445,43 +1666,179 @@ def settings_correos(request):
         'from_email':   dj_settings.DEFAULT_FROM_EMAIL,
     }
 
+    def _cfg_modulo(cfg_key, from_fn):
+        cfg = getattr(dj_settings, cfg_key, {})
+        return {
+            'host':         cfg.get('HOST', '—'),
+            'port':         cfg.get('PORT', '—'),
+            'use_tls':      cfg.get('USE_TLS', False),
+            'use_ssl':      cfg.get('USE_SSL', False),
+            'user':         cfg.get('USER', ''),
+            'password_set': bool(cfg.get('PASSWORD', '')),
+            'from_email':   from_fn(),
+        }
+
+    email_modulos = {
+        'enfermeria': _cfg_modulo('EMAIL_ENFERMERIA',  get_enfermeria_from),
+        'bl':         _cfg_modulo('EMAIL_COORD_BL',    get_coord_bl_from),
+        'col':        _cfg_modulo('EMAIL_COORD_COL',   get_coord_col_from),
+    }
+
     usuarios = User.objects.filter(is_active=True).prefetch_related('groups').order_by('first_name', 'last_name')
     total_usuarios   = usuarios.count()
     con_email        = usuarios.exclude(email='').count()
     sin_email        = total_usuarios - con_email
 
-    notif_conducta   = (ConfiguracionNotificacion.objects
-                        .select_related('coordinador', 'coordinador__usuario')
-                        .order_by('area', 'coordinador__nombre'))
+    # ── Matriz de destinatarios de correo ──────────────────────────────────
+    MODULOS_EMAIL = [
+        ('conducta_bl',        'Conducta BL',               'ti-clipboard-text text-blue'),
+        ('conducta_col',       'Conducta Colegio',           'ti-clipboard-text text-green'),
+        ('progress_bl',        'Progress BL',               'ti-chart-bar text-cyan'),
+        ('notas_parcial_bl',   'Notas Parcial BL',          'ti-book text-orange'),
+        ('notas_parcial_col',  'Notas Parcial Colegio',     'ti-book text-teal'),
+        ('salidas_negro_col',  'Salidas ⚫ Colegio',        'ti-door-exit text-dark'),
+        ('salidas_negro_bach', 'Salidas ⚫ Bachillerato',   'ti-door-exit text-secondary'),
+        ('enfermeria',         'Enfermería',                'ti-stethoscope text-red'),
+        ('tickets',            'Tickets Soporte',           'ti-ticket text-purple'),
+    ]
 
-    _grupos_bl_sin_progress = _GRUPOS_BL - {'coord_progress_bl'}
-    _grupos_col_extra = _GRUPOS_COLEGIO | {'coordinadores', 'coord_notas_parcial'}
+    # Solo usuarios staff con email — candidatos a recibir notificaciones
+    # glorenzo y yzavala excluidos de todos los módulos de notificación
+    _EXCLUIR_NOTIF = ['glorenzo@ana-hn.org', 'yzavala@ana-hn.org']
+    usuarios_con_email = (User.objects
+                          .filter(is_active=True, is_staff=True)
+                          .exclude(email='')
+                          .exclude(username__in=_EXCLUIR_NOTIF)
+                          .prefetch_related('groups')
+                          .order_by('first_name', 'last_name'))
 
-    usuarios_notif_bl = (User.objects
-                         .filter(groups__name__in=_grupos_bl_sin_progress, is_active=True)
-                         .exclude(email='').distinct().order_by('first_name', 'last_name'))
+    # Obtener o crear DestinatarioEmail por usuario
+    dest_map = {d.user_id: d for d in DestinatarioEmail.objects.filter(
+        user__in=usuarios_con_email
+    )}
 
-    usuarios_notif_col = (User.objects
-                          .filter(groups__name__in=_grupos_col_extra, is_active=True)
-                          .exclude(email='').distinct().order_by('first_name', 'last_name'))
+    matrix_usuarios = []
+    for u in usuarios_con_email:
+        dest = dest_map.get(u.pk)
+        celdas = []
+        for campo, _, _ in MODULOS_EMAIL:
+            celdas.append({
+                'user_id': u.pk,
+                'campo':   campo,
+                'activo':  getattr(dest, campo, False) if dest else False,
+            })
+        matrix_usuarios.append({'user': u, 'celdas': celdas})
+
+    matrix_modulos = [
+        {'key': k, 'label': l, 'icon': i}
+        for k, l, i in MODULOS_EMAIL
+    ]
+
+    def _build_tab_data(campos_list):
+        """Construye lista de dicts {user, **campos} para tabs de módulo."""
+        result = []
+        for u in usuarios_con_email:
+            d = dest_map.get(u.pk)
+            entry = {'user': u}
+            for campo in campos_list:
+                entry[campo] = getattr(d, campo, False) if d else False
+            result.append(entry)
+        return result
+
+    conducta_data   = _build_tab_data(['conducta_bl', 'conducta_col'])
+    progress_data   = _build_tab_data(['progress_bl'])
+    notas_data      = _build_tab_data(['notas_parcial_bl', 'notas_parcial_col'])
+    enfermeria_data = _build_tab_data(['enfermeria'])
+
+    # ── Tickets — solo soporte técnico (usuario admin) ──────────────────────
+    tickets_user_qs = User.objects.filter(username='admin', is_active=True)
+    tickets_dest_map = {d.user_id: d for d in DestinatarioEmail.objects.filter(
+        user__in=tickets_user_qs
+    )}
+    tickets_data = []
+    for u in tickets_user_qs:
+        d = tickets_dest_map.get(u.pk)
+        tickets_data.append({
+            'user':    u,
+            'tickets': getattr(d, 'tickets', False) if d else False,
+        })
+
+    # ── Salidas Baño — datos para panel de 4 usuarios específicos ─────────
+    _SALIDAS_USERNAMES = ['flicona@ana-hn.org', 'kgarcia@ana-hn.org',
+                          'bespino@ana-hn.org',  'fvalladares@ana-hn.org']
+    salidas_users_qs = (User.objects
+                        .filter(username__in=_SALIDAS_USERNAMES, is_active=True)
+                        .order_by('first_name', 'last_name'))
+    salidas_dest_map = {d.user_id: d for d in DestinatarioEmail.objects.filter(
+        user__in=salidas_users_qs
+    )}
+    salidas_bano_data = []
+    for u in salidas_users_qs:
+        d = salidas_dest_map.get(u.pk)
+        salidas_bano_data.append({
+            'user':        u,
+            'negro_col':   getattr(d, 'salidas_negro_col',  False) if d else False,
+            'negro_bach':  getattr(d, 'salidas_negro_bach', False) if d else False,
+        })
 
     ctx = _settings_ctx(request, 'correos')
     ctx.update({
         'nav_home_url':          '/',
         'email_config':          email_config,
+        'email_modulos':         email_modulos,
         'usuarios':              usuarios,
         'total_usuarios':        total_usuarios,
         'con_email':             con_email,
         'sin_email':             sin_email,
-        'notif_conducta':        notif_conducta,
-        'total_notif_conducta':  notif_conducta.count(),
-        'usuarios_notif_bl':     usuarios_notif_bl,
-        'usuarios_notif_col':    usuarios_notif_col,
         'correos_validos_pdf':   sorted(_CORREOS_VALIDOS),
         'correo_pruebas':        _CORREO_PRUEBAS,
         'dest_por_usuario':      _DEST_POR_USUARIO,
+        # Matriz destinatarios (tab Notificaciones)
+        'matrix_usuarios':       matrix_usuarios,
+        'matrix_modulos':        matrix_modulos,
+        # Tabs por módulo
+        'conducta_data':         conducta_data,
+        'progress_data':         progress_data,
+        'notas_data':            notas_data,
+        'enfermeria_data':       enfermeria_data,
+        'tickets_data':          tickets_data,
+        # Salidas Baño
+        'salidas_bano_data':     salidas_bano_data,
     })
     return render(request, 'accounts/settings_correos.html', ctx)
+
+
+@login_required
+@require_POST
+def settings_correos_notif_toggle(request):
+    """AJAX: activa/desactiva un módulo de email para un usuario."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    try:
+        from django.contrib.auth.models import User as AuthUser
+        from .models import DestinatarioEmail
+        import json
+        data    = json.loads(request.body)
+        user_id = int(data.get('user_id', 0))
+        campo   = data.get('campo', '')
+        valor   = bool(data.get('valor', False))
+
+        CAMPOS_VALIDOS = {
+            'conducta_bl', 'conducta_col', 'progress_bl',
+            'notas_parcial_bl', 'notas_parcial_col',
+            'salidas_negro_col', 'salidas_negro_bach',
+            'enfermeria', 'tickets',
+        }
+        if campo not in CAMPOS_VALIDOS:
+            return JsonResponse({'ok': False, 'error': 'Campo inválido'}, status=400)
+
+        user = AuthUser.objects.get(pk=user_id)
+        dest, _ = DestinatarioEmail.objects.get_or_create(user=user)
+        setattr(dest, campo, valor)
+        dest.save(update_fields=[campo])
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
 
 @login_required
@@ -1531,6 +1888,79 @@ def settings_correos_test(request):
         msg.attach_alternative(html, 'text/html')
         msg.send(fail_silently=False)
         return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+def settings_correos_modulo_test(request):
+    """Prueba SMTP de un módulo específico y opcionalmente envía un correo de prueba."""
+    # <--- hecho por claude code: prueba SMTP por módulo (enfermeria / bl / col / gmail)
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no permitido'}, status=405)
+
+    import json as _json
+    from django.core.mail import EmailMultiAlternatives as _EMA
+    from core.email_utils import (
+        get_enfermeria_connection, get_enfermeria_from,
+        get_coord_bl_connection,   get_coord_bl_from,
+        get_coord_col_connection,  get_coord_col_from,
+    )
+    from django.core.mail import get_connection as _get_default_conn
+    from django.conf import settings as _s
+
+    try:
+        data   = _json.loads(request.body)
+    except Exception:
+        data = {}
+
+    modulo = data.get('modulo', '').strip()   # gmail | enfermeria | bl | col
+    dest   = data.get('dest',   '').strip()
+    solo_ping = data.get('ping', False)       # True → solo verificar conexión, no enviar
+
+    _MAP = {
+        'gmail':      (lambda: _get_default_conn(),       lambda: _s.DEFAULT_FROM_EMAIL),
+        'enfermeria': (get_enfermeria_connection,          get_enfermeria_from),
+        'bl':         (get_coord_bl_connection,            get_coord_bl_from),
+        'col':        (get_coord_col_connection,           get_coord_col_from),
+    }
+    if modulo not in _MAP:
+        return JsonResponse({'ok': False, 'error': f'Módulo desconocido: {modulo}'})
+
+    conn_fn, from_fn = _MAP[modulo]
+
+    # ── Solo ping (verificar conexión sin enviar) ────────────────────────────
+    if solo_ping:
+        try:
+            conn = conn_fn()
+            if conn is None:
+                return JsonResponse({'ok': False, 'error': 'Sin credenciales configuradas → usando Gmail fallback'})
+            conn.open(); conn.close()
+            return JsonResponse({'ok': True})
+        except Exception as e:
+            return JsonResponse({'ok': False, 'error': str(e)})
+
+    # ── Envío de prueba ──────────────────────────────────────────────────────
+    if not dest:
+        return JsonResponse({'ok': False, 'error': 'Correo de destino vacío'})
+
+    try:
+        conn     = conn_fn()
+        from_addr = from_fn()
+        asunto = f'[TechCare] Prueba SMTP – módulo {modulo.upper()}'
+        texto  = f'Prueba de correo enviada desde TechCare.\nMódulo: {modulo.upper()}\nCuenta: {from_addr}'
+        html   = f'''<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f0f4f8;padding:32px;">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.1);">
+  <p style="font-size:20px;font-weight:700;color:#1864ab;margin:0 0 12px;">✅ Prueba SMTP – {modulo.upper()}</p>
+  <p style="color:#495057;">{texto}</p>
+  <p style="color:#adb5bd;font-size:12px;margin-top:24px;">Enviado desde Configuración › Correos › SMTP Módulos</p>
+</div></body></html>'''
+        msg = _EMA(asunto, texto, from_addr, [dest], connection=conn)
+        msg.attach_alternative(html, 'text/html')
+        msg.send(fail_silently=False)
+        return JsonResponse({'ok': True, 'from': from_addr})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
 

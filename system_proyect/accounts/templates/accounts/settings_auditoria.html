@@ -1,0 +1,168 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+
+{% block title %}Auditoría del Sistema{% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code: visor de core_audit_log alimentado por triggers MySQL #}
+
+{# ══════════ STATS CARDS ══════════ #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="stat-avatar bg-azure-lt text-azure"><i class="ti ti-database"></i></span></div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ total }}</div>
+            <div class="text-muted small">Eventos totales</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="stat-avatar bg-green-lt text-green"><i class="ti ti-plus"></i></span></div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ inserts }}</div>
+            <div class="text-muted small">INSERT</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="stat-avatar bg-yellow-lt text-yellow"><i class="ti ti-pencil"></i></span></div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ updates }}</div>
+            <div class="text-muted small">UPDATE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="stat-avatar bg-red-lt text-red"><i class="ti ti-trash"></i></span></div>
+          <div class="col">
+            <div class="fw-bold fs-3">{{ deletes }}</div>
+            <div class="text-muted small">DELETE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-shield-lock me-2"></i>Registro de auditoría (triggers MySQL)</h3>
+  </div>
+
+  {# ── Filtros ── #}
+  <div class="card-body border-bottom py-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label small text-muted mb-1">Tabla</label>
+        <select name="tabla" class="form-select form-select-sm">
+          <option value="">Todas ({{ tablas|length }})</option>
+          {% for t in tablas %}
+          <option value="{{ t }}" {% if t == f_tabla %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small text-muted mb-1">Operación</label>
+        <select name="op" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          <option value="INSERT" {% if f_op == 'INSERT' %}selected{% endif %}>INSERT</option>
+          <option value="UPDATE" {% if f_op == 'UPDATE' %}selected{% endif %}>UPDATE</option>
+          <option value="DELETE" {% if f_op == 'DELETE' %}selected{% endif %}>DELETE</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label small text-muted mb-1">PK del registro</label>
+        <input type="text" name="q" value="{{ f_q }}" class="form-control form-control-sm" placeholder="Buscar PK…">
+      </div>
+      <div class="col-12 col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>
+        <a href="{% url 'settings_auditoria' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+      </div>
+    </form>
+  </div>
+
+  {# ── Tabla ── #}
+  <div class="table-responsive">
+    <table class="table table-vcenter table-hover card-table">
+      <thead>
+        <tr>
+          <th>Fecha / hora</th>
+          <th>Tabla</th>
+          <th>Operación</th>
+          <th>PK</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+        <tr>
+          <td class="text-nowrap"><i class="ti ti-clock me-1 text-muted"></i>{{ row.changed_at|date:"d/m/Y H:i:s" }}</td>
+          <td><code>{{ row.table_name }}</code></td>
+          <td>
+            {% if row.operation == 'INSERT' %}<span class="badge bg-green-lt text-green">INSERT</span>
+            {% elif row.operation == 'UPDATE' %}<span class="badge bg-yellow-lt text-yellow">UPDATE</span>
+            {% elif row.operation == 'DELETE' %}<span class="badge bg-red-lt text-red">DELETE</span>
+            {% else %}<span class="badge bg-secondary-lt">{{ row.operation }}</span>{% endif %}
+          </td>
+          <td>{{ row.record_pk }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-4">No hay eventos de auditoría con esos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Paginación ── #}
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="card-footer d-flex align-items-center">
+    <p class="m-0 text-muted small">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} eventos</p>
+    <ul class="pagination m-0 ms-auto">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if f_tabla %}&tabla={{ f_tabla }}{% endif %}{% if f_op %}&op={{ f_op }}{% endif %}{% if f_q %}&q={{ f_q }}{% endif %}"><i class="ti ti-chevron-left"></i> Anterior</a></li>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if f_tabla %}&tabla={{ f_tabla }}{% endif %}{% if f_op %}&op={{ f_op }}{% endif %}{% if f_q %}&q={{ f_q }}{% endif %}">Siguiente <i class="ti ti-chevron-right"></i></a></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Top tablas más auditadas ── #}
+{% if top_tablas %}
+<div class="card mt-3">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-chart-bar me-2"></i>Tablas con más movimientos</h3></div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead><tr><th>Tabla</th><th class="text-end">Eventos</th></tr></thead>
+      <tbody>
+        {% for t in top_tablas %}
+        <tr>
+          <td><a href="?tabla={{ t.table_name }}"><code>{{ t.table_name }}</code></a></td>
+          <td class="text-end">{{ t.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

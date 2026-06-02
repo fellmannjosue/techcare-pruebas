@@ -48,13 +48,6 @@ body {
   margin-top: 22px;
 }
 .alert { margin-bottom: 14px; }
-.toggle-eye {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-.toggle-eye:hover {
-  opacity: 1;
-}
 @media (max-width: 576px) {
   .login-container {
     padding: 18px 5px 12px 5px;
@@ -77,20 +70,12 @@ body {
   height: 72px;
   object-fit: contain;
 }
-.toggle-eye {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity .2s;
-  z-index: 4;
-}
-.toggle-eye:hover { opacity: 1; }
+/* Ocultar el ojo nativo en Edge/IE */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear { display: none; }
+
+/* Botón ojo — hover sutil */
+#eyeBtn:hover #eyeIcon { color: #354052 !important; }
 
 /* Animación checkbox hint */
 @keyframes shake {

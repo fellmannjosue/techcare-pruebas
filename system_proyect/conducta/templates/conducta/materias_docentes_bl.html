@@ -107,11 +107,27 @@
   </div>
 
   <div class="table-responsive">
+    {# ── Barra de eliminación masiva (oculta hasta seleccionar) ── #}
+    <div id="bulk-bar" class="d-none px-3 py-2 border-bottom bg-red-lt d-flex align-items-center gap-3">
+      <span class="text-red fw-semibold">
+        <i class="ti ti-checkbox me-1"></i><span id="bulk-count">0</span> seleccionado(s)
+      </span>
+      <button class="btn btn-sm btn-danger ms-auto" id="btn-bulk-delete">
+        <i class="ti ti-trash me-1"></i>Eliminar seleccionados
+      </button>
+      <button class="btn btn-sm btn-ghost-secondary" id="btn-bulk-cancel">
+        Cancelar
+      </button>
+    </div>
+
     <table class="table table-vcenter table-hover mb-0" id="tabla-materias">
       <thead class="table-light">
         <tr>
-          <th style="width:35%;">Materia</th>
-          <th style="width:25%;">Docente</th>
+          <th style="width:32px;" class="text-center">
+            <input type="checkbox" class="form-check-input" id="chk-all" title="Seleccionar todos">
+          </th>
+          <th style="width:33%;">Materia</th>
+          <th style="width:23%;">Docente</th>
           <th>Coordinador(es)</th>
           <th class="text-center" style="width:90px;">¿Activo?</th>
           <th class="text-center" style="width:80px;">Acciones</th>
@@ -124,6 +140,9 @@
             data-docente="{{ m.docente|escapejs }}"
             data-coordinador="{{ m.coordinador|escapejs }}"
             data-activo="{{ m.activo|yesno:'1,0' }}">
+          <td class="text-center" style="width:32px;">
+            <input type="checkbox" class="form-check-input chk-fila" data-pk="{{ m.pk }}">
+          </td>
           <td class="fw-semibold">{{ m.materia }}</td>
           <td class="text-muted">{{ m.docente }}</td>
           <td>
@@ -164,7 +183,7 @@
         </tr>
         {% empty %}
         <tr id="fila-vacia">
-          <td colspan="5" class="text-center text-muted py-5">
+          <td colspan="6" class="text-center text-muted py-5">
             <i class="ti ti-mood-empty d-block fs-1 mb-2 opacity-25"></i>
             {% if q %}No se encontraron resultados para "<strong>{{ q }}</strong>"{% else %}Sin materias registradas{% endif %}
           </td>

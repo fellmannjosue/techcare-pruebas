@@ -212,6 +212,14 @@ def inventario_computadoras(request):
     else:
         form = ComputadoraForm()
 
+    total_comp = Computadora.objects.count()
+    prefijos_tabs = [
+        {"key": "IDANACOMP",   "label": "General",   "count": Computadora.objects.filter(asset_id__startswith="IDANACOMP").count()},
+        {"key": "IDANALABBL",  "label": "Lab BL",    "count": Computadora.objects.filter(asset_id__startswith="IDANALABBL").count()},
+        {"key": "IDANALABCOL", "label": "Lab COL",   "count": Computadora.objects.filter(asset_id__startswith="IDANALABCOL").count()},
+        {"key": "IDCFPLAB",    "label": "Lab CFP",   "count": Computadora.objects.filter(asset_id__startswith="IDCFPLAB").count()},
+    ]
+
     return render(request, "inventario/inventario_computadoras.html", {
         "form":              form,
         "next_id":           _siguiente_asset_id_computadora('estandar'),
@@ -221,6 +229,8 @@ def inventario_computadoras(request):
         "computadoras":      Computadora.objects.order_by("-id"),
         "edificios":         EdificioComputadora.objects.all(),
         "subtipos_otros":    SubtipoGradoComputadora.objects.all(),
+        "total_comp":        total_comp,
+        "prefijos_tabs":     prefijos_tabs,
     })
 
 
@@ -393,14 +403,23 @@ def inventario_monitores(request):
 def inventario_registros(request):
     year = datetime.datetime.now().year
 
+    prefijos_comp = [
+        {"key": "IDANACOMP",   "label": "General",  "count": Computadora.objects.filter(asset_id__startswith="IDANACOMP").count()},
+        {"key": "IDANALABBL",  "label": "Lab BL",   "count": Computadora.objects.filter(asset_id__startswith="IDANALABBL").count()},
+        {"key": "IDANALABCOL", "label": "Lab COL",  "count": Computadora.objects.filter(asset_id__startswith="IDANALABCOL").count()},
+        {"key": "IDCFPLAB",    "label": "Lab CFP",  "count": Computadora.objects.filter(asset_id__startswith="IDCFPLAB").count()},
+    ]
+
     return render(request, "inventario/inventario_registros.html", {
-        "computadoras": Computadora.objects.order_by("id"),
-        "impresoras": Impresora.objects.order_by("id"),
-        "televisores": Televisor.objects.order_by("id"),
-        "routers": Router.objects.order_by("id"),
-        "datashows": DataShow.objects.order_by("id"),
-        "monitores": Monitor.objects.order_by("id"),
-        "year": year,
+        "computadoras":  Computadora.objects.order_by("id"),
+        "impresoras":    Impresora.objects.order_by("id"),
+        "televisores":   Televisor.objects.order_by("id"),
+        "routers":       Router.objects.order_by("id"),
+        "datashows":     DataShow.objects.order_by("id"),
+        "monitores":     Monitor.objects.order_by("id"),
+        "year":          year,
+        "prefijos_comp": prefijos_comp,
+        "total_comp":    Computadora.objects.count(),
     })
 
 # ==============================================================

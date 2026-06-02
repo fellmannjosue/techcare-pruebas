@@ -1,0 +1,87 @@
+/* <--- hecho por claude code: estilos página En Construcción */
+
+body { background: #f0f4f8; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── Fondo animado con código flotante ── */
+.code-bg {
+  position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none;
+}
+.code-line {
+  position: absolute; font-family: 'Courier New', monospace; font-size: 13px;
+  color: rgba(59,130,246,.13); white-space: nowrap; animation: floatUp linear infinite;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(110vh); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(-10vh); opacity: 0; }
+}
+
+/* ── Tarjeta central ── */
+.construction-card {
+  position: relative; z-index: 1;
+  background: #fff; border-radius: 1.5rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+  padding: 3rem 2.5rem; max-width: 680px; width: 100%;
+  text-align: center;
+}
+
+/* ── Animación programador ── */
+.programmer-wrap { margin: 0 auto 1.5rem; width: 180px; height: 160px; }
+.programmer-svg { width: 100%; height: 100%; }
+
+/* Monitor */
+.monitor-body  { fill: #1e293b; rx: 8; }
+.monitor-screen{ fill: #0f172a; }
+.monitor-stand { fill: #334155; }
+
+/* Código en pantalla */
+.code-cursor {
+  animation: blink .7s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Líneas de código que se escriben */
+.code-type-1 { animation: typeWidth 2s steps(12,end) infinite alternate; }
+.code-type-2 { animation: typeWidth 1.5s steps(10,end) .4s infinite alternate; }
+.code-type-3 { animation: typeWidth 1.8s steps(14,end) .8s infinite alternate; }
+@keyframes typeWidth { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+
+/* Manos que escriben */
+.hands { animation: type .15s ease-in-out infinite alternate; transform-origin: center bottom; }
+@keyframes type { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+
+/* Cabeza que mira */
+.head { animation: look 3s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes look { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
+
+/* ── Barra de progreso ── */
+.progress-bar-anim {
+  height: 8px; border-radius: 99px;
+  background: linear-gradient(90deg, #3b82f6, #06b6d4, #8b5cf6);
+  background-size: 200%;
+  animation: progressSlide 3s linear infinite, progressGrow 8s ease-in-out infinite alternate;
+}
+@keyframes progressSlide { 0%{background-position:0%} 100%{background-position:200%} }
+@keyframes progressGrow  { 0%{width:20%} 100%{width:85%} }
+
+/* ── Badge "En Construcción" ── */
+.badge-construction {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+  color: #fff; border-radius: 99px; padding: .35rem 1rem;
+  font-size: .8rem; font-weight: 600; letter-spacing: .05em;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)} 50%{box-shadow:0 0 0 10px rgba(59,130,246,0)} }
+
+/* ── Chips de features ── */
+.feature-chip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  background: #f1f5f9; border-radius: .5rem; padding: .3rem .8rem;
+  font-size: .8rem; color: #64748b; margin: .25rem;
+  animation: fadeInUp .5s ease both;
+}
+@keyframes fadeInUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.btn-back { border-radius: .75rem; padding: .5rem 1.5rem; font-weight: 600; }

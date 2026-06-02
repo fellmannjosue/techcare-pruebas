@@ -1,0 +1,32 @@
+/* <--- hecho por claude code: estilos historial médico */
+
+/* Truncar motivo en tabla */
+.mh-motivo {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: default;
+}
+
+/* Modal tabla scrollable */
+#modal-tabla-wrap {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Sticky thead dentro del modal */
+#modal-tabla-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+/* btn-xs helper */
+.btn-xs {
+  padding: .15rem .45rem;
+  font-size: .75rem;
+  line-height: 1.4;
+  border-radius: .3rem;
+}

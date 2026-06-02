@@ -71,14 +71,14 @@ def register_all():
     from inventario.models import (
         AreaComputadora, AreaTelevisor, AsignadoAComputadora, CategoriaInventario,
         Computadora, DataShow, EdificioComputadora, GradoComputadora, GradoTelevisor,
-        Impresora, InventoryItem, ModeloComputadora, ModeloMonitor, Monitor, Router,
-        SerieComputadora, SubtipoGradoComputadora, Televisor,
+        Impresora, InventoryItem, ModeloComputadora, ModeloMonitor, ModeloTelevisor,
+        Monitor, Router, SerieComputadora, SubtipoGradoComputadora, Televisor,
     )
     for m in (
         AreaComputadora, AreaTelevisor, AsignadoAComputadora, CategoriaInventario,
         Computadora, DataShow, EdificioComputadora, GradoComputadora, GradoTelevisor,
-        Impresora, InventoryItem, ModeloComputadora, ModeloMonitor, Monitor, Router,
-        SerieComputadora, SubtipoGradoComputadora, Televisor,
+        Impresora, InventoryItem, ModeloComputadora, ModeloMonitor, ModeloTelevisor,
+        Monitor, Router, SerieComputadora, SubtipoGradoComputadora, Televisor,
     ):
         _safe_register(m)
 

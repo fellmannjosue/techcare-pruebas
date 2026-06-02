@@ -132,7 +132,19 @@
     </a>
   </div>
 
-  {% if request.user|es_maestro_notas or request.user.is_superuser %}
+  {% if request.user.is_superuser or request.user|es_coord_notas %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'notas_parcial_coordinador' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-file-certificate text-blue" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Notas Mitad de Parcial</div>
+          <div class="text-muted small mt-1">Revisión de reportes de notas</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% elif request.user|es_maestro_notas %}
   <div class="col-sm-6 col-lg-4">
     <a href="{% url 'notas_parcial_maestro' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-4">
@@ -140,6 +152,20 @@
           <div class="mb-3"><i class="ti ti-file-certificate text-blue" style="font-size:2.8rem;"></i></div>
           <div class="fw-bold fs-5">Notas Mitad de Parcial</div>
           <div class="text-muted small mt-1">Ver y comentar reportes de notas</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
+  {% if nav_salidas_bano %}
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'salidas_bano:index' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-4">
+        <div class="card-body">
+          <div class="mb-3"><i class="ti ti-door-exit text-teal" style="font-size:2.8rem;"></i></div>
+          <div class="fw-bold fs-5">Salidas Baño</div>
+          <div class="text-muted small mt-1">Control de salidas</div>
         </div>
       </div>
     </a>

@@ -31,9 +31,12 @@ urlpatterns = [
     path('settings/actividad/',                        views.settings_actividad,        name='settings_actividad'),
     path('settings/logs/',                             views.settings_logs,             name='settings_logs'),
     path('settings/logs/api/',                         views.settings_logs_api,         name='settings_logs_api'),
+    path('settings/auditoria/',                        views.settings_auditoria,        name='settings_auditoria'),
     path('settings/correos/',                          views.settings_correos,          name='settings_correos'),
-    path('settings/correos/smtp/',                     views.settings_correos_smtp,     name='settings_correos_smtp'),
-    path('settings/correos/test/',                     views.settings_correos_test,     name='settings_correos_test'),
+    path('settings/correos/smtp/',                     views.settings_correos_smtp,          name='settings_correos_smtp'),
+    path('settings/correos/test/',                     views.settings_correos_test,          name='settings_correos_test'),
+    path('settings/correos/modulo/test/',              views.settings_correos_modulo_test,      name='settings_correos_modulo_test'),
+    path('settings/correos/notif/toggle/',             views.settings_correos_notif_toggle,     name='settings_correos_notif_toggle'),
     path('settings/correos/envio-login/',              views.settings_envio_login,         name='settings_envio_login'),
     path('settings/correos/envio-login/preview/',      views.settings_envio_login_preview, name='settings_envio_login_preview'),
     path('settings/conducta/coordinadores/',                    views.settings_coordinadores,            name='settings_coordinadores'),
@@ -42,6 +45,7 @@ urlpatterns = [
     path('settings/conducta/notificaciones/<int:pk>/eliminar/', views.settings_notificacion_eliminar,    name='settings_notificacion_eliminar'),
     path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
     path('settings/reloj/permisos/',                            views.settings_reloj_permisos,           name='settings_reloj_permisos'),
+    path('settings/coordinadores/permisos/',                    views.settings_coord_permisos,           name='settings_coord_permisos'),
 
     # Recuperación de contraseña (vistas estándar de Django)
     path('password_reset/', auth_views.PasswordResetView.as_view(

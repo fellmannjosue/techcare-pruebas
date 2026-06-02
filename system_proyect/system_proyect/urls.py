@@ -67,6 +67,10 @@ urlpatterns = [
 
     path('notas-parcial/', include('notas_parcial.urls')),
 
+    # Apps en construcción (solo superuser)
+    path('atencion-padres/', include(('atencion_padres.urls', 'atencion_padres'), namespace='atencion_padres')),
+    path('salidas-bano/',    include(('salidas_bano.urls',    'salidas_bano'),    namespace='salidas_bano')),
+    path('camaras/',         include(('camaras.urls',         'camaras'),         namespace='camaras')),
 ]
 
 # <--- hecho por claude code: sirve archivos de media (imágenes subidas por usuarios)

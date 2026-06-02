@@ -1,9 +1,19 @@
+// <--- hecho por claude code: permisos reloj — checkboxes AJAX + label dinámico Visualizar
 (function(){
   const _cfg = document.getElementById('page-config');
   if (!_cfg) return;
   const CSRF = _cfg.dataset.csrf;
   const URL  = _cfg.dataset.url;
-  let badgeTimer;
+  const badgeTimers = new WeakMap();
+
+  function mostrarGuardado() {
+    const card  = document.querySelector('.card');
+    const badge = card ? card.querySelector('.badge-saved') : null;
+    if (!badge) return;
+    badge.style.display = '';
+    clearTimeout(badgeTimers.get(badge));
+    badgeTimers.set(badge, setTimeout(() => badge.style.display = 'none', 2000));
+  }
 
   document.querySelectorAll('.perm-toggle').forEach(function(chk){
     chk.addEventListener('change', function(){
@@ -22,22 +32,25 @@
         },
         body: JSON.stringify({ user_id: userId, campo: campo, valor: valor }),
       })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if (!data.ok) {
+      .then(r => r.json())
+      .then(data => {
+        self.disabled = false;
+        if (data.ok) {
+          mostrarGuardado();
+          // Actualizar label "Todos" / "Asignados" en la columna Visualizar
+          if (campo === 'ver_todos') {
+            const labelEl = self.parentElement.querySelector('.small');
+            if (labelEl) labelEl.textContent = valor ? 'Todos' : 'Asignados';
+          }
+        } else {
           self.checked = !valor;
           alert('Error al guardar el permiso.');
-        } else {
-          const badge = document.getElementById('badge-saved');
-          badge.style.display = '';
-          clearTimeout(badgeTimer);
-          badgeTimer = setTimeout(function(){ badge.style.display = 'none'; }, 2000);
         }
       })
-      .catch(function(){
+      .catch(() => {
+        self.disabled = false;
         self.checked = !valor;
-      })
-      .finally(function(){ self.disabled = false; });
+      });
     });
   });
 })();

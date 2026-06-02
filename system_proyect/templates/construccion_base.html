@@ -1,0 +1,130 @@
+{# <--- hecho por claude code: template compartido "En Construcción" con animación de programador #}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_nombre }} — En Construcción</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'accounts/css/construccion_base.css' %}">
+</head>
+<body class="d-flex align-items-center justify-content-center p-3">
+
+  {# Fondo con código flotante #}
+  <div class="code-bg" id="code-bg"></div>
+
+  <div class="construction-card mx-auto">
+
+    {# Badge estado #}
+    <div class="mb-3">
+      <span class="badge-construction">
+        <i class="ti ti-hammer"></i> En Construcción
+      </span>
+    </div>
+
+    {# Animación programador SVG #}
+    <div class="programmer-wrap">
+      <svg class="programmer-svg" viewBox="0 0 180 160" xmlns="http://www.w3.org/2000/svg">
+        {# Silla #}
+        <rect x="55" y="130" width="70" height="8" rx="4" fill="#cbd5e1"/>
+        <rect x="60" y="138" width="8" height="22" rx="4" fill="#94a3b8"/>
+        <rect x="112" y="138" width="8" height="22" rx="4" fill="#94a3b8"/>
+
+        {# Monitor - base #}
+        <rect x="52" y="118" width="76" height="8" rx="4" fill="#475569"/>
+        {# Monitor - cuerpo #}
+        <rect x="38" y="58" width="104" height="64" rx="8" fill="#1e293b"/>
+        {# Monitor - pantalla #}
+        <rect x="44" y="63" width="92" height="54" rx="5" fill="#0f172a"/>
+
+        {# Código en pantalla #}
+        <g font-family="monospace" font-size="7" fill="#22d3ee">
+          <text x="50" y="76">
+            <tspan class="code-type-1">def calcular():</tspan>
+          </text>
+          <text x="50" y="87">
+            <tspan class="code-type-2" fill="#a78bfa">  return datos</tspan>
+          </text>
+          <text x="50" y="98">
+            <tspan class="code-type-3" fill="#86efac">if x > 0:</tspan>
+          </text>
+          <text x="50" y="109">
+            <tspan fill="#fbbf24">  print(</tspan><tspan fill="#f472b6">"ok"</tspan><tspan fill="#fbbf24">)</tspan>
+            <tspan class="code-cursor" fill="#fff">|</tspan>
+          </text>
+        </g>
+
+        {# Persona - cuerpo #}
+        <rect x="74" y="98" width="32" height="28" rx="8" fill="#3b82f6"/>
+        {# Brazos / manos #}
+        <g class="hands">
+          <rect x="54" y="112" width="22" height="8" rx="4" fill="#3b82f6"/>
+          <rect x="104" y="112" width="22" height="8" rx="4" fill="#3b82f6"/>
+          {# dedos izq #}
+          <circle cx="56" cy="116" r="4" fill="#fbbf24"/>
+          <circle cx="63" cy="116" r="4" fill="#fbbf24"/>
+          <circle cx="70" cy="116" r="4" fill="#fbbf24"/>
+          {# dedos der #}
+          <circle cx="110" cy="116" r="4" fill="#fbbf24"/>
+          <circle cx="117" cy="116" r="4" fill="#fbbf24"/>
+          <circle cx="124" cy="116" r="4" fill="#fbbf24"/>
+        </g>
+        {# Cuello #}
+        <rect x="84" y="91" width="12" height="10" rx="4" fill="#fbbf24"/>
+        {# Cabeza #}
+        <g class="head">
+          <ellipse cx="90" cy="83" rx="16" ry="14" fill="#fbbf24"/>
+          {# Ojos #}
+          <circle cx="84" cy="81" r="2.5" fill="#1e293b"/>
+          <circle cx="96" cy="81" r="2.5" fill="#1e293b"/>
+          {# Brillo ojos #}
+          <circle cx="85" cy="80" r=".8" fill="#fff"/>
+          <circle cx="97" cy="80" r=".8" fill="#fff"/>
+          {# Sonrisa #}
+          <path d="M85 87 Q90 91 95 87" stroke="#1e293b" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          {# Cabello #}
+          <path d="M74 80 Q74 68 90 68 Q106 68 106 80" fill="#1e293b"/>
+        </g>
+
+        {# Partículas de código volando #}
+        <text x="20" y="50" font-size="9" fill="#3b82f6" opacity=".6" style="animation:floatUp 3s ease infinite">{ }</text>
+        <text x="148" y="70" font-size="9" fill="#8b5cf6" opacity=".6" style="animation:floatUp 4s ease .5s infinite">&#60;/&#62;</text>
+        <text x="15" y="90" font-size="8" fill="#06b6d4" opacity=".5" style="animation:floatUp 3.5s ease 1s infinite">( )</text>
+        <text x="150" y="95" font-size="8" fill="#22d3ee" opacity=".5" style="animation:floatUp 2.5s ease 1.5s infinite">[ ]</text>
+      </svg>
+    </div>
+
+    {# Título app #}
+    <h1 class="h2 fw-bold mb-1">
+      <i class="ti {{ app_icono }} text-{{ app_color }} me-2"></i>{{ app_nombre }}
+    </h1>
+    <p class="text-muted mb-3">{{ app_desc }}</p>
+
+    {# Barra de progreso #}
+    <div class="mb-4">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted small">Progreso de desarrollo</span>
+        <span class="text-muted small fw-semibold" id="pct-label">…</span>
+      </div>
+      <div class="progress" style="height:8px; border-radius:99px; background:#e2e8f0;">
+        <div class="progress-bar-anim" id="prog-bar" style="width:20%"></div>
+      </div>
+    </div>
+
+    {# Features planeados — data-features pasa el JSON al JS externo #}
+    <div class="mb-4">
+      <p class="text-muted small fw-semibold mb-2">Funcionalidades planeadas</p>
+      <div id="features-wrap" data-features="{{ features_json|escapejs }}"></div>
+    </div>
+
+    {# Botón volver #}
+    <a href="{% url 'menu' %}" class="btn btn-primary btn-back">
+      <i class="ti ti-arrow-left me-1"></i>Volver al Panel
+    </a>
+  </div>
+
+  <script src="{% static 'accounts/js/construccion_base.js' %}"></script>
+</body>
+</html>

@@ -7,6 +7,7 @@ function iniciarTabla(idTabla) {
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
 }
+
 $(function(){
   iniciarTabla('tablaComputadoras');
   iniciarTabla('tablaImpresoras');
@@ -14,6 +15,24 @@ $(function(){
   iniciarTabla('tablaRouters');
   iniciarTabla('tablaDataShows');
   iniciarTabla('tablaMonitores');
+
+  // ── Sub-tabs: filtrar tablaComputadoras por prefijo de Asset ID ───────────
+  let _prefijo_activo = '';
+
+  // Filtro personalizado: extrae el texto plano de la celda Asset ID (col 1)
+  $.fn.dataTable.ext.search.push(function (settings, data) {
+    if (settings.nTable.id !== 'tablaComputadoras') return true;
+    if (!_prefijo_activo) return true;
+    const texto = $('<div>').html(data[1]).text().trim();
+    return texto.startsWith(_prefijo_activo);
+  });
+
+  $('#subtabs-prefijo').on('click', 'button', function () {
+    $('#subtabs-prefijo button').removeClass('active');
+    $(this).addClass('active');
+    _prefijo_activo = $(this).data('prefijo') || '';
+    $('#tablaComputadoras').DataTable().draw();
+  });
 });
 
 (function(){

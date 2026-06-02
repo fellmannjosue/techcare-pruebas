@@ -3,7 +3,17 @@
     "allow": [
       "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://servicios.ana-hn.org:437/sw.js\")",
       "Bash(grep -n \"^</ul>$\\\\|^</ul> *$\" /home/admin2/techcare_project/system_proyect/accounts/templates/accounts/_sidebar.html)",
-      "Bash(python manage.py shell -c ' *)"
+      "Bash(python manage.py shell -c ' *)",
+      "Bash(sudo -S cp /home/admin2/techcare_project/system_proyect/calculadoras/static/calculadoras/js/lorem.js /home/admin2/techcare_project/system_proyect/staticfiles/calculadoras/js/lorem.js)",
+      "Bash(sudo -S cp /home/admin2/techcare_project/system_proyect/conducta/static/conducta/js/editor_progress.js /home/admin2/techcare_project/system_proyect/staticfiles/conducta/js/editor_progress.js)",
+      "Bash(git -C /home/admin2/techcare_project/system_proyect log --oneline -5 -- conducta/templates/conducta/dashboard_coordinador.html)",
+      "Bash(python3 -c ' *)",
+      "Bash(sudo -S cp /home/admin2/techcare_project/system_proyect/accounts/static/accounts/js/notifications.js /home/admin2/techcare_project/system_proyect/staticfiles/accounts/js/notifications.js)",
+      "Bash(sudo -S cp /home/admin2/techcare_project/system_proyect/reloj/static/reloj/js/permiso_reporte.js /home/admin2/techcare_project/system_proyect/staticfiles/reloj/js/permiso_reporte.js)",
+      "Bash(git commit -m ' *)",
+      "Bash(find . -name \"audit_registry.py\")",
+      "Bash(grep -rl \"ConfiguracionCoordinador\" --include=\"*.py\" .)",
+      "Bash(grep -rln \"dias_laborables\" --include=\"*.py\" .)"
     ]
   }
 }

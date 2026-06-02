@@ -84,6 +84,8 @@ def nav_context(request):
     else:
         nav_home_url = reverse('menu')
 
+    is_salidas_bano = is_admin or grp('control baño coord', 'control baños col')
+
     return {
         'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
         'nav_reloj':            is_admin or grp('reloj'),
@@ -102,4 +104,5 @@ def nav_context(request):
         'nav_home_url':         nav_home_url,
         'nav_solo_progress':    is_solo_progress,
         'nav_progress_only':    is_progress_only,
+        'nav_salidas_bano':     is_salidas_bano,
     }

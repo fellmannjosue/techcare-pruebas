@@ -42,6 +42,22 @@
         </button>
       </div>
 
+      {# ── Sub-tabs por prefijo de Asset ID ── #}
+      <div class="mb-3">
+        <div class="btn-group flex-wrap" id="subtabs-prefijo" role="group">
+          <button type="button" class="btn btn-sm btn-outline-secondary active" data-prefijo="">
+            <i class="ti ti-list me-1"></i>Todos
+            <span class="badge bg-secondary ms-1">{{ total_comp }}</span>
+          </button>
+          {% for tab in prefijos_comp %}{% if tab.count > 0 %}
+          <button type="button" class="btn btn-sm btn-outline-blue" data-prefijo="{{ tab.key }}">
+            {{ tab.label }}
+            <span class="badge bg-blue-lt text-blue ms-1">{{ tab.count }}</span>
+          </button>
+          {% endif %}{% endfor %}
+        </div>
+      </div>
+
       <div class="table-responsive">
         <table id="tablaComputadoras" class="table table-vcenter table-hover">
           <thead><tr>

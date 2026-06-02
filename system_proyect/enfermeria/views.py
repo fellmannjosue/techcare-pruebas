@@ -8,6 +8,7 @@ from django.urls                import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.core.mail           import EmailMessage
+from django.conf                import settings
 from django.http                import HttpResponse, JsonResponse
 from django.contrib.staticfiles import finders
 from django.db.models           import Sum, Q
@@ -111,8 +112,8 @@ def atencion_form(request):
                 persona = TblPrsDtosGen.objects.using('padres_sqlserver') \
                                                .get(PersonaID=persona_id)
                 partes = filter(None, (
+                    persona.Nombre1,   persona.Nombre2,
                     persona.Apellido1, persona.Apellido2,
-                    persona.Nombre1,   persona.Nombre2
                 ))
                 obj.estudiante = " ".join(partes)
 
@@ -271,11 +272,21 @@ def enviar_correo(request, atencion_id):
         cuerpo        = request.POST.get('mensaje') or default_mensaje
 
         if email_destino:
+            # <--- hecho por claude code: CC fijo a enfermeria@ana-hn.org + usuarios con toggle enfermeria activo
+            from accounts.models import DestinatarioEmail
+            _FIJO_ENF = 'enfermeria@ana-hn.org'
+            extras_enf = list(DestinatarioEmail.objects
+                              .filter(enfermeria=True)
+                              .exclude(user__email='')
+                              .values_list('user__email', flat=True))
+            cc_list = list({_FIJO_ENF} | set(extras_enf) - {email_destino})
+
             correo = EmailMessage(
                 subject=asunto,
                 body=cuerpo,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email_destino],
+                cc=cc_list,
             )
             correo.content_subtype = 'html'
             pdf_resp = atencion_download_pdf(request, atencion.pk)
@@ -509,15 +520,57 @@ def directorio_telefonos(request):
 # ================= HISTORIAL MÉDICO =================
 @login_required
 def medical_history(request):
-    students = (
+    # <--- hecho por claude code: historial médico — tabla global + tabla agrupada por alumno
+    from django.db.models import Count, Max
+
+    hoy = datetime.date.today()
+
+    # Todos los registros ordenados por fecha desc
+    atenciones = (
         AtencionMedica.objects
-        .values_list('estudiante', flat=True)
-        .distinct()
-        .order_by('estudiante')
+        .select_related('grado', 'atendido_por')
+        .order_by('-fecha_hora')
     )
+
+    total_atenciones = atenciones.count()
+    total_alumnos    = AtencionMedica.objects.values('estudiante').distinct().count()
+    este_mes         = AtencionMedica.objects.filter(
+        fecha_hora__year=hoy.year, fecha_hora__month=hoy.month
+    ).count()
+    hoy_count        = AtencionMedica.objects.filter(fecha_hora__date=hoy).count()
+
+    # Agrupado por alumno: total visitas + última visita + último grado
+    # Ordenado por última visita descendente
+    agrupado_qs = (
+        AtencionMedica.objects
+        .values('estudiante')
+        .annotate(total_visitas=Count('id'), ultima_visita=Max('fecha_hora'))
+        .order_by('-ultima_visita')
+    )
+    # Agregar el grado de la última atención a cada alumno
+    # (hacemos un dict pk→grado desde la query completa)
+    ultima_por_alumno = {}
+    for a in atenciones.order_by('estudiante', '-fecha_hora'):
+        if a.estudiante not in ultima_por_alumno:
+            ultima_por_alumno[a.estudiante] = a.grado.nombre
+
+    alumnos_agrupados = []
+    for row in agrupado_qs:
+        alumnos_agrupados.append({
+            'estudiante':    row['estudiante'],
+            'total_visitas': row['total_visitas'],
+            'ultima_visita': row['ultima_visita'],
+            'grado':         ultima_por_alumno.get(row['estudiante'], '—'),
+        })
+
     return render(request, 'enfermeria/medical_history.html', {
-        'students': students,
-        'year':     datetime.datetime.now().year,
+        'atenciones':        atenciones,
+        'alumnos_agrupados': alumnos_agrupados,
+        'total_atenciones':  total_atenciones,
+        'total_alumnos':     total_alumnos,
+        'este_mes':          este_mes,
+        'hoy_count':         hoy_count,
+        'year':              hoy.year,
     })
 
 @login_required
@@ -529,15 +582,17 @@ def get_medical_history_data(request):
     registros = (
         AtencionMedica.objects
         .filter(estudiante=student_name)
+        .select_related('grado', 'atendido_por')
         .order_by('-fecha_hora')
     )
 
-    # Construimos siempre la lista, aunque venga vacía
     history = []
     for rec in registros:
         history.append({
+            'pk':         rec.pk,
+            'student':    rec.estudiante,
             'grade':      rec.grado.nombre,
-            'date_time':  rec.fecha_hora.strftime('%d-%m-%Y %H:%M'),
+            'date_time':  rec.fecha_hora.strftime('%d/%m/%Y %H:%M'),
             'reason':     rec.motivo,
             'treatment':  rec.tratamiento,
             'attendant':  rec.atendido_por.nombre,

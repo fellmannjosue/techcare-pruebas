@@ -103,6 +103,10 @@
                   <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
                     <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
                   </a>
+                  {# <--- hecho por claude code: visor de auditoría (triggers MySQL) #}
+                  <a class="nav-link {% if active_tab == 'auditoria' %}active{% endif %}" href="{% url 'settings_auditoria' %}">
+                    <i class="ti ti-shield-lock me-2"></i>Auditoría
+                  </a>
                   <a class="nav-link {% if active_tab == 'correos' %}active{% endif %}" href="{% url 'settings_correos' %}">
                     <i class="ti ti-mail me-2"></i>Correos
                   </a>
@@ -126,9 +130,15 @@
                   </a>
                 </nav>
                 <div class="nav-section">Reloj</div>
-                <nav class="nav flex-column gap-1">
+                <nav class="nav flex-column gap-1 mb-2">
                   <a class="nav-link {% if active_tab == 'reloj_permisos' %}active{% endif %}" href="{% url 'settings_reloj_permisos' %}">
                     <i class="ti ti-shield-check me-2"></i>Permisos de edición
+                  </a>
+                </nav>
+                <div class="nav-section">Coordinadores</div>
+                <nav class="nav flex-column gap-1">
+                  <a class="nav-link {% if active_tab == 'coord_permisos' %}active{% endif %}" href="{% url 'settings_coord_permisos' %}">
+                    <i class="ti ti-shield-check me-2 text-teal"></i>Permisos de edición
                   </a>
                 </nav>
                 {% endif %}

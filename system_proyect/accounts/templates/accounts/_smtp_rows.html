@@ -1,0 +1,33 @@
+{# Filas de configuración SMTP — se usa dentro del panel principal #}
+<div class="smtp-card-row">
+  <span class="smtp-label">Servidor</span>
+  <span class="smtp-value font-monospace">{{ cfg.host }}:{{ cfg.port }}</span>
+</div>
+<div class="smtp-card-row">
+  <span class="smtp-label">TLS</span>
+  <span class="smtp-value">
+    {% if cfg.use_tls %}
+      <span class="badge bg-green-lt text-green">Activo</span>
+    {% else %}
+      <span class="badge bg-red-lt text-red">Desactivado</span>
+    {% endif %}
+  </span>
+</div>
+<div class="smtp-card-row">
+  <span class="smtp-label">Cuenta</span>
+  <span class="smtp-value">{{ cfg.user }}</span>
+</div>
+<div class="smtp-card-row">
+  <span class="smtp-label">Contraseña</span>
+  <span class="smtp-value">
+    {% if cfg.password_set %}
+      <span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>Configurada</span>
+    {% else %}
+      <span class="badge bg-red-lt text-red"><i class="ti ti-x me-1"></i>No configurada</span>
+    {% endif %}
+  </span>
+</div>
+<div class="smtp-card-row">
+  <span class="smtp-label">FROM</span>
+  <span class="smtp-value text-muted">{{ cfg.from_email }}</span>
+</div>

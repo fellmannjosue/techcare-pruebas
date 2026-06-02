@@ -2,15 +2,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Ojo contraseña ─────────────────────────────────────────────────────
     const pwdInput = document.getElementById('password');
+    const eyeBtn   = document.getElementById('eyeBtn');
     const eyeIcon  = document.getElementById('eyeIcon');
-    if (pwdInput && eyeIcon) {
-        eyeIcon.addEventListener('click', function() {
+    if (pwdInput && eyeBtn) {
+        eyeBtn.addEventListener('click', function () {
             if (pwdInput.type === 'password') {
                 pwdInput.type = 'text';
-                eyeIcon.src = eyeIcon.src.replace('eye_closed.png', 'eye_opened.png');
+                eyeIcon.classList.replace('ti-eye-off', 'ti-eye');
             } else {
                 pwdInput.type = 'password';
-                eyeIcon.src = eyeIcon.src.replace('eye_opened.png', 'eye_closed.png');
+                eyeIcon.classList.replace('ti-eye', 'ti-eye-off');
             }
         });
     }
@@ -18,9 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Input @ana-hn.org + toggle admin ──────────────────────────────────
     const grupoNormal = document.getElementById('inputGrupoDominio');
     const grupoAdmin  = document.getElementById('inputGrupoAdmin');
-    const shortInput  = document.getElementById('usernameShort');
+    const shortInput  = document.getElementById('usernameShort');   // name="username"
     const adminInput  = document.getElementById('usernameAdmin');
-    const hiddenUser  = document.getElementById('username');
     const toggleBtn   = document.getElementById('toggleAdminMode');
     const toggleLabel = document.getElementById('toggleAdminLabel');
     let modoAdmin = false;
@@ -44,17 +44,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── Submit: armar username real ───────────────────────────────────────
+    // shortInput tiene name="username" → Django lo recibe directamente.
+    // Solo necesitamos ajustar el valor antes de enviar.
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
-            // Construir el campo username según el modo
-            if (hiddenUser) {
-                if (modoAdmin) {
-                    hiddenUser.value = (adminInput ? adminInput.value.trim() : '');
-                } else {
-                    const base = shortInput ? shortInput.value.trim() : '';
-                    // Si ya viene con @, no agregar dominio (por si acaso)
-                    hiddenUser.value = base.includes('@') ? base : base + '@ana-hn.org';
+            if (modoAdmin) {
+                // En modo admin se usa el campo libre; copia su valor a shortInput
+                if (shortInput && adminInput) {
+                    shortInput.value = adminInput.value.trim();
+                }
+            } else {
+                // Modo normal: agregar @ana-hn.org si el gestor de contraseñas
+                // llenó solo la parte corta (Dashlane puede llenar ambas formas)
+                if (shortInput) {
+                    const base = shortInput.value.trim();
+                    shortInput.value = base.includes('@') ? base : base + '@ana-hn.org';
                 }
             }
             const btn = loginForm.querySelector('button[type="submit"]');
