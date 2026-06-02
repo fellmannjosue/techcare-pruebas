@@ -8,6 +8,7 @@
 {% block extra_head %}
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="{% static 'conducta/css/coordinador.css' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 {% endblock %}
 
 {% block page_actions %}
@@ -182,6 +183,21 @@
       {% endif %}
     </ul>
   </div>
+  {# ── Barra de eliminación masiva (compartida entre tabs) ── #}
+  {% if can_delete_dash %}
+  <div id="bulk-bar-reportes" style="display:none;" class="px-3 py-2 border-bottom bg-red-lt d-flex align-items-center gap-3">
+    <span class="text-red fw-semibold small">
+      <i class="ti ti-checkbox me-1"></i><span id="bulk-count-reportes">0</span> reporte(s) seleccionado(s)
+    </span>
+    <button class="btn btn-sm btn-danger ms-auto" id="btn-bulk-delete-reportes">
+      <i class="ti ti-trash me-1"></i>Eliminar seleccionados
+    </button>
+    <button class="btn btn-sm btn-ghost-secondary" id="btn-bulk-cancel-reportes">
+      Cancelar
+    </button>
+  </div>
+  {% endif %}
+
   <div class="card-body p-0">
     <div class="tab-content">
 
@@ -190,13 +206,15 @@
         <div class="table-responsive">
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
+              <th style="width:32px;" class="{% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-all-tab" data-tab="academicos" title="Seleccionar todos"></th>
               <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Docente</th>
               {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
               <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
             <tbody>
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'academico' %}
-              <tr>
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo">
+                <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-blue-lt text-blue fw-semibold">Informativo / Académico</span></td>
@@ -243,10 +261,13 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
+                    {% if can_edit_dash %}
                     <button class="btn btn-sm btn-primary btn-editar-inline"
                             data-pk="{{ r.pk }}" data-tipo="informativo" data-area="{{ r.area }}"
                             title="Editar"><i class="ti ti-pencil"></i></button>
+                    {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
@@ -254,6 +275,7 @@
                             title="Eliminar reporte">
                       <i class="ti ti-trash"></i>
                     </button>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
@@ -268,6 +290,7 @@
         <div class="table-responsive">
           <table id="tabla-conductuales" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
+              <th style="width:32px;" class="{% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-all-tab" data-tab="conductuales" title="Seleccionar todos"></th>
               <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Docente</th>
               {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
               <th>Estado</th><th>Evidencias</th><th>Acciones</th>
@@ -275,7 +298,8 @@
             <tbody>
               {# Informativos marcados como conductual #}
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'conductual' %}
-              <tr>
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo">
+                <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-orange-lt text-orange fw-semibold">Informativo / Conductual</span></td>
@@ -321,10 +345,13 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
+                    {% if can_edit_dash %}
                     <button class="btn btn-sm btn-primary btn-editar-inline"
                             data-pk="{{ r.pk }}" data-tipo="informativo" data-area="{{ r.area }}"
                             title="Editar"><i class="ti ti-pencil"></i></button>
+                    {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.materia }}"
@@ -332,13 +359,15 @@
                             title="Eliminar reporte">
                       <i class="ti ti-trash"></i>
                     </button>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
               {% endif %}{% endfor %}
               {# Reportes Conductuales #}
               {% for r in reportes_conductual %}
-              <tr>
+              <tr data-pk="{{ r.pk }}" data-tipo="conductual">
+                <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="conductual"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-red-lt text-red fw-semibold">Conductual</span></td>
@@ -384,10 +413,13 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
+                    {% if can_edit_dash %}
                     <button class="btn btn-sm btn-primary btn-editar-inline"
                             data-pk="{{ r.pk }}" data-tipo="conductual" data-area="{{ r.area }}"
                             title="Editar"><i class="ti ti-pencil"></i></button>
+                    {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="conductual"
                             data-alumno="{{ r.alumno_nombre }}" data-materia="{{ r.motivo|default:'—' }}"
@@ -395,6 +427,7 @@
                             title="Eliminar reporte">
                       <i class="ti ti-trash"></i>
                     </button>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
@@ -410,13 +443,15 @@
         <div class="table-responsive">
           <table id="tabla-progress" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
+              <th style="width:32px;" class="{% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-all-tab" data-tab="progress" title="Seleccionar todos"></th>
               <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Grado</th><th>Maestro</th>
               {% if request.user.is_superuser and area == 'bilingue' %}<th>Coord.</th>{% endif %}
               <th>Estado</th><th>Evidencias</th><th>Acciones</th>
             </tr></thead>
             <tbody>
               {% for r in reportes_progress %}
-              <tr>
+              <tr data-pk="{{ r.pk }}" data-tipo="progress">
+                <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="progress"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-teal-lt text-teal fw-semibold">Progress Report</span></td>
@@ -452,9 +487,11 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
+                    {% if can_edit_dash %}
                     <button class="btn btn-sm btn-primary btn-editar-inline"
                             data-pk="{{ r.pk }}" data-tipo="progress" data-area="bilingue"
                             title="Editar"><i class="ti ti-pencil"></i></button>
+                    {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
                   </div>
                 </td>
@@ -772,16 +809,18 @@
   <script src="{% static 'conducta/js/coordinador.js' %}?v=4"></script>
   <script>
   window._PAGE = {
-    csrf:          '{{ csrf_token }}',
-    isSuperuser:   {{ request.user.is_superuser|yesno:'true,false' }},
-    urlReenviar:   '{% url "reenviar_reportes_coordinadores" %}',
-    urlSetCoord:   '{% url "set_coord_reporte" %}',
-    urlEditarAjax: '{% url "editar_reporte_ajax" %}',
+    csrf:           '{{ csrf_token }}',
+    isSuperuser:    {{ request.user.is_superuser|yesno:'true,false' }},
+    urlReenviar:    '{% url "reenviar_reportes_coordinadores" %}',
+    urlSetCoord:    '{% url "set_coord_reporte" %}',
+    urlEditarAjax:  '{% url "editar_reporte_ajax" %}',
+    urlBulkDelete:  '{% url "bulk_eliminar_reportes" %}',
     coordsBL:  ['Mr. Martinez','Miss Alcerro','Mr. Ruiz','Mrs. Varela'],
     coordsCOL: ['Profe. Licona','Profe. Felipe','Profe. Gabriela'],
   };
   </script>
-  <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=5"></script>
 
 {# ══════ LIGHTBOX EVIDENCIA ══════ #}
 <div class="modal fade" id="modalLightbox" tabindex="-1" aria-hidden="true">

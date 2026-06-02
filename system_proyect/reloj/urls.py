@@ -115,6 +115,27 @@ urlpatterns = [
     path('permisos/reporte/list-mes/', views.permiso_list_mes, name='reloj_permiso_list_mes'),
     path('permisos/reporte/rebaja-toggle/', views.permiso_rebaja_toggle, name='reloj_permiso_rebaja_toggle'),
 
+    # ─────────────────────────────────────────────
+    # Config global (superuser)
+    # ─────────────────────────────────────────────
+    path('config/toggle-factor/', views.toggle_factor_visible, name='reloj_toggle_factor_visible'),
+    path('config/toggle-horas-diarias/', views.toggle_horas_diarias_visible, name='reloj_toggle_horas_diarias_visible'),
+
+    # ─────────────────────────────────────────────
+    # Vigilancia  (modo construcción)
+    # ─────────────────────────────────────────────
+    path('vigilancia/', views.vigilancia_list, name='reloj_vigilancia_list'),
+
+    # ─────────────────────────────────────────────
+    # Instructores CFP  (modo construcción)
+    # ─────────────────────────────────────────────
+    path('cfp/', views.cfp_list, name='reloj_cfp_list'),
+
+    # ─────────────────────────────────────────────
+    # Horas diarias laboradas (AJAX)
+    # ─────────────────────────────────────────────
+    path('permisos/reporte/set-horas-diarias/', views.permiso_reporte_set_horas_diarias, name='reloj_permiso_set_horas_diarias'),
+
     # Vacaciones
     path('vacaciones/', views.vacaciones_list, name='reloj_vacaciones_list'),
     path('vacaciones/config/save/', views.vacacion_config_save, name='reloj_vacacion_config_save'),

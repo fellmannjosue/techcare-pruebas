@@ -351,6 +351,57 @@
           </div>
           {% endif %}
 
+          {# ── Apps en construcción — solo superuser ── #}
+          {% if show_atencion_padres %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'atencion_padres:index' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3 border-2" style="border-style:dashed!important;border-color:#3b82f6!important;">
+                <div class="card-body">
+                  <div class="mb-2" style="position:relative;display:inline-block;">
+                    <i class="ti ti-users text-blue" style="font-size:2.5rem;"></i>
+                    <span class="badge bg-yellow text-white" style="position:absolute;top:-6px;right:-14px;font-size:.6rem;">WIP</span>
+                  </div>
+                  <div class="fw-bold">Atención a Padres</div>
+                  <div class="text-muted small mt-1">Citas y comunicados</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if show_salidas_bano %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'salidas_bano:index' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2">
+                    <i class="ti ti-door-exit text-teal" style="font-size:2.5rem;"></i>
+                  </div>
+                  <div class="fw-bold">Salidas Baño</div>
+                  <div class="text-muted small mt-1">Control de salidas</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if show_camaras %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'camaras:index' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3 border-2" style="border-style:dashed!important;border-color:#ef4444!important;">
+                <div class="card-body">
+                  <div class="mb-2" style="position:relative;display:inline-block;">
+                    <i class="ti ti-camera text-red" style="font-size:2.5rem;"></i>
+                    <span class="badge bg-yellow text-white" style="position:absolute;top:-6px;right:-14px;font-size:.6rem;">WIP</span>
+                  </div>
+                  <div class="fw-bold">Mapeo de Cámaras</div>
+                  <div class="text-muted small mt-1">Ubicación de cámaras</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
         </div>
         {# ===== /GRID ===== #}
 
@@ -597,6 +648,8 @@
 <script src="{% static 'accounts/js/menu.js' %}"></script>
 {% endif %}
 
+{# Toast container global — usado por notifications.js y notif_notas_toast.js #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
 {% include "accounts/_notif_notas_toast.html" %}
 
 {% include "accounts/_welcome_overlay.html" %}

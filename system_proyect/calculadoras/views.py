@@ -40,6 +40,11 @@ def ip_calculator(request):
     return render(request, 'calculadoras/ip.html', {})
 
 
+@login_required
+def lorem_ipsum(request):
+    return render(request, 'calculadoras/lorem.html', {})
+
+
 @require_POST
 @login_required
 def actualizar_tasa(request):

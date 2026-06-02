@@ -33,10 +33,10 @@ $(function () {
           <tr>
             <td><strong>${mat}</strong></td>
             <td>
-              <input type="text" name="asignacion_${mat}" class="form-control" maxlength="50" autocomplete="off">
+              <textarea name="asignacion_${mat}" class="form-control" rows="2" maxlength="80" autocomplete="off"></textarea>
             </td>
             <td>
-              <input type="text" name="comentario_${mat}" class="form-control" maxlength="50" autocomplete="off">
+              <textarea name="comentario_${mat}" class="form-control" rows="2" maxlength="80" autocomplete="off"></textarea>
             </td>
           </tr>
         `;
@@ -45,11 +45,11 @@ $(function () {
           <tr id="fila-asociadas">
             <td><strong>Asociadas</strong></td>
             <td>
-              <input type="text" name="asignacion_Asociadas[]" class="form-control input-asociadas" maxlength="50" autocomplete="off">
+              <textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="80" autocomplete="off"></textarea>
             </td>
             <td class="d-flex align-items-center gap-2">
               <button type="button" class="btn btn-success btn-sm add-asociada me-2" title="Agregar otra fila">+</button>
-              <input type="text" name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" maxlength="50" autocomplete="off">
+              <textarea name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" rows="2" maxlength="80" autocomplete="off"></textarea>
             </td>
           </tr>
         `;
@@ -90,10 +90,10 @@ $(function () {
       let nuevaFila = `
         <tr class="asociada-extra">
           <td></td>
-          <td><input type="text" name="asignacion_Asociadas[]" class="form-control input-asociadas" autocomplete="off"></td>
+          <td><textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="80" autocomplete="off"></textarea></td>
           <td class="d-flex align-items-center gap-2">
             <button type="button" class="btn btn-danger btn-sm remove-asociada me-2" title="Eliminar fila">&ndash;</button>
-            <input type="text" name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" autocomplete="off">
+            <textarea name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" rows="2" maxlength="80" autocomplete="off"></textarea>
           </td>
         </tr>
       `;
@@ -118,6 +118,7 @@ $(function () {
   // ===================================================
   // === JS PARA CONDUCTUAL E INFORMATIVO (Select2, Incisos, Autollenado Grado)
   // ===================================================
+
   // Aplica Select2 a campos de alumno y materia/docente si existen
   $('#id_alumno, #id_materia_docente').each(function () {
     if ($(this).length) {

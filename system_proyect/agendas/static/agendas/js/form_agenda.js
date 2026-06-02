@@ -22,7 +22,7 @@ if (btnAdd) {
         '<div class="row g-1 align-items-center mb-1">' +
           '<div class="col-auto">' +
             '<input type="text" name="materia_Asociadas[]" class="form-control form-control-sm"' +
-            ' placeholder="Nombre materia" style="width:160px;" id="aso-nombre-' + n + '">' +
+            ' placeholder="Nombre materia" style="width:160px;" maxlength="50" id="aso-nombre-' + n + '">' +
           '</div>' +
           '<div class="col-auto">' +
             '<button type="button" class="btn btn-sm btn-ghost-danger"' +
@@ -36,12 +36,12 @@ if (btnAdd) {
             '<th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th><th>Nota</th>' +
             '</tr></thead>' +
             '<tbody><tr>' +
-              '<td><input type="text" name="lunes_Asociadas_'     + nombre + '" class="form-control form-control-sm"></td>' +
-              '<td><input type="text" name="martes_Asociadas_'    + nombre + '" class="form-control form-control-sm"></td>' +
-              '<td><input type="text" name="miercoles_Asociadas_' + nombre + '" class="form-control form-control-sm"></td>' +
-              '<td><input type="text" name="jueves_Asociadas_'    + nombre + '" class="form-control form-control-sm"></td>' +
-              '<td><input type="text" name="viernes_Asociadas_'   + nombre + '" class="form-control form-control-sm"></td>' +
-              '<td><input type="text" name="nota_Asociadas_'      + nombre + '" class="form-control form-control-sm"></td>' +
+              '<td><input type="text" name="lunes_Asociadas_'     + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
+              '<td><input type="text" name="martes_Asociadas_'    + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
+              '<td><input type="text" name="miercoles_Asociadas_' + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
+              '<td><input type="text" name="jueves_Asociadas_'    + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
+              '<td><input type="text" name="viernes_Asociadas_'   + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
+              '<td><input type="text" name="nota_Asociadas_'      + nombre + '" class="form-control form-control-sm" maxlength="50"></td>' +
             '</tr></tbody>' +
           '</table>' +
         '</div>' +

@@ -54,6 +54,17 @@ def _notificar_nuevo_ticket(ticket, usuario_solicitante=None):
 # ======================================================
 # ASYNC EMAIL
 # ======================================================
+def _tickets_extra_recipients():
+    """Usuarios con toggle 'tickets' activo en DestinatarioEmail."""
+    try:
+        from accounts.models import DestinatarioEmail
+        return list(DestinatarioEmail.objects
+                    .filter(tickets=True)
+                    .exclude(user__email='')
+                    .values_list('user__email', flat=True))
+    except Exception:
+        return []
+
 def send_email_async(subject, message, recipient_list):
     Thread(
         target=send_mail,
@@ -61,6 +72,13 @@ def send_email_async(subject, message, recipient_list):
         kwargs={'html_message': message, 'fail_silently': True},
         daemon=True,
     ).start()
+
+def _send_tickets_notif(subject, html_msg):
+    """Envía notificación al Gmail fijo + usuarios con tickets toggle activo."""
+    fixed = ['techcare.app2024@gmail.com']
+    extras = _tickets_extra_recipients()
+    all_to = list(set(fixed + extras))
+    send_email_async(subject, html_msg, all_to)
 
 
 def enviar_correo_ticket_resuelto(ticket):
@@ -80,7 +98,7 @@ def enviar_correo_ticket_resuelto(ticket):
     })
     asunto = f"Ticket #{ticket.ticket_id} – Resuelto"
     send_email_async(asunto, html_msg, [ticket.email])
-    send_email_async(asunto, html_msg, ['techcare.app2024@gmail.com'])
+    _send_tickets_notif(asunto, html_msg)
 
 
 # ======================================================
@@ -121,7 +139,7 @@ def submit_ticket(request):
                     'tickets/email/email_notification.html',
                     {'ticket': ticket, 'img_url': PUBLIC_IMAGE_URL}
                 )
-                send_email_async(subject_technician, html_msg, ['techcare.app2024@gmail.com'])
+                _send_tickets_notif(subject_technician, html_msg)
 
                 subject_user = f'Ticket #{ticket.ticket_id} - Confirmación de Recepción'
                 send_email_async(subject_user, html_msg, [ticket.email])
@@ -154,7 +172,7 @@ def submit_ticket(request):
                 'tickets/email/email_notification.html',
                 {'ticket': ticket, 'img_url': PUBLIC_IMAGE_URL}
             )
-            send_email_async(subject, html_msg, ['techcare.app2024@gmail.com'])
+            _send_tickets_notif(subject, html_msg)
             send_email_async(subject, html_msg, [ticket.email])
 
             return JsonResponse({

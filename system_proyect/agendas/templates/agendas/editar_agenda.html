@@ -62,7 +62,7 @@
                 {% with cam_cls="cam-zona-"|add:idx|stringformat:"s" %}
                 {% with img_hidden=mat.imagen|yesno:"d-none," %}
                 <td>
-                  <textarea name="lunes_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.lunes }}</textarea>
+                  <textarea name="lunes_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.lunes }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -71,7 +71,7 @@
                   </div>
                 </td>
                 <td>
-                  <textarea name="martes_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.martes }}</textarea>
+                  <textarea name="martes_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.martes }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -80,7 +80,7 @@
                   </div>
                 </td>
                 <td>
-                  <textarea name="miercoles_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.miercoles }}</textarea>
+                  <textarea name="miercoles_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.miercoles }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -89,7 +89,7 @@
                   </div>
                 </td>
                 <td>
-                  <textarea name="jueves_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.jueves }}</textarea>
+                  <textarea name="jueves_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.jueves }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -98,7 +98,7 @@
                   </div>
                 </td>
                 <td>
-                  <textarea name="viernes_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.viernes }}</textarea>
+                  <textarea name="viernes_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.viernes }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -107,7 +107,7 @@
                   </div>
                 </td>
                 <td>
-                  <textarea name="nota_{{ mat.materia }}" class="form-control form-control-sm" rows="2">{{ mat.nota }}</textarea>
+                  <textarea name="nota_{{ mat.materia }}" class="form-control form-control-sm" rows="2" maxlength="50">{{ mat.nota }}</textarea>
                   <div class="cam-zona-{{ idx }} text-end mt-1 {{ img_hidden }}">
                     <label class="btn btn-xs btn-outline-secondary" title="Subir foto" style="cursor:pointer;">
                       <i class="ti ti-camera"></i>
@@ -172,12 +172,12 @@
               </thead>
               <tbody><tr>
                 {% if mat.editable %}
-                  <td><textarea name="lunes_{{ mat.materia }}"     class="form-control form-control-sm" rows="1">{{ mat.lunes }}</textarea></td>
-                  <td><textarea name="martes_{{ mat.materia }}"    class="form-control form-control-sm" rows="1">{{ mat.martes }}</textarea></td>
-                  <td><textarea name="miercoles_{{ mat.materia }}" class="form-control form-control-sm" rows="1">{{ mat.miercoles }}</textarea></td>
-                  <td><textarea name="jueves_{{ mat.materia }}"    class="form-control form-control-sm" rows="1">{{ mat.jueves }}</textarea></td>
-                  <td><textarea name="viernes_{{ mat.materia }}"   class="form-control form-control-sm" rows="1">{{ mat.viernes }}</textarea></td>
-                  <td><textarea name="nota_{{ mat.materia }}"      class="form-control form-control-sm" rows="1">{{ mat.nota }}</textarea></td>
+                  <td><textarea name="lunes_{{ mat.materia }}"     class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.lunes }}</textarea></td>
+                  <td><textarea name="martes_{{ mat.materia }}"    class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.martes }}</textarea></td>
+                  <td><textarea name="miercoles_{{ mat.materia }}" class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.miercoles }}</textarea></td>
+                  <td><textarea name="jueves_{{ mat.materia }}"    class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.jueves }}</textarea></td>
+                  <td><textarea name="viernes_{{ mat.materia }}"   class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.viernes }}</textarea></td>
+                  <td><textarea name="nota_{{ mat.materia }}"      class="form-control form-control-sm" rows="1" maxlength="50">{{ mat.nota }}</textarea></td>
                 {% else %}
                   <td><span class="small">{{ mat.lunes|default:"-" }}</span></td>
                   <td><span class="small">{{ mat.martes|default:"-" }}</span></td>

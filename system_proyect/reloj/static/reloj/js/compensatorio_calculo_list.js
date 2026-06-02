@@ -322,45 +322,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ── Registrar por mes ──
-  document.getElementById('btn-te-mes-add')?.addEventListener('click', async function() {
-    const mes      = document.getElementById('te-mes').value;         // "YYYY-MM"
-    const minutos  = parseInt(document.getElementById('te-mes-minutos').value);
-    const razon    = (document.getElementById('te-mes-razon').value || '').trim();
-    const errDiv   = document.getElementById('te-mes-error');
-    errDiv.classList.add('d-none');
-
-    if (!mes) {
-      errDiv.querySelector('.alert').textContent = 'Selecciona un mes.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    if (!minutos || minutos <= 0) {
-      errDiv.querySelector('.alert').textContent = 'Ingresa una cantidad de minutos válida.';
-      errDiv.classList.remove('d-none'); return;
-    }
-    const fecha = mes + '-01';   // primer día del mes
-    const btn = this; btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-    const res  = await fetch(window._PAGE.urlTeAdd.replace('{pk}', teActivePk), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
-      body: JSON.stringify({ fecha, minutos, razon }),
-    });
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-plus me-1"></i>Agregar';
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('te-mes-minutos').value = '';
-      document.getElementById('te-mes-razon').value   = '';
-      renderTERows(data.entries);
-      updateTETotals(data.total_min, data.total_hrs);
-    } else {
-      errDiv.querySelector('.alert').textContent = data.error || 'Error al agregar.';
-      errDiv.classList.remove('d-none');
-    }
-  });
-
   document.getElementById('btn-te-add')?.addEventListener('click', async function() {
     const fecha   = document.getElementById('te-fecha').value;
     const minutos = parseInt(document.getElementById('te-minutos').value);

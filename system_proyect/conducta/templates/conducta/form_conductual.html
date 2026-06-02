@@ -81,8 +81,8 @@
               <label class="form-label">Materia / Docente</label>
               <select id="id_materia_docente" name="materia_docente" class="form-select" required>
                 <option value="">-- Selecciona una materia --</option>
-                {% for v, t in materia_docente_choices %}
-                  <option value="{{ v }}">{{ t }}</option>
+                {% for v, t, c in materia_docente_choices %}
+                  <option value="{{ v }}" data-coord="{{ c }}">{{ t }}</option>
                 {% endfor %}
               </select>
             </div>

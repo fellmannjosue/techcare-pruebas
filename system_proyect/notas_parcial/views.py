@@ -21,7 +21,6 @@ from reportlab.pdfgen import canvas
 from django.contrib.auth import get_user_model
 
 from django.core.mail import send_mail
-
 from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada
 
 User = get_user_model()
@@ -899,34 +898,22 @@ def finalizar_revision(request):
         maestro_nombre = request.user.get_full_name() or request.user.username
         area_label     = dict(AREAS).get(area, area)
 
-        _areas_bl_keys = {a for a, _ in AREAS_BL}
-        if area in _areas_bl_keys:
-            _grupos_email = _GRUPOS_BL - {'coord_progress_bl'}
-        else:
-            _grupos_email = _GRUPOS_COLEGIO | {'coordinadores', 'coord_notas_parcial'}
-        coordinadores_emails = list(
-            User.objects.filter(groups__name__in=_grupos_email)
-            .exclude(email='').values_list('email', flat=True).distinct()
+        from urllib.parse import urlencode
+        params = {'parcial': parcial, 'anio': anio, 'area': area}
+        if grado:   params['grado']   = grado
+        if seccion: params['seccion'] = seccion
+        coord_url = request.build_absolute_uri(
+            f'/notas-parcial/coordinador/?{urlencode(params)}'
         )
-        if coordinadores_emails:
-            from urllib.parse import urlencode
-            params = {'parcial': parcial, 'anio': anio, 'area': area}
-            if grado:   params['grado']   = grado
-            if seccion: params['seccion'] = seccion
-            coord_url = request.build_absolute_uri(
-                f'/notas-parcial/coordinador/?{urlencode(params)}'
-            )
-            asunto = f'Revisión completada – {maestro_nombre}'
-            cuerpo = (
-                f'El/la maestro/a {maestro_nombre} ha finalizado de ingresar comentarios a los reportes de notas:\n\n'
-                f'  Área:    {area_label}\n'
-                f'  Parcial: {parcial} / {anio}\n'
-                f'  Grado:   {grado}  Sección: {seccion or "—"}\n\n'
-                f'Haz clic en el siguiente enlace para revisar y generar el PDF:\n'
-                f'{coord_url}'
-            )
-            send_mail(asunto, cuerpo, None, coordinadores_emails, fail_silently=True)
-
+        asunto = f'Revisión completada – {maestro_nombre}'
+        cuerpo = (
+            f'El/la maestro/a {maestro_nombre} ha finalizado de ingresar comentarios a los reportes de notas:\n\n'
+            f'  Área:    {area_label}\n'
+            f'  Parcial: {parcial} / {anio}\n'
+            f'  Grado:   {grado}  Sección: {seccion or "—"}\n\n'
+            f'Haz clic en el siguiente enlace para revisar y generar el PDF:\n'
+            f'{coord_url}'
+        )
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
@@ -1069,7 +1056,11 @@ def enviar_pdf_email(request):
   </table>
 </body></html>
 """
-    mail = DjangoEmailMessage(subject=asunto, body=cuerpo_html, to=[destinatario])
+    mail = DjangoEmailMessage(
+        subject=asunto, body=cuerpo_html,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[destinatario],
+    )
     mail.content_subtype = 'html'
     mail.attach(f'notas_parcial_{parcial}_{anio}.pdf', buf.getvalue(), 'application/pdf')
     try:

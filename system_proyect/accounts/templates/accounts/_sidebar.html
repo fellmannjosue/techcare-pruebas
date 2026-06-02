@@ -63,21 +63,33 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_plantilla_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-stack"></i></span>
+              <span class="nav-link-title">Plantillas de Horario</span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="{% url 'horarios_list' %}">
               <span class="nav-link-icon"><i class="ti ti-calendar-time"></i></span>
-              <span class="nav-link-title">Horarios</span>
+              <span class="nav-link-title">Asignaciones de Horario</span>
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_feriados_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-beach"></i></span>
+              <span class="nav-link-icon"><i class="ti ti-calendar-event"></i></span>
               <span class="nav-link-title">Feriados</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_sabados_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-calendar-week"></i></span>
+              <span class="nav-link-title">Sábados Especiales</span>
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_compensatorio_list' %}">
               <span class="nav-link-icon"><i class="ti ti-clock-plus"></i></span>
-              <span class="nav-link-title">Compensatorios</span>
+              <span class="nav-link-title">Tiempo Compensatorio</span>
             </a>
           </li>
           <li class="nav-item">
@@ -93,9 +105,27 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_permiso_reporte' %}">
+              <span class="nav-link-icon"><i class="ti ti-table-filled"></i></span>
+              <span class="nav-link-title">Reporte Permisos</span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_vacaciones_list' %}">
               <span class="nav-link-icon"><i class="ti ti-beach"></i></span>
               <span class="nav-link-title">Vacaciones</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_vigilancia_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-shield"></i></span>
+              <span class="nav-link-title">Vigilancia</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_cfp_list' %}">
+              <span class="nav-link-icon"><i class="ti ti-school"></i></span>
+              <span class="nav-link-title">Instructores CFP</span>
             </a>
           </li>
         </ul>
@@ -472,6 +502,16 @@
     <a class="nav-link" href="{% url 'notas_parcial_maestro' %}">
       <span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span>
       <span class="nav-link-title">Notas Mitad de Parcial</span>
+    </a>
+  </li>
+  {% endif %}
+
+  {# ── Salidas Baño ────────────────────────────────────── #}
+  {% if nav_salidas_bano %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'salidas_bano:index' %}">
+      <span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span>
+      <span class="nav-link-title">Salidas Baño</span>
     </a>
   </li>
   {% endif %}

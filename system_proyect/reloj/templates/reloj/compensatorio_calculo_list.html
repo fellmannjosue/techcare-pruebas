@@ -4,6 +4,14 @@
 {% block page_pretitle %}Cálculo de Tiempo Compensatorio{% endblock %}
 {% block page_title %}Cálculo de Tiempo Compensatorio{% endblock %}
 
+{% block page_actions %}
+<div class="col-auto">
+  <a href="{% url 'reloj_dashboard' %}" class="btn btn-outline-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+</div>
+{% endblock %}
+
 {% block content %}
 
 {% if messages %}
@@ -56,7 +64,7 @@
             <th>Empleado</th>
             <th class="text-center">Días no lab. ANA</th>
             <th class="text-center">Días adeudados</th>
-            <th class="text-center">Factor h/día</th>
+            {% if request.user.is_superuser %}<th class="text-center">Factor h/día</th>{% endif %}
             <th class="text-center">Horas adeudadas</th>
             <th class="text-center">3 dias de Permisos extras</th>
             <th class="text-center">Total a compensar</th>
@@ -66,7 +74,7 @@
             <th class="text-center">Saldo restante</th>
             <th class="text-center">Fecha inicio</th>
             <th class="text-center">Fecha fin estimada</th>
-            <th class="text-center">Días hábiles</th>
+            {% if request.user.is_superuser %}<th class="text-center">Días hábiles</th>{% endif %}
             <th class="text-center">Acciones</th>
           </tr>
         </thead>
@@ -121,7 +129,7 @@
             </td>
 
             {# Factor h/día — editable con lápiz #}
-            <td class="text-center">
+            {% if request.user.is_superuser %}<td class="text-center">
               {% if can_edit %}
               <button class="btn btn-sm btn-ghost-secondary btn-set-factor px-2 py-0"
                       data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}"
@@ -133,7 +141,7 @@
               {% else %}
               <span class="badge bg-teal-lt text-teal factor-badge-{{ r.pk }}">{{ item.factor }} h/d</span>
               {% endif %}
-            </td>
+            </td>{% endif %}
 
             {# Horas adeudadas — calculado #}
             <td class="text-center font-monospace horas-adeudadas-{{ r.pk }}">
@@ -231,10 +239,10 @@
               {% endif %}
             </td>
 
-            {# Días hábiles — al final #}
+            {% if request.user.is_superuser %}{# Días hábiles #}
             <td class="text-center">
               <span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span>
-            </td>
+            </td>{% endif %}
 
             <td class="text-center">
               {% if can_edit %}
@@ -486,39 +494,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        {# ── Formulario: Registrar por mes ── #}
-        {% if can_edit %}
-        <div class="card mb-3 border-0 bg-cyan-lt">
-          <div class="card-body py-2 px-3">
-            <div class="fw-semibold text-cyan small mb-2">
-              <i class="ti ti-calendar-plus me-1"></i>Registrar tiempo extra por mes
-            </div>
-            <div class="row g-2 align-items-end">
-              <div class="col-auto">
-                <label class="form-label form-label-sm mb-1">Mes</label>
-                <input type="month" id="te-mes" class="form-control form-control-sm" style="min-width:140px;">
-              </div>
-              <div class="col-auto">
-                <label class="form-label form-label-sm mb-1">Minutos</label>
-                <input type="number" id="te-mes-minutos" class="form-control form-control-sm" min="1" max="9999" placeholder="ej. 113" style="width:100px;">
-              </div>
-              <div class="col">
-                <label class="form-label form-label-sm mb-1">Razón <span class="text-muted">(opc.)</span></label>
-                <input type="text" id="te-mes-razon" class="form-control form-control-sm" maxlength="300" placeholder="Motivo...">
-              </div>
-              <div class="col-auto">
-                <button class="btn btn-sm btn-cyan" id="btn-te-mes-add">
-                  <i class="ti ti-plus me-1"></i>Agregar
-                </button>
-              </div>
-            </div>
-            <div id="te-mes-error" class="d-none mt-1">
-              <div class="alert alert-danger py-1 px-2 mb-0 small"></div>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-
         {# Campos ocultos para JS (no se muestran en el modal) #}
         <input type="hidden" id="te-fecha">
         <input type="hidden" id="te-minutos">

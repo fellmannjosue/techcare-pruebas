@@ -9,4 +9,5 @@ urlpatterns = [
     path('ip/', views.ip_calculator, name='calculadoras_ip'),
     path('tasa/actualizar/', views.actualizar_tasa, name='calculadoras_tasa_actualizar'),
     path('tasa/auto/', views.fetch_tasas_auto, name='calculadoras_tasa_auto'),
+    path('lorem/', views.lorem_ipsum, name='calculadoras_lorem'),
 ]

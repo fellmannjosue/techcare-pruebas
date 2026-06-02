@@ -478,7 +478,10 @@ class ReportePermisoMensual(models.Model):
     pct50_dias       = models.DecimalField("50%",               max_digits=5, decimal_places=2, default=0)
     pct75_dias       = models.DecimalField("75%",               max_digits=5, decimal_places=2, default=0)
     pct100_dias          = models.DecimalField("100%",              max_digits=5, decimal_places=2, default=0)
-    compensatorio_dias   = models.DecimalField("Compensatorio",    max_digits=5, decimal_places=2, default=0)
+    compensatorio_dias        = models.DecimalField("Compensatorio",           max_digits=5, decimal_places=2, default=0)
+    horas_diarias_laboradas   = models.DecimalField("Horas diarias laboradas", max_digits=4, decimal_places=1, default=8.0)
+    dias_laborables           = models.CharField("Días laborables", max_length=20, default="L,M,X,J,V", blank=True)
+    horario_comentario        = models.CharField("Comentario horario", max_length=200, blank=True, default="")
     pierde_bono          = models.BooleanField("Pierde bono",       default=False)
     rebaja_activa        = models.BooleanField("Rebaja activa",     default=False)
 
@@ -560,30 +563,46 @@ class RelojPermiso(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='reloj_permiso', verbose_name='Usuario',
     )
+    # Visualización: ver todos los empleados (True) o solo los asignados (False)
+    ver_todos = models.BooleanField('Ver todos los empleados', default=False)
     # Generar Reporte
+    reporte_ver           = models.BooleanField("Reporte – Ver",      default=False)
     reporte_editar        = models.BooleanField("Reporte – Editar",   default=False)
     reporte_eliminar      = models.BooleanField("Reporte – Eliminar", default=False)
     # Plantilla de Horario
+    plantilla_ver         = models.BooleanField("Plantilla – Ver",      default=False)
     plantilla_editar      = models.BooleanField("Plantilla – Editar",   default=False)
     plantilla_eliminar    = models.BooleanField("Plantilla – Eliminar", default=False)
     # Asignación de Horario
+    asignacion_ver        = models.BooleanField("Asignación – Ver",      default=False)
     asignacion_editar     = models.BooleanField("Asignación – Editar",   default=False)
     asignacion_eliminar   = models.BooleanField("Asignación – Eliminar", default=False)
     # Tiempo Compensatorio
+    compensatorio_ver     = models.BooleanField("Compensatorio – Ver",      default=False)
     compensatorio_editar  = models.BooleanField("Compensatorio – Editar",   default=False)
     compensatorio_eliminar= models.BooleanField("Compensatorio – Eliminar", default=False)
     # Feriados
+    feriado_ver           = models.BooleanField("Feriados – Ver",      default=False)
     feriado_editar        = models.BooleanField("Feriados – Editar",   default=False)
     feriado_eliminar      = models.BooleanField("Feriados – Eliminar", default=False)
     # Sábados Especiales
+    sabado_ver            = models.BooleanField("Sábados – Ver",      default=False)
     sabado_editar         = models.BooleanField("Sábados – Editar",   default=False)
     sabado_eliminar       = models.BooleanField("Sábados – Eliminar", default=False)
     # Cálculo Compensatorio
+    calculo_comp_ver      = models.BooleanField("Cálculo Comp. – Ver",      default=False)
     calculo_comp_editar   = models.BooleanField("Cálculo Comp. – Editar",   default=False)
     calculo_comp_eliminar = models.BooleanField("Cálculo Comp. – Eliminar", default=False)
     # Vacaciones
+    vacaciones_ver        = models.BooleanField("Vacaciones – Ver",      default=False)
     vacaciones_editar     = models.BooleanField("Vacaciones – Editar",   default=False)
     vacaciones_eliminar   = models.BooleanField("Vacaciones – Eliminar", default=False)
+    # Permisos Empleados (solo visualizar)
+    permisos_ver          = models.BooleanField("Permisos – Ver",        default=False)
+    # Vigilancia
+    vigilancia_ver        = models.BooleanField("Vigilancia – Ver",      default=False)
+    # Instructores CFP
+    cfp_ver               = models.BooleanField("Instructores CFP – Ver", default=False)
 
     class Meta:
         db_table         = 'reloj_permiso_usuario'
@@ -592,3 +611,24 @@ class RelojPermiso(models.Model):
 
     def __str__(self):
         return f'Permisos reloj – {self.user}'
+
+
+class RelojConfigGlobal(models.Model):
+    """Configuración global del módulo reloj (singleton pk=1)."""
+    factor_horas_visible = models.BooleanField(
+        'Factor H/Día visible para todos', default=True,
+        help_text='Si False, la columna solo la ve el superusuario.'
+    )
+    horas_diarias_visible = models.BooleanField(
+        'Horas Diarias Lab. visible para todos', default=True,
+        help_text='Si False, la columna solo la ve el superusuario.'
+    )
+
+    class Meta:
+        db_table = 'reloj_config_global'
+        verbose_name = 'Configuración global Reloj'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

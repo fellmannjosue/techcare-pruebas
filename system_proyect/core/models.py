@@ -23,6 +23,25 @@ class AuditModel(models.Model):
         abstract = True
 
 
+class AuditLog(models.Model):
+    """Registro de bajo nivel: capturado por triggers MySQL.
+    Complementa a django-simple-history (que registra cambios vía ORM con usuario).
+    Los triggers lo alimentan incluso ante SQL directo / migraciones / imports."""
+    table_name = models.CharField("Tabla", max_length=100, db_index=True)
+    operation  = models.CharField("Operación", max_length=10)  # INSERT UPDATE DELETE
+    record_pk  = models.CharField("PK del registro", max_length=100, db_index=True)
+    changed_at = models.DateTimeField("Fecha/hora", db_index=True)
+
+    class Meta:
+        db_table = 'core_audit_log'
+        verbose_name = 'Audit log (trigger)'
+        verbose_name_plural = 'Audit logs (trigger)'
+        ordering = ['-changed_at']
+
+    def __str__(self):
+        return f'{self.operation} on {self.table_name} pk={self.record_pk}'
+
+
 class Notificacion(models.Model):
     destinatario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notificaciones')
     mensaje = models.CharField(max_length=300)

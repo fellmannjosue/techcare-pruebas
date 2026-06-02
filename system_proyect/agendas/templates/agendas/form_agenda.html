@@ -71,12 +71,12 @@
             {% else %}
             <tr>
               <td class="fw-bold">{{ materia }}</td>
-              <td><textarea name="lunes_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
-              <td><textarea name="martes_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
-              <td><textarea name="miercoles_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
-              <td><textarea name="jueves_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
-              <td><textarea name="viernes_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
-              <td><textarea name="nota_{{ materia }}" class="form-control form-control-sm" rows="2"></textarea></td>
+              <td><textarea name="lunes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="martes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="miercoles_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="jueves_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="viernes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="nota_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
             </tr>
             {% endif %}
             {% endfor %}

@@ -81,14 +81,14 @@
               <label class="form-label">Materia / Docente</label>
               <select id="id_materia_docente" name="materia_docente" class="form-select" required>
                 <option value="">-- Selecciona una materia --</option>
-                {% for v, t in materia_docente_choices %}
-                  <option value="{{ v }}">{{ t }}</option>
+                {% for v, t, c in materia_docente_choices %}
+                  <option value="{{ v }}" data-coord="{{ c }}">{{ t }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Tipo de Reporte</label>
-              <select name="tipo_reporte" class="form-select" required>
+              <select name="tipo_reporte" id="tipo_reporte" class="form-select" required>
                 <option value="academico">Académico</option>
                 <option value="conductual">Conductual</option>
               </select>

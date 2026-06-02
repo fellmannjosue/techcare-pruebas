@@ -514,3 +514,135 @@
     collapseEl.addEventListener('hide.bs.collapse', () => icon.className = 'ti ti-chevron-down');
   }
 })();
+
+// ── Checkboxes + Eliminación masiva de reportes ───────────────────────────────
+// <--- hecho por claude code
+(function(){
+  const CSRF     = window._PAGE.csrf;
+  const URL_BULK = window._PAGE.urlBulkDelete;
+  if (!URL_BULK) return;
+
+  const bulkBar  = document.getElementById('bulk-bar-reportes');
+  const bulkCount = document.getElementById('bulk-count-reportes');
+  if (!bulkBar) return;
+
+  // ── Actualizar barra ──
+  function actualizarBarra() {
+    const checked = document.querySelectorAll('.chk-reporte:checked');
+    const n = checked.length;
+    bulkCount.textContent = n;
+    bulkBar.style.display = n > 0 ? 'flex' : 'none';
+  }
+
+  // ── Seleccionar todos en un tab ──
+  document.querySelectorAll('.chk-all-tab').forEach(chkAll => {
+    chkAll.addEventListener('change', function() {
+      const tab    = this.dataset.tab;
+      const tabla  = document.getElementById('tabla-' + tab);
+      if (!tabla) return;
+      // DataTables: iterar sobre todas las filas (incluyendo páginas no visibles)
+      if ($.fn.DataTable && $.fn.DataTable.isDataTable('#tabla-' + tab)) {
+        const dt = $('#tabla-' + tab).DataTable();
+        dt.rows().nodes().each(function(node) {
+          const chk = node.querySelector('.chk-reporte');
+          if (chk) chk.checked = this.checked;
+        }.bind(this));
+      } else {
+        tabla.querySelectorAll('.chk-reporte').forEach(c => c.checked = this.checked);
+      }
+      actualizarBarra();
+    });
+  });
+
+  // ── Click en checkbox individual ──
+  document.addEventListener('change', function(e) {
+    if (!e.target.classList.contains('chk-reporte')) return;
+    actualizarBarra();
+    // Sincronizar chk-all si aplica
+    const tr    = e.target.closest('tr');
+    const tabla = tr?.closest('table');
+    if (!tabla) return;
+    const tabId  = tabla.id?.replace('tabla-', '');
+    const chkAll = document.querySelector(`.chk-all-tab[data-tab="${tabId}"]`);
+    if (!chkAll) return;
+    const total   = tabla.querySelectorAll('.chk-reporte').length;
+    const marcados = tabla.querySelectorAll('.chk-reporte:checked').length;
+    chkAll.indeterminate = marcados > 0 && marcados < total;
+    chkAll.checked = marcados === total;
+  });
+
+  // ── Cancelar selección ──
+  document.getElementById('btn-bulk-cancel-reportes').addEventListener('click', function() {
+    document.querySelectorAll('.chk-reporte, .chk-all-tab').forEach(c => {
+      c.checked = false;
+      c.indeterminate = false;
+    });
+    actualizarBarra();
+  });
+
+  // ── Eliminar seleccionados ──
+  document.getElementById('btn-bulk-delete-reportes').addEventListener('click', async function() {
+    const checked = [...document.querySelectorAll('.chk-reporte:checked')];
+    if (!checked.length) return;
+
+    const nombres = checked.slice(0, 5).map(c => {
+      const tr = c.closest('tr');
+      const alumno = tr?.querySelectorAll('td')[2]?.textContent?.trim() || `#${c.dataset.pk}`;
+      return `• ${alumno}`;
+    });
+    const extras = checked.length > 5 ? `\n• ...y ${checked.length - 5} más` : '';
+
+    const conf = await Swal.fire({
+      title: `¿Eliminar ${checked.length} reporte(s)?`,
+      html: `<div class="text-start small text-muted">${nombres.join('<br>')}${extras}</div>`,
+      icon: 'warning',
+      showCancelButton:   true,
+      confirmButtonText:  'Sí, eliminar todos',
+      cancelButtonText:   'Cancelar',
+      confirmButtonColor: '#d63939',
+    });
+    if (!conf.isConfirmed) return;
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+
+    const items = checked.map(c => ({ pk: parseInt(c.dataset.pk), tipo: c.dataset.tipo }));
+
+    try {
+      const res  = await fetch(URL_BULK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body:    JSON.stringify({ items }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Eliminar filas del DOM
+        checked.forEach(c => {
+          const tr = c.closest('tr');
+          // Si DataTables, usar API; si no, remove directo
+          const tabla = tr?.closest('table');
+          if (tabla && $.fn.DataTable && $.fn.DataTable.isDataTable(tabla)) {
+            $(tabla).DataTable().row(tr).remove().draw(false);
+          } else {
+            tr?.remove();
+          }
+        });
+        actualizarBarra();
+        Swal.fire({
+          icon: 'success', title: `${data.eliminados} reporte(s) eliminado(s)`,
+          timer: 1800, showConfirmButton: false,
+        });
+      } else {
+        Swal.fire('Error', data.error || 'No se pudo eliminar.', 'error');
+      }
+    } catch(e) {
+      Swal.fire('Error', 'Error de conexión.', 'error');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash me-1"></i>Eliminar seleccionados';
+  });
+
+})();

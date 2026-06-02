@@ -136,8 +136,11 @@
       activeCellNombre = this.dataset.nombre;
       activeCellCampo  = this.dataset.campo;
       const label      = this.dataset.label;
+      const horas      = this.dataset.horas;
 
-      document.getElementById('mhp-subtitulo').textContent = activeCellNombre + ' · ' + label + ' · ' + activeCellMes;
+      let subtitulo = activeCellNombre + ' · ' + label + ' · ' + activeCellMes;
+      if (horas) subtitulo += ' · ' + horas + 'h';
+      document.getElementById('mhp-subtitulo').textContent = subtitulo;
 
       const esVac = activeCellCampo === 'vacaciones_dias';
       document.getElementById('mhp-vac-info').classList.toggle('d-none', !esVac);

@@ -1,4 +1,5 @@
 import io, os, json
+from accounts.models import CoordPermiso
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
@@ -14,34 +15,9 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 import datetime as _dt_module
 
-_COORD_BL_EMAIL_FALLBACK = {
-    'C1': 'cvarela@ana-hn.org',
-    'C2': 'druiz@ana-hn.org',
-    'C3': 'ialcerro@ana-hn.org',
-    'C4': 'jmartinez@ana-hn.org',
-}
-_COLEGIO_EMAILS_FALLBACK = [
-    'flicona@ana-hn.org',
-    'kgarcia@ana-hn.org',
-    'fvalladares@ana-hn.org',
-]
-
-def _coord_bl_email(codigo):
-    """Return email for a bilingüe coordinator by code, falling back to hardcoded dict."""
-    cfg = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=codigo, activo=True).select_related('usuario').first()
-    if cfg and cfg.usuario and cfg.usuario.email:
-        return cfg.usuario.email
-    return _COORD_BL_EMAIL_FALLBACK.get(codigo, '')
-
-def _colegio_emails(md_colegio_obj=None):
-    """Return list of colegio coordinator emails. Filters by md_colegio_obj.coordinadores if given."""
-    qs = ConfiguracionCoordinador.objects.filter(area='colegio', activo=True).select_related('usuario')
-    if md_colegio_obj is not None:
-        assigned = md_colegio_obj.coordinadores.filter(activo=True)
-        if assigned.exists():
-            qs = assigned.select_related('usuario')
-    emails = [c.usuario.email for c in qs if c.usuario and c.usuario.email]
-    return emails if emails else _COLEGIO_EMAILS_FALLBACK
+# Bandeja compartida por área (usada como FROM y TO en notificaciones de email)
+# Los correos individuales de coordinadores ya NO se usan como destinatarios de email;
+# toda notificación cae a la bandeja compartida de cada área.
 SITE_URL = 'https://servicios.ana-hn.org:437'
 
 _EMAIL_COORDI_BL = 'coordinacion_bl@ana-hn.org'
@@ -181,63 +157,87 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordi
         f"Maestro : {nombre}\nAlumno  : {alumno}\nGrado   : {grado}\n"
         f"Materia : {materia}\nÁrea    : {area}\n\nRevisa: {SITE_URL}"
     )
-    # 1. Regla explícita configurada en el admin
-    _SUBTIPO_CAMPO = {
-        'conductual':             'recibe_conductual',
-        'informativo_academico':  'recibe_informativo_academico',
-        'informativo_conductual': 'recibe_informativo_conductual',
-        'progress':               'recibe_progress',
+
+    # ── EMAIL: solo a usuarios con la flag activa en DestinatarioEmail ──
+    # conducta_bl / conducta_col según área; progress_bl para progress
+    _CAMPO_EMAIL = {
+        ('progress',              'bilingue'): 'progress_bl',
+        ('progress',              'colegio'):  'progress_bl',  # no hay progress_col
+        ('conductual',            'bilingue'): 'conducta_bl',
+        ('conductual',            'colegio'):  'conducta_col',
+        ('informativo_academico', 'bilingue'): 'conducta_bl',
+        ('informativo_academico', 'colegio'):  'conducta_col',
+        ('informativo_conductual','bilingue'): 'conducta_bl',
+        ('informativo_conductual','colegio'):  'conducta_col',
     }
-    destinatarios = None
-    if subtipo and subtipo in _SUBTIPO_CAMPO:
-        campo = _SUBTIPO_CAMPO[subtipo]
-        reglas = ConfiguracionNotificacion.objects.filter(
-            area=area, activo=True, **{campo: True}
-        ).select_related('coordinador__usuario')
-        emails = [
-            r.coordinador.usuario.email
-            for r in reglas
-            if r.coordinador.usuario and r.coordinador.usuario.email
+    campo_email = _CAMPO_EMAIL.get((subtipo, area))
+    if campo_email:
+        try:
+            from accounts.models import DestinatarioEmail
+            emails = list(
+                DestinatarioEmail.objects
+                .filter(**{campo_email: True})
+                .exclude(user__email='')
+                .values_list('user__email', flat=True)
+            )
+            if emails:
+                msg = EmailMultiAlternatives(
+                    asunto, texto_plano,
+                    settings.DEFAULT_FROM_EMAIL,
+                    emails,
+                )
+                msg.attach_alternative(html_cuerpo, "text/html")
+                msg.send(fail_silently=True)
+        except Exception as _e:
+            print(f"[WARN] email conducta: {_e}")
+
+    # ── CAMPANITA + TOAST ──
+    # Progress → DestinatarioEmail.progress_bl (todos los marcados)
+    # Resto   → ConfiguracionNotificacion por subtipo (controla quién recibe cada tipo)
+    bell_users = []
+
+    if subtipo == 'progress':
+        from accounts.models import DestinatarioEmail
+        bell_users = [
+            d.user for d in
+            DestinatarioEmail.objects.filter(progress_bl=True).select_related('user')
+            if d.user
         ]
-        if emails:
-            destinatarios = emails
+    else:
+        _SUBTIPO_CAMPO = {
+            'conductual':             'recibe_conductual',
+            'informativo_academico':  'recibe_informativo_academico',
+            'informativo_conductual': 'recibe_informativo_conductual',
+        }
+        if subtipo and subtipo in _SUBTIPO_CAMPO:
+            campo = _SUBTIPO_CAMPO[subtipo]
+            reglas = ConfiguracionNotificacion.objects.filter(
+                area=area, activo=True, **{campo: True}
+            ).select_related('coordinador__usuario')
+            bell_users = [r.coordinador.usuario for r in reglas if r.coordinador.usuario]
 
-    # 2. Fallback: lógica automática por materia/docente
-    if destinatarios is None:
-        if area == 'colegio':
-            destinatarios = _colegio_emails(md_colegio)
-        elif tipo == 'Reporte Conductual':
-            destinatarios = [e for e in [_coord_bl_email('C3')] if e]
-        elif coordinador_bl:
-            codigos = [c.strip() for c in coordinador_bl.split(',') if c.strip()]
-            destinatarios = list(dict.fromkeys(e for c in codigos for e in [_coord_bl_email(c)] if e))
-        else:
-            destinatarios = [e for c in _COORD_BL_EMAIL_FALLBACK for e in [_coord_bl_email(c)] if e]
-    try:
-        msg = EmailMultiAlternatives(
-            asunto, texto_plano, settings.DEFAULT_FROM_EMAIL, destinatarios
-        )
-        msg.attach_alternative(html_cuerpo, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as _e:
-        print(f"[WARN] email coordinadores: {_e}")
+    if not bell_users:
+        # Fallback: todos los coordinadores activos del área
+        _area_cfg = 'bilingue' if area != 'colegio' else 'colegio'
+        cfgs = ConfiguracionCoordinador.objects.filter(
+            area=_area_cfg, activo=True
+        ).select_related('usuario')
+        bell_users = [c.usuario for c in cfgs if c.usuario]
 
-    # Notificación en campanita para cada coordinador
     mensaje_noti = f"Nuevo {tipo} — {alumno} ({grado})"
     if materia:
         mensaje_noti += f" · {materia}"
     tipo_noti = 'alerta' if tipo == 'Reporte Conductual' else 'info'
-    for email in destinatarios:
+    for usuario in bell_users:
         try:
-            coord_user = User.objects.get(email=email)
             crear_notificacion(
-                coord_user,
+                usuario,
                 mensaje_noti,
                 modulo='conducta',
                 tipo=tipo_noti,
                 enviar_correo=False,
             )
-        except User.DoesNotExist:
+        except Exception:
             pass
 
 # PDF y PowerPoint
@@ -341,15 +341,29 @@ def obtener_alumnos_colegio():
 
 def get_materia_docente_choices(area):
     if area == 'bilingue':
-        return [
-            (str(md.pk), f"{md.materia} — {md.docente}")
-            for md in MateriaDocenteBilingue.objects.filter(activo=True)
-        ]
+        coord_map = {
+            c.codigo: c.nombre
+            for c in ConfiguracionCoordinador.objects.filter(area='bilingue')
+        }
+        choices = []
+        for md in MateriaDocenteBilingue.objects.filter(activo=True):
+            codigos = [c.strip() for c in md.coordinador.split(',') if c.strip()]
+            nombres = ', '.join(coord_map[c] for c in codigos if c in coord_map)
+            label = f"{md.materia} — {md.docente}"
+            if nombres:
+                label += f" ({nombres})"
+            choices.append((str(md.pk), label, md.coordinador))
+        return choices
     else:
-        return [
-            (str(md.pk), f"{md.materia} — {md.docente}")
-            for md in MateriaDocenteColegio.objects.filter(activo=True)
-        ]
+        choices = []
+        for md in MateriaDocenteColegio.objects.filter(activo=True).prefetch_related('coordinadores'):
+            coords = md.coordinadores.all()
+            label = f"{md.materia} — {md.docente}"
+            coord_codes = ','.join(c.codigo for c in coords)
+            if coords:
+                label += f" ({', '.join(c.nombre for c in coords)})"
+            choices.append((str(md.pk), label, coord_codes))
+        return choices
 
 # ---------------------------
 # DASHBOARDS Y FORMULARIOS
@@ -870,7 +884,7 @@ def eliminar_reporte_conductual(request, pk):
            f"Alumno: {info['alumno']} | Materia: {info['materia']} – {info['docente']} | "
            f"Fecha: {info['fecha']}")
     for su in User.objects.filter(is_superuser=True):
-        crear_notificacion(su, msg, 'conducta', tipo='warning')
+        crear_notificacion(su, msg, 'conducta', tipo='alerta')
 
     return JsonResponse({'ok': True})
 
@@ -898,9 +912,56 @@ def eliminar_reporte_informativo(request, pk):
            f"Alumno: {info['alumno']} | Materia: {info['materia']} – {info['docente']} | "
            f"Fecha: {info['fecha']}")
     for su in User.objects.filter(is_superuser=True):
-        crear_notificacion(su, msg, 'conducta', tipo='warning')
+        crear_notificacion(su, msg, 'conducta', tipo='alerta')
 
     return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def bulk_eliminar_reportes(request):
+    """
+    AJAX: elimina múltiples reportes a la vez.
+    Body: { "items": [{"pk": 1, "tipo": "informativo"}, ...] }
+    <--- hecho por claude code
+    """
+    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    try:
+        body  = json.loads(request.body or b'{}')
+        items = body.get('items', [])
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+    eliminador = request.user.get_full_name() or request.user.username
+    eliminados = 0
+    errores    = []
+
+    for item in items:
+        pk   = item.get('pk')
+        tipo = item.get('tipo', '')
+        try:
+            if tipo in ('informativo', 'academico', 'conductual_inf'):
+                obj = ReporteInformativo.objects.get(pk=pk)
+            elif tipo == 'conductual':
+                obj = ReporteConductual.objects.get(pk=pk)
+            elif tipo == 'progress':
+                obj = ProgressReport.objects.get(pk=pk)
+            else:
+                errores.append(f'Tipo desconocido: {tipo}')
+                continue
+            obj.delete()
+            eliminados += 1
+        except Exception as e:
+            errores.append(f'pk={pk}: {e}')
+
+    if eliminados:
+        msg = f"⚠️ Eliminación masiva: {eliminados} reporte(s) eliminados por {eliminador}."
+        for su in User.objects.filter(is_superuser=True):
+            crear_notificacion(su, msg, 'conducta', tipo='alerta')
+
+    return JsonResponse({'ok': True, 'eliminados': eliminados, 'errores': errores})
 
 
 @login_required
@@ -2098,6 +2159,21 @@ def dashboard_coordinador(request, area):
         cfg.codigo: cfg.nombre
         for cfg in ConfiguracionCoordinador.objects.filter(area='bilingue', activo=True)
     }
+
+    # ── Permisos editar/eliminar para coordinadores (CoordPermiso) ────────────
+    u = request.user
+    if u.is_superuser:
+        can_edit_dash   = True
+        can_delete_dash = True
+    else:
+        try:
+            _cp = u.coord_permiso
+            can_edit_dash   = _cp.dashboard_editar
+            can_delete_dash = _cp.dashboard_eliminar
+        except Exception:
+            can_edit_dash   = False
+            can_delete_dash = False
+
     contexto = {
         'area': area,
         'reportes_informativo': reportes_informativo,
@@ -2106,6 +2182,8 @@ def dashboard_coordinador(request, area):
         'strikes':              strikes,
         'today':                timezone.now().strftime('%Y-%m-%d'),
         'coord_nombres':        coord_nombres,
+        'can_edit_dash':        can_edit_dash,
+        'can_delete_dash':      can_delete_dash,
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 
@@ -2117,7 +2195,17 @@ def _docentes_de_coord(codigo):
             docentes.add(md.docente)
     return list(docentes)
 
-@login_required
+def _coord_dash_perms(user):
+    """Retorna (can_edit_dash, can_delete_dash) según CoordPermiso del usuario."""
+    if user.is_superuser:
+        return True, True
+    try:
+        cp = CoordPermiso.objects.get(user_id=user.pk)
+        return cp.dashboard_editar, cp.dashboard_eliminar
+    except CoordPermiso.DoesNotExist:
+        return False, False
+
+
 def dashboard_c1(request):
     q = _q_for_coord('C1')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
@@ -2129,12 +2217,14 @@ def dashboard_c1(request):
         ReporteConductual.objects.filter(area='bilingue', estado='enviado').count() +
         ProgressReport.objects.filter(estado='enviado').count()
     )
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C1',
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
 @login_required
@@ -2144,11 +2234,13 @@ def dashboard_c2(request):
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C2',
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
 @login_required
@@ -2161,11 +2253,13 @@ def dashboard_c3(request):
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C3',
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
 @login_required
@@ -2175,11 +2269,13 @@ def dashboard_c4(request):
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue', 'reportes_informativo': qs_info,
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C4',
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
 @login_required
@@ -2189,6 +2285,7 @@ def dashboard_coordi_bl(request):
         ReporteConductual.objects.filter(area='bilingue', estado='enviado').count() +
         ProgressReport.objects.filter(estado='enviado').count()
     )
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
         'area': 'bilingue',
         'reportes_informativo': ReporteInformativo.objects.none(),
@@ -2196,6 +2293,7 @@ def dashboard_coordi_bl(request):
         'reportes_progress':    ProgressReport.objects.all(),
         'strikes': {}, 'today': timezone.now().strftime('%Y-%m-%d'),
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
 @login_required
@@ -2430,11 +2528,12 @@ def eliminar_evidencia(request, pk):
 @login_required
 def directorio_telefonos(request):
     user = request.user
-    is_admin     = user.is_superuser
-    is_coord_bl  = user.groups.filter(name='coordinador_bilingue').exists()
-    is_coord_col = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+    is_admin       = user.is_superuser or user.is_staff
+    is_coord_bl    = user.groups.filter(name='coordinador_bilingue').exists()
+    is_coord_col   = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+    is_enfermeria  = user.groups.filter(name='enfermeria').exists()
 
-    if is_admin:
+    if is_admin or is_enfermeria:
         areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
         titulo = 'Todos los Alumnos'
         area_dashboard = 'bilingue'

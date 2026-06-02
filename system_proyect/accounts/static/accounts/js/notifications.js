@@ -97,6 +97,36 @@ function renderizarLista(notis) {
 }
 
 // =======================================
+// Toast de notificación
+// =======================================
+function mostrarToastNotif(n) {
+    const container = document.getElementById('tc-notif-global');
+    if (!container) return;
+
+    const colorMap  = { alerta: 'danger',  info: 'primary', exito: 'success', error: 'danger' };
+    const iconMap   = { alerta: 'ti-alert-triangle', info: 'ti-bell', exito: 'ti-check', error: 'ti-x' };
+    const color = colorMap[n.tipo]  || 'primary';
+    const icon  = iconMap[n.tipo]   || 'ti-bell';
+
+    const el = document.createElement('div');
+    el.className = 'toast show';
+    el.setAttribute('role', 'alert');
+    el.style.minWidth = '300px';
+    el.innerHTML = `
+      <div class="toast-header">
+        <span class="me-2 text-${color}"><i class="ti ${icon}"></i></span>
+        <strong class="me-auto">${(n.modulo || '').toUpperCase()}</strong>
+        <small class="text-muted ms-2">${n.fecha}</small>
+        <button type="button" class="btn-close ms-2" aria-label="Cerrar"></button>
+      </div>
+      <div class="toast-body small">${n.mensaje}</div>`;
+
+    el.querySelector('.btn-close').addEventListener('click', () => el.remove());
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 7000);
+    container.appendChild(el);
+}
+
+// =======================================
 // Cargar notificaciones del backend
 // =======================================
 function cargarNotificaciones() {
@@ -114,6 +144,10 @@ function cargarNotificaciones() {
         let nuevas = [...idsActuales].filter(id => !notisPrevias.has(id));
         if (nuevas.length > 0 && notisPrevias.size > 0) {
             playNotifSound();
+            nuevas.forEach(id => {
+                const n = notis.find(x => x.id === id);
+                if (n) mostrarToastNotif(n);
+            });
         }
 
         // Actualizar set

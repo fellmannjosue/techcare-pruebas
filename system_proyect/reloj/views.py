@@ -45,6 +45,7 @@ from .models import (
     TiempoExtraDia,
     VacacionConfig,
     RelojPermiso,
+    RelojConfigGlobal,
 )
 
 
@@ -2188,6 +2189,7 @@ def compensatorio_calculo_list(request):
     can_edit_compensado   = _reloj_can(u, 'calculo_comp', 'editar')
     can_edit_tiempo_extra = _reloj_can(u, 'calculo_comp', 'editar')
 
+    cfg = RelojConfigGlobal.get()
     return render(request, "reloj/compensatorio_calculo_list.html", {
         "registros_data": registros_data,
         "feriados_count": Feriado.objects.count(),
@@ -2197,6 +2199,7 @@ def compensatorio_calculo_list(request):
         "can_edit_compensado":   can_edit_compensado,
         "can_edit_tiempo_extra": can_edit_tiempo_extra,
         "url_set_compensado":    "reloj_compensatorio_calculo_set_compensado",
+        "factor_visible":        cfg.factor_horas_visible,
     })
 
 
@@ -2941,13 +2944,17 @@ def permiso_reporte_list(request):
             'excluido_tarde': excluido,
         })
 
+    _DIAS_SEMANA = [('L','Lun'),('M','Mar'),('X','Mié'),('J','Jue'),('V','Vie'),('S','Sáb'),('D','Dom')]
+    cfg = RelojConfigGlobal.get()
     return render(request, 'reloj/permiso_reporte.html', {
-        'rows':          rows,
-        'mes':           mes_inicio,
-        'mes_str':       mes_str,
-        'campos_permiso': CAMPOS_PERMISO,
-        'error_sql':     error_sql,
-        'can_delete':    _reloj_can(request.user, 'reporte', 'eliminar'),
+        'rows':            rows,
+        'mes':             mes_inicio,
+        'mes_str':         mes_str,
+        'campos_permiso':  CAMPOS_PERMISO,
+        'error_sql':       error_sql,
+        'can_delete':      _reloj_can(request.user, 'reporte', 'eliminar'),
+        'dias_semana':     _DIAS_SEMANA,
+        'horas_diarias_visible': cfg.horas_diarias_visible,
     })
 
 
@@ -3111,7 +3118,13 @@ def permiso_reporte_save(request):
         if dias_str:
             dias = float(dias_str)
         elif horas is not None:
-            dias = round(horas / 8, 4)
+            # Usar horas_diarias_laboradas del empleado para ese mes
+            _mes_1 = fecha.replace(day=1)
+            _cfg_emp = ReportePermisoMensual.objects.filter(
+                emp_code=emp_code, mes=_mes_1
+            ).values_list('horas_diarias_laboradas', flat=True).first()
+            _divisor = float(_cfg_emp or 8.0)
+            dias = round(horas / _divisor, 4)
         else:
             dias = 1.0
         if dias < 0:
@@ -3617,3 +3630,93 @@ def vacaciones_importar(request):
         })
 
     return render(request, 'reloj/vacaciones_importar.html', {'resultados': None})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VIGILANCIA  (modo construcción)
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+def vigilancia_list(request):
+    rp = getattr(request.user, 'reloj_permiso', None)
+    if not (request.user.is_superuser or request.user.is_staff or (rp and rp.vigilancia_ver)):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    return render(request, 'reloj/vigilancia_list.html', {})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# INSTRUCTORES CFP  (modo construcción)
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+def cfp_list(request):
+    rp = getattr(request.user, 'reloj_permiso', None)
+    if not (request.user.is_superuser or request.user.is_staff or (rp and rp.cfp_ver)):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    return render(request, 'reloj/cfp_list.html', {})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AJAX: guardar Horas Diarias Laboradas en ReportePermisoMensual
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def permiso_reporte_set_horas_diarias(request):
+    from datetime import date as _date
+    emp_code  = (request.POST.get('emp_code') or '').strip()
+    mes_str   = (request.POST.get('mes') or '').strip()
+    valor_str = (request.POST.get('valor') or '8.0').strip().replace(',', '.')
+
+    try:
+        valor = float(valor_str)
+        if valor <= 0:
+            return JsonResponse({'ok': False, 'error': 'Valor debe ser > 0'})
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes = _date(year, month, 1)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Mes inválido'})
+
+    dias_str   = (request.POST.get('dias') or 'L,M,X,J,V').strip()
+    comentario = (request.POST.get('comentario') or '').strip()[:200]
+
+    obj, _ = ReportePermisoMensual.objects.get_or_create(
+        emp_code=emp_code, mes=mes,
+        defaults={'nombre_empleado': emp_code},
+    )
+    from decimal import Decimal
+    obj.horas_diarias_laboradas = Decimal(str(round(valor, 1)))
+    obj.dias_laborables  = dias_str
+    obj.horario_comentario = comentario
+    obj.save(update_fields=['horas_diarias_laboradas', 'dias_laborables', 'horario_comentario', 'actualizado_en'])
+    return JsonResponse({'ok': True, 'valor': float(obj.horas_diarias_laboradas), 'dias': dias_str})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AJAX: superuser toggle visibilidad columna Factor H/Día
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def toggle_factor_visible(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    cfg = RelojConfigGlobal.get()
+    cfg.factor_horas_visible = not cfg.factor_horas_visible
+    cfg.save()
+    return JsonResponse({'ok': True, 'visible': cfg.factor_horas_visible})
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AJAX: superuser toggle visibilidad columna Horas Diarias Lab.
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def toggle_horas_diarias_visible(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    cfg = RelojConfigGlobal.get()
+    cfg.horas_diarias_visible = not cfg.horas_diarias_visible
+    cfg.save()
+    return JsonResponse({'ok': True, 'visible': cfg.horas_diarias_visible})

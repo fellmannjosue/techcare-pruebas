@@ -1,0 +1,41 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Instructores CFP{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Instructores CFP{% endblock %}
+
+{% block page_actions %}
+  <a href="javascript:history.back()" class="btn btn-ghost-secondary btn-sm">
+    <i class="ti ti-arrow-left me-1"></i>Regresar
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="mb-4">
+          <span class="badge bg-yellow-lt text-yellow px-3 py-2 fs-5 fw-bold">
+            <i class="ti ti-tools me-2"></i>En construcción
+          </span>
+        </div>
+        <div class="mb-3" style="font-size:4rem;">🚧</div>
+        <h2 class="fw-bold mb-2">Instructores CFP</h2>
+        <p class="text-muted mb-4">
+          Este módulo está en desarrollo.<br>
+          Pronto podrás gestionar el control de asistencia y reportes de los instructores del CFP.
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+          <span class="badge bg-purple-lt text-purple px-3 py-2">
+            <i class="ti ti-school me-1"></i>Instructores CFP
+          </span>
+          <span class="badge bg-orange-lt text-orange px-3 py-2">
+            <i class="ti ti-clock me-1"></i>Control Horario
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

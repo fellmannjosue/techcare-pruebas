@@ -37,6 +37,7 @@ urlpatterns = [
     path('reporte-conductual/<int:pk>/pdf-3strikes/', views.descargar_pdf_conductual_3_strikes, name='descargar_pdf_conductual_3_strikes'),
     # --- INFORMATIVO ---
     path('reporte-informativo/<int:pk>/eliminar/', views.eliminar_reporte_informativo, name='eliminar_reporte_informativo'),
+    path('reportes/bulk-eliminar/', views.bulk_eliminar_reportes, name='bulk_eliminar_reportes'),
     path('reporte-informativo/<int:pk>/editar/', views.editar_reporte_informativo, name='editar_reporte_informativo'),
     path('reporte-informativo/<int:pk>/pdf/', views.descargar_pdf_informativo, name='descargar_pdf_informativo'),
 

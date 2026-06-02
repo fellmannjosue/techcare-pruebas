@@ -1,0 +1,61 @@
+{% extends 'calculadoras/base_calculadoras.html' %}
+{% load static %}
+{% block title %}Lorem Ipsum{% endblock %}
+{% block page_pretitle %}Calculadoras{% endblock %}
+{% block page_title %}Generador Lorem Ipsum{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-typography text-indigo me-2"></i>Generador de Lorem Ipsum</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-sm-4">
+            <label class="form-label fw-semibold">Cantidad</label>
+            <input type="number" id="lorem-cantidad" class="form-control form-control-lg"
+                   min="1" max="100" value="5">
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label fw-semibold">Tipo</label>
+            <select id="lorem-tipo" class="form-select form-select-lg">
+              <option value="parrafos" selected>Párrafos</option>
+              <option value="oraciones">Oraciones</option>
+              <option value="palabras">Palabras</option>
+            </select>
+          </div>
+          <div class="col-sm-4 d-flex flex-column gap-2">
+            <div class="form-check mt-1">
+              <input class="form-check-input" type="checkbox" id="lorem-clasico" checked>
+              <label class="form-check-label" for="lorem-clasico">Comenzar con "Lorem ipsum…"</label>
+            </div>
+            <button id="lorem-generar" class="btn btn-primary">
+              <i class="ti ti-refresh me-1"></i>Generar
+            </button>
+          </div>
+        </div>
+
+        <div id="lorem-resultado" class="d-none">
+          <hr>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small" id="lorem-contador"></span>
+            <button id="lorem-copiar" class="btn btn-sm btn-outline-secondary">
+              <i class="ti ti-copy me-1"></i>Copiar
+            </button>
+          </div>
+          <textarea id="lorem-output" class="form-control font-monospace"
+                    rows="12" readonly style="font-size:.85rem; resize:vertical;"></textarea>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'calculadoras/js/lorem.js' %}"></script>
+{% endblock %}

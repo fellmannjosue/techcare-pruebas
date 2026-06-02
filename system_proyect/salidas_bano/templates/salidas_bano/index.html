@@ -1,0 +1,608 @@
+{# <--- hecho por claude code: Salidas Baño — Dashboard unificado v4 #}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Salidas Baño – TechCare</title>
+  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <style>
+    /* ── Tabs principales ─── */
+    .nav-tabs-main .nav-link {
+      font-size: .9rem; font-weight: 600; padding: .75rem 1.4rem;
+      border-radius: 0; border: none; border-bottom: 3px solid transparent;
+      color: var(--tblr-muted);
+    }
+    .nav-tabs-main .nav-link.active {
+      color: var(--tblr-teal); border-bottom-color: var(--tblr-teal);
+      background: transparent;
+    }
+    .nav-tabs-main .nav-link:hover:not(.active) { color: var(--tblr-body-color); }
+
+    /* ── Semáforo radios ─── */
+    .sem-radio { display: none; }
+    .sem-label {
+      cursor: pointer; font-size: .72rem; font-weight: 700;
+      padding: .22em .6em; border-radius: 99px; border: 2px solid;
+      transition: background .12s, color .12s; white-space: nowrap; line-height: 1.6;
+    }
+    .sem-radio:checked + .sem-label.verde    { background: #2fb344; color: #fff !important; border-color: #2fb344; }
+    .sem-radio:checked + .sem-label.amarillo { background: #f6b200; color: #fff !important; border-color: #f6b200; }
+    .sem-radio:checked + .sem-label.rojo     { background: #d63939; color: #fff !important; border-color: #d63939; }
+    .sem-radio:checked + .sem-label.negro    { background: #1d273b; color: #fff !important; border-color: #1d273b; }
+    .sem-label.verde    { color: #2fb344; border-color: #2fb344; }
+    .sem-label.amarillo { color: #b78f00; border-color: #f6b200; }
+    .sem-label.rojo     { color: #d63939; border-color: #d63939; }
+    .sem-label.negro    { color: #1d273b; border-color: #1d273b; }
+
+    /* ── Badge historial ─── */
+    .badge-sem { font-size: .75rem; padding: .3em .65em; border-radius: 99px; }
+    .badge-sem.verde    { background: #2fb344; color: #fff; }
+    .badge-sem.amarillo { background: #f6b200; color: #fff; }
+    .badge-sem.rojo     { background: #d63939; color: #fff; }
+    .badge-sem.negro    { background: #1d273b; color: #fff; }
+
+    /* ── Historial borde ─── */
+    .hist-row.verde td:first-child    { border-left: 4px solid #2fb344; }
+    .hist-row.amarillo td:first-child { border-left: 4px solid #f6b200; }
+    .hist-row.rojo td:first-child     { border-left: 4px solid #d63939; }
+    .hist-row.negro td:first-child    { border-left: 4px solid #1d273b; }
+
+    /* ── Tabs de grado ─── */
+    .nav-grados { border-bottom: 2px solid #e6ebf1; padding: .5rem 1rem 0; }
+    .nav-grados .nav-link {
+      font-size: .82rem; font-weight: 600; padding: .5rem 1.1rem;
+      border-radius: 6px 6px 0 0; color: #667380; border: none;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+    }
+    .nav-grados .nav-link.active {
+      color: #0ca678; border-bottom-color: #0ca678; background: #f0faf6;
+    }
+    .nav-grados .nav-link:hover:not(.active) { background: #f4f6f8; color: #354052; }
+
+    /* ── Bell badge ─── */
+    #bell-badge { position:absolute;top:2px;right:2px;font-size:.65rem;min-width:16px;
+                  height:16px;line-height:16px;padding:0 4px;border-radius:99px; }
+    /* ── Toasts ─── */
+    #toast-container { position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;
+                        display:flex;flex-direction:column;gap:.5rem;max-width:360px; }
+
+    /* ── Semáforo automático: indicador de próximo color ─── */
+    .sem-next-lbl {
+      font-size: .7rem; font-weight: 700; padding: .12em .4em;
+      border-radius: 4px; display: inline-block;
+    }
+    .sem-next-lbl.verde    { color: #2fb344; }
+    .sem-next-lbl.amarillo { color: #b78f00; }
+    .sem-next-lbl.rojo     { color: #d63939; }
+    .sem-next-lbl.negro    { color: #1d273b; }
+
+    /* ── Fila bloqueada (Negro) ─── */
+    .fila-bloqueada { background: #f8f9fa !important; }
+    .fila-bloqueada td { color: #888 !important; }
+  </style>
+</head>
+<body class="antialiased">
+<div class="wrapper">
+
+  {# ── Sidebar ─── #}
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-sb">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand">
+        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+      <div class="collapse navbar-collapse" id="sidebar-sb">
+        {% include 'accounts/_sidebar.html' %}
+        {% include 'accounts/_user_dropdown.html' %}
+      </div>
+    </div>
+  </aside>
+
+  <div class="page-wrapper">
+    {# ── Header ─── #}
+    <div class="page-header d-print-none">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+                <li class="breadcrumb-item active">Salidas al Baño</li>
+              </ol>
+            </nav>
+            <h2 class="page-title">
+              <i class="ti ti-door-exit me-2 text-teal"></i>Control de Salidas al Baño
+            </h2>
+          </div>
+          <div class="col-auto">
+            <div class="position-relative d-inline-block">
+              <button class="btn btn-ghost-secondary px-2" id="btnCampana" title="Notificaciones">
+                <i class="ti ti-bell" style="font-size:1.5rem;"></i>
+              </button>
+              <span class="badge bg-red" id="bell-badge" {% if not notif_count %}style="display:none"{% endif %}>{{ notif_count }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="container-fluid px-0">
+
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }} alert-dismissible mx-3 mb-3">
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          {{ msg }}
+        </div>
+        {% endfor %}
+
+        <div class="card border-0 shadow-sm">
+
+          {# ── Nav tabs ─── #}
+          <div class="card-header pb-0 border-bottom">
+            <ul class="nav nav-tabs-main nav-tabs border-0 mb-0" id="tabs-main" role="tablist">
+              <li class="nav-item">
+                <button class="nav-link {% if tab_activo == 'salidas' %}active{% endif %}"
+                        data-bs-toggle="tab" data-bs-target="#tab-salidas" type="button">
+                  <i class="ti ti-door-exit me-2"></i>Control de Salidas
+                </button>
+              </li>
+              {% if es_coordinador %}
+              <li class="nav-item">
+                <button class="nav-link {% if tab_activo == 'periodos' %}active{% endif %}"
+                        data-bs-toggle="tab" data-bs-target="#tab-periodos" type="button">
+                  <i class="ti ti-calendar-event me-2"></i>Períodos Escolares
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link {% if tab_activo == 'maestros' %}active{% endif %}"
+                        data-bs-toggle="tab" data-bs-target="#tab-maestros" type="button">
+                  <i class="ti ti-chalkboard me-2"></i>Maestros – Clases
+                </button>
+              </li>
+              {% endif %}
+            </ul>
+          </div>
+
+          <div class="tab-content">
+
+            <div class="tab-pane fade {% if tab_activo == 'salidas' %}show active{% endif %}" id="tab-salidas">
+
+              {# ── Selector de área ─── #}
+              <div class="px-3 py-3 border-bottom bg-light">
+                <form method="get" id="frm-area" class="row g-3 align-items-center">
+                  <input type="hidden" name="tab" value="salidas">
+                  <div class="col-auto">
+                    <label class="form-label mb-0 fw-semibold me-2">Área</label>
+                  </div>
+                  <div class="col-sm-3">
+                    <select name="area" class="form-select" id="sel-area" onchange="this.form.submit()">
+                      {% for val, label in areas %}
+                      <option value="{{ val }}" {% if area_sel == val %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% if periodo %}
+                  <div class="col-auto">
+                    <span class="badge bg-teal-lt text-teal py-2 px-3 fs-6">
+                      <i class="ti ti-calendar-check me-1"></i>{{ periodo.nombre }}
+                      <span class="text-muted ms-1 fw-normal" style="font-size:.8rem;">
+                        {{ periodo.fecha_inicio|date:"d/m/Y" }} — {{ periodo.fecha_fin|date:"d/m/Y" }}
+                      </span>
+                    </span>
+                  </div>
+                  {% endif %}
+                  {% if grados %}
+                  <div class="col-auto">
+                    <span class="badge bg-blue-lt text-blue py-2 px-3">
+                      <i class="ti ti-users me-1"></i>{{ grados|length }} grado{{ grados|length|pluralize }}
+                    </span>
+                  </div>
+                  {% endif %}
+                </form>
+              </div>
+
+              {% if error %}
+              <div class="alert alert-warning m-3">
+                <i class="ti ti-alert-triangle me-2"></i>{{ error }}
+                {% if es_coordinador %}
+                <a href="?tab=periodos" class="alert-link ms-2">→ Configurar período</a>
+                {% endif %}
+              </div>
+              {% endif %}
+
+              {# ── Tabs de grado ─── #}
+              {% if grados_display %}
+              <div class="nav-grados d-flex flex-wrap">
+                <ul class="nav" id="tabs-grados" role="tablist">
+                  {% for g,g_label in grados_display %}
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if g == grado_sel %}active{% endif %}"
+                            id="tab-g{{ forloop.counter }}"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-g{{ forloop.counter }}"
+                            data-grado="{{ g }}"
+                            type="button" role="tab">
+                      <i class="ti ti-school me-1"></i>{{ g_label }}
+                    </button>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </div>
+
+              <div class="tab-content" id="tabs-grados-content">
+                {% for g,g_label in grados_display %}
+                <div class="tab-pane fade {% if g == grado_sel %}show active{% endif %}"
+                     id="pane-g{{ forloop.counter }}"
+                     role="tabpanel"
+                     data-grado="{{ g }}">
+
+                  {# Filtro de sección #}
+                  <div id="grupos-g{{ forloop.counter }}" class="px-3 py-2 border-bottom bg-light d-flex align-items-center gap-2 flex-wrap">
+                  </div>
+
+                  <div class="table-responsive">
+                    <table class="table table-vcenter table-hover table-sm mb-0 tabla-alumnos"
+                           id="tabla-g{{ forloop.counter }}"
+                           data-grado="{{ g }}"
+                           data-grupos-id="grupos-g{{ forloop.counter }}">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Alumno</th>
+                          <th class="text-center" style="width:145px">Estado / Semáforo</th>
+                          <th style="width:220px">Clase / Maestro</th>
+                          <th style="width:110px" class="text-center">Fecha</th>
+                          <th style="width:88px" class="text-center">Salida</th>
+                          <th style="width:88px" class="text-center">Regreso</th>
+                          <th>Comentario</th>
+                          <th class="text-center" style="width:75px">Acc.</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% elif not error %}
+              <div class="alert alert-info m-3">
+                <i class="ti ti-info-circle me-2"></i>No se encontraron alumnos para esta área.
+              </div>
+              {% endif %}
+            </div>
+
+            {% if es_coordinador %}
+            <div class="tab-pane fade {% if tab_activo == 'periodos' %}show active{% endif %}" id="tab-periodos">
+              <div class="row g-0">
+                {# Formulario #}
+                <div class="col-lg-4 border-end">
+                  <div class="p-4">
+                    <h4 class="mb-3">
+                      <i class="ti ti-{% if editar_periodo_id %}edit{% else %}plus-circle{% endif %} me-2 text-teal"></i>
+                      {% if editar_periodo_id %}Editar período{% else %}Nuevo período{% endif %}
+                    </h4>
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="accion" value="guardar_periodo">
+                      <input type="hidden" name="edit_id" value="{{ editar_periodo_id }}">
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                        {{ periodo_form.nombre }}
+                        {% if periodo_form.nombre.errors %}<div class="text-danger small mt-1">{{ periodo_form.nombre.errors }}</div>{% endif %}
+                      </div>
+                      <div class="row g-2 mb-3">
+                        <div class="col-6">
+                          <label class="form-label fw-semibold">Parcial</label>
+                          {{ periodo_form.parcial }}
+                        </div>
+                        <div class="col-6">
+                          <label class="form-label fw-semibold">Año</label>
+                          {{ periodo_form.anio }}
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Área</label>
+                        {{ periodo_form.area }}
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Fecha inicio</label>
+                        {{ periodo_form.fecha_inicio }}
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Fecha fin</label>
+                        {{ periodo_form.fecha_fin }}
+                      </div>
+                      <div class="mb-4 form-check">
+                        {{ periodo_form.activo }}
+                        <label class="form-check-label" for="{{ periodo_form.activo.id_for_label }}">
+                          Marcar como período activo
+                        </label>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-teal flex-fill">
+                          <i class="ti ti-device-floppy me-1"></i>Guardar
+                        </button>
+                        {% if editar_periodo_id %}
+                        <a href="?tab=periodos" class="btn btn-outline-secondary">
+                          <i class="ti ti-x"></i> Cancelar
+                        </a>
+                        {% endif %}
+                      </div>
+                    </form>
+                  </div>
+                </div>
+                {# Lista #}
+                <div class="col-lg-8">
+                  <div class="table-responsive">
+                    <table class="table table-vcenter table-hover table-sm mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Nombre</th>
+                          <th class="text-center">Parcial</th>
+                          <th class="text-center">Año</th>
+                          <th>Área</th>
+                          <th>Inicio</th>
+                          <th>Fin</th>
+                          <th class="text-center">Estado</th>
+                          <th class="text-center" style="width:90px">Acc.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for p in periodos_lista %}
+                        <tr {% if editar_periodo_id == p.pk|stringformat:"s" %}class="table-warning"{% endif %}>
+                          <td class="fw-semibold">{{ p.nombre }}</td>
+                          <td class="text-center"><span class="badge bg-blue-lt text-blue">{{ p.parcial }}</span></td>
+                          <td class="text-center">{{ p.anio }}</td>
+                          <td>{{ p.get_area_display }}</td>
+                          <td>{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+                          <td>{{ p.fecha_fin|date:"d/m/Y" }}</td>
+                          <td class="text-center">
+                            {% if p.activo %}
+                            <span class="badge bg-success"><i class="ti ti-check me-1"></i>Activo</span>
+                            {% else %}
+                            <span class="badge bg-secondary-lt text-secondary">Inactivo</span>
+                            {% endif %}
+                          </td>
+                          <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                              <a href="?tab=periodos&editar_periodo={{ p.pk }}" class="btn btn-sm btn-outline-blue" title="Editar">
+                                <i class="ti ti-edit"></i>
+                              </a>
+                              <form method="post" onsubmit="return confirm('¿Eliminar?')" style="display:inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="eliminar_periodo">
+                                <input type="hidden" name="obj_id" value="{{ p.pk }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                                  <i class="ti ti-trash"></i>
+                                </button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-muted py-5">
+                          <i class="ti ti-calendar-off" style="font-size:2rem;"></i>
+                          <p class="mt-2 mb-0">Sin períodos registrados.</p>
+                        </td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade {% if tab_activo == 'maestros' %}show active{% endif %}" id="tab-maestros">
+              <div class="row g-0">
+                {# Formulario #}
+                <div class="col-lg-4 border-end">
+                  <div class="p-4">
+                    <h4 class="mb-3">
+                      <i class="ti ti-{% if editar_mc_id %}edit{% else %}plus-circle{% endif %} me-2 text-teal"></i>
+                      {% if editar_mc_id %}Editar asignación{% else %}Nueva asignación{% endif %}
+                    </h4>
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="accion" value="guardar_mc">
+                      <input type="hidden" name="edit_id" value="{{ editar_mc_id }}">
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Maestro <span class="text-danger">*</span></label>
+                        {{ mc_form.maestro }}
+                        {% if mc_form.maestro.errors %}<div class="text-danger small mt-1">{{ mc_form.maestro.errors }}</div>{% endif %}
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Clase / Materia <span class="text-danger">*</span></label>
+                        {{ mc_form.clase }}
+                        {% if mc_form.clase.errors %}<div class="text-danger small mt-1">{{ mc_form.clase.errors }}</div>{% endif %}
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label fw-semibold">Grado <span class="text-danger">*</span></label>
+                        {{ mc_form.grado }}
+                        <div class="form-text"><i class="ti ti-info-circle me-1"></i>Mantén <kbd>Ctrl</kbd> (o <kbd>Cmd</kbd>) para seleccionar varios grados.</div>
+                        {% if mc_form.grado.errors %}<div class="text-danger small mt-1">{{ mc_form.grado.errors }}</div>{% endif %}
+                      </div>
+                      <div class="mb-4">
+                        <label class="form-label fw-semibold">Área <span class="text-danger">*</span></label>
+                        {{ mc_form.area }}
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-teal flex-fill">
+                          <i class="ti ti-device-floppy me-1"></i>Guardar
+                        </button>
+                        {% if editar_mc_id %}
+                        <a href="?tab=maestros" class="btn btn-outline-secondary">
+                          <i class="ti ti-x"></i> Cancelar
+                        </a>
+                        {% endif %}
+                      </div>
+                    </form>
+                    <div class="alert alert-info mt-4 small">
+                      <i class="ti ti-info-circle me-1"></i>
+                      Estas asignaciones llenan el select <strong>Clase / Maestro</strong> en la tabla de salidas.
+                    </div>
+                  </div>
+                </div>
+                {# Lista #}
+                <div class="col-lg-8">
+                  <div class="table-responsive">
+                    <table class="table table-vcenter table-hover table-sm mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Maestro</th>
+                          <th>Clase</th>
+                          <th class="text-center">Grado</th>
+                          <th class="text-center">Área</th>
+                          <th class="text-center" style="width:90px">Acc.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% regroup mc_lista by area as por_area %}
+                        {% for grp in por_area %}
+                        <tr class="table-light">
+                          <td colspan="5" class="fw-bold text-muted small py-1 ps-3">
+                            <i class="ti ti-building-school me-1"></i>{{ grp.grouper|capfirst }}
+                          </td>
+                        </tr>
+                        {% for mc in grp.list %}
+                        <tr {% if editar_mc_id == mc.pk|stringformat:"s" %}class="table-warning"{% endif %}>
+                          <td>
+                            <div class="fw-semibold">{{ mc.maestro.get_full_name|default:mc.maestro.username }}</div>
+                          </td>
+                          <td>{{ mc.clase }}</td>
+                          <td class="text-center"><span class="badge bg-blue-lt text-blue">{{ mc.grado }}</span></td>
+                          <td class="text-center">{{ mc.get_area_display }}</td>
+                          <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                              <a href="?tab=maestros&editar_mc={{ mc.pk }}" class="btn btn-sm btn-outline-blue" title="Editar">
+                                <i class="ti ti-edit"></i>
+                              </a>
+                              <form method="post" onsubmit="return confirm('¿Eliminar?')" style="display:inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="eliminar_mc">
+                                <input type="hidden" name="obj_id" value="{{ mc.pk }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                                  <i class="ti ti-trash"></i>
+                                </button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-5">
+                          <i class="ti ti-mood-empty" style="font-size:2rem;"></i>
+                          <p class="mt-2 mb-0">Sin asignaciones aún. Agrega la primera.</p>
+                        </td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+          </div>{# /tab-content #}
+        </div>{# /card #}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Toasts ─── #}
+<div id="toast-container"></div>
+
+{# ── Modal Historial ─── #}
+<div class="modal modal-blur fade" id="modalHistorial" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-history me-2 text-teal"></i>Historial — <span id="hist-nombre"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-vcenter table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Fecha</th><th>Clase</th><th class="text-center">Semáforo</th>
+                <th class="text-center">Salida</th><th class="text-center">Regreso</th>
+                <th class="text-center" style="width:55px">Min.</th><th>Comentario</th>
+              </tr>
+            </thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+        <div id="hist-empty" class="text-center text-muted py-5 d-none">
+          <i class="ti ti-mood-empty" style="font-size:3rem;"></i>
+          <p class="mt-2">Sin salidas en este período.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="text-muted small" id="hist-total"></span>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal Notificaciones ─── #}
+<div class="modal modal-blur fade" id="modalNotif" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-bell me-2 text-orange"></i>Notificaciones</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-end mb-3">
+          <button class="btn btn-sm btn-outline-secondary" id="btn-leer-todas">
+            <i class="ti ti-checks me-1"></i>Marcar todas como leídas
+          </button>
+        </div>
+        <div id="notif-lista"></div>
+        <div id="notif-empty" class="text-center text-muted py-4 d-none">
+          <i class="ti ti-bell-off" style="font-size:2.5rem;"></i>
+          <p class="mt-2">Sin notificaciones nuevas.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Variables JS ─── #}
+<script>
+window._SB = {
+  urlGuardar:        "{% url 'salidas_bano:guardar' %}",
+  urlNotifCount:     "{% url 'salidas_bano:notif_count' %}",
+  urlNotifList:      "{% url 'salidas_bano:notif_list' %}",
+  urlNotifLeerTodas: "{% url 'salidas_bano:notif_leer_todas' %}",
+  urlHistorialBase:  "{% url 'salidas_bano:historial' 0 %}",
+  urlRegresoBase:    "/salidas-bano/{pk}/regreso/",
+  urlEliminarBase:   "/salidas-bano/{pk}/eliminar/",
+  urlNotifLeerBase:  "/salidas-bano/notif/{pk}/leer/",
+  area:              "{{ area_sel }}",
+  periodoId:         "{{ periodo_id }}",
+  csrfToken:         "{{ csrf_token }}",
+  fechaHoy:          "{{ fecha_hoy }}",
+  esCoord:           {{ es_coordinador|yesno:"true,false" }},
+  alumnosPorGrado:   {{ alumnos_por_grado|safe }},
+  salidasHoy:        {{ salidas_hoy|safe }},
+  clasesPorGrado:    {{ clases_por_grado|safe }},
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=9"></script>
+</body>
+</html>

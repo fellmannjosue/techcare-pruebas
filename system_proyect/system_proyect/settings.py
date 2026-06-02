@@ -81,12 +81,16 @@ INSTALLED_APPS = [
 
     'conducta',
     'agendas',
-    'core',
+    'core.apps.CoreConfig',
     'reloj',
     'calculadoras',
     'finanzas_personales',
     'notas_parcial',
 
+    # Apps en construcción
+    'atencion_padres',
+    'salidas_bano',
+    'camaras',
 ]
 
 
@@ -102,7 +106,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.MaintenanceModeMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
+
+# ─────────────────────────────────────────────────────────────
+# django-simple-history
+# ─────────────────────────────────────────────────────────────
+SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
+SIMPLE_HISTORY_REVERT_DISABLED = True
 
 
 # ─────────────────────────────────────────────────────────────
@@ -244,21 +255,22 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/menu/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# Duración de la sesión: 4 horas (en segundos)
-SESSION_COOKIE_AGE = 60 * 60 * 4  # 3600 segundos
+# Sesión sin expiración por tiempo (dura hasta que el usuario cierre manualmente)
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # 1 año — no expira en la práctica
 
-# Renovar la sesión con cada request (se reinicia si el usuario navega)
+# Renovar la sesión con cada request
 SESSION_SAVE_EVERY_REQUEST = True
 
 # No cerrar la sesión al cerrar el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-# Cookies seguras (requerido para HTTPS, déjalo en True si usas HTTPS)
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+# SESSION_COOKIE_SECURE=False porque el servidor usa HTTP internamente.
+# Si algún día el servidor queda solo en HTTPS puro, poner True.
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
-# Motor de sesiones recomendado (usa la base de datos cacheada)
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+# Motor de sesiones: solo BD (más estable frente a reinicios de Apache)
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 CACHES = {
     'default': {
@@ -313,12 +325,46 @@ CONSTANCE_CONFIG_FIELDSETS = {
 # 13. CORREO ELECTRÓNICO (SMTP)
 # ─────────────────────────────────────────────────────────────
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'techcare.app2024@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# ── SMTP secundario: Módulo Enfermería ──────────────────────
+# Usa enfermeria@ana-hn.org; si EMAIL_ENF_PASSWORD está vacío
+# cae automáticamente al SMTP principal (Gmail).
+EMAIL_ENFERMERIA = {
+    'HOST':     os.getenv('EMAIL_ENF_HOST',     'mail.ana-hn.org'),
+    'PORT':     int(os.getenv('EMAIL_ENF_PORT', 587)),
+    'USE_TLS':  os.getenv('EMAIL_ENF_USE_TLS',  'True')  == 'True',
+    'USE_SSL':  os.getenv('EMAIL_ENF_USE_SSL',  'False') == 'True',
+    'USER':     os.getenv('EMAIL_ENF_USER',     'enfermeria@ana-hn.org'),
+    'PASSWORD': os.getenv('EMAIL_ENF_PASSWORD', ''),
+}
+
+# ── SMTP secundario: Coordinación Bilingüe ──────────────────
+# Conducta BL, Notas Parcial BL, confirmaciones BL
+EMAIL_COORD_BL = {
+    'HOST':     os.getenv('EMAIL_COORD_BL_HOST',     'mail.ana-hn.org'),
+    'PORT':     int(os.getenv('EMAIL_COORD_BL_PORT', 587)),
+    'USE_TLS':  os.getenv('EMAIL_COORD_BL_USE_TLS',  'True')  == 'True',
+    'USE_SSL':  os.getenv('EMAIL_COORD_BL_USE_SSL',  'False') == 'True',
+    'USER':     os.getenv('EMAIL_COORD_BL_USER',     'coordinacion_bl@ana-hn.org'),
+    'PASSWORD': os.getenv('EMAIL_COORD_BL_PASSWORD', ''),
+}
+
+# ── SMTP secundario: Coordinación Colegio ───────────────────
+# Conducta Colegio, Notas Parcial Colegio
+EMAIL_COORD_COL = {
+    'HOST':     os.getenv('EMAIL_COORD_COL_HOST',     'mail.ana-hn.org'),
+    'PORT':     int(os.getenv('EMAIL_COORD_COL_PORT', 587)),
+    'USE_TLS':  os.getenv('EMAIL_COORD_COL_USE_TLS',  'True')  == 'True',
+    'USE_SSL':  os.getenv('EMAIL_COORD_COL_USE_SSL',  'False') == 'True',
+    'USER':     os.getenv('EMAIL_COORD_COL_USER',     'coordinacion_col@ana-hn.org'),
+    'PASSWORD': os.getenv('EMAIL_COORD_COL_PASSWORD', ''),
+}
 
 
 

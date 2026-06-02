@@ -92,12 +92,12 @@
                         {% if mat.docente %}<div class="small text-blue mt-1">{{ mat.docente }}</div>{% endif %}
                       </td>
                       <td>
-                        <input type="text" name="asignacion_Asociadas[]" value="{{ mat.asignacion }}"
-                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                        <textarea name="asignacion_Asociadas[]" rows="2"
+                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
                       </td>
                       <td>
-                        <input type="text" name="comentario_Asociadas[]" value="{{ mat.comentario }}"
-                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                        <textarea name="comentario_Asociadas[]" rows="2"
+                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.comentario }}</textarea>
                       </td>
                     </tr>
                   {% else %}
@@ -107,12 +107,12 @@
                         {% if mat.docente %}<div class="small text-blue mt-1">{{ mat.docente }}</div>{% endif %}
                       </td>
                       <td>
-                        <input type="text" name="asignacion_{{ mat.materia }}" value="{{ mat.asignacion }}"
-                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                        <textarea name="asignacion_{{ mat.materia }}" rows="2"
+                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
                       </td>
                       <td>
-                        <input type="text" name="comentario_{{ mat.materia }}" value="{{ mat.comentario }}"
-                               class="form-control form-control-sm" maxlength="50" {% if not mat.editable %}readonly{% endif %}>
+                        <textarea name="comentario_{{ mat.materia }}" rows="2"
+                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.comentario }}</textarea>
                       </td>
                     </tr>
                   {% endif %}
