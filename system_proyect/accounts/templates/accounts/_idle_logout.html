@@ -1,0 +1,30 @@
+{% load static %}
+{# <--- hecho por claude code: cierre de sesión por inactividad (4h) + animación de cierre #}
+{% if request.user.is_authenticated %}
+<link rel="stylesheet" href="{% static 'accounts/css/idle_logout.css' %}?v=2">
+
+{# Alerta con cuenta regresiva #}
+<div id="tcIdleWarn">
+  <div class="tc-idle-card">
+    <div class="tc-idle-ring"><span id="tcIdleNum">30</span></div>
+    <h4>¿Sigues ahí?</h4>
+    <p>Tu sesión se cerrará por inactividad. Mueve el mouse o presiona el botón para continuar.</p>
+    <div class="tc-idle-barwrap"><div id="tcIdleBar"></div></div>
+    <button type="button" id="tcIdleStay"><i class="ti ti-refresh me-1"></i>Seguir conectado</button>
+  </div>
+</div>
+
+{# Animación de cierre de sesión #}
+<div id="tcLogoutOverlay">
+  <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo">
+  <div class="tc-lo-title">Cerrando sesión…</div>
+  <div class="tc-lo-sub">¡Hasta pronto!</div>
+  <div class="tc-lo-barwrap"><div id="tcLogoutBar"></div></div>
+</div>
+
+<script>
+  window.TC_LOGOUT_URL = "{% url 'logout' %}?inactive=1";
+  window.TC_IDLE_MINUTES = 240;  // 4 horas
+</script>
+<script src="{% static 'accounts/js/idle_logout.js' %}?v=2"></script>
+{% endif %}

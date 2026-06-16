@@ -1,0 +1,65 @@
+/* <--- hecho por claude code: cierre de sesión por inactividad (alerta + animación de cierre) */
+
+/* ── Alerta de inactividad con cuenta regresiva ── */
+#tcIdleWarn {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+#tcIdleWarn .tc-idle-card {
+  background: #fff;
+  border-radius: 1rem;
+  width: 360px;
+  max-width: 92vw;
+  padding: 1.6rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+  animation: tcIdlePop .28s cubic-bezier(.34, 1.56, .64, 1);
+}
+@keyframes tcIdlePop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+#tcIdleWarn .tc-idle-ring {
+  width: 84px; height: 84px; margin: 0 auto .8rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(#f59f00 0deg, #ffe8b3 0deg);
+  position: relative;
+}
+#tcIdleWarn .tc-idle-ring::after {
+  content: ""; position: absolute; inset: 8px; background: #fff; border-radius: 50%;
+}
+#tcIdleNum { position: relative; font-size: 1.9rem; font-weight: 800; color: #d9480f; z-index: 1; }
+#tcIdleWarn h4 { font-weight: 800; margin: .2rem 0 .3rem; color: #1a2744; }
+#tcIdleWarn p { color: #64748b; font-size: .9rem; margin-bottom: 1rem; }
+#tcIdleWarn .tc-idle-barwrap { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 1.1rem; }
+#tcIdleBar { height: 100%; width: 100%; background: linear-gradient(90deg, #f59f00, #d9480f); border-radius: 99px; transition: width 30s linear; }
+#tcIdleStay {
+  background: linear-gradient(135deg, #3b82f6, #1971c2); color: #fff; border: 0;
+  padding: .6rem 1.4rem; border-radius: .6rem; font-weight: 600; cursor: pointer; width: 100%;
+}
+#tcIdleStay:hover { filter: brightness(1.07); }
+
+/* ── Animación de cierre de sesión (estilo bienvenida) ── */
+#tcLogoutOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  background: linear-gradient(135deg, #1a2744 0%, #0f172a 60%, #1e3a5f 100%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+#tcLogoutOverlay.show { opacity: 1; }
+#tcLogoutOverlay img { width: 80px; opacity: 0; transform: scale(.6); transition: all .55s cubic-bezier(.34, 1.56, .64, 1); }
+#tcLogoutOverlay.show img { opacity: 1; transform: scale(1); }
+#tcLogoutOverlay .tc-lo-title { color: #fff; font-size: 1.6rem; font-weight: 800; margin-top: 1.3rem; }
+#tcLogoutOverlay .tc-lo-sub { color: rgba(255, 255, 255, .55); font-size: .9rem; margin-top: .3rem; }
+#tcLogoutOverlay .tc-lo-barwrap { margin-top: 2rem; width: 240px; height: 6px; background: rgba(255, 255, 255, .12); border-radius: 99px; overflow: hidden; }
+#tcLogoutBar { height: 100%; width: 0%; background: linear-gradient(90deg, #f59f00, #fab005, #ffd43b); border-radius: 99px; transition: width 1.5s ease; }
