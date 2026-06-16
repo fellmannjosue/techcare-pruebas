@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Tiempo Compensatorio{% endblock %}
 {% block page_pretitle %}Tiempo Compensatorio{% endblock %}
-{% block page_title %}Tiempo Compensatorio – Horario Asistentes{% endblock %}
+{% block page_title %}Tiempo Compensatorio{% endblock %}
 {% block nav_compensatorio %}active{% endblock %}
 
 {% block page_actions %}
@@ -243,7 +243,13 @@ window._PAGE = {
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Razón</label>
-          <input type="text" class="form-control" id="extra-razon" maxlength="300" placeholder="Motivo del tiempo extra...">
+          <select class="form-select" id="extra-razon-sel">
+            <option value="">— Selecciona una razón —</option>
+            {% for rz in razones %}<option value="{{ rz }}">{{ rz }}</option>{% endfor %}
+            <option value="__nueva__">➕ Agregar otra…</option>
+          </select>
+          <input type="text" class="form-control mt-2 d-none" id="extra-razon-nueva" maxlength="200" placeholder="Escribe la nueva razón…">
+          <input type="hidden" id="extra-razon">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Comentario</label>
@@ -251,7 +257,14 @@ window._PAGE = {
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Autorizado por</label>
-          <input type="text" class="form-control" id="extra-autorizado-por" maxlength="200" placeholder="Nombre de quien autorizó...">
+          <select class="form-select" id="extra-autorizado-por">
+            <option value="">— Selecciona —</option>
+            <option value="Angela Cruz">Angela Cruz</option>
+            <option value="Fabiola Licona">Fabiola Licona</option>
+            <option value="Eduardo Fellmann">Eduardo Fellmann</option>
+            <option value="Marlon Carias">Marlon Carias</option>
+            <option value="Jeremias Vivas">Jeremias Vivas</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">
@@ -266,5 +279,5 @@ window._PAGE = {
 
 {% endif %}
 
-<script src="{% static 'reloj/js/compensatorio_list.js' %}?v=5"></script>
+<script src="{% static 'reloj/js/compensatorio_list.js' %}?v=7"></script>
 {% endblock %}

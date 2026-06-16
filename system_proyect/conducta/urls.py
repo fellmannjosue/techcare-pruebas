@@ -2,6 +2,15 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Convocatoria de tutorías (Bilingüe)  <--- hecho por claude code
+    path('tutorias/nueva/', views.convocatoria_nueva, name='convocatoria_nueva'),
+    path('tutorias/<int:pk>/editar/', views.convocatoria_nueva, name='convocatoria_editar'),
+    path('tutorias/<int:pk>/eliminar/', views.convocatoria_eliminar, name='convocatoria_eliminar'),
+    path('tutorias/horario-grado/', views.convocatoria_horario_ajax, name='convocatoria_horario_ajax'),
+    path('tutorias/<int:pk>/pdf/', views.convocatoria_pdf, name='convocatoria_pdf'),
+    path('tutorias/coordinador/', views.convocatorias_coordinador, name='convocatorias_coordinador'),
+    path('tutorias/horario/', views.tutoria_horario_config, name='tutoria_horario_config'),
+
     # Dashboards
     path('dashboard/maestro/', views.dashboard_maestro, name='dashboard_maestro'),
     path('coordinador/<str:area>/', views.dashboard_coordinador, name='dashboard_coordinador'),
@@ -55,6 +64,9 @@ urlpatterns = [
     path('evidencia/subir/', views.subir_evidencia, name='subir_evidencia'),
     path('evidencia/<int:pk>/eliminar/', views.eliminar_evidencia, name='eliminar_evidencia'),
     path('descargar/zip/', views.descargar_zip_reportes, name='descargar_zip_reportes'),
+    path('historial-alumnado/<str:area>/', views.historial_alumnado, name='historial_alumnado'),
+    path('periodos/guardar/', views.periodo_conducta_save, name='periodo_conducta_save'),
+    path('periodos/<int:pk>/eliminar/', views.periodo_conducta_delete, name='periodo_conducta_delete'),
     path('directorio/', views.directorio_telefonos, name='directorio_telefonos'),
     path('coordinador/bl/materias/', views.materias_docentes_bl, name='materias_docentes_bl'),
     path('coordinador/bl/materias/crear/', views.materia_bl_create, name='materia_bl_create'),

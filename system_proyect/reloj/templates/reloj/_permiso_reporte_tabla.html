@@ -1,0 +1,185 @@
+{% load static %}
+{# <--- hecho por claude code: tabla del reporte de permisos (reutilizada por tab) #}
+      <table id="{{ tabla_id }}" class="table table-vcenter table-hover card-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th class="col-nombre">Empleado</th>
+            <th class="th-permiso th-ausencias">No<br>Pagado</th>
+            <th class="th-permiso th-otro-pagado">Otro<br>Pagado</th>
+            <th class="th-permiso th-vacaciones">Vacaciones</th>
+            <th class="th-permiso th-enfermedad">Enfermedad</th>
+            <th class="th-permiso th-pct25">Horas<br>Extra 25%</th>
+            <th class="th-permiso th-pct50">Horas<br>Extra 50%</th>
+            <th class="th-permiso th-pct75">Horas<br>Extra 75%</th>
+            <th class="th-permiso th-pct100">Horas<br>Extra 100%</th>
+            {% if horas_diarias_visible or request.user.is_superuser %}<th class="col-mins col-hdl">Horas<br>Diarias Lab.{% if request.user.is_superuser and not horas_diarias_visible %} <span class="badge bg-yellow-lt text-yellow ms-1" style="font-size:.6rem;">Solo tú</span>{% endif %}</th>{% endif %}
+            {% if tab_maestro %}<th class="col-mins">Total horas<br>al mes</th>{% endif %}
+            <th class="col-mins">Horas<br>Rebaja Otra</th>
+            <th class="col-mins">Minutos<br>Tarde</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% with r=row.r %}
+          <tr>
+            <td data-order="{{ row.nombre_sort }}">
+              <div class="fw-semibold">{{ row.nombre }}</div>
+              <div class="text-muted small">{{ row.emp_code }} {% if row.cargo %}<span class="ms-1">· {{ row.cargo }}</span>{% endif %}</div>
+            </td>
+
+            {# ── 8 celdas editables: Ausencias, Otro Pagado, Vacaciones, Enfermedad, 25%, 50%, 75%, 100% ── #}
+            {% with hm=row.horas_map %}
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.ausencias_dias %}has-value cell-ausencias{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="ausencias_dias"
+                      data-label="Ausencias" data-color="#00FFFF"
+                      data-valor="{% if r %}{{ r.ausencias_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.ausencias_dias %}{{ hm.ausencias_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.ausencias_dias %}{{ r.ausencias_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.otro_pagado_dias %}has-value cell-otro-pagado{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="otro_pagado_dias"
+                      data-label="Otro Pagado" data-color="#D0CECE"
+                      data-valor="{% if r %}{{ r.otro_pagado_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.otro_pagado_dias %}{{ hm.otro_pagado_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.otro_pagado_dias %}{{ r.otro_pagado_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.vacaciones_dias %}has-value cell-vacaciones{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="vacaciones_dias"
+                      data-label="Vacaciones" data-color="#92D050"
+                      data-valor="{% if r %}{{ r.vacaciones_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.vacaciones_dias %}{{ hm.vacaciones_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.vacaciones_dias %}{{ r.vacaciones_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.enfermedad_dias %}has-value cell-enfermedad{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="enfermedad_dias"
+                      data-label="Enfermedad" data-color="#FF33CC"
+                      data-valor="{% if r %}{{ r.enfermedad_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.enfermedad_dias %}{{ hm.enfermedad_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.enfermedad_dias %}{{ r.enfermedad_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.pct25_dias %}has-value cell-pct25{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="pct25_dias"
+                      data-label="25%" data-color="#FFFFB7"
+                      data-valor="{% if r %}{{ r.pct25_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.pct25_dias %}{{ hm.pct25_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.pct25_dias %}{{ r.pct25_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.pct50_dias %}has-value cell-pct50{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="pct50_dias"
+                      data-label="50%" data-color="#FFFF65"
+                      data-valor="{% if r %}{{ r.pct50_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.pct50_dias %}{{ hm.pct50_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.pct50_dias %}{{ r.pct50_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.pct75_dias %}has-value cell-pct75{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="pct75_dias"
+                      data-label="75%" data-color="#FFFF05"
+                      data-valor="{% if r %}{{ r.pct75_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.pct75_dias %}{{ hm.pct75_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.pct75_dias %}{{ r.pct75_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            <td class="text-center p-1">
+              <button class="btn-permiso-cell {% if r and r.pct100_dias %}has-value cell-pct100{% else %}no-value{% endif %}"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}" data-campo="pct100_dias"
+                      data-label="100%" data-color="#EFDC25"
+                      data-valor="{% if r %}{{ r.pct100_dias }}{% else %}0{% endif %}"
+                      data-horas="{% if hm.pct100_dias %}{{ hm.pct100_dias|stringformat:"g" }}{% endif %}">
+                {% if r and r.pct100_dias %}{{ r.pct100_dias|stringformat:"g" }}d{% else %}—{% endif %}
+              </button>
+            </td>
+
+            {% endwith %}
+
+            {# ── Horas Diarias Laboradas (editable) ── #}
+            {% if horas_diarias_visible or request.user.is_superuser %}<td class="text-center col-hdl">
+              <button class="btn btn-sm btn-ghost-secondary btn-horas-diarias px-2 py-0"
+                      data-emp="{{ row.emp_code }}" data-nombre="{{ row.nombre }}"
+                      data-mes="{{ mes_str }}"
+                      data-valor="{% if r %}{{ r.horas_diarias_laboradas }}{% else %}8.0{% endif %}"
+                      data-dias="{% if r %}{{ r.dias_laborables }}{% else %}L,M,X,J,V{% endif %}"
+                      data-comentario="{% if r %}{{ r.horario_comentario }}{% else %}{% endif %}"
+                      data-maestro-hora="{% if row.es_maestro_hora %}1{% else %}0{% endif %}"
+                      title="Editar horario laboral">
+                {% if row.es_maestro_hora %}
+                <span class="badge bg-cyan-lt text-cyan hdl-badge-{{ row.emp_code|slugify }}">{{ row.mh_total|floatformat:'-2' }} h/sem</span>
+                {% else %}
+                <span class="badge bg-teal-lt text-teal hdl-badge-{{ row.emp_code|slugify }}">
+                  {% if r %}{{ r.horas_diarias_laboradas }}{% else %}8.0{% endif %} h/d
+                </span>{% endif %}
+                <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+              </button>
+            </td>{% endif %}
+
+            {# ── Total horas al mes (solo tab maestros) ── #}
+            {% if tab_maestro %}
+            <td class="text-center">
+              <span class="badge bg-teal-lt text-teal fw-bold mhmes-{{ row.emp_code|slugify }}">{{ row.mh_total_mes|floatformat:'-2' }} h</span>
+            </td>
+            {% endif %}
+
+            {# ── Horas Rebaja (calculado) ── #}
+            <td class="text-center horas-rebaja-{{ row.emp_code|slugify }}">
+              {% if row.horas_rebaja is not None %}
+                {% if row.horas_rebaja > 0 %}
+                  <span class="badge bg-orange-lt text-orange fw-bold">{{ row.horas_rebaja }}h</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted small">N/A</span>
+              {% endif %}
+            </td>
+
+            {# ── Minutos Tarde (calculado) ── #}
+            <td class="text-center mins-tarde-{{ row.emp_code|slugify }}">
+              {% if row.minutos_tarde is not None %}
+                {% if row.minutos_tarde > 0 %}
+                  <span class="badge bg-red-lt text-red">{{ row.minutos_tarde }} min</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted small">N/A</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr>
+            <td colspan="{% if tab_maestro %}13{% elif horas_diarias_visible or request.user.is_superuser %}12{% else %}11{% endif %}" class="text-center text-muted py-4">
+              <i class="ti ti-users-off me-2"></i>Sin empleados disponibles.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>

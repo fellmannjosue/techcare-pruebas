@@ -10,6 +10,85 @@
     </a>
   </li>
 
+  {% if request.user.is_superuser %}
+  {# ══ Sidebar agrupado (solo superusuario) — mismos 6 grupos del panel ══ #}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbSoporte" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-headset text-blue"></i></span>
+      <span class="nav-link-title">Soporte y TI</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbSoporte">
+      <li class="nav-item"><a class="nav-link" href="{% url 'technician_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-ticket"></i></span><span class="nav-link-title">Sistema de Tickets</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'inventario:dashboard' %}"><span class="nav-link-icon"><i class="ti ti-package"></i></span><span class="nav-link-title">Inventario</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-tool"></i></span><span class="nav-link-title">Mantenimiento</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbAcademico" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-school text-green"></i></span>
+      <span class="nav-link-title">Académico</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbAcademico">
+      <li class="nav-item"><a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}"><span class="nav-link-icon"><i class="ti ti-chalkboard text-cyan"></i></span><span class="nav-link-title">Coordinador BL</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}"><span class="nav-link-icon"><i class="ti ti-user-cog text-orange"></i></span><span class="nav-link-title">Coordinador Colegio</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'agendas:form_agenda' %}"><span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span><span class="nav-link-title">Agendas</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span><span class="nav-link-title">Enfermería</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'directorio_telefonos' %}"><span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span><span class="nav-link-title">Directorio</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'notas_parcial_index' %}"><span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span><span class="nav-link-title">Notas Mitad de Parcial</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span><span class="nav-link-title">Salidas Baño</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbReloj" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-clock text-orange"></i></span>
+      <span class="nav-link-title">Reloj y Sponsors</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbReloj">
+      <li class="nav-item"><a class="nav-link" href="{% url 'reloj_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-clock"></i></span><span class="nav-link-title">Reloj</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'calculadoras_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-calculator"></i></span><span class="nav-link-title">Calculadoras</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-heart-handshake text-pink"></i></span><span class="nav-link-title">Sponsors</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbFinanzas" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span>
+      <span class="nav-link-title">Finanzas</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbFinanzas">
+      <li class="nav-item"><a class="nav-link" href="{% url 'finanzas_personales:index' %}"><span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span><span class="nav-link-title">Finanzas</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbConfig" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-settings text-indigo"></i></span>
+      <span class="nav-link-title">Configuración</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbConfig">
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_auditoria' %}"><span class="nav-link-icon"><i class="ti ti-shield-check"></i></span><span class="nav-link-title">Auditoría</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_actividad' %}"><span class="nav-link-icon"><i class="ti ti-activity"></i></span><span class="nav-link-title">Actividad</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_reloj_permisos' %}"><span class="nav-link-icon"><i class="ti ti-clock-cog"></i></span><span class="nav-link-title">Permisos Reloj</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_coord_permisos' %}"><span class="nav-link-icon"><i class="ti ti-users-group"></i></span><span class="nav-link-title">Permisos Coordinadores</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_correos' %}"><span class="nav-link-icon"><i class="ti ti-mail"></i></span><span class="nav-link-title">Correos</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbWip" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-tools text-yellow"></i></span>
+      <span class="nav-link-title">En construcción</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbWip">
+      <li class="nav-item"><a class="nav-link" href="{% url 'camaras:index' %}"><span class="nav-link-icon"><i class="ti ti-network"></i></span><span class="nav-link-title">Control de sistema de redes</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'atencion_padres:index' %}"><span class="nav-link-icon"><i class="ti ti-phone"></i></span><span class="nav-link-title">Control de telefonía</span></a></li>
+      <li class="nav-item"><a class="nav-link disabled" href="#"><span class="nav-link-icon"><i class="ti ti-lock-access"></i></span><span class="nav-link-title">Registro de control VPN</span></a></li>
+    </ul>
+  </li>
+  {% else %}
+
   {# ── Tickets ──────────────────────────────────────────── #}
   {% if nav_tickets %}
   <li class="nav-item">
@@ -19,12 +98,6 @@
       <span class="nav-link-arrow"></span>
     </a>
     <ul class="navbar-nav collapse ps-4" id="navTickets">
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'technician_dashboard' %}">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-        </a>
-      </li>
       <li class="nav-item">
         <a class="nav-link" href="/tickets/submit_ticket/">
           <span class="nav-link-icon"><i class="ti ti-plus"></i></span>
@@ -515,6 +588,7 @@
     </a>
   </li>
   {% endif %}
+  {% endif %}{# fin sidebar superusuario vs normal #}
 
   <li class="nav-item d-none" id="pwa-install-item">
     <a class="nav-link text-green" href="#" id="pwa-install-btn">

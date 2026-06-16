@@ -96,6 +96,11 @@
                    data-campo="{{ celda.key }}_eliminar"
                    data-hasta="{{ celda.eliminar_hasta }}"
                    {% if celda.eliminar %}checked{% endif %}>
+            <input type="datetime-local"
+                   class="form-control form-control-sm perm-hasta-input mt-1 {% if not celda.eliminar %}d-none{% endif %}"
+                   style="font-size:.62rem; padding:.05rem .2rem; min-width:130px;"
+                   value="{{ celda.eliminar_hasta_local }}"
+                   title="Activo hasta esta fecha y hora">
             {% if celda.eliminar and celda.eliminar_hasta %}
             <div class="timer-wrap text-warning mt-1" data-hasta="{{ celda.eliminar_hasta }}">
               <i class="ti ti-clock"></i> <span class="timer-txt">…</span>
@@ -114,12 +119,12 @@
   <div class="card-footer text-muted small">
     <i class="ti ti-info-circle me-1"></i>
     El superusuario siempre tiene acceso completo. Los cambios se guardan automáticamente al marcar/desmarcar.
-    <span class="ms-2 text-warning"><i class="ti ti-clock me-1"></i>Eliminar se activa por <strong>24 h</strong> y expira automáticamente.</span>
+    <span class="ms-2 text-warning"><i class="ti ti-clock me-1"></i>Al activar <strong>Eliminar</strong>, elige la <strong>fecha y hora</strong> hasta la que estará activo; expira automáticamente.</span>
   </div>
 </div>
 
 <div id="page-config" hidden
      data-csrf="{{ csrf_token }}"
      data-url="{% url 'settings_coord_permisos' %}"></div>
-<script src="{% static 'accounts/js/settings_coord_permisos.js' %}"></script>
+<script src="{% static 'accounts/js/settings_coord_permisos.js' %}?v=2"></script>
 {% endblock %}

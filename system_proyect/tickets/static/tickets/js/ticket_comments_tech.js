@@ -7,10 +7,12 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   });
 
-  // Toast si viene de crear ticket
+  // Toast + sonido si viene de crear ticket
   if (localStorage.getItem('ticketCreado')) {
     localStorage.removeItem('ticketCreado');
     const toastEl = document.getElementById('toastNuevoTicket');
     if (toastEl) new bootstrap.Toast(toastEl, { delay: 5000 }).show();
+    const audio = document.getElementById('notifSound');
+    if (audio) { try { audio.volume = 0.6; audio.play().catch(function(){}); } catch(e){} }
   }
 });

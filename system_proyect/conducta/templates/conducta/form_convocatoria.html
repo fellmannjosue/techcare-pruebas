@@ -1,0 +1,276 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code: pantalla del maestro para crear convocatoria de tutorías #}
+
+{% block title %}Convocatoria de Tutorías – Bilingüe{% endblock %}
+{% block page_pretitle %}Tutorías{% endblock %}
+{% block page_title %}Convocatoria de Tutorías{% endblock %}
+{% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
+
+{% block extra_head %}
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+  <style>
+    .conv-preview { background:#fff; border:1px solid #e2e8f0; border-radius:.5rem; padding:18px 22px; font-size:.8rem; color:#222; }
+    .conv-preview h4 { text-align:center; font-size:.95rem; font-weight:700; margin:.2rem 0 .6rem; }
+    .conv-preview .school { text-align:center; font-weight:700; }
+    .conv-preview table { width:100%; border-collapse:collapse; margin:.6rem 0; }
+    .conv-preview th, .conv-preview td { border:1px solid #444; padding:2px 4px; text-align:center; font-size:.72rem; }
+    .asig-row { display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; border:1px solid #e9ecef; border-radius:.5rem; margin-bottom:.4rem; }
+    .asig-row .dias { display:flex; gap:.25rem; margin-left:auto; }
+    .dia-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:.35rem; border:1px solid #ced4da; background:#fff; font-weight:600; font-size:.8rem; }
+    .dia-btn.on { background:#1971c2; color:#fff; border-color:#1971c2; }
+    .dia-btn.locked { cursor:default; }
+    .dia-btn.locked:not(.on) { background:#f1f3f5; color:#adb5bd; }
+    .asig-chip { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  </style>
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% if volver_coord %}{% url 'convocatorias_coordinador' %}{% else %}/conducta/dashboard/maestro/{% endif %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+{% endblock %}
+
+{% block sidebar_nav %}
+  <li class="nav-item"><a class="nav-link" href="/conducta/dashboard/maestro/"><span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span><span class="nav-link-title">Dashboard</span></a></li>
+  <li class="nav-item"><a class="nav-link active" href="{% url 'convocatoria_nueva' %}"><span class="nav-link-icon"><i class="ti ti-school"></i></span><span class="nav-link-title">Convocatoria Tutorías</span></a></li>
+{% endblock %}
+
+{% block content %}
+{% if messages %}{% for m in messages %}
+<div class="alert alert-{{ m.tags }} alert-dismissible mb-3">{{ m }}<button class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endfor %}{% endif %}
+
+<form method="post" id="formConvocatoria">
+  {% csrf_token %}
+  <input type="hidden" name="grado" id="id_grado">
+  <input type="hidden" name="alumno_nombre" id="id_alumno_nombre">
+  <input type="hidden" name="asignaturas_json" id="id_asignaturas_json">
+  <input type="hidden" name="parcial" id="id_parcial">
+  <input type="hidden" name="anio" id="id_anio">
+
+  <div class="row g-3">
+    {# ── Columna izquierda: formulario ── #}
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ti ti-school me-2 text-orange"></i>Datos de la convocatoria</h3></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label">Estudiante</label>
+              <select id="id_alumno" name="alumno" class="form-select" required>
+                <option value="">-- Selecciona un estudiante --</option>
+                {% for s in students %}<option value="{{ s.id }}" data-grado="{{ s.grado }}" data-nombre="{{ s.label }}" {% if conv_edit and conv_edit.alumno_id == s.id %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Grado · Sección</label>
+              <input type="text" id="grado-display" class="form-control" readonly placeholder="Automático">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Parcial</label>
+              <select id="sel_parcial" class="form-select" required>
+                {% for p in periodos %}
+                <option value="{{ p.parcial }}|{{ p.anio }}" {% if conv_edit %}{% if p.parcial == conv_edit.parcial and p.anio == conv_edit.anio %}selected{% endif %}{% elif periodo_activo and p.pk == periodo_activo.pk %}selected{% endif %}>{{ p.nombre }} · {{ p.anio }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha de la carta</label>
+              <input type="date" id="id_fecha" name="fecha" class="form-control" value="{% if conv_edit %}{{ conv_edit.fecha|date:'Y-m-d' }}{% else %}{{ fecha_hoy }}{% endif %}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Docente guía <span class="text-muted">(opcional)</span></label>
+              <input type="text" name="docente_guia" id="id_docente_guia" class="form-control" placeholder="Nombre del docente guía" value="{% if conv_edit %}{{ conv_edit.docente_guia }}{% endif %}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Coordinador de área <span class="text-muted">(opcional)</span></label>
+              <input type="text" name="coordinador" id="id_coordinador" class="form-control" placeholder="Nombre del coordinador" value="{% if conv_edit %}{{ conv_edit.coordinador }}{% endif %}">
+            </div>
+          </div>
+
+          <hr class="my-3">
+          <label class="form-label fw-bold mb-2"><i class="ti ti-list-check me-1 text-orange"></i>Tutorías de su grado <span class="text-muted fw-normal small">(marca a cuáles se convoca; los días son fijos según el horario de tutorías)</span></label>
+          <div id="asig-container">
+            <div class="text-muted small py-3" id="asig-hint">Selecciona un estudiante y el parcial para ver las tutorías disponibles.</div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Guardar</button>
+            <a href="{% if volver_coord %}{% url 'convocatorias_coordinador' %}{% else %}/conducta/dashboard/maestro/{% endif %}" class="btn btn-ghost-secondary">Cancelar</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Columna derecha: vista previa en vivo ── #}
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ti ti-eye me-2 text-blue"></i>Vista previa</h3></div>
+        <div class="card-body">
+          <div class="conv-preview" id="preview">
+            <div class="school">NUEVO AMANECER SCHOOL</div>
+            <div style="text-align:center;font-size:.7rem;color:#666;">Aldea La Venta, km. 36 carretera hacia Olancho · Tels. 2758-0300 / 9485-4082</div>
+            <h4>COMPROMISO DE ASISTENCIA A TUTORÍA</h4>
+            <p style="text-align:justify;">El C.E.B.N.G.B. Nuevo Amanecer pone a disposición de los padres de familia un sistema de tutorías gratuitas de lunes a viernes de <b>7:00 – 7:45 a.m.</b> Esta convocatoria tiene vigencia durante todo el <b id="pv-parcial">—</b> parcial.</p>
+            <p>Su hijo (a) <b id="pv-alumno">__________</b> del <b id="pv-grado">____</b> grado sección <b id="pv-seccion">__</b> ha sido convocado para asistir a las siguientes tutorías:</p>
+            <table>
+              <thead>
+                <tr><th rowspan="2">Nº</th><th rowspan="2">Asignatura(s)</th><th colspan="5">Días que debe presentarse</th></tr>
+                <tr><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr>
+              </thead>
+              <tbody id="pv-tbody"><tr><td colspan="7" style="color:#999;">Sin asignaturas seleccionadas</td></tr></tbody>
+            </table>
+            <p style="font-size:.7rem;color:#555;">Dado a los <span id="pv-fecha">—</span>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+(function () {
+  const HORARIO_URL = "{% url 'convocatoria_horario_ajax' %}";
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const PARCIAL_ROM = {1:'I',2:'II',3:'III',4:'IV'};
+  const DIAS = [1,2,3,4,5];
+  let gradoNum = null, seccion = '';
+
+  $('#id_alumno').select2({ placeholder:'-- Selecciona un estudiante --', width:'100%' });
+
+  const ORDINAL = {'1ero':1,'1mo':1,'primero':1,'2do':2,'segundo':2,'3ero':3,'3ro':3,'tercero':3,
+    '4to':4,'cuarto':4,'5to':5,'quinto':5,'6to':6,'sexto':6,'7mo':7,'septimo':7,'séptimo':7,
+    '8vo':8,'octavo':8,'9no':9,'noveno':9};
+  function parseGrado(txt) {
+    const m = (txt||'').match(/([0-9A-Za-zªºáéíóú]+)\s*-\s*([0-9A-Za-z_]+)\s*$/);
+    if (!m) return { num:null, sec:'' };
+    const crso = m[1].toLowerCase();
+    const sec = m[2].replace(/^_+/, '');
+    let num = ORDINAL[crso];
+    if (num == null) { const d = crso.match(/^(\d+)/); num = d ? +d[1] : null; }
+    if (num && num >= 1 && num <= 9) return { num, sec };
+    return { num:null, sec };
+  }
+  function parcialParts() {
+    const v = (document.getElementById('sel_parcial').value || '').split('|');
+    return { parcial: parseInt(v[0]), anio: parseInt(v[1]) };
+  }
+
+  async function cargarAsignaturas() {
+    const cont = document.getElementById('asig-container');
+    const { parcial, anio } = parcialParts();
+    document.getElementById('id_parcial').value = parcial || '';
+    document.getElementById('id_anio').value = anio || '';
+    if (!gradoNum || !parcial) {
+      cont.innerHTML = '<div class="text-muted small py-3">Selecciona un estudiante y el parcial para ver las tutorías disponibles.</div>';
+      actualizarPreview();
+      return;
+    }
+    cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando tutorías del grado…</div>';
+    const r = await fetch(`${HORARIO_URL}?grado_num=${gradoNum}&parcial=${parcial}&anio=${anio}`);
+    const d = await r.json();
+    if (!d.items || !d.items.length) {
+      cont.innerHTML = '<div class="alert alert-warning py-2 mb-0 small">Este grado no tiene tutorías configuradas en este parcial. Pide al coordinador configurar el horario.</div>';
+      actualizarPreview();
+      return;
+    }
+    cont.innerHTML = '';
+    d.items.forEach(function (it, idx) {
+      const row = document.createElement('div');
+      row.className = 'asig-row';
+      let diasHtml = '<div class="dias">';
+      DIAS.forEach(function (n) {
+        const on = it.dias.includes(n) ? 'on' : '';
+        diasHtml += `<span class="dia-btn locked ${on}" data-dia="${n}">${['','L','M','M','J','V'][n]}</span>`;
+      });
+      diasHtml += '</div>';
+      row.innerHTML =
+        `<label class="form-check m-0"><input class="form-check-input chk-asig" type="checkbox"></label>` +
+        `<span class="asig-chip" style="background:${it.color}"></span>` +
+        `<span class="fw-semibold">${it.asignatura}</span>` +
+        diasHtml;
+      row.dataset.asignatura = it.asignatura;
+      cont.appendChild(row);
+    });
+    // Los días son fijos (vienen del horario): no se editan.
+    cont.querySelectorAll('.chk-asig').forEach(c => c.addEventListener('change', actualizarPreview));
+    // Edición: marcar las asignaturas que ya estaban convocadas
+    if (window._convPreset && window.CONV_ASIGS && window.CONV_ASIGS.length) {
+      cont.querySelectorAll('.asig-row').forEach(function (row) {
+        if (window.CONV_ASIGS.indexOf(row.dataset.asignatura) >= 0) {
+          const chk = row.querySelector('.chk-asig'); if (chk) chk.checked = true;
+        }
+      });
+      window._convPreset = false;
+    }
+    actualizarPreview();
+  }
+
+  function recolectar() {
+    const out = [];
+    document.querySelectorAll('#asig-container .asig-row').forEach(function (row) {
+      const chk = row.querySelector('.chk-asig');
+      if (!chk || !chk.checked) return;
+      const dias = [];
+      row.querySelectorAll('.dia-btn.on').forEach(b => dias.push(parseInt(b.dataset.dia)));
+      if (dias.length) out.push({ asignatura: row.dataset.asignatura, dias });
+    });
+    return out;
+  }
+
+  function actualizarPreview() {
+    const sel = document.getElementById('id_alumno');
+    const nombre = sel.value ? (sel.options[sel.selectedIndex].dataset.nombre || '') : '';
+    document.getElementById('pv-alumno').textContent = nombre || '__________';
+    document.getElementById('pv-grado').textContent = gradoNum ? (window.GRADO_LABELS[gradoNum] || gradoNum) : '____';
+    document.getElementById('pv-seccion').textContent = seccion || '__';
+    const { parcial } = parcialParts();
+    document.getElementById('pv-parcial').textContent = PARCIAL_ROM[parcial] || '—';
+    const f = document.getElementById('id_fecha').value;
+    if (f) { const dd = f.split('-'); document.getElementById('pv-fecha').textContent = `${+dd[2]} días del mes de ${MESES[+dd[1]-1]} del año ${dd[0]}`; }
+    const items = recolectar();
+    const tb = document.getElementById('pv-tbody');
+    if (!items.length) { tb.innerHTML = '<tr><td colspan="7" style="color:#999;">Sin asignaturas seleccionadas</td></tr>'; return; }
+    tb.innerHTML = items.map(function (it, i) {
+      const cels = DIAS.map(n => `<td>${it.dias.includes(n) ? '✔' : ''}</td>`).join('');
+      return `<tr><td>${i+1}</td><td>${it.asignatura}</td>${cels}</tr>`;
+    }).join('');
+  }
+
+  $('#id_alumno').on('change', function () {
+    const opt = this.options[this.selectedIndex];
+    const g = parseGrado(opt ? opt.dataset.grado : '');
+    gradoNum = g.num; seccion = g.sec;
+    document.getElementById('grado-display').value = opt && opt.dataset.grado ? opt.dataset.grado : '';
+    document.getElementById('id_grado').value = opt && opt.dataset.grado ? opt.dataset.grado : '';
+    document.getElementById('id_alumno_nombre').value = opt ? (opt.dataset.nombre || '') : '';
+    cargarAsignaturas();
+  });
+  document.getElementById('sel_parcial').addEventListener('change', cargarAsignaturas);
+  document.getElementById('id_fecha').addEventListener('change', actualizarPreview);
+
+  document.getElementById('formConvocatoria').addEventListener('submit', function (e) {
+    const items = recolectar();
+    if (!items.length) { e.preventDefault(); alert('Marca al menos una asignatura con días.'); return; }
+    document.getElementById('id_asignaturas_json').value = JSON.stringify(items);
+  });
+
+  // init
+  const { parcial, anio } = parcialParts();
+  document.getElementById('id_parcial').value = parcial || '';
+  document.getElementById('id_anio').value = anio || '';
+  // Edición: si ya hay alumno seleccionado, disparar la carga de asignaturas
+  if (document.getElementById('id_alumno').value) {
+    $('#id_alumno').trigger('change');
+  }
+})();
+window.GRADO_LABELS = {1:'Primero',2:'Segundo',3:'Tercero',4:'Cuarto',5:'Quinto',6:'Sexto',7:'Séptimo',8:'Octavo',9:'Noveno'};
+window.CONV_ASIGS = {{ conv_asigs_json|default:'[]'|safe }};
+window._convPreset = window.CONV_ASIGS.length > 0;
+</script>
+{% endblock %}

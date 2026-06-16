@@ -52,6 +52,19 @@
             </nav>
             <h2 class="page-title">{% block page_title %}Panel Técnico{% endblock %}</h2>
           </div>
+          {# Campanita de notificaciones #}
+          <div class="col-auto">
+            <div class="dropdown">
+              <a href="#" id="notifDropdownToggle" class="btn btn-ghost-secondary position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                <i class="ti ti-bell fs-3"></i>
+                <span id="badgeNotificaciones" class="badge bg-danger badge-notification d-none">0</span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end p-0" style="min-width:360px; max-height:400px; overflow-y:auto;">
+                <div class="dropdown-header border-bottom fw-bold bg-light py-2 px-3"><i class="ti ti-bell me-1"></i> Notificaciones recientes</div>
+                <ul id="listaNotificaciones" class="list-unstyled mb-0"></ul>
+              </div>
+            </div>
+          </div>
           {% block page_actions %}{% endblock %}
         </div>
       </div>
@@ -83,6 +96,12 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 {% block extra_js %}{% endblock %}
+
+{# Sistema de notificaciones global (campanita + sonido + toasts) #}
+<audio id="notifSound" src="{% static 'accounts/sound/notification.mp3' %}" preload="auto"></audio>
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
+<script src="{% static 'accounts/js/notifications.js' %}"></script>
+
 {% include "accounts/_welcome_overlay.html" %}
 </body>
 </html>

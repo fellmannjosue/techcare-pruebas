@@ -133,7 +133,13 @@ $(function(){
           $td.append($wrap);
         });
       }
-      if (CAN_EDIT_PERMISOS) {
+      const bloqueado = String($td.data('bloqueado')) === '1';
+      if (bloqueado) {
+        // Cierre de mes: ya no se pueden ingresar permisos (último día hábil 16:35)
+        if (lista.length === 0) {
+          $td.append($('<span class="text-muted small" title="Permisos cerrados para este mes (último día hábil 16:35)"><i class="ti ti-lock me-1"></i>Cerrado</span>'));
+        }
+      } else if (CAN_EDIT_PERMISOS) {
         const $addBtn = $('<button class="btn btn-sm btn-secondary btn-reg-permiso" title="Registrar permiso">')
           .html('<i class="ti ti-license me-1"></i>Permiso')
           .data('emp', emp).data('nombre', $td.data('nombre')).data('fecha', fecha);
@@ -263,7 +269,18 @@ $(function(){
       $('#perm-tipo').val(tipoActual || $('#perm-tipo option:first').val());
     }
 
-    $('#perm-razon').val(permiso ? permiso.razon : '');
+    // Razón: select con catálogo + opción "Agregar otra"
+    const razonActual = permiso ? (permiso.razon || '') : '';
+    $('#perm-razon').val(razonActual);
+    const $rzSel = $('#perm-razon-sel'), $rzNueva = $('#perm-razon-nueva');
+    $rzNueva.addClass('d-none').val('');
+    if (razonActual && $rzSel.find('option[value="' + razonActual.replace(/"/g, '\\"') + '"]').length) {
+      $rzSel.val(razonActual);
+    } else if (razonActual) {
+      $rzSel.val('__nueva__'); $rzNueva.removeClass('d-none').val(razonActual);
+    } else {
+      $rzSel.val('');
+    }
 
     // Detectar modo según cómo fue guardado
     const usaHoras = permiso && permiso.horas != null;
@@ -289,6 +306,12 @@ $(function(){
 
     new bootstrap.Modal(document.getElementById('modalPermiso')).show();
   }
+
+  // Razón: mostrar campo "nueva" al elegir "Agregar otra…"
+  $(document).on('change', '#perm-razon-sel', function(){
+    $('#perm-razon-nueva').toggleClass('d-none', $(this).val() !== '__nueva__');
+    if ($(this).val() === '__nueva__') $('#perm-razon-nueva').focus();
+  });
 
   $(document).on('click', '.btn-reg-permiso', function(){
     abrirModalPermiso($(this).data('emp'), $(this).data('nombre'), $(this).data('fecha'), null);
@@ -335,7 +358,10 @@ $(function(){
     const emp      = $('#perm-emp-code').val();
     const fecha    = $('#perm-fecha').val();
     const fechaFin = $('#perm-fecha-fin').val() || fecha;
-    const razon    = $('#perm-razon').val().trim();
+    // Razón desde el select (o el campo "nueva" si eligió "Agregar otra…")
+    let razon = $('#perm-razon-sel').val() || '';
+    if (razon === '__nueva__') razon = $('#perm-razon-nueva').val().trim();
+    $('#perm-razon').val(razon);
     const modo     = modoActual();
     const dias     = modo === 'dias'  ? $('#perm-dias').val()  : '';
     const horas    = modo === 'horas' ? $('#perm-horas').val() : '';
@@ -361,6 +387,10 @@ $(function(){
       success: function(res){
         $btn.prop('disabled', false);
         if (res.ok){
+          // Si la razón es nueva, dejarla en el select para la próxima vez
+          if (razon && !$('#perm-razon-sel option[value="' + razon.replace(/"/g, '\\"') + '"]').length) {
+            $('<option>').val(razon).text(razon).insertBefore($('#perm-razon-sel option[value="__nueva__"]'));
+          }
           const empKey      = String(emp).trim();
           const newFechaFin = res.fecha_fin || fechaFin || fecha;
           const newFecha    = res.fecha || fecha;

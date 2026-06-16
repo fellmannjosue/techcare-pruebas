@@ -65,8 +65,11 @@ def nav_context(request):
         nav_mcol      = is_maestro_col
 
     # URL de "home" para cada tipo de usuario (usada en sidebar y breadcrumbs)
+    from accounts.panel_roles import es_multi_panel
     if is_admin:
         nav_home_url = reverse('menu')
+    elif es_multi_panel(user):
+        nav_home_url = reverse('panel_general')
     elif is_solo_progress:
         nav_home_url = reverse('progress_report_bilingue')
     elif nav_mbl or nav_mcol:
@@ -75,12 +78,15 @@ def nav_context(request):
         nav_home_url = reverse('dashboard_coordinador', kwargs={'area': 'colegio'})
     elif nav_coord_bl:
         nav_home_url = reverse('dashboard_coordinador', kwargs={'area': 'bilingue'})
-    elif grp('administracion'):
-        nav_home_url = reverse('dashboard_administracion')
     elif grp('tecnicos'):
         nav_home_url = reverse('tickets_dashboard')
     elif grp('reloj'):
         nav_home_url = reverse('reloj_dashboard')
+    # 'administracion' va de último: solo es el inicio cuando el usuario NO tiene
+    # otro rol con dashboard propio. Si tiene otro rol, su inicio es el de ese rol
+    # y Tickets aparece solo en el sidebar (nav_tickets).
+    elif grp('administracion'):
+        nav_home_url = reverse('dashboard_administracion')
     else:
         nav_home_url = reverse('menu')
 

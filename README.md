@@ -10,6 +10,18 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 
 ---
 
+## Novedades recientes
+
+- **Convocatoria de Tutorías (Bilingüe)** — Módulo `conducta`. Los maestros bilingües crean convocatorias por alumno (carga automática de grado/sección, asignaturas por grado con días fijos del horario), generan un registro y lo ven en su Historial (tab *Tutorías*). Los coordinadores (tab *Tutorías*) ven/editan/eliminan y descargan el PDF (carta "Compromiso de Asistencia a Tutoría" con logo `encabezado.jpg`, una sola hoja, desprendible ACLARATORIA). Ruteo por grado: **C1** (grados 1–3, Catherine Varela) y **C2** (grados 4–9, David Ruiz) con notificación al coordinador. Matriz Grado×Día×Asignatura configurable por parcial. Modelos: `TutoriaHorario`, `ConvocatoriaTutoria`, `ConvocatoriaAsignatura`, `TutoriaGrupoMaestro`.
+- **Bono por Asistencia** — Módulo `reloj`, tab del Reporte Mensual de Permisos (antes "Pierde Bono"). Cálculo **automático** con reglas configurables (modal *Reglas del bono*, solo superusuario): Otro Pagado, Enfermedad, hora máx. de entrada (6:57), y reglas extra. **Vigilancia** con dos turnos (19:00 → entrada máx 18:45; 00:00 → 23:45). **Maestros por hora** con horario especial por día (ej. Juan Pablo Chirinos lunes 11:30). **No Pagado y Compensatorio nunca pierden** el bono. Sub-tabs *Lista de empleados con bono* (solo conservan) y *Detalle*; override manual del superusuario; PDF de la lista. Modelos: `BonoConfig`, `BonoReglaExtra`, `BonoHorarioEmpleado` + `ReportePermisoMensual.bono_override`.
+- **Tiempo receso** — Tab mensual en Reporte de Permisos: marcas de almuerzo (2ª/3ª) de empleados 07:00–15:48, minutos tomados, **minutos de más** sobre 30 y total; ajuste manual de marcas (solo superusuario). PDF incluido.
+- **Vacaciones** — Los días disponibles ahora se muestran **en negativo** cuando se sobrepasa el saldo (ya no se topan en 0).
+- **Auditoría** — Filtro por **rango de fechas** (desde/hasta).
+- **Permisos Coordinadores** — El permiso "Eliminar" usa **fecha y hora seleccionable** (en vez de 24h fijas).
+- **Tickets** — Chat con **adjuntos** (pegar/subir imagen/adjuntar documento, con auto-redimensión de imágenes), **sonido de notificación** al llegar mensaje o crear ticket, y **campanita + toasts** en todo el módulo.
+
+---
+
 ## Stack técnico
 
 | Componente | Versión |
@@ -73,7 +85,8 @@ Login con redirección automática según rol. Sidebar unificado compartido por 
 |----------|-------------|
 | `login.html` | Formulario de inicio de sesión |
 | `register.html` | Registro de usuarios (maestros / staff) |
-| `seleccion_rol.html` | Selección de rol cuando el usuario tiene múltiples roles |
+| `seleccion_rol.html` | **RETIRADO** — la vista `seleccion_rol` ahora redirige al Panel General; el template ya no se usa |
+| `dashboard_general.html` | **NUEVO** — Panel General para staff multi-rol: todos los botones por grupo + toggle Bilingüe/Colegio para maestro de ambas áreas |
 | `menu.html` | Panel principal con tarjetas por módulo |
 | `settings_base.html` | Layout base de la sección Settings con sidebar de tabs |
 | `settings_perfil.html` | Edición de perfil del usuario |
@@ -134,7 +147,8 @@ Login con redirección automática según rol. Sidebar unificado compartido por 
 | `logout/` | `logout` | Cierre de sesión |
 | `register/` | `register_maestro` | Registro de usuarios |
 | `menu/` | `menu` | Panel principal |
-| `seleccion-rol/` | `seleccion_rol` | Selección de rol |
+| `panel/` | `panel_general` | **NUEVO** — Panel General para staff multi-rol |
+| `seleccion-rol/` | `seleccion_rol` | **RETIRADO** — redirige al Panel General / menú |
 | `aplicar-rol/<rol>/` | `aplicar_rol` | Aplicar rol seleccionado |
 | `settings/` | `settings_perfil` | Perfil |
 | `settings/notificaciones/` | `settings_notificaciones` | Notificaciones |
@@ -159,16 +173,52 @@ Login con redirección automática según rol. Sidebar unificado compartido por 
 
 ### Roles y grupos
 
-| Grupo | Acceso |
-|-------|--------|
-| `maestros_bilingue` | Dashboard maestro BL |
-| `maestros_colegio` | Dashboard maestro Colegio |
-| `coordinador_bilingue` | Dashboard coordinador BL + enfermería + agendas |
-| `coord_progress_bl` | **NUEVO** — Coordinador Progress BL + acceso a agendas |
-| `coordinadores_colegio` / `coordinadores` | Dashboard coordinador Colegio |
-| `administracion` | Acceso administrativo |
-| `tecnicos` | Dashboard de tickets |
-| Superusuario | Acceso completo + herramientas admin |
+Los grupos funcionan como **marcadores de rol** que el código revisa por nombre
+(en `core/context_processors.py`, `accounts/panel_roles.py`, `accounts/views.py`
+y `notas_parcial/templatetags/notas_tags.py`). **Casi ninguno usa permisos de
+Django** — la única excepción es `inventario` (18 permisos `add/change/view`).
+Los permisos finos del módulo Reloj **no** vienen de grupos sino del modelo
+`reloj.RelojPermiso` por usuario (Ver/Editar/Eliminar por módulo + toggle "Todos").
+
+| Grupo | Configuración / efecto en código |
+|-------|----------------------------------|
+| `administracion` | `nav_tickets=True` · bucket **tickets** del panel · si es único rol → `dashboard_administracion`; si tiene otro rol → Panel General con sección Tickets |
+| `tecnicos` | `nav_home_url` → `tickets_dashboard` |
+| `reloj` | `nav_reloj` + `nav_calculadoras=True` · bucket **reloj** · único rol → `reloj_dashboard` |
+| `coordinador_bilingue` | `nav_coord_bl=True` · bucket **coordinador** · home → `dashboard_coordinador area=bilingue` · ve Enfermería |
+| `coordinador_colegio` / `coordinadores_colegio` / `coordinadores` | `nav_coord_col=True` · bucket **coordinador** · home → `dashboard_coordinador area=colegio` |
+| `coord_progress_bl` | Cuenta como coord bilingüe (`nav_coord_bl`) · bucket coordinador |
+| `coord_revision` | Solo en `notas_tags`: `es_solo_revision` → en Notas ve **solo Revisión** (sin Asignaciones) |
+| `maestros_bilingue` | `nav_maestro_bl` · bucket **maestro** · home → `dashboard_maestro` |
+| `maestros_colegio` | `nav_maestro_col` · bucket maestro |
+| `maestros_bilingue` **+** `maestros_colegio` | **Activa el toggle Bilingüe/Colegio** en el Panel General |
+| `coord_notas_parcial_bl` / `coord_notas_parcial_col` | `es_coord_notas` → Notas: Revisión **+ Asignaciones** |
+| `maestros_notas_parcial_bl` / `maestros_notas_parcial_col` | `es_maestro_notas` → su página de notas |
+| `inventario` | `nav_inventory=True` (+ 18 permisos Django de inventario) |
+| `enfermeria` | `nav_enfermeria=True` → dashboard enfermería |
+| `control baño coord` / `control baños col` | `is_salidas_bano=True` (menú Salidas Baño) |
+| Superusuario | Acceso completo + herramientas admin (no usa el Panel General) |
+
+### Panel General para staff multi-rol (`accounts/panel_roles.py`)
+
+Los usuarios **staff con 2+ roles** (o maestro en ambas áreas) ya **no pasan por
+la antigua ventana `seleccion_rol`** (retirada): aterrizan en un **Panel General**
+(`accounts/templates/accounts/dashboard_general.html`, vista `panel_general`,
+URL `/accounts/panel/`) con **todos sus botones en un solo lugar**, visibles según
+el grupo.
+
+- **Buckets de rol:** `tickets` (administracion / perm tickets) · `coordinador`
+  (cualquier grupo coord) · `maestro` (maestros_bl/col) · `reloj`.
+- **Va al Panel General** si `is_staff` **y** (tiene **2+ buckets** **o** es
+  **maestro BL y Colegio**).
+- **Toggle Bilingüe/Colegio** (client-side): aparece **solo** si el usuario tiene
+  `maestros_bilingue` **Y** `maestros_colegio`; cambia únicamente los botones de
+  la sección **Maestro** entre BL y Colegio.
+- **Notas Mitad de Parcial** se muestra normal (sin toggle); los **usuarios
+  no-staff** no se ven afectados.
+- **Prioridad de `nav_home_url`:** superuser→menú · multi-rol→Panel General ·
+  solo_progress→progress · maestro→dashboard_maestro · coord_col→coord colegio ·
+  coord_bl→coord bilingüe · tecnicos→tickets · reloj→reloj · administracion→tickets · resto→menú.
 
 ---
 

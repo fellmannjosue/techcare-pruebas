@@ -22,7 +22,7 @@
         <span>·</span>
         <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
       </div>
-      <div class="chat-bubble bubble-me">{{ c.mensaje|linebreaksbr }}</div>
+      <div class="chat-bubble bubble-me">{% if c.mensaje %}{{ c.mensaje|linebreaksbr }}{% endif %}{% include 'tickets/_chat_adjunto.html' %}</div>
     </div>
     <div class="chat-avatar av-me" title="{{ c.usuario.username }}">{{ initials }}</div>
   </div>
@@ -41,7 +41,7 @@
         <span>·</span>
         <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
       </div>
-      <div class="chat-bubble bubble-other">{{ c.mensaje|linebreaksbr }}</div>
+      <div class="chat-bubble bubble-other">{% if c.mensaje %}{{ c.mensaje|linebreaksbr }}{% endif %}{% include 'tickets/_chat_adjunto.html' %}</div>
     </div>
   </div>
 </div>

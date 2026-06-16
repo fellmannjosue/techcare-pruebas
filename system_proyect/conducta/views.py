@@ -512,6 +512,7 @@ def reporte_conductual_bilingue(request):
                 coord_bl = md_obj.coordinador
 
         # Crea el reporte sin los ManyToMany
+        # Conductual bilingüe → siempre C3 (Isabel Alcerro)
         reporte = ReporteConductual.objects.create(
             usuario=request.user,
             area=area,
@@ -522,6 +523,7 @@ def reporte_conductual_bilingue(request):
             docente=docente,
             fecha=fecha_val,
             comentario=comentario,
+            coord_asignado='C3' if area == 'bilingue' else '',
         )
         if ids_leve:
             reporte.incisos_leve.set(ids_leve)
@@ -586,6 +588,7 @@ def reporte_conductual_colegio(request):
             docente=docente,
             fecha=fecha_val,
             comentario=comentario,
+            coord_asignado='C3' if area == 'bilingue' else '',
         )
         if ids_leve:
             reporte.incisos_leve.set(ids_leve)
@@ -713,6 +716,12 @@ def historial_maestro_bilingue(request):
 
     reportes_progress = ProgressReport.objects.all().order_by('-fecha')
 
+    from .models import ConvocatoriaTutoria
+    convocatorias_tut = (ConvocatoriaTutoria.objects.filter(usuario=usuario, area='bilingue')
+                         .prefetch_related('asignaturas').order_by('-creado_at'))
+    for c in convocatorias_tut:
+        c.asigs_txt = ', '.join(a.asignatura for a in c.asignaturas.all())
+
     tickets_usuario = Ticket.objects.filter(email=usuario.email).order_by('-created_at')
 
     es_admin = request.user.groups.filter(name='administracion').exists()
@@ -722,6 +731,7 @@ def historial_maestro_bilingue(request):
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
         'reportes_progress': reportes_progress,
+        'convocatorias_tut': convocatorias_tut,
         'tickets_usuario': tickets_usuario,
         'area': 'bilingue',
         'back_url': back_url,
@@ -1662,9 +1672,10 @@ def descargar_zip_reportes(request):
     from pptx.oxml.ns import qn as pptx_qn
     from lxml import etree as pptx_etree
 
-    # Solo coordinadores y superusuario
+    # Solo coordinadores (BL y Colegio) y superusuario
+    from accounts.panel_roles import _GRUPOS_COORD_BL, _GRUPOS_COORD_COL
     es_coord = request.user.groups.filter(
-        name__in=['coordinador_bilingue', 'coordinadores_colegio', 'coordinadores']
+        name__in=(*_GRUPOS_COORD_BL, *_GRUPOS_COORD_COL)
     ).exists()
     if not (request.user.is_superuser or es_coord):
         return HttpResponseForbidden()
@@ -1672,13 +1683,27 @@ def descargar_zip_reportes(request):
     logo_path = os.path.join(settings.STATIC_ROOT, 'conducta/img/ana-transformed.png')
     fondo_path = '/home/admin2/techcare_project/system_proyect/conducta/static/conducta/img/plantilla.jpg'
 
+    # ── Logo cacheado y reducido (se incrusta en CADA PDF; el original pesa ~1.8MB).
+    # Se carga una sola vez y se reduce, evitando releer/recodificar por reporte. ──
+    from reportlab.lib.utils import ImageReader as _RLImageReader
+    _logo_reader = None
+    if os.path.exists(logo_path):
+        try:
+            from PIL import Image as _PILImage
+            _li = _PILImage.open(logo_path).convert('RGBA')
+            _li.thumbnail((400, 400))
+            _lbuf = io.BytesIO(); _li.save(_lbuf, format='PNG'); _lbuf.seek(0)
+            _logo_reader = _RLImageReader(_lbuf)
+        except Exception:
+            _logo_reader = _RLImageReader(logo_path)
+
     # ── generador PDF informativo ─────────────────────────────────────────────
     def _pdf_informativo(r):
         buf = io.BytesIO()
         w, h = rl_letter
         pdf = rl_canvas.Canvas(buf, pagesize=rl_letter)
-        if os.path.exists(logo_path):
-            pdf.drawImage(logo_path, x=(w-35*rl_mm)/2, y=h-40*rl_mm,
+        if _logo_reader:
+            pdf.drawImage(_logo_reader, x=(w-35*rl_mm)/2, y=h-40*rl_mm,
                           width=35*rl_mm, height=35*rl_mm, mask='auto')
         y = h - 52*rl_mm
         pdf.setFont('Helvetica-Bold', 16)
@@ -1722,8 +1747,8 @@ def descargar_zip_reportes(request):
         buf = io.BytesIO()
         w, h = rl_letter
         pdf = rl_canvas.Canvas(buf, pagesize=rl_letter)
-        if os.path.exists(logo_path):
-            pdf.drawImage(logo_path, x=(w-22*rl_mm)/2, y=h-28*rl_mm,
+        if _logo_reader:
+            pdf.drawImage(_logo_reader, x=(w-22*rl_mm)/2, y=h-28*rl_mm,
                           width=22*rl_mm, height=22*rl_mm, mask='auto')
         y = h - 33*rl_mm
         pdf.setFont('Helvetica-Bold', 16)
@@ -1886,7 +1911,7 @@ def descargar_zip_reportes(request):
         qs_info = ReporteInformativo.objects.none()
         qs_cond = ReporteConductual.objects.none()
         qs_prog = ProgressReport.objects.all()
-    elif request.user.groups.filter(name='coordinadores_colegio').exists():
+    elif request.user.groups.filter(name__in=_GRUPOS_COORD_COL).exists():
         qs_info = ReporteInformativo.objects.filter(area='colegio')
         qs_cond = ReporteConductual.objects.filter(area='colegio')
         qs_prog = ProgressReport.objects.none()
@@ -1894,6 +1919,17 @@ def descargar_zip_reportes(request):
         qs_info = ReporteInformativo.objects.filter(area='bilingue')
         qs_cond = ReporteConductual.objects.filter(area='bilingue')
         qs_prog = ProgressReport.objects.all()
+
+    # ── filtros opcionales (docente para todos · coordinador solo superuser) ──
+    f_docente = (request.GET.get('docente') or '').strip()
+    if f_docente:
+        qs_info = qs_info.filter(docente__icontains=f_docente)
+        qs_cond = qs_cond.filter(docente__icontains=f_docente)
+    f_coord = (request.GET.get('coord') or '').strip().upper()
+    if f_coord in {'C1', 'C2', 'C3', 'C4'} and request.user.is_superuser:
+        _qc = _q_for_coord(f_coord)
+        qs_info = qs_info.filter(_qc)
+        qs_cond = qs_cond.filter(_qc)
 
     # ── construir ZIP ─────────────────────────────────────────────────────────
     mem = io.BytesIO()
@@ -2133,7 +2169,7 @@ def dashboard_coordinador(request, area):
                 'area': area,
                 'reportes_informativo': ReporteInformativo.objects.none(),
                 'reportes_conductual':  ReporteConductual.objects.none(),
-                'reportes_progress':    ProgressReport.objects.all(),
+                'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.all(), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),
                 'strikes':              {},
                 'today':                timezone.now().strftime('%Y-%m-%d'),
             }
@@ -2149,6 +2185,10 @@ def dashboard_coordinador(request, area):
         reportes_progress    = []
     else:
         return redirect('menu')
+
+    # Período activo + anotación de evidencias (rendimiento)
+    reportes_informativo, reportes_conductual, reportes_progress = _dash_querysets(
+        reportes_informativo, reportes_conductual, reportes_progress, area)
 
     strikes = {}
     qs = reportes_conductual.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)
@@ -2184,6 +2224,9 @@ def dashboard_coordinador(request, area):
         'coord_nombres':        coord_nombres,
         'can_edit_dash':        can_edit_dash,
         'can_delete_dash':      can_delete_dash,
+        'docentes_filtro':      _docentes_filtro(area),
+        'periodo_activo':       _periodo_activo(area),
+        'periodos_escolares':   _periodos_escolares(area),
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 
@@ -2194,6 +2237,56 @@ def _docentes_de_coord(codigo):
         if codigo in codigos:
             docentes.add(md.docente)
     return list(docentes)
+
+def _docentes_filtro(area='bilingue'):
+    """Catálogo completo de docentes (activos) para el filtro del dashboard.
+    Incluye también a los que aún no tienen reportes registrados."""
+    modelo = MateriaDocenteColegio if area == 'colegio' else MateriaDocenteBilingue
+    return sorted({md.docente.strip() for md in modelo.objects.filter(activo=True) if md.docente})
+
+
+# ── Períodos escolares (catálogo PROPIO de conducta) ─────────────────────────
+def _periodo_activo(area=None):
+    """Período escolar activo (define qué reportes se ven en el dashboard)."""
+    from .models import PeriodoEscolarConducta
+    qs = PeriodoEscolarConducta.objects.filter(activo=True)
+    if area:
+        qs = qs.filter(area__in=[area, 'ambas'])
+    return qs.order_by('-anio', '-parcial').first()
+
+
+def _periodos_escolares(area=None):
+    """Catálogo completo de períodos (para el tab Período Escolar)."""
+    from .models import PeriodoEscolarConducta
+    qs = PeriodoEscolarConducta.objects.all()
+    if area:
+        qs = qs.filter(area__in=[area, 'ambas'])
+    return list(qs.order_by('-anio', '-parcial'))
+
+
+def _solo_periodo_activo(qs, campo='fecha__date', area=None):
+    """Limita un queryset al rango del período activo. Sin período → sin filtro."""
+    p = _periodo_activo(area)
+    if not p:
+        return qs
+    return qs.filter(**{f'{campo}__gte': p.fecha_inicio, f'{campo}__lte': p.fecha_fin})
+
+
+def _dash_querysets(qs_info, qs_cond, qs_prog, area=None):
+    """Optimiza los querysets del dashboard: filtra al período activo y anota
+    el conteo de evidencias en UNA consulta (elimina el N+1 por fila)."""
+    qs_info = (_solo_periodo_activo(qs_info, area=area)
+               .annotate(num_evid=Count('evidenciareporte'))
+               .prefetch_related('evidenciareporte_set'))
+    qs_cond = (_solo_periodo_activo(qs_cond, area=area)
+               .annotate(num_evid=Count('evidenciareporte'))
+               .prefetch_related('evidenciareporte_set', 'incisos_leve', 'incisos_grave', 'incisos_muygrave'))
+    if hasattr(qs_prog, 'filter'):
+        qs_prog = (_solo_periodo_activo(qs_prog, campo='semana_inicio', area=area)
+                   .annotate(num_evid=Count('evidenciareporte'))
+                   .prefetch_related('evidenciareporte_set'))
+    return qs_info, qs_cond, qs_prog
+
 
 def _coord_dash_perms(user):
     """Retorna (can_edit_dash, can_delete_dash) según CoordPermiso del usuario."""
@@ -2211,6 +2304,7 @@ def dashboard_c1(request):
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
+    qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     reportes_nuevos_bl = (
         ReporteInformativo.objects.filter(area='bilingue', estado='enviado').count() +
@@ -2225,6 +2319,9 @@ def dashboard_c1(request):
         'coord_codigo': 'C1',
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+        'docentes_filtro': _docentes_filtro(),
+        'periodo_activo': _periodo_activo('bilingue'),
+        'periodos_escolares': _periodos_escolares('bilingue'),
     })
 
 @login_required
@@ -2233,6 +2330,7 @@ def dashboard_c2(request):
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
+    qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -2241,6 +2339,9 @@ def dashboard_c2(request):
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C2',
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+        'docentes_filtro': _docentes_filtro(),
+        'periodo_activo': _periodo_activo('bilingue'),
+        'periodos_escolares': _periodos_escolares('bilingue'),
     })
 
 @login_required
@@ -2252,6 +2353,7 @@ def dashboard_c3(request):
     ).distinct().order_by('-fecha')
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
+    qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -2260,6 +2362,9 @@ def dashboard_c3(request):
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C3',
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+        'docentes_filtro': _docentes_filtro(),
+        'periodo_activo': _periodo_activo('bilingue'),
+        'periodos_escolares': _periodos_escolares('bilingue'),
     })
 
 @login_required
@@ -2268,6 +2373,7 @@ def dashboard_c4(request):
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
+    qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')
     strikes = {r['alumno_id']: r['total'] for r in qs_cond.values('alumno_id').annotate(total=Count('id')).filter(total__gte=3)}
     can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/dashboard_coordinador.html', {
@@ -2276,6 +2382,9 @@ def dashboard_c4(request):
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C4',
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+        'docentes_filtro': _docentes_filtro(),
+        'periodo_activo': _periodo_activo('bilingue'),
+        'periodos_escolares': _periodos_escolares('bilingue'),
     })
 
 @login_required
@@ -2290,11 +2399,109 @@ def dashboard_coordi_bl(request):
         'area': 'bilingue',
         'reportes_informativo': ReporteInformativo.objects.none(),
         'reportes_conductual':  ReporteConductual.objects.none(),
-        'reportes_progress':    ProgressReport.objects.all(),
+        'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.all(), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),
         'strikes': {}, 'today': timezone.now().strftime('%Y-%m-%d'),
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+        'docentes_filtro': _docentes_filtro(),
+        'periodo_activo': _periodo_activo('bilingue'),
+        'periodos_escolares': _periodos_escolares('bilingue'),
     })
+
+@login_required
+def periodo_conducta_save(request):
+    """Crear/editar un período escolar de conducta (solo superuser)."""
+    if not request.user.is_superuser or request.method != 'POST':
+        return redirect('menu')
+    from .models import PeriodoEscolarConducta
+    pk = request.POST.get('pk') or None
+    try:
+        obj = PeriodoEscolarConducta.objects.get(pk=pk) if pk else PeriodoEscolarConducta()
+        obj.nombre       = request.POST.get('nombre', '').strip()[:60]
+        obj.parcial      = int(request.POST.get('parcial') or 1)
+        obj.anio         = int(request.POST.get('anio') or timezone.now().year)
+        obj.area         = request.POST.get('area') if request.POST.get('area') in ('bilingue', 'colegio', 'ambas') else 'ambas'
+        obj.fecha_inicio = request.POST.get('fecha_inicio')
+        obj.fecha_fin    = request.POST.get('fecha_fin')
+        obj.activo       = request.POST.get('activo') == 'on'
+        obj.save()
+        if obj.activo:
+            # Un solo período activo por área
+            areas = ['bilingue', 'colegio', 'ambas'] if obj.area == 'ambas' else [obj.area, 'ambas']
+            PeriodoEscolarConducta.objects.exclude(pk=obj.pk).filter(area__in=areas).update(activo=False)
+        messages.success(request, f'Período "{obj.nombre}" guardado.')
+    except Exception as e:
+        messages.error(request, f'No se pudo guardar el período: {e}')
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+def periodo_conducta_delete(request, pk):
+    if not request.user.is_superuser or request.method != 'POST':
+        return redirect('menu')
+    from .models import PeriodoEscolarConducta
+    PeriodoEscolarConducta.objects.filter(pk=pk).delete()
+    messages.success(request, 'Período eliminado.')
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+def historial_alumnado(request, area):
+    """Historial de reportes agrupado por parcial → grado (carga perezosa AJAX).
+    Regla: el reporte cae en el parcial cuyo rango cubre su fecha; sin match → Parcial 2."""
+    if area not in ('bilingue', 'colegio'):
+        from django.http import Http404
+        raise Http404
+    periodos = _periodos_escolares(area)
+
+    def _parcial_de(f):
+        for p in periodos:
+            if p.fecha_inicio <= f <= p.fecha_fin:
+                return p.parcial
+        return 2  # acumulado sin período definido → Parcial 2
+
+    reportes = []
+    qs_info = ReporteInformativo.objects.filter(area=area).annotate(
+        num_evid=Count('evidenciareporte'))
+    for r in qs_info:
+        reportes.append({'pk': r.pk, 'tipo': 'Informativo / ' + ('Conductual' if r.tipo_reporte == 'conductual' else 'Académico'),
+                         'tipo_key': 'informativo', 'color': 'blue',
+                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
+                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
+                         'num_evid': r.num_evid, 'parcial': _parcial_de(r.fecha.date())})
+    qs_cond = ReporteConductual.objects.filter(area=area).annotate(
+        num_evid=Count('evidenciareporte'))
+    for r in qs_cond:
+        reportes.append({'pk': r.pk, 'tipo': 'Conductual', 'tipo_key': 'conductual', 'color': 'orange',
+                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
+                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
+                         'num_evid': r.num_evid, 'parcial': _parcial_de(r.fecha.date())})
+    if area == 'bilingue':
+        for r in ProgressReport.objects.annotate(num_evid=Count('evidenciareporte')):
+            reportes.append({'pk': r.pk, 'tipo': 'Progress', 'tipo_key': 'progress', 'color': 'teal',
+                             'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
+                             'docente': '', 'materia': '', 'fecha': r.semana_inicio, 'estado': r.estado,
+                             'num_evid': r.num_evid, 'parcial': _parcial_de(r.semana_inicio)})
+
+    # Estructura: parciales 1..3 → grados → reportes
+    parciales = []
+    for n in (1, 2, 3):
+        del_parcial = [r for r in reportes if r['parcial'] == n]
+        grados = {}
+        for r in del_parcial:
+            grados.setdefault(r['grado'], []).append(r)
+        grados_list = [
+            {'nombre': g, 'reportes': sorted(rs, key=lambda x: str(x['fecha']), reverse=True), 'total': len(rs)}
+            for g, rs in sorted(grados.items(), key=lambda kv: kv[0])
+        ]
+        parciales.append({'num': n, 'total': len(del_parcial), 'grados': grados_list})
+
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
+    return render(request, 'conducta/_historial_alumnado.html', {
+        'parciales': parciales, 'area': area, 'total': len(reportes),
+        'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
+    })
+
 
 @login_required
 def materias_docentes_bl(request):
@@ -2624,3 +2831,353 @@ def directorio_telefonos(request):
         'area_dashboard':  area_dashboard,
     })
 
+
+
+# ════════════════════════════════════════════════════════════════════
+# CONVOCATORIA DE TUTORÍAS (Bilingüe)   <--- hecho por claude code
+# ════════════════════════════════════════════════════════════════════
+import re as _re_tut
+
+ASIGNATURAS_TUTORIA = ['Lang. Arts', 'Lang. Arts/Spelling', 'Math', 'Español',
+                       'Language', 'Reading', 'Science', 'Spelling', 'Phonics']
+
+
+_ORDINAL_GRADO = {
+    '1ero': 1, '1mo': 1, 'primero': 1,
+    '2do': 2, 'segundo': 2,
+    '3ero': 3, '3ro': 3, 'tercero': 3,
+    '4to': 4, 'cuarto': 4,
+    '5to': 5, 'quinto': 5,
+    '6to': 6, 'sexto': 6,
+    '7mo': 7, 'septimo': 7, 'séptimo': 7,
+    '8vo': 8, 'octavo': 8,
+    '9no': 9, 'noveno': 9,
+}
+
+
+def _parse_grado_num(grado_str):
+    """'PrimariaBL 1ero-_2' -> (1, '2'). Maneja ordinales (1ero, 2do…) y números."""
+    s = grado_str or ''
+    m = _re_tut.search(r'([0-9A-Za-zªºáéíóú]+)\s*-\s*([0-9A-Za-z_]+)\s*$', s)
+    if not m:
+        return None, ''
+    crso = m.group(1).strip().lower()
+    seccion = m.group(2).lstrip('_').strip()
+    n = _ORDINAL_GRADO.get(crso)
+    if n is None:
+        dm = _re_tut.match(r'(\d+)', crso)
+        n = int(dm.group(1)) if dm else None
+    if n and 1 <= n <= 9:
+        return n, seccion
+    return None, seccion
+
+
+def _horario_grado(grado_num, parcial, anio):
+    """Asignaturas de tutoría del grado con los días en que se imparten (1-5).
+    Los días vienen del horario y quedan fijos (no los elige el maestro)."""
+    from .models import TutoriaHorario
+    data, orden = {}, {}
+    for r in TutoriaHorario.objects.filter(grado=grado_num, parcial=parcial, anio=anio).order_by('dia'):
+        d = data.setdefault(r.asignatura, {'dias': [], 'color': r.color, 'docente': r.docente})
+        if r.dia not in d['dias']:
+            d['dias'].append(r.dia)
+        orden.setdefault(r.asignatura, r.dia)
+    out = [{'asignatura': a, 'dias': sorted(v['dias']), 'color': v['color'], 'docente': v['docente']}
+           for a, v in data.items()]
+    out.sort(key=lambda x: orden.get(x['asignatura'], 99))
+    return out
+
+
+@login_required
+def convocatoria_horario_ajax(request):
+    """Devuelve las asignaturas+días de tutoría de un grado para un parcial/año."""
+    try:
+        grado_num = int(request.GET.get('grado_num'))
+        parcial = int(request.GET.get('parcial'))
+        anio = int(request.GET.get('anio'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'items': []})
+    return JsonResponse({'ok': True, 'items': _horario_grado(grado_num, parcial, anio)})
+
+
+@login_required
+def convocatoria_nueva(request, pk=None):
+    """Pantalla del maestro bilingüe: crear o editar convocatoria de tutorías."""
+    from .models import (ConvocatoriaTutoria, ConvocatoriaAsignatura,
+                         PeriodoEscolarConducta, GRADO_TUTORIA_LABEL)
+    area = 'bilingue'
+    conv_edit = get_object_or_404(ConvocatoriaTutoria, pk=pk) if pk else None
+    students = obtener_alumnos_bilingue()
+    periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
+                    .order_by('-anio', '-parcial'))
+    activo = _periodo_activo('bilingue')
+
+    if request.method == 'POST':
+        alumno_id = (request.POST.get('alumno') or '').strip()
+        grado_txt = (request.POST.get('grado') or '').strip()
+        try:
+            parcial = int(request.POST.get('parcial'))
+            anio = int(request.POST.get('anio'))
+        except (TypeError, ValueError):
+            messages.error(request, "Selecciona un parcial válido.")
+            return redirect('convocatoria_nueva')
+        docente_guia = (request.POST.get('docente_guia') or '').strip()
+        coordinador = (request.POST.get('coordinador') or '').strip()
+        fecha_str = (request.POST.get('fecha') or '').strip()
+        try:
+            fecha = _dt_module.date.fromisoformat(fecha_str) if fecha_str else _dt_module.date.today()
+        except ValueError:
+            fecha = _dt_module.date.today()
+
+        alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
+        alumno_nombre = alumno_obj['label'] if alumno_obj else (request.POST.get('alumno_nombre') or '')
+        grado_num, seccion = _parse_grado_num(grado_txt)
+
+        try:
+            asigns = json.loads(request.POST.get('asignaturas_json') or '[]')
+        except json.JSONDecodeError:
+            asigns = []
+        asigns = [a for a in asigns if a.get('asignatura') and a.get('dias')]
+        redir = 'convocatoria_editar' if conv_edit else 'convocatoria_nueva'
+        if not alumno_id or not asigns:
+            messages.error(request, "Selecciona el alumno y al menos una asignatura con días.")
+            return redirect(redir, pk=conv_edit.pk) if conv_edit else redirect('convocatoria_nueva')
+
+        from .models import grupo_coord_de_grado, ConfiguracionCoordinador
+        grupo = grupo_coord_de_grado(grado_num)
+        if not coordinador and grupo:
+            cc = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=grupo).first()
+            if cc:
+                coordinador = cc.nombre
+
+        if conv_edit:
+            conv = conv_edit
+            conv.alumno_id, conv.alumno_nombre = alumno_id, alumno_nombre
+            conv.grado, conv.grado_num, conv.seccion = grado_txt, grado_num, seccion
+            conv.parcial, conv.anio = parcial, anio
+            conv.docente_guia, conv.coordinador, conv.coord_grupo = docente_guia, coordinador, grupo
+            conv.fecha = fecha
+            conv.save()
+            conv.asignaturas.all().delete()
+        else:
+            conv = ConvocatoriaTutoria.objects.create(
+                usuario=request.user, area=area, alumno_id=alumno_id, alumno_nombre=alumno_nombre,
+                grado=grado_txt, grado_num=grado_num, seccion=seccion,
+                parcial=parcial, anio=anio, docente_guia=docente_guia, coordinador=coordinador,
+                coord_grupo=grupo, fecha=fecha,
+            )
+        for a in asigns:
+            dias = ','.join(str(int(d)) for d in a['dias'] if str(d).isdigit())
+            ConvocatoriaAsignatura.objects.create(
+                convocatoria=conv, asignatura=a['asignatura'][:60], dias=dias)
+
+        if not conv_edit and grupo:
+            cc = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=grupo).first()
+            if cc and cc.usuario_id:
+                try:
+                    crear_notificacion(
+                        usuario=cc.usuario,
+                        mensaje=f"Nueva convocatoria de tutoría: {alumno_nombre} ({grado_txt}) por {request.user.get_full_name() or request.user.username}.",
+                        modulo="conducta", tipo="info",
+                    )
+                except Exception:
+                    pass
+
+        if conv_edit:
+            messages.success(request, "Convocatoria actualizada.")
+            # El coordinador edita → vuelve al listado; el maestro → a su historial
+            es_coord = (request.user.is_superuser or
+                        ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+            return redirect('convocatorias_coordinador') if es_coord else redirect('historial_maestro_bilingue')
+        messages.success(request, "¡Convocatoria registrada! Puedes verla en tu Historial.")
+        return redirect('historial_maestro_bilingue')
+
+    # GET
+    from .models import ConfiguracionCoordinador
+    conv_asigs = list(conv_edit.asignaturas.values_list('asignatura', flat=True)) if conv_edit else []
+    es_coord = (request.user.is_superuser or
+                ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+    volver_coord = bool(conv_edit and es_coord)
+    return render(request, 'conducta/form_convocatoria.html', {
+        'volver_coord': volver_coord,
+        'area': area,
+        'students': students,
+        'periodos': periodos,
+        'periodo_activo': activo,
+        'anio_actual': (activo.anio if activo else timezone.now().year),
+        'parcial_actual': (activo.parcial if activo else 1),
+        'fecha_hoy': _dt_module.date.today().isoformat(),
+        'grado_labels': GRADO_TUTORIA_LABEL,
+        'conv_edit': conv_edit,
+        'conv_asigs_json': json.dumps(conv_asigs),
+    })
+
+
+@login_required
+@require_POST
+def convocatoria_eliminar(request, pk):
+    """Elimina una convocatoria (coordinador/superuser o su autor)."""
+    from .models import ConvocatoriaTutoria, ConfiguracionCoordinador
+    conv = get_object_or_404(ConvocatoriaTutoria, pk=pk)
+    es_coord = (request.user.is_superuser or
+                ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+    if not (es_coord or conv.usuario_id == request.user.id):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    conv.delete()
+    messages.success(request, "Convocatoria eliminada.")
+    return redirect(request.META.get('HTTP_REFERER') or 'convocatorias_coordinador')
+
+
+def _convocatoria_ctx(conv):
+    """Contexto de render (carta) de una convocatoria."""
+    from .models import DIA_ABREV, GRADO_TUTORIA_LABEL
+    filas = []
+    for i, a in enumerate(conv.asignaturas.all(), start=1):
+        dl = a.dias_lista
+        filas.append({
+            'n': i, 'asignatura': a.asignatura,
+            'dias_bool': {d: (d in dl) for d in (1, 2, 3, 4, 5)},
+        })
+    _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+              'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    _PARCIAL_ORD = {1: 'I', 2: 'II', 3: 'III', 4: 'IV'}
+    return {
+        'conv': conv,
+        'filas': filas,
+        'grado_label': GRADO_TUTORIA_LABEL.get(conv.grado_num, conv.grado),
+        'parcial_rom': _PARCIAL_ORD.get(conv.parcial, conv.parcial),
+        'fecha_dia': conv.fecha.day,
+        'fecha_mes': _MESES[conv.fecha.month - 1],
+        'fecha_anio': conv.fecha.year,
+    }
+
+
+@login_required
+def convocatoria_pdf(request, pk):
+    """Genera la carta de convocatoria (WeasyPrint)."""
+    from weasyprint import HTML as _WHTML
+    from .models import ConvocatoriaTutoria
+    conv = get_object_or_404(ConvocatoriaTutoria, pk=pk)
+    ctx = _convocatoria_ctx(conv)
+    # Logo como ruta de archivo (WeasyPrint no siempre resuelve {% static %} por HTTP)
+    for _base in (settings.STATIC_ROOT, *[d for d in getattr(settings, 'STATICFILES_DIRS', [])]):
+        if not _base:
+            continue
+        _p = os.path.join(str(_base), 'conducta', 'img', 'encabezado.jpg')
+        if os.path.exists(_p):
+            ctx['logo_path'] = 'file://' + _p
+            break
+    html = render_to_string('conducta/pdf/convocatoria_pdf.html', ctx, request=request)
+    pdf_bytes = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    nombre = conv.alumno_nombre.replace(' ', '_')
+    resp['Content-Disposition'] = f'inline; filename="convocatoria_{nombre}_P{conv.parcial}.pdf"'
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    return resp
+
+
+@login_required
+def convocatorias_coordinador(request):
+    """Listado/historial de convocatorias (tab del coordinador)."""
+    from .models import (ConvocatoriaTutoria, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
+                         ConfiguracionCoordinador)
+    qs = ConvocatoriaTutoria.objects.filter(area='bilingue').prefetch_related('asignaturas')
+
+    # Auto-restricción: un coordinador C1/C2 (no superuser) solo ve su grupo
+    mi_grupo = ''
+    if not request.user.is_superuser:
+        cc = ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user,
+                                                     codigo__in=['C1', 'C2']).first()
+        if cc:
+            mi_grupo = cc.codigo
+            qs = qs.filter(coord_grupo=cc.codigo)
+
+    parcial = request.GET.get('parcial')
+    grado = request.GET.get('grado')
+    f_grupo = request.GET.get('grupo')
+    if parcial:
+        qs = qs.filter(parcial=parcial)
+    if grado:
+        qs = qs.filter(grado_num=grado)
+    if f_grupo and not mi_grupo:
+        qs = qs.filter(coord_grupo=f_grupo)
+    convocatorias = list(qs[:500])
+    for c in convocatorias:
+        c.asigs_txt = ', '.join(a.asignatura for a in c.asignaturas.all())
+    periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
+                    .order_by('-anio', '-parcial'))
+    return render(request, 'conducta/convocatorias_coordinador.html', {
+        'convocatorias': convocatorias,
+        'periodos': periodos,
+        'grados': [(n, GRADO_TUTORIA_LABEL[n]) for n in range(1, 10)],
+        'f_parcial': parcial or '',
+        'f_grado': grado or '',
+        'f_grupo': f_grupo or '',
+        'mi_grupo': mi_grupo,
+    })
+
+
+@login_required
+def tutoria_horario_config(request):
+    """Pantalla del coordinador/superuser: editar la matriz Grado × Día × Asignatura."""
+    from .models import (TutoriaHorario, PeriodoEscolarConducta, GRADOS_TUTORIA,
+                         DIAS_TUTORIA, color_asignatura)
+    activo = _periodo_activo('bilingue')
+    try:
+        parcial = int(request.GET.get('parcial') or (activo.parcial if activo else 1))
+        anio = int(request.GET.get('anio') or (activo.anio if activo else timezone.now().year))
+    except (TypeError, ValueError):
+        parcial = activo.parcial if activo else 1
+        anio = activo.anio if activo else timezone.now().year
+
+    if request.method == 'POST':
+        try:
+            parcial = int(request.POST.get('parcial'))
+            anio = int(request.POST.get('anio'))
+        except (TypeError, ValueError):
+            messages.error(request, "Parcial/año inválido.")
+            return redirect('tutoria_horario_config')
+        from .models import grupo_coord_de_grado
+        TutoriaHorario.objects.filter(parcial=parcial, anio=anio).delete()
+        nuevos = []
+        for g, _gl in GRADOS_TUTORIA:
+            for d, _dl in DIAS_TUTORIA:
+                raw = (request.POST.get(f'cell_{g}_{d}') or '').strip()
+                vistos = set()
+                for asig in [a.strip() for a in raw.split(',') if a.strip()]:
+                    key = asig.lower()
+                    if key in vistos:
+                        continue
+                    vistos.add(key)
+                    nuevos.append(TutoriaHorario(
+                        grado=g, dia=d, asignatura=asig[:60], parcial=parcial, anio=anio,
+                        color=color_asignatura(asig)))
+        TutoriaHorario.objects.bulk_create(nuevos)
+        messages.success(request, f"Horario guardado ({len(nuevos)} asignaturas).")
+        return redirect(f"{request.path}?parcial={parcial}&anio={anio}")
+
+    # GET: grilla {grado: {dia: 'A, B'}}
+    from .models import grupo_coord_de_grado
+    grid = {g: {d: [] for d, _ in DIAS_TUTORIA} for g, _ in GRADOS_TUTORIA}
+    for r in TutoriaHorario.objects.filter(parcial=parcial, anio=anio):
+        if r.grado in grid and r.dia in grid[r.grado]:
+            grid[r.grado][r.dia].append(r.asignatura)
+    filas = []
+    for g, gl in GRADOS_TUTORIA:
+        celdas = [{'dia': d, 'valor': ', '.join(grid[g][d])} for d, _ in DIAS_TUTORIA]
+        filas.append({
+            'grado': g,
+            'label': gl + (" (1 y 2)" if g <= 4 else ""),
+            'grupo': grupo_coord_de_grado(g),
+            'celdas': celdas,
+        })
+    periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
+                    .order_by('-anio', '-parcial'))
+    return render(request, 'conducta/tutoria_horario_config.html', {
+        'filas': filas,
+        'dias': DIAS_TUTORIA,
+        'parcial': parcial,
+        'anio': anio,
+        'periodos': periodos,
+        'asignaturas_catalogo': ASIGNATURAS_TUTORIA,
+    })

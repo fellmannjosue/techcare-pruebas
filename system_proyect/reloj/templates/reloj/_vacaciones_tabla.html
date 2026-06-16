@@ -1,0 +1,125 @@
+{% load static %}
+{# <--- hecho por claude code: tabla de vacaciones (reutilizada por tab) #}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter table-hover card-table tabla-vac">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th class="text-center">Tipo</th>
+          <th class="text-center">Inicio labores</th>
+          <th class="text-center">Años</th>
+          <th class="text-center">Días corresponden</th>
+          <th class="text-center">Días usados</th>
+          <th class="text-center">Días disponibles</th>
+          <th class="text-center w-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr data-emp="{{ f.emp_code }}"
+            data-nombre="{{ f.nombre }}"
+            data-docente="{{ f.cfg.es_docente|yesno:'true,false' }}"
+            data-grupo="{{ f.cfg.grupo_docente|default:'' }}"
+            data-fecha="{{ f.cfg.fecha_inicio_labores|date:'Y-m-d'|default:'' }}"
+            data-fijos="{{ f.cfg.dias_fijos|default:'' }}">
+
+          <td>
+            <div class="fw-semibold">{{ f.nombre }}</div>
+            <div class="text-muted small">Cód. {{ f.emp_code }}</div>
+          </td>
+
+          <td class="text-center td-tipo">
+            {% if not f.cfg %}
+              <span class="badge bg-secondary-lt text-muted">Sin config.</span>
+            {% elif f.cfg.dias_fijos %}
+              <span class="badge bg-yellow-lt text-yellow"><i class="ti ti-star me-1"></i>Caso especial · {{ f.cfg.dias_fijos }}d</span>
+            {% elif f.cfg.es_docente %}
+              <span class="badge bg-blue-lt text-blue"><i class="ti ti-school me-1"></i>Docente</span>
+            {% else %}
+              <span class="badge bg-green-lt text-green"><i class="ti ti-briefcase me-1"></i>No docente</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-fecha">
+            {% if f.cfg.fecha_inicio_labores %}
+              {{ f.cfg.fecha_inicio_labores|date:"d/m/Y" }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-años">
+            {% if f.años is not None %}
+              {% if f.años == 0 %}
+                <span class="text-muted small">< 1 año</span>
+              {% else %}
+                {{ f.años }} {% if f.años == 1 %}año{% else %}años{% endif %}
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-corresponden">
+            {% if f.dias_corresponden > 0 %}
+              <span class="fw-bold text-primary">{{ f.dias_corresponden }}</span>
+            {% else %}
+              <span class="text-muted">0</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center td-usados">
+            <div class="d-flex align-items-center justify-content-center gap-1">
+              {% if f.dias_usados > 0 %}
+                <span class="text-orange fw-semibold td-usados-val">{{ f.dias_usados }}</span>
+              {% else %}
+                <span class="text-muted td-usados-val">0</span>
+              {% endif %}
+              {% if can_edit %}
+              <button class="btn btn-sm btn-ghost-secondary btn-icon btn-editar-usados p-0"
+                      style="width:20px;height:20px;font-size:11px;"
+                      data-emp="{{ f.emp_code }}"
+                      data-nombre="{{ f.nombre }}"
+                      data-usados="{{ f.dias_usados }}"
+                      title="Editar días usados">
+                <i class="ti ti-pencil"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+
+          <td class="text-center td-disponibles">
+            {% if f.dias_corresponden > 0 %}
+              {% if f.dias_disponibles <= 0 %}
+                <span class="badge bg-red-lt text-red fw-bold">{{ f.dias_disponibles }}</span>
+              {% elif f.dias_disponibles <= 5 %}
+                <span class="badge bg-orange-lt text-orange fw-bold">{{ f.dias_disponibles }}</span>
+              {% else %}
+                <span class="badge bg-green-lt text-green fw-bold">{{ f.dias_disponibles }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if can_edit %}
+            <button class="btn btn-sm btn-ghost-secondary btn-icon btn-cfg"
+                    data-emp="{{ f.emp_code }}"
+                    data-nombre="{{ f.nombre }}"
+                    data-docente="{{ f.cfg.es_docente|yesno:'true,false' }}"
+                    data-fecha="{{ f.cfg.fecha_inicio_labores|date:'Y-m-d'|default:'' }}"
+                    title="Configurar">
+              <i class="ti ti-settings"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron empleados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

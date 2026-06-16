@@ -1,0 +1,14 @@
+{# Adjunto de un comentario de chat (imagen inline o archivo descargable) #}
+{% if c.archivo %}
+  {% if c.es_imagen %}
+  <a href="{{ c.archivo.url }}" target="_blank" class="chat-adjunto-img-link">
+    <img src="{{ c.archivo.url }}" alt="{{ c.archivo_nombre }}" class="chat-adjunto-img">
+  </a>
+  {% else %}
+  <a href="{{ c.archivo.url }}" target="_blank" class="chat-adjunto-file">
+    <i class="ti ti-file-text"></i>
+    <span class="chat-adjunto-name">{{ c.archivo_nombre }}</span>
+    <i class="ti ti-download ms-1"></i>
+  </a>
+  {% endif %}
+{% endif %}

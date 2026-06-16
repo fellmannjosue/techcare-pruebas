@@ -1,0 +1,29 @@
+{% load l10n %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter; margin: 1.6cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 10px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+  th { background: #f1f5f9; font-size: 9px; text-transform: uppercase; }
+  td.n { width: 36px; text-align: center; color: #888; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style></head><body>
+
+<h1>Bono por Asistencia</h1>
+<div class="sub">Empleados que conservan el bono · {{ mes|date:"F Y" }}</div>
+
+<table>
+  <thead><tr><th class="n">Nº</th><th>Empleado</th></tr></thead>
+  <tbody>
+    {% for b in bono_conservan %}
+    <tr><td class="n">{{ forloop.counter }}</td><td>{{ b.nombre }} <span style="color:#888;">({{ b.emp_code }})</span></td></tr>
+    {% empty %}
+    <tr><td colspan="2" style="text-align:center;color:#999;">Ningún empleado conserva el bono este mes.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</body></html>

@@ -11,6 +11,8 @@ urlpatterns = [
     path('reenviar-bienvenida/', views.reenviar_bienvenida, name='reenviar_bienvenida'),
     path('usuarios-lista/', views.usuarios_lista_json, name='usuarios_lista_json'),
     path('menu/', views.menu_view, name='menu'),
+    path('panel/', views.panel_general, name='panel_general'),
+    path('panel-super/<str:grupo>/', views.panel_grupo, name='panel_grupo'),
     path('seleccion-rol/', views.seleccion_rol, name='seleccion_rol'),
     path('aplicar-rol/<str:rol>/', views.aplicar_rol, name='aplicar_rol'),
 

@@ -355,19 +355,26 @@ def ticket_comments_ajax(request, ticket_id):
 @require_POST
 @login_required
 def ticket_send_comment_ajax(request, ticket_id):
+    User = get_user_model()
     ticket = get_object_or_404(Ticket, id=ticket_id)
 
     if ticket.status.lower() == "resuelto":
         return JsonResponse({"ok": False, "error": "Ticket cerrado"}, status=400)
 
     mensaje = request.POST.get("mensaje", "").strip()
-    if not mensaje:
+    archivo = request.FILES.get("archivo")
+    if not mensaje and not archivo:
         return JsonResponse({"ok": False, "error": "Mensaje vacío"}, status=400)
+
+    # Límite de tamaño: 15 MB
+    if archivo and archivo.size > 15 * 1024 * 1024:
+        return JsonResponse({"ok": False, "error": "El archivo supera el límite de 15 MB"}, status=400)
 
     comentario = TicketComment.objects.create(
         ticket=ticket,
         usuario=request.user,
         mensaje=mensaje,
+        archivo=archivo,
         tipo="usuario" if not request.user.is_staff else "tecnico"
     )
 

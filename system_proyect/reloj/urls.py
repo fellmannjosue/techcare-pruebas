@@ -11,6 +11,7 @@ urlpatterns = [
     path('reporte/comentario/add/', views.comentario_add_ajax, name='reloj_comentario_add'),
     path('reporte/comentario/<int:pk>/delete/', views.comentario_delete_ajax, name='reloj_comentario_delete'),
     path('pdf/', views.exportar_pdf, name='reloj_exportar_pdf'),
+    path('reportes/', views.reportes_pdf, name='reloj_reportes_pdf'),
 
     # Gráfica (pie) + detalle para modal
     path('grafica/', views.grafica, name='reloj_grafica'),
@@ -90,13 +91,26 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/set-horas-adeudadas/', views.compensatorio_set_horas_adeudadas, name='reloj_compensatorio_set_horas_adeudadas'),
     path('compensatorio-calculo/<int:pk>/set-tomado/', views.compensatorio_set_tomado, name='reloj_compensatorio_set_tomado'),
     path('compensatorio-calculo/<int:pk>/tomado/', views.compensatorio_calculo_get_tomado, name='reloj_compensatorio_get_tomado'),
+    path('compensatorio-calculo/<int:pk>/tomado-manual/add/', views.compensatorio_tomado_manual_add, name='reloj_compensatorio_tomado_manual_add'),
+    path('compensatorio-tomado-manual/<int:tm_pk>/delete/', views.compensatorio_tomado_manual_del, name='reloj_compensatorio_tomado_manual_del'),
     path('compensatorio/emp-buscar/', views.compensatorio_emp_buscar, name='reloj_compensatorio_emp_buscar'),
     path('compensatorio-mensual/add/', views.compensatorio_mensual_add, name='reloj_compensatorio_mensual_add'),
     path('compensatorio-mensual/cell/', views.compensatorio_mensual_cell, name='reloj_compensatorio_mensual_cell'),
+    path('compensatorio-mensual/comentario/', views.compensatorio_mensual_comentario, name='reloj_compensatorio_mensual_comentario'),
+    path('compensatorio-mensual/detalle/',        views.compensatorio_mensual_detalle_get,    name='reloj_compensatorio_mensual_detalle_get'),
+    path('compensatorio-mensual/detalle/add/',    views.compensatorio_mensual_detalle_add,    name='reloj_compensatorio_mensual_detalle_add'),
+    path('compensatorio-mensual-detalle/<int:pk>/delete/', views.compensatorio_mensual_detalle_delete, name='reloj_compensatorio_mensual_detalle_delete'),
     path('compensatorio-mensual/<int:pk>/delete/', views.compensatorio_mensual_delete, name='reloj_compensatorio_mensual_delete'),
     path('compensatorio-instructor/add/', views.compensatorio_instructor_add, name='reloj_compensatorio_instructor_add'),
     path('compensatorio-instructor/<int:pk>/set/', views.compensatorio_instructor_set, name='reloj_compensatorio_instructor_set'),
     path('compensatorio-instructor/<int:pk>/delete/', views.compensatorio_instructor_delete, name='reloj_compensatorio_instructor_delete'),
+    # Instructor: tiempo extra (entradas) y permiso tomado manual
+    path('compensatorio-instructor/<int:pk>/te/',        views.compensatorio_instructor_te_get,    name='reloj_compensatorio_instructor_te_get'),
+    path('compensatorio-instructor/<int:pk>/te/add/',    views.compensatorio_instructor_te_add,    name='reloj_compensatorio_instructor_te_add'),
+    path('compensatorio-instructor-te/<int:te_pk>/delete/', views.compensatorio_instructor_te_del, name='reloj_compensatorio_instructor_te_del'),
+    path('compensatorio-instructor/<int:pk>/tomado/',     views.compensatorio_instructor_tomado_get, name='reloj_compensatorio_instructor_tomado_get'),
+    path('compensatorio-instructor/<int:pk>/tomado/add/', views.compensatorio_instructor_tomado_add, name='reloj_compensatorio_instructor_tomado_add'),
+    path('compensatorio-instructor-tomado/<int:tm_pk>/delete/', views.compensatorio_instructor_tomado_del, name='reloj_compensatorio_instructor_tomado_del'),
     path('compensatorio-calculo/<int:pk>/tiempo-extra/', views.compensatorio_calculo_get_tiempo_extra, name='reloj_compensatorio_calculo_get_te'),
     path('compensatorio-calculo/<int:pk>/tiempo-extra/add/', views.compensatorio_calculo_add_tiempo_extra_entrada, name='reloj_compensatorio_calculo_add_te'),
     path('compensatorio-te/<int:te_pk>/delete/', views.compensatorio_calculo_del_tiempo_extra_entrada, name='reloj_compensatorio_calculo_del_te'),
@@ -121,6 +135,11 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('permisos/reporte/', views.permiso_reporte_list, name='reloj_permiso_reporte'),
     path('permisos/reporte/set-campo/', views.permiso_reporte_set_campo, name='reloj_permiso_reporte_set_campo'),
+    # Receso: ajuste manual de marcas de almuerzo
+    path('compensatorio-calculo/receso-ajuste/', views.receso_ajuste_set, name='reloj_receso_ajuste_set'),
+    # Maestros por hora: horas por día de la semana
+    path('permisos/reporte/maestro-dia/',     views.maestro_dia_get, name='reloj_maestro_dia_get'),
+    path('permisos/reporte/maestro-dia/set/', views.maestro_dia_set, name='reloj_maestro_dia_set'),
     path('permisos/reporte/save/', views.permiso_reporte_save, name='reloj_permiso_reporte_save'),
     path('permisos/reporte/<int:pk>/delete/', views.permiso_reporte_delete, name='reloj_permiso_reporte_delete'),
     path('permisos/reporte/list-mes/', views.permiso_list_mes, name='reloj_permiso_list_mes'),
@@ -146,6 +165,11 @@ urlpatterns = [
     # Horas diarias laboradas (AJAX)
     # ─────────────────────────────────────────────
     path('permisos/reporte/set-horas-diarias/', views.permiso_reporte_set_horas_diarias, name='reloj_permiso_set_horas_diarias'),
+    # Bono por Asistencia
+    path('permisos/bono/reglas/', views.bono_reglas_save, name='reloj_bono_reglas_save'),
+    path('permisos/bono/regla-extra/', views.bono_regla_extra_add, name='reloj_bono_regla_extra_add'),
+    path('permisos/bono/regla-extra/<int:pk>/eliminar/', views.bono_regla_extra_delete, name='reloj_bono_regla_extra_delete'),
+    path('permisos/bono/override/', views.bono_override_set, name='reloj_bono_override_set'),
 
     # Vacaciones
     path('vacaciones/', views.vacaciones_list, name='reloj_vacaciones_list'),

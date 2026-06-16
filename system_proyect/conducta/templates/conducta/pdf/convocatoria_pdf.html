@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter; margin: 1.1cm 1.7cm; }
+  body { font-family: "Times New Roman", Georgia, serif; font-size: 11pt; color: #000; line-height: 1.35; }
+
+  /* ── Encabezado: logo a la izquierda + texto centrado ── */
+  .header { position: relative; text-align: center; min-height: 54px; margin-bottom: 2px; }
+  .header .logo { position: absolute; left: 0; top: 0; height: 52px; }
+  .header .school { font-weight: bold; font-size: 13pt; letter-spacing: .3px; }
+  .header .sub { font-size: 9.5pt; color: #2b2b2b; }
+  hr.head { border: none; border-top: 1px solid #000; margin: 4px 0 8px; }
+
+  h1 { text-align: center; font-size: 11.5pt; font-weight: bold; margin: 2px 0 8px; }
+  p { text-align: justify; margin: 0 0 7px; }
+
+  table.tut { width: 90%; margin: 10px auto; border-collapse: collapse; }
+  table.tut th, table.tut td { border: 1px solid #000; padding: 3px 6px; text-align: center; font-size: 10.5pt; }
+  table.tut td.asig { text-align: left; padding-left: 12px; }
+  table.tut tbody tr { height: 22px; }
+
+  .nota { margin-top: 8px; }
+
+  .firmas { width: 100%; margin-top: 34px; border-collapse: collapse; }
+  .firmas td { text-align: center; font-size: 9.5pt; font-weight: bold; vertical-align: top; padding: 0 4px; width: 33%; }
+  .firmas .l { border-top: 1px solid #000; padding-top: 2px; }
+  .firmas .nombre { font-weight: normal; font-size: 9pt; }
+
+  .cut { border-top: 1px dashed #000; margin: 30px 0 8px; }
+  .acl-title { text-align: center; font-weight: bold; font-size: 11pt; margin-bottom: 6px; }
+  .firma-acl { width: 55%; margin: 30px auto 0; text-align: center; }
+  .firma-acl .l { border-top: 1px solid #000; font-size: 10pt; font-weight: bold; padding-top: 2px; }
+</style></head><body>
+
+<div class="header">
+  {% if logo_path %}<img class="logo" src="{{ logo_path }}" alt="">{% endif %}
+  <div class="school">NUEVO AMANECER SCHOOL</div>
+  <div class="sub">Aldea La Venta, km. 36 carretera hacia Olancho</div>
+  <div class="sub">Tels. 2758-0300 / 9485-4082</div>
+</div>
+<hr class="head">
+
+<h1>COMPROMISO DE ASISTENCIA A TUTORÍA</h1>
+
+<p>El C.E.B.N.G.B. Nuevo Amanecer como parte del plan de acción y proyección social para ayudar a
+nuestros estudiantes a superar algunas debilidades en el área académica, pone a disposición de
+los padres de familia un sistema de tutorías gratuitas de lunes a viernes en un horario de
+7:00 – 7:45 a.m., impartidas en nuestras instalaciones. Los estudiantes que utilizan servicio
+de transporte, pueden hacer uso del primer recorrido que inicia a las 6:00 a.m. Esta convocatoria
+tiene vigencia durante todo el <b>{{ parcial_rom }}</b> parcial.</p>
+
+<p>Su hijo (a) <b>{{ conv.alumno_nombre }}</b> del <b>{{ grado_label }}</b> grado sección
+<b>{{ conv.seccion|default:"____" }}</b> ha sido convocado para asistir a las siguientes tutorías:</p>
+
+<table class="tut">
+  <thead>
+    <tr><th rowspan="2" style="width:40px;">Nº</th><th rowspan="2">Asignatura (s)</th><th colspan="5">Días que debe presentarse</th></tr>
+    <tr><th style="width:34px;">L</th><th style="width:34px;">M</th><th style="width:34px;">M</th><th style="width:34px;">J</th><th style="width:34px;">V</th></tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.n }}</td>
+      <td class="asig">{{ f.asignatura }}</td>
+      <td>{% if f.dias_bool.1 %}✔{% endif %}</td>
+      <td>{% if f.dias_bool.2 %}✔{% endif %}</td>
+      <td>{% if f.dias_bool.3 %}✔{% endif %}</td>
+      <td>{% if f.dias_bool.4 %}✔{% endif %}</td>
+      <td>{% if f.dias_bool.5 %}✔{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="nota"><b><u>NOTA</u>:</b> Si usted no enviará a su hijo (a) por motivos personales, favor firmar el desprendible que
+dice <b>ACLARATORIA</b> y enviarlo a la escuela firmado. Si usted está de acuerdo, favor enviar esta carta
+a la escuela firmada al siguiente día de ser enviada a casa.</p>
+
+<p>Dado a los {{ fecha_dia }} días del mes de {{ fecha_mes }} del año {{ fecha_anio }}.</p>
+
+<table class="firmas">
+  <tr>
+    <td><div class="l">PADRE DE FAMILIA / ENCARGADO</div></td>
+    <td><div class="l">DOCENTE GUÍA</div>{% if conv.docente_guia %}<div class="nombre">{{ conv.docente_guia }}</div>{% endif %}</td>
+    <td><div class="l">COORDINADOR DE ÁREA</div>{% if conv.coordinador %}<div class="nombre">{{ conv.coordinador }}</div>{% endif %}</td>
+  </tr>
+</table>
+
+<div class="cut"></div>
+<div class="acl-title">ACLARATORIA</div>
+<p>En caso de no poder enviar a mi hijo (a) a las tutorías gratuitas que ofrece la escuela, me
+responsabilizo de buscar tutoría a nivel externo para poder mejorar el rendimiento académico de
+mi hijo (a) <b>y evitar reprobaciones considerables en el transcurso de este parcial.</b></p>
+
+<div class="firma-acl"><div class="l">FIRMA</div></div>
+
+</body></html>

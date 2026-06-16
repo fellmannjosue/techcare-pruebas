@@ -119,7 +119,15 @@
     <div class="chat-footer">
       <form id="formComentarioTech" autocomplete="off">
         {% csrf_token %}
+        <div id="chat-attach-preview" class="chat-attach-preview d-none"></div>
         <div class="d-flex align-items-end gap-2">
+          <input type="file" id="chat-file-img" accept="image/*" class="d-none">
+          <input type="file" id="chat-file-doc" class="d-none">
+          <div class="chat-attach-actions d-flex gap-1">
+            <button type="button" class="btn btn-ghost-secondary btn-icon" id="btn-attach-paste" title="Pegar imagen del portapapeles"><i class="ti ti-clipboard"></i></button>
+            <button type="button" class="btn btn-ghost-secondary btn-icon" id="btn-attach-img" title="Subir imagen / foto"><i class="ti ti-photo-up"></i></button>
+            <button type="button" class="btn btn-ghost-secondary btn-icon" id="btn-attach-doc" title="Adjuntar documento"><i class="ti ti-paperclip"></i></button>
+          </div>
           <textarea id="chat-input-msg" name="mensaje" class="chat-input"
                     placeholder="Escribe un mensaje… (Enter para enviar, Shift+Enter nueva línea)"
                     rows="1"></textarea>
@@ -155,6 +163,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'tickets/js/comments.js' %}?v=4"></script>
-<script src="{% static 'tickets/js/ticket_comments_tech.js' %}"></script>
+<script src="{% static 'tickets/js/comments.js' %}?v=8"></script>
+<script src="{% static 'tickets/js/ticket_comments_tech.js' %}?v=2"></script>
 {% endblock %}

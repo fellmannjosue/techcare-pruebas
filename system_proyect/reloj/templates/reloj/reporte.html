@@ -123,7 +123,8 @@
             <td class="text-center permiso-cell"
                 data-emp="{{ row.ID_Empleado }}"
                 data-nombre="{{ row.Empleado }}"
-                data-fecha="{{ row.Fecha|date:'Y-m-d' }}">
+                data-fecha="{{ row.Fecha|date:'Y-m-d' }}"
+                data-bloqueado="{% if row.Bloqueado %}1{% else %}0{% endif %}">
             </td>
             <td>
               <div class="cmts-wrap"
@@ -240,8 +241,15 @@
           </select>
         </div>
         <div class="mb-3">
-          <label class="form-label" for="perm-razon">Razón</label>
-          <input type="text" id="perm-razon" class="form-control" maxlength="300" placeholder="Motivo del permiso...">
+          <label class="form-label" for="perm-razon-sel">Razón</label>
+          <select id="perm-razon-sel" class="form-select">
+            <option value="">— Selecciona una razón —</option>
+            {% for rz in razones %}<option value="{{ rz }}">{{ rz }}</option>{% endfor %}
+            <option value="__nueva__">➕ Agregar otra…</option>
+          </select>
+          <input type="text" id="perm-razon-nueva" class="form-control mt-2 d-none" maxlength="200" placeholder="Escribe la nueva razón…">
+          {# valor real enviado al guardar #}
+          <input type="hidden" id="perm-razon">
         </div>
         <div class="mb-2 d-flex align-items-center gap-2">
           <span class="form-label mb-0 me-1 small text-muted">Registrar como:</span>
@@ -299,5 +307,5 @@ window._PAGE = {
   }
 };
 </script>
-<script src="{% static 'reloj/js/reporte.js' %}"></script>
+<script src="{% static 'reloj/js/reporte.js' %}?v=3"></script>
 {% endblock %}

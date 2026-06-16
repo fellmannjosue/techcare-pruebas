@@ -1,0 +1,140 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% block title %}Reportes PDF{% endblock %}
+{% block page_pretitle %}Reloj{% endblock %}
+{% block page_title %}Reportes PDF — Vista previa y descarga{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'reloj_dashboard' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i> Volver
+  </a>
+{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: centro de reportes PDF (tabs + preview embebido) #}
+<style>
+  .rep-frame { width:100%; height:72vh; border:1px solid #e2e8f0; border-radius:.5rem; background:#f8fafc; }
+  .rep-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:.6rem; flex-wrap:wrap; }
+</style>
+
+<div class="card">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+      <li class="nav-item"><a href="#rep-general" class="nav-link active" data-bs-toggle="tab"><i class="ti ti-table me-1 text-green"></i>Reporte general</a></li>
+      <li class="nav-item"><a href="#rep-comp" class="nav-link" data-bs-toggle="tab"><i class="ti ti-clock-check me-1 text-teal"></i>Tiempo compensatorio</a></li>
+      <li class="nav-item"><a href="#rep-permiso" class="nav-link" data-bs-toggle="tab"><i class="ti ti-table-filled me-1 text-cyan"></i>Permiso mensual</a></li>
+      <li class="nav-item"><a href="#rep-adeudados" class="nav-link" data-bs-toggle="tab"><i class="ti ti-calculator me-1 text-purple"></i>Adeudados</a></li>
+      <li class="nav-item"><a href="#rep-compgeneral" class="nav-link" data-bs-toggle="tab"><i class="ti ti-clock-2 me-1 text-teal"></i>Compensatorio general</a></li>
+      <li class="nav-item"><a href="#rep-instructores" class="nav-link" data-bs-toggle="tab"><i class="ti ti-school me-1 text-orange"></i>Instructores</a></li>
+      <li class="nav-item"><a href="#rep-receso" class="nav-link" data-bs-toggle="tab"><i class="ti ti-coffee me-1 text-yellow"></i>Tiempo receso</a></li>
+      <li class="nav-item"><a href="#rep-bono" class="nav-link" data-bs-toggle="tab"><i class="ti ti-award me-1 text-red"></i>Bono por asistencia</a></li>
+      <li class="nav-item"><a href="#rep-vac" class="nav-link" data-bs-toggle="tab"><i class="ti ti-beach me-1 text-blue"></i>Vacaciones</a></li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+
+      {# ── Reporte general (asistencia) ── #}
+      <div class="tab-pane active show" id="rep-general">
+        {% with base="?fecha_inicio="|add:fi|add:"&fecha_fin="|add:ff %}
+        <div class="rep-bar">
+          <span class="text-muted small">Asistencias y ausencias · {{ fi }} a {{ ff }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_exportar_pdf' %}{{ base }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" src="{% url 'reloj_exportar_pdf' %}{{ base }}&inline=1"></iframe>
+        {% endwith %}
+      </div>
+
+      {# ── Tiempo compensatorio ── #}
+      <div class="tab-pane" id="rep-comp">
+        <div class="rep-bar">
+          <span class="text-muted small">Tiempo compensatorio · {{ fi }} a {{ ff }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_list' %}?fmt=pdf"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_list' %}?fmt=pdf&inline=1"></iframe>
+      </div>
+
+      {# ── Permiso mensual empleado ── #}
+      <div class="tab-pane" id="rep-permiso">
+        <div class="rep-bar">
+          <span class="text-muted small">Permiso mensual por empleado · {{ mes_str }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&mes={{ mes_str }}"></iframe>
+      </div>
+
+      {# ── Adeudados ── #}
+      <div class="tab-pane" id="rep-adeudados">
+        <div class="rep-bar">
+          <span class="text-muted small">Control de adeudados · {{ anio }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=adeudados&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=adeudados&anio={{ anio }}"></iframe>
+      </div>
+
+      {# ── Tiempo compensatorio general ── #}
+      <div class="tab-pane" id="rep-compgeneral">
+        <div class="rep-bar">
+          <span class="text-muted small">Tiempo compensatorio general · {{ anio }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=general&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=general&anio={{ anio }}"></iframe>
+      </div>
+
+      {# ── Instructores ── #}
+      <div class="tab-pane" id="rep-instructores">
+        <div class="rep-bar">
+          <span class="text-muted small">Instructores · {{ anio }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=instructores&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=instructores&anio={{ anio }}"></iframe>
+      </div>
+
+      {# ── Tiempo receso (mensual) ── #}
+      <div class="tab-pane" id="rep-receso">
+        <div class="rep-bar">
+          <span class="text-muted small">Tiempo de receso (almuerzo) · {{ mes_str }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=receso&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&sec=receso&mes={{ mes_str }}"></iframe>
+      </div>
+
+      {# ── Bono por asistencia (lista de empleados que conservan) ── #}
+      <div class="tab-pane" id="rep-bono">
+        <div class="rep-bar">
+          <span class="text-muted small">Empleados que conservan el bono · {{ mes_str }}</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=bono&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&sec=bono&mes={{ mes_str }}"></iframe>
+      </div>
+
+      {# ── Vacaciones ── #}
+      <div class="tab-pane" id="rep-vac">
+        <div class="rep-bar">
+          <span class="text-muted small">Control de vacaciones</span>
+          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_vacaciones_list' %}?fmt=pdf"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" data-src="{% url 'reloj_vacaciones_list' %}?fmt=pdf&inline=1"></iframe>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Cargar el PDF de cada tab solo al abrirlo (lazy) para no generar los 5 de golpe.
+  (function () {
+    function cargar(pane) {
+      var f = pane.querySelector('iframe[data-src]');
+      if (f && !f.src) f.src = f.dataset.src;
+    }
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (t) {
+      t.addEventListener('shown.bs.tab', function (e) {
+        var sel = e.target.getAttribute('href');
+        var pane = document.querySelector(sel);
+        if (pane) cargar(pane);
+      });
+    });
+  })();
+</script>
+{% endblock %}

@@ -90,7 +90,20 @@
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-send me-2"></i>Enviar Ticket';
-        Swal.fire({ title: 'Error', text: data.error || 'Error al enviar.', icon: 'error' });
+        // Mostrar el detalle real de validación (campo + mensaje) si viene
+        let detalle = '';
+        if (data.details) {
+          try {
+            const errs = JSON.parse(data.details);
+            const partes = [];
+            for (const campo in errs) {
+              const msg = (errs[campo][0] && errs[campo][0].message) || '';
+              partes.push(msg);
+            }
+            detalle = partes.join(' ');
+          } catch (_) {}
+        }
+        Swal.fire({ title: 'Error', text: detalle || data.error || 'Error al enviar.', icon: 'error' });
       }
     })
     .catch(() => {

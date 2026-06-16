@@ -102,3 +102,17 @@
   height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: center; color: #adb5bd; gap: .5rem;
 }
+
+/* ── Adjuntos del chat (hecho por claude code) ── */
+.chat-attach-actions .btn-icon { width:38px; height:38px; }
+.chat-attach-preview { margin-bottom:.5rem; }
+.chat-attach-chip { display:inline-flex; align-items:center; gap:.5rem; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:.5rem; padding:.35rem .5rem; max-width:100%; }
+.chat-attach-thumb { width:40px; height:40px; object-fit:cover; border-radius:.35rem; }
+.chat-attach-fileicon { font-size:1.4rem; color:#475569; }
+.chat-attach-fname { font-size:.85rem; font-weight:600; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chat-attach-size { font-size:.72rem; color:#94a3b8; }
+.chat-adjunto-img { max-width:200px; max-height:200px; border-radius:.5rem; display:block; margin-top:.35rem; cursor:pointer; }
+.chat-adjunto-img-link { display:inline-block; }
+.chat-adjunto-file { display:inline-flex; align-items:center; gap:.4rem; margin-top:.35rem; padding:.4rem .6rem; background:rgba(0,0,0,.06); border-radius:.5rem; text-decoration:none; color:inherit; font-size:.85rem; font-weight:600; }
+.chat-adjunto-file:hover { background:rgba(0,0,0,.12); }
+.chat-adjunto-name { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

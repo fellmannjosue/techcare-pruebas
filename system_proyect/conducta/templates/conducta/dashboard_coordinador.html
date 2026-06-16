@@ -19,10 +19,11 @@
     <i class="ti ti-send me-1"></i>Reenviar reportes
   </button>
   {% endif %}
-  <a href="{% url 'descargar_zip_reportes' %}" class="btn btn-success me-2"
-     title="Descargar todos los reportes en un ZIP">
+  <button type="button" id="btn-zip-download" class="btn btn-success me-2"
+          data-url="{% url 'descargar_zip_reportes' %}"
+          title="Descargar todos los reportes en un ZIP">
     <i class="ti ti-file-zip me-1"></i>Descargar todo (ZIP)
-  </a>
+  </button>
   <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary">
     <i class="ti ti-arrow-left me-1"></i> Menú Principal
   </a>
@@ -73,72 +74,17 @@
 
 {% block content %}
 
-{# ── Accesos rápidos ─────────────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'directorio_telefonos' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-address-book text-green" style="font-size:2.2rem;"></i></div>
-          <div class="fw-bold">Directorio</div>
-          <div class="text-muted small mt-1">Teléfonos de alumnos</div>
-        </div>
-      </div>
-    </a>
+{# ── Período activo (los tabs de reportes muestran solo este rango) ── #}
+{% if periodo_activo %}
+<div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
+  <i class="ti ti-calendar-check"></i>
+  <div class="small">Mostrando reportes del período activo:
+    <strong>{{ periodo_activo.nombre }}</strong>
+    ({{ periodo_activo.fecha_inicio|date:"d/m/Y" }} — {{ periodo_activo.fecha_fin|date:"d/m/Y" }}).
+    Los anteriores están en <strong>Historial de alumnado</strong>.
   </div>
-  {% if area == 'bilingue' %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-stethoscope text-red" style="font-size:2.2rem;"></i></div>
-          <div class="fw-bold">Enfermería</div>
-          <div class="text-muted small mt-1">Panel de enfermería</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'agendas:dashboard_coordinador' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-calendar-week text-purple" style="font-size:2.2rem;"></i></div>
-          <div class="fw-bold">Agendas</div>
-          <div class="text-muted small mt-1">Agendas semanales BL</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if request.user|es_coord_notas or request.user.is_superuser %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'notas_parcial_coordinador' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-file-certificate text-blue" style="font-size:2.2rem;"></i></div>
-          <div class="fw-bold">Notas Mitad de Parcial</div>
-          <div class="text-muted small mt-1">Reportes de notas parcial</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if request.user.is_superuser and area == 'bilingue' %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'materias_docentes_bl' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-table text-primary" style="font-size:2.2rem;"></i></div>
-          <div class="fw-bold">Materias-Docentes</div>
-          <div class="text-muted small mt-1">Tabla de materias BL</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
 </div>
+{% endif %}
 
 {% if mostrar_reportes_nuevos %}
 <div class="row g-3 mb-3">
@@ -158,6 +104,38 @@
   </div>
 </div>
 {% endif %}
+
+{# ── Barra de filtros (Docente: todos · Coordinador: solo superuser) ── #}
+<div class="card mb-2">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label small fw-semibold mb-1"><i class="ti ti-user me-1"></i>Filtrar por docente</label>
+        <select id="filtro-docente" class="form-select form-select-sm">
+          <option value="">— Todos los docentes —</option>
+          {% for d in docentes_filtro %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      {% if request.user.is_superuser and area == 'bilingue' %}
+      <div class="col-12 col-md-4">
+        <label class="form-label small fw-semibold mb-1"><i class="ti ti-users-group me-1"></i>Filtrar por coordinador</label>
+        <select id="filtro-coord" class="form-select form-select-sm">
+          <option value="">— Todos —</option>
+          <option value="C1">C1 – Mr. Martinez</option>
+          <option value="C2">C2 – Mr. Ruiz</option>
+          <option value="C3">C3 – Isabel Alcerro</option>
+          <option value="C4">C4 – Josue Martinez</option>
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-auto">
+        <button type="button" id="btn-limpiar-filtros" class="btn btn-sm btn-ghost-secondary">
+          <i class="ti ti-x me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="card">
   <div class="card-header">
@@ -180,6 +158,31 @@
           <i class="ti ti-chart-line me-1 text-blue"></i>Progress Reports
         </a>
       </li>
+      {% endif %}
+      <li class="nav-item">
+        <a href="#tab-historial" class="nav-link" data-bs-toggle="tab" id="tab-historial-btn">
+          <i class="ti ti-archive me-1 text-purple"></i>Historial de alumnado
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#tab-periodo" class="nav-link" data-bs-toggle="tab">
+          <i class="ti ti-calendar-stats me-1 text-green"></i>Período Escolar
+        </a>
+      </li>
+      {# ── Enlaces con estilo de tab ── #}
+      {% if area == 'bilingue' %}
+      <li class="nav-item"><a href="{% url 'convocatorias_coordinador' %}" class="nav-link"><i class="ti ti-school me-1 text-orange"></i>Tutorías<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
+      <li class="nav-item"><a href="{% url 'directorio_telefonos' %}" class="nav-link"><i class="ti ti-address-book me-1 text-green"></i>Directorio<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% if area == 'bilingue' %}
+      <li class="nav-item"><a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="nav-link"><i class="ti ti-stethoscope me-1 text-red"></i>Enfermería<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
+      <li class="nav-item"><a href="{% url 'agendas:dashboard_coordinador' %}" class="nav-link"><i class="ti ti-calendar-week me-1 text-purple"></i>Agendas<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% if request.user|es_coord_notas or request.user.is_superuser %}
+      <li class="nav-item"><a href="{% url 'notas_parcial_coordinador' %}" class="nav-link"><i class="ti ti-file-certificate me-1 text-blue"></i>Notas<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
+      {% if request.user.is_superuser and area == 'bilingue' %}
+      <li class="nav-item"><a href="{% url 'materias_docentes_bl' %}" class="nav-link"><i class="ti ti-table me-1 text-primary"></i>Materias-Docentes<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
       {% endif %}
     </ul>
   </div>
@@ -213,7 +216,7 @@
             </tr></thead>
             <tbody>
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'academico' %}
-              <tr data-pk="{{ r.pk }}" data-tipo="informativo">
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -243,10 +246,10 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                            data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
-                            title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
-                      <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
+                    <button class="btn btn-sm btn-evidencia {% if r.num_evid >= 2 %}btn-danger disabled{% elif r.num_evid %}btn-success{% else %}btn-secondary{% endif %}"
+                            data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.num_evid|default:0 }}"
+                            title="{% if r.num_evid >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
+                      <i class="ti ti-{% if r.num_evid %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
@@ -298,7 +301,7 @@
             <tbody>
               {# Informativos marcados como conductual #}
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'conductual' %}
-              <tr data-pk="{{ r.pk }}" data-tipo="informativo">
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -327,10 +330,10 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                            data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
-                            title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
-                      <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
+                    <button class="btn btn-sm btn-evidencia {% if r.num_evid >= 2 %}btn-danger disabled{% elif r.num_evid %}btn-success{% else %}btn-secondary{% endif %}"
+                            data-id="{{ r.pk }}" data-tipo="informativo" data-num-evidencias="{{ r.num_evid|default:0 }}"
+                            title="{% if r.num_evid >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
+                      <i class="ti ti-{% if r.num_evid %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
@@ -366,7 +369,7 @@
               {% endif %}{% endfor %}
               {# Reportes Conductuales #}
               {% for r in reportes_conductual %}
-              <tr data-pk="{{ r.pk }}" data-tipo="conductual">
+              <tr data-pk="{{ r.pk }}" data-tipo="conductual" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="conductual"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -395,10 +398,10 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                            data-id="{{ r.pk }}" data-tipo="conductual" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
-                            title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
-                      <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
+                    <button class="btn btn-sm btn-evidencia {% if r.num_evid >= 2 %}btn-danger disabled{% elif r.num_evid %}btn-success{% else %}btn-secondary{% endif %}"
+                            data-id="{{ r.pk }}" data-tipo="conductual" data-num-evidencias="{{ r.num_evid|default:0 }}"
+                            title="{% if r.num_evid >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
+                      <i class="ti ti-{% if r.num_evid %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
@@ -469,10 +472,10 @@
                 </td>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <button class="btn btn-sm btn-evidencia {% if r.evidenciareporte_set.count >= 2 %}btn-danger disabled{% elif r.evidenciareporte_set.all %}btn-success{% else %}btn-secondary{% endif %}"
-                            data-id="{{ r.pk }}" data-tipo="progress" data-num-evidencias="{{ r.evidenciareporte_set.count }}"
-                            title="{% if r.evidenciareporte_set.count >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
-                      <i class="ti ti-{% if r.evidenciareporte_set.all %}photo{% else %}camera{% endif %}"></i>
+                    <button class="btn btn-sm btn-evidencia {% if r.num_evid >= 2 %}btn-danger disabled{% elif r.num_evid %}btn-success{% else %}btn-secondary{% endif %}"
+                            data-id="{{ r.pk }}" data-tipo="progress" data-num-evidencias="{{ r.num_evid|default:0 }}"
+                            title="{% if r.num_evid >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
+                      <i class="ti ti-{% if r.num_evid %}photo{% else %}camera{% endif %}"></i>
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
@@ -503,10 +506,141 @@
       </div>
       {% endif %}
 
+      {# ── TAB: Historial de alumnado (carga perezosa) ───── #}
+      <div class="tab-pane" id="tab-historial">
+        <div id="historial-wrap" data-url="{% url 'historial_alumnado' area=area %}">
+          <div class="text-center text-muted py-5">
+            <span class="spinner-border spinner-border-sm me-2"></span>El historial se carga al abrir este tab…
+          </div>
+        </div>
+      </div>
+
+      {# ── TAB: Período Escolar (catálogo propio de conducta) ── #}
+      <div class="tab-pane" id="tab-periodo">
+        <div class="p-3">
+          <div class="text-muted small mb-3"><i class="ti ti-info-circle me-1"></i>El período <strong>activo</strong> define qué reportes se muestran en los tabs. Catálogo propio de reportes (independiente de Salidas Baño).</div>
+          <div class="row g-3">
+            {% if request.user.is_superuser %}
+            <div class="col-12 col-lg-4">
+              <form method="post" action="{% url 'periodo_conducta_save' %}" class="card p-3">
+                {% csrf_token %}
+                <input type="hidden" name="pk" id="per-pk">
+                <div class="fw-semibold mb-2" id="per-form-title"><i class="ti ti-plus me-1"></i>Nuevo período</div>
+                <div class="mb-2"><label class="form-label small mb-1">Nombre *</label>
+                  <input type="text" name="nombre" id="per-nombre" class="form-control form-control-sm" required maxlength="60" placeholder="Ej: Parcial 1 2026"></div>
+                <div class="row g-2 mb-2">
+                  <div class="col-6"><label class="form-label small mb-1">Parcial</label>
+                    <select name="parcial" id="per-parcial" class="form-select form-select-sm">
+                      <option value="1">Parcial 1</option><option value="2">Parcial 2</option><option value="3">Parcial 3</option>
+                    </select></div>
+                  <div class="col-6"><label class="form-label small mb-1">Año</label>
+                    <input type="number" name="anio" id="per-anio" class="form-control form-control-sm" value="{% now 'Y' %}"></div>
+                </div>
+                <div class="mb-2"><label class="form-label small mb-1">Área</label>
+                  <select name="area" id="per-area" class="form-select form-select-sm">
+                    <option value="ambas">Ambas</option><option value="bilingue">Bilingüe</option><option value="colegio">Colegio</option>
+                  </select></div>
+                <div class="row g-2 mb-2">
+                  <div class="col-6"><label class="form-label small mb-1">Fecha inicio</label>
+                    <input type="date" name="fecha_inicio" id="per-inicio" class="form-control form-control-sm" required></div>
+                  <div class="col-6"><label class="form-label small mb-1">Fecha fin</label>
+                    <input type="date" name="fecha_fin" id="per-fin" class="form-control form-control-sm" required></div>
+                </div>
+                <label class="form-check mb-3">
+                  <input type="checkbox" name="activo" id="per-activo" class="form-check-input">
+                  <span class="form-check-label small">Marcar como período activo</span>
+                </label>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+                  <button class="btn btn-sm btn-ghost-secondary d-none" type="button" id="per-cancelar">Cancelar edición</button>
+                </div>
+              </form>
+            </div>
+            {% endif %}
+            <div class="col">
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table">
+                  <thead><tr><th>Nombre</th><th class="text-center">Parcial</th><th class="text-center">Año</th><th>Área</th><th>Inicio</th><th>Fin</th><th class="text-center">Estado</th>{% if request.user.is_superuser %}<th class="text-center">Acc.</th>{% endif %}</tr></thead>
+                  <tbody>
+                    {% for p in periodos_escolares %}
+                    <tr>
+                      <td class="fw-semibold">{{ p.nombre }}</td>
+                      <td class="text-center"><span class="badge bg-blue-lt text-blue">{{ p.parcial }}</span></td>
+                      <td class="text-center">{{ p.anio }}</td>
+                      <td>{{ p.get_area_display }}</td>
+                      <td>{{ p.fecha_inicio|date:"d/m/Y" }}</td>
+                      <td>{{ p.fecha_fin|date:"d/m/Y" }}</td>
+                      <td class="text-center">{% if p.activo %}<span class="badge bg-success-lt text-success"><i class="ti ti-check me-1"></i>Activo</span>{% else %}<span class="badge bg-secondary-lt text-secondary">—</span>{% endif %}</td>
+                      {% if request.user.is_superuser %}
+                      <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-ghost-secondary px-1 py-0 per-edit"
+                                data-pk="{{ p.pk }}" data-nombre="{{ p.nombre }}" data-parcial="{{ p.parcial }}" data-anio="{{ p.anio }}"
+                                data-area="{{ p.area }}" data-inicio="{{ p.fecha_inicio|date:'Y-m-d' }}" data-fin="{{ p.fecha_fin|date:'Y-m-d' }}"
+                                data-activo="{{ p.activo|yesno:'1,0' }}" title="Editar"><i class="ti ti-pencil"></i></button>
+                        <form method="post" action="{% url 'periodo_conducta_delete' pk=p.pk %}" class="d-inline" onsubmit="return confirm('¿Eliminar el período {{ p.nombre }}?');">
+                          {% csrf_token %}
+                          <button class="btn btn-sm btn-ghost-danger px-1 py-0" title="Eliminar"><i class="ti ti-trash"></i></button>
+                        </form>
+                      </td>
+                      {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">No hay períodos registrados.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
 
+<script>
+  // Edición de períodos: llena el formulario con los datos de la fila
+  (function () {
+    document.querySelectorAll('.per-edit').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = this.dataset;
+        var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+        set('per-pk', d.pk); set('per-nombre', d.nombre); set('per-parcial', d.parcial);
+        set('per-anio', d.anio); set('per-area', d.area); set('per-inicio', d.inicio); set('per-fin', d.fin);
+        var chk = document.getElementById('per-activo'); if (chk) chk.checked = d.activo === '1';
+        var t = document.getElementById('per-form-title'); if (t) t.innerHTML = '<i class="ti ti-pencil me-1"></i>Editar período';
+        var c = document.getElementById('per-cancelar'); if (c) c.classList.remove('d-none');
+      });
+    });
+    var cancel = document.getElementById('per-cancelar');
+    if (cancel) cancel.addEventListener('click', function () {
+      ['per-pk','per-nombre','per-inicio','per-fin'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+      var chk = document.getElementById('per-activo'); if (chk) chk.checked = false;
+      var t = document.getElementById('per-form-title'); if (t) t.innerHTML = '<i class="ti ti-plus me-1"></i>Nuevo período';
+      this.classList.add('d-none');
+    });
+  })();
+
+  // Carga perezosa del Historial de alumnado (una sola vez, al abrir el tab)
+  (function () {
+    var btn = document.getElementById('tab-historial-btn');
+    var wrap = document.getElementById('historial-wrap');
+    var cargado = false;
+    if (!btn || !wrap) return;
+    btn.addEventListener('shown.bs.tab', function () {
+      if (cargado) return;
+      cargado = true;
+      fetch(wrap.dataset.url, { credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (html) { wrap.innerHTML = html; })
+        .catch(function () {
+          wrap.innerHTML = '<div class="alert alert-danger m-3">No se pudo cargar el historial. Recarga la página.</div>';
+          cargado = false;
+        });
+    });
+  })();
+</script>
 
 {% endblock %}
 
@@ -806,7 +940,7 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="{% static 'conducta/js/coordinador.js' %}?v=4"></script>
+  <script src="{% static 'conducta/js/coordinador.js' %}?v=5"></script>
   <script>
   window._PAGE = {
     csrf:           '{{ csrf_token }}',
@@ -821,6 +955,128 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=5"></script>
+
+  {# ── Toast de descarga (progreso + peso) ── #}
+  <div id="zip-toast" style="display:none;position:fixed;bottom:20px;right:20px;z-index:1080;min-width:300px;max-width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:.6rem;box-shadow:0 .75rem 1.5rem rgba(0,0,0,.18);padding:.9rem 1rem;">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <i id="zip-toast-icon" class="ti ti-file-zip text-success" style="font-size:1.4rem;"></i>
+      <div class="fw-semibold" id="zip-toast-title">Descargando ZIP…</div>
+      <button type="button" id="zip-toast-close" class="btn-close ms-auto" style="font-size:.7rem;"></button>
+    </div>
+    <div class="progress mb-1" style="height:8px;">
+      <div id="zip-toast-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:100%;"></div>
+    </div>
+    <div class="text-muted small" id="zip-toast-text">Preparando archivo…</div>
+  </div>
+
+  <script>
+  (function () {
+    // ════════ Toast de descarga ════════
+    var toast = document.getElementById('zip-toast');
+    var elTitle = document.getElementById('zip-toast-title');
+    var elText  = document.getElementById('zip-toast-text');
+    var elBar   = document.getElementById('zip-toast-bar');
+    var elIcon  = document.getElementById('zip-toast-icon');
+    document.getElementById('zip-toast-close').addEventListener('click', function(){ toast.style.display='none'; });
+    function fmt(b){ if(!b) return '0 MB'; return (b/1024/1024).toFixed(2)+' MB'; }
+    function tShow(){ toast.style.display='block'; }
+    function tPrep(){
+      tShow(); elIcon.className='ti ti-loader text-success'; elTitle.textContent='Preparando descarga…';
+      elText.textContent='Generando el ZIP en el servidor, espera un momento…';
+      elBar.className='progress-bar progress-bar-striped progress-bar-animated bg-success'; elBar.style.width='100%';
+    }
+    function tProgress(loaded, total){
+      elIcon.className='ti ti-download text-success'; elTitle.textContent='Descargando ZIP…';
+      if(total){ var p=Math.round(loaded/total*100); elBar.style.width=p+'%'; elBar.classList.remove('progress-bar-animated');
+        elText.textContent=fmt(loaded)+' de '+fmt(total)+' ('+p+'%)'; }
+      else { elText.textContent=fmt(loaded)+' descargados…'; }
+    }
+    function tDone(size, name){
+      elIcon.className='ti ti-circle-check text-success'; elTitle.textContent='Descarga lista ✓';
+      elBar.className='progress-bar bg-success'; elBar.style.width='100%';
+      elText.innerHTML='<strong>'+name+'</strong> — '+fmt(size);
+      setTimeout(function(){ toast.style.display='none'; }, 6000);
+    }
+    function tError(msg){
+      elIcon.className='ti ti-alert-circle text-danger'; elTitle.textContent='Error en la descarga';
+      elBar.className='progress-bar bg-danger'; elBar.style.width='100%'; elText.textContent=msg||'Intenta de nuevo.';
+    }
+
+    var btn = document.getElementById('btn-zip-download');
+    if (btn) btn.addEventListener('click', async function(){
+      var base = btn.dataset.url;
+      var params = new URLSearchParams();
+      var fd = document.getElementById('filtro-docente');
+      var fc = document.getElementById('filtro-coord');
+      if (fd && fd.value) params.set('docente', fd.value);
+      if (fc && fc.value) params.set('coord', fc.value);
+      var url = base + (params.toString() ? ('?'+params.toString()) : '');
+      btn.disabled = true; tPrep();
+      try {
+        var resp = await fetch(url, { credentials:'same-origin' });
+        if (!resp.ok) throw new Error('El servidor respondió '+resp.status);
+        var total = parseInt(resp.headers.get('Content-Length')||'0', 10);
+        var disp  = resp.headers.get('Content-Disposition')||'';
+        var mm = disp.match(/filename="?([^"]+)"?/);
+        var fname = mm ? mm[1] : 'reportes.zip';
+        var reader = resp.body.getReader(); var chunks=[]; var loaded=0;
+        while (true) {
+          var rd = await reader.read();
+          if (rd.done) break;
+          chunks.push(rd.value); loaded += rd.value.length;
+          tProgress(loaded, total);
+        }
+        var blob = new Blob(chunks, { type:'application/zip' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = fname;
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        tDone(blob.size, fname);
+      } catch (e) {
+        tError(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ════════ Filtros Docente / Coordinador ════════
+    function dt(id){ try { return $('#'+id).DataTable(); } catch(e){ return null; } }
+    // Poblar opciones de docente desde las filas
+    var selDoc = document.getElementById('filtro-docente');
+    if (selDoc) {
+      // Catálogo server-side ya cargado; agregar solo docentes de filas que falten
+      var existentes = new Set([...selDoc.options].map(function(o){ return o.value; }));
+      var docs = new Set();
+      document.querySelectorAll('#tabla-academicos tbody tr[data-docente], #tabla-conductuales tbody tr[data-docente]')
+        .forEach(function(tr){ if (tr.dataset.docente) docs.add(tr.dataset.docente.trim()); });
+      Array.from(docs).sort().forEach(function(d){
+        if (existentes.has(d)) return;
+        var o=document.createElement('option'); o.value=d; o.textContent=d; selDoc.appendChild(o);
+      });
+    }
+    // Filtro custom de DataTables (solo tablas de reportes)
+    if ($.fn.dataTable) {
+      $.fn.dataTable.ext.search.push(function(settings, data, dataIndex){
+        var id = settings.nTable.id;
+        if (id !== 'tabla-academicos' && id !== 'tabla-conductuales') return true;
+        var tr = settings.aoData[dataIndex].nTr;
+        var fdv = (document.getElementById('filtro-docente')||{}).value || '';
+        var fcv = (document.getElementById('filtro-coord')||{}).value || '';
+        if (fdv && (tr.dataset.docente||'') !== fdv) return false;
+        if (fcv && (tr.dataset.coord||'') !== fcv) return false;
+        return true;
+      });
+    }
+    function aplicarFiltros(){ ['tabla-academicos','tabla-conductuales'].forEach(function(id){ var t=dt(id); if(t) t.draw(); }); }
+    if (selDoc) selDoc.addEventListener('change', aplicarFiltros);
+    var selCoord = document.getElementById('filtro-coord');
+    if (selCoord) selCoord.addEventListener('change', aplicarFiltros);
+    var btnLimpiar = document.getElementById('btn-limpiar-filtros');
+    if (btnLimpiar) btnLimpiar.addEventListener('click', function(){
+      if (selDoc) selDoc.value=''; if (selCoord) selCoord.value=''; aplicarFiltros();
+    });
+  })();
+  </script>
 
 {# ══════ LIGHTBOX EVIDENCIA ══════ #}
 <div class="modal fade" id="modalLightbox" tabindex="-1" aria-hidden="true">

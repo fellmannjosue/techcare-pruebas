@@ -8,6 +8,7 @@
 {% block content %}
 <div class="row row-cards g-4">
 
+  {% if puede.reporte %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_reporte' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -31,7 +32,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.plantilla %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_plantilla_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -43,7 +46,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.asignacion %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'horarios_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -55,8 +60,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
-
+  {% if puede.compensatorio %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_compensatorio_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -68,7 +74,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.feriado %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_feriados_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -80,7 +88,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.sabado %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_sabados_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -92,7 +102,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.reporte %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_permiso_reporte' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -104,7 +116,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.calculo_comp %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_compensatorio_calculo_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -116,7 +130,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.vacaciones %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_vacaciones_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -128,7 +144,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.vigilancia %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_vigilancia_list' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
@@ -136,24 +154,25 @@
           <div class="mb-2"><i class="ti ti-shield text-yellow" style="font-size:2.5rem;"></i></div>
           <div class="fw-bold">Vigilancia</div>
           <div class="text-muted small mt-1">Control de asistencia vigilancia</div>
-          <div class="mt-1"><span class="badge bg-yellow-lt text-yellow" style="font-size:.65rem;">En construcción</span></div>
         </div>
       </div>
     </a>
   </div>
+  {% endif %}
 
+  {% if puede.reportes_pdf %}
   <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_cfp_list' %}" class="text-decoration-none">
+    <a href="{% url 'reloj_reportes_pdf' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-3">
         <div class="card-body">
-          <div class="mb-2"><i class="ti ti-school text-purple" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Instructores CFP</div>
-          <div class="text-muted small mt-1">Control de asistencia CFP</div>
-          <div class="mt-1"><span class="badge bg-yellow-lt text-yellow" style="font-size:.65rem;">En construcción</span></div>
+          <div class="mb-2"><i class="ti ti-file-download text-purple" style="font-size:2.5rem;"></i></div>
+          <div class="fw-bold">Reportes PDF</div>
+          <div class="text-muted small mt-1">Vista previa y descarga de reportes</div>
         </div>
       </div>
     </a>
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

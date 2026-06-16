@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.2cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; text-align: left; }
+  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; }
+  td.c, th.c { text-align: center; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style></head><body>
+  <h1>Control de Vacaciones</h1>
+  <div class="sub">Período: {{ periodo_inicio|date:"d/m/Y" }} — {{ periodo_fin|date:"d/m/Y" }} · Generado: {{ hoy|date:"d/m/Y" }}</div>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th>Tipo</th><th class="c">Inicio labores</th><th class="c">Años</th>
+      <th class="c">Días corresp.</th><th class="c">Días usados</th><th class="c">Días disponibles</th>
+    </tr></thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.nombre }} <span style="color:#888;">({{ f.emp_code }})</span></td>
+        <td>{% if f.cfg.dias_fijos %}Caso especial{% elif f.cfg.es_docente %}Docente{% if f.cfg.grupo_docente %} {{ f.cfg.grupo_docente|upper }}{% endif %}{% elif f.cfg %}No docente{% else %}—{% endif %}</td>
+        <td class="c">{% if f.cfg.fecha_inicio_labores %}{{ f.cfg.fecha_inicio_labores|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="c">{% if f.años is not None %}{{ f.años }}{% else %}—{% endif %}</td>
+        <td class="c">{{ f.dias_corresponden }}</td>
+        <td class="c">{{ f.dias_usados }}</td>
+        <td class="c">{% if f.dias_corresponden %}{{ f.dias_disponibles }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="c">Sin empleados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body></html>

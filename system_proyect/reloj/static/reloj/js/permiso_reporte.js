@@ -12,16 +12,28 @@
   let allPermisos = [], currentPage = 1;
   let activeCellEmp = null, activeCellMes = null, activeCellNombre = null, activeCellCampo = null;
 
-  // ── DataTable ──
+  // ── DataTable (3 tablas: general, maestro, vigilante) ──
   document.addEventListener('DOMContentLoaded', function(){
-    if (typeof $.fn.DataTable !== 'undefined') {
-      $('#tabla-permisos').DataTable({
+    if (typeof $.fn.DataTable === 'undefined') return;
+    ['#tabla-general', '#tabla-maestro', '#tabla-bono', '#tabla-bono-resumen'].forEach(function(sel){
+      var $t = $(sel);
+      if (!$t.length) return;
+      $t.DataTable({
         order: [[0, 'asc']],
         pageLength: 50,
-        columnDefs: [{ orderable: false, targets: [1,2,3,4,5,6,7,8,9,10,11] }],
+        // '_all' se adapta al nº de columnas de cada tabla (evita el warning tn/18)
+        columnDefs: [
+          { orderable: false, targets: '_all' },
+          { orderable: true,  targets: 0 }
+        ],
         language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
       });
-    }
+    });
+    document.querySelectorAll('#perm-tabs button[data-bs-toggle="tab"]').forEach(function(b){
+      b.addEventListener('shown.bs.tab', function(){
+        try { $.fn.dataTable.tables({visible:true, api:true}).columns.adjust(); } catch(e){}
+      });
+    });
   });
 
   function tipoColor(tipo){ return TIPO_COLORS[tipo] || '#e9ecef'; }

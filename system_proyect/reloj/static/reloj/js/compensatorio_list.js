@@ -44,16 +44,31 @@ if (window._PAGE.canEditExtra) {
     document.getElementById('extra-modal-empleado').textContent =
       btn.dataset.nombre + ' · ' + btn.dataset.fecha;
     document.getElementById('extra-minutos').value       = btn.dataset.minutos || 0;
-    document.getElementById('extra-razon').value         = btn.dataset.razon || '';
     document.getElementById('extra-comentario').value    = btn.dataset.comentario || '';
     document.getElementById('extra-autorizado-por').value = btn.dataset.autorizado || '';
+    // Razón: select + campo "nueva"
+    const rz = btn.dataset.razon || '';
+    const sel = document.getElementById('extra-razon-sel');
+    const nueva = document.getElementById('extra-razon-nueva');
+    document.getElementById('extra-razon').value = rz;
+    nueva.classList.add('d-none'); nueva.value = '';
+    if (rz && [...sel.options].some(function(o){ return o.value === rz; })) sel.value = rz;
+    else if (rz) { sel.value = '__nueva__'; nueva.classList.remove('d-none'); nueva.value = rz; }
+    else sel.value = '';
     const modal = new bootstrap.Modal(document.getElementById('modalExtraDia'));
     modal.show();
   });
 
+  document.getElementById('extra-razon-sel').addEventListener('change', function(){
+    const nueva = document.getElementById('extra-razon-nueva');
+    nueva.classList.toggle('d-none', this.value !== '__nueva__');
+    if (this.value === '__nueva__') nueva.focus();
+  });
+
   document.getElementById('btn-guardar-extra').addEventListener('click', function() {
     const minutos       = parseInt(document.getElementById('extra-minutos').value) || 0;
-    const razon         = document.getElementById('extra-razon').value.trim();
+    let razon = document.getElementById('extra-razon-sel').value || '';
+    if (razon === '__nueva__') razon = document.getElementById('extra-razon-nueva').value.trim();
     const comentario    = document.getElementById('extra-comentario').value.trim();
     const autorizado_por = document.getElementById('extra-autorizado-por').value.trim();
 
@@ -65,6 +80,16 @@ if (window._PAGE.canEditExtra) {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) { alert('Error: ' + (data.error || 'desconocido')); return; }
+      // Si la razón es nueva, dejarla en el select para la próxima vez
+      if (razon) {
+        const sel = document.getElementById('extra-razon-sel');
+        if (![...sel.options].some(o => o.value === razon)) {
+          const opt = document.createElement('option');
+          opt.value = razon; opt.textContent = razon;
+          const nueva = sel.querySelector('option[value="__nueva__"]');
+          sel.insertBefore(opt, nueva);
+        }
+      }
       bootstrap.Modal.getInstance(document.getElementById('modalExtraDia')).hide();
 
       // Actualizar la celda sin recargar

@@ -41,119 +41,57 @@
     <div class="mt-2">No hay usuarios staff configurados.</div>
   </div>
   {% else %}
-  <div class="table-responsive">
-    <table class="table table-vcenter card-table table-sm table-bordered mb-0">
-      <thead class="table-light">
-
-        {# ── Fila 1: cabeceras de grupos ── #}
-        <tr>
-          <th style="min-width:170px; vertical-align:middle;">Usuario</th>
-
-          {# Visualizar global (ver todos los empleados) #}
-          <th class="text-center px-1 col-ver-global-hd perm-mod-header col-ver-global"
-              style="min-width:72px;" rowspan="2"
-              title="Ver todos los empleados o solo los asignados">
-            <i class="ti ti-eye d-block mb-1" style="font-size:1rem;"></i>
-            Visualizar<br><small style="font-size:.6rem;">(empleados)</small>
-          </th>
-
-          {# Módulos: has_edit=True → colspan 3; has_edit=False → colspan 1 #}
-          {% for mod in modulos %}
-          <th class="text-center px-1 perm-mod-header col-mod-first"
-              colspan="{% if mod.has_edit %}3{% else %}1{% endif %}"
-              title="{{ mod.label }}">
-            <i class="ti {{ mod.icon }} d-block mb-1" style="font-size:1rem;"></i>
-            {{ mod.label|truncatechars:13 }}
-          </th>
-          {% endfor %}
-        </tr>
-
-        {# ── Fila 2: sub-cabeceras ── #}
-        <tr>
-          {# sin celda para Usuario ni Visualizar (rowspan=2) #}
-
-          {% for mod in modulos %}
-          {# Ver #}
-          <th class="text-center perm-subhead col-ver-mod-hd col-mod-first" style="width:50px;">
-            <i class="ti ti-eye me-1"></i>Ver
-          </th>
-          {% if mod.has_edit %}
-          {# Editar #}
-          <th class="text-center perm-subhead" style="width:50px;">
-            <i class="ti ti-pencil me-1"></i>Edit.
-          </th>
-          {# Eliminar #}
-          <th class="text-center perm-subhead" style="width:50px;">
-            <i class="ti ti-trash me-1"></i>Elim.
-          </th>
-          {% endif %}
-          {% endfor %}
-        </tr>
-
-      </thead>
-      <tbody>
-        {% for fila in matrix_usuarios %}
-        <tr>
-
-          {# ── Columna usuario ── #}
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <span class="ava-mini bg-{{ fila.color }}-lt text-{{ fila.color }}"
-                    style="font-size:.75rem; width:28px; height:28px;">
-                {{ fila.initials }}
-              </span>
-              <div>
-                <div class="fw-semibold small">{{ fila.user.get_full_name|default:fila.user.username }}</div>
-                <div class="text-muted font-monospace" style="font-size:.65rem;">{{ fila.user.email }}</div>
-              </div>
+  {# ── Una tarjeta por usuario; módulos como filas (sin scroll horizontal) ── #}
+  <div class="card-body">
+    <div class="row g-3">
+      {% for fila in matrix_usuarios %}
+      <div class="col-12 col-xl-6">
+        <div class="card border h-100">
+          <div class="card-header py-2 d-flex align-items-center gap-2 flex-wrap">
+            <span class="ava-mini bg-{{ fila.color }}-lt text-{{ fila.color }}" style="font-size:.8rem; width:32px; height:32px;">{{ fila.initials }}</span>
+            <div class="me-auto">
+              <div class="fw-semibold">{{ fila.user.get_full_name|default:fila.user.username }}</div>
+              <div class="text-muted font-monospace" style="font-size:.7rem;">{{ fila.user.email }}</div>
             </div>
-          </td>
-
-          {# ── Visualizar global ── #}
-          <td class="text-center align-middle col-ver-global">
-            <input type="checkbox" class="form-check-input perm-toggle"
-                   data-user="{{ fila.user.pk }}"
-                   data-campo="ver_todos"
-                   {% if fila.ver_todos %}checked{% endif %}>
-            <div class="small mt-1 ver-todos-label" style="font-size:.6rem; color:#6366f1; line-height:1.2;">
-              {% if fila.ver_todos %}Todos{% else %}Asig.{% endif %}
-            </div>
-          </td>
-
-          {# ── Celdas por módulo ── #}
-          {% for celda in fila.celdas %}
-
-          {# Ver #}
-          <td class="text-center align-middle col-ver-mod col-mod-first">
-            <input type="checkbox" class="form-check-input perm-toggle"
-                   data-user="{{ fila.user.pk }}"
-                   data-campo="{{ celda.key }}_ver"
-                   {% if celda.ver %}checked{% endif %}>
-          </td>
-
-          {% if celda.has_edit %}
-          {# Editar #}
-          <td class="text-center align-middle">
-            <input type="checkbox" class="form-check-input perm-toggle"
-                   data-user="{{ fila.user.pk }}"
-                   data-campo="{{ celda.key }}_editar"
-                   {% if celda.editar %}checked{% endif %}>
-          </td>
-          {# Eliminar #}
-          <td class="text-center align-middle">
-            <input type="checkbox" class="form-check-input perm-toggle"
-                   data-user="{{ fila.user.pk }}"
-                   data-campo="{{ celda.key }}_eliminar"
-                   {% if celda.eliminar %}checked{% endif %}>
-          </td>
-          {% endif %}
-
-          {% endfor %}
-
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            {# Visualizar módulos: Todos (todos los módulos) vs. solo los marcados con Ver #}
+            <label class="form-check form-switch m-0 d-flex align-items-center gap-2" title="Todos: ve todos los módulos · Apagado: solo los módulos con Ver marcado">
+              <input type="checkbox" class="form-check-input perm-toggle m-0" data-user="{{ fila.user.pk }}" data-campo="ver_todos" {% if fila.ver_todos %}checked{% endif %}>
+              <span class="small text-indigo ver-todos-label">{% if fila.ver_todos %}Todos{% else %}Solo marcados{% endif %}</span>
+            </label>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-vcenter mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Módulo</th>
+                  <th class="text-center col-ver-mod-hd" style="width:64px;"><i class="ti ti-eye me-1"></i>Ver</th>
+                  <th class="text-center" style="width:64px;"><i class="ti ti-pencil me-1"></i>Edit.</th>
+                  <th class="text-center" style="width:64px;"><i class="ti ti-trash me-1"></i>Elim.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for celda in fila.celdas %}
+                <tr>
+                  <td class="small"><i class="ti {{ celda.icon }} me-1 text-muted"></i>{{ celda.label }}</td>
+                  <td class="text-center align-middle col-ver-mod">
+                    <input type="checkbox" class="form-check-input perm-toggle" data-user="{{ fila.user.pk }}" data-campo="{{ celda.key }}_ver" {% if celda.ver %}checked{% endif %}>
+                  </td>
+                  {% if celda.has_edit %}
+                  <td class="text-center align-middle"><input type="checkbox" class="form-check-input perm-toggle" data-user="{{ fila.user.pk }}" data-campo="{{ celda.key }}_editar" {% if celda.editar %}checked{% endif %}></td>
+                  <td class="text-center align-middle"><input type="checkbox" class="form-check-input perm-toggle" data-user="{{ fila.user.pk }}" data-campo="{{ celda.key }}_eliminar" {% if celda.eliminar %}checked{% endif %}></td>
+                  {% else %}
+                  <td class="text-center align-middle cell-na">—</td>
+                  <td class="text-center align-middle cell-na">—</td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
 
@@ -161,12 +99,12 @@
     <i class="ti ti-info-circle me-1"></i>
     El superusuario siempre tiene acceso completo. Los cambios se guardan automáticamente.
     <span class="ms-2"><i class="ti ti-eye me-1 text-success"></i><strong>Ver</strong>: acceso lectura al módulo.</span>
-    <span class="ms-2 text-indigo"><i class="ti ti-eye me-1"></i><strong>Visualizar (empleados)</strong>: todos vs. asignados.</span>
+    <span class="ms-2 text-indigo"><i class="ti ti-eye me-1"></i><strong>Todos</strong>: ve todos los módulos · <strong>Solo marcados</strong>: solo los módulos con Ver.</span>
   </div>
 </div>
 
 <div id="page-config" hidden
      data-csrf="{{ csrf_token }}"
      data-url="{% url 'settings_reloj_permisos' %}"></div>
-<script src="{% static 'accounts/js/settings_reloj_permisos.js' %}"></script>
+<script src="{% static 'accounts/js/settings_reloj_permisos.js' %}?v=2"></script>
 {% endblock %}

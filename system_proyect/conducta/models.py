@@ -179,8 +179,11 @@ class ReporteConductual(AuditModel):
 
     @property
     def coord_codigo(self):
+        # Conductual bilingüe → siempre C3 (Isabel Alcerro), salvo override manual.
         if self.coord_asignado:
             return self.coord_asignado
+        if self.area == 'bilingue':
+            return 'C3'
         md = MateriaDocenteBilingue.objects.filter(docente=self.docente, activo=True).first()
         if md:
             return md.coordinador.split(',')[0].strip()
@@ -361,3 +364,186 @@ class ConfiguracionNotificacion(AuditModel):
 
     def __str__(self):
         return f"{self.get_area_display()} – {self.coordinador.nombre}"
+
+
+# ────────────────
+# Período Escolar (propio de conducta — independiente de Salidas Baño)
+# ────────────────
+class PeriodoEscolarConducta(AuditModel):
+    """Parcial con fechas para clasificar los reportes (dashboard/historial).
+    Catálogo propio de conducta: sus fechas pueden diferir de Salidas Baño."""
+    AREA_CHOICES = [
+        ('bilingue', 'Bilingüe'),
+        ('colegio',  'Colegio'),
+        ('ambas',    'Ambas'),
+    ]
+    nombre       = models.CharField("Nombre", max_length=60)
+    parcial      = models.PositiveSmallIntegerField("Número de parcial")
+    anio         = models.PositiveSmallIntegerField("Año")
+    area         = models.CharField("Área", max_length=20, choices=AREA_CHOICES, default='ambas')
+    fecha_inicio = models.DateField("Fecha de inicio")
+    fecha_fin    = models.DateField("Fecha de fin")
+    activo       = models.BooleanField("Activo", default=False)
+
+    class Meta:
+        db_table            = 'conducta_periodo_escolar'
+        verbose_name        = 'Período Escolar (Conducta)'
+        verbose_name_plural = 'Períodos Escolares (Conducta)'
+        ordering            = ['-anio', '-parcial']
+        unique_together     = ('parcial', 'anio', 'area')
+
+    def __str__(self):
+        return f"{self.nombre} ({self.get_area_display()})"
+
+
+# ────────────────
+# Convocatoria de Tutorías (Bilingüe)
+# ────────────────
+# <--- hecho por claude code: sistema de convocatoria de tutorías
+DIAS_TUTORIA = [(1, 'Lunes'), (2, 'Martes'), (3, 'Miércoles'), (4, 'Jueves'), (5, 'Viernes')]
+DIA_ABREV = {1: 'L', 2: 'M', 3: 'M', 4: 'J', 5: 'V'}
+
+GRADOS_TUTORIA = [
+    (1, 'Primero'), (2, 'Segundo'), (3, 'Tercero'), (4, 'Cuarto'),
+    (5, 'Quinto'), (6, 'Sexto'), (7, 'Séptimo'), (8, 'Octavo'), (9, 'Noveno'),
+]
+GRADO_TUTORIA_LABEL = dict(GRADOS_TUTORIA)
+
+# Asignaturas de tutoría y su color
+COLOR_ASIGNATURA = {
+    'Phonics':             '#0c8599',
+    'Math':                '#1971c2',
+    'Language':            '#2f9e44',
+    'Español':             '#c92a2a',
+    'Spelling':            '#9c36b5',
+    'Reading':             '#e8590c',
+    'Lang. Arts':          '#e8a33d',
+    'Lang. Arts/Spelling': '#74b816',
+    'Science':             '#343a40',
+}
+
+# Asignaturas por grado (1-9) y a qué coordinador notifican (C1 = grados 1-3, C2 = 4-9)
+ASIGNATURAS_POR_GRADO = {
+    1: ['Phonics', 'Math', 'Language', 'Español'],
+    2: ['Phonics', 'Math', 'Language', 'Español'],
+    3: ['Phonics', 'Math', 'Language', 'Español'],
+    4: ['Phonics', 'Spelling', 'Language', 'Español', 'Math'],
+    5: ['Reading', 'Language', 'Math', 'Español'],
+    6: ['Reading', 'Language', 'Math', 'Español'],
+    7: ['Reading', 'Language', 'Math', 'Español'],
+    8: ['Reading', 'Language', 'Math', 'Español'],
+    9: ['Reading', 'Language', 'Math', 'Español'],
+}
+
+
+def grupo_coord_de_grado(grado_num):
+    """Grados 1-3 → C1 (Catherine Varela); 4-9 → C2 (David Ruiz)."""
+    if grado_num in (1, 2, 3):
+        return 'C1'
+    if grado_num in (4, 5, 6, 7, 8, 9):
+        return 'C2'
+    return ''
+
+
+def color_asignatura(nombre):
+    return COLOR_ASIGNATURA.get((nombre or '').strip(), '#6c757d')
+
+
+class TutoriaHorario(AuditModel):
+    """Matriz de tutorías: por grado y día, qué asignatura(s) se imparten.
+    Configurable por parcial/año. Una fila por (grado, día, asignatura)."""
+    grado      = models.PositiveSmallIntegerField("Grado", choices=GRADOS_TUTORIA)
+    dia        = models.PositiveSmallIntegerField("Día", choices=DIAS_TUTORIA)
+    asignatura = models.CharField("Asignatura", max_length=60)
+    docente    = models.CharField("Docente", max_length=80, blank=True, default='')
+    color      = models.CharField("Color", max_length=9, blank=True, default='')
+    parcial    = models.PositiveSmallIntegerField("Parcial")
+    anio       = models.PositiveSmallIntegerField("Año")
+
+    class Meta:
+        db_table            = 'conducta_tutoria_horario'
+        verbose_name        = 'Horario de Tutoría'
+        verbose_name_plural = 'Horarios de Tutoría'
+        ordering            = ['anio', 'parcial', 'grado', 'dia', 'asignatura']
+        unique_together     = ('grado', 'dia', 'asignatura', 'parcial', 'anio')
+
+    def save(self, *args, **kwargs):
+        if not self.color:
+            self.color = color_asignatura(self.asignatura)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{GRADO_TUTORIA_LABEL.get(self.grado, self.grado)} {DIA_ABREV.get(self.dia)}: {self.asignatura}"
+
+
+GRUPOS_TUTORIA = [('C1', 'C1'), ('C2', 'C2')]
+
+
+class TutoriaGrupoMaestro(AuditModel):
+    """Maestros habilitados para convocatorias y su grupo (C1 / C2)."""
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='tutoria_grupo')
+    grupo   = models.CharField("Grupo", max_length=4, choices=GRUPOS_TUTORIA, default='C1')
+    activo  = models.BooleanField("Activo", default=True)
+
+    class Meta:
+        db_table            = 'conducta_tutoria_grupo_maestro'
+        verbose_name        = 'Maestro de Tutoría'
+        verbose_name_plural = 'Maestros de Tutoría'
+        ordering            = ['grupo', 'usuario__first_name']
+
+    def __str__(self):
+        return f"{self.usuario} → {self.grupo}"
+
+
+class ConvocatoriaTutoria(AuditModel):
+    """Convocatoria de tutorías de un alumno para un parcial (carta a padres)."""
+    usuario       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='convocatorias')
+    area          = models.CharField(max_length=10, choices=AREA_CHOICES, default='bilingue')
+    coord_grupo   = models.CharField("Grupo coordinador", max_length=4, choices=GRUPOS_TUTORIA,
+                                     blank=True, default='')
+    alumno_id     = models.CharField("ID alumno", max_length=30)
+    alumno_nombre = models.CharField("Alumno", max_length=200)
+    grado         = models.CharField("Grado (texto)", max_length=60, blank=True, default='')
+    grado_num     = models.PositiveSmallIntegerField("Grado #", null=True, blank=True)
+    seccion       = models.CharField("Sección", max_length=20, blank=True, default='')
+    parcial       = models.PositiveSmallIntegerField("Parcial")
+    anio          = models.PositiveSmallIntegerField("Año")
+    docente_guia  = models.CharField("Docente guía", max_length=120, blank=True, default='')
+    coordinador   = models.CharField("Coordinador de área", max_length=120, blank=True, default='')
+    fecha         = models.DateField("Fecha de la convocatoria")
+    creado_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table            = 'conducta_convocatoria_tutoria'
+        verbose_name        = 'Convocatoria de Tutoría'
+        verbose_name_plural = 'Convocatorias de Tutoría'
+        ordering            = ['-creado_at']
+
+    def __str__(self):
+        return f"Convocatoria {self.alumno_nombre} — P{self.parcial} {self.anio}"
+
+
+class ConvocatoriaAsignatura(AuditModel):
+    """Asignatura convocada dentro de una convocatoria + los días (1-5) marcados."""
+    convocatoria = models.ForeignKey(ConvocatoriaTutoria, on_delete=models.CASCADE,
+                                     related_name='asignaturas')
+    asignatura   = models.CharField("Asignatura", max_length=60)
+    dias         = models.CharField("Días (coma)", max_length=20, blank=True, default='',
+                                    help_text="Códigos 1-5 separados por coma (L=1…V=5)")
+
+    class Meta:
+        db_table            = 'conducta_convocatoria_asignatura'
+        verbose_name        = 'Asignatura de Convocatoria'
+        verbose_name_plural = 'Asignaturas de Convocatoria'
+        ordering            = ['pk']
+
+    @property
+    def dias_lista(self):
+        return [int(d) for d in self.dias.split(',') if d.strip().isdigit()]
+
+    def tiene_dia(self, n):
+        return n in self.dias_lista
+
+    def __str__(self):
+        return f"{self.asignatura} [{self.dias}]"

@@ -1,27 +1,25 @@
 // static/conducta/js/coordinador.js
 
 $(function() {
-    // Inicializar DataTables
-    // Tab 1 académicos:    #,Alumno,Fecha(2),Grado,Docente,[Coord],Estado,Evidencias,Acciones
-    // Tab 2 conductuales:  #,Alumno,Tipo,Fecha(3),Grado,Docente,[Coord],Estado,Evidencias,Acciones
-    // Tab 3 progress:      #,Alumno,Fecha(2),Grado,Maestro,[Coord],Estado,Evidencias,Acciones
+    // Inicializar DataTables — orden por FECHA descendente (último registrado primero).
+    // Columnas (todas): chk(0), #(1), Alumno(2), Tipo(3), Fecha(4), Grado(5), ...
     const lang = { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" };
     const noSort = { orderable: false };
     if ($('#tabla-academicos').length) {
         $('#tabla-academicos').DataTable({
-            language: lang, order: [[2, 'desc']], pageLength: 100,
+            language: lang, order: [[4, 'desc']], pageLength: 100,
             columnDefs: [{ targets: [-1, -2], orderable: false }]
         });
     }
     if ($('#tabla-conductuales').length) {
         $('#tabla-conductuales').DataTable({
-            language: lang, order: [[3, 'desc']], pageLength: 100,
+            language: lang, order: [[4, 'desc']], pageLength: 100,
             columnDefs: [{ targets: [-1, -2], orderable: false }]
         });
     }
     if ($('#tabla-progress').length) {
         $('#tabla-progress').DataTable({
-            language: lang, order: [[2, 'desc']], pageLength: 100,
+            language: lang, order: [[4, 'desc']], pageLength: 100,
             columnDefs: [{ targets: [-1, -2], orderable: false }]
         });
     }

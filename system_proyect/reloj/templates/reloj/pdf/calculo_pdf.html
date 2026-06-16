@@ -1,0 +1,107 @@
+{% load static l10n %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.2cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
+  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
+  td.c, th.c { text-align: center; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style></head><body>
+
+{% if sec == 'adeudados' %}
+  <h1>Control de adeudados</h1>
+  <div class="sub">Año: {{ anio_sel }} · Horas adeudadas, compensado y tomado por empleado</div>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Horas adeudadas</th><th class="c">Compensado + T.Extra</th>
+      <th class="c">Tiempo tomado</th><th class="c">Saldo (min)</th>
+    </tr></thead>
+    <tbody>
+      {% for item in registros_data %}
+      <tr>
+        <td>{{ item.r.nombre_empleado }} <span style="color:#888;">({{ item.r.emp_code }})</span></td>
+        <td class="c">{{ item.horas_adeudadas|floatformat:"-2" }}</td>
+        <td class="c">{{ item.comp_mas_te_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ item.tomado_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ item.saldo }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="c">Sin registros.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+
+{% elif sec == 'general' %}
+  <h1>Tiempo compensatorio general</h1>
+  <div class="sub">Año: {{ anio_sel }} · Total trabajado (manual) vs. total tomado (permiso) · Saldo = Tr − To</div>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Total trabajado</th><th class="c">Total tomado</th><th class="c">Saldo</th>
+    </tr></thead>
+    <tbody>
+      {% for row in mensual_rows %}
+      <tr>
+        <td>{{ row.emp.nombre_empleado }} <span style="color:#888;">({{ row.emp.emp_code }})</span></td>
+        <td class="c">{{ row.total_trab|floatformat:"-2" }}</td>
+        <td class="c">{{ row.total_tom|floatformat:"-2" }}</td>
+        <td class="c">{{ row.total_saldo|floatformat:"-2" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="4" class="c">Sin registros.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+
+{% elif sec == 'receso' %}
+  <h1>Tiempo de receso</h1>
+  <div class="sub">Mes: {{ receso_mes|date:"F Y" }} · Receso = par de marcas de almuerzo (11:00–14:30)</div>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Fecha</th>
+      <th class="c">Salida (2ª marca)</th><th class="c">Regreso (3ª marca)</th><th class="c">Minutos tomados</th>
+    </tr></thead>
+    <tbody>
+      {% for emp in receso.rows %}
+        {% for d in emp.dias %}
+        <tr>
+          <td>{% if forloop.first %}{{ emp.nombre }} <span style="color:#888;">({{ emp.emp_code }})</span>{% endif %}</td>
+          <td class="c">{{ d.fecha|date:"d/m/Y" }}</td>
+          <td class="c">{{ d.m2|default:"—" }}</td>
+          <td class="c">{{ d.m3|default:"—" }}</td>
+          <td class="c">{% if d.m3 %}{{ d.minutos }} min{% if d.manual %} (manual){% endif %}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      {% empty %}
+      <tr><td colspan="5" class="c">Sin marcas en la semana.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% else %}
+  <h1>Instructores</h1>
+  <div class="sub">Año: {{ anio_sel }} · Compensado, tiempo extra, tomado y saldo</div>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Horario</th><th class="c">Compensado</th>
+      <th class="c">T. Extra (min)</th><th class="c">Tomado</th><th class="c">Saldo</th>
+      <th class="c">Inicio</th><th class="c">Fecha fin</th>
+    </tr></thead>
+    <tbody>
+      {% for row in instructor_rows %}
+      <tr>
+        <td>{{ row.i.nombre_empleado }} <span style="color:#888;">({{ row.i.emp_code }})</span></td>
+        <td class="c">{{ row.horario }}</td>
+        <td class="c">{{ row.comp_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ row.te_min }}</td>
+        <td class="c">{{ row.tomado_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ row.saldo_hrs|floatformat:"-2" }}</td>
+        <td class="c">{% if row.fecha_inicio %}{{ row.fecha_inicio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="c">{% if row.fecha_fin %}{{ row.fecha_fin|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="8" class="c">Sin instructores.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+</body></html>

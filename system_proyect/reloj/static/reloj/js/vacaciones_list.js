@@ -7,11 +7,12 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('count-sin-config').textContent = sinCfg;
 });
 
-// Buscador
+// Buscador (filtra en todas las tablas/tabs)
 document.getElementById('buscar').addEventListener('input', function(){
   const q = this.value.toLowerCase();
-  document.querySelectorAll('#tablaVacaciones tbody tr').forEach(tr => {
-    tr.style.display = (tr.dataset.nombre || '').toLowerCase().includes(q) ? '' : 'none';
+  document.querySelectorAll('.tabla-vac tbody tr').forEach(tr => {
+    if (!tr.dataset.nombre) return;
+    tr.style.display = tr.dataset.nombre.toLowerCase().includes(q) ? '' : 'none';
   });
 });
 
@@ -84,11 +85,13 @@ document.getElementById('btn-guardar-usados').addEventListener('click', function
 // Abrir modal configurar
 document.querySelectorAll('.btn-cfg').forEach(btn => {
   btn.addEventListener('click', function(){
+    const tr     = this.closest('tr');
     const emp    = this.dataset.emp;
     const nombre = this.dataset.nombre;
     const docente= this.dataset.docente === 'true';
     const fecha  = this.dataset.fecha || '';
-    const fijos  = this.closest('tr').dataset.fijos || '';
+    const fijos  = tr.dataset.fijos || '';
+    const grupo  = tr.dataset.grupo || '';
 
     document.getElementById('cfg-emp-code').value             = emp;
     document.getElementById('cfg-nombre').value               = nombre;
@@ -109,6 +112,9 @@ document.querySelectorAll('.btn-cfg').forEach(btn => {
     }
     document.getElementById('escala-info').style.display = (!fijos && !docente) ? '' : 'none';
     document.getElementById('fijos-info').style.display  = fijos ? '' : 'none';
+    // Grupo BL/Colegio (solo docente)
+    document.querySelectorAll('input[name="cfg-grupo"]').forEach(g => { g.checked = (g.value === grupo); });
+    document.getElementById('grupo-info').style.display = (docente && !fijos) ? '' : 'none';
 
     new bootstrap.Modal(document.getElementById('modalConfig')).show();
   });
@@ -118,6 +124,7 @@ document.querySelectorAll('input[name="cfg-tipo"]').forEach(r => {
   r.addEventListener('change', function(){
     document.getElementById('escala-info').style.display = this.value === 'nodocente' ? '' : 'none';
     document.getElementById('fijos-info').style.display  = this.value === 'fijos'     ? '' : 'none';
+    document.getElementById('grupo-info').style.display  = this.value === 'docente'   ? '' : 'none';
   });
 });
 
@@ -130,9 +137,15 @@ document.getElementById('btn-guardar-cfg').addEventListener('click', function(){
   const esDocente = tipoVal === 'docente';
   const fecha     = document.getElementById('cfg-fecha').value;
   const diasFijos = tipoVal === 'fijos' ? parseInt(document.getElementById('cfg-dias-fijos').value) || null : null;
+  const grupoEl   = document.querySelector('input[name="cfg-grupo"]:checked');
+  const grupoDoc  = (esDocente && grupoEl) ? grupoEl.value : '';
 
   if (tipoVal === 'fijos' && !diasFijos) {
     alert('Ingresa los días fijos para el caso especial.');
+    return;
+  }
+  if (esDocente && !grupoDoc) {
+    alert('Selecciona si el docente es BL o Colegio.');
     return;
   }
 
@@ -143,66 +156,16 @@ document.getElementById('btn-guardar-cfg').addEventListener('click', function(){
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify({ emp_code: empCode, nombre, es_docente: esDocente, fecha_inicio: fecha, dias_fijos: diasFijos }),
+    body: JSON.stringify({ emp_code: empCode, nombre, es_docente: esDocente, grupo_docente: grupoDoc, fecha_inicio: fecha, dias_fijos: diasFijos }),
   })
   .then(r => r.json())
   .then(data => {
-    if (!data.ok) { alert('Error: ' + data.error); return; }
-
-    const tr = document.querySelector(`tr[data-emp="${empCode}"]`);
-    if (tr) {
-      tr.dataset.docente = esDocente ? 'true' : 'false';
-      tr.dataset.fecha   = fecha;
-      tr.dataset.fijos   = diasFijos || '';
-
-      // Actualizar badge tipo
-      if (diasFijos) {
-        tr.querySelector('.td-tipo').innerHTML =
-          `<span class="badge bg-yellow-lt text-yellow"><i class="ti ti-star me-1"></i>Caso especial · ${diasFijos}d</span>`;
-      } else if (esDocente) {
-        tr.querySelector('.td-tipo').innerHTML =
-          '<span class="badge bg-blue-lt text-blue"><i class="ti ti-school me-1"></i>Docente</span>';
-      } else {
-        tr.querySelector('.td-tipo').innerHTML =
-          '<span class="badge bg-green-lt text-green"><i class="ti ti-briefcase me-1"></i>No docente</span>';
-      }
-
-      if (fecha) {
-        const [y,m,d] = fecha.split('-');
-        tr.querySelector('.td-fecha').textContent = `${d}/${m}/${y}`;
-      }
-
-      const años = data.años;
-      const tdA = tr.querySelector('.td-años');
-      if (años === null || años === undefined) tdA.innerHTML = '<span class="text-muted">—</span>';
-      else if (años === 0) tdA.innerHTML = '<span class="text-muted small">< 1 año</span>';
-      else tdA.textContent = años + (años === 1 ? ' año' : ' años');
-
-      const dc = data.dias_corresponden;
-      tr.querySelector('.td-corresponden').innerHTML = dc > 0
-        ? `<span class="fw-bold text-primary">${dc}</span>`
-        : '<span class="text-muted">0</span>';
-
-      const usadosEl = tr.querySelector('.td-usados-val');
-      const usados   = parseFloat(usadosEl ? usadosEl.textContent : 0) || 0;
-      const disp     = dc - usados;
-      const tdD      = tr.querySelector('.td-disponibles');
-      if (dc > 0) {
-        const cls = disp <= 0 ? 'bg-red-lt text-red' : disp <= 5 ? 'bg-orange-lt text-orange' : 'bg-green-lt text-green';
-        tdD.innerHTML = `<span class="badge ${cls} fw-bold">${disp}</span>`;
-      }
-
-      const btnCfg = tr.querySelector('.btn-cfg');
-      if (btnCfg) {
-        btnCfg.dataset.docente = esDocente ? 'true' : 'false';
-        btnCfg.dataset.fecha   = fecha;
-      }
-    }
-
-    bootstrap.Modal.getInstance(document.getElementById('modalConfig')).hide();
+    if (!data.ok) { alert('Error: ' + data.error); btn.disabled = false; btn.innerHTML = '<i class="ti ti-check me-1"></i>Guardar'; return; }
+    // La fila puede cambiar de tab (no docente ⇄ docente BL/Colegio ⇄ caso especial): recargar.
+    location.reload();
   })
-  .catch(() => alert('Error de conexión'))
-  .finally(() => {
+  .catch(() => {
+    alert('Error de conexión');
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-check me-1"></i>Guardar';
   });

@@ -37,7 +37,7 @@
     const p = document.createElement('div');
     p.className = 'tc-p';
     const s = Math.random() * 12 + 4;
-    p.style.cssText = `width:${s}px;height:${s}px;left:${Math.random() * 100}%;top:${Math.random() * 100}%;background:${colors[i % colors.length]};animation-delay:${Math.random() * 1.4}s;animation-duration:${1.4 + Math.random()}s`;
+    p.style.cssText = `width:${s}px;height:${s}px;left:${Math.random() * 100}%;top:${Math.random() * 100}%;background:${colors[i % colors.length]};animation-delay:${Math.random() * 2}s;animation-duration:${2 + Math.random() * 1.5}s`;
     parts.appendChild(p);
   }
 
@@ -61,14 +61,14 @@
           idx = Math.min(idx + 1, steps.length - 1);
           lbl.textContent = steps[idx];
           if (idx === steps.length - 1) clearInterval(iv);
-        }, 650);
+        }, 4500);
 
-        // Fade out y remover
+        // Fade out y remover — la bienvenida (con estrellas) dura ~20s
         setTimeout(function () {
           ov.style.transition = 'opacity .65s ease';
           ov.style.opacity = '0';
           setTimeout(function () { ov.remove(); }, 700);
-        }, 2900);
+        }, 19600);
 
       }, 300);
     }, 100);

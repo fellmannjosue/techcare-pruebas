@@ -74,6 +74,11 @@
           <i class="ti ti-chart-line me-1"></i> Progress
         </a>
       </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" id="tab-tutorias" data-bs-toggle="tab" href="#tutorias" role="tab">
+          <i class="ti ti-school me-1"></i> Tutorías
+        </a>
+      </li>
       {% endif %}
     </ul>
   </div>
@@ -308,6 +313,34 @@
               </tr>
               {% empty %}
               <tr><td colspan="9" class="text-center text-muted py-3">No hay progress reports.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {# TAB: TUTORÍAS (convocatorias que generó el maestro) #}
+      <div class="tab-pane fade" id="tutorias" role="tabpanel">
+        <div class="table-responsive">
+          <table class="table table-vcenter table-hover table-bordered">
+            <thead>
+              <tr>
+                <th>Estudiante</th><th>Grado</th><th class="text-center">Grupo</th>
+                <th class="text-center">Parcial</th><th>Asignaturas</th><th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in convocatorias_tut %}
+              <tr>
+                <td class="fw-semibold">{{ c.alumno_nombre }}</td>
+                <td>{{ c.grado }}</td>
+                <td class="text-center">{% if c.coord_grupo %}<span class="badge bg-teal-lt text-teal">{{ c.coord_grupo }}</span>{% else %}—{% endif %}</td>
+                <td class="text-center"><span class="badge bg-blue-lt text-blue">P{{ c.parcial }} · {{ c.anio }}</span></td>
+                <td class="small">{{ c.asigs_txt }}</td>
+                <td>{{ c.fecha|date:"d/m/Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Aún no has generado convocatorias de tutorías.</td></tr>
               {% endfor %}
             </tbody>
           </table>

@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.2cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  h2 { font-size: 12px; margin: 14px 0 4px; color: #334155; }
+  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
+  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
+  td.c, th.c { text-align: center; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style></head><body>
+  <h1>Adeudados / Instructores — Tiempo trabajado y tomado</h1>
+  <div class="sub">Año: {{ anio_sel }} · Generado por empleado</div>
+
+  <h2>Control de adeudados</h2>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Horas adeudadas</th><th class="c">Compensado + T.Extra</th>
+      <th class="c">Tiempo tomado</th><th class="c">Saldo (min)</th>
+    </tr></thead>
+    <tbody>
+      {% for item in registros_data %}
+      <tr>
+        <td>{{ item.r.nombre_empleado }} <span style="color:#888;">({{ item.r.emp_code }})</span></td>
+        <td class="c">{{ item.horas_adeudadas|floatformat:"-2" }}</td>
+        <td class="c">{{ item.comp_mas_te_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ item.tomado_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ item.saldo }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="c">Sin registros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Instructores</h2>
+  <table>
+    <thead><tr>
+      <th>Empleado</th><th class="c">Horario</th><th class="c">Compensado</th>
+      <th class="c">T. Extra (min)</th><th class="c">Tomado</th><th class="c">Saldo</th><th class="c">Fecha fin</th>
+    </tr></thead>
+    <tbody>
+      {% for row in instructor_rows %}
+      <tr>
+        <td>{{ row.emp.nombre_empleado }} <span style="color:#888;">({{ row.emp.emp_code }})</span></td>
+        <td class="c">{{ row.horario }}</td>
+        <td class="c">{{ row.comp_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ row.te_min }}</td>
+        <td class="c">{{ row.tomado_hrs|floatformat:"-2" }}</td>
+        <td class="c">{{ row.saldo_hrs|floatformat:"-2" }}</td>
+        <td class="c">{% if row.fecha_fin %}{{ row.fecha_fin|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="c">Sin instructores.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body></html>

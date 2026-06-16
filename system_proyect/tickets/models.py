@@ -7,7 +7,7 @@ class Ticket(AuditModel):
     ticket_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
     name = models.CharField(max_length=255)
-    grade = models.CharField(max_length=50)
+    grade = models.CharField(max_length=255)
     email = models.CharField(max_length=255)
     description = models.TextField()
     attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
@@ -52,7 +52,8 @@ class TicketComment(AuditModel):
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comentarios')
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    mensaje = models.TextField("Comentario")
+    mensaje = models.TextField("Comentario", blank=True)
+    archivo = models.FileField("Adjunto", upload_to='ticket_chat/', null=True, blank=True)
     fecha = models.DateTimeField("Fecha", auto_now_add=True)
     tipo = models.CharField(
         max_length=20,
@@ -68,3 +69,15 @@ class TicketComment(AuditModel):
     def __str__(self):
         autor = self.usuario.username if self.usuario else self.get_tipo_display()
         return f"{autor} – {self.fecha.strftime('%d/%m/%Y %H:%M')}: {self.mensaje[:40]}"
+
+    @property
+    def es_imagen(self):
+        if not self.archivo:
+            return False
+        ext = self.archivo.name.rsplit('.', 1)[-1].lower() if '.' in self.archivo.name else ''
+        return ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg')
+
+    @property
+    def archivo_nombre(self):
+        import os
+        return os.path.basename(self.archivo.name) if self.archivo else ''

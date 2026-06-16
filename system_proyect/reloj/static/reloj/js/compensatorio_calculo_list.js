@@ -51,10 +51,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (saldoMin === 0) {
       b.className = `badge bg-green-lt text-green saldo-badge-${pk}`;
       b.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado';
-    } else {
-      b.className = `badge bg-red-lt text-red saldo-badge-${pk}`;
-      b.textContent = `${minToH(saldoMin)} h`;
+      return;
     }
+    // Saldo hasta la fecha: texto negro normal
+    b.className = `fw-semibold font-monospace saldo-badge-${pk}`;
+    b.textContent = `${minToH(saldoMin)} h`;
   }
   function updateRowTotals(pk, data) {
     document.querySelectorAll(`.total-hrs-${pk}`).forEach(c => c.textContent = `${data.total_hrs} h`);
@@ -63,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (data.saldo_min !== undefined) updateSaldoBadge(pk, data.saldo_min);
     const hab = document.querySelector(`.dias-hab-badge-${pk}`);
     if (hab && data.dias_hab !== undefined) hab.textContent = `${data.dias_hab} días`;
+    const ctCell = document.querySelector(`.comp-te-${pk}`); if (ctCell && data.comp_mas_te_hrs !== undefined) ctCell.textContent = `${data.comp_mas_te_hrs} h`;
+    const netoCell = document.querySelector(`.neto-${pk}`); if (netoCell && data.neto_hrs !== undefined) netoCell.textContent = `${data.neto_hrs} h`;
   }
 
   // helper genérico para modales de un solo campo
@@ -114,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
       updateRowTotals(pk, data);
     },
   });
-  // Tiempo extra tomado (detalle permiso compensatorio + override)
+  // Tiempo tomado: detalle permiso (lectura) + tabla manual (agregar/eliminar)
   let modalTom = null, tomPk = null;
   function renderTomado(entries) {
     const tbody = document.getElementById('tom-tbody'), empty = document.getElementById('tom-empty');
@@ -127,38 +130,106 @@ document.addEventListener('DOMContentLoaded', function () {
       tbody.appendChild(tr);
     });
   }
+  function renderTomManual(manual) {
+    const tbody = document.getElementById('tomm-tbody'), empty = document.getElementById('tomm-empty');
+    tbody.querySelectorAll('tr:not(#tomm-empty)').forEach(r => r.remove());
+    if (!manual.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    manual.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-tomm-del" data-pk="${m.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tbody.appendChild(tr);
+    });
+  }
+  function refreshTomCells(d) {
+    // Actualiza badge tomado, neto y saldo en la fila de Tab 2
+    if (d.tomado_hrs !== undefined) {
+      const badge = document.querySelector(`.tomado-badge-${tomPk}`);
+      if (badge) badge.innerHTML = `<i class="ti ti-calendar-minus me-1"></i>${d.tomado_hrs > 0 ? d.tomado_hrs + ' h' : '—'}`;
+      const row = document.querySelector(`tr[data-pk="${tomPk}"]`); if (row) row.dataset.tomadoMin = d.tomado_hrs * 60;
+    }
+    const netoCell = document.querySelector(`.neto-${tomPk}`); if (netoCell && d.neto_hrs !== undefined) netoCell.textContent = `${d.neto_hrs} h`;
+    if (d.saldo_min !== undefined) updateSaldoBadge(tomPk, d.saldo_min);
+    const tt = (d.total_tomado !== undefined) ? d.total_tomado : d.tomado_hrs;
+    if (tt !== undefined) document.getElementById('tom-total-tomado').textContent = tt;
+  }
+  // Saldo deuda = Total a compensar − (Compensado + T. extra)
+  function updateSaldoDeuda(pk, compTeHrs) {
+    const sf = document.querySelector(`.saldo-fecha-${pk}`);
+    if (!sf || compTeHrs === undefined) return;
+    const totalHrs = parseFloat(sf.closest('td').dataset.totalHrs) || 0;
+    const val = Math.round((totalHrs - compTeHrs) * 100) / 100;
+    if (val <= 0) { sf.className = `badge bg-green-lt text-green saldo-fecha-${pk}`; sf.innerHTML = '<i class="ti ti-circle-check me-1"></i>0 h'; }
+    else { sf.className = `badge bg-red-lt text-red saldo-fecha-${pk}`; sf.textContent = `${val} h`; }
+  }
   document.querySelectorAll('.btn-set-tomado').forEach(btn => {
     btn.addEventListener('click', async function () {
       tomPk = this.dataset.pk;
       document.getElementById('tom-nombre').textContent = this.dataset.nombre || '';
-      const inp = document.getElementById('tom-input');
-      if (inp) inp.value = this.dataset.valor || '';
+      ['tomm-fecha', 'tomm-horas', 'tomm-razon'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('tomm-error')?.classList.add('d-none');
       if (!modalTom) modalTom = new bootstrap.Modal(document.getElementById('modalTomado'));
       modalTom.show();
       const d = await (await fetch(window._PAGE.urlGetTomado.replace('{pk}', tomPk))).json();
       if (d.ok) {
         renderTomado(d.entries);
+        renderTomManual(d.manual || []);
         document.getElementById('tom-total-permiso').textContent = d.total_permiso;
-        if (inp) inp.placeholder = `Vacío = usar permiso (${d.total_permiso} h)`;
+        document.getElementById('tom-total-tomado').textContent = d.total_tomado;
       }
     });
   });
-  document.getElementById('btn-guardar-tomado')?.addEventListener('click', async function () {
-    const inp = document.getElementById('tom-input');
-    const raw = inp.value;
-    this.disabled = true;
-    const data = await jpost(window._PAGE.urlSetTomado.replace('{pk}', tomPk), { horas: raw === '' ? '' : (parseFloat(raw) || 0) });
+  document.getElementById('btn-tomm-add')?.addEventListener('click', async function () {
+    const fecha = document.getElementById('tomm-fecha').value;
+    const horas = parseFloat(document.getElementById('tomm-horas').value);
+    const razon = document.getElementById('tomm-razon').value.trim();
+    const err = document.getElementById('tomm-error');
+    if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona una fecha.'; err.classList.remove('d-none'); return; }
+    if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Ingresa horas válidas.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none'); this.disabled = true;
+    const d = await jpost(window._PAGE.urlTomManualAdd.replace('{pk}', tomPk), { fecha, horas, razon });
     this.disabled = false;
+    if (d.ok) {
+      document.getElementById('tomm-horas').value = ''; document.getElementById('tomm-razon').value = '';
+      renderTomManual(d.manual); refreshTomCells(d);
+    } else { err.querySelector('.alert').textContent = d.error || 'Error'; err.classList.remove('d-none'); }
+  });
+  document.getElementById('tomm-tbody')?.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-tomm-del'); if (!btn) return;
+    btn.disabled = true;
+    const d = await jpost(window._PAGE.urlTomManualDel.replace('{pk}', btn.dataset.pk));
+    if (d.ok) { renderTomManual(d.manual); refreshTomCells(d); }
+  });
+
+  // Compensado hasta hoy (manual)
+  let modalComp = null, compPk = null;
+  document.querySelectorAll('.btn-set-compensado').forEach(btn => {
+    btn.addEventListener('click', function () {
+      compPk = this.dataset.pk;
+      document.getElementById('comp-nombre').textContent = this.dataset.nombre || '';
+      document.getElementById('comp-input').value = this.dataset.valor || '';
+      if (!modalComp) modalComp = new bootstrap.Modal(document.getElementById('modalCompensado'));
+      modalComp.show();
+    });
+  });
+  document.getElementById('btn-guardar-compensado')?.addEventListener('click', async function () {
+    const raw = document.getElementById('comp-input').value;
+    const minutos = raw === '' ? '' : Math.round((parseFloat(raw) || 0) * 60);
+    this.disabled = true;
+    const res = await fetch(`/reloj/compensatorio-calculo/${compPk}/set-compensado/`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ csrfmiddlewaretoken: CSRF, minutos }),
+    });
+    const data = await res.json(); this.disabled = false;
     if (data.ok) {
-      const badge = document.querySelector(`.tomado-badge-${tomPk}`);
-      if (badge) {
-        badge.className = `badge ${data.es_override ? 'bg-yellow-lt text-yellow' : 'bg-pink-lt text-pink'} tomado-badge-${tomPk}`;
-        badge.innerHTML = `<i class="ti ti-calendar-minus me-1"></i>${data.tomado_hrs > 0 ? data.tomado_hrs + ' h' : '—'}`;
-      }
-      const b = document.querySelector(`.btn-set-tomado[data-pk="${tomPk}"]`); if (b) b.dataset.valor = data.es_override ? data.tomado_hrs : '';
-      const row = document.querySelector(`tr[data-pk="${tomPk}"]`); if (row) row.dataset.tomadoMin = data.tomado_hrs * 60;
-      updateSaldoBadge(tomPk, data.saldo_min);
-      if (modalTom) modalTom.hide();
+      const hrs = data.horas_compensados != null ? data.horas_compensados : 0;
+      const cb = document.querySelector(`.compensado-badge-${compPk}`);
+      if (cb) { cb.className = `badge bg-teal-lt text-teal compensado-badge-${compPk}`; cb.innerHTML = `<i class="ti ti-progress me-1"></i>${hrs} h`; }
+      const ct = document.querySelector(`.comp-te-${compPk}`); if (ct && data.comp_mas_te_hrs !== undefined) ct.textContent = `${data.comp_mas_te_hrs} h`;
+      if (data.saldo_min !== undefined) updateSaldoBadge(compPk, data.saldo_min);
+      updateSaldoDeuda(compPk, data.comp_mas_te_hrs);
+      const b = document.querySelector(`.btn-set-compensado[data-pk="${compPk}"]`); if (b) b.dataset.valor = data.es_manual ? hrs : '';
+      if (modalComp) modalComp.hide();
     }
   });
 
@@ -256,11 +327,18 @@ document.addEventListener('DOMContentLoaded', function () {
       tbody.appendChild(tr);
     });
   }
-  function updateTEBadge(totalMin, totalHrs) {
+  function updateTEBadge(totalMin, totalHrs, data) {
     document.getElementById('te-total-min').textContent = totalMin;
     document.getElementById('te-total-hrs').textContent = totalHrs;
     const badge = document.querySelector(`.te-badge-${tePk}`);
     if (badge) badge.innerHTML = `<i class="ti ti-clock-bolt me-1"></i>${totalMin > 0 ? totalHrs + ' h' : '—'}`;
+    // Refrescar columnas dependientes del tiempo extra (Tab 2)
+    if (data) {
+      const ct = document.querySelector(`.comp-te-${tePk}`); if (ct && data.comp_mas_te_hrs !== undefined) ct.textContent = `${data.comp_mas_te_hrs} h`;
+      const nt = document.querySelector(`.neto-${tePk}`); if (nt && data.neto_hrs !== undefined) nt.textContent = `${data.neto_hrs} h`;
+      if (data.saldo_min !== undefined) updateSaldoBadge(tePk, data.saldo_min);
+      updateSaldoDeuda(tePk, data.comp_mas_te_hrs);
+    }
   }
   document.querySelectorAll('.btn-te-modal').forEach(btn => {
     btn.addEventListener('click', async function () {
@@ -276,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btn = e.target.closest('.btn-te-del'); if (!btn) return;
     btn.disabled = true;
     const d = await (await fetch(window._PAGE.urlTeDel.replace('{te_pk}', btn.dataset.tePk), { method: 'POST', headers: { 'X-CSRFToken': CSRF } })).json();
-    if (d.ok) { renderTE(d.entries); updateTEBadge(d.total_min, d.total_hrs); }
+    if (d.ok) { renderTE(d.entries); updateTEBadge(d.total_min, d.total_hrs, d); }
   });
 })();
 
@@ -339,11 +417,7 @@ if (window._PAGE.canEdit) (function () {
         const b = document.querySelector(`.btn-set-permisos-extras[data-pk="${pk}"]`); if (b) b.dataset.valor = horas;
         document.querySelectorAll(`.total-hrs-${pk}`).forEach(c => c.textContent = `${data.total_hrs} h`);
         const hab = document.querySelector(`.dias-hab-badge-${pk}`); if (hab) hab.textContent = `${data.dias_hab} días`;
-        const saldo = document.querySelector(`.saldo-badge-${pk}`);
-        if (saldo && data.saldo_min !== undefined) {
-          if (data.saldo_min === 0) { saldo.className = `badge bg-green-lt text-green saldo-badge-${pk}`; saldo.innerHTML = '<i class="ti ti-circle-check me-1"></i>Completado'; }
-          else { saldo.className = `badge bg-red-lt text-red saldo-badge-${pk}`; saldo.textContent = `${minToH(data.saldo_min)} h`; }
-        }
+        if (data.saldo_min !== undefined) updateSaldoBadge(pk, data.saldo_min);
       }
     }
     this.disabled = false; this.innerHTML = '<i class="ti ti-clock-plus me-1"></i>Aplicar 3 días perm. extras';
@@ -351,7 +425,7 @@ if (window._PAGE.canEdit) (function () {
 })();
 
 // ══════════════ Buscador empleados ZKBio (agregar) ══════════════
-if (window._PAGE.canEdit) (function () {
+if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
   let modal = null, destino = null, timer = null;
   function open(dest, titulo) {
     destino = dest;
@@ -394,32 +468,90 @@ if (window._PAGE.canEdit) (function () {
   });
 })();
 
-// ══════════════ Tabs 3-4: grilla mensual ══════════════
-if (window._PAGE.canEdit) (function () {
+// ══════════════ Tab fusionado: Tiempo compensatorio general ══════════════
+if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
   const ANIO = window._PAGE.anio;
-  function sumRow(tr, sel, totalSel) {
-    let s = 0;
-    tr.querySelectorAll(sel).forEach(inp => { s += parseFloat(inp.value) || 0; });
-    const tot = document.querySelector(totalSel);
-    if (tot) tot.textContent = (Math.round(s * 100) / 100).toFixed(2);
+  // Total = Σ trabajadas ; Tomado: solo superuser lo edita (si no, fijo del permiso) ; Saldo = Tr − To
+  function recompRow(tr, empId) {
+    let st = 0, so = 0;
+    tr.querySelectorAll('.cell-trab').forEach(i => st += parseFloat(i.value) || 0);
+    const tomInputs = tr.querySelectorAll('.cell-tom');
+    if (tomInputs.length) tomInputs.forEach(i => so += parseFloat(i.value) || 0);
+    else so = parseFloat(tr.dataset.totalTom) || 0;
+    const tot = document.querySelector(`.mtot-trab-${empId}`);
+    if (tot) tot.textContent = (Math.round(st * 100) / 100).toFixed(2);
+    const tomEl = document.querySelector(`.mtot-tomado-${empId}`);
+    if (tomEl && tomInputs.length) tomEl.textContent = (Math.round(so * 100) / 100).toFixed(2);
+    const sal = document.querySelector(`.mtot-saldo-${empId}`);
+    if (sal) sal.textContent = (Math.round((st - so) * 100) / 100).toFixed(2);
   }
-  // Horas trabajadas
   document.querySelectorAll('.cell-trab').forEach(inp => {
     inp.addEventListener('change', async function () {
       const empId = this.dataset.emp, mes = this.dataset.mes;
       await jpost(window._PAGE.urlMensualCell, { empleado_id: empId, anio: ANIO, mes, campo: 'trabajadas', valor: this.value });
-      sumRow(this.closest('tr'), '.cell-trab', `.mtot-trab-${empId}`);
+      recompRow(this.closest('tr'), empId);
     });
   });
-  // Horas tomadas (override; vacío vuelve al permiso)
+  // To (tomado): editable solo superuser — el template solo pinta inputs para él
   document.querySelectorAll('.cell-tom').forEach(inp => {
     inp.addEventListener('change', async function () {
       const empId = this.dataset.emp, mes = this.dataset.mes;
       const raw = this.value;
       await jpost(window._PAGE.urlMensualCell, { empleado_id: empId, anio: ANIO, mes, campo: 'tomadas', valor: raw });
       if (raw === '') this.value = this.dataset.permiso && parseFloat(this.dataset.permiso) ? this.dataset.permiso : '';
-      sumRow(this.closest('tr'), '.cell-tom', `.mtot-tom-${empId}`);
+      recompRow(this.closest('tr'), empId);
     });
+  });
+  // Comentarios con horas (modal estilo tiempo extra)
+  let modalCmt = null, cmtEmp = null, cmtTipo = null;
+  function setCmtBadge(total) {
+    const badge = document.querySelector(`.cmt-badge-${cmtTipo}-${cmtEmp}`);
+    if (badge) badge.innerHTML = `<i class="ti ti-message-2"></i>${total > 0 ? ' ' + total : ''}`;
+  }
+  function renderCmt(entries) {
+    const tbody = document.getElementById('cmt-tbody'), empty = document.getElementById('cmt-empty');
+    tbody.querySelectorAll('tr:not(#cmt-empty)').forEach(r => r.remove());
+    if (!entries.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    entries.forEach(en => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${en.fecha}</td><td class="text-center fw-semibold text-blue">${en.horas} h</td><td class="text-muted small">${en.comentario}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-cmt-del" data-pk="${en.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tbody.appendChild(tr);
+    });
+  }
+  document.querySelectorAll('.btn-cmt-det').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      cmtEmp = this.dataset.emp; cmtTipo = this.dataset.tipo;
+      document.getElementById('cmt-nombre').textContent = this.dataset.nombre || '';
+      document.getElementById('cmt-tipo-label').textContent = cmtTipo === 'trab' ? 'Comentarios (Trabajadas)' : 'Comentarios (Tomadas)';
+      ['cmt-fecha', 'cmt-horas', 'cmt-coment'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('cmt-add-error')?.classList.add('d-none');
+      if (!modalCmt) modalCmt = new bootstrap.Modal(document.getElementById('modalComentarioDet'));
+      modalCmt.show();
+      const d = await (await fetch(`${window._PAGE.urlDetGet}?empleado_id=${cmtEmp}&anio=${ANIO}&tipo=${cmtTipo}`)).json();
+      if (d.ok) { renderCmt(d.entries); document.getElementById('cmt-total').textContent = d.total; setCmtBadge(d.total); }
+    });
+  });
+  document.getElementById('btn-cmt-add')?.addEventListener('click', async function () {
+    const fecha = document.getElementById('cmt-fecha').value;
+    const horas = parseFloat(document.getElementById('cmt-horas').value);
+    const coment = document.getElementById('cmt-coment').value.trim();
+    const err = document.getElementById('cmt-add-error');
+    if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona una fecha.'; err.classList.remove('d-none'); return; }
+    if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Ingresa horas válidas.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none'); this.disabled = true;
+    const d = await jpost(window._PAGE.urlDetAdd, { empleado_id: cmtEmp, anio: ANIO, tipo: cmtTipo, fecha, horas, comentario: coment });
+    this.disabled = false;
+    if (d.ok) {
+      document.getElementById('cmt-horas').value = ''; document.getElementById('cmt-coment').value = '';
+      renderCmt(d.entries); document.getElementById('cmt-total').textContent = d.total; setCmtBadge(d.total);
+    } else { err.querySelector('.alert').textContent = d.error || 'Error'; err.classList.remove('d-none'); }
+  });
+  document.getElementById('cmt-tbody')?.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-cmt-del'); if (!btn) return;
+    btn.disabled = true;
+    const d = await jpost(window._PAGE.urlDetDel.replace('{pk}', btn.dataset.pk));
+    if (d.ok) { renderCmt(d.entries); document.getElementById('cmt-total').textContent = d.total; setCmtBadge(d.total); }
   });
   // Eliminar empleado mensual
   document.querySelectorAll('.btn-del-mensual').forEach(btn => {
@@ -432,12 +564,13 @@ if (window._PAGE.canEdit) (function () {
 })();
 
 // ══════════════ Tab 5: instructores ══════════════
-if (window._PAGE.canEdit) (function () {
+if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
+  const ANIO = window._PAGE.anio;
   function recompute(id) {
     const tr = document.querySelector(`tr[data-inst-id="${id}"]`); if (!tr) return;
-    const comp = parseFloat(tr.dataset.compHrs) || 0;
-    const teMin = parseFloat(tr.querySelector('.inst-te')?.value) || 0;
-    const tomado = parseFloat(tr.querySelector('.inst-tomado')?.value) || 0;
+    const comp   = parseFloat(tr.dataset.compHrs) || 0;
+    const teMin  = parseFloat(tr.dataset.teMin) || 0;
+    const tomado = parseFloat(tr.dataset.tomadoHrs) || 0;
     const total = Math.round((comp + teMin / 60) * 100) / 100;
     const saldo = Math.max(0, Math.round((total - tomado) * 100) / 100);
     const tCell = document.querySelector(`.inst-total-${id}`); if (tCell) tCell.textContent = `${total.toFixed(2)} h`;
@@ -447,19 +580,121 @@ if (window._PAGE.canEdit) (function () {
       else { sCell.className = `badge bg-red-lt text-red inst-saldo-${id}`; sCell.textContent = `${saldo.toFixed(2)} h`; }
     }
   }
-  document.querySelectorAll('.inst-te').forEach(inp => {
-    inp.addEventListener('change', async function () {
-      const id = this.dataset.id;
-      await jpost(window._PAGE.urlInstructorSet.replace('{pk}', id), { campo: 'te', valor: this.value });
-      recompute(id);
+
+  // ── Modal Tiempo extra autorizado (entradas) ──
+  let modalITE = null, iteId = null;
+  function renderITE(entries) {
+    const tb = document.getElementById('instte-tbody'), em = document.getElementById('instte-empty');
+    tb.querySelectorAll('tr:not(#instte-empty)').forEach(r => r.remove());
+    if (!entries.length) { em.style.display = ''; return; }
+    em.style.display = 'none';
+    entries.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-cyan">${e.minutos} min</td><td class="text-muted small">${e.comentario}</td>${window._PAGE.canEditExtra ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-instte-del" data-pk="${e.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tb.appendChild(tr);
+    });
+  }
+  function applyITE(d) {
+    document.getElementById('instte-total-min').textContent = d.total_min;
+    document.getElementById('instte-total-hrs').textContent = d.total_hrs;
+    const badge = document.querySelector(`.inst-te-badge-${iteId}`);
+    if (badge) badge.innerHTML = `<i class="ti ti-clock-bolt me-1"></i>${d.total_min > 0 ? d.total_min + ' min' : 'Agregar'}`;
+    const tr = document.querySelector(`tr[data-inst-id="${iteId}"]`); if (tr) tr.dataset.teMin = d.total_min;
+    recompute(iteId);
+  }
+  document.querySelectorAll('.btn-inst-te').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      iteId = this.dataset.id;
+      document.getElementById('instte-nombre').textContent = this.dataset.nombre || '';
+      ['instte-fecha', 'instte-min', 'instte-coment'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+      document.getElementById('instte-error')?.classList.add('d-none');
+      if (!modalITE) modalITE = new bootstrap.Modal(document.getElementById('modalInstTE'));
+      modalITE.show();
+      const d = await (await fetch(window._PAGE.urlInstTeGet.replace('{pk}', iteId))).json();
+      if (d.ok) { renderITE(d.entries); applyITE(d); }
     });
   });
-  document.querySelectorAll('.inst-tomado').forEach(inp => {
+  document.getElementById('btn-instte-add')?.addEventListener('click', async function () {
+    const fecha = document.getElementById('instte-fecha').value;
+    const minutos = parseInt(document.getElementById('instte-min').value);
+    const coment = document.getElementById('instte-coment').value.trim();
+    const err = document.getElementById('instte-error');
+    if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona una fecha.'; err.classList.remove('d-none'); return; }
+    if (!minutos || minutos <= 0) { err.querySelector('.alert').textContent = 'Minutos inválidos.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none'); this.disabled = true;
+    const d = await jpost(window._PAGE.urlInstTeAdd.replace('{pk}', iteId), { fecha, minutos, comentario: coment });
+    this.disabled = false;
+    if (d.ok) { document.getElementById('instte-min').value = ''; document.getElementById('instte-coment').value = ''; renderITE(d.entries); applyITE(d); }
+    else { err.querySelector('.alert').textContent = d.error || 'Error'; err.classList.remove('d-none'); }
+  });
+  document.getElementById('instte-tbody')?.addEventListener('click', async function (e) {
+    const b = e.target.closest('.btn-instte-del'); if (!b) return;
+    const d = await jpost(window._PAGE.urlInstTeDel.replace('{pk}', b.dataset.pk));
+    if (d.ok) { renderITE(d.entries); applyITE(d); }
+  });
+
+  // ── Modal Permiso tomado (permiso + manual superuser) ──
+  let modalITom = null, itomId = null;
+  function renderITom(manual) {
+    const tb = document.getElementById('insttom-tbody'), em = document.getElementById('insttom-empty');
+    tb.querySelectorAll('tr:not(#insttom-empty)').forEach(r => r.remove());
+    if (!manual.length) { em.style.display = ''; return; }
+    em.style.display = 'none';
+    manual.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-insttom-del" data-pk="${m.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tb.appendChild(tr);
+    });
+  }
+  function applyITom(d) {
+    document.getElementById('insttom-permiso').textContent = d.permiso;
+    document.getElementById('insttom-total').textContent = d.total_tomado;
+    const badge = document.querySelector(`.inst-tomado-badge-${itomId}`);
+    if (badge) badge.innerHTML = `<i class="ti ti-calendar-minus me-1"></i>${d.total_tomado} h`;
+    const tr = document.querySelector(`tr[data-inst-id="${itomId}"]`); if (tr) tr.dataset.tomadoHrs = d.total_tomado;
+    recompute(itomId);
+  }
+  document.querySelectorAll('.btn-inst-tomado').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      itomId = this.dataset.id;
+      document.getElementById('insttom-nombre').textContent = this.dataset.nombre || '';
+      ['insttom-fecha', 'insttom-horas', 'insttom-razon'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+      document.getElementById('insttom-error')?.classList.add('d-none');
+      if (!modalITom) modalITom = new bootstrap.Modal(document.getElementById('modalInstTomado'));
+      modalITom.show();
+      const d = await (await fetch(`${window._PAGE.urlInstTomGet.replace('{pk}', itomId)}?anio=${ANIO}`)).json();
+      if (d.ok) { renderITom(d.manual); applyITom(d); }
+    });
+  });
+  document.getElementById('btn-insttom-add')?.addEventListener('click', async function () {
+    const fecha = document.getElementById('insttom-fecha').value;
+    const horas = parseFloat(document.getElementById('insttom-horas').value);
+    const razon = document.getElementById('insttom-razon').value.trim();
+    const err = document.getElementById('insttom-error');
+    if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona una fecha.'; err.classList.remove('d-none'); return; }
+    if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Horas inválidas.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none'); this.disabled = true;
+    const d = await jpost(window._PAGE.urlInstTomAdd.replace('{pk}', itomId), { anio: ANIO, fecha, horas, razon });
+    this.disabled = false;
+    if (d.ok) { document.getElementById('insttom-horas').value = ''; document.getElementById('insttom-razon').value = ''; renderITom(d.manual); applyITom(d); }
+    else { err.querySelector('.alert').textContent = d.error || 'Error'; err.classList.remove('d-none'); }
+  });
+  document.getElementById('insttom-tbody')?.addEventListener('click', async function (e) {
+    const b = e.target.closest('.btn-insttom-del'); if (!b) return;
+    const d = await jpost(window._PAGE.urlInstTomDel.replace('{pk}', b.dataset.pk));
+    if (d.ok) { renderITom(d.manual); applyITom(d); }
+  });
+
+  // Fecha inicio → recarga (afecta el compensado). Fecha fin → solo guarda.
+  document.querySelectorAll('.inst-fecha-inicio').forEach(inp => {
     inp.addEventListener('change', async function () {
-      const id = this.dataset.id, raw = this.value;
-      await jpost(window._PAGE.urlInstructorSet.replace('{pk}', id), { campo: 'tomado', valor: raw });
-      if (raw === '') this.value = this.dataset.permiso && parseFloat(this.dataset.permiso) ? this.dataset.permiso : '';
-      recompute(id);
+      const d = await jpost(window._PAGE.urlInstructorSet.replace('{pk}', this.dataset.id), { campo: 'fecha_inicio', valor: this.value });
+      if (d.ok) location.reload();
+    });
+  });
+  document.querySelectorAll('.inst-fecha-fin').forEach(inp => {
+    inp.addEventListener('change', async function () {
+      await jpost(window._PAGE.urlInstructorSet.replace('{pk}', this.dataset.id), { campo: 'fecha_fin', valor: this.value });
     });
   });
   document.querySelectorAll('.btn-del-instructor').forEach(btn => {

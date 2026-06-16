@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -72,11 +73,11 @@ def login_view(request):
             if user.is_staff:
                 login(request, user)
                 _registrar_acceso(user)
-                if user.username == 'druiz@ana-hn.org':
-                    return _welcome_redirect('seleccion_rol')
-                if user.username == 'glorenzo@ana-hn.org':
-                    return _welcome_redirect('seleccion_rol')
-                if user.username == 'yzavala@ana-hn.org' or user.groups.filter(name='reloj').exists():
+                # Multi-rol → Panel General (reemplaza la antigua "selección de rol")
+                from .panel_roles import es_multi_panel
+                if es_multi_panel(user):
+                    return _welcome_redirect('panel_general')
+                if user.groups.filter(name='reloj').exists():
                     return _welcome_redirect('reloj_dashboard')
                 # Cualquier usuario del área Administración → solo tickets
                 if user.groups.filter(name='administracion').exists():
@@ -164,16 +165,12 @@ _ROLES_MAESTRO_DUAL = [
 
 @login_required
 def seleccion_rol(request):
-    # Usuarios con lista hardcodeada (ej. druiz con coord + maestro)
-    roles = _ROLES_POR_USUARIO.get(request.user.username)
-    if roles is None:
-        # Construir dinámicamente desde los grupos del usuario (case-insensitive)
-        roles = [
-            _GRUPO_A_ROL[g.name.lower()]
-            for g in request.user.groups.all()
-            if g.name.lower() in _GRUPO_A_ROL
-        ]
-    return render(request, 'accounts/seleccion_rol.html', {'roles': roles})
+    # Ventana retirada: el Panel General reemplaza la selección de rol.
+    # Multi-rol → panel general; el resto → su inicio normal.
+    from .panel_roles import es_multi_panel
+    if es_multi_panel(request.user):
+        return redirect('panel_general')
+    return redirect('menu')
 
 
 @login_required
@@ -345,6 +342,11 @@ def menu_view(request):
 
     # ── Redirigir a usuarios que tienen su propio dashboard ──────────────────
     if not user.is_superuser:
+        # Staff multi-rol → dashboard general (todos sus botones en un solo lugar)
+        from .panel_roles import es_multi_panel
+        if es_multi_panel(user):
+            return redirect('panel_general')
+
         # Solo Progress → progress report directo
         if user.groups.filter(name='solo_progress').exists():
             return redirect('progress_report_bilingue')
@@ -382,8 +384,9 @@ def menu_view(request):
         in_mbl  = user.groups.filter(name='maestros_bilingue').exists()
         in_mcol = user.groups.filter(name='maestros_colegio').exists()
         if in_mbl or in_mcol:
+            # maestro en ambas áreas → panel general (con toggle); si no, su dashboard
             if in_mbl and in_mcol:
-                return redirect('seleccion_rol')
+                return redirect('panel_general')
             return redirect('dashboard_maestro')
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -507,7 +510,113 @@ def menu_view(request):
     context['show_welcome'] = show_welcome
     context['welcome_name']  = request.user.get_full_name() or request.user.username
 
+    # Superusuario: nuevo panel organizado en 6 grupos
+    if user.is_superuser:
+        return render(request, 'accounts/panel_super.html', {
+            'grupos': GRUPOS_SUPER,
+            'tickets_pendientes': tickets_pendientes,
+            'reportes_bl': reportes_bl,
+            'reportes_col': reportes_col,
+            'show_welcome': show_welcome,
+            'welcome_name': context['welcome_name'],
+        })
+
     return render(request, 'accounts/menu.html', context)
+
+
+# <--- hecho por claude code: panel del superusuario por 6 grupos
+GRUPOS_SUPER = [
+    {'key': 'soporte', 'titulo': 'Soporte y TI', 'icon': 'ti-headset', 'color': '#206bc4',
+     'desc': 'Tickets, inventario y mantenimiento',
+     'cards': [
+        {'t': 'Sistema de Tickets', 's': 'Gestión de solicitudes', 'i': 'ti-ticket', 'c': '#206bc4', 'url': 'technician_dashboard'},
+        {'t': 'Inventario', 's': 'Control de activos', 'i': 'ti-package', 'c': '#2fb344', 'url': 'inventario:dashboard'},
+        {'t': 'Mantenimiento', 's': 'Reportes de mantenimiento', 'i': 'ti-tool', 'c': '#d63939', 'url': 'mantenimiento:maintenance_dashboard'},
+     ]},
+    {'key': 'academico', 'titulo': 'Académico', 'icon': 'ti-school', 'color': '#0ca678',
+     'desc': 'Coordinación, agendas, enfermería y notas',
+     'cards': [
+        {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
+        {'t': 'Coordinador Colegio', 's': 'Colegio', 'i': 'ti-user-cog', 'c': '#f08c00', 'url': 'dashboard_coordinador', 'args': {'area': 'colegio'}},
+        {'t': 'Agendas', 's': 'Agendas semanales', 'i': 'ti-calendar-week', 'c': '#7048e8', 'url': 'agendas:form_agenda'},
+        {'t': 'Enfermería', 's': 'Panel de enfermería', 'i': 'ti-stethoscope', 'c': '#d63939', 'url': 'enfermeria:enfermeria_dashboard'},
+        {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
+        {'t': 'Notas Mitad de Parcial', 's': 'Revisión / Asignaciones', 'i': 'ti-file-certificate', 'c': '#206bc4', 'url': 'notas_parcial_index'},
+        {'t': 'Salidas Baño', 's': 'Control de salidas', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
+     ]},
+    {'key': 'reloj', 'titulo': 'Reloj y Sponsors', 'icon': 'ti-clock', 'color': '#f76707',
+     'desc': 'Asistencia y patrocinadores',
+     'cards': [
+        {'t': 'Reloj', 's': 'Control de asistencia', 'i': 'ti-clock', 'c': '#f76707', 'url': 'reloj_dashboard'},
+        {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:sponsors_dashboard'},
+     ]},
+    {'key': 'finanzas', 'titulo': 'Finanzas', 'icon': 'ti-coin', 'color': '#f59f00',
+     'desc': 'Finanzas personales',
+     'cards': [
+        {'t': 'Finanzas', 's': 'Control de finanzas personales', 'i': 'ti-coin', 'c': '#f59f00', 'url': 'finanzas_personales:index'},
+     ]},
+    {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#4263eb',
+     'desc': 'Auditoría, actividad, permisos y correos',
+     'cards': [
+        {'t': 'Auditoría', 's': 'Cambios del sistema', 'i': 'ti-shield-check', 'c': '#206bc4', 'url': 'settings_auditoria'},
+        {'t': 'Actividad', 's': 'Logs de actividad', 'i': 'ti-activity', 'c': '#0ca678', 'url': 'settings_actividad'},
+        {'t': 'Permisos Reloj', 's': 'Acceso por usuario', 'i': 'ti-clock-cog', 'c': '#f76707', 'url': 'settings_reloj_permisos'},
+        {'t': 'Permisos Coordinadores', 's': 'Acceso coordinadores', 'i': 'ti-users-group', 'c': '#7048e8', 'url': 'settings_coord_permisos'},
+        {'t': 'Correos', 's': 'Configuración de correos', 'i': 'ti-mail', 'c': '#d63939', 'url': 'settings_correos'},
+     ]},
+    {'key': 'construccion', 'titulo': 'En construcción', 'icon': 'ti-tools', 'color': '#f59f00',
+     'desc': 'Módulos próximos', 'wip': True,
+     'cards': [
+        {'t': 'Control de sistema de redes', 's': 'Próximamente', 'i': 'ti-network', 'c': '#f59f00', 'url': 'camaras:index', 'wip': True},
+        {'t': 'Control de telefonía', 's': 'Próximamente', 'i': 'ti-phone', 'c': '#f59f00', 'url': 'atencion_padres:index', 'wip': True},
+        {'t': 'Registro de control VPN', 's': 'Próximamente', 'i': 'ti-lock-access', 'c': '#f59f00', 'url': None, 'wip': True},
+     ]},
+]
+
+
+@login_required
+def panel_grupo(request, grupo):
+    """Vista de un grupo del panel del superusuario (estilo Panel General)."""
+    if not request.user.is_superuser:
+        return redirect('menu')
+    g = next((x for x in GRUPOS_SUPER if x['key'] == grupo), None)
+    if not g:
+        from django.http import Http404
+        raise Http404('Grupo no encontrado')
+
+    def _u(name, args=None):
+        if not name:
+            return ''
+        try:
+            return reverse(name, kwargs=args) if args else reverse(name)
+        except Exception:
+            return ''
+    cards = [{**c, 'href': _u(c.get('url'), c.get('args'))} for c in g['cards']]
+    return render(request, 'accounts/panel_grupo.html', {
+        'titulo': g['titulo'], 'icon': g['icon'], 'desc': g.get('desc', ''),
+        'cards': cards, 'wip': g.get('wip', False),
+    })
+
+
+@login_required
+def panel_general(request):
+    """Dashboard general para staff multi-rol: todos los botones en un solo lugar,
+    visibles según el grupo. El toggle Bilingüe/Colegio solo aparece para quien
+    es maestro en ambas áreas (maestros_bilingue Y maestros_colegio)."""
+    from .panel_roles import maestro_dos_areas, _g, _GRUPOS_COORD_BL, _GRUPOS_COORD_COL
+    user = request.user
+    ctx = {
+        'show_tickets':     user.is_superuser or _g(user, 'administracion') or user.has_perm('tickets.view_ticket'),
+        'show_coord_bl':    _g(user, *_GRUPOS_COORD_BL),
+        'show_coord_col':   _g(user, *_GRUPOS_COORD_COL),
+        'show_maestro_bl':  _g(user, 'maestros_bilingue'),
+        'show_maestro_col': _g(user, 'maestros_colegio'),
+        'show_enfermeria':  _g(user, *_GRUPOS_COORD_BL),
+        'show_reloj':       user.is_superuser or _g(user, 'reloj'),
+        'toggle_area':      maestro_dos_areas(user),
+        'welcome_name':     user.get_full_name() or user.username,
+    }
+    return render(request, 'accounts/dashboard_general.html', ctx)
 
 
 
@@ -1288,9 +1397,11 @@ def settings_reloj_permisos(request):
         ('compensatorio', 'Tiempo Compensatorio',   'ti-clock-check',   True),
         ('feriado',       'Feriados',               'ti-calendar',      True),
         ('sabado',        'Sábados Especiales',     'ti-calendar-week', True),
-        ('calculo_comp',  'Cálculo Compensatorio',  'ti-calculator',    True),
+        ('calculo_comp',  'Control Compensatorio',  'ti-calculator',    True),
         ('vacaciones',    'Vacaciones',             'ti-beach',         True),
         ('permisos',      'Permisos Emp.',          'ti-license',       False),
+        ('reportes_pdf',  'Reportes PDF',           'ti-file-download', False),
+        ('vigilancia',    'Vigilancia',             'ti-shield',        False),
     ]
 
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -1327,9 +1438,11 @@ def settings_reloj_permisos(request):
         partes = nombre.split()
         initials = (partes[0][0] + partes[-1][0]).upper() if len(partes) >= 2 else nombre[:2].upper()
         celdas = []
-        for mod_key, _, _, has_edit in MODULOS:
+        for mod_key, mod_label, mod_icon, has_edit in MODULOS:
             celdas.append({
                 'key':      mod_key,
+                'label':    mod_label,
+                'icon':     mod_icon,
                 'has_edit': has_edit,
                 'ver':      getattr(perms, f'{mod_key}_ver',     False),
                 'editar':   getattr(perms, f'{mod_key}_editar',  False) if has_edit else None,
@@ -1425,7 +1538,16 @@ def settings_coord_permisos(request):
                 mod       = campo[:-len('_eliminar')]
                 hasta_fld = f'{mod}_eliminar_hasta'
                 if hasattr(obj, hasta_fld):
-                    nueva_hasta = (_tz.now() + _DURACION_ELIMINAR) if valor else None
+                    nueva_hasta = None
+                    if valor:
+                        # Fecha+hora elegida por el usuario; si no llega o es inválida, +24h
+                        hasta_str = (body.get('hasta') or '').strip()
+                        try:
+                            nueva_hasta = _dt.datetime.fromisoformat(hasta_str) if hasta_str else None
+                        except ValueError:
+                            nueva_hasta = None
+                        if nueva_hasta is None:
+                            nueva_hasta = _tz.now() + _DURACION_ELIMINAR
                     setattr(obj, hasta_fld, nueva_hasta)
                     obj.save(update_fields=[campo, hasta_fld])
                     hasta_iso = nueva_hasta.isoformat() if nueva_hasta else None
@@ -1460,6 +1582,7 @@ def settings_coord_permisos(request):
                 'editar':         getattr(perms, f'{mod_key}_editar',   False),
                 'eliminar':       getattr(perms, f'{mod_key}_eliminar', False),
                 'eliminar_hasta': hasta_iso,
+                'eliminar_hasta_local': hasta.strftime('%Y-%m-%dT%H:%M') if hasta else '',
             })
         matrix_usuarios.append({
             'user':     u,
@@ -1480,20 +1603,38 @@ def settings_coord_permisos(request):
 
 def pwa_service_worker(request):
     sw = """
-const CACHE = 'techcare-v1';
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+const CACHE = 'techcare-v2';
+const OFFLINE_URL = '/offline/';
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.add(OFFLINE_URL)).then(() => self.skipWaiting())
+  );
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => clients.claim())
+  );
+});
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).catch(() =>
-      caches.match(e.request).then(r => r || new Response('Sin conexión', {status: 503, statusText: 'Offline'}))
-    )
-  );
+  // Navegación (abrir páginas): si no hay red, mostrar la página offline cacheada
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request).catch(() => caches.match(OFFLINE_URL)));
+    return;
+  }
+  // Otros recursos: intenta red, cae a caché si existe
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 """
     return HttpResponse(sw.strip(), content_type='application/javascript',
                         headers={'Service-Worker-Allowed': '/'})
+
+
+def pwa_offline(request):
+    """Página mostrada por el service worker cuando no hay conexión."""
+    return render(request, 'accounts/offline.html')
 
 
 # ── Visor de Logs del Sistema ────────────────────────────────────────────────
@@ -1668,6 +1809,23 @@ def settings_auditoria(request):
     f_op    = (request.GET.get('op') or '').strip().lower()
     op_db   = _AUDIT_OP_GET.get(f_op)
 
+    # Filtro por rango de fechas (desde / hasta)  <--- hecho por claude code
+    import datetime as _dt_aud
+    def _parse_d(s):
+        try:
+            return _dt_aud.date.fromisoformat((s or '').strip())
+        except ValueError:
+            return None
+    f_desde = _parse_d(request.GET.get('desde'))
+    f_hasta = _parse_d(request.GET.get('hasta'))
+
+    def _rango(qs):
+        if f_desde:
+            qs = qs.filter(history_date__date__gte=f_desde)
+        if f_hasta:
+            qs = qs.filter(history_date__date__lte=f_hasta)
+        return qs
+
     sel_model = next((m for m in modelos if _audit_model_key(m) == f_tabla), None)
 
     eventos = []
@@ -1677,7 +1835,7 @@ def settings_auditoria(request):
 
     if sel_model is not None:
         H = sel_model.history.model
-        base = H.objects.all()
+        base = _rango(H.objects.all())
         cnts = {r['history_type']: r['c']
                 for r in base.values('history_type').annotate(c=Count('history_id'))}
         creados, editados, eliminados = cnts.get('+', 0), cnts.get('~', 0), cnts.get('-', 0)
@@ -1692,15 +1850,17 @@ def settings_auditoria(request):
     else:
         # Feed global: últimos eventos de cada tabla, mezclados por fecha
         merged = []
+        # Con rango de fechas se amplía la ventana por tabla; sin rango, los últimos 8.
+        _lim = 60 if (f_desde or f_hasta) else 8
         for m in modelos:
-            q = m.history.model.objects.select_related('history_user').order_by('-history_date')
+            q = _rango(m.history.model.objects.select_related('history_user').order_by('-history_date'))
             if op_db:
                 q = q.filter(history_type=op_db)
-            for hr in q[:8]:
+            for hr in q[:_lim]:
                 merged.append((hr.history_date, hr, m))
         merged.sort(key=lambda t: t[0], reverse=True)
         eventos = [_build_audit_event(hr, with_table=True, model=m)
-                   for _, hr, m in merged[:120]]
+                   for _, hr, m in merged[:300]]
 
     ctx = _settings_ctx(request, 'auditoria')
     ctx.update({
@@ -1716,6 +1876,8 @@ def settings_auditoria(request):
         'n_tablas':   len(modelos),
         'f_tabla':    f_tabla,
         'f_op':       f_op,
+        'f_desde':    f_desde.isoformat() if f_desde else '',
+        'f_hasta':    f_hasta.isoformat() if f_hasta else '',
     })
     return render(request, 'accounts/settings_auditoria.html', ctx)
 

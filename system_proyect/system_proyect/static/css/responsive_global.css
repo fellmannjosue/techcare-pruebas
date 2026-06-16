@@ -7,9 +7,10 @@
 
 /* ── 1. FONDO Y BASE ─────────────────────────────────────────────────── */
 body {
-  background-color: #eef2f7 !important;
+  background-color: #F8F8FF !important;   /* GhostWhite */
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
+.page, .page-wrapper, .page-body { background-color: #F8F8FF !important; }
 
 /* ── 2. CARDS — sombra y hover igual al Panel Principal ──────────────── */
 .card {
@@ -184,3 +185,44 @@ body {
   .navbar-vertical, .page-header, .btn, .btn-sm { display: none !important; }
   .page-wrapper { margin-left: 0 !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TEMA DE COLORES — Sidebar SkyBlue (#87CEEB) · Fondo GhostWhite (#F8F8FF)
+   <--- hecho por claude code: aplicado a todo el sistema
+   ═══════════════════════════════════════════════════════════════════════ */
+.navbar-vertical {
+  background: #87CEEB !important;          /* SkyBlue */
+  border-right: 1px solid #6db6d6 !important;
+}
+/* Texto e íconos legibles sobre celeste claro */
+.navbar-vertical .navbar-brand,
+.navbar-vertical .nav-link,
+.navbar-vertical .nav-link-title,
+.navbar-vertical .nav-link-icon,
+.navbar-vertical .nav-link-arrow,
+.navbar-vertical .navbar-nav .nav-link,
+.navbar-vertical h3,
+.navbar-vertical .text-muted {
+  color: #0c3a4f !important;               /* azul muy oscuro */
+}
+.navbar-vertical .nav-link { font-weight: 500; }
+/* Hover / activo */
+.navbar-vertical .nav-link:hover {
+  background: rgba(255,255,255,.45) !important;
+  color: #062735 !important;
+  border-radius: 8px;
+}
+.navbar-vertical .nav-link.active,
+.navbar-vertical .nav-item.active > .nav-link,
+.navbar-vertical .nav-link[aria-expanded="true"] {
+  background: rgba(255,255,255,.65) !important;
+  color: #062735 !important;
+  font-weight: 700;
+  border-radius: 8px;
+}
+/* Submenús (dropdowns dentro del sidebar) */
+.navbar-vertical .dropdown-menu,
+.navbar-vertical .nav .nav .nav-link { background: transparent !important; }
+.navbar-vertical .navbar-toggler { color: #0c3a4f !important; border-color: #6db6d6 !important; }
+/* Avatar/encabezado del sidebar si los hubiera */
+.navbar-vertical hr, .navbar-vertical .navbar-nav + .navbar-nav { border-color: rgba(12,58,79,.18) !important; }

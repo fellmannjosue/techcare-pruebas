@@ -37,10 +37,10 @@
         self.disabled = false;
         if (data.ok) {
           mostrarGuardado();
-          // Actualizar label "Todos" / "Asignados" en la columna Visualizar
+          // Actualizar label "Todos" / "Solo marcados" en la columna Visualizar
           if (campo === 'ver_todos') {
             const labelEl = self.parentElement.querySelector('.small');
-            if (labelEl) labelEl.textContent = valor ? 'Todos' : 'Asignados';
+            if (labelEl) labelEl.textContent = valor ? 'Todos' : 'Solo marcados';
           }
         } else {
           self.checked = !valor;

@@ -10,6 +10,7 @@ from accounts import views as accounts_views
 urlpatterns = [
 
     path('sw.js', accounts_views.pwa_service_worker, name='pwa_sw'),
+    path('offline/', accounts_views.pwa_offline, name='pwa_offline'),
 
     # ──────────────────────────────────────────────────────────────────────────
     # 1) Ruta raíz: redirige al login

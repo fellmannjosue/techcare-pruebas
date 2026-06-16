@@ -61,7 +61,7 @@
   width: 0%;
   background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
   border-radius: 99px;
-  transition: width 2.6s cubic-bezier(.4, 0, .2, 1);
+  transition: width 18s cubic-bezier(.4, 0, .2, 1);
 }
 
 #tcWLabel {
@@ -80,5 +80,6 @@
 #tcWelcomeOverlay .tc-p {
   position: absolute;
   border-radius: 50%;
-  animation: tcSpark 1.8s ease-out forwards;
+  /* bucle infinito para que las estrellas duren toda la bienvenida (~20s) */
+  animation: tcSpark 2.2s ease-out infinite;
 }

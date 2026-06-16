@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.2cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
+  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
+  td.c, th.c { text-align: center; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style></head><body>
+  <h1>Tiempo Compensatorio</h1>
+  <div class="sub">Rango: {{ fecha_inicio }} — {{ fecha_fin }} · Hora de corte: {{ hora_corte }}</div>
+  <table>
+    <thead><tr>
+      <th class="c">#</th><th>Empleado</th><th class="c">Fecha</th>
+      <th class="c">Última marca</th><th class="c">Tiempo compensatorio</th><th class="c">Tiempo extra</th>
+    </tr></thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="c">{{ forloop.counter }}</td>
+        <td>{{ f.nombre }} <span style="color:#888;">({{ f.emp_code }})</span></td>
+        <td class="c">{{ f.fecha|date:"d/m/Y" }}</td>
+        <td class="c">{{ f.ultima_marca }}</td>
+        <td class="c">{% if f.tiene_comp %}{{ f.minutos }}m{% if not f.completo %} / {{ f.tope }}{% endif %}{% else %}—{% endif %}</td>
+        <td class="c">{% if f.extra_min %}{{ f.extra_min }}m{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="c">Sin registros en el rango.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body></html>

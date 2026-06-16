@@ -60,7 +60,7 @@
   {# ── Filtros ── #}
   <div class="card-body border-bottom py-3">
     <form method="get" class="row g-2 align-items-end">
-      <div class="col-12 col-md-5">
+      <div class="col-12 col-md-4">
         <label class="form-label small text-muted mb-1">Tabla</label>
         <select name="tabla" class="form-select form-select-sm">
           <option value="">Todas las tablas (actividad reciente)</option>
@@ -69,7 +69,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-2">
         <label class="form-label small text-muted mb-1">Operación</label>
         <select name="op" class="form-select form-select-sm">
           <option value="">Todas</option>
@@ -78,7 +78,15 @@
           <option value="elimino" {% if f_op == 'elimino' %}selected{% endif %}>Eliminó</option>
         </select>
       </div>
-      <div class="col-6 col-md-4 d-flex gap-2">
+      <div class="col-6 col-md-2">
+        <label class="form-label small text-muted mb-1">Desde</label>
+        <input type="date" name="desde" value="{{ f_desde }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small text-muted mb-1">Hasta</label>
+        <input type="date" name="hasta" value="{{ f_hasta }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-6 col-md-2 d-flex gap-2">
         <button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>
         <a href="{% url 'settings_auditoria' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
       </div>

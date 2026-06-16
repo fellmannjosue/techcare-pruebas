@@ -1,0 +1,254 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
+{% load notas_tags %}
+{% block title %}Panel General{% endblock %}
+{% block page_pretitle %}Bienvenido{% endblock %}
+{% block page_title %}Panel General{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: dashboard general para staff multi-rol #}
+<p class="text-muted mb-4">Accesos según tus roles asignados.</p>
+
+<style>
+  .dg-section-title { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:#64748b; font-weight:600; }
+  .dg-card { transition:transform .12s ease, box-shadow .12s ease; }
+  .dg-card:hover { transform:translateY(-2px); box-shadow:0 .5rem 1rem rgba(0,0,0,.08); }
+  .dg-toggle .btn.active { color:#fff; }
+</style>
+
+{# ───────────── TICKETS ───────────── #}
+{% if show_tickets %}
+<div class="mb-2 dg-section-title"><i class="ti ti-ticket me-1"></i>Tickets</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'submit_ticket' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-ticket" style="font-size:2.2rem;color:#f76707;"></i></div>
+      <div class="fw-semibold text-primary">Generar Ticket</div>
+      <div class="text-muted small">Reportar un problema</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'mis_tickets' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-history" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Ver Historial</div>
+      <div class="text-muted small">Tus tickets anteriores</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ───────────── COORDINADOR BL ───────────── #}
+{% if show_coord_bl %}
+<div class="mb-2 dg-section-title"><i class="ti ti-chalkboard me-1 text-cyan"></i>Coordinador Bilingüe</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-layout-dashboard" style="font-size:2.2rem;color:#0ca678;"></i></div>
+      <div class="fw-semibold text-primary">Dashboard BL</div>
+      <div class="text-muted small">Panel del coordinador</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'directorio_telefonos' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-address-book" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">Directorio</div>
+      <div class="text-muted small">Teléfonos</div>
+    </a>
+  </div>
+  {% if show_enfermeria %}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-stethoscope" style="font-size:2.2rem;color:#e03131;"></i></div>
+      <div class="fw-semibold text-primary">Enfermería</div>
+      <div class="text-muted small">Atenciones</div>
+    </a>
+  </div>
+  {% endif %}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'agendas:dashboard_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-week" style="font-size:2.2rem;color:#7048e8;"></i></div>
+      <div class="fw-semibold text-primary">Agendas BL</div>
+      <div class="text-muted small">Agendas</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ───────────── COORDINADOR COLEGIO ───────────── #}
+{% if show_coord_col %}
+<div class="mb-2 dg-section-title"><i class="ti ti-user-cog me-1 text-orange"></i>Coordinador Colegio</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'dashboard_coordinador' area='colegio' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-layout-dashboard" style="font-size:2.2rem;color:#f08c00;"></i></div>
+      <div class="fw-semibold text-primary">Dashboard Col</div>
+      <div class="text-muted small">Panel del coordinador</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'directorio_telefonos' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-address-book" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">Directorio</div>
+      <div class="text-muted small">Teléfonos</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'agendas:dashboard_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-week" style="font-size:2.2rem;color:#7048e8;"></i></div>
+      <div class="fw-semibold text-primary">Agendas Col</div>
+      <div class="text-muted small">Agendas</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ───────────── MAESTRO (con toggle BL/Colegio) ───────────── #}
+{% if show_maestro_bl or show_maestro_col %}
+<div class="d-flex align-items-center gap-3 mb-2">
+  <div class="dg-section-title mb-0"><i class="ti ti-school me-1 text-blue"></i>Maestro</div>
+  {% if toggle_area %}
+  <div class="btn-group btn-group-sm dg-toggle" role="group" id="dg-area-toggle">
+    <button type="button" class="btn btn-outline-primary active" data-area="bilingue">Bilingüe</button>
+    <button type="button" class="btn btn-outline-primary" data-area="colegio">Colegio</button>
+  </div>
+  {% endif %}
+</div>
+
+{# --- Maestro Bilingüe --- #}
+{% if show_maestro_bl %}
+<div class="row g-3 mb-4 dg-maestro-area" data-area="bilingue">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'reporte_informativo_bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-info-circle" style="font-size:2.2rem;color:#15aabf;"></i></div>
+      <div class="fw-semibold text-primary">R. Informativo</div>
+      <div class="text-muted small">Bilingüe</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'reporte_conductual_bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-shield-check" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">R. Conductual</div>
+      <div class="text-muted small">Bilingüe</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'progress_report_bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-chart-line" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Progress Report</div>
+      <div class="text-muted small">Bilingüe</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'convocatoria_nueva' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-school" style="font-size:2.2rem;color:#e8590c;"></i></div>
+      <div class="fw-semibold text-primary">Convocatoria Tutorías</div>
+      <div class="text-muted small">Bilingüe</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'historial_maestro_bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-history" style="font-size:2.2rem;color:#868e96;"></i></div>
+      <div class="fw-semibold text-primary">Historial</div>
+      <div class="text-muted small">Bilingüe</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'agendas:historial_maestro' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-week" style="font-size:2.2rem;color:#7048e8;"></i></div>
+      <div class="fw-semibold text-primary">Agendas</div>
+      <div class="text-muted small">Mis agendas</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# --- Maestro Colegio --- #}
+{% if show_maestro_col %}
+<div class="row g-3 mb-4 dg-maestro-area" data-area="colegio"{% if toggle_area %} style="display:none;"{% endif %}>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'reporte_informativo_colegio' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-info-circle" style="font-size:2.2rem;color:#15aabf;"></i></div>
+      <div class="fw-semibold text-primary">R. Informativo</div>
+      <div class="text-muted small">Colegio</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'reporte_conductual_colegio' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-shield-check" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">R. Conductual</div>
+      <div class="text-muted small">Colegio</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'historial_maestro_colegio' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-history" style="font-size:2.2rem;color:#868e96;"></i></div>
+      <div class="fw-semibold text-primary">Historial</div>
+      <div class="text-muted small">Colegio</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'agendas:historial_maestro' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-week" style="font-size:2.2rem;color:#7048e8;"></i></div>
+      <div class="fw-semibold text-primary">Agendas</div>
+      <div class="text-muted small">Mis agendas</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{# ───────────── NOTAS MITAD DE PARCIAL (normal) ───────────── #}
+{% if request.user|es_coord_notas or request.user|es_maestro_notas %}
+<div class="mb-2 dg-section-title"><i class="ti ti-file-certificate me-1 text-blue"></i>Notas Mitad de Parcial</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% if request.user|es_coord_notas %}{% url 'notas_parcial_coordinador' %}{% else %}{% url 'notas_parcial_maestro' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
+      <div class="text-muted small">{% if request.user|es_coord_notas %}Revisión / Asignaciones{% else %}Mis notas{% endif %}</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ───────────── RELOJ ───────────── #}
+{% if show_reloj %}
+<div class="mb-2 dg-section-title"><i class="ti ti-clock me-1"></i>Reloj</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'reloj_dashboard' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-clock" style="font-size:2.2rem;color:#0ca678;"></i></div>
+      <div class="fw-semibold text-primary">Reloj</div>
+      <div class="text-muted small">Asistencia y permisos</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Toggle de área para maestro (BL / Colegio) — solo cuando hay ambas áreas.
+  var toggle = document.getElementById('dg-area-toggle');
+  if (!toggle) return;
+  var KEY = 'dgMaestroArea';
+  function aplicar(area) {
+    document.querySelectorAll('.dg-maestro-area').forEach(function (el) {
+      el.style.display = (el.dataset.area === area) ? '' : 'none';
+    });
+    toggle.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.area === area);
+    });
+    try { localStorage.setItem(KEY, area); } catch (e) {}
+  }
+  toggle.querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () { aplicar(this.dataset.area); });
+  });
+  var guardada = null;
+  try { guardada = localStorage.getItem(KEY); } catch (e) {}
+  aplicar(guardada === 'colegio' ? 'colegio' : 'bilingue');
+})();
+</script>
+{% endblock %}

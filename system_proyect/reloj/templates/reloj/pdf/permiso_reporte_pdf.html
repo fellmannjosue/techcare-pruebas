@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 8px; color: #222; }
+  h1 { font-size: 14px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 8px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; }
+  th { background: #f1f5f9; font-size: 7px; text-transform: uppercase; }
+  td.l, th.l { text-align: left; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  h2 { font-size: 11px; margin: 12px 0 4px; }
+</style></head><body>
+  <h1>Reporte Mensual de Permisos</h1>
+  <div class="sub">Mes: {{ mes|date:"F Y" }} · Generado por empleado</div>
+
+  <table>
+    <thead><tr>
+      <th class="l">Empleado</th>
+      <th>No<br>Pagado</th><th>Otro<br>Pagado</th><th>Vacac.</th><th>Enferm.</th>
+      <th>25%</th><th>50%</th><th>75%</th><th>100%</th>
+      <th>Horas<br>Diarias</th><th>Rebaja</th><th>Min.<br>Tarde</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      {% with r=row.r %}
+      <tr>
+        <td class="l">{{ row.nombre }} <span style="color:#888;">({{ row.emp_code }})</span>{% if row.cargo %}<br><span style="color:#999;font-size:7px;">{{ row.cargo }}</span>{% endif %}</td>
+        <td>{% if r.ausencias_dias %}{{ r.ausencias_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td>{% if r.otro_pagado_dias %}{{ r.otro_pagado_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td>{% if r.vacaciones_dias %}{{ r.vacaciones_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td>{% if r.enfermedad_dias %}{{ r.enfermedad_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td>{% if r.pct25_dias %}{{ r.pct25_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td>{% if r.pct50_dias %}{{ r.pct50_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td>{% if r.pct75_dias %}{{ r.pct75_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td>{% if r.pct100_dias %}{{ r.pct100_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td>{% if row.es_maestro_hora %}{{ row.mh_total|floatformat:"-2" }} h/mes{% elif r %}{{ r.horas_diarias_laboradas }} h/d{% else %}8.0 h/d{% endif %}</td>
+        <td>{% if row.horas_rebaja %}{{ row.horas_rebaja }}h{% else %}—{% endif %}</td>
+        <td>{% if row.minutos_tarde %}{{ row.minutos_tarde }}m{% else %}—{% endif %}</td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="12">Sin empleados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body></html>
