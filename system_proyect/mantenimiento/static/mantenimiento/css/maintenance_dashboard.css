@@ -12,6 +12,12 @@
 #fotos-preview img { width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #dee2e6; }
 
 /* Signature pad */
-#signature-pad-wrap { border:1px solid #ced4da; border-radius:8px; background:#fff; position:relative; }
-#signature-canvas { width:100%; height:160px; display:block; cursor:crosshair; }
-#btn-clear-firma { position:absolute; top:6px; right:8px; font-size:.75rem; }
+#signature-pad-wrap, #signature-pad-wrap-tec, #signature-pad-wrap-edit-tec {
+  border:1px solid #ced4da; border-radius:8px; background:#fff; position:relative;
+}
+#signature-canvas, #signature-canvas-tec, #edit-signature-canvas-tec {
+  width:100%; height:160px; display:block; cursor:crosshair; touch-action:none;
+}
+#btn-clear-firma, #btn-clear-firma-tec, #edit-btn-clear-firma-tec {
+  position:absolute; top:6px; right:8px; font-size:.75rem;
+}

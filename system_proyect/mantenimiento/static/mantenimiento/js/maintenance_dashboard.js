@@ -17,6 +17,22 @@ $(function () {
     });
   } catch(e) { console.warn('DataTable init:', e); }
 
+  // ── Tipo de Falla: opción "Agregar nueva" → muestra un campo de texto inline ──
+  // Pares de [select, input de nueva falla]
+  const TF_PAIRS = [['#id_tipo_falla', '#id_tipo_falla_nueva'], ['#edit-tipo-falla', '#edit-tipo-falla-nueva']];
+  TF_PAIRS.forEach(function (p) {
+    const $s = $(p[0]);
+    if ($s.length && !$s.find('option[value="__nueva__"]').length) {
+      $s.append('<option value="__nueva__">➕ Agregar nueva falla…</option>');
+    }
+    $(document).on('change', p[0], function () {
+      const $inp = $(p[1]);
+      const nueva = this.value === '__nueva__';
+      $inp.toggleClass('d-none', !nueva);
+      if (nueva) { $inp.focus(); } else { $inp.val(''); }
+    });
+  });
+
   // Al abrir el modal disparar fill si ya hay valor
   $('#modalNuevoRegistro').on('shown.bs.modal', function(){
     const _val = $('#id_computadora').val();
@@ -98,50 +114,101 @@ $(function () {
   }
   window.removeFile = i => { selectedFiles.splice(i,1); renderPreviews(); };
 
-  // ── Signature pad ──
-  const canvas = document.getElementById('signature-canvas');
-  const ctx    = canvas.getContext('2d');
-  let drawing  = false, lastX = 0, lastY = 0;
+  // ── Signature pads (reutilizable: técnico + maestro) ──
+  function initPad(canvasId, clearBtnId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return { data: () => '' };
+    const ctx = canvas.getContext('2d');
+    let drawing = false, hasDrawn = false, lastX = 0, lastY = 0;
 
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    canvas.width  = rect.width;
-    canvas.height = rect.height;
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width  = rect.width;
+      canvas.height = rect.height;
+    }
+    resizeCanvas();
+    new ResizeObserver(resizeCanvas).observe(canvas);
+
+    function getPos(e) {
+      const r = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return [src.clientX - r.left, src.clientY - r.top];
+    }
+    function start(e) { drawing = true; [lastX, lastY] = getPos(e); }
+    function move(e) {
+      if (!drawing) return;
+      hasDrawn = true;
+      ctx.beginPath(); ctx.moveTo(lastX, lastY);
+      [lastX, lastY] = getPos(e); ctx.lineTo(lastX, lastY);
+      ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup',   () => drawing = false);
+    canvas.addEventListener('mouseleave',() => drawing = false);
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, {passive:false});
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); move(e);  }, {passive:false});
+    canvas.addEventListener('touchend',  () => drawing = false);
+
+    function clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasDrawn = false; }
+    const clearBtn = document.getElementById(clearBtnId);
+    if (clearBtn) clearBtn.addEventListener('click', clear);
+    return { data: () => hasDrawn ? canvas.toDataURL('image/png') : '', clear };
   }
-  resizeCanvas();
-  new ResizeObserver(resizeCanvas).observe(canvas);
 
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return [src.clientX - r.left, src.clientY - r.top];
-  }
+  const padMaestro = initPad('signature-canvas',          'btn-clear-firma');
+  const padTecnico = initPad('signature-canvas-tec',      'btn-clear-firma-tec');
+  const padEditTec = initPad('edit-signature-canvas-tec', 'edit-btn-clear-firma-tec');
+  const padEditMae = initPad('edit-signature-canvas-mae', 'edit-btn-clear-firma-mae');
 
-  canvas.addEventListener('mousedown',  e => { drawing=true; [lastX,lastY]=getPos(e); });
-  canvas.addEventListener('mousemove',  e => {
-    if (!drawing) return;
-    ctx.beginPath(); ctx.moveTo(lastX, lastY);
-    [lastX,lastY]=getPos(e); ctx.lineTo(lastX, lastY);
-    ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke();
-  });
-  canvas.addEventListener('mouseup',   () => drawing=false);
-  canvas.addEventListener('mouseleave',() => drawing=false);
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; [lastX,lastY]=getPos(e); }, {passive:false});
-  canvas.addEventListener('touchmove',  e => {
-    if (!drawing) return; e.preventDefault();
-    ctx.beginPath(); ctx.moveTo(lastX, lastY);
-    [lastX,lastY]=getPos(e); ctx.lineTo(lastX, lastY);
-    ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.stroke();
-  }, {passive:false});
-  canvas.addEventListener('touchend',  () => drawing=false);
-
-  document.getElementById('btn-clear-firma').addEventListener('click', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Al guardar la edición → capturar firmas (vacío = no cambia)
+  $('#form-edit-mant').on('submit', function(){
+    document.getElementById('edit-firma-tecnico-data').value = padEditTec.data();
+    document.getElementById('edit-firma-data').value         = padEditMae.data();
   });
 
-  // Antes de enviar el form de nuevo registro → capturar firma como base64
+  // Antes de enviar el form → capturar ambas firmas (vacío si no se dibujó)
   $('#modalNuevoRegistro form').on('submit', function(){
-    document.getElementById('firma_data').value = canvas.toDataURL('image/png');
+    document.getElementById('firma_data').value         = padMaestro.data();
+    document.getElementById('firma_tecnico_data').value = padTecnico.data();
+  });
+
+  // ── Enviar link de firma al maestro (WhatsApp / Copiar) ──
+  $(document).on('click', '.btn-firma-link', function () {
+    const link = $(this).data('link');
+    const rid  = $(this).data('rid');
+    const markUrl = $(this).data('mark');
+    const msg = `Hola, por favor firme el mantenimiento ${rid} de su equipo en este enlace: ${link}`;
+    const wa  = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    Swal.fire({
+      title: 'Enviar firma al maestro',
+      html: `<p class="text-muted small mb-2">Comparte este enlace para que el maestro firme:</p>
+             <input id="mant-link" class="form-control form-control-sm mb-3" value="${link}" readonly onclick="this.select()">
+             <div class="d-flex gap-2 justify-content-center">
+               <a href="${wa}" target="_blank" rel="noopener" id="mant-wa" class="btn" style="background:#25D366;color:#fff">
+                 <i class="ti ti-brand-whatsapp me-1"></i>WhatsApp</a>
+               <button type="button" id="mant-copy" class="btn btn-primary">
+                 <i class="ti ti-copy me-1"></i>Copiar link</button>
+             </div>`,
+      showConfirmButton: false,
+      showCancelButton: true,
+      cancelButtonText: 'Cerrar',
+      didOpen: () => {
+        const mark = () => $.post(markUrl, { csrfmiddlewaretoken: window._PAGE.csrf });
+        // WhatsApp: es un <a target="_blank"> → clic directo (funciona en PC y celular).
+        // No cerramos el diálogo de inmediato: en móvil eso cancelaba la apertura de WhatsApp.
+        document.getElementById('mant-wa').addEventListener('click', () => {
+          mark();
+          setTimeout(() => { try { Swal.close(); } catch (e) {} }, 800);
+        });
+        document.getElementById('mant-copy').addEventListener('click', () => {
+          navigator.clipboard.writeText(link).then(() => {
+            mark();
+            Swal.fire({ icon: 'success', title: 'Link copiado', timer: 1200, showConfirmButton: false });
+          }, () => {});
+        });
+      },
+    });
   });
 
   // ── Editar registro ──
@@ -164,6 +231,22 @@ $(function () {
       $('#edit-status').val(d.status);
       $('#edit-solucion').val(d.solucion);
       $('#edit-observaciones').val(d.observaciones);
+      // Firma del técnico: mostrar la actual (si existe) y limpiar el lienzo
+      padEditTec.clear();
+      if (d.firma_tecnico) {
+        $('#edit-firma-tec-img').attr('src', d.firma_tecnico);
+        $('#edit-firma-tec-actual').show();
+      } else {
+        $('#edit-firma-tec-actual').hide();
+      }
+      // Firma del maestro: mostrar la actual (si existe) y limpiar el lienzo
+      padEditMae.clear();
+      if (d.firma) {
+        $('#edit-firma-mae-img').attr('src', d.firma);
+        $('#edit-firma-mae-actual').show();
+      } else {
+        $('#edit-firma-mae-actual').hide();
+      }
       $('#modalEditarRegistro').modal('show');
     }).fail(() => Swal.fire('Error', 'No se pudo cargar el registro.', 'error'));
   });

@@ -99,6 +99,7 @@ def nav_context(request):
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
         'nav_finanzas':         request.user.is_superuser or request.user.email == 'cvalle@ana-hn.org',
+        'nav_cfp':              is_admin or grp('director_cfp'),
         'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_coord_bl':         nav_coord_bl,

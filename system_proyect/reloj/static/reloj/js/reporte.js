@@ -38,8 +38,13 @@ $(function(){
     const $input = $wrap.find('.input-new-cmt');
     const texto  = $input.val().trim();
     if (!texto) return;
-    const emp   = $wrap.data('emp');
-    const fecha = $wrap.data('fecha');
+    // Leer como texto (attr) para no perder ceros a la izquierda del código
+    const emp   = String($wrap.attr('data-emp')   || '').trim();
+    const fecha = String($wrap.attr('data-fecha') || '').trim();
+    if (!emp || !fecha) {
+      Swal.fire({icon:'warning', title:'Aviso', text:'No se pudo identificar el empleado/fecha de la fila.'});
+      return;
+    }
 
     $wrap.find('.btn-add-cmt').prop('disabled', true);
     $.ajax({
@@ -59,8 +64,13 @@ $(function(){
           $wrap.find('.btn-add-cmt').prop('disabled', false);
         }
       },
-      error: function(){
-        Swal.fire({icon:'error', title:'Error', text:'Error de red.'});
+      error: function(xhr){
+        var msg = 'Error de red.';
+        if (xhr && xhr.status) {
+          msg = 'Error ' + xhr.status + (xhr.status === 403 ? ' (sesión/CSRF). Recarga la página.' : '.');
+          try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch(e){}
+        }
+        Swal.fire({icon:'error', title:'No se guardó el comentario', text: msg});
         $wrap.find('.btn-add-cmt').prop('disabled', false);
       }
     });

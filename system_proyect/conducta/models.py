@@ -547,3 +547,47 @@ class ConvocatoriaAsignatura(AuditModel):
 
     def __str__(self):
         return f"{self.asignatura} [{self.dias}]"
+
+
+class ConvocatoriaMarca(AuditModel):
+    """Marca de la tabla por grado: un alumno convocado a una asignatura.
+    Los días salen fijos del horario (TutoriaHorario) de esa asignatura/grado."""
+    area          = models.CharField(max_length=10, choices=AREA_CHOICES, default='bilingue')
+    parcial       = models.PositiveSmallIntegerField("Parcial")
+    anio          = models.PositiveSmallIntegerField("Año")
+    grado_num     = models.PositiveSmallIntegerField("Grado #")
+    seccion       = models.CharField("Sección", max_length=20, blank=True, default='')
+    alumno_id     = models.CharField("ID alumno", max_length=30)
+    alumno_nombre = models.CharField("Alumno", max_length=200)
+    asignatura    = models.CharField("Asignatura", max_length=60)
+    marcado_por   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='convocatoria_marcas')
+    creado_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table            = 'conducta_convocatoria_marca'
+        verbose_name        = 'Marca de Convocatoria'
+        verbose_name_plural = 'Marcas de Convocatoria'
+        unique_together     = ('parcial', 'anio', 'area', 'alumno_id', 'asignatura')
+        ordering            = ['alumno_nombre', 'asignatura']
+
+    def __str__(self):
+        return f"{self.alumno_nombre} → {self.asignatura} (P{self.parcial})"
+
+
+class ConvocatoriaFirma(models.Model):
+    """Coordinador de área que firma la convocatoria de un grado/parcial (para los PDFs)."""
+    area              = models.CharField(max_length=10, default='bilingue')
+    parcial           = models.PositiveSmallIntegerField()
+    anio              = models.PositiveSmallIntegerField()
+    grado_num         = models.PositiveSmallIntegerField()
+    seccion           = models.CharField(max_length=20, blank=True, default='')
+    coordinador_firma = models.CharField(max_length=100, blank=True, default='')
+    docente_firma     = models.CharField(max_length=100, blank=True, default='')  # maestro guía
+
+    class Meta:
+        db_table        = 'conducta_convocatoria_firma'
+        unique_together = ('area', 'parcial', 'anio', 'grado_num', 'seccion')
+
+    def __str__(self):
+        return f"Firma {self.grado_num}.{self.seccion} P{self.parcial} → {self.coordinador_firma}"

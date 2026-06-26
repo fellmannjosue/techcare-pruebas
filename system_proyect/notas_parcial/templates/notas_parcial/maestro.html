@@ -120,20 +120,24 @@
           </div>
         </div>
 
-        {# ── Comentario ── #}
+        {# ── Comentario (tu propio comentario, máx. 40 palabras) ── #}
         <div class="comentario-sec">
           <label class="form-label fw-semibold">
-            <i class="ti ti-message me-1 text-blue"></i>Comentarios y sugerencias del Maestro:
+            <i class="ti ti-message me-1 text-blue"></i>Tu comentario y sugerencias <span class="text-muted fw-normal">(máx. 40 palabras)</span>:
           </label>
-          <textarea class="form-control comentario-txt"
-                    rows="3"
-                    placeholder="Escribe el comentario para este alumno…">{{ a.comentario }}</textarea>
-          <div class="d-flex align-items-center gap-2 mt-2">
-            <button type="button" class="btn btn-success btn-sm btn-guardar-uno">
-              <i class="ti ti-device-floppy me-1"></i>Guardar comentario
-            </button>
-            <span class="estado-msg"></span>
+          {% for box in a.coment_boxes %}
+          <div class="cmt-box" data-maestro="{{ box.maestro_id }}">
+            <textarea class="form-control comentario-txt" rows="3"
+                      placeholder="Escribe el comentario para este alumno (máx. 40 palabras)…">{{ box.texto }}</textarea>
+            <div class="d-flex align-items-center gap-2 mt-2">
+              <button type="button" class="btn btn-success btn-sm btn-guardar-uno">
+                <i class="ti ti-device-floppy me-1"></i>Guardar comentario
+              </button>
+              <span class="cmt-words text-muted small">0/40 palabras</span>
+              <span class="estado-msg"></span>
+            </div>
           </div>
+          {% endfor %}
         </div>
 
       </div>
@@ -169,5 +173,5 @@ window._PAGE = Object.assign(window._PAGE || {}, {
   urlMaestro:'{% url "notas_parcial_maestro" %}',
 });
 </script>
-<script src="{% static 'notas_parcial/js/maestro.js' %}"></script>
+<script src="{% static 'notas_parcial/js/maestro.js' %}?v=2"></script>
 {% endblock %}

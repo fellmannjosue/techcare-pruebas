@@ -9,6 +9,28 @@
 {% endblock %}
 
 {% block content %}
+{% if countdown_to %}
+<div class="alert alert-warning d-flex align-items-center mb-3" id="cd-banner">
+  <i class="ti ti-clock-hour-11 me-2 fs-2"></i>
+  <div><strong>Hoy cierra el llenado de agendas.</strong> Tiempo restante:
+    <span class="fw-bold fs-3 ms-1" id="cd-timer">--:--:--</span></div>
+</div>
+<script>
+(function(){
+  var end=new Date("{{ countdown_to }}").getTime();
+  var el=document.getElementById('cd-timer');
+  function tick(){
+    var diff=end-Date.now();
+    if(diff<=0){ document.getElementById('cd-banner').className='alert alert-danger mb-3';
+      el.parentElement.innerHTML='<strong>El llenado de agendas se ha cerrado.</strong> Recarga la página.'; return; }
+    var h=Math.floor(diff/3.6e6), m=Math.floor(diff%3.6e6/6e4), s=Math.floor(diff%6e4/1000);
+    el.textContent=(h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    setTimeout(tick,1000);
+  }
+  tick();
+})();
+</script>
+{% endif %}
 <div class="card">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-calendar-plus me-2 text-blue"></i>Registrar Agenda Semanal</h3>
@@ -56,36 +78,26 @@
           </thead>
           <tbody>
             {% for materia in materias %}
-            {% if materia == "Asociadas" %}
-            <tr id="row-asociadas-template" class="table-warning">
-              <td colspan="7">
-                <div class="d-flex align-items-center gap-2">
-                  <strong>Asociadas</strong>
-                  <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddAsociada">
-                    <i class="ti ti-plus"></i> Agregar
-                  </button>
-                </div>
-                <div id="asociadas-container" class="mt-2"></div>
-              </td>
-            </tr>
-            {% else %}
             <tr>
               <td class="fw-bold">{{ materia }}</td>
-              <td><textarea name="lunes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
-              <td><textarea name="martes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
-              <td><textarea name="miercoles_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
-              <td><textarea name="jueves_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
-              <td><textarea name="viernes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
-              <td><textarea name="nota_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="50"></textarea></td>
+              <td><textarea name="lunes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="1100"></textarea></td>
+              <td><textarea name="martes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="1100"></textarea></td>
+              <td><textarea name="miercoles_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="1100"></textarea></td>
+              <td><textarea name="jueves_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="1100"></textarea></td>
+              <td><textarea name="viernes_{{ materia }}" class="form-control form-control-sm" rows="2" maxlength="1100"></textarea></td>
+              {% if forloop.first %}
+              <td rowspan="{{ materias|length }}" style="vertical-align:top;width:200px;">
+                <textarea name="nota_general" class="form-control form-control-sm" style="height:100%;min-height:120px;" maxlength="200" placeholder="Nota general de la semana..."></textarea>
+              </td>
+              {% endif %}
             </tr>
-            {% endif %}
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       <div class="mt-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" name="guardar" value="1" class="btn btn-primary">
           <i class="ti ti-device-floppy me-1"></i>Guardar Agenda
         </button>
         <a href="{% url 'agendas:historial_maestro' %}" class="btn btn-ghost-secondary">Cancelar</a>

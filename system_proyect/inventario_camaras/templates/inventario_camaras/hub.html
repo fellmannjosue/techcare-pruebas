@@ -1,0 +1,88 @@
+{% extends 'inventario_camaras/base.html' %}
+{% block title %}Cámaras{% endblock %}
+{% block page_pretitle %}Inicio{% endblock %}
+{% block page_title %}Inventario y Mantenimiento de Cámaras{% endblock %}
+{% block back_button %}
+<a href="{% url 'panel_grupo' 'soporte' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+  <i class="ti ti-arrow-left"></i> Volver al panel
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row row-cards">
+
+  <div class="col-12">
+    <p class="text-muted small mb-2">Jerarquía: <strong>Servidor → NVR → Gabinete → Cámara</strong></p>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:servidores' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-blue-lt text-blue rounded p-2"><i class="ti ti-server fs-2"></i></span>
+          <div><div class="fw-bold">Servidores</div><div class="text-muted small">{{ n_servidores }} registrados</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:nvrs' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-cyan-lt text-cyan rounded p-2"><i class="ti ti-device-cctv fs-2"></i></span>
+          <div><div class="fw-bold">NVRs</div><div class="text-muted small">{{ n_nvrs }} registrados</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:gabinetes' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-purple-lt text-purple rounded p-2"><i class="ti ti-server-2 fs-2"></i></span>
+          <div><div class="fw-bold">Gabinetes</div><div class="text-muted small">{{ n_gabinetes }} registrados</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:componentes' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-teal-lt text-teal rounded p-2"><i class="ti ti-components fs-2"></i></span>
+          <div><div class="fw-bold">Componentes</div><div class="text-muted small">{{ n_componentes }} en catálogo</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:camaras' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-green-lt text-green rounded p-2"><i class="ti ti-camera fs-2"></i></span>
+          <div><div class="fw-bold">Cámaras</div><div class="text-muted small">{{ n_camaras }} registradas</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4">
+    <a href="{% url 'inventario_camaras:mantenimiento' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="bg-red-lt text-red rounded p-2"><i class="ti ti-tool fs-2"></i></span>
+          <div>
+            <div class="fw-bold">Mantenimiento</div>
+            <div class="text-muted small">{{ n_mant }} fichas · {{ mant_pend }} pendientes</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

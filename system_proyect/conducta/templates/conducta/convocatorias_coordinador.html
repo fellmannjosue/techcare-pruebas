@@ -8,6 +8,7 @@
 
 {% block page_actions %}
 <div class="col-auto ms-auto d-flex gap-2">
+  <a href="{% url 'convocatoria_grado' %}" class="btn btn-primary"><i class="ti ti-checkbox me-1"></i>Marcar tutorías</a>
   <a href="{% url 'tutoria_horario_config' %}" class="btn btn-outline-primary"><i class="ti ti-table-options me-1"></i>Configurar horario</a>
   <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>
 </div>
@@ -45,37 +46,78 @@
   <a href="{% url 'convocatorias_coordinador' %}" class="btn btn-sm btn-ghost-secondary">Limpiar</a>
 </div></form>
 
-<div class="card"><div class="card-body p-0"><div class="table-responsive">
-  <table class="table table-vcenter card-table">
-    <thead><tr>
-      <th>Alumno</th><th>Grado</th><th class="text-center">Grupo</th><th class="text-center">Parcial</th>
-      <th>Asignaturas</th><th>Fecha</th><th>Creado por</th><th class="text-center">PDF</th><th class="text-center">Acciones</th>
-    </tr></thead>
-    <tbody>
-      {% for c in convocatorias %}
-      <tr>
-        <td class="fw-semibold">{{ c.alumno_nombre }}</td>
-        <td>{{ c.grado }}</td>
-        <td class="text-center">{% if c.coord_grupo %}<span class="badge bg-teal-lt text-teal">{{ c.coord_grupo }}</span>{% else %}—{% endif %}</td>
-        <td class="text-center"><span class="badge bg-blue-lt text-blue">P{{ c.parcial }} · {{ c.anio }}</span></td>
-        <td class="small">{{ c.asigs_txt }}</td>
-        <td>{{ c.fecha|date:"d/m/Y" }}</td>
-        <td class="text-muted small">{{ c.usuario.get_full_name|default:c.usuario.username }}</td>
-        <td class="text-center"><a href="{% url 'convocatoria_pdf' pk=c.pk %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf"></i></a></td>
-        <td class="text-center">
-          <div class="d-flex gap-1 justify-content-center">
-            <a href="{% url 'convocatoria_editar' pk=c.pk %}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="ti ti-pencil"></i></a>
-            <form method="post" action="{% url 'convocatoria_eliminar' pk=c.pk %}" onsubmit="return confirm('¿Eliminar la convocatoria de {{ c.alumno_nombre|escapejs }}?');" class="m-0">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="ti ti-trash"></i></button>
-            </form>
-          </div>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="9" class="text-center text-muted py-4"><i class="ti ti-inbox me-2"></i>Sin convocatorias.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div></div></div>
+{% for g in grupos %}
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center flex-wrap gap-2">
+    <h3 class="card-title mb-0"><i class="ti ti-users me-1 text-orange"></i>{{ g.grado_label }}</h3>
+    <span class="badge bg-blue-lt text-blue">P{{ g.parcial }} · {{ g.anio }}</span>
+    {% if g.coord_grupo %}<span class="badge bg-teal-lt text-teal">{{ g.coord_grupo }}</span>{% endif %}
+    <span class="badge bg-secondary-lt">{{ g.n_alumnos }} alumno{{ g.n_alumnos|pluralize }} · {{ g.n_marcas }} asignatura{{ g.n_marcas|pluralize }}</span>
+    {% if g.docente_firma %}<span class="badge bg-blue-lt text-blue"><i class="ti ti-user me-1"></i>{{ g.docente_firma }}</span>{% endif %}
+    {% if g.firma %}<span class="badge bg-green-lt text-green"><i class="ti ti-signature me-1"></i>{{ g.firma }}</span>{% endif %}
+    <div class="ms-auto d-flex gap-2">
+      {% if es_coord %}
+      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#firmaModal{{ g.grado_num }}_{{ g.seccion }}_{{ g.parcial }}_{{ g.anio }}"><i class="ti ti-edit me-1"></i>Editar firma</button>
+      {% endif %}
+      <a href="{% url 'convocatoria_cartas_pdf' %}?g={{ g.grado_num }}&s={{ g.seccion }}&parcial={{ g.parcial }}&anio={{ g.anio }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf me-1"></i>Cartas individuales</a>
+      <a href="{% url 'convocatoria_tabla_pdf' %}?g={{ g.grado_num }}&s={{ g.seccion }}&parcial={{ g.parcial }}&anio={{ g.anio }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-table me-1"></i>Tabla del grado</a>
+    </div>
+  </div>
+  {% if es_coord %}
+  <div class="modal fade" id="firmaModal{{ g.grado_num }}_{{ g.seccion }}_{{ g.parcial }}_{{ g.anio }}" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+      <form method="post" action="{% url 'convocatoria_firma_guardar' %}">{% csrf_token %}
+        <div class="modal-header"><h5 class="modal-title">Firma — {{ g.grado_label }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <input type="hidden" name="grado" value="{{ g.grado_num }}">
+          <input type="hidden" name="seccion" value="{{ g.seccion }}">
+          <input type="hidden" name="parcial" value="{{ g.parcial }}">
+          <input type="hidden" name="anio" value="{{ g.anio }}">
+          <label class="form-label">Maestro guía (firma)</label>
+          <select name="docente_firma" class="form-select mb-3">
+            <option value="">— Sin firma —</option>
+            {% for m in maestros %}
+            <option value="{{ m }}" {% if g.docente_firma == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+          <label class="form-label">Coordinador de área (firma)</label>
+          <select name="coordinador_firma" class="form-select">
+            <option value="">— Sin firma —</option>
+            {% for coord in coordinadores %}
+            <option value="{{ coord }}" {% if g.firma == coord %}selected{% endif %}>{{ coord }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Aparecerán como firma en las Cartas (Docente guía y Coordinador) y la Tabla del grado.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div></div>
+  </div>
+  {% endif %}
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-vcenter card-table mb-0">
+      <thead><tr>
+        <th style="width:36px;">N°</th><th>Alumno</th><th>Asignaturas solicitadas</th><th>Solicitado por</th><th>Fecha</th>
+      </tr></thead>
+      <tbody>
+        {% for a in g.alumnos %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter }}</td>
+          <td class="fw-semibold">{{ a.nombre }}</td>
+          <td class="small">{{ a.asigs_txt }}</td>
+          <td class="text-muted small">{{ a.docentes }}</td>
+          <td>{{ a.fecha|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+{% empty %}
+<div class="card"><div class="card-body text-center text-muted py-4"><i class="ti ti-inbox me-2"></i>Sin solicitudes de tutorías.</div></div>
+{% endfor %}
 {% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'inventario_camaras/base.html' %}
+{% load static %}
+{% block title %}Cámaras{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}Cámaras{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" id="btnNuevo"><i class="ti ti-plus me-1"></i>Nueva Cámara</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-camera me-2 text-muted"></i>{{ total }} cámara(s)</h3></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table ic-table">
+        <thead><tr><th>ID</th><th>Modelo</th><th>Serie</th><th>Ubicación</th><th>Grupo</th><th>Gabinete</th><th>NVR</th><th>Estado</th><th>Versión</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+          {% for o in objetos %}
+          <tr>
+            <td><span class="badge bg-green-lt text-green">{{ o.camara_id }}</span></td>
+            <td class="fw-semibold">{{ o.modelo }}</td>
+            <td class="font-monospace small">{{ o.serie|default:"—" }}</td>
+            <td>{{ o.ubicacion|default:"—" }}</td>
+            <td>{% if o.grupo %}<span class="badge bg-indigo-lt text-indigo">{{ o.grupo }}</span>{% else %}—{% endif %}</td>
+            <td>{{ o.gabinete|default:"—" }}</td>
+            <td class="text-muted small">{{ o.nvr|default:"—" }}</td>
+            <td>{% if o.estado %}<span class="badge bg-azure-lt text-azure">{{ o.estado }}</span>{% else %}—{% endif %}</td>
+            <td>{{ o.version_actualizada|default:"—" }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-sm btn-ghost-primary btn-edit" data-url="{% url 'inventario_camaras:camara_editar' o.pk %}" title="Editar"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-sm btn-ghost-danger btn-delete" data-url="{% url 'inventario_camaras:camara_eliminar' o.pk %}" data-id="{{ o.camara_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay cámaras registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% include 'inventario_camaras/_form_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'inventario_camaras/js/crud.js' %}?v=2"></script>{% endblock %}

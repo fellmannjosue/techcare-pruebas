@@ -16,6 +16,11 @@
   {% block extra_head %}{% endblock %}
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
+  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
+  <meta name="theme-color" content="#206bc4">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});});}</script>
 </head>
 
 <body class="antialiased">

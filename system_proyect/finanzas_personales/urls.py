@@ -13,8 +13,13 @@ urlpatterns = [
     path('api/categorias/', views.api_categoria_crear, name='api_categoria_crear'),
     path('api/categorias/<int:pk>/', views.api_categoria_detalle, name='api_categoria_detalle'),
 
+    # Cuentas
+    path('api/cuentas/', views.api_cuenta_crear, name='api_cuenta_crear'),
+    path('api/cuentas/<int:pk>/', views.api_cuenta_detalle, name='api_cuenta_detalle'),
+
     # Transacciones
     path('api/transacciones/', views.api_transaccion_crear, name='api_transaccion_crear'),
+    path('api/transacciones/bulk/', views.api_transaccion_bulk, name='api_transaccion_bulk'),
     path('api/transacciones/<int:pk>/', views.api_transaccion_detalle, name='api_transaccion_detalle'),
 
     # Pendientes
@@ -27,6 +32,10 @@ urlpatterns = [
     path('api/quick-entries/<int:pk>/', views.api_qe_eliminar, name='api_qe_eliminar'),
     path('api/quick-entries/<int:pk>/ejecutar/', views.api_qe_ejecutar, name='api_qe_ejecutar'),
 
+    # Recurrentes
+    path('api/recurrentes/', views.api_recurrente_crear, name='api_recurrente_crear'),
+    path('api/recurrentes/<int:pk>/', views.api_recurrente_detalle, name='api_recurrente_detalle'),
+
     # Presupuestos
     path('api/presupuestos/', views.api_presupuesto_crear, name='api_presupuesto_crear'),
     path('api/presupuestos/<int:pk>/', views.api_presupuesto_eliminar, name='api_presupuesto_eliminar'),
@@ -38,6 +47,12 @@ urlpatterns = [
 
     # Configuración
     path('api/configuracion/', views.api_configuracion, name='api_configuracion'),
+
+    # Reportes / exportación
+    path('api/reporte/', views.api_reporte, name='api_reporte'),
+
+    # Importar estado de cuenta del banco (PDF / Excel / CSV)
+    path('api/importar-estado/', views.api_importar_estado, name='api_importar_estado'),
 
     # Respaldo
     path('api/importar/', views.api_importar, name='api_importar'),

@@ -65,8 +65,14 @@ urlpatterns = [
     # 10) Finanzas Personales
     # ──────────────────────────────────────────────────────────────────────────
     path('finanzas/', include(('finanzas_personales.urls', 'finanzas_personales'), namespace='finanzas_personales')),
+    path('cfp/', include(('cfp.urls', 'cfp'), namespace='cfp')),
 
     path('notas-parcial/', include('notas_parcial.urls')),
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 11) Inventario y Mantenimiento de Cámaras
+    # ──────────────────────────────────────────────────────────────────────────
+    path('inventario-camaras/', include(('inventario_camaras.urls', 'inventario_camaras'), namespace='inventario_camaras')),
 
     # Apps en construcción (solo superuser)
     path('atencion-padres/', include(('atencion_padres.urls', 'atencion_padres'), namespace='atencion_padres')),

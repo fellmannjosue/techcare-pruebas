@@ -6,7 +6,48 @@ from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
 
-from .models import GradoAgenda, Agenda, ImagenAgenda
+from django.contrib.auth.models import User
+from .models import GradoAgenda, Agenda, ImagenAgenda, AgendaBloqueoConfig
+
+
+def _agenda_bloqueado(request):
+    """Horario semanal automático. Devuelve el mensaje de bloqueo o None.
+    Lun: solo permitidos. Mar/Mié: abierto. Jue: hasta la hora límite. Vie: cerrado.
+    Coordinadores nunca se bloquean."""
+    if _es_coordinador(request.user):
+        return None
+    cfg = AgendaBloqueoConfig.get()
+    if not cfg.activo:
+        return None
+    from datetime import datetime as _dt
+    now = _dt.now()
+    wd = now.weekday()  # 0 = Lunes
+    if wd == 0:  # Lunes → solo los permitidos pueden llenar
+        if not cfg.maestros.filter(pk=request.user.pk).exists():
+            return cfg.mensaje
+        return None
+    if wd == 3:  # Jueves → abierto hasta la hora de cierre
+        if now.time() >= cfg.jueves_limite:
+            return cfg.mensaje_jueves
+        return None
+    if wd == 4:  # Viernes → cerrado
+        return cfg.mensaje_viernes
+    return None  # Martes, Miércoles, fin de semana → abierto
+
+
+def _agenda_countdown(request):
+    """Si hoy es jueves y aún no llega la hora de cierre (y el maestro no es coord),
+    devuelve la hora límite ISO para mostrar la cuenta regresiva; None si no aplica."""
+    if _es_coordinador(request.user):
+        return None
+    cfg = AgendaBloqueoConfig.get()
+    if not cfg.activo:
+        return None
+    from datetime import datetime as _dt
+    now = _dt.now()
+    if now.weekday() == 3 and now.time() < cfg.jueves_limite:
+        return _dt.combine(now.date(), cfg.jueves_limite).isoformat()
+    return None
 
 # ── Materias por tipo de grado ────────────────────────────────────────────────
 MATERIAS_PRIMARIA = [
@@ -44,6 +85,46 @@ _MATERIAS_MAP = {
 
 def _materias_para_grado(grado_obj):
     return _MATERIAS_MAP.get(grado_obj.tipo_materias, MATERIAS_PRIMARIA)
+
+
+# ── Clases extra (antes "Asociadas") ──────────────────────────────────────────
+# Penmanship: SOLO primaria (1ero–6to). Las demás: primaria + colegio_bl.
+CLASE_PENMANSHIP        = "Penmanship"
+CLASES_ASOCIADAS_BASE   = ["Arte", "Biblia", "P.E", "Computación", "Speaking", "Spelling"]
+
+# Orden unificado de TODAS las clases por tipo de grado (incluye las extra)
+_ORDEN_CLASES = {
+    'primaria':   ['Math', 'Language', 'Spelling', 'Phonics', 'Reading', 'Science',
+                   'Español', 'CCSS', 'Penmanship', 'Arte', 'Biblia', 'Computación',
+                   'Speaking', 'P.E'],
+    'colegio_bl': ['Math', 'Language', 'Spelling', 'Reading', 'Science', 'Español',
+                   'CCSS', 'Cívica', 'Arte', 'Biblia', 'Computación', 'Speaking', 'P.E'],
+}
+
+
+def _clases_asociadas_para_grado(grado_obj):
+    """Clases extra (se guardan solo si tienen contenido)."""
+    if not grado_obj or grado_obj.tipo_materias not in ('primaria', 'colegio_bl'):
+        return []
+    clases = list(CLASES_ASOCIADAS_BASE)
+    if grado_obj.tipo_materias == 'primaria':   # 1ero–6to
+        clases = [CLASE_PENMANSHIP] + clases
+    # Excluir las que ya son materias fijas del grado (p.ej. Spelling en colegio_bl)
+    regulares = set(_materias_para_grado(grado_obj))
+    return [c for c in clases if c not in regulares]
+
+
+def _clases_orden(grado_obj):
+    """Lista ordenada de TODAS las clases del grado (uniforme, sin separar asociadas)."""
+    if grado_obj and grado_obj.tipo_materias in _ORDEN_CLASES:
+        return list(_ORDEN_CLASES[grado_obj.tipo_materias])
+    # Colegio 7-9/10/11: sin clases extra, se usa la lista fija tal cual
+    return [m for m in _materias_para_grado(grado_obj) if m != 'Asociadas'] if grado_obj else []
+
+
+def _clases_core(grado_obj):
+    """Clases que se guardan siempre (aunque vayan vacías)."""
+    return {m for m in _materias_para_grado(grado_obj) if m != 'Asociadas'}
 
 
 def _areas_para_usuario(user, request=None):
@@ -126,6 +207,11 @@ def form_agenda(request):
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
 
+    _msg_bloqueo = _agenda_bloqueado(request)
+    if _msg_bloqueo:
+        return render(request, 'agendas/bloqueado.html',
+                      {'mensaje': _msg_bloqueo, **_rol_ctx(request)})
+
     areas = _areas_para_usuario(request.user, request)
     grados_qs = GradoAgenda.objects.filter(activo=True)
     if areas is not None:
@@ -148,53 +234,44 @@ def form_agenda(request):
             messages.error(request, "Selecciona un grado válido.")
             return render(request, 'agendas/form_agenda.html', {'grados': grados, **_rol_ctx(request)})
 
-        materias = _materias_para_grado(grado_obj)
+        materias = _clases_orden(grado_obj)
 
-        if not semana_ini or not semana_fin:
+        # Solo se guarda al presionar "Guardar". El auto-submit por cambio de grado
+        # (o fechas faltantes) únicamente recarga la tabla, NO crea la agenda vacía.
+        if 'guardar' not in request.POST or not semana_ini or not semana_fin:
             return render(request, 'agendas/form_agenda.html', {
                 'grados': grados, 'grado_obj': grado_obj,
                 'materias': materias, 'semana_ini': semana_ini, 'semana_fin': semana_fin,
+                'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
                 **_rol_ctx(request),
             })
 
-        # ── Construir materias_json ───────────────────────────────────────────
+        # ── Construir materias_json (lista unificada y ordenada) ──────────────
+        core = _clases_core(grado_obj)
         materias_list = []
         for materia in materias:
-            if materia == "Asociadas":
-                nombres_aso = request.POST.getlist('materia_Asociadas[]')
-                for nombre_aso in nombres_aso[:5]:
-                    if not nombre_aso.strip():
-                        continue
-                    entrada = {
-                        'materia':    nombre_aso.strip(),
-                        'lunes':      request.POST.get(f'lunes_Asociadas_{nombre_aso}', ''),
-                        'martes':     request.POST.get(f'martes_Asociadas_{nombre_aso}', ''),
-                        'miercoles':  request.POST.get(f'miercoles_Asociadas_{nombre_aso}', ''),
-                        'jueves':     request.POST.get(f'jueves_Asociadas_{nombre_aso}', ''),
-                        'viernes':    request.POST.get(f'viernes_Asociadas_{nombre_aso}', ''),
-                        'nota':       request.POST.get(f'nota_Asociadas_{nombre_aso}', ''),
-                        'docente':    usuario_actual,
-                        'es_asociada': True,
-                    }
-                    materias_list.append(entrada)
-            else:
-                lunes     = request.POST.get(f'lunes_{materia}', '')
-                martes    = request.POST.get(f'martes_{materia}', '')
-                miercoles = request.POST.get(f'miercoles_{materia}', '')
-                jueves    = request.POST.get(f'jueves_{materia}', '')
-                viernes   = request.POST.get(f'viernes_{materia}', '')
-                nota      = request.POST.get(f'nota_{materia}', '')
-                tiene_contenido = any([lunes, martes, miercoles, jueves, viernes, nota])
-                materias_list.append({
-                    'materia':   materia,
-                    'lunes':     lunes,
-                    'martes':    martes,
-                    'miercoles': miercoles,
-                    'jueves':    jueves,
-                    'viernes':   viernes,
-                    'nota':      nota,
-                    'docente':   usuario_actual if tiene_contenido else '',
-                })
+            lunes     = request.POST.get(f'lunes_{materia}', '')
+            martes    = request.POST.get(f'martes_{materia}', '')
+            miercoles = request.POST.get(f'miercoles_{materia}', '')
+            jueves    = request.POST.get(f'jueves_{materia}', '')
+            viernes   = request.POST.get(f'viernes_{materia}', '')
+            tiene_contenido = any([lunes, martes, miercoles, jueves, viernes])
+            # Clase extra vacía → no se guarda; las core se guardan siempre
+            if materia not in core and not tiene_contenido:
+                continue
+            materias_list.append({
+                'materia':   materia,
+                'lunes':     lunes,
+                'martes':    martes,
+                'miercoles': miercoles,
+                'jueves':    jueves,
+                'viernes':   viernes,
+                'nota':      '',
+                'docente':   usuario_actual if tiene_contenido else '',
+                'es_asociada': materia not in core,
+            })
+
+        nota_general = request.POST.get('nota_general', '').strip()[:200]
 
         # Verificar que no exista ya una agenda para este grado en la misma semana
         from datetime import date as _date
@@ -206,6 +283,7 @@ def form_agenda(request):
             return render(request, 'agendas/form_agenda.html', {
                 'grados': grados, 'grado_obj': grado_obj,
                 'materias': materias, 'semana_ini': semana_ini, 'semana_fin': semana_fin,
+                'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
                 **_rol_ctx(request),
             })
 
@@ -218,11 +296,12 @@ def form_agenda(request):
             messages.error(
                 request,
                 f"Ya existe una agenda para {grado_obj.nombre} en esa semana. "
-                "Puedes editarla desde la lista de agendas."
+                "No se permite duplicar; búscala en tu Historial para editarla."
             )
             return render(request, 'agendas/form_agenda.html', {
                 'grados': grados, 'grado_obj': grado_obj,
                 'materias': materias, 'semana_ini': semana_ini, 'semana_fin': semana_fin,
+                'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
                 **_rol_ctx(request),
             })
 
@@ -232,6 +311,7 @@ def form_agenda(request):
             semana_inicio=semana_ini,
             semana_fin=semana_fin,
             materias_json=materias_list,
+            nota_general=nota_general,
             creado_por=request.user,
         )
         messages.success(request, "¡Agenda registrada correctamente!")
@@ -243,6 +323,8 @@ def form_agenda(request):
         'materias':   materias,
         'semana_ini': semana_ini,
         'semana_fin': semana_fin,
+        'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
+        'countdown_to': _agenda_countdown(request),
         **_rol_ctx(request),
     })
 
@@ -250,96 +332,100 @@ def form_agenda(request):
 # ── EDITAR AGENDA ─────────────────────────────────────────────────────────────
 @login_required
 def editar_agenda(request, pk):
+    _msg_bloqueo = _agenda_bloqueado(request)
+    if _msg_bloqueo:
+        return render(request, 'agendas/bloqueado.html',
+                      {'mensaje': _msg_bloqueo, **_rol_ctx(request)})
     agenda = get_object_or_404(Agenda, pk=pk)
     es_coord       = _es_coord_efectivo(request)
     usuario_actual = request.user.get_full_name() or request.user.username
 
-    materias = agenda.materias_json or []
+    # URL de regreso para maestros: su Historial (según el área de la agenda)
+    from django.urls import reverse
+    _hist_name = 'historial_maestro_colegio' if agenda.grado.area == 'colegio' else 'historial_maestro_bilingue'
+    volver_url = reverse(_hist_name)
+
+    DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'nota']
+    core = _clases_core(agenda.grado)
 
     # Imagen por materia (máx 1)
     imagenes_dict = {img.materia: img for img in agenda.imagenes.all() if img.materia}
 
-    # Marcar editabilidad por materia
-    for mat in materias:
-        docente_guardado = mat.get('docente', '').strip()
-        tiene_contenido  = any(mat.get(d, '').strip() for d in ['lunes','martes','miercoles','jueves','viernes','nota'])
-        mat['editable'] = (
-            es_coord
-            or docente_guardado == usuario_actual
-            or (not docente_guardado and not tiene_contenido)
-        )
-        mat['imagen'] = imagenes_dict.get(mat.get('materia', ''))
+    # Datos guardados indexados por nombre de clase
+    saved = {m.get('materia', ''): m for m in (agenda.materias_json or [])}
+    orden = _clases_orden(agenda.grado)
+    # Conservar clases guardadas que no están en el catálogo (legado)
+    legado = [n for n in saved if n and n not in orden]
+    orden_total = orden + legado
 
-    materias_regulares = [m for m in materias if not m.get('es_asociada')]
-    materias_asociadas = [m for m in materias if m.get('es_asociada')]
+    def _editable(prev):
+        dg = (prev.get('docente', '').strip() if prev else '')
+        prev_tiene = any(prev.get(d, '').strip() for d in DIAS) if prev else False
+        return es_coord or (prev is None) or (dg == usuario_actual) or (not dg and not prev_tiene)
 
     if request.method == 'POST':
         nuevas_materias = []
-        for mat in materias:
-            nombre = mat.get('materia', '')
-            if mat['editable']:
-                lunes_n     = request.POST.get(f'lunes_{nombre}', '').strip()
-                martes_n    = request.POST.get(f'martes_{nombre}', '').strip()
-                miercoles_n = request.POST.get(f'miercoles_{nombre}', '').strip()
-                jueves_n    = request.POST.get(f'jueves_{nombre}', '').strip()
-                viernes_n   = request.POST.get(f'viernes_{nombre}', '').strip()
-                nota_n      = request.POST.get(f'nota_{nombre}', '').strip()
-
-                cambio_real = any([
-                    lunes_n     != mat.get('lunes', ''),
-                    martes_n    != mat.get('martes', ''),
-                    miercoles_n != mat.get('miercoles', ''),
-                    jueves_n    != mat.get('jueves', ''),
-                    viernes_n   != mat.get('viernes', ''),
-                    nota_n      != mat.get('nota', ''),
-                ])
-                mat['lunes']     = lunes_n
-                mat['martes']    = martes_n
-                mat['miercoles'] = miercoles_n
-                mat['jueves']    = jueves_n
-                mat['viernes']   = viernes_n
-                mat['nota']      = nota_n
-
-                if not es_coord and cambio_real:
-                    tiene = any([lunes_n, martes_n, miercoles_n, jueves_n, viernes_n, nota_n])
-                    mat['docente'] = usuario_actual if tiene else ''
-
-            mat.pop('editable', None)
-            mat.pop('imagen',   None)
-            nuevas_materias.append(mat)
-
-        # Nuevas Asociadas añadidas en el formulario
-        ids_nuevas = request.POST.getlist('nueva_aso_ids[]')
-        for idx in ids_nuevas:
-            nombre_aso = request.POST.get(f'nueva_aso_nombre_{idx}', '').strip()
-            if not nombre_aso:
+        for nombre in orden_total:
+            prev = saved.get(nombre)
+            if not _editable(prev):
+                # Preservar tal cual lo que llenó otro docente
+                nuevas_materias.append({
+                    'materia': nombre,
+                    'lunes': prev.get('lunes', ''), 'martes': prev.get('martes', ''),
+                    'miercoles': prev.get('miercoles', ''), 'jueves': prev.get('jueves', ''),
+                    'viernes': prev.get('viernes', ''), 'nota': prev.get('nota', ''),
+                    'docente': prev.get('docente', ''),
+                    'es_asociada': nombre not in core,
+                })
                 continue
-            lu = request.POST.get(f'nueva_aso_lunes_{idx}',     '').strip()
-            ma = request.POST.get(f'nueva_aso_martes_{idx}',    '').strip()
-            mi = request.POST.get(f'nueva_aso_miercoles_{idx}', '').strip()
-            ju = request.POST.get(f'nueva_aso_jueves_{idx}',    '').strip()
-            vi = request.POST.get(f'nueva_aso_viernes_{idx}',   '').strip()
-            no = request.POST.get(f'nueva_aso_nota_{idx}',      '').strip()
+            vals = {d: request.POST.get(f'{d}_{nombre}', '').strip() for d in DIAS}
+            tiene = any(vals.values())
+            es_extra = nombre not in core
+            if es_extra and not tiene:
+                continue  # clase extra vacía → no se guarda
+            dg = (prev.get('docente', '').strip() if prev else '')
+            # Si la celda quedó vacía → se borra también el nombre de quien la llenó.
+            if not tiene:
+                docente = ''
+            elif es_coord:
+                docente = dg if dg else usuario_actual
+            else:
+                docente = usuario_actual
             nuevas_materias.append({
-                'materia':    nombre_aso,
-                'lunes':      lu, 'martes': ma, 'miercoles': mi,
-                'jueves':     ju, 'viernes': vi, 'nota': no,
-                'docente':    usuario_actual if any([lu,ma,mi,ju,vi,no]) else '',
-                'es_asociada': True,
+                'materia': nombre, **vals,
+                'docente': docente, 'es_asociada': es_extra,
             })
 
         agenda.materias_json  = nuevas_materias
+        agenda.nota_general   = request.POST.get('nota_general', '').strip()[:200]
         agenda.modificado_por = request.user
         agenda.save()
         messages.success(request, "Agenda actualizada.")
         if es_coord:
             return redirect('agendas:dashboard_coordinador')
-        return redirect('agendas:historial_maestro')
+        return redirect(volver_url)
+
+    # ── GET: armar filas ordenadas (uniformes) ────────────────────────────────
+    filas = []
+    for nombre in orden_total:
+        prev = saved.get(nombre)
+        filas.append({
+            'materia': nombre,
+            'lunes': prev.get('lunes', '') if prev else '',
+            'martes': prev.get('martes', '') if prev else '',
+            'miercoles': prev.get('miercoles', '') if prev else '',
+            'jueves': prev.get('jueves', '') if prev else '',
+            'viernes': prev.get('viernes', '') if prev else '',
+            'nota': prev.get('nota', '') if prev else '',
+            'docente': (prev.get('docente', '') if prev else ''),
+            'editable': _editable(prev),
+            'imagen': imagenes_dict.get(nombre),
+        })
 
     return render(request, 'agendas/editar_agenda.html', {
-        'agenda':             agenda,
-        'materias_regulares': materias_regulares,
-        'materias_asociadas': materias_asociadas,
+        'agenda': agenda,
+        'filas':  filas,
+        'volver_url': volver_url,
         **_rol_ctx(request),
     })
 
@@ -347,6 +433,10 @@ def editar_agenda(request, pk):
 # ── HISTORIAL MAESTRO ─────────────────────────────────────────────────────────
 @login_required
 def historial_maestro(request):
+    # El listado completo de agendas solo lo ve el coordinador.
+    # Un maestro normal crea desde el formulario y revisa las suyas en su Historial.
+    if not _es_coordinador(request.user):
+        return redirect('agendas:form_agenda')
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
     areas = _areas_para_usuario(request.user, request)
@@ -368,11 +458,44 @@ def dashboard_coordinador(request):
     agendas_qs = Agenda.objects.select_related('grado', 'usuario').order_by('-semana_inicio', 'grado__nombre')
     if areas is not None:
         agendas_qs = agendas_qs.filter(grado__area__in=areas)
+
+    # Config + maestros bilingües (excluye coordinadores: ellos llenan del lado del coord)
+    _COORD_GROUPS = ['coordinador_bilingue', 'coord_progress_bl']
+    bcfg = AgendaBloqueoConfig.get()
+    bloqueo_ids = set(bcfg.maestros.values_list('id', flat=True))
+    maestros_bl = (User.objects.filter(groups__name='maestros_bilingue')
+                   .exclude(groups__name__in=_COORD_GROUPS)
+                   .order_by('first_name', 'last_name').distinct())
+
     return render(request, 'agendas/dashboard_coordinador.html', {
         'agendas': agendas_qs,
         'today':   timezone.now().strftime('%Y-%m-%d'),
+        'bloqueo_cfg':  bcfg,
+        'bloqueo_ids':  bloqueo_ids,
+        'maestros_bl':  maestros_bl,
         **_rol_ctx(request),
     })
+
+
+@login_required
+def bloqueo_config_guardar(request):
+    """Guarda el horario de bloqueo de agendas (solo coordinador)."""
+    if not _es_coordinador(request.user):
+        return HttpResponseForbidden()
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    cfg = AgendaBloqueoConfig.get()
+    cfg.activo = request.POST.get('activo') in ('1', 'true', 'on', 'True')
+    cfg.mensaje         = (request.POST.get('mensaje') or AgendaBloqueoConfig.MSG_LUNES_DEFAULT).strip()
+    cfg.mensaje_jueves  = (request.POST.get('mensaje_jueves') or AgendaBloqueoConfig.MSG_JUEVES_DEFAULT).strip()
+    cfg.mensaje_viernes = (request.POST.get('mensaje_viernes') or AgendaBloqueoConfig.MSG_VIERNES_DEFAULT).strip()
+    hora = (request.POST.get('jueves_limite') or '').strip()
+    if hora:
+        cfg.jueves_limite = hora
+    cfg.save()
+    ids = request.POST.getlist('maestros')
+    cfg.maestros.set(User.objects.filter(pk__in=ids))
+    return JsonResponse({'ok': True})
 
 
 # ── SUBIR IMAGEN ──────────────────────────────────────────────────────────────
@@ -766,7 +889,12 @@ def descargar_pptx_agenda(request, pk):
         _cell(tbl.cell(_row, 3), mat.get('miercoles', ''))
         _cell(tbl.cell(_row, 4), mat.get('jueves',    ''))
         _cell(tbl.cell(_row, 5), mat.get('viernes',   ''))
-        _cell(tbl.cell(_row, 6), mat.get('nota',      ''))
+
+    # Columna Nota = una sola celda combinada (nota general de la semana)
+    if materias:
+        if len(materias) > 1:
+            tbl.cell(1, 6).merge(tbl.cell(len(materias), 6))
+        _cell(tbl.cell(1, 6), agenda.nota_general or '')
 
     # Altura fija 1.8 cm por fila (el texto se encoge si no cabe)
     for _i in range(num_rows):

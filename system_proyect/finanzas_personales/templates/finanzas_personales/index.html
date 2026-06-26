@@ -1,596 +1,82 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ledger — Finanzas Personales</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <title>Ledger — Finanzas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="{% static 'finanzas_personales/css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'finanzas_personales/css/app.css' %}?v=15">
 </head>
-<body class="antialiased">
-<div class="wrapper">
+<body>
+<div class="app">
 
   <!-- ===== SIDEBAR ===== -->
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ledger-sidebar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="navbar-brand py-2">
-        <div>
-          <div class="fw-bold fs-3 text-white" style="font-family:serif;letter-spacing:-0.5px">Ledger</div>
-          <div class="text-muted small">Finanzas Personales</div>
-        </div>
-      </div>
-      <div class="collapse navbar-collapse" id="ledger-sidebar">
-        <ul class="navbar-nav pt-lg-3">
-          <li class="nav-item">
-            <a class="nav-link active" href="#" id="nav-inicio" onclick="goTo('inicio');return false">
-              <span class="nav-link-icon"><i class="ti ti-home"></i></span>
-              <span class="nav-link-title">Inicio</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-movements" onclick="goTo('movements');return false">
-              <span class="nav-link-icon"><i class="ti ti-list-details"></i></span>
-              <span class="nav-link-title">Movimientos</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-pendientes" onclick="goTo('pendientes');return false">
-              <span class="nav-link-icon"><i class="ti ti-clock-hour-4"></i></span>
-              <span class="nav-link-title">Pendientes</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-metas" onclick="goTo('metas');return false">
-              <span class="nav-link-icon"><i class="ti ti-target"></i></span>
-              <span class="nav-link-title">Metas de Ahorro</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-presupuestos" onclick="goTo('presupuestos');return false">
-              <span class="nav-link-icon"><i class="ti ti-chart-pie"></i></span>
-              <span class="nav-link-title">Presupuestos</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-categorias" onclick="goTo('categorias');return false">
-              <span class="nav-link-icon"><i class="ti ti-tag"></i></span>
-              <span class="nav-link-title">Categorías</span>
-            </a>
-          </li>
-        </ul>
-        <ul class="navbar-nav mt-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="#" id="nav-respaldo" onclick="goTo('respaldo');return false">
-              <span class="nav-link-icon"><i class="ti ti-settings"></i></span>
-              <span class="nav-link-title">Ajustes</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ nav_home_url }}">
-              <span class="nav-link-icon"><i class="ti ti-arrow-back-up"></i></span>
-              <span class="nav-link-title">Volver al Panel</span>
-            </a>
-          </li>
-        </ul>
-      </div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-wallet"></i></div>
+      <div><div class="t1">Ledger</div><div class="t2">Finanzas</div></div>
     </div>
+    <nav class="nav" id="nav">
+      <a data-go="dashboard" class="active"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></a>
+      <a data-go="movements"><i class="ti ti-arrows-exchange"></i><span>Movimientos</span></a>
+      <a data-go="accounts"><i class="ti ti-wallet"></i><span>Cuentas</span></a>
+      <div class="grp">Planificación</div>
+      <a data-go="recurrents"><i class="ti ti-rotate-clockwise"></i><span>Recurrentes</span></a>
+      <a data-go="pendings"><i class="ti ti-clock-hour-4"></i><span>Pendientes</span></a>
+      <a data-go="budgets"><i class="ti ti-chart-pie"></i><span>Presupuestos</span></a>
+      <a data-go="goals"><i class="ti ti-target"></i><span>Metas de Ahorro</span></a>
+      <div class="grp">Más</div>
+      <a onclick="openImport()" style="cursor:pointer"><i class="ti ti-file-import"></i><span>Importar banco</span></a>
+      <a data-go="reports"><i class="ti ti-file-analytics"></i><span>Reportes</span></a>
+      <a data-go="categories"><i class="ti ti-tags"></i><span>Categorías</span></a>
+      <a data-go="settings"><i class="ti ti-settings"></i><span>Configuración</span></a>
+    </nav>
+    <div class="foot"><a href="/"><i class="ti ti-arrow-left"></i> Salir del módulo</a></div>
   </aside>
 
-  <!-- ===== PAGE WRAPPER ===== -->
-  <div class="page-wrapper">
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+    <header class="topbar">
+      <button class="iconbtn mtoggle" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></button>
+      <div><div class="ttl" id="pageTitle">Dashboard</div><div class="sub" id="pageSub">Resumen financiero</div></div>
+      <div class="sp"></div>
+      <button class="iconbtn" onclick="toggleTheme()" title="Tema"><i class="ti ti-moon" id="themeIcon"></i></button>
+      <button class="iconbtn" onclick="openTxn()" title="Nuevo movimiento"><i class="ti ti-plus"></i></button>
+    </header>
 
-    <!-- Header -->
-    <div class="page-header d-print-none">
-      <div class="container-xl">
-        <div class="row g-2 align-items-center">
-          <div class="col">
-            <h2 class="page-title" id="topbar-section">Inicio</h2>
-          </div>
-          <div class="col-auto ms-auto d-flex align-items-center gap-2">
-            <button class="btn btn-ghost-secondary btn-icon" id="theme-toggle" title="Cambiar tema">
-              <i class="ti ti-moon-stars fs-3"></i>
-            </button>
-            <button class="btn btn-primary" id="fab-btn" style="display:none" onclick="fabAction()">
-              <i class="ti ti-plus me-1"></i>Nuevo
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Page body -->
-    <div class="page-body">
-      <div class="container-xl">
-
-        <!-- ─── INICIO ─────────────────────────────────── -->
-        <div class="section active" id="section-inicio">
-
-          <!-- Acciones rápidas -->
-          <div class="d-flex gap-2 mb-4">
-            <button class="btn btn-success" onclick="openModal('modal-txn','income')">
-              <i class="ti ti-arrow-up me-1"></i>Ingreso
-            </button>
-            <button class="btn btn-danger" onclick="openModal('modal-txn','expense')">
-              <i class="ti ti-arrow-down me-1"></i>Gasto
-            </button>
-          </div>
-
-          <!-- KPI Cards -->
-          <div class="row row-deck g-3 mb-4" id="kpi-grid"></div>
-
-          <div class="row g-4">
-            <!-- Accesos rápidos -->
-            <div class="col-lg-5">
-              <div class="card h-100">
-                <div class="card-header">
-                  <h3 class="card-title"><i class="ti ti-bolt me-2 text-yellow"></i>Accesos Rápidos</h3>
-                  <div class="card-options">
-                    <button class="btn btn-sm btn-primary" onclick="openModal('modal-qe')">
-                      <i class="ti ti-plus me-1"></i>Agregar
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body p-0" id="qe-list"></div>
-              </div>
-            </div>
-            <!-- Recientes -->
-            <div class="col-lg-7">
-              <div class="card h-100">
-                <div class="card-header">
-                  <h3 class="card-title">Recientes</h3>
-                </div>
-                <div id="recent-list"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── MOVIMIENTOS ────────────────────────────── -->
-        <div class="section" id="section-movements">
-          <div class="card">
-            <div class="card-header flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-1">
-                <button class="btn btn-icon btn-sm btn-ghost-secondary" onclick="changeMonth(-1)">
-                  <i class="ti ti-chevron-left"></i>
-                </button>
-                <span class="fw-semibold px-2" id="month-label" style="min-width:160px;text-align:center">—</span>
-                <button class="btn btn-icon btn-sm btn-ghost-secondary" onclick="changeMonth(1)">
-                  <i class="ti ti-chevron-right"></i>
-                </button>
-              </div>
-              <div class="card-options flex-wrap gap-2">
-                <div class="btn-group">
-                  <button class="btn btn-sm btn-primary filter-chip" onclick="setFilter('all',this)">Todos</button>
-                  <button class="btn btn-sm btn-outline-primary filter-chip" onclick="setFilter('income',this)">Ingresos</button>
-                  <button class="btn btn-sm btn-outline-primary filter-chip" onclick="setFilter('expense',this)">Gastos</button>
-                </div>
-                <button class="btn btn-sm btn-ghost-secondary" onclick="printMovements()">
-                  <i class="ti ti-printer me-1"></i>Imprimir
-                </button>
-                <button class="btn btn-sm btn-ghost-secondary" onclick="exportCSV()">
-                  <i class="ti ti-download me-1"></i>CSV
-                </button>
-              </div>
-            </div>
-            <div id="movements-list"></div>
-          </div>
-        </div>
-
-        <!-- ─── PENDIENTES ──────────────────────────────── -->
-        <div class="section" id="section-pendientes">
-          <div class="card">
-            <div class="card-header flex-wrap gap-2">
-              <h3 class="card-title">Pendientes</h3>
-              <div class="card-options">
-                <div class="btn-group">
-                  <button class="btn btn-sm btn-primary pending-chip" onclick="setPendingFilter('all',this)">Todos</button>
-                  <button class="btn btn-sm btn-outline-primary pending-chip" onclick="setPendingFilter('income',this)">Por cobrar</button>
-                  <button class="btn btn-sm btn-outline-primary pending-chip" onclick="setPendingFilter('expense',this)">Por pagar</button>
-                </div>
-              </div>
-            </div>
-            <div id="pendientes-list"></div>
-          </div>
-        </div>
-
-        <!-- ─── CATEGORÍAS ──────────────────────────────── -->
-        <div class="section" id="section-categorias">
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title">Categorías</h3>
-            </div>
-            <div id="categorias-list"></div>
-          </div>
-        </div>
-
-        <!-- ─── PRESUPUESTOS ────────────────────────────── -->
-        <div class="section" id="section-presupuestos">
-          <div id="presupuestos-list"></div>
-        </div>
-
-        <!-- ─── METAS ───────────────────────────────────── -->
-        <div class="section" id="section-metas">
-          <div id="metas-list"></div>
-        </div>
-
-        <!-- ─── RESPALDO ────────────────────────────────── -->
-        <div class="section" id="section-respaldo">
-          <div class="row g-4">
-            <div class="col-md-5">
-
-              <div class="card mb-4">
-                <div class="card-header"><h3 class="card-title">Resumen de datos</h3></div>
-                <div class="card-body">
-                  <div class="row g-3" id="backup-stats"></div>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="card-header"><h3 class="card-title">Ajustes Generales</h3></div>
-                <div class="card-body">
-                  <div class="mb-3">
-                    <label class="form-label">Moneda</label>
-                    <select class="form-select" id="currency-select" onchange="setCurrency(this.value)">
-                      <option value="L">L (Lempira)</option>
-                      <option value="$">$ (Dólar)</option>
-                      <option value="€">€ (Euro)</option>
-                      <option value="Q">Q (Quetzal)</option>
-                      <option value="C$">C$ (Córdoba)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="form-check form-switch">
-                      <input type="checkbox" class="form-check-input" id="theme-checkbox" onchange="toggleTheme(this.checked)">
-                      <span class="form-check-label">Tema oscuro</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-            <div class="col-md-7">
-
-              <div class="card mb-4">
-                <div class="card-header"><h3 class="card-title">Exportar Respaldo</h3></div>
-                <div class="card-body">
-                  <p class="text-muted small">Descarga un archivo .json con todos tus datos. Úsalo como copia de seguridad.</p>
-                  <button class="btn btn-primary" onclick="downloadBackup()">
-                    <i class="ti ti-download me-1"></i>Descargar Respaldo
-                  </button>
-                </div>
-              </div>
-
-              <div class="card mb-4">
-                <div class="card-header"><h3 class="card-title">Importar Respaldo</h3></div>
-                <div class="card-body">
-                  <p class="text-muted small">Reemplaza todos los datos actuales. Esta acción no se puede deshacer.</p>
-                  <div id="drop-area" class="drop-area mb-3" onclick="document.getElementById('file-input').click()">
-                    <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-2"></i>
-                    <div>Arrastra tu archivo aquí o haz clic para seleccionar</div>
-                    <div class="text-muted small mt-1">Solo se admiten archivos .json</div>
-                  </div>
-                  <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleFileImport(this)">
-                  <button class="btn btn-outline-secondary" onclick="document.getElementById('file-input').click()">
-                    <i class="ti ti-file-import me-1"></i>Seleccionar archivo
-                  </button>
-                </div>
-              </div>
-
-              <div class="card mb-4">
-                <div class="card-header"><h3 class="card-title">Vista de Datos</h3></div>
-                <pre id="json-preview" style="max-height:180px;overflow-y:auto;font-size:11px;margin:0;padding:14px;background:var(--tblr-code-bg);border-radius:0 0 4px 4px"></pre>
-              </div>
-
-              <div class="card border-danger">
-                <div class="card-header"><h3 class="card-title text-danger"><i class="ti ti-alert-triangle me-2"></i>Zona de Peligro</h3></div>
-                <div class="card-body">
-                  <p class="text-muted small">Elimina permanentemente todos los datos. Esta acción no se puede deshacer.</p>
-                  <button class="btn btn-danger" onclick="confirmClearAll()">
-                    <i class="ti ti-trash me-1"></i>Eliminar todos los datos
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl text-center">
-        <span class="text-muted small">© 2026 Ledger — Finanzas Personales</span>
-      </div>
-    </footer>
+    <main class="content">
+      <section id="sec-dashboard"  class="section active"></section>
+      <section id="sec-movements"  class="section"></section>
+      <section id="sec-accounts"   class="section"></section>
+      <section id="sec-recurrents" class="section"></section>
+      <section id="sec-pendings"   class="section"></section>
+      <section id="sec-budgets"    class="section"></section>
+      <section id="sec-goals"      class="section"></section>
+      <section id="sec-reports"    class="section"></section>
+      <section id="sec-categories" class="section"></section>
+      <section id="sec-settings"   class="section"></section>
+    </main>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     MODALS
-═══════════════════════════════════════════ -->
+<button class="fab" onclick="openTxn()" title="Nuevo movimiento"><i class="ti ti-plus"></i></button>
 
-<!-- Transacción -->
-<div class="modal modal-blur fade" id="modal-txn" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modal-txn-title">Nueva Transacción</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Tipo</label>
-          <div class="btn-group w-100">
-            <button type="button" class="btn btn-success" id="txn-type-income" onclick="setTxnType('income')">
-              <i class="ti ti-arrow-up me-1"></i>Ingreso
-            </button>
-            <button type="button" class="btn btn-outline-danger" id="txn-type-expense" onclick="setTxnType('expense')">
-              <i class="ti ti-arrow-down me-1"></i>Gasto
-            </button>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Monto</label>
-          <input class="form-control" type="number" id="txn-amount" placeholder="0.00" step="0.01" min="0">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Descripción</label>
-          <input class="form-control" type="text" id="txn-desc" placeholder="Descripción breve">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Categoría</label>
-          <select class="form-select" id="txn-cat"></select>
-        </div>
-        <div class="mb-0">
-          <label class="form-label">Fecha</label>
-          <input class="form-control" type="date" id="txn-date">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveTxn()">
-          <i class="ti ti-check me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
+<!-- generic modal -->
+<div class="ov" id="ov" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh"><h3 id="mTitle">Título</h3><button class="tbtn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+    <div class="mb" id="mBody"></div>
+    <div class="mf" id="mFoot"></div>
   </div>
 </div>
 
-<!-- Acceso Rápido -->
-<div class="modal modal-blur fade" id="modal-qe" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Nuevo Acceso Rápido</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Tipo</label>
-          <div class="btn-group w-100">
-            <button type="button" class="btn btn-outline-success" id="qe-type-income" onclick="setQEType('income')">
-              <i class="ti ti-arrow-up me-1"></i>Ingreso
-            </button>
-            <button type="button" class="btn btn-danger" id="qe-type-expense" onclick="setQEType('expense')">
-              <i class="ti ti-arrow-down me-1"></i>Gasto
-            </button>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Nombre</label>
-          <input class="form-control" type="text" id="qe-name" placeholder="Ej. Almuerzo, Transporte">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Monto</label>
-          <input class="form-control" type="number" id="qe-amount" placeholder="0.00" step="0.01" min="0">
-        </div>
-        <div class="mb-0">
-          <label class="form-label">Categoría</label>
-          <select class="form-select" id="qe-cat"></select>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveQE()">
-          <i class="ti ti-check me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
-<!-- Confirmar Acceso Rápido -->
-<div class="modal modal-blur fade" id="modal-qe-confirm" tabindex="-1">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center py-4">
-        <i class="ti ti-bolt fs-1 text-yellow mb-3 d-block"></i>
-        <h4 id="qe-confirm-text" class="mb-2">Confirmar registro</h4>
-        <div class="h2 fw-bold mb-4" id="qe-confirm-amount"></div>
-        <div class="d-flex gap-2 justify-content-center">
-          <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button class="btn btn-primary" onclick="executeQE()">
-            <i class="ti ti-check me-1"></i>Confirmar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Categoría -->
-<div class="modal modal-blur fade" id="modal-cat" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modal-cat-title">Nueva Categoría</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Tipo</label>
-          <div class="btn-group w-100">
-            <button type="button" class="btn btn-outline-success" id="cat-type-income" onclick="setCatType('income')">Ingreso</button>
-            <button type="button" class="btn btn-danger" id="cat-type-expense" onclick="setCatType('expense')">Gasto</button>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Nombre</label>
-          <input class="form-control" type="text" id="cat-name" placeholder="Nombre de la categoría">
-        </div>
-        <div class="mb-0">
-          <label class="form-label">Color</label>
-          <div class="color-picker-row d-flex flex-wrap gap-2 mt-1" id="color-picker"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveCat()">
-          <i class="ti ti-check me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Pendiente -->
-<div class="modal modal-blur fade" id="modal-pending" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Nuevo Pendiente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Tipo</label>
-          <div class="btn-group w-100">
-            <button type="button" class="btn btn-success" id="pending-type-income" onclick="setPendingType('income')">Por cobrar</button>
-            <button type="button" class="btn btn-outline-danger" id="pending-type-expense" onclick="setPendingType('expense')">Por pagar</button>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Nombre</label>
-          <input class="form-control" type="text" id="pending-name" placeholder="Descripción del pendiente">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Monto</label>
-          <input class="form-control" type="number" id="pending-amount" placeholder="0.00" step="0.01">
-        </div>
-        <div class="mb-0">
-          <label class="form-label">Fecha estimada</label>
-          <input class="form-control" type="date" id="pending-date">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="savePending()">
-          <i class="ti ti-check me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Presupuesto -->
-<div class="modal modal-blur fade" id="modal-budget" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Nuevo Presupuesto</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Nombre</label>
-          <input class="form-control" type="text" id="budget-name" placeholder="Ej. Mes de enero, Viaje">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Monto límite</label>
-          <input class="form-control" type="number" id="budget-limit" placeholder="0.00" step="0.01">
-        </div>
-        <div class="mb-0">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <label class="form-label mb-0">Categorías incluidas</label>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addBudgetItem()">
-              <i class="ti ti-plus me-1"></i>Agregar
-            </button>
-          </div>
-          <div id="budget-items-form"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveBudget()">
-          <i class="ti ti-check me-1"></i>Guardar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Meta de Ahorro -->
-<div class="modal modal-blur fade" id="modal-goal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Nueva Meta de Ahorro</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Nombre de la meta</label>
-          <input class="form-control" type="text" id="goal-name" placeholder="Ej. Viaje, Laptop, Fondo de emergencia">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Monto objetivo</label>
-          <input class="form-control" type="number" id="goal-target" placeholder="0.00" step="0.01">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Fecha límite <span class="text-muted">(opcional)</span></label>
-          <input class="form-control" type="date" id="goal-deadline">
-        </div>
-        <div class="mb-0">
-          <label class="form-label">Emoji</label>
-          <input class="form-control text-center" type="text" id="goal-emoji" placeholder="🎯" maxlength="4" style="font-size:22px">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="saveGoal()">
-          <i class="ti ti-check me-1"></i>Crear Meta
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Confirmación peligro -->
-<div class="modal modal-blur fade" id="modal-confirm-danger" tabindex="-1">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center py-4">
-        <i class="ti ti-alert-triangle fs-1 text-danger mb-3 d-block"></i>
-        <h4 id="danger-modal-title" class="mb-2">Confirmar acción</h4>
-        <p class="text-muted mb-4" id="danger-modal-text"></p>
-        <div class="d-flex gap-2 justify-content-center">
-          <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button class="btn btn-danger" id="danger-modal-confirm-btn">
-            <i class="ti ti-trash me-1"></i>Eliminar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="{% static 'finanzas_personales/js/app.js' %}"></script>
+<script>window.CSRF = "{{ csrf_token }}";</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'finanzas_personales/js/app.js' %}?v=15"></script>
 </body>
 </html>

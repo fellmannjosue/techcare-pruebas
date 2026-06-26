@@ -1,0 +1,211 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code: Convocatoria Ventana 1 — tabla por grado #}
+
+{% block title %}Convocatoria de Tutorías{% endblock %}
+{% block page_pretitle %}Tutorías{% endblock %}
+{% block page_title %}Convocatoria de Tutorías{% endblock %}
+{% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .conv-chk { width:20px; height:20px; cursor:pointer; }
+  .conv-asig-h { writing-mode:initial; font-size:.8rem; }
+  .asig-dot { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:4px; }
+  .conv-prev-card { background:#fff; border:1px solid #e2e8f0; border-radius:.6rem; padding:22px 26px; max-width:720px; margin:0 auto; font-family:"Times New Roman",serif; }
+  .conv-prev-card .school { text-align:center; font-weight:bold; font-size:1.05rem; }
+  .conv-prev-card table { width:90%; margin:12px auto; border-collapse:collapse; }
+  .conv-prev-card th, .conv-prev-card td { border:1px solid #000; padding:4px 6px; text-align:center; font-size:.8rem; }
+  .conv-prev-card td.asig { text-align:left; }
+</style>
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% if es_coord %}{% url 'convocatorias_coordinador' %}{% else %}/conducta/dashboard/maestro/{% endif %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+{# ── Filtros: grado-sección + parcial ── #}
+<form method="get" class="card mb-3"><div class="card-body py-3 d-flex align-items-end gap-3 flex-wrap">
+  <div>
+    <label class="form-label mb-1 fw-semibold">Grado · Sección</label>
+    <select name="g" class="form-select" style="min-width:230px;" onchange="this.form.s.value=this.options[this.selectedIndex].dataset.s||''; this.form.submit();">
+      <option value="">— Selecciona el grado —</option>
+      {% for gs in grados_secciones %}
+      <option value="{{ gs.grado_num }}" data-s="{{ gs.seccion }}" {% if sel_g == gs.grado_num|stringformat:'s' and sel_s == gs.seccion %}selected{% endif %}>{{ gs.label }} ({{ gs.count }} alumnos)</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="s" value="{{ sel_s }}">
+  </div>
+  <div>
+    <label class="form-label mb-1 fw-semibold">Parcial</label>
+    <select name="parcial" class="form-select" style="width:auto;" onchange="this.form.submit();">
+      {% for p in periodos %}<option value="{{ p.parcial }}" {% if p.parcial == parcial and p.anio == anio %}selected{% endif %}>{{ p.nombre }} · {{ p.anio }}</option>{% endfor %}
+    </select>
+  </div>
+  <input type="hidden" name="anio" value="{{ anio }}">
+  <span class="text-muted small ms-auto"><i class="ti ti-info-circle me-1"></i>Marca a qué tutoría se convoca cada alumno. Se guarda al instante.</span>
+</div></form>
+
+{% if not tabla %}
+<div class="card"><div class="card-body text-center text-muted py-5">
+  <i class="ti ti-table" style="font-size:2.5rem;"></i>
+  <div class="mt-2">Selecciona un grado-sección para cargar la tabla de alumnos.</div>
+</div></div>
+{% else %}
+
+{# ── VENTANA 1: tabla alumnos × asignaturas ── #}
+<div id="conv-ventana1">
+  <div class="card">
+    <div class="card-header d-flex align-items-center flex-wrap gap-2">
+      <h3 class="card-title mb-0"><i class="ti ti-users me-2 text-orange"></i>{{ tabla.label }} — {{ tabla.filas|length }} alumnos · {{ parcial_rom }} Parcial</h3>
+      <button type="button" class="btn btn-primary ms-auto" id="btn-siguiente"><i class="ti ti-eye me-1"></i>Siguiente página (vista previa)</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-vcenter table-bordered mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px;">Nº</th><th>Alumno</th>
+            {% for sub in tabla.subjects %}<th class="text-center conv-asig-h"><span class="asig-dot" style="background:{{ sub.color }}"></span>{{ sub.asignatura }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in tabla.filas %}
+          <tr data-alumno="{{ f.id }}" data-nombre="{{ f.nombre }}">
+            <td class="text-muted">{{ f.n }}</td>
+            <td class="fw-semibold">{{ f.nombre }}</td>
+            {% for c in f.cels %}
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input conv-chk" data-asig="{{ c.asig }}"
+                     {% if c.marcado %}checked{% endif %}>
+              <div class="conv-por small text-muted" style="font-size:.62rem;line-height:1;">{% if c.marcado %}Solicitó: {{ c.por }}{% endif %}</div>
+            </td>
+            {% endfor %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ tabla.subjects|length|add:2 }}" class="text-center text-muted py-3">Sin alumnos en este grado-sección.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── VENTANA 2 / preview: cartas individuales ── #}
+<div id="conv-ventana2" style="display:none;">
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <button type="button" class="btn btn-ghost-secondary" id="btn-volver1"><i class="ti ti-arrow-left me-1"></i>Volver a la tabla</button>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="prev-ant"><i class="ti ti-chevron-left"></i></button>
+      <span class="text-muted small" id="prev-cont">0 / 0</span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="prev-sig"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    {% if es_coord %}
+    <a class="btn btn-danger" target="_blank"
+       href="{% url 'convocatoria_cartas_pdf' %}?g={{ tabla.grado_num }}&s={{ tabla.seccion }}&parcial={{ parcial }}&anio={{ anio }}">
+      <i class="ti ti-file-type-pdf me-1"></i>Generar cartas (PDF)</a>
+    <a class="btn btn-outline-danger" target="_blank"
+       href="{% url 'convocatoria_tabla_pdf' %}?g={{ tabla.grado_num }}&s={{ tabla.seccion }}&parcial={{ parcial }}&anio={{ anio }}">
+      <i class="ti ti-table me-1"></i>Generar tabla (PDF)</a>
+    {% endif %}
+  </div>
+  <div id="prev-wrap"></div>
+  <div id="prev-vacio" class="card"><div class="card-body text-center text-muted py-5">
+    <i class="ti ti-inbox" style="font-size:2.5rem;"></i><div class="mt-2">Marca al menos un alumno en una asignatura para ver las cartas.</div>
+  </div></div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  var CSRF = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+  var P = { parcial: {{ parcial }}, anio: {{ anio }}, grado_num: {{ tabla.grado_num|default:0 }}, seccion: "{{ tabla.seccion|default:'' }}" };
+  var SUBJECTS = {{ subjects_json|default:'[]'|safe }};
+  var GRADO_LABEL = "{{ tabla.label|default:''|escapejs }}";
+  var PARCIAL_ROM = "{{ parcial_rom }}";
+  var MI_NOMBRE = "{{ mi_nombre|escapejs }}";
+  var ES_COORD = {{ es_coord|yesno:'true,false' }};
+  var DIA_AB = ['','L','M','M','J','V'];
+
+  // Guardado al instante + "Solicitó: nombre" + bloqueo tras registrar
+  document.querySelectorAll('.conv-chk').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var tr = chk.closest('tr');
+      var por = chk.closest('td').querySelector('.conv-por');
+      var marcado = chk.checked;
+      chk.disabled = true; // evita doble clic mientras guarda
+      fetch("{% url 'convocatoria_marca_toggle' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({
+          parcial: P.parcial, anio: P.anio, grado_num: P.grado_num, seccion: P.seccion,
+          alumno_id: tr.dataset.alumno, alumno_nombre: tr.dataset.nombre,
+          asignatura: chk.dataset.asig, checked: marcado,
+        }),
+      }).then(r => r.json()).then(function (d) {
+        if (!d.ok) { chk.checked = !marcado; chk.disabled = false; alert(d.error || 'No se pudo guardar'); return; }
+        if (marcado) {
+          if (por) por.textContent = 'Solicitó: ' + MI_NOMBRE;
+        } else {
+          if (por) por.textContent = '';
+        }
+        chk.disabled = false;  // queda habilitado: cualquiera puede corregir
+      }).catch(function () { chk.checked = !marcado; chk.disabled = false; alert('Error de red'); });
+    });
+  });
+
+  // ── Vista previa de cartas (Siguiente página) ──
+  var v1 = document.getElementById('conv-ventana1');
+  var v2 = document.getElementById('conv-ventana2');
+  var cartas = [], idx = 0;
+
+  function recolectarCartas() {
+    var diasDe = {}; SUBJECTS.forEach(function (s) { diasDe[s.asignatura] = s.dias || []; });
+    var out = [];
+    document.querySelectorAll('#conv-ventana1 tbody tr[data-alumno]').forEach(function (tr) {
+      var asigs = [];
+      tr.querySelectorAll('.conv-chk:checked').forEach(function (c) { asigs.push(c.dataset.asig); });
+      if (asigs.length) out.push({ nombre: tr.dataset.nombre, asigs: asigs, diasDe: diasDe });
+    });
+    return out;
+  }
+  function fechaTexto() {
+    var t = "{{ fecha_hoy }}".split('-');
+    var M = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return (+t[2]) + ' días del mes de ' + M[+t[1]-1] + ' del año ' + t[0];
+  }
+  function render() {
+    var wrap = document.getElementById('prev-wrap');
+    var vacio = document.getElementById('prev-vacio');
+    if (!cartas.length) { wrap.innerHTML = ''; vacio.style.display = ''; document.getElementById('prev-cont').textContent = '0 / 0'; return; }
+    vacio.style.display = 'none';
+    if (idx < 0) idx = 0; if (idx >= cartas.length) idx = cartas.length - 1;
+    var c = cartas[idx];
+    var filas = c.asigs.map(function (a, i) {
+      var dl = c.diasDe[a] || [];
+      var cels = [1,2,3,4,5].map(function (n) { return '<td>' + (dl.indexOf(n) >= 0 ? '✔' : '') + '</td>'; }).join('');
+      return '<tr><td>' + (i+1) + '</td><td class="asig">' + a + '</td>' + cels + '</tr>';
+    }).join('');
+    wrap.innerHTML =
+      '<div class="conv-prev-card"><div class="school">NUEVO AMANECER SCHOOL</div>' +
+      '<div style="text-align:center;font-size:.72rem;color:#555;">Aldea La Venta, km. 36 carretera hacia Olancho · Tels. 2758-0300 / 9485-4082</div>' +
+      '<div style="text-align:center;font-weight:bold;margin:8px 0;">COMPROMISO DE ASISTENCIA A TUTORÍA</div>' +
+      '<p style="text-align:justify;font-size:.82rem;">El C.E.B.N.G.B. Nuevo Amanecer pone a disposición de los padres un sistema de tutorías gratuitas de lunes a viernes de <b>7:00 – 7:45 a.m.</b> Vigencia durante todo el <b>' + PARCIAL_ROM + '</b> parcial.</p>' +
+      '<p style="font-size:.82rem;">Su hijo (a) <b>' + c.nombre + '</b> del <b>' + GRADO_LABEL + '</b> ha sido convocado a las siguientes tutorías:</p>' +
+      '<table><thead><tr><th>Nº</th><th>Asignatura(s)</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead><tbody>' + filas + '</tbody></table>' +
+      '<p style="font-size:.75rem;color:#555;">Dado a los ' + fechaTexto() + '.</p>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:34px;font-size:.7rem;text-align:center;font-weight:bold;">' +
+      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">PADRE / ENCARGADO</div>' +
+      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">DOCENTE GUÍA</div>' +
+      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">COORDINADOR DE ÁREA</div></div></div>';
+    document.getElementById('prev-cont').textContent = (idx+1) + ' / ' + cartas.length;
+  }
+  var bs = document.getElementById('btn-siguiente');
+  if (bs) bs.addEventListener('click', function () { cartas = recolectarCartas(); idx = 0; v1.style.display = 'none'; v2.style.display = ''; render(); });
+  var bv = document.getElementById('btn-volver1');
+  if (bv) bv.addEventListener('click', function () { v2.style.display = 'none'; v1.style.display = ''; });
+  var pa = document.getElementById('prev-ant'); if (pa) pa.addEventListener('click', function () { idx--; render(); });
+  var ps = document.getElementById('prev-sig'); if (ps) ps.addEventListener('click', function () { idx++; render(); });
+})();
+</script>
+{% endblock %}

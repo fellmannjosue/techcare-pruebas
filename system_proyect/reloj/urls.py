@@ -150,6 +150,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('config/toggle-factor/', views.toggle_factor_visible, name='reloj_toggle_factor_visible'),
     path('config/toggle-horas-diarias/', views.toggle_horas_diarias_visible, name='reloj_toggle_horas_diarias_visible'),
+    path('config/tarde-reglas/', views.set_tarde_reglas, name='reloj_set_tarde_reglas'),
 
     # ─────────────────────────────────────────────
     # Vigilancia  (modo construcción)

@@ -48,6 +48,7 @@ class Agenda(AuditModel):
     semana_inicio          = models.DateField(verbose_name="Semana inicio")
     semana_fin             = models.DateField(verbose_name="Semana fin")
     materias_json          = models.JSONField(default=list, blank=True, verbose_name="Detalle materias")
+    nota_general           = models.CharField(max_length=200, blank=True, default='', verbose_name="Nota")
     estado                 = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado")
     comentario_coordinador = models.TextField(blank=True, default='', verbose_name="Comentario del coordinador")
 
@@ -75,3 +76,37 @@ class ImagenAgenda(models.Model):
 
     def __str__(self):
         return f"Imagen de {self.agenda} – {self.subida_en:%d/%m/%Y}"
+
+
+class AgendaBloqueoConfig(models.Model):
+    """Horario semanal automático de llenado de agendas (singleton pk=1).
+       Lun: solo los 'maestros' permitidos. Mar/Mié: abierto.
+       Jue: abierto hasta `jueves_hora_limite`, luego cerrado. Vie: cerrado.
+       Los coordinadores nunca se bloquean."""
+    from datetime import time as _t
+    MSG_LUNES_DEFAULT  = ("Estimados maestros, el día de hoy solo le toca a los asociados. "
+                          "Favor esperar a los días que les corresponde.")
+    MSG_JUEVES_DEFAULT = "Se cierra el llenado de agendas."
+    MSG_VIERNES_DEFAULT = "El día de hoy se mandan las agendas, ya no se podrá llenar más."
+
+    activo          = models.BooleanField("Horario activo", default=False)
+    # Maestros permitidos el LUNES (el resto se bloquea ese día)
+    maestros        = models.ManyToManyField(User, blank=True, related_name='agenda_bloqueos',
+                                             verbose_name="Permitidos el lunes")
+    mensaje         = models.TextField("Mensaje lunes", default=MSG_LUNES_DEFAULT)
+    mensaje_jueves  = models.TextField("Mensaje jueves (después del límite)", default=MSG_JUEVES_DEFAULT)
+    mensaje_viernes = models.TextField("Mensaje viernes", default=MSG_VIERNES_DEFAULT)
+    jueves_limite   = models.TimeField("Jueves — hora de cierre", default=_t(12, 0))
+    actualizado_en  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = "Bloqueo de Agendas"
+        verbose_name_plural = "Bloqueo de Agendas"
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Horario agendas ({'ON' if self.activo else 'OFF'})"

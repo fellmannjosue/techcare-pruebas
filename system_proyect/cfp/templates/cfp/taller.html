@@ -1,0 +1,179 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static cfp_extras %}
+{% block title %}{{ taller_label }} — CFP{% endblock %}
+{% block page_pretitle %}CFP · Taller{% endblock %}
+{% block page_title %}<i class="ti ti-tools me-2 text-green"></i>{{ taller_label }}{% endblock %}
+
+{% block extra_head %}
+<style>.table td,.table th{white-space:nowrap;font-size:.82rem}.tbl-tot td{font-weight:700;background:#fff8e1}</style>
+{% endblock %}
+
+{% block page_actions %}
+<form method="get" class="d-flex align-items-center gap-2">
+  <span class="text-muted">Año:</span>
+  <select name="anio" class="form-select" onchange="this.form.submit()" style="width:auto;">
+    {% for y in anios %}<option value="{{ y }}" {% if y == anio %}selected{% endif %}>{{ y }}</option>{% endfor %}
+  </select>
+  <a href="{% url 'cfp:dashboard' %}?anio={{ anio }}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+  <button type="button" class="btn btn-primary" onclick="openEj()"><i class="ti ti-plus me-1"></i>Nueva ejecución</button>
+</form>
+{% endblock %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#t1" type="button"><i class="ti ti-table me-1"></i>Tab 1 · Ejecuciones</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t2" type="button"><i class="ti ti-chart-pie me-1"></i>Tab 2 · Distribución 60/20/20</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t3" type="button"><i class="ti ti-file-text me-1"></i>Tab 3 · Informes</button></li>
+</ul>
+<div class="tab-content">
+
+  {# ── TAB 1 ── #}
+  <div class="tab-pane fade show active" id="t1">
+    <div class="card"><div class="table-responsive"><table class="table table-bordered table-vcenter card-table mb-0">
+      <thead><tr class="text-center">
+        <th>No. Ejecución</th><th>Curso</th><th>Horas</th><th>Part. Ini.</th><th>Part. Final</th><th>Costo/Hora</th>
+        <th>Monto Contrato</th><th>Pérdida</th><th>Anticipo 50%</th><th>Cancelación</th><th>Costo Real</th>
+        <th>Costo Hora</th><th>Monto C.F.P.</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for e in ejecuciones %}
+        <tr>
+          <td class="fw-semibold">{{ e.no_ejecucion|default:"—" }}</td>
+          <td>{{ e.nombre_curso }}{% if e.taller_anio %} <span class="badge bg-blue-lt">Año {{ e.taller_anio }}</span>{% endif %}</td>
+          <td class="text-center">{{ e.horas }}</td>
+          <td class="text-center">{{ e.part_inicial }}</td>
+          <td class="text-center">{{ e.part_pago }}</td>
+          <td class="text-end">{{ e.costo_hora|money }}</td>
+          <td class="text-end">{{ e.monto_contrato|money }}</td>
+          <td class="text-end">{{ e.perdida|money }}</td>
+          <td class="text-end">{{ e.anticipo|money }}</td>
+          <td class="text-end">{{ e.cancelacion|money }}</td>
+          <td class="text-end">{{ e.costo_real|money }}</td>
+          <td></td>
+          <td class="text-end fw-semibold">{{ e.monto_cfp|money }}</td>
+          <td class="text-nowrap text-center">
+            <button class="btn btn-sm btn-ghost-primary" onclick="editEj({{ e.id }})" title="Editar"><i class="ti ti-pencil"></i></button>
+            <button class="btn btn-sm btn-ghost-danger" onclick="delEj({{ e.id }},'{{ e.no_ejecucion|escapejs }}')" title="Eliminar"><i class="ti ti-trash"></i></button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="14" class="text-center text-muted py-4">Sin ejecuciones en {{ anio }}.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if ejecuciones %}
+      <tfoot><tr class="tbl-tot text-end">
+        <td colspan="2" class="text-start">TOTAL</td><td class="text-center">{{ tot.horas }}</td><td></td><td class="text-center">{{ tot.part }}</td><td></td>
+        <td>{{ tot.contrato|money }}</td><td>{{ tot.perdida|money }}</td><td>{{ tot.anticipo|money }}</td>
+        <td>{{ tot.cancelacion|money }}</td><td>{{ tot.costo_real|money }}</td><td></td><td>{{ tot.cfp|money }}</td><td></td>
+      </tr></tfoot>
+      {% endif %}
+    </table></div></div>
+  </div>
+
+  {# ── TAB 2 ── #}
+  <div class="tab-pane fade" id="t2">
+    <div class="card"><div class="table-responsive"><table class="table table-bordered table-vcenter card-table mb-0">
+      <thead><tr class="text-center">
+        <th>Curso / Taller</th><th>Monto x taller</th><th>Seguro/Materiales/Mant. 60%</th>
+        <th>Instructores y director 20%</th><th>Administración 20%</th><th>Total</th><th>Monto Taller − Total</th>
+      </tr></thead>
+      <tbody>
+        {% for d in dist %}
+        <tr>
+          <td class="fw-semibold">{{ d.curso }}</td>
+          <td class="text-end">{{ d.monto|money }}</td><td class="text-end">{{ d.seguro|money }}</td>
+          <td class="text-end">{{ d.instr|money }}</td><td class="text-end">{{ d.admin|money }}</td>
+          <td class="text-end fw-semibold">{{ d.monto|money }}</td><td></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Sin datos.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if dist %}
+      <tfoot><tr class="tbl-tot text-end">
+        <td class="text-start">Total</td><td>{{ dist_tot.monto|money }}</td><td>{{ dist_tot.seguro|money }}</td>
+        <td>{{ dist_tot.instr|money }}</td><td>{{ dist_tot.admin|money }}</td><td>{{ dist_tot.monto|money }}</td><td></td>
+      </tr></tfoot>
+      {% endif %}
+    </table></div></div>
+  </div>
+
+  {# ── TAB 3 ── #}
+  <div class="tab-pane fade" id="t3">
+    <div class="card"><div class="table-responsive"><table class="table table-bordered table-vcenter card-table mb-0">
+      <thead><tr class="text-center"><th>No. Ejecución</th><th>Curso</th><th>Ingreso Neto</th><th>Total Egresos</th><th>Utilidad</th><th>Informe</th></tr></thead>
+      <tbody>
+        {% for e in ejecuciones %}
+        <tr>
+          <td class="fw-semibold">{{ e.no_ejecucion|default:"—" }}</td>
+          <td>{{ e.nombre_curso }}</td>
+          <td class="text-end">{{ e.costo_real|money }}</td>
+          <td class="text-end">{% if e.informe %}{{ e.informe.total_egresos|money }}{% else %}—{% endif %}</td>
+          <td class="text-end fw-semibold {% if e.informe and e.informe.utilidad < 0 %}text-danger{% else %}text-green{% endif %}">
+            {% if e.informe %}{{ e.informe.utilidad|money }}{% else %}—{% endif %}</td>
+          <td class="text-center text-nowrap">
+            <a href="{% url 'cfp:informe_form' e.id %}" class="btn btn-sm btn-outline-primary"><i class="ti ti-edit me-1"></i>Editar</a>
+            <a href="{% url 'cfp:informe_pdf' e.id %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Sin ejecuciones.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div></div>
+  </div>
+</div>
+
+{# ── Modal: Nueva/Editar ejecución ── #}
+<div class="modal modal-blur fade" id="modalEj" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+  <form id="formEj">
+    <div class="modal-header"><h5 class="modal-title">Ejecución de curso</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="pk" id="ej-pk">
+      <input type="hidden" name="anio" value="{{ anio }}">
+      <input type="hidden" name="taller" value="{{ taller_key }}">
+      <div class="row g-2">
+        <div class="col-md-4"><label class="form-label">No. de Ejecución</label><input name="no_ejecucion" id="ej-no_ejecucion" class="form-control" placeholder="ANA-RC-2025-001"></div>
+        <div class="col-md-4"><label class="form-label">No. del Curso</label><input name="no_curso" id="ej-no_curso" class="form-control" placeholder="RC-0001-010"></div>
+        <div class="col-md-4"><label class="form-label">No. de Contrato</label><input name="no_contrato" id="ej-no_contrato" class="form-control" placeholder="CSCC-CADERH-019-2026"></div>
+        <div class="col-md-8"><label class="form-label">Nombre del Curso *</label><input name="nombre_curso" id="ej-nombre_curso" class="form-control" required></div>
+        {% if es_mecanica %}
+        <div class="col-md-4"><label class="form-label">Año del taller</label><select name="taller_anio" id="ej-taller_anio" class="form-select"><option value="">—</option><option value="1">Año 1</option><option value="2">Año 2</option></select></div>
+        {% else %}<input type="hidden" name="taller_anio" id="ej-taller_anio">{% endif %}
+        <div class="col-md-3"><label class="form-label">Horas</label><input type="number" name="horas" id="ej-horas" class="form-control" min="0"></div>
+        <div class="col-md-3"><label class="form-label">Part. inicial</label><input type="number" name="part_inicial" id="ej-part_inicial" class="form-control" min="0"></div>
+        <div class="col-md-3"><label class="form-label">Part. final</label><input type="number" name="part_pago" id="ej-part_pago" class="form-control" min="0"></div>
+        <div class="col-md-3"><label class="form-label">Costo / Hora</label><input type="number" step="0.01" name="costo_hora" id="ej-costo_hora" class="form-control" min="0"></div>
+        <div class="col-md-6"><label class="form-label">Horario</label><input name="horario" id="ej-horario" class="form-control" placeholder="12:10 PM a 4:40 PM"></div>
+      </div>
+      <div class="text-muted small mt-2"><i class="ti ti-info-circle me-1"></i>El Monto Contrato y la distribución se calculan automáticamente.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+  </form>
+</div></div></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF='{{ csrf_token }}';
+const modalEj=new bootstrap.Modal(document.getElementById('modalEj'));
+function clearEj(){['pk','no_ejecucion','no_curso','no_contrato','nombre_curso','horas','part_inicial','part_pago','costo_hora','horario'].forEach(f=>{const el=document.getElementById('ej-'+f);if(el)el.value='';});const ta=document.getElementById('ej-taller_anio');if(ta)ta.value='';}
+function openEj(){clearEj();modalEj.show();}
+function editEj(id){fetch(`/cfp/ejecucion/${id}/`).then(r=>r.json()).then(d=>{
+  for(const k in d){const el=document.getElementById('ej-'+k);if(el)el.value=(d[k]===null?'':d[k]);}
+  modalEj.show();
+});}
+document.getElementById('formEj').addEventListener('submit',function(e){
+  e.preventDefault();
+  const fd=new FormData(this);fd.append('csrfmiddlewaretoken',CSRF);
+  fetch('{% url "cfp:ejecucion_guardar" %}',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.ok){location.reload();}else{alert(d.error||'Error');}
+  }).catch(()=>alert('Error de red'));
+});
+function delEj(id,nombre){
+  if(!confirm('¿Eliminar la ejecución '+(nombre||'')+'?'))return;
+  const fd=new FormData();fd.append('csrfmiddlewaretoken',CSRF);
+  fetch(`/cfp/ejecucion/${id}/eliminar/`,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();else alert('Error');});
+}
+</script>
+{% endblock %}

@@ -11,6 +11,11 @@
   <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
   <!-- Responsive global -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
+  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
+  <meta name="theme-color" content="#206bc4">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});});}</script>
 </head>
 <body class="antialiased">
 <div class="wrapper">
@@ -211,6 +216,20 @@
           </div>
           {% endif %}
 
+          {% if show_cfp %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'cfp:dashboard' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-calculator text-green" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Contabilidad CFP</div>
+                  <div class="text-muted small mt-1">Talleres y cursos</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
           {% if show_maintenance %}
           <div class="col-6 col-sm-4 col-lg-3">
             <a href="{% url 'mantenimiento:maintenance_dashboard' %}" class="text-decoration-none">
@@ -219,6 +238,20 @@
                   <div class="mb-2"><i class="ti ti-tool text-red" style="font-size:2.5rem;"></i></div>
                   <div class="fw-bold">Mantenimiento</div>
                   <div class="text-muted small mt-1">Reportes de mantenimiento</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {% if show_camaras_inv %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'inventario_camaras:hub' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-camera text-blue" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Cámaras</div>
+                  <div class="text-muted small mt-1">Inventario y mantenimiento</div>
                 </div>
               </div>
             </a>

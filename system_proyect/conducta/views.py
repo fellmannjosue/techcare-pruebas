@@ -706,6 +706,29 @@ def progress_report_bilingue(request):
 
 
 #-------------- HISTORIAL MAESTROS -----------------
+def _agendas_historial(usuario, areas):
+    """Todas las agendas del área (el maestro ve todas, aunque no las haya creado)."""
+    from agendas.models import Agenda
+    qs = (Agenda.objects.filter(grado__area__in=areas)
+          .select_related('grado', 'usuario').order_by('-semana_inicio', 'grado__nombre'))
+    out = []
+    for a in qs:
+        mats = a.materias_json or []
+        llenas = sum(1 for m in mats if any(m.get(d, '').strip()
+                     for d in ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'nota']))
+        docente = (a.usuario.get_full_name() or a.usuario.username) if a.usuario else '—'
+        out.append({
+            'pk': a.pk,
+            'grado': a.grado.nombre,
+            'docente': docente,
+            'semana_inicio': a.semana_inicio,
+            'semana_fin': a.semana_fin,
+            'estado': a.get_estado_display(),
+            'n_materias': llenas,
+        })
+    return out
+
+
 @login_required
 def historial_maestro_bilingue(request):
     usuario = request.user
@@ -716,13 +739,28 @@ def historial_maestro_bilingue(request):
 
     reportes_progress = ProgressReport.objects.all().order_by('-fecha')
 
-    from .models import ConvocatoriaTutoria
-    convocatorias_tut = (ConvocatoriaTutoria.objects.filter(usuario=usuario, area='bilingue')
-                         .prefetch_related('asignaturas').order_by('-creado_at'))
-    for c in convocatorias_tut:
-        c.asigs_txt = ', '.join(a.asignatura for a in c.asignaturas.all())
+    # Tutorías solicitadas por este docente (marcas de la tabla por grado)
+    from .models import ConvocatoriaMarca, GRADO_TUTORIA_LABEL
+    _tut_map = {}
+    for m in (ConvocatoriaMarca.objects.filter(area='bilingue', marcado_por=usuario)
+              .order_by('-creado_at')):
+        key = (m.alumno_id, m.parcial, m.anio)
+        d = _tut_map.get(key)
+        if not d:
+            lbl = GRADO_TUTORIA_LABEL.get(m.grado_num, m.grado_num)
+            d = {'alumno_nombre': m.alumno_nombre,
+                 'grado': f"{lbl} {m.grado_num}.{m.seccion}" if m.seccion else str(lbl),
+                 'parcial': m.parcial, 'anio': m.anio, 'asigs': [], 'fecha': m.creado_at}
+            _tut_map[key] = d
+        d['asigs'].append(m.asignatura)
+    convocatorias_tut = []
+    for d in _tut_map.values():
+        d['asigs_txt'] = ', '.join(d['asigs'])
+        convocatorias_tut.append(d)
 
     tickets_usuario = Ticket.objects.filter(email=usuario.email).order_by('-created_at')
+
+    agendas_usuario = _agendas_historial(usuario, ['primaria', 'colegio_bl'])
 
     es_admin = request.user.groups.filter(name='administracion').exists()
     back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
@@ -732,6 +770,7 @@ def historial_maestro_bilingue(request):
         'reportes_conductual': reportes_conductual,
         'reportes_progress': reportes_progress,
         'convocatorias_tut': convocatorias_tut,
+        'agendas_usuario': agendas_usuario,
         'tickets_usuario': tickets_usuario,
         'area': 'bilingue',
         'back_url': back_url,
@@ -748,6 +787,8 @@ def historial_maestro_colegio(request):
 
     tickets_usuario = Ticket.objects.filter(email=usuario.email).order_by('-created_at')
 
+    agendas_usuario = _agendas_historial(usuario, ['colegio'])
+
     es_admin = request.user.groups.filter(name='administracion').exists()
     back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
 
@@ -755,6 +796,7 @@ def historial_maestro_colegio(request):
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
         'reportes_progress': [],
+        'agendas_usuario': agendas_usuario,
         'tickets_usuario': tickets_usuario,
         'area': 'colegio',
         'back_url': back_url,
@@ -2921,8 +2963,9 @@ def convocatoria_nueva(request, pk=None):
         except (TypeError, ValueError):
             messages.error(request, "Selecciona un parcial válido.")
             return redirect('convocatoria_nueva')
-        docente_guia = (request.POST.get('docente_guia') or '').strip()
-        coordinador = (request.POST.get('coordinador') or '').strip()
+        # Docente guía y coordinador ya NO se capturan: firman a mano en la carta.
+        docente_guia = ''
+        coordinador = ''
         fecha_str = (request.POST.get('fecha') or '').strip()
         try:
             fecha = _dt_module.date.fromisoformat(fecha_str) if fecha_str else _dt_module.date.today()
@@ -2944,11 +2987,8 @@ def convocatoria_nueva(request, pk=None):
             return redirect(redir, pk=conv_edit.pk) if conv_edit else redirect('convocatoria_nueva')
 
         from .models import grupo_coord_de_grado, ConfiguracionCoordinador
+        # grupo solo para ruteo/notificación al coordinador (no aparece en la carta)
         grupo = grupo_coord_de_grado(grado_num)
-        if not coordinador and grupo:
-            cc = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=grupo).first()
-            if cc:
-                coordinador = cc.nombre
 
         if conv_edit:
             conv = conv_edit
@@ -3078,10 +3118,10 @@ def convocatoria_pdf(request, pk):
 
 @login_required
 def convocatorias_coordinador(request):
-    """Listado/historial de convocatorias (tab del coordinador)."""
-    from .models import (ConvocatoriaTutoria, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
-                         ConfiguracionCoordinador)
-    qs = ConvocatoriaTutoria.objects.filter(area='bilingue').prefetch_related('asignaturas')
+    """Solicitudes de tutorías (tab del coordinador) — agrupadas por grado/sección."""
+    from .models import (ConvocatoriaMarca, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
+                         ConfiguracionCoordinador, grupo_coord_de_grado)
+    qs = ConvocatoriaMarca.objects.filter(area='bilingue').select_related('marcado_por')
 
     # Auto-restricción: un coordinador C1/C2 (no superuser) solo ve su grupo
     mi_grupo = ''
@@ -3090,7 +3130,6 @@ def convocatorias_coordinador(request):
                                                      codigo__in=['C1', 'C2']).first()
         if cc:
             mi_grupo = cc.codigo
-            qs = qs.filter(coord_grupo=cc.codigo)
 
     parcial = request.GET.get('parcial')
     grado = request.GET.get('grado')
@@ -3099,21 +3138,73 @@ def convocatorias_coordinador(request):
         qs = qs.filter(parcial=parcial)
     if grado:
         qs = qs.filter(grado_num=grado)
-    if f_grupo and not mi_grupo:
-        qs = qs.filter(coord_grupo=f_grupo)
-    convocatorias = list(qs[:500])
-    for c in convocatorias:
-        c.asigs_txt = ', '.join(a.asignatura for a in c.asignaturas.all())
+
+    marcas = list(qs.order_by('grado_num', 'seccion', 'alumno_nombre', 'asignatura'))
+
+    # Agrupar por (grado_num, seccion) -> grupo coord, alumnos
+    grupos = {}
+    for m in marcas:
+        gc = grupo_coord_de_grado(m.grado_num)
+        if mi_grupo and gc != mi_grupo:
+            continue
+        if f_grupo and not mi_grupo and gc != f_grupo:
+            continue
+        key = (m.grado_num, m.seccion, m.parcial, m.anio)
+        g = grupos.get(key)
+        if not g:
+            lbl = GRADO_TUTORIA_LABEL.get(m.grado_num, m.grado_num)
+            g = {
+                'grado_num': m.grado_num, 'seccion': m.seccion, 'parcial': m.parcial,
+                'anio': m.anio, 'coord_grupo': gc,
+                'grado_label': f"{lbl} {m.grado_num}.{m.seccion}" if m.seccion else str(lbl),
+                'alumnos': {}, 'n_marcas': 0,
+            }
+            grupos[key] = g
+        a = g['alumnos'].get(m.alumno_id)
+        if not a:
+            a = {'nombre': m.alumno_nombre, 'asigs': [], 'docentes': set(), 'fecha': m.creado_at}
+            g['alumnos'][m.alumno_id] = a
+        nombre_doc = (m.marcado_por.get_full_name() or m.marcado_por.username) if m.marcado_por else '—'
+        a['asigs'].append({'asignatura': m.asignatura, 'por': nombre_doc})
+        a['docentes'].add(nombre_doc)
+        g['n_marcas'] += 1
+
+    grupos_list = []
+    for g in grupos.values():
+        alumnos = list(g['alumnos'].values())
+        for a in alumnos:
+            a['docentes'] = ', '.join(sorted(a['docentes']))
+            a['asigs_txt'] = ', '.join(x['asignatura'] for x in a['asigs'])
+        g['alumnos'] = alumnos
+        g['n_alumnos'] = len(alumnos)
+        grupos_list.append(g)
+    grupos_list.sort(key=lambda g: (g['grado_num'], g['seccion']))
+
+    # Firmas (coordinador + docente guía) por grado, con fallback automático a la fija del grado
+    for g in grupos_list:
+        coord, doc = _firma_convocatoria(g['grado_num'], g['seccion'], g['parcial'], g['anio'])
+        g['firma'] = coord
+        g['docente_firma'] = doc
+
+    from .models import MateriaDocenteBilingue
+
+    es_coord = request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()
+    maestros = sorted(set(MateriaDocenteBilingue.objects.filter(activo=True)
+                          .values_list('docente', flat=True)))
+
     periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
                     .order_by('-anio', '-parcial'))
     return render(request, 'conducta/convocatorias_coordinador.html', {
-        'convocatorias': convocatorias,
+        'grupos': grupos_list,
         'periodos': periodos,
         'grados': [(n, GRADO_TUTORIA_LABEL[n]) for n in range(1, 10)],
         'f_parcial': parcial or '',
         'f_grado': grado or '',
         'f_grupo': f_grupo or '',
         'mi_grupo': mi_grupo,
+        'es_coord': es_coord,
+        'coordinadores': COORDINADORES_BL,
+        'maestros': maestros,
     })
 
 
@@ -3181,3 +3272,242 @@ def tutoria_horario_config(request):
         'periodos': periodos,
         'asignaturas_catalogo': ASIGNATURAS_TUTORIA,
     })
+
+
+# ════════════════════════════════════════════════════════════════════
+# CONVOCATORIA — Ventana 1: tabla por grado (alumnos × asignaturas)
+# <--- hecho por claude code
+# ════════════════════════════════════════════════════════════════════
+def _grados_secciones_bilingue(students):
+    """Lista ordenada de (grado_num, seccion, label, count) a partir de los alumnos."""
+    from .models import GRADO_TUTORIA_LABEL
+    agg = {}
+    for a in students:
+        g, s = _parse_grado_num(a['grado'])
+        if not g:
+            continue
+        agg.setdefault((g, s), 0)
+        agg[(g, s)] += 1
+    out = []
+    for (g, s), n in sorted(agg.items()):
+        out.append({'grado_num': g, 'seccion': s,
+                    'label': f"{GRADO_TUTORIA_LABEL.get(g, g)} {g}.{s}" if s else f"{GRADO_TUTORIA_LABEL.get(g, g)}",
+                    'count': n})
+    return out
+
+
+@login_required
+def convocatoria_grado(request):
+    """Ventana 1: el docente elige grado-sección y marca alumnos × asignaturas."""
+    from .models import (ConvocatoriaMarca, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
+                         ConfiguracionCoordinador)
+    area = 'bilingue'
+    activo = _periodo_activo('bilingue')
+    periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
+                    .order_by('-anio', '-parcial'))
+    try:
+        parcial = int(request.GET.get('parcial') or (activo.parcial if activo else 1))
+        anio = int(request.GET.get('anio') or (activo.anio if activo else timezone.now().year))
+    except (TypeError, ValueError):
+        parcial, anio = (activo.parcial if activo else 1), (activo.anio if activo else timezone.now().year)
+
+    students = obtener_alumnos_bilingue()
+    grados_secciones = _grados_secciones_bilingue(students)
+
+    sel_g = request.GET.get('g')
+    sel_s = request.GET.get('s') or ''
+    tabla = None
+    if sel_g:
+        try:
+            gnum = int(sel_g)
+        except ValueError:
+            gnum = None
+        if gnum:
+            alumnos = [a for a in students if _parse_grado_num(a['grado']) == (gnum, sel_s)]
+            subjects = _horario_grado(gnum, parcial, anio)
+            marks = {}
+            for mk in ConvocatoriaMarca.objects.filter(
+                area=area, parcial=parcial, anio=anio, grado_num=gnum, seccion=sel_s
+            ).select_related('marcado_por'):
+                nombre = ((mk.marcado_por.get_full_name() or mk.marcado_por.username)
+                          if mk.marcado_por_id else '—')
+                marks[(mk.alumno_id, mk.asignatura)] = nombre
+            filas = []
+            for i, a in enumerate(alumnos, start=1):
+                cels = []
+                for sub in subjects:
+                    key = (a['id'], sub['asignatura'])
+                    cels.append({'asig': sub['asignatura'], 'color': sub['color'],
+                                 'marcado': key in marks, 'por': marks.get(key, '')})
+                filas.append({'n': i, 'id': a['id'], 'nombre': a['label'], 'cels': cels})
+            tabla = {
+                'grado_num': gnum, 'seccion': sel_s,
+                'label': f"{GRADO_TUTORIA_LABEL.get(gnum, gnum)} {gnum}.{sel_s}" if sel_s else GRADO_TUTORIA_LABEL.get(gnum, gnum),
+                'subjects': subjects, 'filas': filas,
+            }
+
+    es_coord = (request.user.is_superuser or
+                ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+    subjects_json = json.dumps([{'asignatura': s['asignatura'], 'dias': s['dias']}
+                               for s in (tabla['subjects'] if tabla else [])])
+    return render(request, 'conducta/form_convocatoria_grado.html', {
+        'area': area, 'periodos': periodos, 'periodo_activo': activo,
+        'parcial': parcial, 'anio': anio,
+        'grados_secciones': grados_secciones,
+        'sel_g': sel_g or '', 'sel_s': sel_s,
+        'tabla': tabla, 'es_coord': es_coord, 'subjects_json': subjects_json,
+        'mi_nombre': request.user.get_full_name() or request.user.username,
+        'parcial_rom': {1: 'I', 2: 'II', 3: 'III', 4: 'IV'}.get(parcial, parcial),
+        'fecha_hoy': _dt_module.date.today().isoformat(),
+    })
+
+
+@login_required
+@require_POST
+def convocatoria_marca_toggle(request):
+    """AJAX: marca/desmarca un alumno en una asignatura (guardado al instante)."""
+    from .models import ConvocatoriaMarca
+    body = json.loads(request.body or b'{}')
+    try:
+        parcial = int(body['parcial']); anio = int(body['anio']); grado_num = int(body['grado_num'])
+    except (KeyError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    seccion = (body.get('seccion') or '').strip()
+    alumno_id = (body.get('alumno_id') or '').strip()
+    alumno_nombre = (body.get('alumno_nombre') or '').strip()
+    asignatura = (body.get('asignatura') or '').strip()
+    checked = bool(body.get('checked'))
+    if not alumno_id or not asignatura:
+        return JsonResponse({'ok': False, 'error': 'Faltan datos'}, status=400)
+    if checked:
+        ConvocatoriaMarca.objects.get_or_create(
+            area='bilingue', parcial=parcial, anio=anio, alumno_id=alumno_id, asignatura=asignatura,
+            defaults={'grado_num': grado_num, 'seccion': seccion,
+                      'alumno_nombre': alumno_nombre, 'marcado_por': request.user})
+    else:
+        ConvocatoriaMarca.objects.filter(
+            area='bilingue', parcial=parcial, anio=anio, alumno_id=alumno_id, asignatura=asignatura).delete()
+    return JsonResponse({'ok': True})
+
+
+def _cartas_desde_marcas(grado_num, seccion, parcial, anio):
+    """Construye la lista de cartas (una por alumno convocado) desde las marcas."""
+    from .models import ConvocatoriaMarca, GRADO_TUTORIA_LABEL
+    dias_por_asig = {s['asignatura']: s['dias'] for s in _horario_grado(grado_num, parcial, anio)}
+    por_alumno = {}
+    for m in ConvocatoriaMarca.objects.filter(
+            area='bilingue', parcial=parcial, anio=anio, grado_num=grado_num, seccion=seccion
+    ).order_by('alumno_nombre'):
+        por_alumno.setdefault((m.alumno_id, m.alumno_nombre), []).append(m.asignatura)
+    _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+              'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    cartas = []
+    for (aid, nombre), asigs in por_alumno.items():
+        filas = []
+        for i, asig in enumerate(asigs, start=1):
+            dl = dias_por_asig.get(asig, [])
+            filas.append({'n': i, 'asignatura': asig, 'dias_bool': {d: (d in dl) for d in (1, 2, 3, 4, 5)}})
+        cartas.append({'alumno_nombre': nombre, 'filas': filas})
+    return cartas, GRADO_TUTORIA_LABEL.get(grado_num, grado_num)
+
+
+@login_required
+def convocatoria_firma_guardar(request):
+    """Guarda el coordinador de área que firma la convocatoria de un grado. Solo coordinadores."""
+    if request.method != 'POST':
+        return redirect('convocatorias_coordinador')
+    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
+        messages.error(request, 'No tienes permiso para editar la firma.')
+        return redirect('convocatorias_coordinador')
+    from .models import ConvocatoriaFirma
+    try:
+        gnum = int(request.POST['grado']); parcial = int(request.POST['parcial']); anio = int(request.POST['anio'])
+    except (KeyError, ValueError):
+        messages.error(request, 'Parámetros inválidos.')
+        return redirect('convocatorias_coordinador')
+    sec = request.POST.get('seccion', '') or ''
+    ConvocatoriaFirma.objects.update_or_create(
+        area='bilingue', parcial=parcial, anio=anio, grado_num=gnum, seccion=sec,
+        defaults={'coordinador_firma': (request.POST.get('coordinador_firma', '') or '').strip(),
+                  'docente_firma':     (request.POST.get('docente_firma', '') or '').strip()})
+    messages.success(request, 'Firmas de la convocatoria actualizadas.')
+    return redirect(request.META.get('HTTP_REFERER') or 'convocatorias_coordinador')
+
+
+def _firma_convocatoria(gnum, sec, parcial, anio):
+    """(coordinador_firma, docente_firma) del grado. Si no hay para este parcial/año,
+    usa la firma fija más reciente de ese grado/sección (automático)."""
+    from .models import ConvocatoriaFirma
+    base = ConvocatoriaFirma.objects.filter(area='bilingue', grado_num=gnum, seccion=sec)
+    cf = base.filter(parcial=parcial, anio=anio).first() or base.order_by('-anio', '-parcial').first()
+    return (cf.coordinador_firma, cf.docente_firma) if cf else ('', '')
+
+
+@login_required
+def convocatoria_cartas_pdf(request):
+    """PDF con las cartas individuales de todos los alumnos convocados del grado."""
+    from weasyprint import HTML as _WHTML
+    try:
+        gnum = int(request.GET.get('g')); parcial = int(request.GET.get('parcial')); anio = int(request.GET.get('anio'))
+    except (TypeError, ValueError):
+        return HttpResponse('Parámetros inválidos', status=400)
+    sec = request.GET.get('s') or ''
+    cartas, grado_label = _cartas_desde_marcas(gnum, sec, parcial, anio)
+    fecha_str = request.GET.get('fecha') or _dt_module.date.today().isoformat()
+    try:
+        fecha = _dt_module.date.fromisoformat(fecha_str)
+    except ValueError:
+        fecha = _dt_module.date.today()
+    _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+              'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    ctx = {
+        'cartas': cartas, 'grado_label': grado_label, 'seccion': sec,
+        'parcial_rom': {1: 'I', 2: 'II', 3: 'III', 4: 'IV'}.get(parcial, parcial),
+        'fecha_dia': fecha.day, 'fecha_mes': _MESES[fecha.month - 1], 'fecha_anio': fecha.year,
+    }
+    ctx['coordinador_firma'], ctx['docente_firma'] = _firma_convocatoria(gnum, sec, parcial, anio)
+    for _base in (settings.STATIC_ROOT, *getattr(settings, 'STATICFILES_DIRS', [])):
+        p = os.path.join(str(_base), 'conducta', 'img', 'encabezado.jpg') if _base else ''
+        if p and os.path.exists(p):
+            ctx['logo_path'] = 'file://' + p
+            break
+    html = render_to_string('conducta/pdf/convocatoria_cartas_pdf.html', ctx, request=request)
+    pdf = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="cartas_tutoria_{gnum}-{sec}_P{parcial}.pdf"'
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    return resp
+
+
+@login_required
+def convocatoria_tabla_pdf(request):
+    """PDF con la tabla del grado (alumnos × asignaturas con ✔)."""
+    from weasyprint import HTML as _WHTML
+    from .models import ConvocatoriaMarca, GRADO_TUTORIA_LABEL
+    try:
+        gnum = int(request.GET.get('g')); parcial = int(request.GET.get('parcial')); anio = int(request.GET.get('anio'))
+    except (TypeError, ValueError):
+        return HttpResponse('Parámetros inválidos', status=400)
+    sec = request.GET.get('s') or ''
+    students = obtener_alumnos_bilingue()
+    alumnos = [a for a in students if _parse_grado_num(a['grado']) == (gnum, sec)]
+    subjects = _horario_grado(gnum, parcial, anio)
+    marks = set(ConvocatoriaMarca.objects.filter(
+        area='bilingue', parcial=parcial, anio=anio, grado_num=gnum, seccion=sec
+    ).values_list('alumno_id', 'asignatura'))
+    filas = []
+    for i, a in enumerate(alumnos, start=1):
+        filas.append({'n': i, 'nombre': a['label'],
+                      'cels': [(a['id'], s['asignatura']) in marks for s in subjects]})
+    ctx = {
+        'grado_label': (f"{GRADO_TUTORIA_LABEL.get(gnum, gnum)} {gnum}.{sec}" if sec else GRADO_TUTORIA_LABEL.get(gnum, gnum)),
+        'parcial_rom': {1: 'I', 2: 'II', 3: 'III', 4: 'IV'}.get(parcial, parcial),
+        'subjects': [s['asignatura'] for s in subjects], 'filas': filas,
+        'coordinador_firma': _firma_convocatoria(gnum, sec, parcial, anio)[0],
+    }
+    html = render_to_string('conducta/pdf/convocatoria_tabla_pdf.html', ctx, request=request)
+    pdf = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="tabla_tutoria_{gnum}-{sec}_P{parcial}.pdf"'
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    return resp

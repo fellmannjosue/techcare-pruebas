@@ -1,0 +1,103 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Firma de Mantenimiento – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <style>
+    body { background:#f6f7fb; }
+    .firma-card { max-width:640px; margin:2rem auto; }
+    #sign { width:100%; height:200px; border:2px dashed #b6c2d6; border-radius:10px; background:#fff; touch-action:none; }
+  </style>
+</head>
+<body class="antialiased">
+<div class="container">
+  <div class="card firma-card shadow-sm">
+    <div class="card-body">
+      <div class="text-center mb-3">
+        <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="ANA" height="54">
+        <h2 class="mt-2 mb-0">Firma de Mantenimiento</h2>
+        <div class="text-muted">Asociación Nuevo Amanecer – TechCare</div>
+      </div>
+
+      {% if exito %}
+        <div class="alert alert-success text-center">
+          <i class="ti ti-circle-check fs-1 d-block mb-2"></i>
+          <h3 class="mb-1">¡Firma registrada!</h3>
+          <p class="mb-0">Gracias{% if rec.teacher_name %}, <strong>{{ rec.teacher_name }}</strong>{% endif %}. La firma del mantenimiento <strong>{{ rec.record_id }}</strong> quedó guardada.</p>
+        </div>
+      {% elif ya_firmado %}
+        <div class="alert alert-info text-center">
+          <i class="ti ti-info-circle fs-1 d-block mb-2"></i>
+          <h3 class="mb-1">Este mantenimiento ya fue firmado</h3>
+          <p class="mb-0">Firmado por <strong>{{ rec.teacher_name }}</strong>{% if rec.firmado_en %} el {{ rec.firmado_en|date:"d/m/Y H:i" }}{% endif %}.</p>
+        </div>
+      {% else %}
+        <div class="card card-sm mb-3 bg-light">
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-6"><span class="text-muted small">Registro</span><div class="fw-bold">{{ rec.record_id }}</div></div>
+              <div class="col-6"><span class="text-muted small">Fecha</span><div class="fw-bold">{{ rec.date|date:"d/m/Y" }}</div></div>
+              <div class="col-6"><span class="text-muted small">Maestro</span><div class="fw-bold">{{ rec.teacher_name|default:"—" }}</div></div>
+              <div class="col-6"><span class="text-muted small">Grado</span><div class="fw-bold">{{ rec.grade|default:"—" }}</div></div>
+              <div class="col-6"><span class="text-muted small">Equipo</span><div class="fw-bold">{{ rec.model|default:"—" }}</div></div>
+              <div class="col-6"><span class="text-muted small">Tipo de falla</span><div class="fw-bold">{{ rec.tipo_falla|default:"—" }}</div></div>
+              <div class="col-12"><span class="text-muted small">Solución aplicada</span><div class="fw-bold">{{ rec.solucion|default:"—" }}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-muted small">Firme como evidencia de conformidad con la reparación realizada.</p>
+        <form method="post" id="firmaForm">
+          {% csrf_token %}
+          <input type="hidden" name="firma_data" id="firma_data">
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Firma</label>
+            <canvas id="sign"></canvas>
+            {% if form.firma_data.errors %}<div class="text-danger small">{{ form.firma_data.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="d-flex gap-2 mb-3">
+            <button type="button" class="btn btn-ghost-danger btn-sm" id="clear"><i class="ti ti-eraser me-1"></i>Limpiar</button>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100"><i class="ti ti-device-floppy me-1"></i>Enviar firma</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not exito and not ya_firmado %}
+<script>
+(function () {
+  const canvas = document.getElementById('sign');
+  const ctx = canvas.getContext('2d');
+  let drawing = false, lastX = 0, lastY = 0, hasDrawn = false;
+  function resize() { const r = canvas.getBoundingClientRect(); canvas.width = r.width; canvas.height = r.height; }
+  resize(); window.addEventListener('resize', resize);
+  function pos(e) { const r = canvas.getBoundingClientRect(); const s = e.touches ? e.touches[0] : e; return [s.clientX - r.left, s.clientY - r.top]; }
+  function start(e) { drawing = true;[lastX, lastY] = pos(e); }
+  function move(e) {
+    if (!drawing) return; e.preventDefault();
+    ctx.beginPath(); ctx.moveTo(lastX, lastY);[lastX, lastY] = pos(e); ctx.lineTo(lastX, lastY);
+    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke(); hasDrawn = true;
+  }
+  function end() { drawing = false; }
+  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end); canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+  document.getElementById('clear').addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); hasDrawn = false; });
+  document.getElementById('firmaForm').addEventListener('submit', function (e) {
+    if (!hasDrawn) { e.preventDefault(); alert('Por favor firma antes de enviar.'); return; }
+    document.getElementById('firma_data').value = canvas.toDataURL('image/png');
+  });
+})();
+</script>
+{% endif %}
+</body>
+</html>

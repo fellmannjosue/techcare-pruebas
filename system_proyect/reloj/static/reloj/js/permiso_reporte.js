@@ -15,7 +15,7 @@
   // ── DataTable (3 tablas: general, maestro, vigilante) ──
   document.addEventListener('DOMContentLoaded', function(){
     if (typeof $.fn.DataTable === 'undefined') return;
-    ['#tabla-general', '#tabla-maestro', '#tabla-bono', '#tabla-bono-resumen'].forEach(function(sel){
+    ['#tabla-general-80', '#tabla-general-88', '#tabla-maestro', '#tabla-bono', '#tabla-bono-resumen'].forEach(function(sel){
       var $t = $(sel);
       if (!$t.length) return;
       $t.DataTable({
@@ -29,7 +29,7 @@
         language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
       });
     });
-    document.querySelectorAll('#perm-tabs button[data-bs-toggle="tab"]').forEach(function(b){
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(function(b){
       b.addEventListener('shown.bs.tab', function(){
         try { $.fn.dataTable.tables({visible:true, api:true}).columns.adjust(); } catch(e){}
       });

@@ -22,21 +22,29 @@
   animation: tcIdlePop .28s cubic-bezier(.34, 1.56, .64, 1);
 }
 @keyframes tcIdlePop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* Anillo circular de cuenta regresiva (SVG) */
 #tcIdleWarn .tc-idle-ring {
-  width: 84px; height: 84px; margin: 0 auto .8rem;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: conic-gradient(#f59f00 0deg, #ffe8b3 0deg);
+  width: 122px; height: 122px; margin: 0 auto 1rem;
   position: relative;
 }
-#tcIdleWarn .tc-idle-ring::after {
-  content: ""; position: absolute; inset: 8px; background: #fff; border-radius: 50%;
+#tcIdleWarn .tc-idle-ring svg {
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);          /* empieza arriba (12 en punto) */
 }
-#tcIdleNum { position: relative; font-size: 1.9rem; font-weight: 800; color: #d9480f; z-index: 1; }
+#tcIdleWarn .tc-ring-track { fill: none; stroke: #f1f5f9; stroke-width: 8; }
+#tcIdleWarn .tc-ring-prog {
+  fill: none; stroke: #d9480f; stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 276.46;           /* circunferencia r=44 (2π·44) */
+  stroke-dashoffset: 0;               /* lleno; se vacía durante el countdown */
+}
+#tcIdleNum {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.3rem; font-weight: 800; color: #d9480f;
+  font-variant-numeric: tabular-nums;
+}
 #tcIdleWarn h4 { font-weight: 800; margin: .2rem 0 .3rem; color: #1a2744; }
-#tcIdleWarn p { color: #64748b; font-size: .9rem; margin-bottom: 1rem; }
-#tcIdleWarn .tc-idle-barwrap { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 1.1rem; }
-#tcIdleBar { height: 100%; width: 100%; background: linear-gradient(90deg, #f59f00, #d9480f); border-radius: 99px; transition: width 30s linear; }
+#tcIdleWarn p { color: #64748b; font-size: .9rem; margin-bottom: 1.2rem; }
 #tcIdleStay {
   background: linear-gradient(135deg, #3b82f6, #1971c2); color: #fff; border: 0;
   padding: .6rem 1.4rem; border-radius: .6rem; font-weight: 600; cursor: pointer; width: 100%;

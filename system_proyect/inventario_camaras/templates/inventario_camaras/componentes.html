@@ -1,0 +1,40 @@
+{% extends 'inventario_camaras/base.html' %}
+{% load static %}
+{% block title %}Componentes{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}Componentes{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" id="btnNuevo"><i class="ti ti-plus me-1"></i>Nuevo Componente</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-components me-2 text-muted"></i>{{ total }} componente(s)</h3></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table ic-table">
+        <thead><tr><th>ID</th><th>Detalle</th><th>Sub detalle</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+          {% for o in objetos %}
+          <tr>
+            <td><span class="badge bg-teal-lt text-teal">{{ o.comp_id }}</span></td>
+            <td class="fw-semibold">{{ o.detalle }}</td>
+            <td>{{ o.sub_detalle|default:"—" }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-sm btn-ghost-primary btn-edit" data-url="{% url 'inventario_camaras:componente_editar' o.pk %}" title="Editar"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-sm btn-ghost-danger btn-delete" data-url="{% url 'inventario_camaras:componente_eliminar' o.pk %}" data-id="{{ o.comp_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay componentes en el catálogo.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% include 'inventario_camaras/_form_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'inventario_camaras/js/crud.js' %}?v=2"></script>{% endblock %}

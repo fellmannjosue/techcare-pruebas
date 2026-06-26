@@ -485,9 +485,11 @@ def menu_view(request):
 
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
+        'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
         'show_tickets':     is_admin or can_view_tickets or is_administracion,
         'show_sponsors':    is_admin or can_view_sponsors,
         'show_finanzas':    user.is_superuser or user.email == 'cvalle@ana-hn.org',
+        'show_cfp':         user.is_superuser or user.groups.filter(name='director_cfp').exists(),
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
 
@@ -532,6 +534,7 @@ GRUPOS_SUPER = [
         {'t': 'Sistema de Tickets', 's': 'Gestión de solicitudes', 'i': 'ti-ticket', 'c': '#206bc4', 'url': 'technician_dashboard'},
         {'t': 'Inventario', 's': 'Control de activos', 'i': 'ti-package', 'c': '#2fb344', 'url': 'inventario:dashboard'},
         {'t': 'Mantenimiento', 's': 'Reportes de mantenimiento', 'i': 'ti-tool', 'c': '#d63939', 'url': 'mantenimiento:maintenance_dashboard'},
+        {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
      ]},
     {'key': 'academico', 'titulo': 'Académico', 'icon': 'ti-school', 'color': '#0ca678',
      'desc': 'Coordinación, agendas, enfermería y notas',
@@ -554,6 +557,11 @@ GRUPOS_SUPER = [
      'desc': 'Finanzas personales',
      'cards': [
         {'t': 'Finanzas', 's': 'Control de finanzas personales', 'i': 'ti-coin', 'c': '#f59f00', 'url': 'finanzas_personales:index'},
+     ]},
+    {'key': 'cfp', 'titulo': 'CFP', 'icon': 'ti-calculator', 'color': '#2fb344',
+     'desc': 'Centro de Formación Profesional',
+     'cards': [
+        {'t': 'Contabilidad CFP', 's': 'Talleres y cursos del CFP', 'i': 'ti-calculator', 'c': '#2fb344', 'url': 'cfp:dashboard'},
      ]},
     {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#4263eb',
      'desc': 'Auditoría, actividad, permisos y correos',

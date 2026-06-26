@@ -116,3 +116,26 @@
 .chat-adjunto-file { display:inline-flex; align-items:center; gap:.4rem; margin-top:.35rem; padding:.4rem .6rem; background:rgba(0,0,0,.06); border-radius:.5rem; text-decoration:none; color:inherit; font-size:.85rem; font-weight:600; }
 .chat-adjunto-file:hover { background:rgba(0,0,0,.12); }
 .chat-adjunto-name { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── Responsive móvil (hecho por claude code) ── */
+@media (max-width: 768px) {
+  .ticket-panel-wrap { flex-direction: column; height: calc(100vh - 130px); }
+  .ticket-sidebar {
+    width: 100%; flex: 0 0 auto; max-height: 34%;
+    border-right: none; border-bottom: 1px solid #e9ecef;
+  }
+  .ticket-chat-panel { flex: 1 1 auto; min-height: 0; }
+  .chat-panel-header,
+  .chat-panel-status-bar,
+  .chat-footer { padding-left: .85rem; padding-right: .85rem; }
+  .chat-scroll { padding: .85rem; }
+  .chat-bubble { max-width: 85%; }
+  .chat-panel-header .text-muted.small[style] { max-width: 100% !important; }
+  .chat-panel-status-bar #chat-status-select { width: 100% !important; }
+  .chat-panel-status-bar .flex-fill { flex: 1 1 100%; }
+}
+@media (max-width: 480px) {
+  .ticket-panel-wrap { height: calc(100vh - 110px); border-radius: 0; }
+  .chat-attach-actions .btn-icon { width: 34px; height: 34px; }
+  .chat-bubble { max-width: 92%; font-size: .85rem; }
+}

@@ -738,7 +738,9 @@ class ReportePermisoMensual(models.Model):
 class BonoConfig(models.Model):
     """Configuración global de las reglas fijas del Bono por Asistencia."""
     from datetime import time as _t
-    hora_limite        = models.TimeField("Hora máxima de entrada", default=_t(6, 57))
+    hora_limite        = models.TimeField("Hora máxima de entrada", default=_t(6, 58))
+    intentos_tarde     = models.PositiveSmallIntegerField(
+        "Entradas tarde toleradas (pierde al siguiente)", default=2)
     regla_otro_pagado  = models.BooleanField("Regla: Otro Pagado activa", default=True)
     regla_enfermedad   = models.BooleanField("Regla: Enfermedad activa", default=True)
     regla_hora_activa  = models.BooleanField("Regla: Hora de entrada activa", default=True)
@@ -942,6 +944,10 @@ class RelojConfigGlobal(models.Model):
         'Horas Diarias Lab. visible para todos', default=True,
         help_text='Si False, la columna solo la ve el superusuario.'
     )
+    # Reglas configurables de rebaja por tardanza (minutos → horas).
+    # Cada regla: {"min": int, "max": int, "horas": float}. El último tramo
+    # también aplica a valores por encima de su "max".
+    tarde_reglas = models.JSONField('Reglas de rebaja por tardanza', blank=True, default=list)
 
     class Meta:
         db_table = 'reloj_config_global'

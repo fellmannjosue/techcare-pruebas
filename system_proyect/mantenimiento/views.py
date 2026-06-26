@@ -7,13 +7,19 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles import finders
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_protect
 
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 
 from inventario.models import Computadora
 from .models import MaintenanceRecord, MaestroMantenimiento, GradoMantenimiento, FotoMantenimiento, TipoFalla
-from .forms import MaintenanceRecordForm
+from .forms import MaintenanceRecordForm, FirmaMaestroForm
+
+# URL pública del sistema (incluye el puerto :437). El link de firma del maestro
+# DEBE llevar el puerto o no funciona; request.get_host() lo pierde detrás de Apache.
+SITE_URL = 'https://servicios.ana-hn.org:437'
 
 
 def _siguiente_record_id():
@@ -31,10 +37,25 @@ def _siguiente_record_id():
     return f"{prefix}{n+1:03d}"
 
 
+def _resolver_post_tipo_falla(request):
+    """Si se eligió 'Agregar nueva falla…' (tipo_falla='__nueva__'), crea el TipoFalla
+    con el texto escrito y lo deja resuelto en una copia del POST."""
+    post = request.POST
+    if post.get('tipo_falla') == '__nueva__':
+        post = post.copy()
+        nombre = (post.get('tipo_falla_nueva') or '').strip()
+        if nombre:
+            tf, _ = TipoFalla.objects.get_or_create(nombre=nombre)
+            post['tipo_falla'] = str(tf.id)
+        else:
+            post['tipo_falla'] = ''
+    return post
+
+
 @login_required
 def maintenance_dashboard(request):
     if request.method == 'POST':
-        form = MaintenanceRecordForm(request.POST, request.FILES)
+        form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES)
         if form.is_valid():
             record = form.save(commit=False)
             record.record_id = _siguiente_record_id()
@@ -47,6 +68,9 @@ def maintenance_dashboard(request):
             firma_data = request.POST.get('firma_data', '').strip()
             if firma_data:
                 record.firma = firma_data
+            firma_tec = request.POST.get('firma_tecnico_data', '').strip()
+            if firma_tec:
+                record.firma_tecnico = firma_tec
             record.save()
             for f in request.FILES.getlist('fotos'):
                 FotoMantenimiento.objects.create(registro=record, imagen=f)
@@ -67,6 +91,8 @@ def maintenance_dashboard(request):
     records = MaintenanceRecord.objects.all().order_by('-date')
 
     import json
+    # Solo computadoras de general (excluye laboratorios)
+    comps_qs = Computadora.objects.exclude(asset_id__icontains='LAB').order_by('asset_id')
     computadoras_json = json.dumps({
         str(c.id): {
             'modelo':   c.modelo,
@@ -75,17 +101,18 @@ def maintenance_dashboard(request):
             'area':     c.area or '',
             'grado':    c.grado or '',
         }
-        for c in Computadora.objects.all().order_by('asset_id')
+        for c in comps_qs
     })
 
     return render(request, 'mantenimiento/maintenance_dashboard.html', {
         'form':              form,
         'records':           records,
+        'site_url':          SITE_URL,
         'total':             records.count(),
         'pendiente':         records.filter(status='Pendiente').count(),
         'en_proceso':        records.filter(status='En Proceso').count(),
         'completado':        records.filter(status='Completado').count(),
-        'computadoras':      Computadora.objects.all().order_by('asset_id'),
+        'computadoras':      comps_qs,
         'computadoras_json': computadoras_json,
         'maestros':          MaestroMantenimiento.objects.all(),
         'grados':            GradoMantenimiento.objects.all(),
@@ -229,36 +256,48 @@ def download_maintenance_pdf(request, record_id):
     story.append(diag_tbl)
     story.append(Spacer(1, 0.4*cm))
 
-    # ── Sección: Firma ────────────────────────────────────────────
-    story.append(_st("Firma de Conformidad"))
+    # ── Sección: Firmas (Técnico y Maestro) ───────────────────────
+    story.append(_st("Firmas de Conformidad"))
     story.append(Spacer(1, 0.4*cm))
 
-    if record.firma:
+    def _firma_img(b64):
+        """Devuelve un RLImage de la firma base64 sobre fondo blanco, o '' si no hay."""
+        if not (b64 or '').strip():
+            return ""
         try:
-            # Decodificar base64 y componer sobre fondo blanco (canvas genera RGBA)
-            b64 = re.sub(r'^data:image/[^;]+;base64,', '', record.firma)
-            img_bytes = base64.b64decode(b64)
-            pil_img = PILImage.open(BytesIO(img_bytes)).convert('RGBA')
+            raw = re.sub(r'^data:image/[^;]+;base64,', '', b64)
+            pil_img = PILImage.open(BytesIO(base64.b64decode(raw))).convert('RGBA')
             bg = PILImage.new('RGB', pil_img.size, (255, 255, 255))
             bg.paste(pil_img, mask=pil_img.split()[3])
-            out_buf = BytesIO()
-            bg.save(out_buf, format='PNG')
-            out_buf.seek(0)
-            firma_img = RLImage(out_buf, width=6*cm, height=2.5*cm)
-            firma_tbl = Table([[firma_img]], colWidths=[17.3*cm])
-            firma_tbl.setStyle(TableStyle([
-                ("ALIGN", (0,0), (-1,-1), "CENTER"),
-            ]))
-            story.append(firma_tbl)
-        except Exception as e:
-            story.append(Spacer(1, 2*cm))
-    else:
-        story.append(Spacer(1, 2*cm))
+            out_buf = BytesIO(); bg.save(out_buf, format='PNG'); out_buf.seek(0)
+            return RLImage(out_buf, width=6*cm, height=2.3*cm)
+        except Exception:
+            return ""
 
-    story.append(HRFlowable(width="40%", thickness=1, color=colors.gray,
-                             hAlign="CENTER"))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("Firma del responsable", st_center))
+    st_firma_lbl = ParagraphStyle("flbl", fontSize=8, fontName="Helvetica-Bold",
+                                  textColor=colors.HexColor("#333333"), alignment=TA_CENTER)
+    st_firma_sub = ParagraphStyle("fsub", fontSize=7, fontName="Helvetica-Oblique",
+                                  textColor=colors.gray, alignment=TA_CENTER)
+
+    linea = HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER")
+    sub_maestro = (f"{record.teacher_name}" if record.teacher_name else "")
+    if record.firmado_en:
+        sub_maestro += f" · {record.firmado_en.strftime('%d/%m/%Y %H:%M')}"
+
+    col_tec = [_firma_img(record.firma_tecnico) or Spacer(1, 2.3*cm), Spacer(1, 0.1*cm),
+               linea, Spacer(1, 0.1*cm),
+               Paragraph("Firma del Técnico (Soporte)", st_firma_lbl)]
+    col_mae = [_firma_img(record.firma) or Spacer(1, 2.3*cm), Spacer(1, 0.1*cm),
+               HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
+               Paragraph("Firma del Maestro (Evidencia)", st_firma_lbl),
+               Paragraph(sub_maestro, st_firma_sub)]
+
+    firmas_tbl = Table([[col_tec, col_mae]], colWidths=[8.65*cm, 8.65*cm])
+    firmas_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "BOTTOM"),
+        ("ALIGN",  (0,0), (-1,-1), "CENTER"),
+    ]))
+    story.append(firmas_tbl)
     story.append(Spacer(1, 0.6*cm))
 
     # ── Pie de página ─────────────────────────────────────────────
@@ -286,7 +325,7 @@ def editar_mantenimiento(request, pk):
     record = get_object_or_404(MaintenanceRecord, pk=pk)
 
     if request.method == 'POST':
-        form = MaintenanceRecordForm(request.POST, request.FILES, instance=record)
+        form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES, instance=record)
         if form.is_valid():
             rec = form.save(commit=False)
             comp = rec.computadora
@@ -298,6 +337,9 @@ def editar_mantenimiento(request, pk):
             firma_data = request.POST.get('firma_data', '').strip()
             if firma_data:
                 rec.firma = firma_data
+            firma_tec = request.POST.get('firma_tecnico_data', '').strip()
+            if firma_tec:
+                rec.firma_tecnico = firma_tec
             rec.save()
             for f in request.FILES.getlist('fotos'):
                 FotoMantenimiento.objects.create(registro=rec, imagen=f)
@@ -324,8 +366,57 @@ def editar_mantenimiento(request, pk):
         'solucion':     record.solucion or '',
         'observaciones':record.observaciones or '',
         'firma':        record.firma or '',
+        'firma_tecnico':record.firma_tecnico or '',
     }
     return JsonResponse(data)
+
+
+# ─────────────────────────────────────────────────────────────
+# FIRMA REMOTA DEL MAESTRO (link público con token, sin login)
+# ─────────────────────────────────────────────────────────────
+@csrf_protect
+def firmar_publico(request, token):
+    rec = get_object_or_404(MaintenanceRecord, token_firma=token)
+
+    # El token es de un solo uso: solo se considera "ya firmado" cuando se firmó
+    # por este link (firmado_en). Así el enlace vence tras usarse y se protege.
+    if rec.firmado_en:
+        return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'ya_firmado': True})
+
+    if request.method == 'POST':
+        form = FirmaMaestroForm(request.POST)
+        if form.is_valid():
+            rec.firma      = form.cleaned_data['firma_data']
+            rec.firmado_en = timezone.now()
+            rec.save(update_fields=['firma', 'firmado_en'])
+            return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'exito': True})
+    else:
+        form = FirmaMaestroForm()
+
+    return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'form': form})
+
+
+@login_required
+def tipo_falla_crear(request):
+    """AJAX: crea un nuevo Tipo de Falla y lo devuelve."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    nombre = (request.POST.get('nombre', '') or '').strip()
+    if not nombre:
+        return JsonResponse({'ok': False, 'error': 'Nombre requerido'}, status=400)
+    obj, _ = TipoFalla.objects.get_or_create(nombre=nombre)
+    return JsonResponse({'ok': True, 'id': obj.id, 'nombre': obj.nombre})
+
+
+@login_required
+def marcar_firma_solicitada(request, pk):
+    """Marca que ya se mandó el link de firma al maestro (AJAX)."""
+    rec = get_object_or_404(MaintenanceRecord, pk=pk)
+    if request.method == 'POST':
+        rec.firma_solicitada = True
+        rec.save(update_fields=['firma_solicitada'])
+        return JsonResponse({'ok': True})
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
 # ─────────────────────────────────────────────────────────────

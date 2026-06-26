@@ -6,11 +6,9 @@
 {% block nav_computadoras %}active{% endblock %}
 
 {% block page_actions %}
-<div class="col-auto ms-auto">
-  <a href="{% url 'inventario:filtro_computadoras' %}" class="btn btn-ghost-secondary">
-    <i class="ti ti-filter me-1"></i> Filtrar
-  </a>
-</div>
+<a href="{% url 'inventario:filtro_computadoras' %}" class="btn btn-ghost-secondary">
+  <i class="ti ti-filter me-1"></i> Filtrar
+</a>
 {% endblock %}
 
 {% block content %}

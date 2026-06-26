@@ -25,8 +25,13 @@ class MaintenanceRecordForm(forms.ModelForm):
         from .models import MaestroMantenimiento, GradoMantenimiento
         from inventario.models import Computadora
 
-        self.fields['computadora'].queryset = Computadora.objects.all().order_by('asset_id')
+        # Solo computadoras de general (excluye laboratorios: IDANALAB*, IDCFPLAB*)
+        self.fields['computadora'].queryset = (
+            Computadora.objects.exclude(asset_id__icontains='LAB').order_by('asset_id'))
         self.fields['computadora'].empty_label = '— Seleccionar computadora —'
+        # Mostrar también el nombre del asignado para identificar mejor
+        self.fields['computadora'].label_from_instance = (
+            lambda o: f"{o.asset_id} – {o.modelo}" + (f" · {o.asignado_a}" if o.asignado_a else ""))
 
         self.fields['serie'].required        = False
         self.fields['model'].required        = False
@@ -34,3 +39,14 @@ class MaintenanceRecordForm(forms.ModelForm):
         self.fields['teacher_name'].widget   = forms.HiddenInput()
         self.fields['grade'].required        = False
         self.fields['grade'].widget          = forms.HiddenInput()
+
+
+class FirmaMaestroForm(forms.Form):
+    """Formulario público (sin login) para que el maestro firme por link."""
+    firma_data = forms.CharField(widget=forms.HiddenInput, required=True)
+
+    def clean_firma_data(self):
+        data = (self.cleaned_data.get('firma_data') or '').strip()
+        if not data or not data.startswith('data:image'):
+            raise forms.ValidationError("Debes firmar antes de enviar.")
+        return data

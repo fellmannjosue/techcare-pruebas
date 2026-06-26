@@ -62,9 +62,29 @@
 </ul>
 <div class="tab-content">
   <div class="tab-pane fade show active" id="pt-general">
-    <div class="card"><div class="card-body p-0"><div class="table-responsive">
-      {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general tabla_id='tabla-general' %}
-    </div></div></div>
+    <div class="d-flex align-items-center mb-3">
+      <ul class="nav nav-pills gap-1 mb-0" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptg-80" type="button"><i class="ti ti-clock me-1"></i>8.0 h/d <span class="badge bg-secondary-lt ms-1">{{ rows_general_80|length }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptg-88" type="button"><i class="ti ti-clock me-1"></i>8.8 h/d <span class="badge bg-secondary-lt ms-1">{{ rows_general_88|length }}</span></button></li>
+      </ul>
+      {% if request.user.is_superuser %}
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#modalReglasTarde">
+        <i class="ti ti-settings me-1"></i>Reglas de tardanza
+      </button>
+      {% endif %}
+    </div>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="ptg-80">
+        <div class="card"><div class="card-body p-0"><div class="table-responsive">
+          {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general_80 tabla_id='tabla-general-80' %}
+        </div></div></div>
+      </div>
+      <div class="tab-pane fade" id="ptg-88">
+        <div class="card"><div class="card-body p-0"><div class="table-responsive">
+          {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general_88 tabla_id='tabla-general-88' %}
+        </div></div></div>
+      </div>
+    </div>
   </div>
   <div class="tab-pane fade" id="pt-maestro">
     <div class="card"><div class="card-body p-0"><div class="table-responsive">
@@ -510,12 +530,37 @@
     </div>
   </div>
 </div>
+
+{# ── Modal: Reglas de rebaja por tardanza ── #}
+<div class="modal modal-blur fade" id="modalReglasTarde" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-clock-pause me-2 text-orange"></i>Reglas de rebaja por tardanza</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Define cuántas horas se rebajan según los minutos de tardanza. El último tramo aplica también por encima de su máximo.</p>
+        <table class="table table-sm table-bordered align-middle">
+          <thead><tr><th>Desde (min)</th><th>Hasta (min)</th><th>Rebaja (horas)</th></tr></thead>
+          <tbody id="rt-body"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="rt-guardar"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{{ tarde_reglas|json_script:"rt-data" }}
 {% endblock %}
 
 {% block extra_js %}
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src="{% static 'js/dt_guard.js' %}"></script>
 <script>
 window._PAGE = {
   urlSet:              '{% url "reloj_permiso_reporte_set_campo" %}',
@@ -823,4 +868,44 @@ window._PAGE = {
   {% endif %}
 })();
 </script>
+
+{% if request.user.is_superuser %}
+<script>
+(function () {
+  var dataEl = document.getElementById('rt-data');
+  var body   = document.getElementById('rt-body');
+  if (!body) return;
+  var reglas = [];
+  try { reglas = JSON.parse(dataEl.textContent || '[]'); } catch (e) {}
+  if (!reglas.length) reglas = [{min:11, max:30, horas:0.5}, {min:31, max:60, horas:1.0}];
+  body.innerHTML = reglas.map(function (r) {
+    return '<tr>' +
+      '<td><input type="number" class="form-control form-control-sm rt-min" value="' + r.min + '"></td>' +
+      '<td><input type="number" class="form-control form-control-sm rt-max" value="' + (r.max == null ? '' : r.max) + '"></td>' +
+      '<td><input type="number" step="0.25" class="form-control form-control-sm rt-h" value="' + r.horas + '"></td>' +
+    '</tr>';
+  }).join('');
+  var btn = document.getElementById('rt-guardar');
+  if (btn) btn.addEventListener('click', function () {
+    var out = [];
+    document.querySelectorAll('#rt-body tr').forEach(function (tr) {
+      out.push({
+        min:   tr.querySelector('.rt-min').value,
+        max:   tr.querySelector('.rt-max').value,
+        horas: tr.querySelector('.rt-h').value,
+      });
+    });
+    btn.disabled = true;
+    fetch('{% url "reloj_set_tarde_reglas" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reglas: out }),
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      btn.disabled = false;
+      if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); }
+    }).catch(function () { btn.disabled = false; alert('Error de red'); });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

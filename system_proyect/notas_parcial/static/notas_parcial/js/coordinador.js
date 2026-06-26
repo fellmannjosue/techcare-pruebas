@@ -51,10 +51,29 @@
     document.getElementById('frmFiltro').submit();
   });
 
-  // ── Guardar comentario ──
-  async function guardar(tr) {
-    const btn = tr.querySelector('.btn-guardar-uno');
-    const msg = tr.querySelector('.estado-msg');
+  // ── Contador de palabras (máx 40) ──
+  function contarPalabras(s) { return (s.trim().match(/\S+/g) || []).length; }
+  function actualizarContador(ta) {
+    const box = ta.closest('.cmt-box'); if (!box) return;
+    const w = contarPalabras(ta.value);
+    const lbl = box.querySelector('.cmt-words');
+    if (lbl) { lbl.textContent = w + '/40 palabras'; lbl.className = 'cmt-words small ' + (w > 40 ? 'text-danger fw-bold' : 'text-muted'); }
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList.contains('comentario-txt')) actualizarContador(e.target);
+  });
+  document.querySelectorAll('.comentario-txt').forEach(actualizarContador);
+
+  // ── Guardar comentario (por maestro/caja) ──
+  async function guardar(box) {
+    const tr  = box.closest('.alumno-card') || box.closest('[data-iid]');
+    const ta  = box.querySelector('.comentario-txt');
+    const btn = box.querySelector('.btn-guardar-uno');
+    const msg = box.querySelector('.estado-msg');
+    if (contarPalabras(ta.value) > 40) {
+      msg.className = 'estado-msg small saved-err'; msg.textContent = 'Máx. 40 palabras';
+      return;
+    }
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     try {
@@ -62,67 +81,63 @@
         method: 'POST',
         headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ingr_egr_id: tr.dataset.iid,
-          parcial:     tr.dataset.parcial,
-          anio:        tr.dataset.anio,
-          area:        tr.dataset.area,
-          comentario:  tr.querySelector('.comentario-txt').value,
+          ingr_egr_id: tr.dataset.iid, parcial: tr.dataset.parcial,
+          anio: tr.dataset.anio, area: tr.dataset.area,
+          maestro_id: box.dataset.maestro,
+          comentario: ta.value,
         }),
       });
       const d = await res.json();
       if (d.ok) {
         btn.classList.replace('btn-outline-success', 'btn-success');
         btn.innerHTML = '<i class="ti ti-circle-check"></i>';
-        btn.disabled = true;
-        msg.className = 'estado-msg'; msg.textContent = '';
+        msg.className = 'estado-msg small saved-ok'; msg.textContent = '✓';
+        setTimeout(() => { msg.textContent = ''; btn.classList.replace('btn-success','btn-outline-success'); btn.innerHTML = '<i class="ti ti-check"></i>'; btn.disabled = false; }, 2000);
       } else {
-        msg.className = 'estado-msg saved-err'; msg.textContent = '✗';
-        setTimeout(() => { msg.textContent = ''; }, 3000);
-        btn.disabled = false;
+        msg.className = 'estado-msg small saved-err'; msg.textContent = d.error || '✗';
+        btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>';
       }
     } catch (e) {
-      msg.className = 'estado-msg saved-err'; msg.textContent = '✗';
-      setTimeout(() => { msg.textContent = ''; }, 3000);
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-check"></i>';
+      msg.className = 'estado-msg small saved-err'; msg.textContent = '✗';
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>';
     }
   }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.btn-guardar-uno');
+    if (b) { const box = b.closest('.cmt-box'); if (box) guardar(box); }
+  });
 
-  // ── Asignar maestro ──
+  // ── Asignar / quitar maestro (recarga para refrescar chips + cajas) ──
+  async function asignarAccion(banner, maestroId, accion) {
+    const res = await fetch(URL_ASIG, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accion: accion, maestro_id: maestroId,
+        area: window._PAGE.area, parcial: window._PAGE.parcial, anio: window._PAGE.anio,
+        grado: banner.dataset.grado, seccion: banner.dataset.seccion,
+      }),
+    });
+    return (await res.json()).ok;
+  }
   document.querySelectorAll('.btn-asignar').forEach(btn => {
     btn.addEventListener('click', async function () {
-      const banner    = btn.closest('.asig-banner');
-      const grado     = banner.dataset.grado;
-      const seccion   = banner.dataset.seccion;
-      const maestroId = banner.querySelector('.sel-maestro').value;
-      const msgEl     = banner.querySelector('.asig-msg');
-      const nombreEl  = banner.querySelector('.maestro-nombre');
+      const banner = btn.closest('.asig-banner');
+      const sel = banner.querySelector('.sel-maestro');
+      const maestroId = sel.value;
+      if (!maestroId) return;
       btn.disabled = true;
-      try {
-        const res = await fetch(URL_ASIG, {
-          method: 'POST',
-          headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            maestro_id: maestroId || null,
-            area:    window._PAGE.area,
-            parcial: window._PAGE.parcial,
-            anio:    window._PAGE.anio,
-            grado, seccion,
-          }),
-        });
-        const d = await res.json();
-        if (d.ok) {
-          nombreEl.textContent = d.nombre || '—';
-          msgEl.className = 'asig-msg saved-ok'; msgEl.textContent = '✓ Guardado';
-          setTimeout(() => { msgEl.textContent = ''; }, 3000);
-        } else {
-          msgEl.className = 'asig-msg saved-err'; msgEl.textContent = 'Error';
-        }
-      } catch (e) {
-        msgEl.className = 'asig-msg saved-err'; msgEl.textContent = 'Error';
-      }
-      btn.disabled = false;
+      if (await asignarAccion(banner, maestroId, 'add')) location.reload();
+      else { btn.disabled = false; banner.querySelector('.asig-msg').textContent = 'Error'; }
     });
+  });
+  document.addEventListener('click', async function (e) {
+    var rm = e.target.closest && e.target.closest('.chip-remove');
+    if (!rm) return;
+    e.preventDefault();
+    const chip = rm.closest('.chip-maestro');
+    const banner = rm.closest('.asig-banner');
+    if (await asignarAccion(banner, chip.dataset.maestro, 'remove')) location.reload();
   });
 
   function activarEnvio() {
@@ -147,9 +162,9 @@
   }
 
   async function revisarTodo() {
-    for (const tr of document.querySelectorAll('#lista-alumnos tr[data-iid]'))
-      await guardar(tr);
-    // Marcar cada fila como revisada visualmente
+    for (const box of document.querySelectorAll('#lista-alumnos .cmt-box'))
+      await guardar(box);
+    // Marcar cada caja como revisada visualmente
     document.querySelectorAll('#lista-alumnos .btn-guardar-uno').forEach(btn => {
       btn.classList.replace('btn-outline-success', 'btn-success');
       btn.innerHTML = '<i class="ti ti-circle-check"></i>';
@@ -217,48 +232,7 @@
     actualizarCarrusel();
   })();
 
-  // ── Guardar comentario desde carrusel ──
-  document.querySelectorAll('.btn-guardar-carrusel').forEach(btn => {
-    btn.addEventListener('click', async function () {
-      const slide = this.closest('.slide-coord');
-      const msg   = slide.querySelector('.estado-msg-carrusel');
-      const ta    = slide.querySelector('.comentario-txt-carrusel');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-      try {
-        const res = await fetch(URL_SAVE, {
-          method: 'POST',
-          headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ingr_egr_id: slide.dataset.iid,
-            parcial:     slide.dataset.parcial,
-            anio:        slide.dataset.anio,
-            area:        slide.dataset.area,
-            comentario:  ta.value,
-          }),
-        });
-        const d = await res.json();
-        if (d.ok) {
-          btn.classList.replace('btn-outline-success', 'btn-success');
-          btn.innerHTML = '<i class="ti ti-circle-check me-1"></i>Guardado';
-          msg.style.color = '#2fb344'; msg.textContent = '';
-          setTimeout(() => {
-            btn.classList.replace('btn-success', 'btn-outline-success');
-            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-            btn.disabled = false;
-          }, 2000);
-        } else {
-          msg.style.color = '#d63939'; msg.textContent = '✗ Error';
-          btn.disabled = false;
-          btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-        }
-      } catch (e) {
-        msg.style.color = '#d63939'; msg.textContent = '✗ Error';
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar';
-      }
-    });
-  });
+  // (El guardado del carrusel ahora usa las cajas .cmt-box con guardado delegado.)
 
   // ── Enviar PDF por correo ──
   document.getElementById('btnConfirmarEnvio')?.addEventListener('click', async function () {
@@ -300,9 +274,7 @@
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.btn-guardar-uno').forEach(btn => {
-      btn.addEventListener('click', () => guardar(btn.closest('tr')));
-    });
+    // El guardado por caja se maneja con delegación de eventos (ver arriba).
     document.getElementById('btnRevisado')?.addEventListener('click', revisarTodo);
     document.getElementById('btnRevisado2')?.addEventListener('click', revisarTodo);
   });

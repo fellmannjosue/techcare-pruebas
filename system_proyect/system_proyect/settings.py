@@ -85,7 +85,9 @@ INSTALLED_APPS = [
     'reloj',
     'calculadoras',
     'finanzas_personales',
+    'cfp',
     'notas_parcial',
+    'inventario_camaras',
 
     # Apps en construcción
     'atencion_padres',
@@ -226,6 +228,7 @@ _raw_static_dirs = [
     BASE_DIR / "system_proyect/core/static",
     BASE_DIR / "system_proyect/enfermeria/static",
     BASE_DIR / "system_proyect/finanzas_personales/static",
+    BASE_DIR / "system_proyect/cfp/static",
     BASE_DIR / "system_proyect/notas_parcial/static",
     BASE_DIR / "system_proyect/reloj/static",
     BASE_DIR / "system_proyect/static",

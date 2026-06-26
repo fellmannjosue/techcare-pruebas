@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page { size: letter portrait; margin: 1.2cm; }
+  body { font-family: "Times New Roman", Georgia, serif; font-size: 10.5pt; color: #000; }
+  h1 { text-align: center; font-size: 13pt; font-weight: bold; margin: 0 0 10px; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #000; padding: 3px 5px; }
+  thead th { text-align: center; font-weight: bold; }
+  td.n { width: 30px; text-align: center; }
+  td.alumno { text-align: left; }
+  td.chk { text-align: center; width: 70px; }
+  .gradohdr { font-weight: bold; }
+</style></head><body>
+  <h1>Convocatoria a tutorías {{ parcial_rom }} Parcial</h1>
+  <table>
+    <thead>
+      <tr>
+        <th colspan="2" class="gradohdr">{{ grado_label }}</th>
+        <th colspan="{{ subjects|length }}">Asignatura</th>
+      </tr>
+      <tr>
+        <th class="n">Nº</th><th>Alumno</th>
+        {% for s in subjects %}<th class="chk">{{ s }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="n">{{ f.n }}</td>
+        <td class="alumno">{{ f.nombre }}</td>
+        {% for c in f.cels %}<td class="chk">{% if c %}✔{% endif %}</td>{% endfor %}
+      </tr>
+      {% empty %}
+      <tr><td colspan="{{ subjects|length|add:2 }}" style="text-align:center;color:#999;">Sin alumnos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if coordinador_firma %}
+  <div style="margin-top:46px;width:58%;margin-left:auto;margin-right:auto;text-align:center;">
+    <div style="font-weight:bold;font-size:10pt;">{{ coordinador_firma }}</div>
+    <div style="border-top:1px solid #000;padding-top:2px;font-weight:bold;font-size:9.5pt;">COORDINADOR DE ÁREA</div>
+  </div>
+  {% endif %}
+</body></html>

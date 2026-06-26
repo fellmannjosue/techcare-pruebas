@@ -13,8 +13,12 @@
 
 {% block content %}
 <div class="card">
-  <div class="card-header">
-    <h3 class="card-title"><i class="ti ti-calendar-week me-2 text-blue"></i>Todas las Agendas</h3>
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title mb-0"><i class="ti ti-calendar-week me-2 text-blue"></i>Todas las Agendas</h3>
+    <button type="button" class="btn btn-outline-warning ms-auto" data-bs-toggle="modal" data-bs-target="#modalBloqueo">
+      <i class="ti ti-lock me-1"></i>Bloqueo por día
+      {% if bloqueo_cfg.activo %}<span class="badge bg-warning ms-1">ON</span>{% endif %}
+    </button>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -105,11 +109,99 @@
     </div>
   </div>
 </div>
+
+{# ── Modal: Horario de bloqueo de agendas ── #}
+<div class="modal modal-blur fade" id="modalBloqueo" tabindex="-1" aria-hidden="true">
+  <form class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" id="form-bloqueo">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-lock me-2 text-warning"></i>Horario de llenado de agendas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-light small mb-3">
+          <strong>Reglas automáticas:</strong> Lunes → solo los permitidos · Martes y Miércoles → abierto ·
+          Jueves → abierto hasta la hora de cierre · Viernes → cerrado. Los coordinadores nunca se bloquean.
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Estado del horario</label>
+            <label class="form-check form-switch fs-3">
+              <input class="form-check-input" type="checkbox" id="bq-activo" {% if bloqueo_cfg.activo %}checked{% endif %}>
+              <span class="form-check-label" id="bq-activo-lbl">{% if bloqueo_cfg.activo %}Activo{% else %}Inactivo{% endif %}</span>
+            </label>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Jueves — hora de cierre</label>
+            <input type="time" id="bq-jueves" class="form-control" value="{{ bloqueo_cfg.jueves_limite|time:'H:i' }}" style="max-width:160px;">
+          </div>
+        </div>
+        <div class="mb-2"><label class="form-label fw-semibold">Mensaje — Lunes (no permitidos)</label>
+          <textarea id="bq-mensaje" class="form-control" rows="2">{{ bloqueo_cfg.mensaje }}</textarea></div>
+        <div class="mb-2"><label class="form-label fw-semibold">Mensaje — Jueves (cerrado)</label>
+          <textarea id="bq-mensaje-jue" class="form-control" rows="2">{{ bloqueo_cfg.mensaje_jueves }}</textarea></div>
+        <div class="mb-3"><label class="form-label fw-semibold">Mensaje — Viernes (cerrado)</label>
+          <textarea id="bq-mensaje-vie" class="form-control" rows="2">{{ bloqueo_cfg.mensaje_viernes }}</textarea></div>
+
+        <label class="form-label fw-semibold">Permitidos el <strong>lunes</strong> (los demás se bloquean)</label>
+        <div class="d-flex gap-2 mb-2">
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="bq-all">Marcar todos</button>
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="bq-none">Desmarcar todos</button>
+        </div>
+        <div class="row g-1" style="max-height:300px;overflow:auto;">
+          {% for m in maestros_bl %}
+          <div class="col-md-6">
+            <label class="form-check">
+              <input class="form-check-input bq-maestro" type="checkbox" value="{{ m.id }}" {% if m.id in bloqueo_ids %}checked{% endif %}>
+              <span class="form-check-label">{{ m.get_full_name|default:m.username }}</span>
+            </label>
+          </div>
+          {% empty %}
+          <div class="text-muted">No hay maestros en el grupo bilingüe.</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="bq-guardar"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="{% static 'js/dt_guard.js' %}"></script>
 <script>window._PAGE = { csrf: '{{ csrf_token }}' };</script>
 <script src="{% static 'agendas/js/dashboard_coordinador.js' %}"></script>
+<script>
+(function () {
+  var act = document.getElementById('bq-activo');
+  if (act) act.addEventListener('change', function () {
+    document.getElementById('bq-activo-lbl').textContent = act.checked ? 'Activo' : 'Inactivo';
+  });
+  var all = document.getElementById('bq-all'), none = document.getElementById('bq-none');
+  if (all)  all.addEventListener('click',  function () { document.querySelectorAll('.bq-maestro').forEach(function (c) { c.checked = true; }); });
+  if (none) none.addEventListener('click', function () { document.querySelectorAll('.bq-maestro').forEach(function (c) { c.checked = false; }); });
+  var form = document.getElementById('form-bloqueo');
+  if (form) form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', window._PAGE.csrf);
+    fd.append('activo', act.checked ? '1' : '0');
+    fd.append('mensaje', document.getElementById('bq-mensaje').value);
+    fd.append('mensaje_jueves', document.getElementById('bq-mensaje-jue').value);
+    fd.append('mensaje_viernes', document.getElementById('bq-mensaje-vie').value);
+    fd.append('jueves_limite', document.getElementById('bq-jueves').value);
+    document.querySelectorAll('.bq-maestro:checked').forEach(function (c) { fd.append('maestros', c.value); });
+    var btn = document.getElementById('bq-guardar'); btn.disabled = true;
+    fetch('{% url "agendas:bloqueo_config_guardar" %}', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { btn.disabled = false; if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); } })
+      .catch(function () { btn.disabled = false; alert('Error de red'); });
+  });
+})();
+</script>
 {% endblock %}

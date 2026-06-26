@@ -3815,12 +3815,25 @@ CAMPOS_PERMISO = [
 ]
 
 
-def _rebaja_por_dia(minutos: int) -> float:
-    if minutos >= 31:
-        return 1.0
-    if minutos >= 11:
-        return 0.5
-    return 0.0
+_TARDE_REGLAS_DEFAULT = [
+    {'min': 11, 'max': 30, 'horas': 0.5},
+    {'min': 31, 'max': 60, 'horas': 1.0},
+]
+
+
+def _rebaja_por_dia(minutos: int, reglas=None) -> float:
+    """Horas rebajadas según los minutos de tardanza, usando reglas configurables.
+    Toma el tramo más alto cuyo 'min' se alcanza; el último tramo aplica también
+    por encima de su 'max'."""
+    reglas = reglas or _TARDE_REGLAS_DEFAULT
+    horas = 0.0
+    for rg in sorted(reglas, key=lambda x: x.get('min', 0)):
+        try:
+            if minutos >= int(rg.get('min', 0)):
+                horas = float(rg.get('horas', 0))
+        except (TypeError, ValueError):
+            continue
+    return horas
 
 
 @login_required
@@ -3868,6 +3881,20 @@ def permiso_reporte_list(request):
             tot += wd_h.get(dd.weekday(), 0)  # solo días con horas (laborables)
             dd += _td2(days=1)
         mh_total_mes[ec_m] = round(tot, 2)
+
+    # Restar las horas de los permisos NO PAGADO del total mensual del maestro por hora
+    if maestro_hora_codes:
+        _np = (PermisoReporte.objects
+               .filter(emp_code__in=maestro_hora_codes, tipo='ausencias_dias',
+                       fecha__gte=mes_inicio, fecha__lte=mes_fin)
+               .values('emp_code').annotate(h=_SumMH('horas')))
+        for r in _np:
+            ec_np = str(r['emp_code'])
+            if ec_np in mh_total_mes:
+                mh_total_mes[ec_np] = round(max(0.0, mh_total_mes[ec_np] - float(r['h'] or 0)), 2)
+
+    # Reglas configurables de rebaja por tardanza
+    _tarde_reglas = RelojConfigGlobal.get().tarde_reglas or _TARDE_REGLAS_DEFAULT
 
     empleados = []
     # {emp_code: [minutos_tarde_por_dia, ...]}
@@ -4020,7 +4047,8 @@ def permiso_reporte_list(request):
         lista_mins = tarde_por_dia_map.get(ec, [])
 
         minutos_tarde = sum(lista_mins) if not excluido else None
-        horas_rebaja = sum(_rebaja_por_dia(m) for m in lista_mins) if not excluido else None
+        # La rebaja se calcula sobre el TOTAL del mes (no por día): 11–30 → 0.5h, 31–60 → 1h.
+        horas_rebaja = _rebaja_por_dia(sum(lista_mins), _tarde_reglas) if not excluido else None
 
         nombre = emp['nombre']
         partes = nombre.rsplit(' ', 1)
@@ -4048,6 +4076,16 @@ def permiso_reporte_list(request):
     rows_general   = [r for r in rows if r['grupo'] == 'general']
     rows_maestro   = [r for r in rows if r['grupo'] == 'maestro']
     rows_vigilante = [r for r in rows if r['grupo'] == 'vigilante']
+
+    # Sub-tabs del tab general según las horas diarias laboradas (8.0 vs 8.8)
+    def _hdl(row):
+        reg = row.get('r')
+        try:
+            return float(reg.horas_diarias_laboradas) if reg else 8.0
+        except Exception:
+            return 8.0
+    rows_general_88 = [r for r in rows_general if _hdl(r) == 8.8]
+    rows_general_80 = [r for r in rows_general if _hdl(r) != 8.8]
 
     # ── Tab Tiempo receso (mensual): marcas de almuerzo de empleados 07:00–15:48 ──
     receso = _receso_compute(mes_inicio, mes_fin)
@@ -4083,6 +4121,17 @@ def permiso_reporte_list(request):
     _lim_vig1 = bcfg.hora_vigilancia.hour * 60 + bcfg.hora_vigilancia.minute      # turno 19:00
     _lim_vig2 = bcfg.hora_vigilancia_2.hour * 60 + bcfg.hora_vigilancia_2.minute  # turno 00:00
     _SPLIT_VIG = 21 * 60  # entradas antes de 21:00 = turno tarde; después = turno noche
+    _intentos_tarde = bcfg.intentos_tarde or 0  # entradas tarde toleradas; pierde al siguiente
+
+    # Otro Pagado REAL (excluye Compensatorio): el compensatorio NO hace perder el bono,
+    # pero el otro pagado normal sí. (Compensatorio se suma a otro_pagado_dias en el
+    # mensual, así que lo recalculamos directo desde PermisoReporte por tipo.)
+    _otro_real_map = {}
+    for _p in (PermisoReporte.objects
+               .filter(tipo='otro_pagado_dias', fecha__gte=mes_inicio, fecha__lte=mes_fin)
+               .values('emp_code').annotate(d=_SumMH('dias'))):
+        _otro_real_map[str(_p['emp_code'])] = float(_p['d'] or 0)
+
     bono_rows = []
     for row in rows:
         ec = row['emp_code']
@@ -4121,11 +4170,13 @@ def permiso_reporte_list(request):
                         limit_day = None  # maestro por hora sin horario especial ese día
                     else:
                         limit_day = _base_lim
-                    if limit_day is not None and m > limit_day:
+                    # La marca EXACTA a la hora límite (p. ej. 06:58) ya cuenta como
+                    # intento tarde. Se toleran `intentos_tarde`; al siguiente, pierde.
+                    if limit_day is not None and m >= limit_day:
                         dias_tarde.append({'fecha': f, 'hora': hh})
         # Tipos de permiso que afectan el bono
         tipos = []
-        otro = float(r.otro_pagado_dias) if r else 0
+        otro = _otro_real_map.get(str(ec), 0.0)  # otro pagado SIN compensatorio
         enf = float(r.enfermedad_dias) if r else 0
         if bcfg.regla_otro_pagado and otro > 0:
             tipos.append('Otro Pagado')
@@ -4138,8 +4189,9 @@ def permiso_reporte_list(request):
             val = float(getattr(r, pt, 0) or 0) if r else 0
             if val > 0:
                 tipos.append(CAMPOS_PERMISO_MAP.get(pt, pt))
-        # dias_tarde solo se llena cuando la regla aplicable está activa
-        pierde_auto = bool(tipos) or bool(dias_tarde)
+        # dias_tarde solo se llena cuando la regla aplicable está activa.
+        # Se toleran `intentos_tarde` entradas tardías; pierde a partir de la siguiente.
+        pierde_auto = bool(tipos) or (len(dias_tarde) > _intentos_tarde)
         override = (r.bono_override if r else '') or ''
         if override == 'si':
             pierde = True
@@ -4167,6 +4219,8 @@ def permiso_reporte_list(request):
     ctx = {
         'rows':            rows,
         'rows_general':    rows_general,
+        'rows_general_80': rows_general_80,
+        'rows_general_88': rows_general_88,
         'rows_maestro':    rows_maestro,
         'rows_vigilante':  rows_vigilante,
         'receso':          receso,
@@ -4178,6 +4232,7 @@ def permiso_reporte_list(request):
         'dias_semana':     _DIAS_SEMANA,
         'dias_full':       [(c, l, i) for i, (c, l) in enumerate(_DIAS_SEMANA)],
         'horas_diarias_visible': cfg.horas_diarias_visible,
+        'tarde_reglas':    _tarde_reglas,
         'maestro_hora_codes':    maestro_hora_codes,
         'bono_rows':       bono_rows,
         'bono_cfg':        bcfg,
@@ -4596,21 +4651,28 @@ def permiso_reporte_save(request):
             dias = round(horas / _divisor, 4)
         else:
             dias = 1.0
-        # Maestros por hora: la rebaja se calcula automáticamente con las horas
-        # del/los día(s) de la semana del rango fecha→fecha_fin.
+        # Maestros por hora:
+        #  • Si el usuario escribió horas → permiso PARCIAL: respeta esas horas y
+        #    calcula los días como fracción del día de ese maestro (horas/horas_del_día).
+        #  • Si NO escribió horas → toma automáticamente el/los día(s) completo(s)
+        #    según el horario configurado del rango fecha→fecha_fin.
         if _es_maestro_hora(emp_code):
             from datetime import timedelta as _td
-            total_h, ndias = 0.0, 0
-            _d2 = fecha
-            while _d2 <= fecha_fin:
-                hd = _mh_horas_para_fecha(emp_code, _d2)
-                if hd > 0:
-                    total_h += hd
-                    ndias += 1
-                _d2 += _td(days=1)
-            if total_h > 0:
-                horas = round(total_h, 2)
-                dias = ndias
+            if horas is not None and horas > 0:
+                hd_dia = _mh_horas_para_fecha(emp_code, fecha)
+                dias = round(horas / hd_dia, 4) if hd_dia > 0 else 0.0
+            else:
+                total_h, ndias = 0.0, 0
+                _d2 = fecha
+                while _d2 <= fecha_fin:
+                    hd = _mh_horas_para_fecha(emp_code, _d2)
+                    if hd > 0:
+                        total_h += hd
+                        ndias += 1
+                    _d2 += _td(days=1)
+                if total_h > 0:
+                    horas = round(total_h, 2)
+                    dias = ndias
         if dias < 0:
             return JsonResponse({'ok': False, 'error': 'Días debe ser >= 0'})
     except Exception:
@@ -5165,12 +5227,21 @@ def vigilancia_list(request):
     HORAS_DIA_MIN = 5 * 60 + 12  # 5h 12min fijos por día trabajado
     _DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
-    # Semana (lunes–domingo) a partir de ?fecha=
+    # Rango de fechas (Desde / Hasta). Por defecto, la semana actual (lunes–domingo).
     hoy = _date.today()
-    ref = _safe_date(request.GET.get('fecha', hoy.isoformat()), hoy.isoformat())
-    ref_d = _date.fromisoformat(ref)
-    lunes = ref_d - _td(days=ref_d.weekday())
-    domingo = lunes + _td(days=6)
+    _lun_def = hoy - _td(days=hoy.weekday())
+    _dom_def = _lun_def + _td(days=6)
+    fi = _safe_date(request.GET.get('fecha_inicio', _lun_def.isoformat()), _lun_def.isoformat())
+    ff = _safe_date(request.GET.get('fecha_fin', _dom_def.isoformat()), _dom_def.isoformat())
+    fi_d = _date.fromisoformat(fi)
+    ff_d = _date.fromisoformat(ff)
+    if ff_d < fi_d:
+        ff_d = fi_d
+    # Tope de seguridad: máximo 92 días
+    if (ff_d - fi_d).days > 92:
+        ff_d = fi_d + _td(days=92)
+    n_dias = (ff_d - fi_d).days + 1
+    lunes, domingo = fi_d, ff_d  # nombres reutilizados abajo en el SQL
 
     def _ampm(hhmm):
         try:
@@ -5218,11 +5289,11 @@ def vigilancia_list(request):
     for ec, nombre in emp_nombre.items():
         dias_marcas = marcas_map.get(ec, {})
         dias = []
-        for i in range(7):
-            d = lunes + _td(days=i)
+        for i in range(n_dias):
+            d = fi_d + _td(days=i)
             horas = dias_marcas.get(d, [])
             dias.append({
-                'dia': _DIAS[i], 'fecha': d,
+                'dia': _DIAS[d.weekday()], 'fecha': d,
                 'marcas': [_ampm(h) for h in horas],
                 'trabajado': bool(horas),
             })
@@ -5238,10 +5309,8 @@ def vigilancia_list(request):
 
     return render(request, 'reloj/vigilancia_list.html', {
         'guardias': guardias,
-        'lunes': lunes, 'domingo': domingo,
-        'semana_ref': ref,
-        'semana_ant': (lunes - _td(days=7)).isoformat(),
-        'semana_sig': (lunes + _td(days=7)).isoformat(),
+        'fecha_inicio': fi_d.isoformat(),
+        'fecha_fin': ff_d.isoformat(),
         'horas_dia': f"{HORAS_DIA_MIN // 60}h {HORAS_DIA_MIN % 60:02d}m",
         'error_sql': error_sql,
     })
@@ -5323,3 +5392,29 @@ def toggle_horas_diarias_visible(request):
     cfg.horas_diarias_visible = not cfg.horas_diarias_visible
     cfg.save()
     return JsonResponse({'ok': True, 'visible': cfg.horas_diarias_visible})
+
+
+@login_required
+@require_POST
+def set_tarde_reglas(request):
+    """Guarda las reglas configurables de rebaja por tardanza (solo superuser)."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    import json as _json
+    try:
+        reglas = _json.loads(request.body).get('reglas', [])
+    except Exception:
+        reglas = []
+    limpias = []
+    for r in reglas:
+        try:
+            mn = int(r.get('min'))
+            mx = int(r.get('max')) if r.get('max') not in (None, '') else None
+            hh = float(r.get('horas'))
+        except (TypeError, ValueError):
+            continue
+        limpias.append({'min': mn, 'max': mx, 'horas': hh})
+    cfg = RelojConfigGlobal.get()
+    cfg.tarde_reglas = limpias or _TARDE_REGLAS_DEFAULT
+    cfg.save(update_fields=['tarde_reglas'])
+    return JsonResponse({'ok': True, 'reglas': cfg.tarde_reglas})

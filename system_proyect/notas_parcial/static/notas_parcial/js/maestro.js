@@ -7,10 +7,29 @@
   const URL_FIN  = window._PAGE.urlFin;
   const CSRF     = window._PAGE.csrf;
 
-  // ── Guardar comentario ── (queda bloqueado tras guardar exitosamente)
+  // ── Contador de palabras (máx 40) ──
+  function contarPalabras(s) { return (s.trim().match(/\S+/g) || []).length; }
+  function actualizarContador(ta) {
+    const box = ta.closest('.cmt-box'); if (!box) return;
+    const w = contarPalabras(ta.value);
+    const lbl = box.querySelector('.cmt-words');
+    if (lbl) { lbl.textContent = w + '/40 palabras'; lbl.className = 'cmt-words small ' + (w > 40 ? 'text-danger fw-bold' : 'text-muted'); }
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList.contains('comentario-txt')) actualizarContador(e.target);
+  });
+  document.querySelectorAll('.comentario-txt').forEach(actualizarContador);
+
+  // ── Guardar comentario (tu propio comentario; máx 40 palabras) ──
   async function guardar(slide) {
+    const box = slide.querySelector('.cmt-box');
+    const ta  = slide.querySelector('.comentario-txt');
     const btn = slide.querySelector('.btn-guardar-uno');
     const msg = slide.querySelector('.estado-msg');
+    if (contarPalabras(ta.value) > 40) {
+      msg.className = 'estado-msg saved-err'; msg.textContent = '✗ Máx. 40 palabras';
+      return;
+    }
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     try {
@@ -22,20 +41,19 @@
           parcial:     slide.dataset.parcial,
           anio:        slide.dataset.anio,
           area:        slide.dataset.area,
-          comentario:  slide.querySelector('.comentario-txt').value,
+          maestro_id:  box ? box.dataset.maestro : null,
+          comentario:  ta.value,
         }),
       });
       const d = await res.json();
       if (d.ok) {
         msg.className   = 'estado-msg saved-ok';
         msg.textContent = '✓ Guardado';
-        // Mantener bloqueado y cambiar apariencia
         btn.innerHTML = '<i class="ti ti-circle-check me-1"></i>Guardado';
         btn.classList.replace('btn-success', 'btn-outline-success');
-        // btn.disabled permanece true
       } else {
         msg.className   = 'estado-msg saved-err';
-        msg.textContent = '✗ Error al guardar';
+        msg.textContent = '✗ ' + (d.error || 'Error al guardar');
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar comentario';
       }

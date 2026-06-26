@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from core.models import AuditModel
 
@@ -62,7 +64,18 @@ class MaintenanceRecord(AuditModel):
         verbose_name="Estado"
     )
     observaciones = models.TextField(null=True, blank=True, verbose_name="Observaciones")
-    firma         = models.TextField("Firma (base64)", blank=True, null=True)
+    # Firma del MAESTRO (evidencia de la reparación). En persona o remota (link wa.me).
+    firma         = models.TextField("Firma del maestro (base64)", blank=True, null=True)
+    # Firma del TÉCNICO / soporte (en persona, quien hace la reparación).
+    firma_tecnico = models.TextField("Firma del técnico (base64)", blank=True, null=True)
+    # Firma remota del maestro por link (token público, sin login).
+    token_firma      = models.UUIDField("Token de firma", default=uuid.uuid4, unique=True, editable=False)
+    firma_solicitada = models.BooleanField("Firma solicitada", default=False)
+    firmado_en       = models.DateTimeField("Firmado el", null=True, blank=True)
+
+    @property
+    def firmado_maestro(self):
+        return bool((self.firma or '').strip())
 
     class Meta:
         db_table = 'maintenance_record'

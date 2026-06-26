@@ -38,11 +38,17 @@
     if (!ov) { doLogout(); return; }
     warned = true; cd = COUNT;
     var num = document.getElementById('tcIdleNum');
-    var bar = document.getElementById('tcIdleBar');
+    var ring = document.getElementById('tcIdleRing');
+    var C = 276.46;                       // circunferencia (r=44)
     ov.style.display = 'flex';
     if (num) num.textContent = cd;
-    if (bar) { bar.style.transition = 'none'; bar.style.width = '100%';
-      requestAnimationFrame(function () { bar.style.transition = 'width 30s linear'; bar.style.width = '0%'; }); }
+    if (ring) {                           // anillo circular: lleno -> vacío en 30s
+      ring.style.transition = 'none'; ring.style.strokeDashoffset = '0';
+      requestAnimationFrame(function () {
+        ring.style.transition = 'stroke-dashoffset ' + COUNT + 's linear';
+        ring.style.strokeDashoffset = C;
+      });
+    }
     cdIv = setInterval(function () {
       // Si hubo actividad en otra pestaña, cancelar
       if (nowMs() - last() < IDLE_MS) { cancelWarn(); return; }

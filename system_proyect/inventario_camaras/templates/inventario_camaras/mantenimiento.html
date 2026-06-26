@@ -1,0 +1,176 @@
+{% extends 'inventario_camaras/base.html' %}
+{% load static %}
+{% block title %}Mantenimiento de Cámaras{% endblock %}
+{% block page_pretitle %}Mantenimiento{% endblock %}
+{% block page_title %}Fichas de Mantenimiento de Cámaras{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" id="btnNuevo"><i class="ti ti-plus me-1"></i>Nuevo Registro</button>
+{% endblock %}
+
+{% block content %}
+<div class="row row-deck row-cards mb-4">
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="d-flex align-items-center gap-3">
+    <span class="bg-blue-lt text-blue rounded p-2"><i class="ti ti-clipboard-list fs-2"></i></span>
+    <div><div class="text-muted small">Total</div><div class="h2 mb-0 fw-bold">{{ total }}</div></div></div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="d-flex align-items-center gap-3">
+    <span class="bg-yellow-lt text-yellow rounded p-2"><i class="ti ti-clock fs-2"></i></span>
+    <div><div class="text-muted small">Pendiente</div><div class="h2 mb-0 fw-bold">{{ pendiente }}</div></div></div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="d-flex align-items-center gap-3">
+    <span class="bg-cyan-lt text-cyan rounded p-2"><i class="ti ti-settings fs-2"></i></span>
+    <div><div class="text-muted small">En Proceso</div><div class="h2 mb-0 fw-bold">{{ en_proceso }}</div></div></div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="d-flex align-items-center gap-3">
+    <span class="bg-green-lt text-green rounded p-2"><i class="ti ti-circle-check fs-2"></i></span>
+    <div><div class="text-muted small">Completado</div><div class="h2 mb-0 fw-bold">{{ completado }}</div></div></div></div></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-table me-2 text-muted"></i>Registros</h3></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table id="tablaMant" class="table table-vcenter table-hover card-table">
+        <thead><tr>
+          <th>ID</th><th>Grupo</th><th>Cámaras</th><th>Tipo Falla</th><th>Fecha</th>
+          <th>Estado</th><th>Firma Técnico</th><th>Fotos</th><th class="text-end">Acciones</th>
+        </tr></thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td><span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span></td>
+            <td class="fw-semibold">{% if r.grupo %}<span class="badge bg-indigo-lt text-indigo">{{ r.grupo }}</span>{% else %}—{% endif %}</td>
+            <td><span class="badge bg-green-lt text-green"><i class="ti ti-camera me-1"></i>{{ r.camaras_grupo.count }}</span></td>
+            <td>{{ r.tipo_falla|default:"—" }}</td>
+            <td>{{ r.date|date:"d/m/Y" }}</td>
+            <td>
+              {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
+              {% elif r.status == "En Proceso" %}<span class="badge bg-cyan-lt text-cyan"><i class="ti ti-settings me-1"></i>En Proceso</span>
+              {% else %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-clock me-1"></i>Pendiente</span>{% endif %}
+            </td>
+            <td>
+              {% if r.firmado %}
+                <span class="badge bg-success-lt text-success" title="Firmado el {{ r.firmado_en|date:'d/m/Y H:i' }}"><i class="ti ti-signature me-1"></i>{{ r.tecnico_nombre|truncatechars:18 }}</span>
+              {% else %}
+                <span class="badge bg-secondary-lt text-secondary"><i class="ti ti-clock me-1"></i>Pendiente</span>
+              {% endif %}
+            </td>
+            <td>
+              {% with cnt=r.fotos.count %}{% if cnt %}<span class="badge bg-azure-lt text-azure"><i class="ti ti-photo me-1"></i>{{ cnt }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endwith %}
+            </td>
+            <td class="text-end text-nowrap">
+              {% if not r.firmado %}
+              <button class="btn btn-sm btn-ghost-success btn-firma-link"
+                      data-id="{{ r.id }}" data-rid="{{ r.record_id }}"
+                      data-link="{{ site_url }}{% url 'inventario_camaras:firmar_publico' r.token_firma %}"
+                      data-mark="{% url 'inventario_camaras:marcar_firma_solicitada' r.id %}"
+                      title="Enviar link de firma al técnico"><i class="ti ti-send"></i></button>
+              {% endif %}
+              <a href="{% url 'inventario_camaras:mantenimiento_pdf' r.id %}" class="btn btn-sm btn-ghost-secondary" title="PDF"><i class="ti ti-file-type-pdf"></i></a>
+              <button class="btn btn-sm btn-ghost-primary btn-edit-mant" data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-sm btn-ghost-danger btn-del-mant" data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay fichas registradas aún.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ══════════ MODAL NUEVO / EDITAR ══════════ #}
+<div class="modal modal-blur fade" id="modalMant" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post" id="formMant" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="firma_responsable_data" id="firma_responsable_data">
+        <div class="modal-header">
+          <h5 class="modal-title" id="mantTitle"><i class="ti ti-tool me-2 text-primary"></i>Nuevo Registro</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Grupo de cámaras</label>
+              <select name="grupo" id="id_grupo" class="form-select">
+                <option value="">— Seleccionar grupo —</option>
+                {% for g in grupos %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold"><i class="ti ti-camera me-1 text-green"></i>Cámaras del grupo <span id="cam-count" class="badge bg-green-lt text-green ms-1">0</span></label>
+              <div id="camaras-lista" class="border rounded p-2 bg-light" style="max-height:180px;overflow-y:auto;">
+                <div class="text-muted small text-center py-2">Selecciona un grupo para ver sus cámaras.</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de Falla</label>
+              <select name="tipo_falla" id="id_tipo_falla" class="form-select">
+                <option value="">— Tipo de falla —</option>
+                {% for tf in tipos_falla %}<option value="{{ tf.id }}">{{ tf.nombre }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha</label>
+              <input type="date" name="date" id="id_date" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Estado</label>
+              <select name="status" id="id_status" class="form-select">
+                <option value="Pendiente">Pendiente</option>
+                <option value="En Proceso">En Proceso</option>
+                <option value="Completado">Completado</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Responsable (interno)</label>
+              <input type="text" name="responsable_nombre" id="id_responsable_nombre" class="form-control" placeholder="Nombre del responsable">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Solución Aplicada</label>
+              <textarea name="solucion" id="id_solucion" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
+              <textarea name="observaciones" id="id_observaciones" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small">(hasta 5)</span></label>
+              <div id="drop-zone" class="border rounded p-3 text-center" style="cursor:pointer;border-style:dashed!important;">
+                <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-1"></i>
+                <p class="mb-1 text-muted small">Arrastra imágenes aquí o haz clic para seleccionar</p>
+                <input type="file" name="fotos" id="fotos-input" multiple accept="image/*" class="d-none">
+              </div>
+              <div id="fotos-preview" class="d-flex flex-wrap gap-2 mt-2"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del responsable</label>
+              <div id="sig-wrap" class="border rounded position-relative" style="height:160px;">
+                <canvas id="signature-canvas" style="width:100%;height:100%;"></canvas>
+                <button type="button" class="btn btn-sm btn-ghost-danger position-absolute" style="top:6px;right:6px;" id="btn-clear-firma"><i class="ti ti-trash me-1"></i>Limpiar</button>
+              </div>
+              <p class="text-muted small mt-1">La firma del <strong>técnico</strong> se solicita aparte por link (botón <i class="ti ti-send"></i> en cada fila).</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary ms-auto"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window._IC = {
+  csrf: '{{ csrf_token }}',
+  camarasPorGrupo: {{ camaras_grupo_json|safe }},
+  editBase: '/inventario-camaras/mantenimiento/',
+};
+</script>
+<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=2"></script>
+{% endblock %}

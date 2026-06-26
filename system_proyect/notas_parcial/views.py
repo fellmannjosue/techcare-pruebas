@@ -404,12 +404,24 @@ def guardar_comentario(request):
         parcial_v = int(data['parcial'])
         anio_v    = int(data['anio'])
         area_v    = data['area']
-        comentario = data.get('comentario', '')
+        comentario = (data.get('comentario', '') or '').strip()
+
+        # Límite de 40 palabras
+        if len(comentario.split()) > 40:
+            return JsonResponse({'ok': False, 'error': 'El comentario no puede superar las 40 palabras.'})
+
+        # Maestro autor del comentario (caja). Por defecto, el usuario actual.
+        maestro_id = data.get('maestro_id')
+        es_coord = request.user.is_superuser or request.user.groups.filter(name__icontains='coord').exists()
+        if maestro_id:
+            maestro_id = int(maestro_id)
+            if maestro_id != request.user.id and not es_coord:
+                return JsonResponse({'ok': False, 'error': 'Solo puedes editar tu propio comentario.'}, status=403)
+        else:
+            maestro_id = request.user.id
+
         NotaComentario.objects.update_or_create(
-            ingr_egr_id=iid,
-            parcial=parcial_v,
-            anio=anio_v,
-            area=area_v,
+            ingr_egr_id=iid, parcial=parcial_v, anio=anio_v, area=area_v, maestro_id=maestro_id,
             defaults={'comentario': comentario, 'actualizado_por': request.user},
         )
         return JsonResponse({'ok': True})
@@ -439,21 +451,20 @@ def generar_pdf(request):
     if not alumnos:
         return HttpResponse('Sin datos para los parámetros indicados.', status=404)
 
-    # Leer comentarios del maestro desde BD Django
+    # Leer comentarios por maestro y combinarlos etiquetados por nombre
     ids = [a['ingr_egr_id'] for a in alumnos]
-    comentarios_db = {
-        c.ingr_egr_id: c.comentario
-        for c in NotaComentario.objects.filter(
-            ingr_egr_id__in=ids,
-            parcial=int(parcial),
-            anio=int(anio),
-            area=area,
-        )
-    }
+    comentarios_db = {}
+    for c in (NotaComentario.objects
+              .filter(ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area)
+              .select_related('maestro')):
+        if not (c.comentario or '').strip():
+            continue
+        nombre = (c.maestro.get_full_name() or c.maestro.username) if c.maestro_id else 'Maestro'
+        comentarios_db.setdefault(c.ingr_egr_id, []).append(f"{nombre}: {c.comentario.strip()}")
     for a in alumnos:
-        db_com = comentarios_db.get(a['ingr_egr_id'], '')
-        if db_com:
-            a['comentario'] = db_com
+        partes = comentarios_db.get(a['ingr_egr_id'], [])
+        if partes:
+            a['comentario'] = '   ·   '.join(partes)
 
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=letter)
@@ -715,20 +726,30 @@ def coordinador_notas(request):
                     alumnos = todos
 
                 ids = [a['ingr_egr_id'] for a in alumnos]
-                comentarios = {
-                    c.ingr_egr_id: c.comentario
-                    for c in NotaComentario.objects.filter(
-                        ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area,
-                    )
-                }
-                for a in alumnos:
-                    a['comentario'] = comentarios.get(a['ingr_egr_id'], '')
+                # Comentarios por (alumno, maestro)
+                coms = {}
+                for c in NotaComentario.objects.filter(
+                        ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area):
+                    coms[(c.ingr_egr_id, c.maestro_id)] = c.comentario
 
+                # Asignaciones por (grado, seccion) → lista de maestros
+                asign_por_gs = {}
                 qs = AsignacionMaestro.objects.filter(
                     area=area, parcial=int(parcial), anio=int(anio)
                 ).select_related('maestro')
                 for asig in qs:
-                    asignaciones_dict[(asig.grado, asig.seccion)] = asig
+                    asign_por_gs.setdefault((asig.grado, asig.seccion), []).append(asig)
+                    asignaciones_dict.setdefault((asig.grado, asig.seccion), []).append(asig)
+
+                # Cajas de comentario por alumno (una por maestro asignado a su grado-sección)
+                for a in alumnos:
+                    gs = (a['grado'], a['grupo'])
+                    a['coment_boxes'] = [{
+                        'maestro_id': asig.maestro_id,
+                        'nombre': asig.maestro.get_full_name() or asig.maestro.username,
+                        'texto': coms.get((a['ingr_egr_id'], asig.maestro_id), ''),
+                        'editable': True,   # el coordinador edita todas
+                    } for asig in asign_por_gs.get(gs, [])]
             else:
                 error = 'No se obtuvieron datos. Verifica los parámetros o la conexión.'
 
@@ -765,28 +786,41 @@ def coordinador_notas(request):
 @_coordinador
 @require_POST
 def asignar_maestro_view(request):
+    """Asignación multi-maestro. Acciones:
+    - add: asigna 1 maestro a uno o varios grados-secciones (items).
+    - remove: quita 1 maestro de 1 grado-sección.
+    Compatibilidad: si llega grado/seccion sueltos, opera sobre ese par."""
     try:
-        data     = json.loads(request.body)
+        data       = json.loads(request.body)
+        accion     = data.get('accion', 'add')
         maestro_id = data.get('maestro_id')
-        area     = data['area']
-        parcial  = int(data['parcial'])
-        anio     = int(data['anio'])
-        grado    = data['grado']
-        seccion  = data.get('seccion', '')
+        area       = data['area']
+        parcial    = int(data['parcial'])
+        anio       = int(data['anio'])
+        if not maestro_id:
+            return JsonResponse({'ok': False, 'error': 'Falta el maestro'})
+        maestro = User.objects.get(pk=int(maestro_id))
+        nombre  = maestro.get_full_name() or maestro.username
 
-        if maestro_id:
-            maestro = User.objects.get(pk=int(maestro_id))
-            obj, created = AsignacionMaestro.objects.update_or_create(
-                area=area, parcial=parcial, anio=anio, grado=grado, seccion=seccion,
-                defaults={'maestro': maestro, 'asignado_por': request.user},
-            )
-            nombre = maestro.get_full_name() or maestro.username
+        # items = lista de {grado, seccion}; si no, usar grado/seccion sueltos
+        items = data.get('items')
+        if not items:
+            items = [{'grado': data.get('grado', ''), 'seccion': data.get('seccion', '')}]
+
+        if accion == 'remove':
+            for it in items:
+                AsignacionMaestro.objects.filter(
+                    area=area, parcial=parcial, anio=anio,
+                    grado=it.get('grado', ''), seccion=it.get('seccion', ''), maestro=maestro,
+                ).delete()
         else:
-            AsignacionMaestro.objects.filter(
-                area=area, parcial=parcial, anio=anio, grado=grado, seccion=seccion
-            ).delete()
-            nombre = ''
-        return JsonResponse({'ok': True, 'nombre': nombre})
+            for it in items:
+                AsignacionMaestro.objects.get_or_create(
+                    area=area, parcial=parcial, anio=anio,
+                    grado=it.get('grado', ''), seccion=it.get('seccion', ''), maestro=maestro,
+                    defaults={'asignado_por': request.user},
+                )
+        return JsonResponse({'ok': True, 'nombre': nombre, 'maestro_id': maestro.pk})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
 
@@ -841,7 +875,7 @@ def maestro_notas(request):
                     alumnos = [a for a in alumnos if a['grado'] == grado_sel]
                 if seccion_sel:
                     alumnos = [a for a in alumnos if a['grupo'] == seccion_sel]
-                # Cargar comentarios desde BD Django
+                # Cada maestro edita SU propio comentario por alumno
                 ids = [a['ingr_egr_id'] for a in alumnos]
                 comentarios = {
                     c.ingr_egr_id: c.comentario
@@ -850,10 +884,17 @@ def maestro_notas(request):
                         parcial=int(parcial_sel),
                         anio=int(anio_sel),
                         area=area_sel,
+                        maestro=user,
                     )
                 }
+                nombre_user = user.get_full_name() or user.username
                 for a in alumnos:
-                    a['comentario'] = comentarios.get(a['ingr_egr_id'], '')
+                    a['coment_boxes'] = [{
+                        'maestro_id': user.id,
+                        'nombre': nombre_user,
+                        'texto': comentarios.get(a['ingr_egr_id'], ''),
+                        'editable': True,
+                    }]
             else:
                 error = 'No se obtuvieron datos del SP.'
 
@@ -973,14 +1014,19 @@ def enviar_pdf_email(request):
         return JsonResponse({'ok': False, 'error': 'Sin datos para los parámetros indicados.'})
 
     ids = [a['ingr_egr_id'] for a in alumnos]
-    comentarios_db = {
-        c.ingr_egr_id: c.comentario
-        for c in NotaComentario.objects.filter(
-            ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area,
-        )
-    }
+    # Combinar los comentarios de TODOS los maestros, etiquetados por nombre.
+    # (Ignora vacíos para que no pisen a los llenos.)
+    comentarios_db = {}
+    for c in (NotaComentario.objects
+              .filter(ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area)
+              .select_related('maestro')):
+        if not (c.comentario or '').strip():
+            continue
+        nombre = (c.maestro.get_full_name() or c.maestro.username) if c.maestro_id else 'Maestro'
+        comentarios_db.setdefault(c.ingr_egr_id, []).append(f"{nombre}: {c.comentario.strip()}")
     for a in alumnos:
-        a['comentario'] = comentarios_db.get(a['ingr_egr_id'], '')
+        partes = comentarios_db.get(a['ingr_egr_id'], [])
+        a['comentario'] = '   ·   '.join(partes) if partes else ''
 
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=letter)

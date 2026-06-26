@@ -3,12 +3,17 @@ from . import views
 
 urlpatterns = [
     # Convocatoria de tutorías (Bilingüe)  <--- hecho por claude code
+    path('tutorias/grado/', views.convocatoria_grado, name='convocatoria_grado'),
+    path('tutorias/marca/', views.convocatoria_marca_toggle, name='convocatoria_marca_toggle'),
+    path('tutorias/cartas-pdf/', views.convocatoria_cartas_pdf, name='convocatoria_cartas_pdf'),
+    path('tutorias/tabla-pdf/', views.convocatoria_tabla_pdf, name='convocatoria_tabla_pdf'),
     path('tutorias/nueva/', views.convocatoria_nueva, name='convocatoria_nueva'),
     path('tutorias/<int:pk>/editar/', views.convocatoria_nueva, name='convocatoria_editar'),
     path('tutorias/<int:pk>/eliminar/', views.convocatoria_eliminar, name='convocatoria_eliminar'),
     path('tutorias/horario-grado/', views.convocatoria_horario_ajax, name='convocatoria_horario_ajax'),
     path('tutorias/<int:pk>/pdf/', views.convocatoria_pdf, name='convocatoria_pdf'),
     path('tutorias/coordinador/', views.convocatorias_coordinador, name='convocatorias_coordinador'),
+    path('tutorias/firma/', views.convocatoria_firma_guardar, name='convocatoria_firma_guardar'),
     path('tutorias/horario/', views.tutoria_horario_config, name='tutoria_horario_config'),
 
     # Dashboards

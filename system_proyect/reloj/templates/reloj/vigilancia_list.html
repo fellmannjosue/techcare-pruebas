@@ -13,16 +13,14 @@
 {% block content %}
 {# <--- hecho por claude code: control de vigilancia (turno nocturno, AM/PM) #}
 
-{# ── Filtro por semana ── #}
+{# ── Filtro por rango de fechas ── #}
 <div class="card mb-3">
   <div class="card-body py-2">
     <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
-      <span class="fw-semibold"><i class="ti ti-calendar-week me-1 text-yellow"></i>Semana:</span>
-      <a class="btn btn-sm btn-ghost-secondary" href="?fecha={{ semana_ant }}"><i class="ti ti-chevron-left"></i></a>
-      <span class="badge bg-blue-lt text-blue fs-6 px-3 py-2">{{ lunes|date:"d/m/Y" }} — {{ domingo|date:"d/m/Y" }}</span>
-      <a class="btn btn-sm btn-ghost-secondary" href="?fecha={{ semana_sig }}"><i class="ti ti-chevron-right"></i></a>
-      <span class="ms-3 text-muted small">Ir a fecha:</span>
-      <input type="date" name="fecha" value="{{ semana_ref }}" class="form-control form-control-sm" style="max-width:170px;">
+      <span class="fw-semibold"><i class="ti ti-calendar-week me-1 text-yellow"></i>Desde:</span>
+      <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" class="form-control form-control-sm" style="max-width:170px;">
+      <span class="fw-semibold">Hasta:</span>
+      <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="form-control form-control-sm" style="max-width:170px;">
       <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-filter me-1"></i>Filtrar</button>
       <span class="ms-auto text-muted small"><i class="ti ti-clock me-1"></i>Jornada fija: <strong>{{ horas_dia }}</strong> por día</span>
     </form>

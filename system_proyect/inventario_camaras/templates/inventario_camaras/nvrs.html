@@ -1,0 +1,44 @@
+{% extends 'inventario_camaras/base.html' %}
+{% load static %}
+{% block title %}NVRs{% endblock %}
+{% block page_pretitle %}Inventario{% endblock %}
+{% block page_title %}NVRs{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" id="btnNuevo"><i class="ti ti-plus me-1"></i>Nuevo NVR</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-device-cctv me-2 text-muted"></i>{{ total }} NVR(s)</h3></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table ic-table">
+        <thead><tr><th>ID</th><th>Nombre</th><th>Modelo</th><th>Serie</th><th>IP</th><th>Canales</th><th>Servidor</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+          {% for o in objetos %}
+          <tr>
+            <td><span class="badge bg-cyan-lt text-cyan">{{ o.nvr_id }}</span></td>
+            <td class="fw-semibold">{{ o.nombre }}</td>
+            <td>{{ o.modelo|default:"—" }}</td>
+            <td class="font-monospace small">{{ o.serie|default:"—" }}</td>
+            <td class="font-monospace small">{{ o.ip|default:"—" }}</td>
+            <td>{{ o.canales|default:"—" }}</td>
+            <td>{{ o.servidor|default:"—" }}</td>
+            <td class="text-end text-nowrap">
+              <button class="btn btn-sm btn-ghost-primary btn-edit" data-url="{% url 'inventario_camaras:nvr_editar' o.pk %}" title="Editar"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-sm btn-ghost-danger btn-delete" data-url="{% url 'inventario_camaras:nvr_eliminar' o.pk %}" data-id="{{ o.nvr_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay NVRs registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% include 'inventario_camaras/_form_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'inventario_camaras/js/crud.js' %}?v=2"></script>{% endblock %}

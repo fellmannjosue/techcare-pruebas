@@ -7,6 +7,13 @@ class NotaComentario(models.Model):
     parcial         = models.IntegerField()
     anio            = models.IntegerField()
     area            = models.CharField(max_length=20)
+    # Maestro autor del comentario (un comentario por maestro por alumno)
+    maestro         = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='notas_comentarios_propios',
+    )
     comentario      = models.TextField(blank=True, default='')
     actualizado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -18,7 +25,7 @@ class NotaComentario(models.Model):
 
     class Meta:
         db_table        = 'notas_parcial_comentario'
-        unique_together = ('ingr_egr_id', 'parcial', 'anio', 'area')
+        unique_together = ('ingr_egr_id', 'parcial', 'anio', 'area', 'maestro')
 
     def __str__(self):
         return f"Comentario {self.ingr_egr_id} P{self.parcial}/{self.anio}"
@@ -46,7 +53,7 @@ class AsignacionMaestro(models.Model):
 
     class Meta:
         db_table        = 'notas_asignacion_maestro'
-        unique_together = ('area', 'parcial', 'anio', 'grado', 'seccion')
+        unique_together = ('area', 'parcial', 'anio', 'grado', 'seccion', 'maestro')
         verbose_name        = 'Asignación de maestro'
         verbose_name_plural = 'Asignaciones de maestros'
 

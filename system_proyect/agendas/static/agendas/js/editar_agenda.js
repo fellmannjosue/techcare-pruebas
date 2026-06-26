@@ -50,16 +50,21 @@
   }
 
   function addAsociada() {
+    var sel = document.getElementById('asoSelect');
+    var clase = sel ? sel.value : '';
+    if (!clase) return;
     asoN++;
     var n   = asoN;
+    var esc = clase.replace(/"/g, '&quot;');
+    var opt = sel.querySelector('option[value="' + clase.replace(/"/g, '\\"') + '"]');
     var html =
       '<input type="hidden" name="nueva_aso_ids[]" value="' + n + '">' +
       '<div class="mb-2 p-2 rounded bg-yellow-lt border" id="nueva-aso-' + n + '">' +
         '<div class="d-flex align-items-center gap-2 mb-1">' +
-          '<input type="text" name="nueva_aso_nombre_' + n + '" class="form-control form-control-sm"' +
-          ' placeholder="Nombre materia" style="max-width:200px;" required>' +
+          '<span class="fw-bold text-warning"><i class="ti ti-star me-1"></i>' + clase + '</span>' +
+          '<input type="hidden" name="nueva_aso_nombre_' + n + '" value="' + esc + '">' +
           '<button type="button" class="btn btn-xs btn-ghost-danger ms-auto"' +
-          ' onclick="document.getElementById(\'nueva-aso-' + n + '\').remove()">' +
+          ' data-aso-clase="' + esc + '" data-aso-n="' + n + '" onclick="window._asoRemove(this)">' +
           '<i class="ti ti-trash"></i></button>' +
         '</div>' +
         '<div class="table-responsive">' +
@@ -79,10 +84,25 @@
         '</div>' +
       '</div>';
     document.getElementById('nuevas-asociadas').insertAdjacentHTML('beforeend', html);
+    if (opt) opt.remove();   // no permitir duplicar la clase
+    sel.value = '';
+  }
+
+  // Eliminar fila nueva → devolver la clase al select
+  function _asoRemove(btn) {
+    var row = document.getElementById('nueva-aso-' + btn.dataset.asoN);
+    if (row) row.remove();
+    var sel = document.getElementById('asoSelect');
+    if (sel) {
+      var o = document.createElement('option');
+      o.value = btn.dataset.asoClase; o.textContent = btn.dataset.asoClase;
+      sel.appendChild(o);
+    }
   }
 
   /* Expose functions called from inline onchange/onclick attributes in the template */
   window.subirImg    = subirImg;
   window.eliminarImg = eliminarImg;
   window.addAsociada = addAsociada;
+  window._asoRemove  = _asoRemove;
 })();

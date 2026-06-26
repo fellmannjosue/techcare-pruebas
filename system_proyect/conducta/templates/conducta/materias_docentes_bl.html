@@ -286,6 +286,7 @@ window._MATERIAS = {
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="{% static 'js/dt_guard.js' %}"></script>
 <div id="page-config" hidden data-url-buscar="{% url 'materias_docentes_bl' %}"></div>
 <script src="{% static 'conducta/js/materias_docentes_bl.js' %}?v=3"></script>
 {% endblock %}

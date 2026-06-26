@@ -1,0 +1,77 @@
+/* ============================================================
+   Responsive global (hecho por claude code)
+   Mejora la vista en celular/tablet sin tocar cada plantilla.
+   ============================================================ */
+
+/* Nunca permitir scroll horizontal de toda la página */
+html, body { max-width: 100%; }
+
+/* Imágenes nunca desbordan (solo tope de ancho; NO se toca la altura,
+   para no deformar logos del encabezado) */
+img { max-width: 100%; }
+
+@media (max-width: 991.98px) {
+  /* Tablas anchas: scroll horizontal en vez de romper el layout */
+  .table:not(.dataTable) {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* DataTables: que el widget completo scrollee */
+  .dataTables_wrapper, .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 768px) {
+  body { overflow-x: hidden; }
+
+  /* Contenedores: padding más compacto */
+  .container, .container-xl, .container-fluid,
+  .page-body > .container-xl, .content, .card-body {
+    padding-left: .75rem !important;
+    padding-right: .75rem !important;
+  }
+
+  /* Cualquier ancho fijo en estilos inline no desborda */
+  [style*="width:"] { max-width: 100% !important; }
+
+  /* Encabezados de página y listas de botones: que envuelvan */
+  .page-header .row,
+  .btn-list,
+  .card-actions,
+  .d-flex.flex-wrap { flex-wrap: wrap !important; }
+
+  /* Acciones de página: ocupar ancho y separarse */
+  .page-header .col-auto.ms-auto,
+  .page-header .ms-auto { margin-left: 0 !important; }
+
+  /* Títulos más pequeños para que no se corten verticalmente */
+  .page-title, h1, .h1 { font-size: 1.2rem !important; line-height: 1.25; }
+  h2, .h2 { font-size: 1.05rem !important; }
+
+  /* Filas tipo formulario: columnas a ancho completo */
+  .row > [class*="col-md-"],
+  .row > [class*="col-lg-"] { margin-bottom: .25rem; }
+
+  /* Modales casi a pantalla completa */
+  .modal-dialog:not(.modal-fullscreen) {
+    margin: .5rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  /* Texto largo (correos, descripciones) que pueda partirse */
+  td .text-muted, .text-break, .chat-item-meta { overflow-wrap: anywhere; }
+
+  /* Botones un poco más compactos */
+  .btn { padding-top: .4rem; padding-bottom: .4rem; }
+}
+
+@media (max-width: 480px) {
+  .page-title, h1, .h1 { font-size: 1.05rem !important; }
+  .card { border-radius: .5rem; }
+  /* Grupos de botones a ancho completo apilados */
+  .btn-list .btn { flex: 1 1 auto; }
+}

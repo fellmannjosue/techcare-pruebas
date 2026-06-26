@@ -8,7 +8,7 @@
 {% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
 
 {% block extra_head %}
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+  <link href="{% static 'conducta/vendor/select2.min.css' %}" rel="stylesheet"/>
   <style>
     .conv-preview { background:#fff; border:1px solid #e2e8f0; border-radius:.5rem; padding:18px 22px; font-size:.8rem; color:#222; }
     .conv-preview h4 { text-align:center; font-size:.95rem; font-weight:700; margin:.2rem 0 .6rem; }
@@ -79,13 +79,8 @@
               <label class="form-label">Fecha de la carta</label>
               <input type="date" id="id_fecha" name="fecha" class="form-control" value="{% if conv_edit %}{{ conv_edit.fecha|date:'Y-m-d' }}{% else %}{{ fecha_hoy }}{% endif %}" required>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Docente guía <span class="text-muted">(opcional)</span></label>
-              <input type="text" name="docente_guia" id="id_docente_guia" class="form-control" placeholder="Nombre del docente guía" value="{% if conv_edit %}{{ conv_edit.docente_guia }}{% endif %}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Coordinador de área <span class="text-muted">(opcional)</span></label>
-              <input type="text" name="coordinador" id="id_coordinador" class="form-control" placeholder="Nombre del coordinador" value="{% if conv_edit %}{{ conv_edit.coordinador }}{% endif %}">
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="text-muted small"><i class="ti ti-signature me-1"></i>Docente guía y Coordinador firman <b>a mano</b> en la carta.</div>
             </div>
           </div>
 
@@ -131,8 +126,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'conducta/vendor/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'conducta/vendor/select2.min.js' %}"></script>
 <script>
 (function () {
   const HORARIO_URL = "{% url 'convocatoria_horario_ajax' %}";
@@ -141,7 +136,7 @@
   const DIAS = [1,2,3,4,5];
   let gradoNum = null, seccion = '';
 
-  $('#id_alumno').select2({ placeholder:'-- Selecciona un estudiante --', width:'100%' });
+  try { if (window.jQuery) $('#id_alumno').select2({ placeholder:'-- Selecciona un estudiante --', width:'100%' }); } catch (e) {}
 
   const ORDINAL = {'1ero':1,'1mo':1,'primero':1,'2do':2,'segundo':2,'3ero':3,'3ro':3,'tercero':3,
     '4to':4,'cuarto':4,'5to':5,'quinto':5,'6to':6,'sexto':6,'7mo':7,'septimo':7,'séptimo':7,
@@ -172,8 +167,14 @@
       return;
     }
     cont.innerHTML = '<div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando tutorías del grado…</div>';
-    const r = await fetch(`${HORARIO_URL}?grado_num=${gradoNum}&parcial=${parcial}&anio=${anio}`);
-    const d = await r.json();
+    let d;
+    try {
+      const r = await fetch(`${HORARIO_URL}?grado_num=${gradoNum}&parcial=${parcial}&anio=${anio}`);
+      d = await r.json();
+    } catch (err) {
+      cont.innerHTML = '<div class="alert alert-danger py-2 mb-0 small">No se pudieron cargar las tutorías. Recarga la página (Ctrl+F5).</div>';
+      return;
+    }
     if (!d.items || !d.items.length) {
       cont.innerHTML = '<div class="alert alert-warning py-2 mb-0 small">Este grado no tiene tutorías configuradas en este parcial. Pide al coordinador configurar el horario.</div>';
       actualizarPreview();
@@ -242,15 +243,21 @@
     }).join('');
   }
 
-  $('#id_alumno').on('change', function () {
-    const opt = this.options[this.selectedIndex];
-    const g = parseGrado(opt ? opt.dataset.grado : '');
+  // Cambio de estudiante. select2 dispara 'change' vía jQuery, así que si jQuery
+  // está disponible escuchamos con jQuery; si no, con listener nativo.
+  function onAlumnoChange() {
+    const selEl = document.getElementById('id_alumno');
+    const opt = selEl.options[selEl.selectedIndex];
+    const g = parseGrado(opt ? opt.getAttribute('data-grado') : '');
     gradoNum = g.num; seccion = g.sec;
-    document.getElementById('grado-display').value = opt && opt.dataset.grado ? opt.dataset.grado : '';
-    document.getElementById('id_grado').value = opt && opt.dataset.grado ? opt.dataset.grado : '';
-    document.getElementById('id_alumno_nombre').value = opt ? (opt.dataset.nombre || '') : '';
+    const gr = opt ? (opt.getAttribute('data-grado') || '') : '';
+    document.getElementById('grado-display').value = gr;
+    document.getElementById('id_grado').value = gr;
+    document.getElementById('id_alumno_nombre').value = opt ? (opt.getAttribute('data-nombre') || '') : '';
     cargarAsignaturas();
-  });
+  }
+  if (window.jQuery) { $('#id_alumno').on('change', onAlumnoChange); }
+  else { document.getElementById('id_alumno').addEventListener('change', onAlumnoChange); }
   document.getElementById('sel_parcial').addEventListener('change', cargarAsignaturas);
   document.getElementById('id_fecha').addEventListener('change', actualizarPreview);
 
@@ -266,7 +273,8 @@
   document.getElementById('id_anio').value = anio || '';
   // Edición: si ya hay alumno seleccionado, disparar la carga de asignaturas
   if (document.getElementById('id_alumno').value) {
-    $('#id_alumno').trigger('change');
+    if (window.jQuery) { $('#id_alumno').trigger('change'); }
+    else { document.getElementById('id_alumno').dispatchEvent(new Event('change')); }
   }
 })();
 window.GRADO_LABELS = {1:'Primero',2:'Segundo',3:'Tercero',4:'Cuarto',5:'Quinto',6:'Sexto',7:'Séptimo',8:'Octavo',9:'Noveno'};
