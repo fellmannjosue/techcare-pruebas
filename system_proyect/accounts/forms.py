@@ -10,6 +10,7 @@ AREA_CHOICES = (
 CARGO_CHOICES = (
     ('docente', 'Docente'),
     ('administrativo', 'Administrativo'),
+    ('instructor_cfp', 'Instructor CFP'),
 )
 
 class MaestroRegisterForm(forms.Form):

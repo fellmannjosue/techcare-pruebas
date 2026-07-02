@@ -54,13 +54,29 @@
         </div>
         <div class="col-md-4">
           <label class="form-label fw-bold">Semana Inicio</label>
-          <input type="date" name="semana_inicio" class="form-control" value="{{ semana_ini }}" required>
+          <input type="date" name="semana_inicio" id="ag_semana_inicio" class="form-control" value="{{ semana_ini }}" required>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-bold">Semana Fin</label>
-          <input type="date" name="semana_fin" class="form-control" value="{{ semana_fin }}" required>
+          <input type="date" name="semana_fin" id="ag_semana_fin" class="form-control" value="{{ semana_fin }}" min="{{ semana_ini }}" required>
         </div>
       </div>
+      <script>
+        (function(){
+          var ini=document.getElementById('ag_semana_inicio'),
+              fin=document.getElementById('ag_semana_fin');
+          if(!ini||!fin)return;
+          function sync(){
+            fin.min=ini.value||'';
+            if(fin.value && ini.value && fin.value<ini.value){
+              fin.setCustomValidity('La fecha final no puede ser anterior a la de inicio.');
+            } else { fin.setCustomValidity(''); }
+          }
+          ini.addEventListener('change',sync);
+          fin.addEventListener('change',sync);
+          sync();
+        })();
+      </script>
 
       {% if materias %}
       <div class="table-responsive">

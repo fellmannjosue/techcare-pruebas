@@ -1,0 +1,73 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static l10n %}
+{% block title %}Notas CFP — Panel global{% endblock %}
+{% block page_pretitle %}CFP · Programa 2{% endblock %}
+{% block page_title %}<i class="ti ti-layout-dashboard me-2 text-blue"></i>Panel global de notas{% endblock %}
+
+{% block page_actions %}
+  <div class="d-flex gap-2 align-items-center">
+    <form method="get" class="d-flex align-items-center gap-1">
+      <label class="text-muted small">Año</label>
+      <select name="anio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        {% for y in anios %}<option value="{{ y }}" {% if y == anio %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'cfp:notas_cursos' %}?anio={{ anio }}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: panel global del director — todos los cursos y jornadas #}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th>Curso</th><th>Jornada</th>
+          <th class="text-center">Participantes</th>
+          <th class="text-center">Módulos</th>
+          <th class="text-center">Con notas</th>
+          <th class="text-center">Prom. Nota Final</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td class="font-weight-medium">{{ f.label }}</td>
+          <td>
+            {% if f.jornada == 'matutina' %}<span class="badge bg-yellow-lt"><i class="ti ti-sun me-1"></i>Matutina</span>
+            {% elif f.jornada == 'vespertina' %}<span class="badge bg-indigo-lt"><i class="ti ti-moon me-1"></i>Vespertina</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">{{ f.n_part }}</td>
+          <td class="text-center">{% if f.n_mod %}{{ f.n_mod }}{% else %}<span class="text-muted">0</span>{% endif %}</td>
+          <td class="text-center">{{ f.capt }}/{{ f.n_part }}</td>
+          <td class="text-center">
+            <span class="badge {% if f.prom >= 90 %}bg-green-lt{% elif f.prom > 0 %}bg-orange-lt{% else %}bg-secondary-lt{% endif %}">{{ f.prom|unlocalize }}</span>
+          </td>
+          <td class="text-end">
+            <a href="{% url 'cfp:notas_curso' anio f.curso %}{% if f.jornada != 'unica' %}?jornada={{ f.jornada }}{% endif %}"
+               class="btn btn-sm btn-outline-primary">Abrir <i class="ti ti-chevron-right"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Sin cursos con participantes en {{ anio }}.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if filas %}
+      <tfoot>
+        <tr class="fw-bold" style="background:#f8fafc;">
+          <td colspan="2">Total</td>
+          <td class="text-center">{{ tot.part }}</td>
+          <td></td>
+          <td class="text-center">{{ tot.capt }}/{{ tot.part }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+<p class="text-muted small mt-2">Vista de solo lectura. "Con notas" = participantes con al menos una nota capturada · "Prom. Nota Final" = promedio de las notas finales del grupo.</p>
+{% endblock %}

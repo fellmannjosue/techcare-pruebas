@@ -1,0 +1,52 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
+{% block title %}CFP — Programas{% endblock %}
+{% block page_pretitle %}CFP{% endblock %}
+{% block page_title %}<i class="ti ti-school me-2 text-green"></i>Centro de Formación Profesional{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: landing CFP con 2 programas (Contabilidad / Notas) #}
+<div class="row row-cards justify-content-center">
+
+  {% if puede_contabilidad %}
+  <div class="col-sm-6 col-lg-5">
+    <a href="{% url 'cfp:dashboard' %}" class="card card-link card-link-pop text-decoration-none h-100">
+      <div class="card-body text-center py-5">
+        <span class="avatar avatar-xl mb-3" style="background:#2fb34418;color:#2fb344;">
+          <i class="ti ti-calculator" style="font-size:2rem;"></i>
+        </span>
+        <h2 class="mb-1">Programa 1 · Contabilidad</h2>
+        <div class="text-muted">Talleres, ejecuciones, distribución 60/20/20 e informe contable.</div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="col-sm-6 col-lg-5">
+    <a href="{% url 'cfp:notas_cursos' %}" class="card card-link card-link-pop text-decoration-none h-100">
+      <div class="card-body text-center py-5">
+        <span class="avatar avatar-xl mb-3" style="background:#206bc418;color:#206bc4;">
+          <i class="ti ti-list-numbers" style="font-size:2rem;"></i>
+        </span>
+        <h2 class="mb-1">Programa 2 · Notas</h2>
+        <div class="text-muted">Registro de notas por curso: progreso, compilación, módulos y horas.</div>
+      </div>
+    </a>
+  </div>
+
+  {% if puede_contabilidad %}
+  <div class="col-sm-6 col-lg-5">
+    <a href="{% url 'cfp:notas_resumen' %}" class="card card-link card-link-pop text-decoration-none h-100">
+      <div class="card-body text-center py-5">
+        <span class="avatar avatar-xl mb-3" style="background:#7048e818;color:#7048e8;">
+          <i class="ti ti-layout-dashboard" style="font-size:2rem;"></i>
+        </span>
+        <h2 class="mb-1">Panel global (Director)</h2>
+        <div class="text-muted">Vista de todos los cursos y jornadas con su resumen de notas.</div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

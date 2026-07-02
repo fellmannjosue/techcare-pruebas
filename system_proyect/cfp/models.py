@@ -156,3 +156,155 @@ class CfpOpcion(models.Model):
 
     def __str__(self):
         return f"{self.campo}: {self.valor}"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PROGRAMA 2 — SISTEMA DE NOTAS CFP
+#  (4 vistas/tabs por curso: Progreso · Compilación · Módulos · Horas)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Teórico aprobado = nota ≥ 90 (la fórmula del Excel usa > 89)
+NOTA_APROBADO = 90
+# Práctico aprobado = 100 (el máximo); si es menos, reprobado
+NOTA_APROBADO_PRACTICO = 100
+# Meses de la formación: Febrero (2) … Noviembre (11)
+MESES_FORMACION = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+MES_LABEL = {2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
+             7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre'}
+
+
+def _primer_aprobado(intentos, umbral=NOTA_APROBADO):
+    """Devuelve el primer intento que aprueba (≥ umbral); si ninguno pasa → 0."""
+    for v in intentos:
+        if v is not None and float(v) >= umbral:
+            return float(v)
+    return 0.0
+
+
+JORNADA_CHOICES = [('unica', 'Única'), ('matutina', 'Matutina'), ('vespertina', 'Vespertina')]
+JORNADA_LABEL = dict(JORNADA_CHOICES)
+
+
+class CursoNota(models.Model):
+    """Un curso técnico (año, jornada) con sus módulos, notas y horas. La 'app' del Programa 2."""
+    anio    = models.PositiveSmallIntegerField('Año', default=2026, db_index=True)
+    curso   = models.CharField('Curso', max_length=160)   # = tc.Descripcion (SQL Server)
+    jornada = models.CharField('Jornada', max_length=12, choices=JORNADA_CHOICES, default='unica')
+    codigo  = models.CharField('Prefijo de código de módulo', max_length=20, blank=True, default='')
+
+    class Meta:
+        unique_together = ('anio', 'curso', 'jornada')
+        ordering = ['curso', 'jornada']
+        verbose_name = 'Curso (Notas)'
+        verbose_name_plural = 'Cursos (Notas)'
+
+    def __str__(self):
+        j = '' if self.jornada == 'unica' else f" · {JORNADA_LABEL[self.jornada]}"
+        return f"{self.curso}{j} ({self.anio})"
+
+    @property
+    def prefijo(self):
+        return self.codigo or 'M'
+
+
+class Participante(models.Model):
+    """Roster de alumnos asignado a un grupo/jornada (cuando SQL Server no separa grupos)."""
+    curso      = models.ForeignKey(CursoNota, on_delete=models.CASCADE, related_name='participantes')
+    persona_id = models.IntegerField()
+    nombre     = models.CharField(max_length=200, blank=True, default='')
+    identidad  = models.CharField(max_length=40, blank=True, default='')
+    sub_grupo  = models.CharField(max_length=20, blank=True, default='')
+    orden      = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('curso', 'persona_id')
+        ordering = ['orden', 'nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class ModuloNota(models.Model):
+    """Módulo/unidad de un curso. Define el código, puntaje y fechas (modal del instructor)."""
+    curso        = models.ForeignKey(CursoNota, on_delete=models.CASCADE, related_name='modulos')
+    numero       = models.PositiveSmallIntegerField('No.')
+    codigo       = models.CharField('Código', max_length=40, blank=True, default='')
+    puntaje      = models.DecimalField('Puntaje', max_digits=6, decimal_places=2, default=100)
+    fecha_inicio = models.DateField('Fecha inicio', null=True, blank=True)
+    fecha_fin    = models.DateField('Fecha final', null=True, blank=True)
+
+    class Meta:
+        unique_together = ('curso', 'numero')
+        ordering = ['numero']
+        verbose_name = 'Módulo'
+        verbose_name_plural = 'Módulos'
+
+    def __str__(self):
+        return self.codigo or f"Módulo {self.numero}"
+
+    @property
+    def codigo_auto(self):
+        return self.codigo or f"{self.curso.prefijo}-{self.numero:02d}"
+
+
+class NotaIntento(models.Model):
+    """Notas por intento de un participante en un módulo (Tab 1 · lo llena el instructor)."""
+    modulo     = models.ForeignKey(ModuloNota, on_delete=models.CASCADE, related_name='notas')
+    persona_id = models.IntegerField(db_index=True)
+    nombre     = models.CharField(max_length=200, blank=True, default='')
+    identidad  = models.CharField(max_length=40, blank=True, default='')
+    t1 = models.DecimalField('Teórico 1', max_digits=5, decimal_places=2, null=True, blank=True)
+    t2 = models.DecimalField('Teórico 2', max_digits=5, decimal_places=2, null=True, blank=True)
+    t3 = models.DecimalField('Teórico 3', max_digits=5, decimal_places=2, null=True, blank=True)
+    p1 = models.DecimalField('Práctico 1', max_digits=5, decimal_places=2, null=True, blank=True)
+    p2 = models.DecimalField('Práctico 2', max_digits=5, decimal_places=2, null=True, blank=True)
+    p3 = models.DecimalField('Práctico 3', max_digits=5, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('modulo', 'persona_id')
+        verbose_name = 'Nota por intento'
+        verbose_name_plural = 'Notas por intento'
+
+    @property
+    def teoricos(self):
+        return [self.t1, self.t2, self.t3]
+
+    @property
+    def practicos(self):
+        return [self.p1, self.p2, self.p3]
+
+    @property
+    def teorico_compilado(self):
+        return _primer_aprobado(self.teoricos)
+
+    @property
+    def practico_compilado(self):
+        return _primer_aprobado(self.practicos, NOTA_APROBADO_PRACTICO)
+
+    @property
+    def resultado_modulo(self):
+        """(Teórico compilado + Práctico compilado) / 2 (Tab 3)."""
+        return round((self.teorico_compilado + self.practico_compilado) / 2, 2)
+
+
+class HorasMetaMes(models.Model):
+    """Horas-meta por mes (la jornada que define el DIRECTOR · Tab 4)."""
+    curso = models.ForeignKey(CursoNota, on_delete=models.CASCADE, related_name='horas_meta')
+    mes   = models.PositiveSmallIntegerField()  # 2..11 (Febrero..Noviembre)
+    horas = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+
+    class Meta:
+        unique_together = ('curso', 'mes')
+        ordering = ['mes']
+
+
+class HorasParticipanteMes(models.Model):
+    """Horas reales por mes de cada participante (las llena el INSTRUCTOR · Tab 4)."""
+    curso      = models.ForeignKey(CursoNota, on_delete=models.CASCADE, related_name='horas_part')
+    persona_id = models.IntegerField(db_index=True)
+    mes        = models.PositiveSmallIntegerField()
+    horas      = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+
+    class Meta:
+        unique_together = ('curso', 'persona_id', 'mes')
+        ordering = ['persona_id', 'mes']

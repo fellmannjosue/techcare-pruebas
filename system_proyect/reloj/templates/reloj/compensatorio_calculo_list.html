@@ -335,16 +335,19 @@
 {# ── Tab Gilma Lorenzo: marcas y tiempo trabajado por semana ── #}
 <div class="tab-pane fade" id="tab-gilma">
   <div class="card mb-3"><div class="card-body py-2">
-    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="get" id="gilmaRangoForm" class="d-flex align-items-center gap-2 flex-wrap">
       <input type="hidden" name="anio" value="{{ anio_sel }}">
       <input type="hidden" name="tab" value="gilma">
-      <span class="fw-semibold"><i class="ti ti-calendar-week me-1 text-pink"></i>Semana:</span>
-      <a class="btn btn-sm btn-ghost-secondary" href="?anio={{ anio_sel }}&gsem={{ gilma.ant }}&tab=gilma"><i class="ti ti-chevron-left"></i></a>
-      <span class="badge bg-pink-lt text-pink fs-6 px-3 py-2">{{ gilma.lunes|date:"d/m/Y" }} — {{ gilma.domingo|date:"d/m/Y" }}</span>
-      <a class="btn btn-sm btn-ghost-secondary" href="?anio={{ anio_sel }}&gsem={{ gilma.sig }}&tab=gilma"><i class="ti ti-chevron-right"></i></a>
-      <span class="ms-3 text-muted small">Ir a fecha:</span>
-      <input type="date" name="gsem" value="{{ gilma.ref }}" class="form-control form-control-sm" style="max-width:170px;">
+      <span class="fw-semibold"><i class="ti ti-calendar me-1 text-pink"></i>Rango:</span>
+      <label class="text-muted small mb-0">Desde</label>
+      <input type="date" name="gini" id="g_ini" value="{{ gilma.ini|date:'Y-m-d' }}" class="form-control form-control-sm" style="max-width:160px;">
+      <label class="text-muted small mb-0">Hasta</label>
+      <input type="date" name="gfin" id="g_fin" value="{{ gilma.fin|date:'Y-m-d' }}" class="form-control form-control-sm" style="max-width:160px;">
       <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-filter me-1"></i>Filtrar</button>
+      <span class="vr mx-1 d-none d-md-inline"></span>
+      <button type="button" class="btn btn-sm btn-outline-pink" data-grange="mes">Mes</button>
+      <button type="button" class="btn btn-sm btn-outline-pink" data-grange="q1">Quincena 1</button>
+      <button type="button" class="btn btn-sm btn-outline-pink" data-grange="q2">Quincena 2</button>
     </form>
   </div></div>
 
@@ -384,7 +387,7 @@
 </div>{# /tab-content #}
 
 <script>
-  // Reactivar el tab de Gilma tras navegar la semana (?tab=gilma)
+  // Reactivar el tab de Gilma tras filtrar (?tab=gilma)
   (function () {
     var p = new URLSearchParams(window.location.search);
     var map = { gilma: 'tab-gilma-btn' };
@@ -393,6 +396,23 @@
       var btn = document.getElementById(id);
       if (btn && window.bootstrap) new bootstrap.Tab(btn).show();
     }
+  })();
+  // Atajos de rango: Mes / Quincena 1 (1–15) / Quincena 2 (16–fin), según el mes de "Hasta"
+  (function () {
+    function fmt(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+    document.querySelectorAll('[data-grange]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var base = document.getElementById('g_fin').value || document.getElementById('g_ini').value || new Date().toISOString().slice(0, 10);
+        var dt = new Date(base + 'T00:00:00'), y = dt.getFullYear(), m = dt.getMonth();
+        var last = new Date(y, m + 1, 0).getDate(), r = this.dataset.grange, ini, fin;
+        if (r === 'mes') { ini = fmt(y, m, 1); fin = fmt(y, m, last); }
+        else if (r === 'q1') { ini = fmt(y, m, 1); fin = fmt(y, m, 15); }
+        else { ini = fmt(y, m, 16); fin = fmt(y, m, last); }
+        document.getElementById('g_ini').value = ini;
+        document.getElementById('g_fin').value = fin;
+        document.getElementById('gilmaRangoForm').submit();
+      });
+    });
   })();
 </script>
 

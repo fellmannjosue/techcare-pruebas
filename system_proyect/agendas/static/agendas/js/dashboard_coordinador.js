@@ -1,11 +1,12 @@
 /* dashboard_coordinador.js – agendas */
 $(document).ready(function () {
-  $('#tablaAgendas').DataTable({
-    order: [[4, 'desc']],
-    language: {
-      url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
-    }
-  });
+  // Las agendas ahora se agrupan por tabs (parcial → semana); ya no hay una sola tabla.
+  if ($('#tablaAgendas').length) {
+    $('#tablaAgendas').DataTable({
+      order: [[4, 'desc']],
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
+    });
+  }
 });
 
 (function () {

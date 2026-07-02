@@ -18,9 +18,9 @@ from django.utils.dateparse import parse_date
 from django.conf import settings
 from django.views.decorators.http import require_GET
 from django.http import HttpResponse
-from reportlab.lib.pagesizes import landscape, letter
+from reportlab.lib.pagesizes import landscape, letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from django.utils.dateparse import parse_date
 
@@ -288,19 +288,39 @@ def exportar_pdf(request):
     response['Content-Disposition'] = f'{_disp}; filename="reporte_asistencia.pdf"'
     response['X-Frame-Options'] = 'SAMEORIGIN'  # permitir vista previa en iframe
 
-    doc = SimpleDocTemplate(response, pagesize=landscape(letter), leftMargin=20, rightMargin=20, topMargin=20, bottomMargin=20)
+    from xml.sax.saxutils import escape as _xesc
+
+    MARGIN = 22
+    page_w, _ = landscape(A4)                       # A4 horizontal (más ancho para comentarios)
+    avail_w = page_w - 2 * MARGIN
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4),
+                            leftMargin=MARGIN, rightMargin=MARGIN, topMargin=22, bottomMargin=22)
     styles = getSampleStyleSheet()
-    small_style = styles["Normal"].clone('small_style')
-    small_style.fontSize = 8
+    cell_style = ParagraphStyle('cell', parent=styles['Normal'], fontSize=8, leading=10)
+    sub_style  = ParagraphStyle('sub', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor("#555555"))
     elements = []
 
+    # Encabezado: título + rango + quién y cuándo lo generó
+    usuario = (request.user.get_full_name() or request.user.get_username()) if request.user.is_authenticated else 'Anónimo'
+    generado = hoy.strftime('%d/%m/%Y %H:%M')
     elements.append(Paragraph("Reporte de Asistencia", styles["Title"]))
-    elements.append(Spacer(1, 12))
-    elements.append(Paragraph(f"Desde: {fecha_inicio} &nbsp;&nbsp;&nbsp; Hasta: {fecha_fin}", styles["Normal"]))
+    elements.append(Spacer(1, 6))
+    elements.append(Paragraph(f"Desde: <b>{fecha_inicio}</b> &nbsp;&nbsp;&nbsp; Hasta: <b>{fecha_fin}</b>", styles["Normal"]))
+    elements.append(Paragraph(f"Generado el {generado} por {_xesc(usuario)}", sub_style))
     elements.append(Spacer(1, 8))
 
     pdf_columnas = columnas + ["Comentarios"]
-    data = [pdf_columnas]
+    # Columnas que envuelven texto (Paragraph); el resto queda centrado como texto plano
+    WRAP = {'Empleado', 'Cargo', 'Marcas', 'Comentarios'}
+    # Pesos de ancho por columna (se escalan al 100% del papel)
+    PESOS = {'ID_Empleado': 55, 'Empleado': 130, 'Cargo': 95, 'Fecha': 60,
+             'Marcas': 110, 'Cantidad_Marcas': 62, 'Estado': 66, 'Comentarios': 210}
+    pesos = [PESOS.get(c, 80) for c in pdf_columnas]
+    factor = avail_w / sum(pesos)
+    col_widths = [p * factor for p in pesos]
+
+    data = [[Paragraph(f'<b>{_xesc(c)}</b>', ParagraphStyle('h', parent=cell_style, textColor=colors.white))
+             for c in pdf_columnas]]
     marcas_col_idx = columnas.index('Marcas') if 'Marcas' in columnas else None
     for row in datos:
         emp_code_r = str(row.get('ID_Empleado') or "").strip()
@@ -310,19 +330,25 @@ def exportar_pdf(request):
         if marcas_col_idx is not None and fila[marcas_col_idx]:
             raw_marks = [m.strip() for m in fila[marcas_col_idx].split(',') if m.strip()]
             fila[marcas_col_idx] = ', '.join(_dedup_marcas_hora(raw_marks))
-        data.append(fila + [comentarios_txt])
+        valores = fila + [comentarios_txt]
+        celdas = []
+        for c, v in zip(pdf_columnas, valores):
+            if c in WRAP:
+                celdas.append(Paragraph(_xesc(v or ""), cell_style))
+            else:
+                celdas.append(v)
+        data.append(celdas)
 
-    col_count = len(pdf_columnas)
-    table = Table(data, repeatRows=1)
+    table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#2C3E50")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('ALIGN', (col_count-1,1), (col_count-1,-1), 'LEFT'),
-        ('FONTSIZE', (0,0), (-1,0), 10),
-        ('FONTSIZE', (0,1), (-1,-1), 9),
-        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('FONTSIZE', (0,1), (-1,-1), 8),
+        ('TOPPADDING', (0,0), (-1,0), 6),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#34495E")),
         ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.whitesmoke, colors.lightgrey]),
     ]))
@@ -2665,12 +2691,21 @@ def compensatorio_calculo_list(request):
     mensual_rows     = _mensual_rows(anio_sel)
     instructor_rows  = _instructores_rows(anio_sel, hoy, feriados)
 
-    # ── Tab Gilma Lorenzo (emp 9): marcas y tiempo trabajado por semana ──
+    # ── Tab Gilma Lorenzo (emp 9): marcas y tiempo trabajado por RANGO de fechas ──
     from datetime import date as _gd, timedelta as _gtd
-    _gref = _safe_date(request.GET.get('gsem', hoy.isoformat()), hoy.isoformat())
-    _gref_d = _gd.fromisoformat(_gref)
-    _glun = _gref_d - _gtd(days=_gref_d.weekday())
-    _gdom = _glun + _gtd(days=6)
+    import calendar as _gcal
+    _GDIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    # Por defecto: mes actual (el usuario puede elegir quincenal o mensual)
+    _def_ini = hoy.replace(day=1)
+    _def_fin = hoy.replace(day=_gcal.monthrange(hoy.year, hoy.month)[1])
+    _gini = _safe_date(request.GET.get('gini', _def_ini.isoformat()), _def_ini.isoformat())
+    _gfin = _safe_date(request.GET.get('gfin', _def_fin.isoformat()), _def_fin.isoformat())
+    _gini_d = _gd.fromisoformat(_gini)
+    _gfin_d = _gd.fromisoformat(_gfin)
+    if _gfin_d < _gini_d:                     # si vienen al revés, se corrigen
+        _gini_d, _gfin_d = _gfin_d, _gini_d
+    if (_gfin_d - _gini_d).days > 62:         # tope de seguridad (máx ~2 meses)
+        _gfin_d = _gini_d + _gtd(days=62)
     gilma_marcas, gilma_error = {}, None
     try:
         with connections['zkbio_sqlserver'].cursor() as _gcur:
@@ -2679,17 +2714,16 @@ def compensatorio_calculo_list(request):
                        CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108)
                 FROM dbo.iclock_transaction t
                 WHERE CAST(t.emp_code AS VARCHAR(20)) = '9'
-                  AND CONVERT(DATE, t.punch_time) BETWEEN '{_glun.isoformat()}' AND '{_gdom.isoformat()}'
+                  AND CONVERT(DATE, t.punch_time) BETWEEN '{_gini_d.isoformat()}' AND '{_gfin_d.isoformat()}'
                 ORDER BY t.punch_time
             """)
             for _f, _h in _gcur.fetchall():
                 gilma_marcas.setdefault(_f, []).append(_h)
     except Exception as _e:
         gilma_error = str(_e)
-    _GDIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     gilma_dias, gilma_total_min = [], 0
-    for _i in range(7):
-        _d = _glun + _gtd(days=_i)
+    _d = _gini_d
+    while _d <= _gfin_d:
         _hs = gilma_marcas.get(_d, [])
         _ent = _hs[0] if _hs else None
         _sal = _hs[-1] if len(_hs) > 1 else None
@@ -2699,15 +2733,15 @@ def compensatorio_calculo_list(request):
             _tmin = max(0, (_sh * 60 + _sm) - (_eh * 60 + _em))
         gilma_total_min += _tmin
         gilma_dias.append({
-            'dia': _GDIAS[_i], 'fecha': _d, 'marcas': _hs,
+            'dia': _GDIAS[_d.weekday()], 'fecha': _d, 'marcas': _hs,
             'entrada': _ent, 'salida': _sal,
             'trab': f"{_tmin // 60}h {_tmin % 60:02d}m" if (_ent and _sal) else "—",
         })
+        _d += _gtd(days=1)
     gilma = {
         'nombre': 'Gilma Lorenzo', 'emp_code': '9', 'dias': gilma_dias,
         'total_str': f"{gilma_total_min // 60}h {gilma_total_min % 60:02d}m",
-        'lunes': _glun, 'domingo': _gdom, 'ref': _gref,
-        'ant': (_glun - _gtd(days=7)).isoformat(), 'sig': (_glun + _gtd(days=7)).isoformat(),
+        'ini': _gini_d, 'fin': _gfin_d,
         'error': gilma_error,
     }
 
@@ -2734,7 +2768,7 @@ def compensatorio_calculo_list(request):
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')
-        if sec not in ('adeudados', 'general', 'instructores'):
+        if sec not in ('adeudados', 'general', 'instructores', 'gilma'):
             sec = 'adeudados'
         ctx['sec'] = sec
         return _reporte_pdf(request, 'reloj/pdf/calculo_pdf.html', ctx,

@@ -109,12 +109,12 @@
   </li>
   {% endif %}
 
-  {# ── Contabilidad CFP ─────────────────────────────────── #}
+  {# ── CFP (Contabilidad + Notas) ───────────────────────── #}
   {% if nav_cfp %}
   <li class="nav-item">
-    <a class="nav-link" href="{% url 'cfp:dashboard' %}">
-      <span class="nav-link-icon"><i class="ti ti-calculator"></i></span>
-      <span class="nav-link-title">Contabilidad CFP</span>
+    <a class="nav-link" href="{% url 'cfp:programas' %}">
+      <span class="nav-link-icon"><i class="ti ti-school"></i></span>
+      <span class="nav-link-title">CFP</span>
     </a>
   </li>
   {% endif %}

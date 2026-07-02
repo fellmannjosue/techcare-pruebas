@@ -11,45 +11,76 @@
 {% endblock %}
 
 {% block content %}
+{% if parciales %}
 <div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-vcenter table-hover card-table">
-        <thead>
-          <tr>
-            <th>Grado</th>
-            <th>Docente</th>
-            <th>Semana</th>
-            <th>Creada</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ag in agendas %}
-          <tr>
-            <td class="fw-bold">{{ ag.grado.nombre }}</td>
-            <td class="text-muted small">{{ ag.usuario.get_full_name|default:ag.usuario.username }}</td>
-            <td>{{ ag.semana_inicio|date:"d/m/Y" }} – {{ ag.semana_fin|date:"d/m/Y" }}</td>
-            <td class="text-muted small">{{ ag.fecha_creado|date:"d/m/Y H:i" }}</td>
-            <td>
-              <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary">
-                <i class="ti ti-pencil"></i>
-              </a>
-              {% if es_coord %}
-              <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success ms-1">
-                <i class="ti ti-download"></i>
-              </a>
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" class="text-center text-muted py-4">No hay agendas registradas aún.</td>
-          </tr>
+  <div class="card-header">
+    {# ── Tabs por Parcial ── #}
+    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+      {% for p in parciales %}
+      <li class="nav-item">
+        <a class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="tab" href="#tab-{{ p.key }}">
+          {{ p.label }}
+          {% if p.activo %}<span class="badge bg-green-lt text-green ms-1">Activo</span>{% endif %}
+          <span class="badge bg-secondary-lt ms-1">{{ p.n_agendas }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      {% for p in parciales %}
+      <div class="tab-pane {% if forloop.first %}active show{% endif %}" id="tab-{{ p.key }}">
+        {# ── Sub-tabs por Semana ── #}
+        <ul class="nav nav-pills mb-3 flex-wrap gap-1" role="tablist">
+          {% for s in p.semanas %}
+          <li class="nav-item">
+            <a class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="pill" href="#wk-{{ s.id }}">
+              <i class="ti ti-calendar-week me-1"></i>{{ s.inicio|date:"d/m/Y" }} – {{ s.fin|date:"d/m/Y" }}
+              <span class="badge bg-blue-lt text-blue ms-1">{{ s.agendas|length }}</span>
+            </a>
+          </li>
           {% endfor %}
-        </tbody>
-      </table>
+        </ul>
+        <div class="tab-content">
+          {% for s in p.semanas %}
+          <div class="tab-pane {% if forloop.first %}active show{% endif %}" id="wk-{{ s.id }}">
+            <div class="table-responsive">
+              <table class="table table-vcenter table-hover card-table">
+                <thead><tr>
+                  <th>Grado</th><th>Docente</th><th>Semana</th><th>Creada</th><th>Acciones</th>
+                </tr></thead>
+                <tbody>
+                  {% for ag in s.agendas %}
+                  <tr>
+                    <td class="fw-bold">{{ ag.grado.nombre }}</td>
+                    <td class="text-muted small">{{ ag.usuario.get_full_name|default:ag.usuario.username }}</td>
+                    <td>{{ ag.semana_inicio|date:"d/m/Y" }} – {{ ag.semana_fin|date:"d/m/Y" }}</td>
+                    <td class="text-muted small">{{ ag.fecha_creado|date:"d/m/Y H:i" }}</td>
+                    <td>
+                      <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="ti ti-pencil"></i>
+                      </a>
+                      {% if es_coord %}
+                      <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success ms-1">
+                        <i class="ti ti-download"></i>
+                      </a>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </div>
+{% else %}
+<div class="card"><div class="card-body text-center text-muted py-4">No hay agendas registradas aún.</div></div>
+{% endif %}
 {% endblock %}

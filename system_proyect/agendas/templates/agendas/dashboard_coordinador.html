@@ -20,61 +20,87 @@
       {% if bloqueo_cfg.activo %}<span class="badge bg-warning ms-1">ON</span>{% endif %}
     </button>
   </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table id="tablaAgendas" class="table table-vcenter table-hover card-table">
-        <thead>
-          <tr>
-            <th>Grado</th>
-            <th>Área</th>
-            <th>Semana</th>
-            <th>Maestro</th>
-            <th>Creada</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ag in agendas %}
-          <tr>
-            <td class="fw-bold">{{ ag.grado.nombre }}</td>
-            <td>
-              <span class="badge bg-{% if ag.grado.area == 'bilingue' %}blue{% else %}green{% endif %}">
-                {{ ag.grado.get_area_display }}
-              </span>
-            </td>
-            <td class="small">{{ ag.semana_inicio|date:"d/m/Y" }} – {{ ag.semana_fin|date:"d/m/Y" }}</td>
-            <td class="small">{{ ag.usuario.get_full_name|default:ag.usuario.username }}</td>
-            <td class="text-muted small">{{ ag.fecha_creado|date:"d/m/Y" }}</td>
-            <td>
-              <div class="d-flex align-items-center gap-1">
-                <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary"
-                   title="Revisar / editar">
-                  <i class="ti ti-pencil"></i>
-                </a>
-                <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success"
-                   title="Descargar PPTX">
-                  <i class="ti ti-download"></i>
-                </a>
-                <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
-                        data-pk="{{ ag.pk }}"
-                        data-grado="{{ ag.grado.nombre }}"
-                        data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
-                        data-maestro="{{ ag.usuario.get_full_name|default:ag.usuario.username }}"
-                        title="Eliminar agenda">
-                  <i class="ti ti-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-muted py-4">No hay agendas registradas.</td>
-          </tr>
+  {% if parciales %}
+  <div class="card-header pt-0">
+    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+      {% for p in parciales %}
+      <li class="nav-item">
+        <a class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="tab" href="#tab-{{ p.key }}">
+          {{ p.label }}
+          {% if p.activo %}<span class="badge bg-green-lt text-green ms-1">Activo</span>{% endif %}
+          <span class="badge bg-secondary-lt ms-1">{{ p.n_agendas }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content">
+      {% for p in parciales %}
+      <div class="tab-pane {% if forloop.first %}active show{% endif %}" id="tab-{{ p.key }}">
+        <ul class="nav nav-pills mb-3 flex-wrap gap-1" role="tablist">
+          {% for s in p.semanas %}
+          <li class="nav-item">
+            <a class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="pill" href="#wk-{{ s.id }}">
+              <i class="ti ti-calendar-week me-1"></i>{{ s.inicio|date:"d/m/Y" }} – {{ s.fin|date:"d/m/Y" }}
+              <span class="badge bg-blue-lt text-blue ms-1">{{ s.agendas|length }}</span>
+            </a>
+          </li>
           {% endfor %}
-        </tbody>
-      </table>
+        </ul>
+        <div class="tab-content">
+          {% for s in p.semanas %}
+          <div class="tab-pane {% if forloop.first %}active show{% endif %}" id="wk-{{ s.id }}">
+            <div class="table-responsive">
+              <table class="table table-vcenter table-hover card-table">
+                <thead><tr>
+                  <th>Grado</th><th>Área</th><th>Semana</th><th>Maestro</th><th>Creada</th><th>Acciones</th>
+                </tr></thead>
+                <tbody>
+                  {% for ag in s.agendas %}
+                  <tr>
+                    <td class="fw-bold">{{ ag.grado.nombre }}</td>
+                    <td>
+                      <span class="badge bg-{% if ag.grado.area == 'bilingue' %}blue{% else %}green{% endif %}">
+                        {{ ag.grado.get_area_display }}
+                      </span>
+                    </td>
+                    <td class="small">{{ ag.semana_inicio|date:"d/m/Y" }} – {{ ag.semana_fin|date:"d/m/Y" }}</td>
+                    <td class="small">{{ ag.usuario.get_full_name|default:ag.usuario.username }}</td>
+                    <td class="text-muted small">{{ ag.fecha_creado|date:"d/m/Y" }}</td>
+                    <td>
+                      <div class="d-flex align-items-center gap-1">
+                        <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary" title="Revisar / editar">
+                          <i class="ti ti-pencil"></i>
+                        </a>
+                        <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success" title="Descargar PPTX">
+                          <i class="ti ti-download"></i>
+                        </a>
+                        <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
+                                data-pk="{{ ag.pk }}"
+                                data-grado="{{ ag.grado.nombre }}"
+                                data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
+                                data-maestro="{{ ag.usuario.get_full_name|default:ag.usuario.username }}"
+                                title="Eliminar agenda">
+                          <i class="ti ti-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
+  {% else %}
+  <div class="card-body text-center text-muted py-4">No hay agendas registradas.</div>
+  {% endif %}
 </div>
 
 {# Modal doble confirmación eliminar agenda #}
@@ -175,7 +201,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}"></script>
 <script>window._PAGE = { csrf: '{{ csrf_token }}' };</script>
-<script src="{% static 'agendas/js/dashboard_coordinador.js' %}"></script>
+<script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=2"></script>
 <script>
 (function () {
   var act = document.getElementById('bq-activo');

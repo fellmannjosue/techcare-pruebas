@@ -287,10 +287,25 @@ def form_agenda(request):
                 **_rol_ctx(request),
             })
 
-        existe = Agenda.objects.filter(
-            grado=grado_obj,
-            semana_inicio__lte=fin_d,
-            semana_fin__gte=ini_d,
+        # La fecha final no puede ser anterior a la de inicio
+        if fin_d < ini_d:
+            messages.error(request, "La fecha final no puede ser anterior a la fecha de inicio.")
+            return render(request, 'agendas/form_agenda.html', {
+                'grados': grados, 'grado_obj': grado_obj,
+                'materias': materias, 'semana_ini': semana_ini, 'semana_fin': semana_fin,
+                'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
+                **_rol_ctx(request),
+            })
+
+        # No duplicar agenda del mismo grado: bloquear si las fechas se traslapan
+        # O si cae en la misma semana (mismo lunes) que una existente.
+        from django.db.models import Q as _Q
+        from datetime import timedelta as _td
+        lunes_new   = ini_d - _td(days=ini_d.weekday())
+        domingo_new = lunes_new + _td(days=6)
+        existe = Agenda.objects.filter(grado=grado_obj).filter(
+            _Q(semana_inicio__lte=fin_d, semana_fin__gte=ini_d)                 # fechas que se traslapan
+            | _Q(semana_inicio__gte=lunes_new, semana_inicio__lte=domingo_new)  # misma semana (mismo lunes)
         ).exists()
         if existe:
             messages.error(
@@ -431,6 +446,56 @@ def editar_agenda(request, pk):
 
 
 # ── HISTORIAL MAESTRO ─────────────────────────────────────────────────────────
+_ORD_PARCIAL = {1: '1er', 2: '2do', 3: '3er', 4: '4to'}
+
+
+def _agrupar_agendas_por_parcial(agendas_qs):
+    """Agrupa las agendas en Parcial (del calendario escolar) → Semana → agendas.
+    El parcial se deduce automáticamente por la fecha de inicio de la semana."""
+    from conducta.models import PeriodoEscolarConducta
+    from datetime import timedelta
+    periodos = list(PeriodoEscolarConducta.objects.all().order_by('-anio', '-parcial'))
+
+    def parcial_de(sem):
+        for p in periodos:
+            if p.fecha_inicio <= sem <= p.fecha_fin:
+                return p
+        return None
+
+    parciales = {}
+    for a in agendas_qs:
+        p = parcial_de(a.semana_inicio)
+        if p:
+            pkey = (p.anio, p.parcial)
+            label = f"{_ORD_PARCIAL.get(p.parcial, p.parcial)} Parcial {p.anio}"
+            activo = p.activo
+        else:
+            pkey = (0, 0)
+            label = "Sin parcial"
+            activo = False
+        pg = parciales.setdefault(pkey, {
+            'key': f"p{pkey[0]}_{pkey[1]}", 'label': label, 'activo': activo, 'semanas': {}})
+        # Agrupar por SEMANA (lunes), aunque la fecha fin difiera entre agendas
+        lunes = a.semana_inicio - timedelta(days=a.semana_inicio.weekday())
+        pg['semanas'].setdefault(lunes, []).append(a)
+
+    out = []
+    for pkey in sorted(parciales, reverse=True):
+        pg = parciales[pkey]
+        semanas = []
+        for lunes in sorted(pg['semanas'], reverse=True):
+            semanas.append({
+                'inicio': lunes, 'fin': lunes + timedelta(days=4),  # Lun–Vie
+                'agendas': pg['semanas'][lunes],
+                'id': f"{pg['key']}_{lunes.isoformat().replace('-', '')}",
+            })
+        out.append({
+            'key': pg['key'], 'label': pg['label'], 'activo': pg['activo'],
+            'semanas': semanas, 'n_agendas': sum(len(s['agendas']) for s in semanas),
+        })
+    return out
+
+
 @login_required
 def historial_maestro(request):
     # El listado completo de agendas solo lo ve el coordinador.
@@ -445,6 +510,7 @@ def historial_maestro(request):
         agendas_qs = agendas_qs.filter(grado__area__in=areas)
     return render(request, 'agendas/historial_maestro.html', {
         'agendas': agendas_qs,
+        'parciales': _agrupar_agendas_por_parcial(agendas_qs),
         **_rol_ctx(request),
     })
 
@@ -469,6 +535,7 @@ def dashboard_coordinador(request):
 
     return render(request, 'agendas/dashboard_coordinador.html', {
         'agendas': agendas_qs,
+        'parciales': _agrupar_agendas_por_parcial(agendas_qs),
         'today':   timezone.now().strftime('%Y-%m-%d'),
         'bloqueo_cfg':  bcfg,
         'bloqueo_ids':  bloqueo_ids,

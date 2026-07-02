@@ -29,6 +29,7 @@
       <li class="nav-item"><a href="#rep-receso" class="nav-link" data-bs-toggle="tab"><i class="ti ti-coffee me-1 text-yellow"></i>Tiempo receso</a></li>
       <li class="nav-item"><a href="#rep-bono" class="nav-link" data-bs-toggle="tab"><i class="ti ti-award me-1 text-red"></i>Bono por asistencia</a></li>
       <li class="nav-item"><a href="#rep-vac" class="nav-link" data-bs-toggle="tab"><i class="ti ti-beach me-1 text-blue"></i>Vacaciones</a></li>
+      <li class="nav-item"><a href="#rep-gilma" class="nav-link" data-bs-toggle="tab"><i class="ti ti-user-shield me-1 text-pink"></i>Gilma Lorenzo</a></li>
     </ul>
   </div>
   <div class="card-body">
@@ -36,13 +37,14 @@
 
       {# ── Reporte general (asistencia) ── #}
       <div class="tab-pane active show" id="rep-general">
-        {% with base="?fecha_inicio="|add:fi|add:"&fecha_fin="|add:ff %}
-        <div class="rep-bar">
-          <span class="text-muted small">Asistencias y ausencias · {{ fi }} a {{ ff }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_exportar_pdf' %}{{ base }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap">
+          <span class="text-muted small">Asistencias y ausencias · rango:</span>
+          <input type="date" id="rg_ini" value="{{ fi }}" class="form-control form-control-sm" style="max-width:150px;">
+          <input type="date" id="rg_fin" value="{{ ff }}" class="form-control form-control-sm" style="max-width:150px;">
+          <button type="button" id="rg_ver" class="btn btn-sm btn-primary"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a id="rg_dl" class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_exportar_pdf' %}?fecha_inicio={{ fi }}&fecha_fin={{ ff }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
-        <iframe class="rep-frame" src="{% url 'reloj_exportar_pdf' %}{{ base }}&inline=1"></iframe>
-        {% endwith %}
+        <iframe class="rep-frame" id="rg_frame" src="{% url 'reloj_exportar_pdf' %}?fecha_inicio={{ fi }}&fecha_fin={{ ff }}&inline=1"></iframe>
       </div>
 
       {# ── Tiempo compensatorio ── #}
@@ -117,6 +119,18 @@
         <iframe class="rep-frame" data-src="{% url 'reloj_vacaciones_list' %}?fmt=pdf&inline=1"></iframe>
       </div>
 
+      {# ── Gilma Lorenzo (rango de fechas) ── #}
+      <div class="tab-pane" id="rep-gilma">
+        <div class="rep-bar gap-2 flex-wrap">
+          <span class="text-muted small">Gilma Lorenzo · rango:</span>
+          <input type="date" id="gpdf_ini" value="{{ fi }}" class="form-control form-control-sm" style="max-width:150px;">
+          <input type="date" id="gpdf_fin" value="{{ ff }}" class="form-control form-control-sm" style="max-width:150px;">
+          <button type="button" id="gpdf_ver" class="btn btn-sm btn-primary"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a id="gpdf_dl" class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=gilma&gini={{ fi }}&gfin={{ ff }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        </div>
+        <iframe class="rep-frame" id="gpdf_frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=gilma&gini={{ fi }}&gfin={{ ff }}"></iframe>
+      </div>
+
     </div>
   </div>
 </div>
@@ -134,6 +148,36 @@
         var pane = document.querySelector(sel);
         if (pane) cargar(pane);
       });
+    });
+  })();
+
+  // Reporte general: aplicar rango Desde/Hasta al iframe y a la descarga
+  (function () {
+    var btn = document.getElementById('rg_ver');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var ini = document.getElementById('rg_ini').value,
+          fin = document.getElementById('rg_fin').value,
+          dl  = document.getElementById('rg_dl'),
+          fr  = document.getElementById('rg_frame'),
+          base = "{% url 'reloj_exportar_pdf' %}";
+      dl.setAttribute('href', base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin);
+      fr.src = base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin + '&inline=1';
+    });
+  })();
+
+  // Gilma: aplicar rango Desde/Hasta al iframe y a la descarga
+  (function () {
+    var btn = document.getElementById('gpdf_ver');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var ini = document.getElementById('gpdf_ini').value,
+          fin = document.getElementById('gpdf_fin').value,
+          dl  = document.getElementById('gpdf_dl'),
+          fr  = document.getElementById('gpdf_frame'),
+          base = dl.getAttribute('href').split('?')[0];
+      dl.setAttribute('href', base + '?fmt=pdf&sec=gilma&gini=' + ini + '&gfin=' + fin);
+      fr.src = base + '?fmt=pdf&inline=1&sec=gilma&gini=' + ini + '&gfin=' + fin;
     });
   })();
 </script>
