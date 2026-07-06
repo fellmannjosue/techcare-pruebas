@@ -55,41 +55,42 @@
 
 {# ── Reporte de permisos en tabs ── #}
 <ul class="nav nav-tabs mb-3" id="perm-tabs" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pt-general" type="button">Control de permiso general</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pt-maestro" type="button">Permiso maestros por hora</button></li>
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pt-general" type="button">Reporte de permisos</button></li>
   <li class="nav-item"><button class="nav-link" id="pt-receso-btn" data-bs-toggle="tab" data-bs-target="#pt-receso" type="button"><i class="ti ti-coffee me-1 text-orange"></i>Tiempo receso</button></li>
   <li class="nav-item"><button class="nav-link" id="pt-bono-btn" data-bs-toggle="tab" data-bs-target="#pt-bono" type="button"><i class="ti ti-award me-1 text-red"></i>Bono por Asistencia</button></li>
 </ul>
 <div class="tab-content">
+  {# <--- hecho por claude code: un solo reporte de permisos (General alfabético → Maestros por hora → Vigilancia) #}
   <div class="tab-pane fade show active" id="pt-general">
     <div class="d-flex align-items-center mb-3">
-      <ul class="nav nav-pills gap-1 mb-0" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptg-80" type="button"><i class="ti ti-clock me-1"></i>8.0 h/d <span class="badge bg-secondary-lt ms-1">{{ rows_general_80|length }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptg-88" type="button"><i class="ti ti-clock me-1"></i>8.8 h/d <span class="badge bg-secondary-lt ms-1">{{ rows_general_88|length }}</span></button></li>
-      </ul>
+      <span class="text-muted small"><i class="ti ti-users me-1"></i>{{ rows_general|length }} empleado{{ rows_general|length|pluralize }} · orden alfabético por apellido</span>
       {% if request.user.is_superuser %}
       <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#modalReglasTarde">
         <i class="ti ti-settings me-1"></i>Reglas de tardanza
       </button>
       {% endif %}
     </div>
-    <div class="tab-content">
-      <div class="tab-pane fade show active" id="ptg-80">
-        <div class="card"><div class="card-body p-0"><div class="table-responsive">
-          {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general_80 tabla_id='tabla-general-80' %}
-        </div></div></div>
-      </div>
-      <div class="tab-pane fade" id="ptg-88">
-        <div class="card"><div class="card-body p-0"><div class="table-responsive">
-          {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general_88 tabla_id='tabla-general-88' %}
-        </div></div></div>
-      </div>
-    </div>
-  </div>
-  <div class="tab-pane fade" id="pt-maestro">
+
+    {# ── General (orden alfabético por apellido) ── #}
+    <div class="card"><div class="card-body p-0"><div class="table-responsive">
+      {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_general tabla_id='tabla-general' %}
+    </div></div></div>
+
+    {# ── Maestros por hora ── #}
+    {% if rows_maestro %}
+    <div class="mt-4 mb-2"><h5 class="m-0"><i class="ti ti-clock-hour-11 me-1 text-teal"></i>Maestros por hora <span class="badge bg-teal-lt ms-1">{{ rows_maestro|length }}</span></h5></div>
     <div class="card"><div class="card-body p-0"><div class="table-responsive">
       {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_maestro tabla_id='tabla-maestro' tab_maestro=1 %}
     </div></div></div>
+    {% endif %}
+
+    {# ── Vigilancia ── #}
+    {% if rows_vigilante %}
+    <div class="mt-4 mb-2"><h5 class="m-0"><i class="ti ti-shield me-1 text-indigo"></i>Vigilancia <span class="badge bg-indigo-lt ms-1">{{ rows_vigilante|length }}</span></h5></div>
+    <div class="card"><div class="card-body p-0"><div class="table-responsive">
+      {% include 'reloj/_permiso_reporte_tabla.html' with rows=rows_vigilante tabla_id='tabla-vigilante' %}
+    </div></div></div>
+    {% endif %}
   </div>
 
   {# ── Tiempo receso (mensual, marcas de almuerzo) ── #}
@@ -578,7 +579,7 @@ window._PAGE = {
   }
 };
 </script>
-<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=4"></script>
+<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=6"></script>
 <script>
 (function () {
   var CSRF    = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';

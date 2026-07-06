@@ -22,7 +22,6 @@
       <span class="fw-semibold">Hasta:</span>
       <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="form-control form-control-sm" style="max-width:170px;">
       <button class="btn btn-sm btn-primary" type="submit"><i class="ti ti-filter me-1"></i>Filtrar</button>
-      <span class="ms-auto text-muted small"><i class="ti ti-clock me-1"></i>Jornada fija: <strong>{{ horas_dia }}</strong> por día</span>
     </form>
   </div>
 </div>
@@ -31,51 +30,63 @@
 <div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>No se pudieron leer las marcas: {{ error_sql }}</div>
 {% endif %}
 
-{% for g in guardias %}
-<div class="card mb-3">
-  <div class="card-header d-flex align-items-center">
-    <div>
-      <div class="fw-bold fs-3">{{ g.nombre }}</div>
-      <div class="text-muted small">ID: {{ g.emp_code }} · {{ g.dias_trab }} día{{ g.dias_trab|pluralize }} trabajado{{ g.dias_trab|pluralize }}</div>
-    </div>
-    {# Cuadro de total de horas trabajadas (por guardia) #}
-    <div class="ms-auto text-center bg-green-lt rounded px-4 py-2">
-      <div class="text-muted small text-uppercase" style="font-size:.7rem;">Total horas trabajadas</div>
-      <div class="fw-bold fs-1 text-green">{{ g.total_str }}</div>
-    </div>
+{# <--- hecho por claude code: dos grupos en tabs (Nocturna / Diurna) #}
+<div class="card">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+      {% for gr in grupos %}
+      <li class="nav-item"><a href="#vig-{{ gr.key }}" class="nav-link {% if forloop.first %}active{% endif %}" data-bs-toggle="tab">
+        <i class="ti ti-{% if gr.key == 'nocturna' %}moon text-indigo{% else %}sun text-yellow{% endif %} me-1"></i>{{ gr.label }}
+      </a></li>
+      {% endfor %}
+    </ul>
   </div>
-  <div class="table-responsive">
-    <table class="table table-vcenter card-table mb-0">
-      <thead>
-        <tr>
-          <th>Día</th><th>Fecha</th><th>Marcas del reloj (AM/PM)</th><th class="text-center">Horas</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for d in g.dias %}
-        <tr {% if not d.trabajado %}class="text-muted"{% endif %}>
-          <td class="fw-semibold">{{ d.dia }}</td>
-          <td>{{ d.fecha|date:"d/m/Y" }}</td>
-          <td>
-            {% if d.marcas %}
-              {% for m in d.marcas %}<span class="badge bg-azure-lt text-azure me-1 mb-1 font-monospace">{{ m }}</span>{% endfor %}
-            {% else %}
-              <span class="text-muted">— sin marcas —</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if d.trabajado %}<span class="badge bg-teal-lt text-teal fw-bold">{{ horas_dia }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card-body">
+   <div class="tab-content">
+    {% for gr in grupos %}
+    <div class="tab-pane {% if forloop.first %}active show{% endif %}" id="vig-{{ gr.key }}">
+      <div class="text-muted small mb-3"><i class="ti ti-clock me-1"></i>{{ gr.jornada }}</div>
+
+      {% for g in gr.guardias %}
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center">
+          <div>
+            <div class="fw-bold fs-3">{{ g.nombre }}</div>
+            <div class="text-muted small">ID: {{ g.emp_code }} · {{ g.dias_trab }} día{{ g.dias_trab|pluralize }} trabajado{{ g.dias_trab|pluralize }}</div>
+          </div>
+          <div class="ms-auto text-center bg-green-lt rounded px-4 py-2">
+            <div class="text-muted small text-uppercase" style="font-size:.7rem;">Total horas trabajadas</div>
+            <div class="fw-bold fs-1 text-green">{{ g.total_str }}</div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table mb-0">
+            <thead><tr><th>Día</th><th>Fecha</th><th>Marcas del reloj (AM/PM)</th><th class="text-center">Horas</th></tr></thead>
+            <tbody>
+              {% for d in g.dias %}
+              <tr {% if not d.trabajado %}class="text-muted"{% endif %}>
+                <td class="fw-semibold">{{ d.dia }}</td>
+                <td>{{ d.fecha|date:"d/m/Y" }}</td>
+                <td>
+                  {% if d.marcas %}{% for m in d.marcas %}<span class="badge bg-azure-lt text-azure me-1 mb-1 font-monospace">{{ m }}</span>{% endfor %}
+                  {% else %}<span class="text-muted">— sin marcas —</span>{% endif %}
+                </td>
+                <td class="text-center">
+                  {% if d.horas_str != '—' %}<span class="badge bg-teal-lt text-teal fw-bold">{{ d.horas_str }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center text-muted py-5"><i class="ti ti-shield-off me-2"></i>Sin empleados en este grupo.</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+   </div>
   </div>
 </div>
-{% empty %}
-<div class="card"><div class="card-body text-center text-muted py-5">
-  <i class="ti ti-shield-off me-2"></i>No hay vigilantes registrados (cargo con "vigilan").
-</div></div>
-{% endfor %}
 
 {% endblock %}

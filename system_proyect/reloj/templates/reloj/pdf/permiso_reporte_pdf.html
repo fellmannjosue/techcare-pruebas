@@ -25,6 +25,10 @@
     </tr></thead>
     <tbody>
       {% for row in rows %}
+      {% ifchanged row.grupo %}
+        {% if row.grupo == 'maestro' %}<tr><td colspan="12" style="background:#e6fffb;font-weight:bold;">Maestros por hora</td></tr>{% endif %}
+        {% if row.grupo == 'vigilante' %}<tr><td colspan="12" style="background:#eef2ff;font-weight:bold;">Vigilancia</td></tr>{% endif %}
+      {% endifchanged %}
       {% with r=row.r %}
       <tr>
         <td class="l">{{ row.nombre }} <span style="color:#888;">({{ row.emp_code }})</span>{% if row.cargo %}<br><span style="color:#999;font-size:7px;">{{ row.cargo }}</span>{% endif %}</td>

@@ -141,6 +141,23 @@ document.addEventListener('DOMContentLoaded', function () {
       tbody.appendChild(tr);
     });
   }
+  function renderReceso(receso) {
+    const wrap = document.getElementById('tom-receso-wrap');
+    const tbody = document.getElementById('tom-receso-tbody');
+    if (!wrap || !tbody) return;
+    tbody.innerHTML = '';
+    if (!receso || !receso.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    let tot = 0;
+    receso.forEach(r => {
+      tot += r.minutos;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="small">${r.mes}</td><td class="text-center fw-semibold text-orange">+${r.minutos} min</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('tom-receso-total').textContent = tot;
+    document.getElementById('tom-receso-hrs').textContent = (Math.round(tot / 60 * 100) / 100);
+  }
   function refreshTomCells(d) {
     // Actualiza badge tomado, neto y saldo en la fila de Tab 2
     if (d.tomado_hrs !== undefined) {
@@ -174,6 +191,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (d.ok) {
         renderTomado(d.entries);
         renderTomManual(d.manual || []);
+        renderReceso(d.receso || []);
         document.getElementById('tom-total-permiso').textContent = d.total_permiso;
         document.getElementById('tom-total-tomado').textContent = d.total_tomado;
       }
@@ -245,8 +263,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
   document.getElementById('btn-guardar-min-dia')?.addEventListener('click', async function () {
-    const valor = parseInt(document.getElementById('min-dia-input').value);
-    if (!valor || valor <= 0) { document.getElementById('min-dia-input').classList.add('is-invalid'); return; }
+    const _inp = document.getElementById('min-dia-input');
+    const raw = (_inp.value || '').trim();
+    const valor = parseInt(raw, 10);
+    // 0 permitido (empleado manual, solo tiempo extra); rechaza vacío/negativo/NaN
+    if (raw === '' || isNaN(valor) || valor < 0) { _inp.classList.add('is-invalid'); return; }
+    _inp.classList.remove('is-invalid');
     const btn = this; btn.disabled = true;
     const res = await fetch(`/reloj/compensatorio-calculo/${mdPk}/set-min-dia/`, {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

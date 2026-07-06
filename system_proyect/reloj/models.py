@@ -918,6 +918,9 @@ class RelojPermiso(models.Model):
     vacaciones_eliminar   = models.BooleanField("Vacaciones – Eliminar", default=False)
     # Permisos Empleados (solo visualizar)
     permisos_ver          = models.BooleanField("Permisos – Ver",        default=False)
+    # Permiso PROVISIONAL para registrar permisos fuera de fecha (tras el cierre de mes).
+    # Si está a futuro, el usuario puede registrar permisos hasta esa fecha/hora; luego expira solo.
+    permisos_registrar_hasta = models.DateTimeField("Permisos – Registrar hasta", null=True, blank=True)
     # Vigilancia
     vigilancia_ver        = models.BooleanField("Vigilancia – Ver",      default=False)
     # Instructores CFP

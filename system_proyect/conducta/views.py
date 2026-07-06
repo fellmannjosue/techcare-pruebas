@@ -55,6 +55,35 @@ def _q_for_coord(codigo):
     no_override = Q(coord_asignado='') | Q(coord_asignado__isnull=True)
     return Q(coord_asignado=codigo) | (no_override & q_docente)
 
+
+# Reporte ACADÉMICO → coordinador por GRADO (C1 = grados 1-3, C2 = 4-9).
+# Un docente puede dar clases en grados de C1 y C2 (ej. Miss Hernandez), por eso el
+# filtro por docente mezclaba; se filtra por grado, respetando el override coord_asignado.
+# El campo `grado` se guarda como 'PrimariaBL 2do-_1', 'ColegioBL 7mo-_1', etc.
+_GRADO_TOKEN = {1: '1ero', 2: '2do', 3: '3ero', 4: '4to', 5: '5to',
+                6: '6to', 7: '7mo', 8: '8vo', 9: '9no'}
+_GRADOS_COORD = {'C1': [1, 2, 3], 'C2': [4, 5, 6, 7, 8, 9]}
+
+
+def _q_grado_academico(codigo):
+    """Q por GRADO del reporte. Grados 1-3 solo Primaria (excluye Preescolar, que también usa 1ero/2do/3ero)."""
+    q = Q(pk__in=[])
+    for n in _GRADOS_COORD.get(codigo, []):
+        cond = Q(grado__icontains=_GRADO_TOKEN[n] + '-')
+        if n <= 3:
+            cond &= Q(grado__istartswith='PrimariaBL')
+        q |= cond
+    return q
+
+
+def _q_academico_for_coord(codigo):
+    if codigo not in _GRADOS_COORD:       # C3/C4 u otros: comportamiento original
+        return _q_for_coord(codigo)
+    no_override = Q(coord_asignado='') | Q(coord_asignado__isnull=True)
+    # Grados 1-9 → por grado. Preescolar (u otros niveles) → por docente, para no perder reportes.
+    q_pre = Q(grado__istartswith='PreescolarBL') & _q_docentes_for_coord(codigo)
+    return Q(coord_asignado=codigo) | (no_override & (_q_grado_academico(codigo) | q_pre))
+
 def _q_docentes_for_coord(codigo):
     """
     Builds Q() for reports belonging to coordinator `codigo`.
@@ -2343,7 +2372,7 @@ def _coord_dash_perms(user):
 
 def dashboard_c1(request):
     q = _q_for_coord('C1')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_academico_for_coord('C1'))
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')
@@ -2369,7 +2398,7 @@ def dashboard_c1(request):
 @login_required
 def dashboard_c2(request):
     q = _q_for_coord('C2')
-    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
+    qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_academico_for_coord('C2'))
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
     qs_prog = ProgressReport.objects.all()
     qs_info, qs_cond, qs_prog = _dash_querysets(qs_info, qs_cond, qs_prog, 'bilingue')

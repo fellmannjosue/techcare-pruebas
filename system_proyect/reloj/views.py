@@ -139,6 +139,19 @@ def _permiso_mes_cerrado(fecha, user=None):
     now = _tz.localtime() if _tz.is_aware(_tz.now()) else _dt.now()
     if _tz.is_aware(now):
         deadline = _tz.make_aware(deadline, now.tzinfo)
+    # Permiso PROVISIONAL: si el usuario tiene una ventana vigente para registrar
+    # permisos fuera de fecha, no se le bloquea (hasta que esa fecha/hora expire).
+    if user is not None:
+        rp = getattr(user, 'reloj_permiso', None)
+        hasta = getattr(rp, 'permisos_registrar_hasta', None) if rp else None
+        if hasta:
+            h = hasta
+            if _tz.is_aware(now) and not _tz.is_aware(h):
+                h = _tz.make_aware(h, now.tzinfo)
+            elif not _tz.is_aware(now) and _tz.is_aware(h):
+                h = _tz.make_naive(h, h.tzinfo)
+            if now < h:
+                return False
     return now >= deadline
 
 
@@ -2168,12 +2181,25 @@ MINUTOS_POR_DIA_COMP = 47
 JORNADA_MIN = 528  # 8.8 horas
 
 
+def _dias_hab_necesarios(total_min, min_dia):
+    """Días hábiles para compensar total_min. min/día == 0 → sin acumulación
+    diaria (solo tiempo extra) → 0 días. None/negativo → usa el default (47)."""
+    if min_dia == 0 or total_min is None or total_min <= 0:
+        return 0
+    if min_dia is None or min_dia < 0:
+        min_dia = MINUTOS_POR_DIA_COMP
+    return _math.ceil(total_min / min_dia)
+
+
 def _calcular_fecha_fin(fecha_inicio, dias_adeudados, feriados=None, minutos_dia=None):
     from datetime import timedelta
     feriados = feriados or set()
-    if minutos_dia is None or minutos_dia <= 0:
-        minutos_dia = MINUTOS_POR_DIA_COMP
     minutos = float(dias_adeudados) * JORNADA_MIN
+    if minutos_dia == 0:
+        # sin acumulación diaria (solo tiempo extra) → sin fecha fin
+        return None, int(minutos), 0
+    if minutos_dia is None or minutos_dia < 0:
+        minutos_dia = MINUTOS_POR_DIA_COMP
     dias_hab = _math.ceil(minutos / minutos_dia)
     fecha = fecha_inicio
     contados = 0
@@ -2191,6 +2217,8 @@ def _fecha_fin_por_saldo(hoy, saldo_min, minutos_dia, feriados=None):
     feriados = feriados or set()
     if saldo_min <= 0:
         return None  # ya completado
+    if minutos_dia == 0:
+        return None  # sin acumulación diaria (solo tiempo extra) → sin fecha fin
     md = minutos_dia if (minutos_dia and minutos_dia > 0) else MINUTOS_POR_DIA_COMP
     dias_hab = _math.ceil(saldo_min / md)
     fecha, contados = hoy, 0
@@ -2519,7 +2547,7 @@ def compensatorio_calculo_list(request):
     real_comp_map = {}  # {emp_code: total_min_real}
     if todos_registros:
         fechas_inicio_map = {str(r.emp_code): r.fecha_inicio for r in todos_registros}
-        topes_map         = {str(r.emp_code): (r.minutos_autorizados_dia or 47) for r in todos_registros}
+        topes_map         = {str(r.emp_code): r.minutos_autorizados_dia for r in todos_registros}
         min_fecha         = min(fechas_inicio_map.values())
         codigos_sql       = ', '.join(f"'{c}'" for c in fechas_inicio_map.keys())
         try:
@@ -2575,6 +2603,17 @@ def compensatorio_calculo_list(request):
         for row in CompensatorioTomadoManual.objects.values('calculo_id').annotate(t=_SumTM('horas'))
     }
 
+    # ── Receso: minutos de más (sobre los 30) se descuentan como Tiempo Tomado ──
+    # Desde la fecha_inicio más antigua hasta hoy (mismo período del compensatorio).
+    receso_extra_map = {}  # {emp_code: horas de más en receso}
+    if todos_registros:
+        try:
+            _rec = _receso_compute(min(r.fecha_inicio for r in todos_registros), hoy)
+            receso_extra_map = {str(row['emp_code']): row['extra_total'] / 60.0
+                                for row in _rec.get('rows', [])}
+        except Exception as _ex:
+            print('[compensatorio] receso extra:', _ex)
+
     # ── Construir registros_data ─────────────────────────────────────────────
     def _min_to_h(m): return round(m / 60, 1)
 
@@ -2601,14 +2640,16 @@ def compensatorio_calculo_list(request):
         total_hrs      = round(horas_adeudadas + permisos_extras, 2)
         total_min      = round(total_hrs * 60)
 
-        min_dia = r.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
-        dias_hab_calc = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+        # min/día == 0 → sin acumulación diaria (solo tiempo extra) → 0 días hábiles
+        dias_hab_calc = _dias_hab_necesarios(total_min, r.minutos_autorizados_dia)
 
         # Tiempo extra autorizado (suma de TiempoExtraDia del empleado) — informativo
         tiempo_extra_min = te_sum_map.get(ec, 0)
 
         # Tiempo TOMADO = permiso compensatorio + entradas manuales
-        tomado_hrs = round(permiso_comp_map.get(ec, 0) + manual_tomado_map.get(r.pk, 0), 2)
+        # Tiempo tomado = permiso compensatorio + manual + receso extra (min de más ÷ 60)
+        tomado_hrs = round(permiso_comp_map.get(ec, 0) + manual_tomado_map.get(r.pk, 0)
+                           + receso_extra_map.get(ec, 0), 2)
         tomado_min = round(tomado_hrs * 60)
 
         # Neto = Compensado + Tiempo extra ; Saldo restante = Neto − Tiempo tomado
@@ -2628,6 +2669,7 @@ def compensatorio_calculo_list(request):
             'minutos_compensados': minutos_compensados,
             'es_especial':      es_especial,
             'compensado_es_manual': r.minutos_compensados_manual is not None,
+            'es_manual':            r.minutos_autorizados_dia == 0,  # min/día 0 → empleado manual (solo tiempo extra)
             # días no lab ANA (referencia)
             'hrs_no_lab':            hrs_no_lab,
             'dias_no_lab_display':   dias_no_lab_display,
@@ -2735,12 +2777,12 @@ def compensatorio_calculo_list(request):
         gilma_dias.append({
             'dia': _GDIAS[_d.weekday()], 'fecha': _d, 'marcas': _hs,
             'entrada': _ent, 'salida': _sal,
-            'trab': f"{_tmin // 60}h {_tmin % 60:02d}m" if (_ent and _sal) else "—",
+            'trab': f"{_tmin/60:.2f} h" if (_ent and _sal) else "—",  # horas decimales
         })
         _d += _gtd(days=1)
     gilma = {
         'nombre': 'Gilma Lorenzo', 'emp_code': '9', 'dias': gilma_dias,
-        'total_str': f"{gilma_total_min // 60}h {gilma_total_min % 60:02d}m",
+        'total_str': f"{gilma_total_min/60:.2f} h",  # horas decimales
         'ini': _gini_d, 'fin': _gfin_d,
         'error': gilma_error,
     }
@@ -2874,8 +2916,9 @@ def compensatorio_calculo_set_min_dia(request, pk):
         valor = int(request.POST.get('minutos', 0))
     except (ValueError, TypeError):
         return JsonResponse({'ok': False, 'error': 'Valor inválido'})
-    if valor <= 0:
-        return JsonResponse({'ok': False, 'error': 'Debe ser mayor a 0'})
+    if valor < 0:
+        return JsonResponse({'ok': False, 'error': 'No puede ser negativo'})
+    # valor == 0 → sin acumulación diaria (empleado manual, solo tiempo extra)
 
     from datetime import timedelta as _td
     feriados = set()
@@ -2968,9 +3011,9 @@ def compensatorio_calculo_set_tiempo_extra(request, pk):
             feriados.add(d)
             d += _td(days=1)
 
-    min_dia = obj.minutos_autorizados_dia if obj.minutos_autorizados_dia > 0 else MINUTOS_POR_DIA_COMP
     minutos_efectivos = max(0, obj.minutos_total - tiempo_extra)
-    dias_hab = _math.ceil(minutos_efectivos / min_dia) if minutos_efectivos > 0 else 0
+    # min/día == 0 → sin acumulación diaria (solo tiempo extra) → 0 días hábiles
+    dias_hab = _dias_hab_necesarios(minutos_efectivos, obj.minutos_autorizados_dia)
 
     # Contar dias_hab días hábiles desde fecha_inicio
     fecha_fin = None
@@ -3199,8 +3242,8 @@ def compensatorio_set_factor(request, pk):
     permisos_extras = round(float(obj.permisos_extras_horas or 0), 2)
     total_hrs       = round(horas_adeudadas + permisos_extras, 2)
     total_min       = round(total_hrs * 60)
-    min_dia         = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
-    dias_hab        = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+    min_dia         = obj.minutos_autorizados_dia
+    dias_hab        = _dias_hab_necesarios(total_min, min_dia)
 
     hoy = date.today()
     from datetime import timedelta as _td
@@ -3321,8 +3364,8 @@ def _recalc_calculo(obj, feriados=None):
     permisos  = round(float(obj.permisos_extras_horas or 0), 2)
     total_hrs = round(horas_adeudadas + permisos, 2)
     total_min = round(total_hrs * 60)
-    min_dia   = obj.minutos_autorizados_dia or MINUTOS_POR_DIA_COMP
-    dias_hab  = _math.ceil(total_min / min_dia) if total_min > 0 else 0
+    min_dia   = obj.minutos_autorizados_dia
+    dias_hab  = _dias_hab_necesarios(total_min, min_dia)
 
     if feriados is None:
         feriados = set()
@@ -3384,10 +3427,30 @@ def compensatorio_calculo_get_tomado(request, pk):
     ]
     total_permiso = round(sum(e['horas'] for e in entries), 2)
     manual, total_manual = _tomado_manual_payload(obj)
+    # Receso: minutos de más (sobre los 30) por MES → se cuentan como tiempo tomado extra
+    receso_por_mes = {}
+    try:
+        _rec = _receso_compute(obj.fecha_inicio, date.today())
+        for row in _rec.get('rows', []):
+            if str(row['emp_code']) == str(obj.emp_code):
+                for d in row['dias']:
+                    if d.get('extra', 0) > 0:
+                        mk = d['fecha'].strftime('%Y-%m')
+                        receso_por_mes[mk] = receso_por_mes.get(mk, 0) + d['extra']
+                break
+    except Exception as _ex:
+        print('[tomado] receso extra:', _ex)
+    _MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
+                 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    receso = [{'mes': f'{_MESES_ES[int(mk[5:7]) - 1]} {mk[:4]}', 'minutos': v}
+              for mk, v in sorted(receso_por_mes.items())]
+    receso_min = sum(receso_por_mes.values())
+    receso_hrs = round(receso_min / 60, 2)
     return JsonResponse({
         'ok': True, 'entries': entries, 'total_permiso': total_permiso,
         'manual': manual, 'total_manual': total_manual,
-        'total_tomado': round(total_permiso + total_manual, 2),
+        'receso': receso, 'receso_min': receso_min, 'receso_hrs': receso_hrs,
+        'total_tomado': round(total_permiso + total_manual + receso_hrs, 2),
     })
 
 
@@ -4102,7 +4165,7 @@ def permiso_reporte_list(request):
             'mh_total':        mh_totales.get(ec, 0),
             'mh_total_mes':    mh_total_mes.get(ec, 0),
             'grupo': ('maestro' if ec in maestro_hora_codes
-                      else 'vigilante' if 'vigilante' in cargo_l
+                      else 'vigilante' if 'vigilan' in cargo_l  # 'Vigilancia' → sección Vigilancia (abajo)
                       else 'general'),
         })
 
@@ -4287,6 +4350,8 @@ def permiso_reporte_list(request):
             ctx['bono_conservan'] = [b for b in bono_rows if not b['pierde']]
             return _reporte_pdf(request, 'reloj/pdf/bono_pdf.html', ctx,
                                 f'bono_asistencia_{mes_str}.pdf')
+        # Reporte único agrupado: General (alfabético) → Maestros por hora → Vigilancia
+        ctx['rows'] = rows_general + rows_maestro + rows_vigilante
         return _reporte_pdf(request, 'reloj/pdf/permiso_reporte_pdf.html', ctx,
                             f'permiso_mensual_{mes_str}.pdf')
     return render(request, 'reloj/permiso_reporte.html', ctx)
@@ -5285,67 +5350,99 @@ def vigilancia_list(request):
         suf = 'AM' if h < 12 else 'PM'
         return f"{h % 12 or 12}:{m:02d} {suf}"
 
-    # Empleados vigilantes + sus marcas de la semana (ZKBio)
+    # ── Grupos de vigilancia ──
+    NOCTURNA_CODES = ['57', '58']      # Gustavo Romero, Pastor Ortiz → jornada fija 5h 12m/día
+    DIURNA_CODES   = ['8']             # Santos Bentacourth → según marcas, dentro de sus ventanas
+    # Ventanas de Santos (minutos desde medianoche): 6:30–7:00 y 12:00–1:00
+    SANTOS_WINDOWS = [(6 * 60 + 30, 7 * 60), (12 * 60, 13 * 60)]
+    TODOS_CODES    = NOCTURNA_CODES + DIURNA_CODES
+    codes_sql      = ', '.join(f"'{c}'" for c in TODOS_CODES)
+
+    def _fmt_hm(m):
+        return f"{m // 60}h {m % 60:02d}m"
+
+    def _fmt_h(m):
+        # Horas decimales (todo se trabaja en horas): minutos ÷ 60
+        return f"{m / 60:.2f} h"
+
+    def _min_marcas(marcas_hhmm):
+        vals = []
+        for h in marcas_hhmm:
+            try:
+                hh, mm = map(int, h.split(':'))
+                vals.append(hh * 60 + mm)
+            except Exception:
+                pass
+        return vals
+
+    def _horas_ventanas(marcas_hhmm, ventanas):
+        """Minutos reales dentro de las ventanas = solape de [1ª marca, última] con cada ventana."""
+        vals = _min_marcas(marcas_hhmm)
+        if len(vals) < 2:
+            return 0
+        lo, hi = min(vals), max(vals)
+        return sum(max(0, min(hi, we) - max(lo, ws)) for ws, we in ventanas)
+
     emp_nombre, marcas_map, error_sql = {}, {}, None
     try:
         with connections['zkbio_sqlserver'].cursor() as cur:
             cur.execute(f"""
-                SELECT CAST(e.emp_code AS VARCHAR(20)),
-                       (e.first_name + ' ' + e.last_name),
-                       ISNULL(p.position_name, '')
+                SELECT CAST(e.emp_code AS VARCHAR(20)), (e.first_name + ' ' + e.last_name)
                 FROM dbo.personnel_employee e
-                LEFT JOIN dbo.personnel_position p ON p.id = TRY_CONVERT(INT, e.position_id)
-                WHERE ISNULL(p.position_name, '') LIKE '%vigilan%'
-                ORDER BY e.first_name, e.last_name
+                WHERE CAST(e.emp_code AS VARCHAR(20)) IN ({codes_sql})
             """)
-            for ec, nom, _pos in cur.fetchall():
-                emp_nombre[str(ec).strip()] = nom.strip()
-
-            if emp_nombre:
-                cur.execute(f"""
-                    SELECT CAST(t.emp_code AS VARCHAR(20)) AS emp_code,
-                           CONVERT(DATE, t.punch_time)     AS fecha,
-                           CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108) AS hora
-                    FROM dbo.iclock_transaction t
-                    INNER JOIN dbo.personnel_employee e ON e.emp_code = t.emp_code
-                    LEFT JOIN dbo.personnel_position p ON p.id = TRY_CONVERT(INT, e.position_id)
-                    WHERE ISNULL(p.position_name, '') LIKE '%vigilan%'
-                      AND CONVERT(DATE, t.punch_time) BETWEEN '{lunes.isoformat()}' AND '{domingo.isoformat()}'
-                    ORDER BY t.punch_time
-                """)
-                for ec, fecha, hora in cur.fetchall():
-                    marcas_map.setdefault(str(ec).strip(), {}).setdefault(fecha, []).append(hora)
+            for ec, nom in cur.fetchall():
+                emp_nombre[str(ec).strip()] = (nom or '').strip()
+            cur.execute(f"""
+                SELECT CAST(t.emp_code AS VARCHAR(20)) AS emp_code,
+                       CONVERT(DATE, t.punch_time)     AS fecha,
+                       CONVERT(VARCHAR(5), CAST(t.punch_time AS TIME), 108) AS hora
+                FROM dbo.iclock_transaction t
+                WHERE CAST(t.emp_code AS VARCHAR(20)) IN ({codes_sql})
+                  AND CONVERT(DATE, t.punch_time) BETWEEN '{lunes.isoformat()}' AND '{domingo.isoformat()}'
+                ORDER BY t.punch_time
+            """)
+            for ec, fecha, hora in cur.fetchall():
+                marcas_map.setdefault(str(ec).strip(), {}).setdefault(fecha, []).append(hora)
     except Exception as e:
         error_sql = str(e)
 
-    # Una "fila"/sección por guardia
-    guardias = []
-    for ec, nombre in emp_nombre.items():
+    def _guardia(ec, modo):
         dias_marcas = marcas_map.get(ec, {})
-        dias = []
+        dias, total_min = [], 0
         for i in range(n_dias):
             d = fi_d + _td(days=i)
             horas = dias_marcas.get(d, [])
+            if modo == 'nocturna':
+                hm = HORAS_DIA_MIN if horas else 0
+            else:  # diurna: según marcas dentro de ventanas
+                hm = _horas_ventanas(horas, SANTOS_WINDOWS)
+            total_min += hm
             dias.append({
                 'dia': _DIAS[d.weekday()], 'fecha': d,
                 'marcas': [_ampm(h) for h in horas],
                 'trabajado': bool(horas),
+                'horas_str': _fmt_h(hm) if hm else '—',
             })
         dias_trab = sum(1 for x in dias if x['trabajado'])
-        total_min = dias_trab * HORAS_DIA_MIN
-        guardias.append({
-            'emp_code': ec, 'nombre': nombre, 'dias': dias,
-            'dias_trab': dias_trab,
-            'horas_dia': f"{HORAS_DIA_MIN // 60}h {HORAS_DIA_MIN % 60:02d}m",
-            'total_str': f"{total_min // 60}h {total_min % 60:02d}m",
-            'total_min': total_min,
-        })
+        return {
+            'emp_code': ec, 'nombre': emp_nombre.get(ec, ec), 'dias': dias,
+            'dias_trab': dias_trab, 'total_str': _fmt_h(total_min), 'total_min': total_min,
+        }
+
+    grupos = [
+        {'key': 'diurna', 'label': 'Vigilancia Diurna',
+         'jornada': 'Según marcas · ventanas 6:30–7:00 y 12:00–1:00 (máx 1h 30m/día)',
+         'guardias': [_guardia(c, 'diurna') for c in DIURNA_CODES if c in emp_nombre]},
+        {'key': 'nocturna', 'label': 'Vigilancia Nocturna',
+         'jornada': f'Jornada fija: {_fmt_h(HORAS_DIA_MIN)} por día',
+         'guardias': [_guardia(c, 'nocturna') for c in NOCTURNA_CODES if c in emp_nombre]},
+    ]
 
     return render(request, 'reloj/vigilancia_list.html', {
-        'guardias': guardias,
+        'grupos': grupos,
         'fecha_inicio': fi_d.isoformat(),
         'fecha_fin': ff_d.isoformat(),
-        'horas_dia': f"{HORAS_DIA_MIN // 60}h {HORAS_DIA_MIN % 60:02d}m",
         'error_sql': error_sql,
     })
 

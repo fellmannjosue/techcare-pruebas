@@ -88,6 +88,17 @@
               </tbody>
             </table>
           </div>
+          {# <--- hecho por claude code: permiso provisional para registrar permisos fuera de fecha (con countdown) #}
+          <div class="card-footer py-2" style="font-size:.8rem;">
+            <div class="fw-semibold text-orange mb-1"><i class="ti ti-license me-1"></i>Registrar permisos fuera de fecha (provisional)</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <input type="datetime-local" class="form-control form-control-sm perm-hasta-input" data-user="{{ fila.user.pk }}" value="{{ fila.permisos_hasta }}" style="max-width:210px;">
+              <button class="btn btn-sm btn-orange perm-hasta-save" data-user="{{ fila.user.pk }}"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+              <button class="btn btn-sm btn-ghost-secondary perm-hasta-clear" data-user="{{ fila.user.pk }}">Quitar</button>
+              <span class="ms-auto badge perm-hasta-cd" data-user="{{ fila.user.pk }}" data-ms="{{ fila.permisos_hasta_ms }}"></span>
+            </div>
+            <div class="text-muted mt-1" style="font-size:.72rem;">Le permite registrar permisos aunque el mes ya haya cerrado, hasta la fecha/hora indicada. Expira solo.</div>
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -107,4 +118,60 @@
      data-csrf="{{ csrf_token }}"
      data-url="{% url 'settings_reloj_permisos' %}"></div>
 <script src="{% static 'accounts/js/settings_reloj_permisos.js' %}?v=2"></script>
+<script>
+// <--- hecho por claude code: permiso provisional para registrar permisos (guardar + cuenta regresiva)
+(function () {
+  const cfg = document.getElementById('page-config');
+  const CSRF = cfg.dataset.csrf, URL = cfg.dataset.url;
+
+  async function guardar(user, valor) {
+    const res = await fetch(URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ user_id: user, campo: 'permisos_registrar_hasta', valor: valor }),
+    });
+    return res.json();
+  }
+  function badge(user, ms) {
+    const b = document.querySelector(`.perm-hasta-cd[data-user="${user}"]`);
+    if (b) b.dataset.ms = ms || 0;
+  }
+  document.querySelectorAll('.perm-hasta-save').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      const user = this.dataset.user;
+      const inp = document.querySelector(`.perm-hasta-input[data-user="${user}"]`);
+      this.disabled = true;
+      const r = await guardar(user, inp.value || '');
+      this.disabled = false;
+      if (r.ok) badge(user, r.hasta_ms); else alert(r.error || 'Error al guardar');
+    });
+  });
+  document.querySelectorAll('.perm-hasta-clear').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      const user = this.dataset.user;
+      const inp = document.querySelector(`.perm-hasta-input[data-user="${user}"]`);
+      inp.value = '';
+      const r = await guardar(user, '');
+      if (r.ok) badge(user, 0);
+    });
+  });
+  // Cuenta regresiva en vivo
+  function tick() {
+    const now = Date.now();
+    document.querySelectorAll('.perm-hasta-cd').forEach(b => {
+      const ms = parseInt(b.dataset.ms || '0', 10);
+      if (!ms) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Sin permiso'; b.dataset.ms = 0; return; }
+      let diff = Math.floor((ms - now) / 1000);
+      if (diff <= 0) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Vencido'; return; }
+      const d = Math.floor(diff / 86400); diff %= 86400;
+      const h = Math.floor(diff / 3600); diff %= 3600;
+      const m = Math.floor(diff / 60), s = diff % 60;
+      const cls = (ms - now) < 3600000 ? 'bg-red-lt text-red' : 'bg-green-lt text-green';
+      b.className = `ms-auto badge ${cls} perm-hasta-cd`;
+      b.innerHTML = `<i class="ti ti-clock-hour-4 me-1"></i>${d ? d + 'd ' : ''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    });
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
 {% endblock %}

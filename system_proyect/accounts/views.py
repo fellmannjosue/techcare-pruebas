@@ -1424,6 +1424,22 @@ def settings_reloj_permisos(request):
         try:
             u   = User.objects.get(pk=user_id, email__in=EMAILS_RELOJ)
             obj = RelojPermiso.objects.get(user=u)
+            # Permiso PROVISIONAL para registrar permisos: guarda fecha/hora límite (o la limpia)
+            if campo == 'permisos_registrar_hasta':
+                raw = (body.get('valor') or '').strip()
+                if raw:
+                    from datetime import datetime as _dt
+                    try:
+                        obj.permisos_registrar_hasta = _dt.strptime(raw, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+                else:
+                    obj.permisos_registrar_hasta = None
+                obj.save(update_fields=['permisos_registrar_hasta'])
+                prh = obj.permisos_registrar_hasta
+                return JsonResponse({'ok': True,
+                                     'hasta': prh.strftime('%Y-%m-%dT%H:%M') if prh else '',
+                                     'hasta_ms': int(prh.timestamp() * 1000) if prh else 0})
             if hasattr(obj, campo):
                 setattr(obj, campo, valor)
                 obj.save(update_fields=[campo])
@@ -1459,12 +1475,16 @@ def settings_reloj_permisos(request):
                 'editar':   getattr(perms, f'{mod_key}_editar',  False) if has_edit else None,
                 'eliminar': getattr(perms, f'{mod_key}_eliminar',False) if has_edit else None,
             })
+        _prh = perms.permisos_registrar_hasta
         matrix_usuarios.append({
             'user':     u,
             'initials': initials,
             'color':    _AVATAR_COLORS[idx % len(_AVATAR_COLORS)],
             'ver_todos': perms.ver_todos,
             'celdas':   celdas,
+            # Permiso provisional para registrar permisos fuera de fecha
+            'permisos_hasta':    _prh.strftime('%Y-%m-%dT%H:%M') if _prh else '',
+            'permisos_hasta_ms': int(_prh.timestamp() * 1000) if _prh else 0,
         })
 
     return render(request, 'accounts/settings_reloj_permisos.html', {

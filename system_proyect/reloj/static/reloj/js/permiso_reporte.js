@@ -12,15 +12,16 @@
   let allPermisos = [], currentPage = 1;
   let activeCellEmp = null, activeCellMes = null, activeCellNombre = null, activeCellCampo = null;
 
-  // ── DataTable (3 tablas: general, maestro, vigilante) ──
+  // ── DataTable (reporte único: general alfabético por apellido) + bono ──
   document.addEventListener('DOMContentLoaded', function(){
     if (typeof $.fn.DataTable === 'undefined') return;
-    ['#tabla-general-80', '#tabla-general-88', '#tabla-maestro', '#tabla-bono', '#tabla-bono-resumen'].forEach(function(sel){
+    ['#tabla-general', '#tabla-bono', '#tabla-bono-resumen'].forEach(function(sel){
       var $t = $(sel);
       if (!$t.length) return;
       $t.DataTable({
         order: [[0, 'asc']],
-        pageLength: 50,
+        pageLength: 60,
+        lengthMenu: [[25, 50, 60, 100, -1], [25, 50, 60, 100, 'Todos']],
         // '_all' se adapta al nº de columnas de cada tabla (evita el warning tn/18)
         columnDefs: [
           { orderable: false, targets: '_all' },

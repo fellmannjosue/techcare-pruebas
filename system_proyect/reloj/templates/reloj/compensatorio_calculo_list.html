@@ -134,7 +134,7 @@
             {% else %}<span class="badge bg-indigo-lt text-indigo min-dia-badge-{{ r.pk }}">{{ r.minutos_autorizados_dia }} min</span>{% endif %}
           </td>
           {# Días hábiles #}
-          <td class="text-center"><span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span></td>
+          <td class="text-center">{% if item.es_manual %}<span class="badge bg-yellow-lt text-yellow dias-hab-badge-{{ r.pk }}">manual</span>{% else %}<span class="badge bg-azure-lt text-azure dias-hab-badge-{{ r.pk }}">{{ item.dias_hab_calc }} días</span>{% endif %}</td>
           <td class="text-center">
             {% if can_edit %}<a href="{% url 'reloj_compensatorio_calculo_edit' r.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>{% endif %}
             {% if can_delete %}<a href="{% url 'reloj_compensatorio_calculo_delete' r.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar"><i class="ti ti-trash"></i></a>{% endif %}
@@ -177,10 +177,10 @@
             {% elif item.minutos_compensados > 0 %}
               <span class="badge bg-teal-lt text-teal compensado-badge-{{ r.pk }}"><i class="ti ti-progress me-1"></i>{{ item.horas_compensados }} h</span>
             {% else %}<span class="badge bg-secondary-lt text-secondary compensado-badge-{{ r.pk }}">0 h</span>{% endif %}
-            {% if can_edit and item.compensado_es_manual %}
+            {% if can_edit and item.compensado_es_manual or can_edit and item.es_manual %}
             <button class="btn btn-sm btn-ghost-secondary btn-set-compensado px-1 py-0 ms-1" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{{ item.horas_compensados }}" title="Editar compensado (manual)"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>
             {% endif %}
-            <div class="text-muted small mt-1">{% if item.compensado_es_manual %}<span class="badge bg-yellow-lt text-yellow">manual</span>{% else %}{{ item.dias_transcurridos }} días háb.{% endif %}</div>
+            <div class="text-muted small mt-1">{% if item.es_manual or item.compensado_es_manual %}<span class="badge bg-yellow-lt text-yellow">manual</span>{% else %}{{ item.dias_transcurridos }} días háb.{% endif %}</div>
           </td>
           {# Tiempo extra autorizado (informativo, modal) #}
           <td class="text-center">
@@ -453,6 +453,6 @@ window._PAGE = {
   urlInstTomDel: '/reloj/compensatorio-instructor-tomado/{pk}/delete/',
 };
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=23"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=25"></script>
 
 {% endblock %}
