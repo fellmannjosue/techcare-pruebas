@@ -61,10 +61,6 @@ urlpatterns = [
     # ──────────────────────────────────────────────────────────────────────────
     path('calculadoras/', include('calculadoras.urls')),
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 10) Finanzas Personales
-    # ──────────────────────────────────────────────────────────────────────────
-    path('finanzas/', include(('finanzas_personales.urls', 'finanzas_personales'), namespace='finanzas_personales')),
     path('cfp/', include(('cfp.urls', 'cfp'), namespace='cfp')),
 
     path('notas-parcial/', include('notas_parcial.urls')),

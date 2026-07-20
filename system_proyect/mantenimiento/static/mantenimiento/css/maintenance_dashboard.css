@@ -1,15 +1,15 @@
 .table td { vertical-align: middle; }
 .stat-card-icon { width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem; }
 
-/* Drop zone fotos */
-#drop-zone {
+/* Drop zone fotos (hecho por claude code: compartido nuevo/editar) */
+#drop-zone, #edit-drop-zone {
   border: 2px dashed #ced4da; border-radius: 8px;
   padding: 24px; text-align: center; cursor: pointer;
   transition: border-color .2s, background .2s;
 }
-#drop-zone.drag-over { border-color: #206bc4; background: #e8f0fb; }
-#fotos-preview { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
-#fotos-preview img { width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #dee2e6; }
+#drop-zone.drag-over, #edit-drop-zone.drag-over { border-color: #206bc4; background: #e8f0fb; }
+#fotos-preview, #edit-fotos-preview, #edit-fotos-actuales { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+#fotos-preview img, #edit-fotos-preview img, #edit-fotos-actuales img { width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #dee2e6; }
 
 /* Signature pad */
 #signature-pad-wrap, #signature-pad-wrap-tec, #signature-pad-wrap-edit-tec {

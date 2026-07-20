@@ -5,52 +5,61 @@
 {% block page_title %}Panel Principal{% endblock %}
 
 {% block content %}
-{# <--- hecho por claude code: panel del superusuario organizado en 6 grupos #}
+{# <--- hecho por claude code: panel del superusuario como acordeón (cada módulo despliega sus subdashboards) #}
+<p class="text-muted mb-4">Administración del sistema · Accesos por área.</p>
+
 <style>
-  .ps-stat { border-left: 4px solid #206bc4; }
-  .ps-card { transition: transform .12s ease, box-shadow .12s ease; cursor: pointer; }
-  .ps-card:hover { transform: translateY(-3px); box-shadow: 0 .6rem 1.4rem rgba(0,0,0,.1); }
-  .ps-ico { width: 56px; height: 56px; border-radius: 14px; display:flex; align-items:center; justify-content:center; }
+  .pa-item { border:1px solid var(--tc-border,#e6e7e9); border-radius:14px; overflow:hidden; margin-bottom:.75rem; background:var(--tc-surface,#fff); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .pa-btn { display:flex; align-items:center; gap:.9rem; width:100%; border:0; background:transparent; padding:.85rem 1rem; cursor:pointer; text-align:left; }
+  .pa-btn:focus { outline:none; }
+  .pa-ico { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px;
+            color:#fff; font-size:1.35rem; flex-shrink:0;
+            background:linear-gradient(135deg, var(--tc-accent) 0%, color-mix(in srgb, var(--tc-accent) 65%, #000) 100%); }
+  .pa-txt { display:flex; flex-direction:column; line-height:1.2; }
+  .pa-title { font-weight:700; color:var(--tc-heading,#1a2233); font-size:1.02rem; }
+  .pa-desc { color:#64748b; font-size:.82rem; }
+  .pa-chev { margin-left:auto; color:#94a3b8; transition:transform .2s ease; flex-shrink:0; }
+  .pa-btn[aria-expanded="true"] .pa-chev { transform:rotate(90deg); }
+  .pa-btn[aria-expanded="true"] { background:color-mix(in srgb, var(--tc-accent) 8%, transparent); }
+  .pa-body { padding:.25rem 1rem 1rem; }
+  .pa-count { margin-left:.5rem; font-size:.72rem; font-weight:600; color:#94a3b8; }
+  .dg-card { transition:transform .12s ease, box-shadow .12s ease; }
+  .dg-card:hover { transform:translateY(-2px); box-shadow:0 .5rem 1rem rgba(0,0,0,.08); }
 </style>
 
-{# ── Tarjetas de estado ── #}
-<div class="row row-cards g-3 mb-2">
-  <div class="col-12 col-md-4">
-    <div class="card card-sm ps-stat"><div class="card-body d-flex align-items-center gap-3">
-      <span class="bg-blue-lt text-blue avatar avatar-lg rounded"><i class="ti ti-ticket fs-2"></i></span>
-      <div><div class="h1 mb-0">{{ tickets_pendientes }}</div><div class="text-muted small">Tickets abiertos</div></div>
-    </div></div>
-  </div>
-  <div class="col-12 col-md-4">
-    <div class="card card-sm" style="border-left:4px solid #0ca678;"><div class="card-body d-flex align-items-center gap-3">
-      <span class="bg-green-lt text-green avatar avatar-lg rounded"><i class="ti ti-school fs-2"></i></span>
-      <div><div class="h1 mb-0">{{ reportes_bl }}</div><div class="text-muted small">Reportes nuevos BL</div></div>
-    </div></div>
-  </div>
-  <div class="col-12 col-md-4">
-    <div class="card card-sm" style="border-left:4px solid #f08c00;"><div class="card-body d-flex align-items-center gap-3">
-      <span class="bg-orange-lt text-orange avatar avatar-lg rounded"><i class="ti ti-building-school fs-2"></i></span>
-      <div><div class="h1 mb-0">{{ reportes_col }}</div><div class="text-muted small">Reportes nuevos Colegio</div></div>
-    </div></div>
-  </div>
+<div class="mb-2 dg-section-title" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600;">
+  <i class="ti ti-layout-grid me-1"></i>Módulos
 </div>
 
-{# ── 6 grupos ── #}
-<div class="row row-cards g-3">
+<div id="panelAccordion">
   {% for g in grupos %}
-  <div class="col-12 col-sm-6 col-lg-4">
-    <a href="{% url 'panel_grupo' grupo=g.key %}" class="card ps-card text-decoration-none h-100">
-      <div class="card-body d-flex align-items-center gap-3">
-        <span class="ps-ico" style="background:{{ g.color }}1a;color:{{ g.color }};">
-          <i class="ti {{ g.icon }}" style="font-size:1.8rem;"></i>
+  <div class="pa-item" style="--tc-accent:{{ g.color }};">
+    <h2 class="m-0">
+      <button class="pa-btn collapsed" type="button" data-bs-toggle="collapse"
+              data-bs-target="#pa-{{ g.key }}" aria-expanded="false" aria-controls="pa-{{ g.key }}">
+        <span class="pa-ico"><i class="ti {{ g.icon }}"></i></span>
+        <span class="pa-txt">
+          <span class="pa-title">{{ g.titulo }}<span class="pa-count">{{ g.cards|length }}</span></span>
+          <span class="pa-desc">{{ g.desc }}</span>
         </span>
-        <div>
-          <div class="fw-bold fs-2 text-body">{{ g.titulo }}{% if g.wip %} <span class="badge bg-yellow-lt text-yellow ms-1" style="font-size:.6rem;">WIP</span>{% endif %}</div>
-          <div class="text-muted small">{{ g.desc }}</div>
+        <i class="ti ti-chevron-right pa-chev fs-2"></i>
+      </button>
+    </h2>
+    <div id="pa-{{ g.key }}" class="collapse" data-bs-parent="#panelAccordion">
+      <div class="pa-body">
+        <div class="row g-3">
+          {% for c in g.cards %}
+          <div class="col-6 col-md-3">
+            <a href="{{ c.href }}" class="card card-link dg-card text-center p-3 text-decoration-none h-100">
+              <div class="mb-2"><i class="ti {{ c.i }}" style="font-size:2.1rem;color:{{ c.c }};"></i></div>
+              <div class="fw-semibold text-primary">{{ c.t }}</div>
+              <div class="text-muted small">{{ c.s }}</div>
+            </a>
+          </div>
+          {% endfor %}
         </div>
-        <i class="ti ti-chevron-right ms-auto text-muted"></i>
       </div>
-    </a>
+    </div>
   </div>
   {% endfor %}
 </div>

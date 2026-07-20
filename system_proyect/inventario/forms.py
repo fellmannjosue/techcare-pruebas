@@ -120,7 +120,7 @@ class ImpresoraForm(forms.ModelForm):
     class Meta:
         model = Impresora
         fields = [
-            'asset_id',           # ID de la impresora
+            # <--- hecho por claude code: asset_id se asigna en el servidor (ANAIMP-001), fuera del form
             'nombre',             # Nombre descriptivo
             'modelo',             # Modelo de impresora
             'serie',              # Serie del dispositivo
@@ -132,7 +132,6 @@ class ImpresoraForm(forms.ModelForm):
             'observaciones',      # Observaciones varias
         ]
         widgets = {
-            'asset_id':            forms.TextInput(attrs={'class': 'form-control'}),
             'nombre':              forms.TextInput(attrs={'class': 'form-control'}),
             'modelo':              forms.TextInput(attrs={'class': 'form-control'}),
             'serie':               forms.TextInput(attrs={'class': 'form-control', 'style': 'text-transform:uppercase', 'oninput': 'this.value=this.value.toUpperCase()'}),

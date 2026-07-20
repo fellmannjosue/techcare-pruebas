@@ -84,7 +84,6 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'reloj',
     'calculadoras',
-    'finanzas_personales',
     'cfp',
     'notas_parcial',
     'inventario_camaras',
@@ -141,6 +140,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.current_year',
                 'core.context_processors.nav_context',
+                'core.context_processors.version_context',   # <--- hecho por claude code: versión + novedades
             ],
         },
     },
@@ -227,7 +227,6 @@ _raw_static_dirs = [
     BASE_DIR / "system_proyect/conducta/static",
     BASE_DIR / "system_proyect/core/static",
     BASE_DIR / "system_proyect/enfermeria/static",
-    BASE_DIR / "system_proyect/finanzas_personales/static",
     BASE_DIR / "system_proyect/cfp/static",
     BASE_DIR / "system_proyect/notas_parcial/static",
     BASE_DIR / "system_proyect/reloj/static",

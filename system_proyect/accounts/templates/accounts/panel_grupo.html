@@ -11,27 +11,21 @@
 {% endblock %}
 
 {% block content %}
-{# <--- hecho por claude code: grupo del panel superusuario #}
-<style>
-  .pg-card { transition: transform .12s ease, box-shadow .12s ease; }
-  .pg-card:hover { transform: translateY(-3px); box-shadow: 0 .6rem 1.4rem rgba(0,0,0,.1); }
-  .pg-ico { width: 64px; height: 64px; border-radius: 16px; display:flex; align-items:center; justify-content:center; margin: 0 auto .75rem; }
-</style>
-
+{# <--- hecho por claude code: grupo del panel superusuario (estilo tc-tile) #}
 {% if desc %}<p class="text-muted mb-4">{{ desc }}</p>{% endif %}
 
-<div class="row row-cards g-3">
+<div class="row g-3">
   {% for c in cards %}
   <div class="col-6 col-md-4 col-lg-3">
     {% if c.href and not c.wip %}
-    <a href="{{ c.href }}" class="card pg-card text-decoration-none h-100 text-center p-3">
+    <a href="{{ c.href }}" class="tc-tile" style="--tc-accent:{{ c.c }};">
     {% else %}
-    <div class="card pg-card h-100 text-center p-3" style="opacity:.75;">
+    <div class="tc-tile tc-tile-wip" style="--tc-accent:{{ c.c }};">
     {% endif %}
-      <span class="pg-ico" style="background:{{ c.c }}1a;color:{{ c.c }};"><i class="ti {{ c.i }}" style="font-size:2rem;"></i></span>
-      <div class="fw-semibold text-body">{{ c.t }}</div>
-      <div class="text-muted small">{{ c.s }}</div>
-      {% if c.wip %}<div class="mt-2"><span class="badge bg-yellow-lt text-yellow" style="font-size:.6rem;">En construcción</span></div>{% endif %}
+      <span class="tc-tile-ico"><i class="ti {{ c.i }}"></i></span>
+      <div class="tc-tile-title">{{ c.t }}</div>
+      <div class="tc-tile-sub">{{ c.s }}</div>
+      {% if c.wip %}<span class="tc-badge-wip">En construcción</span>{% endif %}
     {% if c.href and not c.wip %}</a>{% else %}</div>{% endif %}
   </div>
   {% endfor %}

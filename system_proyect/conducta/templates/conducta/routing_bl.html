@@ -1,0 +1,616 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
+{% block title %}Ruteo Bilingüe{% endblock %}
+{% block page_pretitle %}Conducta · Bilingüe{% endblock %}
+{% block page_title %}<i class="ti ti-route me-2 text-indigo"></i>Ruteo de reportes (Bilingüe){% endblock %}
+{% block page_actions %}
+  {# <--- hecho por claude code: Grupos vive en esta misma hoja; autoguardado #}
+  <span id="autosave-status" class="text-muted small me-3"><i class="ti ti-device-floppy me-1"></i>Autoguardado</span>
+  <a href="{% url 'menu' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: administración del mapeo maestro/materia/grado → coordinador (solo BL) #}
+<input type="hidden" id="csrf" value="{{ csrf_token }}">
+
+<div class="alert alert-info">
+  <i class="ti ti-info-circle me-1"></i>
+  Este mapeo decide a qué coordinador llega cada reporte <strong>nuevo</strong> del área <strong>Bilingüe</strong>.
+  Regla: <strong>la materia manda</strong> (C3/C4); si la materia no está mapeada, decide el <strong>grado</strong> (C1/C2);
+  un <strong>maestro con override</strong> gana sobre todo. Los reportes viejos no cambian. Colegio no se toca.
+</div>
+
+{# <--- hecho por claude code: visibilidad para coordinadores (toggle, solo admin) / aviso solo-lectura #}
+{% if solo_lectura %}
+<div class="alert alert-warning py-2"><i class="ti ti-eye me-1"></i>Estás viendo esta pantalla en <strong>solo lectura</strong> (coordinador). No puedes modificar la configuración.</div>
+{% elif not user.is_superuser %}
+<div class="alert alert-info py-2"><i class="ti ti-edit me-1"></i>Tienes permiso para <strong>editar</strong> esta pantalla (coordinador).</div>
+{% else %}
+<div class="card mb-3" id="permisos-card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-lock-access me-2 text-indigo"></i>Permisos por coordinador</h3></div>
+  <div class="card-body">
+    <p class="text-muted small mb-2">Define qué puede hacer cada coordinador en esta pantalla: <strong>Sin acceso</strong> (no la ve), <strong>Solo lectura</strong> (la ve pero no edita) o <strong>Puede editar</strong> (ve y modifica). Oculto por defecto. Autoguardado.</p>
+    <div class="row g-2">
+      {% for cp in coord_permisos %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="border rounded p-2 h-100">
+          <div class="fw-semibold small"><span class="badge bg-indigo-lt text-indigo me-1">{{ cp.code }}</span>{{ cp.nombre }}</div>
+          <div class="text-muted text-truncate" style="font-size:.7rem" title="{{ cp.correo }}">{{ cp.correo }}</div>
+          <select class="form-select form-select-sm mt-1 perm-sel" data-coord="{{ cp.code }}">
+            <option value="none" {% if cp.permiso == 'none' %}selected{% endif %}>Sin acceso</option>
+            <option value="lectura" {% if cp.permiso == 'lectura' %}selected{% endif %}>Solo lectura</option>
+            <option value="edit" {% if cp.permiso == 'edit' %}selected{% endif %}>Puede editar</option>
+          </select>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Alumnado ── #}
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-users me-2 text-blue"></i>Alumnado Bilingüe (desde JSON)</h3>
+    <div class="card-actions">
+      <span class="badge bg-blue-lt text-blue me-2"><span id="n-alumnos">{{ n_alumnos }}</span> alumnos</span>
+      <span class="text-muted small">Actualizado: <span id="actualizado">{{ cfg.actualizado|default:"—" }}</span></span>
+    </div>
+  </div>
+  <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+    <button class="btn btn-primary" id="btn-refrescar"><i class="ti ti-refresh me-1"></i>Refrescar alumnado desde SQL Server</button>
+    <a class="btn btn-outline-secondary btn-descargar-json" href="{% url 'routing_bl_descargar' %}"><i class="ti ti-download me-1"></i>Descargar JSON</a>
+    <label class="btn btn-outline-secondary mb-0 btn-cargar-json"><i class="ti ti-upload me-1"></i>Cargar JSON
+      <input type="file" id="file-json" accept="application/json,.json" class="d-none">
+    </label>
+    <span class="text-muted small ms-auto">La app usa esta copia; solo "Refrescar" consulta la BD en vivo.</span>
+  </div>
+</div>
+
+{# ── Mapeo ── #}
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-adjustments me-2 text-indigo"></i>Mapeo de coordinadores</h3></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Materias → C4 (Isabel/Matemáticas)</label>
+        <input type="text" id="materias_c4" class="form-control" value="{{ cfg.materias_c4|join:', ' }}">
+        <div class="form-text">Separadas por coma. Sin importar tildes/mayúsculas.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Materias → C3</label>
+        <input type="text" id="materias_c3" class="form-control" value="{{ cfg.materias_c3|join:', ' }}">
+        <div class="form-text">Ej: espanol, estudios sociales, computacion, arte, biblia…</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Grados → C1</label>
+        <input type="text" id="grados_c1" class="form-control" value="{{ cfg.grados_c1|join:', ' }}">
+        <div class="form-text">Números separados por coma (ej: 1, 2, 3).</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Grados → C2</label>
+        <input type="text" id="grados_c2" class="form-control" value="{{ cfg.grados_c2|join:', ' }}">
+        <div class="form-text">Ej: 4, 5, 6, 7, 8, 9.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="card-footer text-muted small"><i class="ti ti-device-floppy me-1"></i>Los cambios del mapeo se guardan automáticamente.</div>
+</div>
+
+{# <--- hecho por claude code: Docentes = materias (catálogo) + coordinador (override), en una sola tarjeta #}
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-address-book me-2 text-teal"></i>Docentes: materias y coordinador</h3></div>
+  <div class="card-body">
+    <p class="text-muted small mb-1">Cada fila es una <strong>carga</strong>: un docente con un grupo de <strong>materias</strong> y (opcional) un <strong>coordinador</strong>. Un mismo docente puede tener <strong>varias filas</strong> — p. ej. Miss Saravia con unas materias a C1 y otras a C3. Con <strong>Auto</strong> (sin coordinador) se calcula por materia y grado/grupo. Las materias se auto-rellenan al elegir el docente en un grupo. Toca una fila para editarla. <strong>Separadores:</strong> <code>,</code> = un solo paquete (una fila); <code>;</code> = cargas separadas (varias filas). Autoguardado.</p>
+    <div class="small mb-2">
+      <span class="badge bg-orange-lt text-orange me-1">C1</span>{{ coord_nombres.C1 }}
+      <span class="badge bg-orange-lt text-orange ms-2 me-1">C2</span>{{ coord_nombres.C2 }}
+      <span class="badge bg-orange-lt text-orange ms-2 me-1">C3</span>{{ coord_nombres.C3 }}
+      <span class="badge bg-orange-lt text-orange ms-2 me-1">C4</span>{{ coord_nombres.C4 }}
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
+      <div><label class="form-label small mb-1">Docente</label>
+        <select id="doc-sel" class="form-select" style="min-width:220px;">
+          <option value="">— Docente —</option>
+          {% for m in maestros %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex-grow-1" style="min-width:220px;"><label class="form-label small mb-1">Materias (separadas por coma)</label>
+        <input type="text" id="doc-mat" class="form-control" list="dl-materias" placeholder="Ej: Phonics, Reading  ·  usa ; para separar cargas">
+      </div>
+      <div><label class="form-label small mb-1">Coordinador</label>
+        <select id="doc-coord" class="form-select">
+          <option value="">Auto (por materia/grado)</option>
+          <option value="C1">C1 · {{ coord_nombres.C1 }}</option>
+          <option value="C2">C2 · {{ coord_nombres.C2 }}</option>
+          <option value="C3">C3 · {{ coord_nombres.C3 }}</option>
+          <option value="C4">C4 · {{ coord_nombres.C4 }}</option>
+        </select>
+      </div>
+      <button class="btn btn-outline-primary" id="doc-add"><i class="ti ti-plus me-1"></i>Agregar</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-vcenter">
+        <thead><tr><th style="width:200px;">Docente</th><th>Materias</th><th class="text-center" style="width:90px;">Coord.</th><th style="width:44px;"></th></tr></thead>
+        <tbody id="doc-tbody"><tr id="doc-empty"><td colspan="4" class="text-muted text-center py-2">Sin docentes configurados</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# Referencia: materias detectadas en el sistema #}
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-list me-2 text-muted"></i>Materias registradas (referencia)</h3></div>
+  <div class="card-body">
+    {% for mat in materias %}<span class="badge bg-secondary-lt text-secondary me-1 mb-1">{{ mat }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}
+  </div>
+</div>
+
+{# ═══════ GRUPOS (grado-sección) — misma hoja (hecho por claude code) ═══════ #}
+<h2 class="mt-4 mb-2"><i class="ti ti-users-group me-2 text-indigo"></i>Grupos (grado-sección)</h2>
+<div class="alert alert-info py-2">
+  <i class="ti ti-info-circle me-1"></i>
+  Cada <strong>grupo</strong> tiene su coordinador (por grado) y sus <strong>docentes/clases</strong>. El coordinador de cada docente se calcula con el mapeo de arriba. Los alumnos se llenan al <strong>Refrescar alumnado</strong>. <strong>Autoguardado.</strong>
+</div>
+{% if not grupos %}
+<div class="card"><div class="card-body text-center text-muted py-4">
+  <i class="ti ti-users-off" style="font-size:2rem"></i>
+  <div class="mt-2">No hay grupos todavía. Presiona <strong>"Refrescar alumnado desde SQL Server"</strong> arriba.</div>
+</div></div>
+{% else %}
+<div class="text-muted small mb-2">{{ n_grupos }} grupos · {{ n_alumnos }} alumnos · actualizado {{ actualizado|default:"—" }}</div>
+<div class="row g-3" id="grupos-wrap">
+  {% for g in grupos %}
+  <div class="col-12 col-lg-6">
+    <div class="card h-100 grupo-card" data-key="{{ g.key }}">
+      <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge bg-indigo-lt text-indigo fs-3">{{ g.nombre }}</span>
+        <span class="text-muted small">{{ g.nivel }}</span>
+        <span class="badge bg-blue-lt text-blue ms-1">{{ g.alumnos|length }} alumnos</span>
+        <div class="ms-auto d-flex align-items-center gap-1">
+          <label class="form-label mb-0 small me-1">Coordinador</label>
+          <select class="form-select form-select-sm grp-coord" style="width:auto;">
+            <option value="C1" {% if g.coordinador == 'C1' %}selected{% endif %}>C1 · {{ coord_nombres.C1 }}</option>
+            <option value="C2" {% if g.coordinador == 'C2' %}selected{% endif %}>C2 · {{ coord_nombres.C2 }}</option>
+            <option value="C3" {% if g.coordinador == 'C3' %}selected{% endif %}>C3 · {{ coord_nombres.C3 }}</option>
+            <option value="C4" {% if g.coordinador == 'C4' %}selected{% endif %}>C4 · {{ coord_nombres.C4 }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold small mb-1"><i class="ti ti-chalkboard me-1 text-teal"></i>Docentes / clases</div>
+        <div class="grp-clases mb-2">
+          {% for c in g.clases %}
+          <div class="d-flex gap-1 mb-1 grp-clase-row align-items-center">
+            {# <--- hecho por claude code: solo el docente actual; el JS rellena el resto desde el catálogo #}
+            <select class="form-select form-select-sm grp-docente">
+              <option value="">— Docente —</option>
+              {% if c.docente %}<option value="{{ c.docente }}" selected>{{ c.docente }}</option>{% endif %}
+            </select>
+            {# <--- hecho por claude code: materias como dropdown multi-select (el valor va en el input oculto) #}
+            <input type="hidden" class="grp-materia" value="{{ c.materia }}">
+            <div class="dropdown flex-grow-1 grp-mat-dd">
+              <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start text-truncate grp-mat-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside"><span class="grp-mat-label">Elegir clases…</span></button>
+              <div class="dropdown-menu p-1 grp-mat-menu" style="max-height:240px;overflow:auto;min-width:220px;"></div>
+            </div>
+            <span class="d-flex gap-1 grp-coord-badges" style="white-space:nowrap;">
+              {% for cc in c.coords %}<span class="badge bg-orange-lt text-orange" title="{{ cc.nombre }}">{{ cc.code }}</span>{% empty %}<span class="badge bg-secondary-lt text-muted">—</span>{% endfor %}
+            </span>
+            <button type="button" class="btn btn-sm btn-ghost-danger grp-del-clase"><i class="ti ti-x"></i></button>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-teal grp-add-clase"><i class="ti ti-plus me-1"></i>Agregar clase</button>
+        <div class="mt-3">
+          <a class="small text-decoration-none" data-bs-toggle="collapse" href="#al-{{ forloop.counter }}">
+            <i class="ti ti-chevron-right me-1"></i>Ver {{ g.alumnos|length }} alumnos
+          </a>
+          <div class="collapse mt-1" id="al-{{ forloop.counter }}">
+            <div class="border rounded" style="max-height:220px;overflow:auto;">
+              <table class="table table-sm table-vcenter mb-0"><tbody>
+                {% for a in g.alumnos %}<tr><td class="small">{{ a.label }}</td><td class="text-muted small text-end">{{ a.id }}</td></tr>{% endfor %}
+              </tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<datalist id="dl-materias">{% for mat in materias %}<option value="{{ mat }}">{% endfor %}</datalist>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const CSRF = document.getElementById('csrf').value;
+  const COORD_NOMBRES = {C1:"{{ coord_nombres.C1|escapejs }}", C2:"{{ coord_nombres.C2|escapejs }}", C3:"{{ coord_nombres.C3|escapejs }}", C4:"{{ coord_nombres.C4|escapejs }}"};
+  let overridesRaw = {{ cfg.maestros_override|default:"{}"|safe }};
+  // <--- hecho por claude code: normalizar a {maestro: [coords]} (acepta valores viejos tipo string)
+  let overrides = {};
+  Object.keys(overridesRaw).forEach(k=>{
+    const v = overridesRaw[k];
+    overrides[k] = Array.isArray(v) ? v.slice() : (v ? [v] : []);
+  });
+
+  function post(url, opts){
+    return fetch(url, Object.assign({method:'POST', headers:{'X-CSRFToken':CSRF}}, opts)).then(r=>r.json());
+  }
+  function jpost(url, body){
+    return post(url, {headers:{'X-CSRFToken':CSRF,'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  }
+
+  // ── Autoguardado del mapeo (materias C3/C4, grados C1/C2) ──
+  const statusMapeo = document.getElementById('autosave-status');
+  function setStatusMapeo(s){
+    if(!statusMapeo) return;
+    if(s==='saving') statusMapeo.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+    else if(s==='saved') statusMapeo.innerHTML='<i class="ti ti-check me-1 text-green"></i>Guardado';
+    else statusMapeo.innerHTML='<i class="ti ti-alert-triangle me-1 text-danger"></i>Error al guardar';
+  }
+  let tMapeo=null;
+  // <--- hecho por claude code: el mapeo (materias/grados) NO toca overrides
+  window.guardarMapeo = function(){
+    setStatusMapeo('saving');
+    jpost("{% url 'routing_bl_guardar' %}", {
+      materias_c3: document.getElementById('materias_c3').value,
+      materias_c4: document.getElementById('materias_c4').value,
+      grados_c1:   document.getElementById('grados_c1').value,
+      grados_c2:   document.getElementById('grados_c2').value,
+    }).then(d=>{
+      if(d.ok){
+        const a=document.getElementById('actualizado'); if(a) a.textContent=d.actualizado;
+        if(d.norm) ['materias_c3','materias_c4','grados_c1','grados_c2'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el && el!==document.activeElement && d.norm[id]!==undefined) el.value=d.norm[id];
+        });
+        setStatusMapeo('saved');
+      } else setStatusMapeo('error');
+    }).catch(()=>setStatusMapeo('error'));
+  };
+  function scheduleMapeo(){ clearTimeout(tMapeo); tMapeo=setTimeout(window.guardarMapeo, 700); }
+  ['materias_c3','materias_c4','grados_c1','grados_c2'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.addEventListener('input', scheduleMapeo);
+  });
+
+  // ── Refrescar alumnado ──
+  document.getElementById('btn-refrescar').addEventListener('click', function(){
+    const btn=this; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Consultando SQL Server...';
+    post("{% url 'routing_bl_refrescar' %}", {}).then(d=>{
+      btn.disabled=false; btn.innerHTML='<i class="ti ti-refresh me-1"></i>Refrescar alumnado desde SQL Server';
+      if(d.ok){ Swal.fire({icon:'success',title:`${d.n_alumnos} alumnos cargados`,timer:1200,showConfirmButton:false}).then(()=>location.reload()); }
+      else Swal.fire('Error', d.error||'No se pudo refrescar','error');
+    }).catch(()=>{btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh me-1"></i>Refrescar alumnado desde SQL Server';Swal.fire('Error','Conexión','error');});
+  });
+
+  // ── Cargar JSON ──
+  document.getElementById('file-json').addEventListener('change', function(){
+    if(!this.files.length) return;
+    const fd = new FormData(); fd.append('archivo', this.files[0]);
+    post("{% url 'routing_bl_cargar' %}", {body: fd}).then(d=>{
+      if(d.ok){ Swal.fire({icon:'success',title:'JSON cargado',text:`${d.n_alumnos} alumnos`,timer:1500,showConfirmButton:false}).then(()=>location.reload()); }
+      else Swal.fire('Error', d.error||'No se pudo cargar','error');
+    }).catch(()=>Swal.fire('Error','Conexión','error'));
+  });
+
+  // ── Docentes: catálogo de CARGAS (lista de entradas) — hecho por claude code ──
+  // Cada entrada = {docente, materias, coord}. Un mismo docente puede tener VARIAS.
+  window.DOC_ENTRIES = {{ docentes_catalogo_json|safe }};
+  const docTbody = document.getElementById('doc-tbody');
+  const docEmpty = document.getElementById('doc-empty');
+  const docSel = document.getElementById('doc-sel');
+  const docMat = document.getElementById('doc-mat');
+  const docCoord = document.getElementById('doc-coord');
+  const docAddBtn = document.getElementById('doc-add');
+  let docEdit = -1;   // índice en edición (-1 = agregar nueva)
+
+  // Mapa docente→materias (unión de todas sus cargas) para el auto-relleno en Grupos
+  function rebuildDocMap(){
+    const m = {}, cm = {};
+    window.DOC_ENTRIES.forEach(e=>{
+      const d = (e.docente||'').trim(); if(!d) return;
+      const acc = m[d] ? m[d].split(',').map(s=>s.trim()).filter(Boolean) : [];
+      (e.materias||'').split(',').map(s=>s.trim()).forEach(x=>{ if(x && !acc.includes(x)) acc.push(x); });
+      m[d] = acc.join(', ');
+      // <--- hecho por claude code: coordinadores por docente (para el multi-select de clases en Grupos)
+      if(e.coord){ cm[d] = cm[d] || []; if(!cm[d].includes(e.coord)) cm[d].push(e.coord); }
+    });
+    window.DOCENTE_MATERIAS = m;
+    window.DOCENTE_COORDS = cm;
+  }
+  const COORD_ORDEN = {C1:1, C2:2, C3:3, C4:4, '':5};
+  function docRender(){
+    docTbody.querySelectorAll('tr[data-idx], tr.doc-group-hdr').forEach(r=>r.remove());
+    if(docEmpty) docEmpty.style.display = window.DOC_ENTRIES.length ? 'none' : '';
+    // <--- hecho por claude code: agrupar por coordinador (C1, C2, C3, C4, Auto) sin perder el índice original
+    const filas = window.DOC_ENTRIES.map((e,idx)=>({e, idx}));
+    filas.sort((a,b)=>{
+      const d = (COORD_ORDEN[a.e.coord||'']||9) - (COORD_ORDEN[b.e.coord||'']||9);
+      return d !== 0 ? d : (a.e.docente||'').localeCompare(b.e.docente||'');
+    });
+    let coordActual = null;
+    filas.forEach(({e, idx})=>{
+      const cc = e.coord || '';
+      if(cc !== coordActual){
+        coordActual = cc;
+        const titulo = cc ? `${cc} · ${COORD_NOMBRES[cc]||''}` : 'Auto (sin coordinador · por materia/grado)';
+        const hdr = document.createElement('tr'); hdr.className = 'doc-group-hdr';
+        hdr.innerHTML = `<td colspan="4" class="bg-light fw-semibold small text-uppercase text-muted py-1">${titulo}</td>`;
+        docTbody.appendChild(hdr);
+      }
+      const coordHtml = cc
+        ? `<span class="badge bg-orange-lt text-orange" title="${COORD_NOMBRES[cc]||''}">${cc}</span>`
+        : '<span class="badge bg-secondary-lt text-muted">Auto</span>';
+      const tr = document.createElement('tr'); tr.dataset.idx = idx; tr.style.cursor='pointer';
+      if(idx===docEdit) tr.classList.add('table-active');
+      tr.innerHTML = `<td class="fw-medium">${e.docente||''}</td>`+
+        `<td class="text-muted small">${e.materias || '<span class="text-secondary">—</span>'}</td>`+
+        `<td class="text-center">${coordHtml}</td>`+
+        `<td class="text-end"><button type="button" class="btn btn-sm btn-ghost-danger doc-del" data-idx="${idx}"><i class="ti ti-x"></i></button></td>`;
+      docTbody.appendChild(tr);
+    });
+  }
+  function docGuardar(){
+    setStatusMapeo('saving');
+    jpost("{% url 'routing_bl_guardar' %}", { docentes_catalogo: window.DOC_ENTRIES })
+      .then(d=>setStatusMapeo(d.ok?'saved':'error')).catch(()=>setStatusMapeo('error'));
+  }
+  function resetForm(){
+    docSel.value=''; docMat.value=''; docCoord.value=''; docEdit=-1;
+    docAddBtn.innerHTML='<i class="ti ti-plus me-1"></i>Agregar';
+  }
+  function aplicarCambios(){
+    rebuildDocMap(); docRender(); docGuardar();
+    if(window.refreshGrupoDocentes) window.refreshGrupoDocentes();
+  }
+  docAddBtn.addEventListener('click', function(){
+    const doc = (docSel.value||'').trim();
+    const mat = (docMat.value||'').trim();
+    const coord = docCoord.value;
+    if(!doc){ Swal.fire('Falta docente','Elige un docente','info'); return; }
+    if(!mat && !coord){ Swal.fire('Nada que guardar','Escribe materias o elige un coordinador','info'); return; }
+    // <--- hecho por claude code: ';' = CARGAS separadas (varias filas) · ',' = un solo paquete (una fila)
+    const paquetes = mat ? mat.split(';').map(s=>s.trim()).filter(Boolean) : [''];
+    const entradas = (paquetes.length ? paquetes : ['']).map(p=>({docente:doc, materias:p, coord:coord}));
+    if(docEdit>=0 && docEdit<window.DOC_ENTRIES.length){
+      window.DOC_ENTRIES[docEdit] = entradas[0];                                        // actualizar la fila editada
+      for(let i=1;i<entradas.length;i++) window.DOC_ENTRIES.splice(docEdit+i, 0, entradas[i]);  // extras como filas nuevas
+    } else {
+      entradas.forEach(en=>window.DOC_ENTRIES.push(en));
+    }
+    resetForm(); aplicarCambios();
+  });
+  docTbody.addEventListener('click', function(e){
+    const del = e.target.closest('.doc-del');
+    if(del){
+      const i = parseInt(del.dataset.idx,10);
+      window.DOC_ENTRIES.splice(i,1);
+      if(docEdit===i) resetForm(); else if(docEdit>i) docEdit--;
+      aplicarCambios(); return;
+    }
+    // clic en fila → cargar en el editor para modificarla
+    const tr = e.target.closest('tr[data-idx]'); if(!tr) return;
+    const i = parseInt(tr.dataset.idx,10);
+    const en = window.DOC_ENTRIES[i]; if(!en) return;
+    docEdit = i; docSel.value = en.docente||''; docMat.value = en.materias||''; docCoord.value = en.coord||'';
+    docAddBtn.innerHTML='<i class="ti ti-check me-1"></i>Actualizar';
+    docRender();
+  });
+  rebuildDocMap(); docRender();
+})();
+</script>
+
+{# ═══════ JS de GRUPOS (autoguardado) — hecho por claude code ═══════ #}
+<script>
+(function(){
+  const CSRF = document.getElementById('csrf').value;
+  // <--- hecho por claude code: el desplegable de docentes se alimenta del CATÁLOGO (window.DOCENTE_MATERIAS)
+  function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function docenteOptions(selected){
+    const cat = Object.keys(window.DOCENTE_MATERIAS||{}).sort((a,b)=>a.localeCompare(b));
+    const list = cat.slice();
+    // preserva un docente ya elegido aunque no esté (aún) en el catálogo
+    if(selected && !list.includes(selected)) list.unshift(selected);
+    let o = '<option value="">— Docente —</option>';
+    list.forEach(m => { const e = escapeHtml(m); o += `<option value="${e}"${m===selected?' selected':''}>${e}</option>`; });
+    return o;
+  }
+  function docenteSelectHTML(){
+    return `<select class="form-select form-select-sm grp-docente">${docenteOptions('')}</select>`;
+  }
+  // reconstruye TODOS los <select> de docente desde el catálogo, conservando su valor actual
+  window.refreshGrupoDocentes = function(){
+    document.querySelectorAll('.grp-docente').forEach(sel=>{
+      const cur = sel.value;
+      sel.innerHTML = docenteOptions(cur);
+      sel.value = cur;
+    });
+    if(window.renderAllMat) window.renderAllMat();
+  };
+
+  // ── Multi-select de clases (dropdown con checkboxes) por docente ──  hecho por claude code
+  function partes(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
+  function setLabel(row){
+    const label = row.querySelector('.grp-mat-label');
+    const activos = partes(row.querySelector('.grp-materia').value);
+    if(label) label.textContent = activos.length ? activos.join(', ') : 'Elegir clases…';
+  }
+  function renderMat(row){
+    const sel = row.querySelector('.grp-docente');
+    const hidden = row.querySelector('.grp-materia');
+    const menu = row.querySelector('.grp-mat-menu');
+    const btn = row.querySelector('.grp-mat-btn');
+    if(!menu || !hidden) return;
+    const doc = (sel && sel.value.trim()) || '';
+    const activos = partes(hidden.value);
+    const cat = partes((window.DOCENTE_MATERIAS||{})[doc] || '');
+    const opciones = cat.slice();
+    activos.forEach(a=>{ if(!opciones.includes(a)) opciones.push(a); });   // incluye seleccionadas no catalogadas
+    if(!doc){ menu.innerHTML = '<div class="text-muted small px-2 py-1">Elige un docente…</div>'; if(btn) btn.disabled = true; }
+    else if(!opciones.length){ menu.innerHTML = '<div class="text-muted small px-2 py-1">Sin materias en el catálogo</div>'; if(btn) btn.disabled = false; }
+    else {
+      if(btn) btn.disabled = false;
+      menu.innerHTML = opciones.map(m=>{
+        const on = activos.includes(m);
+        return `<label class="dropdown-item d-flex align-items-center gap-2 px-2 py-1" style="cursor:pointer">`+
+               `<input type="checkbox" class="form-check-input m-0 grp-mat-check" data-mat="${escapeHtml(m)}" ${on?'checked':''}>`+
+               `<span>${escapeHtml(m)}</span></label>`;
+      }).join('');
+    }
+    setLabel(row);
+  }
+  function hiddenFromChecks(row){
+    const activos = [];
+    row.querySelectorAll('.grp-mat-check:checked').forEach(c=>activos.push(c.dataset.mat));
+    row.querySelector('.grp-materia').value = activos.join(', ');
+    setLabel(row);
+  }
+  window.renderAllMat = function(){ document.querySelectorAll('.grp-clase-row').forEach(renderMat); };
+  // marcar/desmarcar una clase en el dropdown → actualiza el valor y guarda
+  document.addEventListener('change', function(e){
+    const chk = e.target.closest('.grp-mat-check'); if(!chk) return;
+    const row = chk.closest('.grp-clase-row'); const card = chk.closest('.grupo-card');
+    hiddenFromChecks(row);
+    if(card) schedule(card);
+  });
+
+  document.addEventListener('click', function(e){
+    const add = e.target.closest('.grp-add-clase');
+    if(add){
+      const wrap = add.closest('.card-body').querySelector('.grp-clases');
+      const row = document.createElement('div');
+      row.className = 'd-flex gap-1 mb-1 grp-clase-row align-items-center';
+      row.innerHTML = docenteSelectHTML()+
+        `<input type="hidden" class="grp-materia">`+
+        `<div class="dropdown flex-grow-1 grp-mat-dd">`+
+          `<button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start text-truncate grp-mat-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside"><span class="grp-mat-label">Elegir clases…</span></button>`+
+          `<div class="dropdown-menu p-1 grp-mat-menu" style="max-height:240px;overflow:auto;min-width:220px;"></div>`+
+        `</div>`+
+        `<span class="d-flex gap-1 grp-coord-badges" style="white-space:nowrap;"><span class="badge bg-secondary-lt text-muted">?</span></span>`+
+        `<button type="button" class="btn btn-sm btn-ghost-danger grp-del-clase"><i class="ti ti-x"></i></button>`;
+      wrap.appendChild(row);
+      renderMat(row);
+      return;
+    }
+    const del = e.target.closest('.grp-del-clase');
+    if(del){
+      // <--- hecho por claude code: capturar la tarjeta y AGENDAR el guardado ANTES de quitar la fila
+      // (si se quita primero, el nodo se desconecta y closest('.grupo-card') da null → no se guardaba)
+      const card = del.closest('.grupo-card');
+      del.closest('.grp-clase-row').remove();
+      if(card) schedule(card);
+    }
+  });
+
+  const status = document.getElementById('autosave-status');
+  function setStatus(state){
+    if(!status) return;
+    if(state==='saving') status.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+    else if(state==='saved') status.innerHTML = '<i class="ti ti-check me-1 text-green"></i>Guardado';
+    else if(state==='error') status.innerHTML = '<i class="ti ti-alert-triangle me-1 text-danger"></i>Error al guardar';
+  }
+  function collect(card){
+    const clases = [];
+    card.querySelectorAll('.grp-clase-row').forEach(r=>{
+      const doc = r.querySelector('.grp-docente').value.trim();
+      const mat = r.querySelector('.grp-materia').value.trim();
+      if(doc || mat) clases.push({docente:doc, materia:mat});
+    });
+    return {coordinador: card.querySelector('.grp-coord').value, clases};
+  }
+  function pintarBadges(card, filas){
+    if(!filas) return;
+    let i = 0;
+    card.querySelectorAll('.grp-clase-row').forEach(r=>{
+      const doc = r.querySelector('.grp-docente').value.trim();
+      const mat = r.querySelector('.grp-materia').value.trim();
+      const span = r.querySelector('.grp-coord-badges');
+      if(!span) return;
+      if(!(doc||mat)){ span.innerHTML = '<span class="badge bg-secondary-lt text-muted">—</span>'; return; }
+      const cs = filas[i] || []; i++;
+      span.innerHTML = cs.length
+        ? cs.map(c=>`<span class="badge bg-orange-lt text-orange" title="${c.nombre}">${c.code}</span>`).join('')
+        : '<span class="badge bg-secondary-lt text-muted">—</span>';
+    });
+  }
+  const timers = {};
+  function saveCard(card){
+    const key = card.dataset.key;
+    const payload = collect(card);
+    setStatus('saving');
+    fetch("{% url 'grupos_bl_guardar' %}", {
+      method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/json'},
+      body: JSON.stringify({grupos:{[key]:payload}})
+    }).then(r=>r.json()).then(d=>{
+      if(d.ok){ pintarBadges(card, (d.coords||{})[key]); setStatus('saved'); }
+      else setStatus('error');
+    }).catch(()=>setStatus('error'));
+  }
+  function schedule(card){
+    const key = card.dataset.key;
+    clearTimeout(timers[key]);
+    timers[key] = setTimeout(()=>saveCard(card), 700);
+  }
+  document.addEventListener('change', function(e){
+    const card = e.target.closest('.grupo-card');
+    if(!card) return;
+    // <--- hecho por claude code: al elegir docente, arma los chips de sus materias
+    if(e.target.matches('.grp-docente')){
+      const row = e.target.closest('.grp-clase-row');
+      const doc = e.target.value.trim();
+      const hidden = row.querySelector('.grp-materia');
+      const cat = (window.DOCENTE_MATERIAS||{})[doc] || '';
+      const coords = (window.DOCENTE_COORDS||{})[doc] || [];
+      // dual-coordinador → sin selección (tú eliges las clases); un solo coordinador → todas marcadas
+      hidden.value = (coords.length > 1) ? '' : cat;
+      renderMat(row);
+    }
+    if(e.target.matches('.grp-docente') || e.target.matches('.grp-coord')) schedule(card);
+  });
+  // El borrado ya agenda su propio guardado arriba; aquí solo el "Agregar clase".
+  document.addEventListener('click', function(e){
+    const card = e.target.closest('.grupo-card');
+    if(card && e.target.closest('.grp-add-clase')) schedule(card);
+  });
+
+  // <--- hecho por claude code: al cargar, poblar los desplegables y los chips desde el catálogo
+  window.refreshGrupoDocentes();
+  window.renderAllMat();
+})();
+</script>
+
+{# <--- hecho por claude code: toggle de visibilidad (admin) + modo solo-lectura (coordinadores) #}
+<script>
+(function(){
+  const CSRF = document.getElementById('csrf').value;
+  // Permisos por coordinador (solo admin): none / lectura / edit
+  const ETIQUETA = {none:'Sin acceso', lectura:'Solo lectura', edit:'Puede editar'};
+  document.querySelectorAll('.perm-sel').forEach(sel=>{
+    let prev = sel.value;
+    sel.addEventListener('change', function(){
+      const coord = sel.dataset.coord, permiso = sel.value;
+      fetch("{% url 'routing_bl_toggle_vis' %}", {
+        method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/json'},
+        body: JSON.stringify({coord: coord, permiso: permiso})
+      }).then(r=>r.json()).then(d=>{
+        if(d.ok){ prev = permiso; Swal.fire({icon:'success',title:`${coord}: ${ETIQUETA[permiso]}`,timer:1100,showConfirmButton:false}); }
+        else { sel.value = prev; Swal.fire('Error', d.error||'No se pudo cambiar','error'); }
+      }).catch(()=>{ sel.value = prev; Swal.fire('Error','Conexión','error'); });
+    });
+  });
+  // Modo SOLO LECTURA para coordinadores: deshabilita controles y oculta acciones
+  if({{ solo_lectura|yesno:'true,false' }}){
+    document.querySelectorAll('.card input, .card select, .card textarea').forEach(el=>{ el.disabled = true; });
+    // <--- hecho por claude code: en solo-lectura, el dropdown de materias no se puede tocar
+    document.querySelectorAll('.grp-mat-btn, .grp-mat-check').forEach(b=>{ b.disabled = true; });
+    const ocultar = ['#btn-refrescar','#btn-guardar','#btn-add-ov','#autosave-status'];
+    ocultar.forEach(s=>{ const e=document.querySelector(s); if(e) e.style.display='none'; });
+    document.querySelectorAll('.grp-add-clase, .grp-del-clase, .ov-del, .btn-cargar-json, .btn-descargar-json').forEach(e=>e.style.display='none');
+  }
+})();
+</script>
+{% endblock %}

@@ -7,6 +7,20 @@ def current_year(request):
     return {'year': datetime.now().year}
 
 
+def version_context(request):
+    """<--- hecho por claude code: versión en el footer + modal de novedades (una vez por versión)."""
+    from core.version import version_actual, novedades
+    v = version_actual()
+    mostrar = False
+    u = getattr(request, 'user', None)
+    if u is not None and u.is_authenticated:
+        try:
+            mostrar = (u.perfil.version_vista or '') != v
+        except Exception:
+            mostrar = False
+    return {'app_version': v, 'novedades': novedades(), 'mostrar_novedades': mostrar}
+
+
 def nav_context(request):
     """Provee variables nav_* a todos los templates para el sidebar unificado."""
     if not request.user.is_authenticated:
@@ -98,7 +112,6 @@ def nav_context(request):
         'nav_calculadoras':     is_admin or grp('reloj'),
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
-        'nav_finanzas':         request.user.is_superuser or request.user.email == 'cvalle@ana-hn.org',
         'nav_cfp':              is_admin or grp('director_cfp', 'instructores'),
         'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
@@ -112,4 +125,21 @@ def nav_context(request):
         'nav_solo_progress':    is_solo_progress,
         'nav_progress_only':    is_progress_only,
         'nav_salidas_bano':     is_salidas_bano,
+        # <--- hecho por claude code: enlace a Ruteo BL para coordinadores C1/C2/C4 (si el toggle está activo)
+        'nav_ruteo_bl':         _puede_ver_ruteo_bl(request),
     }
+
+
+def _puede_ver_ruteo_bl(request):
+    """True si el usuario puede ver la pantalla de Ruteo BL (admin, o coord C1/C2/C4 con toggle activo)."""
+    u = getattr(request, 'user', None)
+    if not (u and u.is_authenticated):
+        return False
+    if u.is_superuser:
+        return True
+    try:
+        from conducta.views import _permiso_ruteo_email
+        # <--- hecho por claude code: puede ver si su permiso es 'lectura' o 'edit'
+        return _permiso_ruteo_email(u.email) in ('lectura', 'edit')
+    except Exception:
+        return False

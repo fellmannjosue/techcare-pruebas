@@ -33,6 +33,11 @@ class PerfilUsuario(models.Model):
         'Es coordinador-maestro', default=False,
         help_text='Activa el checkbox "Soy maestro" en el login para que este usuario pueda alternar entre dashboard de coordinador y maestro.'
     )
+    # Bloqueo de acceso por intentos fallidos de login (5+ intentos → bloqueo total).
+    login_bloqueado    = models.BooleanField('Acceso bloqueado', default=False)
+    login_bloqueado_en = models.DateTimeField('Bloqueado el', null=True, blank=True)
+    # <--- hecho por claude code: última versión cuyas novedades vio el usuario
+    version_vista      = models.CharField('Última versión vista', max_length=20, blank=True, default='')
 
     class Meta:
         verbose_name = 'Perfil de usuario'

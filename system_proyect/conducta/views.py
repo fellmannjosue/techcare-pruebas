@@ -65,6 +65,264 @@ _GRADO_TOKEN = {1: '1ero', 2: '2do', 3: '3ero', 4: '4to', 5: '5to',
 _GRADOS_COORD = {'C1': [1, 2, 3], 'C2': [4, 5, 6, 7, 8, 9]}
 
 
+# ─────────────────────────────────────────────────────────────
+# <--- hecho por claude code: ruteo BILINGÜE por mapeo en archivo JSON
+# (materia manda → grado → override por maestro). Solo área bilingüe.
+# ─────────────────────────────────────────────────────────────
+_ROUTING_BL_PATH = os.path.join(settings.MEDIA_ROOT, 'conducta', 'routing_bl.json')
+
+# <--- hecho por claude code: nombres de coordinadores para mostrar en los portales
+_COORD_NOMBRES = {'C1': 'Mrs Varela', 'C2': 'Mr Ruiz', 'C3': 'Miss Alcerro', 'C4': 'Mr Martinez'}
+
+# <--- hecho por claude code: correo de cada coordinador (para permisos por coordinador en Ruteo)
+_COORD_EMAIL = {'C1': 'cvarela@ana-hn.org', 'C2': 'druiz@ana-hn.org',
+                'C3': 'ialcerro@ana-hn.org', 'C4': 'jmartinez@ana-hn.org'}
+_EMAIL_COORD = {v: k for k, v in _COORD_EMAIL.items()}
+# Compat: set de correos que antes tenían solo-lectura (C1, C2, C4). Se usa para migrar.
+_COORD_VER_RUTEO_EMAILS = {'cvarela@ana-hn.org', 'druiz@ana-hn.org', 'jmartinez@ana-hn.org'}
+_PERMISOS_RUTEO = ('none', 'lectura', 'edit')   # niveles válidos por coordinador
+
+_ROUTING_BL_DEFAULT = {
+    'actualizado': '',
+    'alumnos': [],
+    'grupos': {},   # <--- hecho por claude code: {grado_str: {nombre, nivel, grado_num, seccion, coordinador, clases[]}}
+    'grados_c1': [1, 2, 3],
+    'grados_c2': [4, 5, 6, 7, 8, 9],
+    'materias_c4': ['matematicas'],
+    'materias_c3': ['espanol', 'estudios sociales', 'eess', 'civica', 'computacion',
+                    'arte', 'penmanship', 'educacion fisica', 'biblia', 'inteligencia emocional'],
+    'maestros_override': {},
+    'coord_ver_ruteo': False,   # <--- hecho por claude code: (legado) visibilidad global; migrado a coord_permisos
+    'coord_permisos': {},       # <--- hecho por claude code: {C1|C2|C3|C4: 'none'|'lectura'|'edit'} — permiso por coordinador
+    'docentes_catalogo': [],    # <--- hecho por claude code: lista [{docente, materias, coord}] — un docente puede tener varias entradas
+}
+
+
+def _coord_permisos(cfg):
+    """<--- hecho por claude code: permisos por coordinador, con default 'none'.
+    Migra el toggle global viejo (coord_ver_ruteo=True → C1/C2/C4 en 'lectura')."""
+    base = {c: 'none' for c in _COORD_EMAIL}
+    guardado = cfg.get('coord_permisos') or {}
+    if guardado:
+        for c in base:
+            v = str(guardado.get(c, 'none')).lower()
+            base[c] = v if v in _PERMISOS_RUTEO else 'none'
+    elif cfg.get('coord_ver_ruteo'):   # legado: C1/C2/C4 tenían solo lectura
+        for correo in _COORD_VER_RUTEO_EMAILS:
+            base[_EMAIL_COORD[correo]] = 'lectura'
+    return base
+
+
+def _permiso_ruteo_email(email, cfg=None):
+    """Nivel de permiso ('none'|'lectura'|'edit') del correo dado en Ruteo."""
+    cfg = cfg or _cargar_routing_bl()
+    cod = _EMAIL_COORD.get((email or '').lower())
+    if not cod:
+        return 'none'
+    return _coord_permisos(cfg).get(cod, 'none')
+
+
+def _acceso_ruteo(request):
+    """Devuelve (puede_ver, solo_lectura) para la pantalla de Ruteo.
+    Superusuario → acceso total. Cada coordinador según su permiso: edit → ver+editar, lectura → solo ver."""
+    u = request.user
+    if not u.is_authenticated:
+        return False, True
+    if u.is_superuser:
+        return True, False
+    permiso = _permiso_ruteo_email(u.email)
+    if permiso == 'edit':
+        return True, False
+    if permiso == 'lectura':
+        return True, True
+    return False, True
+
+
+def _puede_editar_ruteo(request):
+    """<--- hecho por claude code: True si el usuario puede GUARDAR cambios en Ruteo (superuser o coord con permiso 'edit')."""
+    u = getattr(request, 'user', None)
+    if not (u and u.is_authenticated):
+        return False
+    if u.is_superuser:
+        return True
+    return _permiso_ruteo_email(u.email) == 'edit'
+
+
+def _default_coord_grado(n):
+    """Coordinador por defecto de un grupo según su grado (1-3 → C1, 4-9 → C2)."""
+    if n in (1, 2, 3):
+        return 'C1'
+    if n in (4, 5, 6, 7, 8, 9):
+        return 'C2'
+    return ''
+
+
+def _nivel_abbr(nivel):
+    """Abreviatura del nivel para distinguir grupos con el mismo número (Preescolar vs Primaria)."""
+    return {'PreescolarBL': 'Pre', 'PrimariaBL': 'Pri', 'ColegioBL': 'Col'}.get(nivel or '', nivel or '')
+
+
+def _nombre_grupo(grado_str, grado_num, seccion):
+    """Nombre corto de un grupo: '1.1', '7.2'… con fallback al texto crudo.
+    (El nivel se antepone al mostrar, ver _nombre_grupo_disp, para no confundir Pre 1.1 con Pri 1.1)."""
+    if grado_num and seccion != '':
+        return f"{grado_num}.{seccion}"
+    if grado_num:
+        return str(grado_num)
+    return grado_str
+
+
+def _nombre_grupo_disp(nivel, nombre, seccion=''):
+    """Nombre para mostrar. Preescolar → 'Prepa 1', 'Prepa 2' (evita confundir con Primaria).
+    Primaria/Colegio → su número tal cual ('1.1', '7.1', '9.1')."""
+    if nivel == 'PreescolarBL':
+        return f"Prepa {seccion}".strip()
+    return nombre
+
+
+def _reconstruir_grupos(cfg):
+    """Arma cfg['grupos'] a partir de cfg['alumnos'] (uno por grado-sección),
+    conservando coordinador y clases ya configurados."""
+    prev = cfg.get('grupos') or {}
+    nuevos = {}
+    for a in cfg.get('alumnos', []):
+        gr = a.get('grado', '')
+        if not gr:
+            continue
+        if gr not in nuevos:
+            existente = prev.get(gr, {})
+            n = a.get('grado_num')
+            sec = a.get('seccion', '')
+            nivel = gr.split(' ')[0] if ' ' in gr else ''
+            nuevos[gr] = {
+                'nombre': _nombre_grupo(gr, n, sec),
+                'nivel': nivel,
+                'grado_num': n,
+                'seccion': sec,
+                'coordinador': existente.get('coordinador') or _default_coord_grado(n),
+                'clases': existente.get('clases', []),
+            }
+    cfg['grupos'] = nuevos
+    return cfg
+
+
+def _norm_txt(s):
+    """Minúsculas + sin tildes, para comparar materias sin importar acentos/mayúsculas."""
+    s = (s or '').strip().lower()
+    for a, b in (('á', 'a'), ('é', 'e'), ('í', 'i'), ('ó', 'o'), ('ú', 'u'), ('ñ', 'n')):
+        s = s.replace(a, b)
+    return s
+
+
+# <--- hecho por claude code: al escribir se separan varias materias con ';' (o ','); se aceptan ambos
+def _split_materias(s):
+    return [x.strip() for x in (s or '').replace(';', ',').split(',') if x.strip()]
+
+
+def _join_materias(s):
+    """Para mostrar en la ventana del maestro: siempre separadas por coma."""
+    return ', '.join(_split_materias(s))
+
+
+def _catalogo_entries(cfg):
+    """<--- hecho por claude code: normaliza docentes_catalogo a lista [{docente, materias, coord}].
+    Un mismo docente puede tener VARIAS entradas. Migra el formato viejo dict {docente: materias}."""
+    raw = cfg.get('docentes_catalogo')
+    if isinstance(raw, list):
+        out = []
+        for e in raw:
+            doc = str((e or {}).get('docente', '')).strip()
+            if not doc:
+                continue
+            coord = str((e or {}).get('coord', '')).strip().upper()
+            out.append({'docente': doc,
+                        'materias': _join_materias((e or {}).get('materias', '')),
+                        'coord': coord if coord in {'C1', 'C2', 'C3', 'C4'} else ''})
+        return out
+    # formato viejo: dict {docente: materias} + maestros_override
+    overs = cfg.get('maestros_override', {}) or {}
+    out = []
+    for doc, mats in (raw or {}).items():
+        doc = str(doc).strip()
+        if not doc:
+            continue
+        cs = _norm_override_list(overs.get(doc))
+        if cs:
+            for c in cs:
+                out.append({'docente': doc, 'materias': _join_materias(mats), 'coord': c})
+        else:
+            out.append({'docente': doc, 'materias': _join_materias(mats), 'coord': ''})
+    return out
+
+
+def _cargar_routing_bl():
+    """Lee el JSON de ruteo bilingüe; si no existe o está corrupto, devuelve el default."""
+    try:
+        with open(_ROUTING_BL_PATH, encoding='utf-8') as fh:
+            data = json.load(fh)
+        cfg = dict(_ROUTING_BL_DEFAULT)
+        cfg.update(data or {})
+        return cfg
+    except (FileNotFoundError, ValueError, OSError):
+        return dict(_ROUTING_BL_DEFAULT)
+
+
+def _guardar_routing_bl(data):
+    """Escribe el JSON de ruteo bilingüe (crea la carpeta si falta)."""
+    os.makedirs(os.path.dirname(_ROUTING_BL_PATH), exist_ok=True)
+    with open(_ROUTING_BL_PATH, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+
+
+def _norm_override_list(v):
+    """Normaliza un override de maestro a lista de códigos válidos (acepta str o lista)."""
+    if not v:
+        return []
+    vals = [v] if isinstance(v, str) else (list(v) if isinstance(v, (list, tuple)) else [])
+    out = []
+    for x in vals:
+        c = str(x).strip().upper()
+        if c in {'C1', 'C2', 'C3', 'C4'} and c not in out:
+            out.append(c)
+    return out
+
+
+def _coord_bl(materia, docente, grado, cfg=None):
+    """Coordinador destino de un reporte BILINGÜE.
+    Regla: override único (fuerza) → materia manda (C3/C4) → grupo del alumno → grado.
+    Si el maestro tiene VARIOS overrides (ej. reporta a C1 y C2), se elige por el grado/grupo."""
+    cfg = cfg or _cargar_routing_bl()
+    overrides = cfg.get('maestros_override', {}) or {}
+    ov_list = _norm_override_list(overrides.get(docente)) if docente else []
+    # 1) Override ÚNICO → fuerza (sin importar materia ni grado)
+    if len(ov_list) == 1:
+        return ov_list[0]
+    # 2) Materia manda (C4 = Matemáticas, C3 = sus materias) — revisa cada materia si hay varias
+    m_list = [_norm_txt(x) for x in _split_materias(materia)] or [_norm_txt(materia)]
+    c4 = [_norm_txt(x) for x in cfg.get('materias_c4', [])]
+    c3 = [_norm_txt(x) for x in cfg.get('materias_c3', [])]
+    if any(x in c4 for x in m_list):
+        return 'C4'
+    if any(x in c3 for x in m_list):
+        return 'C3'
+    # 3) Grupo del alumno → coordinador del grupo  [nueva fuente]
+    grupo = (cfg.get('grupos') or {}).get(grado)
+    grupo_coord = grupo.get('coordinador') if grupo else ''
+    # 4) Grado → C1/C2 (fallback)
+    n, _sec = _parse_grado_num(grado)
+    grado_coord = 'C1' if n in cfg.get('grados_c1', [1, 2, 3]) else (
+        'C2' if n in cfg.get('grados_c2', [4, 5, 6, 7, 8, 9]) else '')
+    destino = grupo_coord or grado_coord
+    # 5) Override MÚLTIPLE (ej. C1 y C2): restringe al set permitido, elige por grado/grupo
+    if ov_list:
+        if destino in ov_list:
+            return destino
+        if grado_coord in ov_list:
+            return grado_coord
+        return ov_list[0]
+    return destino
+
+
 def _q_grado_academico(codigo):
     """Q por GRADO del reporte. Grados 1-3 solo Primaria (excluye Preescolar, que también usa 1ero/2do/3ero)."""
     q = Q(pk__in=[])
@@ -317,9 +575,9 @@ def obtener_alumnos_bilingue():
       JOIN dbo.tblEdcEjecCrso       AS ec ON a.AreaID     = ec.AreaID
       JOIN dbo.tblEdcCrso           AS c  ON ec.CrsoID    = c.CrsoID
       JOIN dbo.tblEdcDescripAreaEdc AS da ON a.DescrAreaEdcID = da.DescrAreaEdcID
-     WHERE d.Alum = 1 
+     WHERE d.Alum = 1
      AND DATEPART(yy, c.FechaInicio) = DATEPART(yyyy, GETDATE())
-       AND da.Descripcion IN (N'PrimariaBL', N'ColegioBL', N'PreescolarBL')
+       AND da.Descripcion IN (N'PrimariaBL', N'ColegioBL')   -- <--- hecho por claude code: Preescolar no manda reportes
        AND ec.Desertor = 0 AND ec.TrasladoPer = 0
      ORDER BY da.Descripcion, c.CrsoNumero, c.GrupoNumero, NombreCompl
     """
@@ -334,6 +592,91 @@ def obtener_alumnos_bilingue():
     except Exception as e:
         print(">>> ERROR SQL BILINGUE:", e)
     return alumnos
+
+
+# <--- hecho por claude code: alumnado BL desde el JSON de config (no BD en vivo).
+# Fallback a SQL si el JSON aún no tiene alumnos (antes del primer "Refrescar").
+def obtener_alumnos_bilingue_cfg():
+    cfg = _cargar_routing_bl()
+    alumnos = cfg.get('alumnos') or []
+    if not alumnos:
+        return obtener_alumnos_bilingue()
+    return [{'id': str(a.get('id')),
+             'label': a.get('label') or a.get('nombre') or '',
+             'grado': a.get('grado', '')} for a in alumnos]
+
+
+# <--- hecho por claude code: alumnado BL agrupado por grupo (grado-sección) para el <optgroup> del formulario
+def obtener_alumnos_bilingue_agrupados():
+    from itertools import groupby
+    cfg = _cargar_routing_bl()
+    grupos = cfg.get('grupos') or {}
+    alumnos = obtener_alumnos_bilingue_cfg()
+
+    def orden(a):
+        # <--- hecho por claude code: por grado (1.1 primero … 7/8/9 al final)
+        g = grupos.get(a['grado'], {})
+        return (g.get('grado_num') or 99, str(g.get('seccion', '')), a['label'])
+
+    alumnos.sort(key=orden)
+    salida = []
+    for grado, items in groupby(alumnos, key=lambda a: a['grado']):
+        g = grupos.get(grado, {})
+        nombre = g.get('nombre') or grado
+        nivel = g.get('nivel', '')
+        etiqueta = _nombre_grupo_disp(nivel, nombre, g.get('seccion', ''))   # 'Prepa 1', '1.1', '9.1'
+        salida.append({'grupo': etiqueta or grado, 'alumnos': list(items)})
+    return salida
+
+
+# <--- hecho por claude code: opciones materia/docente por grupo (filtradas a las clases del grupo)
+# con el coordinador REAL calculado (materia manda → grupo → override). Fallback: todas las materias.
+def _md_por_grado_bl():
+    cfg = _cargar_routing_bl()
+    grupos = cfg.get('grupos') or {}
+    mds = list(MateriaDocenteBilingue.objects.filter(activo=True))
+
+    def _opt(materia, docente, grado):
+        coord = _coord_bl(materia, docente, grado, cfg)
+        cn = _COORD_NOMBRES.get(coord, '')
+        return {'value': f"carga:{docente}|{materia}",
+                'label': f"{materia} / {docente}" + (f" ({cn})" if cn else "")}
+
+    def opcion_md(md, grado):
+        prim = _split_materias(md.materia)
+        coord = _coord_bl(prim[0] if prim else md.materia, md.docente, grado, cfg)
+        cn = _COORD_NOMBRES.get(coord, '')
+        return {'value': str(md.pk),
+                'label': f"{_join_materias(md.materia)} / {md.docente}" + (f" ({cn})" if cn else "")}
+
+    salida = {}
+    for grado, g in grupos.items():
+        clases = g.get('clases') or []
+        if clases:
+            # <--- hecho por claude code: opciones desde las clases del grupo, agrupando por docente
+            # las materias que van al MISMO coordinador → una sola opción (para maestros con varias clases).
+            opts, vistos = [], set()
+            for cl in clases:
+                doc = (cl.get('docente') or '').strip()
+                por_coord = {}
+                for mat in _split_materias(cl.get('materia', '')):
+                    coord = _coord_bl(mat, doc, grado, cfg)
+                    por_coord.setdefault(coord, [])
+                    if mat not in por_coord[coord]:
+                        por_coord[coord].append(mat)
+                for coord, mats in por_coord.items():
+                    materia_str = ', '.join(mats)
+                    key = (doc.lower(), materia_str.lower())
+                    if key in vistos:
+                        continue
+                    vistos.add(key)
+                    cn = _COORD_NOMBRES.get(coord, '')
+                    opts.append({'value': f"carga:{doc}|{materia_str}",
+                                 'label': f"{materia_str} / {doc}" + (f" ({cn})" if cn else "")})
+            salida[grado] = opts
+        else:
+            salida[grado] = [opcion_md(md, grado) for md in mds]  # respaldo: grupo sin clases
+    return salida
 
 def obtener_alumnos_colegio():
     query = """
@@ -370,15 +713,12 @@ def obtener_alumnos_colegio():
 
 def get_materia_docente_choices(area):
     if area == 'bilingue':
-        coord_map = {
-            c.codigo: c.nombre
-            for c in ConfiguracionCoordinador.objects.filter(area='bilingue')
-        }
+        # <--- hecho por claude code: etiqueta "Materia / Docente (Coordinador)"
         choices = []
         for md in MateriaDocenteBilingue.objects.filter(activo=True):
             codigos = [c.strip() for c in md.coordinador.split(',') if c.strip()]
-            nombres = ', '.join(coord_map[c] for c in codigos if c in coord_map)
-            label = f"{md.materia} — {md.docente}"
+            nombres = ', '.join(_COORD_NOMBRES.get(c, c) for c in codigos)
+            label = f"{_join_materias(md.materia)} / {md.docente}"  # <--- materias con coma en el display
             if nombres:
                 label += f" ({nombres})"
             choices.append((str(md.pk), label, md.coordinador))
@@ -419,7 +759,7 @@ def dashboard_maestro(request):
 @login_required
 def reporte_informativo_bilingue(request):
     area = 'bilingue'
-    students = obtener_alumnos_bilingue()  
+    students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
@@ -432,8 +772,13 @@ def reporte_informativo_bilingue(request):
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = coord_bl = ""
-        if materia_docente_id:
-            md_obj = MateriaDocenteBilingue.objects.filter(pk=materia_docente_id).first()
+        mdid = materia_docente_id or ''
+        if mdid.startswith('carga:'):
+            # <--- hecho por claude code: opción tomada de la carga del grupo (docente|materia)
+            docente, _sep, materia = mdid[6:].partition('|')
+            coord_bl = _coord_bl(materia, docente, grado)
+        elif mdid:
+            md_obj = MateriaDocenteBilingue.objects.filter(pk=mdid).first()
             if md_obj:
                 materia = md_obj.materia
                 docente = md_obj.docente
@@ -447,7 +792,9 @@ def reporte_informativo_bilingue(request):
             materia=materia,
             docente=docente,
             tipo_reporte=tipo_reporte,
-            comentario=comentario
+            comentario=comentario,
+            # <--- hecho por claude code: ruteo por mapeo JSON (materia manda → grado → override)
+            coord_asignado=_coord_bl(materia, docente, grado),
         )
         _notificar_coordinadores("Reporte Informativo", request.user, alumno_label, grado, materia, area,
                                  coordinador_bl=coord_bl, subtipo=f"informativo_{tipo_reporte}")
@@ -455,8 +802,10 @@ def reporte_informativo_bilingue(request):
         return redirect('reporte_informativo_bilingue')
 
     return render(request, 'conducta/form_informativo.html', {
-        'students': students,    
+        'students': students,
+        'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
         'materia_docente_choices': materia_docente_choices,
+        'md_por_grado_json': json.dumps(_md_por_grado_bl()),  # <--- hecho por claude code: materia/docente por grupo
         'fecha': fecha,
         'area': area,
     })
@@ -510,7 +859,7 @@ def reporte_informativo_colegio(request):
 @login_required
 def reporte_conductual_bilingue(request):
     area = 'bilingue'
-    students = obtener_alumnos_bilingue()
+    students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%d")
     # Obtiene incisos por severidad
@@ -533,8 +882,13 @@ def reporte_conductual_bilingue(request):
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         alumno_label = alumno_obj['label'] if alumno_obj else ""
         materia = docente = coord_bl = ""
-        if materia_docente_id:
-            md_obj = MateriaDocenteBilingue.objects.filter(pk=materia_docente_id).first()
+        mdid = materia_docente_id or ''
+        if mdid.startswith('carga:'):
+            # <--- hecho por claude code: opción tomada de la carga del grupo (docente|materia)
+            docente, _sep, materia = mdid[6:].partition('|')
+            coord_bl = _coord_bl(materia, docente, grado)
+        elif mdid:
+            md_obj = MateriaDocenteBilingue.objects.filter(pk=mdid).first()
             if md_obj:
                 materia = md_obj.materia
                 docente = md_obj.docente
@@ -568,6 +922,8 @@ def reporte_conductual_bilingue(request):
 
     return render(request, 'conducta/form_conductual.html', {
         'students': students,
+        'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
+        'md_por_grado_json': json.dumps(_md_por_grado_bl()),  # <--- hecho por claude code: materia/docente por grupo
         'materia_docente_choices': materia_docente_choices,
         'fecha': fecha,
         'area': area,
@@ -653,7 +1009,7 @@ def progress_report_bilingue(request):
         "Español", "CCSS", "Cívica", "Asociadas"
     ]
 
-    students = obtener_alumnos_bilingue()
+    students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     alumnos_choices = [(s['id'], s['label']) for s in students]
 
     materias = MATERIAS_PRIMARIA
@@ -730,6 +1086,7 @@ def progress_report_bilingue(request):
         'form': form,
         'materias': materias,
         'students': students,
+        'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
         'grado': grado,
     })
 
@@ -3540,3 +3897,293 @@ def convocatoria_tabla_pdf(request):
     resp['Content-Disposition'] = f'inline; filename="tabla_tutoria_{gnum}-{sec}_P{parcial}.pdf"'
     resp['X-Frame-Options'] = 'SAMEORIGIN'
     return resp
+
+
+# ═══════════════════════════════════════════════════════════════════
+# <--- hecho por claude code: Configuración de ruteo BILINGÜE (solo superusuario)
+# Pantalla que administra el JSON (alumnado + mapeo maestro/materia/grado → coordinador).
+# ═══════════════════════════════════════════════════════════════════
+def _sup_required(request):
+    return request.user.is_authenticated and request.user.is_superuser
+
+
+# <--- hecho por claude code: arma la lista de grupos para el portal (usado por Ruteo y Grupos)
+def _grupos_para_portal(cfg):
+    alumnos_por_grado = {}
+    for a in cfg.get('alumnos', []):
+        alumnos_por_grado.setdefault(a.get('grado', ''), []).append(a)
+    grupos = []
+    for gr, g in (cfg.get('grupos') or {}).items():
+        clases_disp = []
+        for cl in g.get('clases', []):
+            doc = cl.get('docente', '')
+            coords = []
+            for m in _split_materias(cl.get('materia', '')):
+                c = _coord_bl(m, doc, gr, cfg)
+                if c and c not in coords:
+                    coords.append(c)
+            clases_disp.append({
+                'docente': doc,
+                'materia': _join_materias(cl.get('materia', '')),
+                'coords': [{'code': c, 'nombre': _COORD_NOMBRES.get(c, c)} for c in coords],
+            })
+        grupos.append({
+            'key': gr,
+            'nombre': _nombre_grupo_disp(g.get('nivel', ''), g.get('nombre') or gr, g.get('seccion', '')),
+            'nivel': g.get('nivel', ''),
+            'grado_num': g.get('grado_num') or 0,
+            'seccion': g.get('seccion', ''),
+            'coordinador': g.get('coordinador', ''),
+            'clases': clases_disp,
+            'alumnos': sorted(alumnos_por_grado.get(gr, []), key=lambda x: x.get('label', '')),
+        })
+    grupos.sort(key=lambda x: (x['grado_num'], str(x['seccion'])))
+    return grupos
+
+
+@login_required
+def routing_bl_config(request):
+    puede, solo_lectura = _acceso_ruteo(request)
+    if not puede:
+        return redirect('menu')
+    cfg = _cargar_routing_bl()
+    # Maestros/materias conocidos (para overrides, grupos y datalist)
+    maestros = sorted({md.docente for md in MateriaDocenteBilingue.objects.filter(activo=True) if md.docente})
+    materias = sorted({m.strip() for md in MateriaDocenteBilingue.objects.filter(activo=True)
+                       for m in (md.materia or '').split(',') if m.strip()})
+    grupos = _grupos_para_portal(cfg)
+    return render(request, 'conducta/routing_bl.html', {
+        'cfg': cfg,
+        'cfg_json': json.dumps(cfg, ensure_ascii=False, indent=2),
+        'n_alumnos': len(cfg.get('alumnos', [])),
+        'maestros': maestros,
+        'materias': materias,
+        'coord_nombres': _COORD_NOMBRES,
+        'grupos': grupos,
+        'n_grupos': len(grupos),
+        'actualizado': cfg.get('actualizado', ''),
+        'solo_lectura': solo_lectura,   # <--- hecho por claude code: coordinadores = solo lectura
+        # <--- hecho por claude code: permisos por coordinador [{code, nombre, correo, permiso}]
+        'coord_permisos': [{'code': c, 'nombre': _COORD_NOMBRES.get(c, c),
+                            'correo': _COORD_EMAIL.get(c, ''), 'permiso': p}
+                           for c, p in _coord_permisos(cfg).items()],
+        # <--- hecho por claude code: catálogo de docentes = lista [{docente, materias, coord}]
+        'docentes_catalogo': _catalogo_entries(cfg),
+        'docentes_catalogo_json': json.dumps(_catalogo_entries(cfg), ensure_ascii=False),
+    })
+
+
+@login_required
+@require_POST
+def routing_bl_toggle_vis(request):
+    """<--- hecho por claude code: fija el permiso de UN coordinador (none|lectura|edit). Solo superuser."""
+    if not _sup_required(request):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        body = {}
+    coord = str(body.get('coord', '')).strip().upper()
+    permiso = str(body.get('permiso', '')).strip().lower()
+    if coord not in _COORD_EMAIL or permiso not in _PERMISOS_RUTEO:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    cfg = _cargar_routing_bl()
+    permisos = _coord_permisos(cfg)   # arranca del estado actual (migrando el legado)
+    permisos[coord] = permiso
+    cfg['coord_permisos'] = permisos
+    cfg.pop('coord_ver_ruteo', None)  # ya migrado al esquema por coordinador
+    _guardar_routing_bl(cfg)
+    return JsonResponse({'ok': True, 'coord': coord, 'permiso': permiso, 'permisos': permisos})
+
+
+@login_required
+@require_POST
+def routing_bl_refrescar(request):
+    """Trae el alumnado BL desde SQL Server y lo guarda en el JSON (calcula grado_num)."""
+    if not _puede_editar_ruteo(request):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    cfg = _cargar_routing_bl()
+    alumnos_sql = obtener_alumnos_bilingue()   # golpea SQL Server (único punto)
+    alumnos = []
+    for a in alumnos_sql:
+        n, sec = _parse_grado_num(a['grado'])
+        alumnos.append({'id': a['id'], 'label': a['label'], 'grado': a['grado'],
+                        'grado_num': n, 'seccion': sec})
+    cfg['alumnos'] = alumnos
+    _reconstruir_grupos(cfg)   # <--- hecho por claude code: arma/actualiza grupos por grado-sección
+    cfg['actualizado'] = timezone.now().strftime('%Y-%m-%d %H:%M')
+    _guardar_routing_bl(cfg)
+    return JsonResponse({'ok': True, 'n_alumnos': len(alumnos),
+                         'n_grupos': len(cfg['grupos']), 'actualizado': cfg['actualizado']})
+
+
+@login_required
+@require_POST
+def routing_bl_guardar(request):
+    """Guarda el mapeo editado (materias C3/C4, grados C1/C2, overrides). Conserva el alumnado."""
+    if not _puede_editar_ruteo(request):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+    cfg = _cargar_routing_bl()
+
+    def _lista_txt(v):
+        if isinstance(v, list):
+            return [str(x).strip() for x in v if str(x).strip()]
+        return [x.strip() for x in str(v or '').split(',') if x.strip()]
+
+    def _lista_int(v, default):
+        # <--- hecho por claude code: tolera "1.1" → 1 (toma el número de grado), quita repetidos y sin orden
+        items = v if isinstance(v, list) else str(v or '').split(',')
+        out = []
+        for x in items:
+            s = str(x).strip()
+            if not s:
+                continue
+            try:
+                n = int(float(s))   # "1.1" → 1 · "5" → 5
+            except (TypeError, ValueError):
+                continue
+            if 1 <= n <= 9 and n not in out:
+                out.append(n)
+        return out or default
+
+    # <--- hecho por claude code: actualizar SOLO las claves presentes en el body
+    # (evita que el autoguardado del mapeo re-agregue overrides de una pestaña vieja)
+    if 'materias_c3' in body:
+        cfg['materias_c3'] = _lista_txt(body.get('materias_c3'))
+    if 'materias_c4' in body:
+        cfg['materias_c4'] = _lista_txt(body.get('materias_c4'))
+    if 'grados_c1' in body:
+        cfg['grados_c1'] = _lista_int(body.get('grados_c1'), [1, 2, 3])
+    if 'grados_c2' in body:
+        cfg['grados_c2'] = _lista_int(body.get('grados_c2'), [4, 5, 6, 7, 8, 9])
+    if 'maestros_override' in body:
+        ov = body.get('maestros_override') or {}
+        cfg['maestros_override'] = {str(k): _norm_override_list(v) for k, v in ov.items()
+                                    if _norm_override_list(v)}
+    if 'docentes_catalogo' in body:
+        # <--- hecho por claude code: LISTA de entradas [{docente, materias, coord}]
+        # un mismo docente puede tener VARIAS entradas (varias cargas / coordinadores).
+        # Los overrides (maestros_override) se DERIVAN del catálogo = fuente única.
+        raw = body.get('docentes_catalogo') or []
+        entradas, overs = [], {}
+        if isinstance(raw, list):
+            for e in raw:
+                doc = str((e or {}).get('docente', '')).strip()
+                mats = _join_materias((e or {}).get('materias'))
+                coord = str((e or {}).get('coord', '')).strip().upper()
+                if coord not in {'C1', 'C2', 'C3', 'C4'}:
+                    coord = ''
+                if not doc or (not mats and not coord):
+                    continue
+                entradas.append({'docente': doc, 'materias': mats, 'coord': coord})
+                if coord:
+                    overs.setdefault(doc, [])
+                    if coord not in overs[doc]:
+                        overs[doc].append(coord)
+        cfg['docentes_catalogo'] = entradas
+        cfg['maestros_override'] = overs
+    cfg['actualizado'] = timezone.now().strftime('%Y-%m-%d %H:%M')
+    _guardar_routing_bl(cfg)
+    # <--- hecho por claude code: devolver los valores normalizados para que la UI se sincronice
+    return JsonResponse({'ok': True, 'actualizado': cfg['actualizado'], 'norm': {
+        'materias_c3': ', '.join(cfg['materias_c3']),
+        'materias_c4': ', '.join(cfg['materias_c4']),
+        'grados_c1': ', '.join(str(n) for n in cfg['grados_c1']),
+        'grados_c2': ', '.join(str(n) for n in cfg['grados_c2']),
+    }})
+
+
+@login_required
+def routing_bl_descargar(request):
+    """Descarga el JSON completo de ruteo bilingüe."""
+    if not _sup_required(request):
+        return redirect('menu')
+    cfg = _cargar_routing_bl()
+    resp = HttpResponse(json.dumps(cfg, ensure_ascii=False, indent=2),
+                        content_type='application/json; charset=utf-8')
+    resp['Content-Disposition'] = 'attachment; filename="routing_bl.json"'
+    return resp
+
+
+@login_required
+@require_POST
+def routing_bl_cargar(request):
+    """Reemplaza el JSON de ruteo con un archivo subido."""
+    if not _sup_required(request):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    f = request.FILES.get('archivo')
+    if not f:
+        return JsonResponse({'ok': False, 'error': 'No se recibió archivo'}, status=400)
+    try:
+        data = json.loads(f.read().decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'El archivo no es un JSON válido'}, status=400)
+    cfg = dict(_ROUTING_BL_DEFAULT)
+    cfg.update(data or {})
+    cfg['actualizado'] = timezone.now().strftime('%Y-%m-%d %H:%M')
+    _guardar_routing_bl(cfg)
+    return JsonResponse({'ok': True, 'n_alumnos': len(cfg.get('alumnos', [])), 'actualizado': cfg['actualizado']})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# <--- hecho por claude code: Portal de GRUPOS BILINGÜE (grado-sección → alumnos + docentes/clases + coordinador)
+# Los grupos son la fuente de ruteo C1/C2 (materia manda para C3/C4 se resuelve aparte).
+# ═══════════════════════════════════════════════════════════════════
+@login_required
+def grupos_bl_config(request):
+    # <--- hecho por claude code: Grupos ahora vive dentro de Ruteo (una sola hoja)
+    if not _sup_required(request):
+        return redirect('menu')
+    return redirect('routing_bl_config')
+
+
+@login_required
+@require_POST
+def grupos_bl_guardar(request):
+    """Guarda coordinador + clases (docente/materia) de cada grupo. No toca el alumnado."""
+    if not _puede_editar_ruteo(request):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+    cfg = _cargar_routing_bl()
+    grupos = cfg.get('grupos') or {}
+    entrantes = body.get('grupos') or {}
+    for key, datos in entrantes.items():
+        if key not in grupos:
+            continue
+        coord = str(datos.get('coordinador', '')).strip().upper()
+        if coord in {'C1', 'C2', 'C3', 'C4', ''}:
+            grupos[key]['coordinador'] = coord
+        clases = []
+        for c in (datos.get('clases') or []):
+            doc = str(c.get('docente', '')).strip()
+            mat = str(c.get('materia', '')).strip()
+            if doc or mat:
+                clases.append({'docente': doc, 'materia': mat})
+        grupos[key]['clases'] = clases
+    cfg['grupos'] = grupos
+    cfg['actualizado'] = timezone.now().strftime('%Y-%m-%d %H:%M')
+    _guardar_routing_bl(cfg)
+    # <--- hecho por claude code: devolver el coordinador recalculado por clase (para el autoguardado)
+    coords = {}
+    for key in entrantes.keys():
+        g = grupos.get(key)
+        if not g:
+            continue
+        filas = []
+        for cl in g.get('clases', []):
+            doc = cl.get('docente', '')
+            cs = []
+            for m in _split_materias(cl.get('materia', '')):
+                c = _coord_bl(m, doc, key, cfg)
+                if c and c not in [x['code'] for x in cs]:
+                    cs.append({'code': c, 'nombre': _COORD_NOMBRES.get(c, c)})
+            filas.append(cs)
+        coords[key] = filas
+    return JsonResponse({'ok': True, 'actualizado': cfg['actualizado'], 'coords': coords})

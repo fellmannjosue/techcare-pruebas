@@ -132,6 +132,21 @@ $(function () {
     }
   });
 
+  // <--- hecho por claude code: filtrar Materia/Docente según el grupo del alumno seleccionado
+  const MD_POR_GRADO = window.MD_POR_GRADO || {};
+  function filtrarMateriaDocentePorGrado(grado) {
+    const $md = $('#id_materia_docente');
+    if (!$md.length) return;
+    const ops = MD_POR_GRADO[grado];
+    if (!ops || !ops.length) return;   // sin datos para ese grupo → deja la lista completa
+    const prev = $md.val();
+    let html = '<option value="">-- Selecciona una materia --</option>';
+    ops.forEach(function (o) { html += '<option value="' + o.value + '">' + o.label + '</option>'; });
+    $md.html(html);
+    if (ops.some(function (o) { return o.value === prev; })) { $md.val(prev); }
+    $md.trigger('change');   // refresca select2
+  }
+
   // Lógica de autollenado de grado en Conductual/Informativo (si existe campo grado)
   function setGradoUniversal() {
     let grado = '';
@@ -143,6 +158,7 @@ $(function () {
     }
     $('#grado-display').val(grado);
     $('#id_grado').val(grado);
+    filtrarMateriaDocentePorGrado(grado);
   }
   // Se ejecuta si existen campos de grado en el formulario
   if ($('#id_grado').length && $('#grado-display').length) {

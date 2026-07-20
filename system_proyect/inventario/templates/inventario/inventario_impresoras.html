@@ -15,7 +15,8 @@
       <div class="card-body">
         <form method="post" class="row g-3">
           {% csrf_token %}
-          <div class="col-md-6"><label class="form-label">Asset ID</label>{{ form.asset_id }}</div>
+          {# <--- hecho por claude code: Asset ID autogenerado (readonly), se asigna en el servidor #}
+          <div class="col-md-6"><label class="form-label">Asset ID</label><input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_id }}" readonly></div>
           <div class="col-md-6"><label class="form-label">Nombre</label>{{ form.nombre }}</div>
           <div class="col-md-6"><label class="form-label">Modelo</label>{{ form.modelo }}</div>
           <div class="col-md-6"><label class="form-label">Serie</label>{{ form.serie }}</div>

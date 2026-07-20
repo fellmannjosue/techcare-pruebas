@@ -115,13 +115,17 @@
                 <tbody>
                   {% for r in records %}
                   <tr>
-                    <td><span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span></td>
-                    <td class="fw-semibold">{{ r.computadora.asset_id|default:r.model }}</td>
-                    <td>{{ r.model }}</td>
+                    {# <--- hecho por claude code: filas conscientes del tipo de equipo (computadora / impresora) #}
+                    <td>
+                      <span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span>
+                      {% if r.tipo_equipo == 'impresora' %}<span class="badge bg-orange-lt text-orange ms-1" title="Impresora"><i class="ti ti-printer"></i></span>{% endif %}
+                    </td>
+                    <td class="fw-semibold">{% if r.tipo_equipo == 'impresora' %}{% if r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}{% else %}{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}{% endif %}</td>
+                    <td>{{ r.model|default:"—" }}</td>
                     <td class="text-muted font-monospace small">{{ r.serie|default:"—" }}</td>
-                    <td>{{ r.teacher_name|default:r.computadora.asignado_a|default:"—" }}</td>
-                    <td>{{ r.grade|default:r.computadora.grado|default:"—" }}</td>
-                    <td>{{ r.tipo_falla|default:"—" }}</td>
+                    <td>{% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:"—" }}{% else %}—{% endif %}</td>
+                    <td>{% if r.tipo_equipo == 'impresora' %}<span class="text-muted small">Tinta: {{ r.get_estado_tinta_display|default:"—" }}</span>{% elif r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:"—" }}{% else %}—{% endif %}</td>
+                    <td>{% if r.tipo_equipo == 'impresora' %}{{ r.get_tipo_mant_impresora_display|default:"—" }}{% else %}{{ r.tipo_falla|default:"—" }}{% endif %}</td>
                     <td>{{ r.date|date:"d/m/Y" }}</td>
                     <td>
                       {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
@@ -193,7 +197,15 @@
         </div>
 
         <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
-          <div class="row g-3">
+          {# <--- hecho por claude code: selector de tipo de equipo (computadora / impresora) #}
+          <input type="hidden" name="tipo_equipo" id="id_tipo_equipo" value="computadora">
+          <div class="btn-group w-100 mb-3" role="group" id="equipo-toggle">
+            <button type="button" class="btn btn-primary mant-equipo-btn" data-equipo="computadora"><i class="ti ti-device-desktop me-1"></i>Computadora</button>
+            <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="impresora"><i class="ti ti-printer me-1"></i>Impresora</button>
+          </div>
+
+          {# ───────── Bloque COMPUTADORA ───────── #}
+          <div class="row g-3 equipo-computadora">
 
             {# ID auto #}
             <div class="col-md-4">
@@ -243,18 +255,71 @@
               <input type="text" id="mant-grado" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
 
-            {# Tipo falla, Fecha, Estado #}
+            {# Tipo de Falla (solo computadora) #}
             <div class="col-md-4">
               <label class="form-label fw-semibold">Tipo de Falla</label>
               {{ form.tipo_falla }}
               <input type="text" name="tipo_falla_nueva" id="id_tipo_falla_nueva"
                      class="form-control mt-2 d-none" maxlength="100" placeholder="Escribe la nueva falla…">
             </div>
+          </div>{# /equipo-computadora #}
+
+          {# ───────── Bloque IMPRESORA (hecho por claude code) ───────── #}
+          <div class="row g-3 equipo-impresora d-none">
             <div class="col-md-4">
+              <label class="form-label fw-semibold">ID Registro</label>
+              <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id_imp }}" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Impresora</label>
+              {{ form.impresora }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Modelo</label>
+              <input type="text" id="imp-modelo" class="form-control bg-light text-muted" readonly placeholder="Auto desde impresora">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nombre de la persona</label>
+              <input type="text" id="imp-persona" class="form-control bg-light text-muted" readonly placeholder="Auto desde impresora">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Área <span class="text-muted fw-normal small">(manual)</span></label>
+              {{ form.area }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Serie</label>
+              <input type="text" id="imp-serie" class="form-control bg-light text-muted" readonly placeholder="Auto desde impresora">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de mantenimiento</label>
+              {{ form.tipo_mant_impresora }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Estado de la tinta</label>
+              {{ form.estado_tinta }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de tinta</label>
+              {{ form.tipo_tinta }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Colores rellenados hoy</label>
+              <div class="d-flex flex-wrap gap-4 mt-1">
+                <label class="form-check form-check-inline mb-0">{{ form.tinta_negra }}<span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#111"></i>Negra</span></label>
+                <label class="form-check form-check-inline mb-0">{{ form.tinta_magenta }}<span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#e64980"></i>Magenta</span></label>
+                <label class="form-check form-check-inline mb-0">{{ form.tinta_amarillo }}<span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#f1c40f"></i>Amarillo</span></label>
+                <label class="form-check form-check-inline mb-0">{{ form.tinta_cyan }}<span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#15aabf"></i>Cyan</span></label>
+              </div>
+            </div>
+          </div>{# /equipo-impresora #}
+
+          {# ───────── Campos compartidos ───────── #}
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Fecha</label>
               {{ form.date }}
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Estado</label>
               {{ form.status }}
             </div>
@@ -325,7 +390,8 @@
 <div class="modal modal-blur fade" id="modalEditarRegistro" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post" id="form-edit-mant" action="" novalidate>
+      {# <--- hecho por claude code: enctype para poder adjuntar fotos al editar #}
+      <form method="post" id="form-edit-mant" action="" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         <input type="hidden" name="firma_data" id="edit-firma-data">
         <input type="hidden" name="firma_tecnico_data" id="edit-firma-tecnico-data">
@@ -412,6 +478,18 @@
               <textarea name="observaciones" id="edit-observaciones" class="form-control" rows="2"></textarea>
             </div>
 
+            {# Fotos de evidencia (hecho por claude code: adjuntar imágenes al editar) #}
+            <div class="col-12">
+              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small">(agregar hasta 5)</span></label>
+              <div id="edit-fotos-actuales"></div>
+              <div id="edit-drop-zone">
+                <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-1"></i>
+                <p class="mb-1 text-muted small">Arrastra imágenes aquí o haz clic para seleccionar</p>
+                <input type="file" name="fotos" id="edit-fotos-input" multiple accept="image/*" class="d-none">
+              </div>
+              <div id="edit-fotos-preview"></div>
+            </div>
+
             {# Firma del técnico (manual, para firmar registros existentes) #}
             <div class="col-md-6">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
@@ -469,10 +547,11 @@
 window._PAGE = {
   csrf: '{{ csrf_token }}',
   computadorasJson: {{ computadoras_json|safe }},
+  impresorasJson: {{ impresoras_json|safe }},
   urlTipoFalla: '{% url "mantenimiento:tipo_falla_crear" %}',
 };
 </script>
-<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=4"></script>
+<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=6"></script>
 
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}

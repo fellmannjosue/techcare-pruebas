@@ -1,0 +1,20 @@
+{
+  "version": "6.0.1.2",
+  "entradas": [
+    {
+      "version": "6.0.1.2",
+      "fecha": "2026-07-20",
+      "commit": "",
+      "cambios": [
+        "Ruteo de reportes Bilingüe: cada reporte llega solo a su coordinador (C1/C2/C3/C4), sin fugas",
+        "Portal de Grupos (grado-sección) unificado con Ruteo en una sola hoja, con autoguardado",
+        "Catálogo de docentes: cada docente con sus materias y coordinador; permite varias cargas por docente (reporta a dos)",
+        "Los docentes agrupados por coordinador (C1, C2, C3, C4) en el catálogo",
+        "Selección de clases por grupo con menú desplegable (multi-select) de las materias del docente",
+        "Permisos por coordinador en Ruteo: sin acceso / solo lectura / puede editar",
+        "Nuevo: versión del sistema en el pie de página y ventana de novedades por versión",
+        "Correcciones: el borrado de clases ahora se guarda; desplegable de docentes conectado al catálogo"
+      ]
+    }
+  ]
+}

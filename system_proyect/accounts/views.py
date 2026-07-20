@@ -22,6 +22,70 @@ from reloj.models import RelojPermiso
 # =====================================================
 # 🔐 LOGIN GENERAL DEL SISTEMA
 # =====================================================
+# ── Bloqueo de login por intentos fallidos (hecho por claude code) ───────────
+# 3 intentos → bloqueo temporal 1 min (cache) · 5 intentos → bloqueo total (perfil)
+_LOGIN_MAX_TEMP  = 3      # intentos para el bloqueo temporal
+_LOGIN_TEMP_SECS = 60     # duración del bloqueo temporal (1 min)
+_LOGIN_MAX_TOTAL = 5      # intentos para el bloqueo total
+
+
+def _login_key(username):
+    return (username or '').strip().lower()
+
+
+def _perfil_bloqueado(username):
+    """(User|None, bloqueado_bool) según perfil.login_bloqueado del usuario real."""
+    u = User.objects.filter(username__iexact=(username or '').strip()).first()
+    if u:
+        try:
+            return u, bool(u.perfil.login_bloqueado)
+        except Exception:
+            return u, False
+    return None, False
+
+
+def _login_temp_lock_left(key):
+    """Segundos restantes del bloqueo temporal (0 si no hay)."""
+    import time
+    from django.core.cache import cache
+    ts = cache.get('login_lock:' + key)
+    if not ts:
+        return 0
+    left = int(ts - time.time())
+    return left if left > 0 else 0
+
+
+def _registrar_fallo_login(username, key):
+    """Suma un intento fallido y devuelve {intentos, temp_secs, total}."""
+    import time
+    from django.core.cache import cache
+    from django.utils import timezone as _tz
+    n = (cache.get('login_fails:' + key, 0) or 0) + 1
+    cache.set('login_fails:' + key, n, 15 * 60)   # ventana de 15 min
+    estado = {'intentos': n, 'temp_secs': 0, 'total': False}
+    if n >= _LOGIN_MAX_TOTAL:
+        estado['total'] = True
+        u = User.objects.filter(username__iexact=(username or '').strip()).first()
+        if u:
+            try:
+                p = u.perfil
+                p.login_bloqueado = True
+                p.login_bloqueado_en = _tz.now()
+                p.save(update_fields=['login_bloqueado', 'login_bloqueado_en'])
+            except Exception:
+                pass
+    elif n == _LOGIN_MAX_TEMP:   # solo en el 3er intento se aplica el bloqueo de 1 min
+        cache.set('login_lock:' + key, time.time() + _LOGIN_TEMP_SECS, _LOGIN_TEMP_SECS)
+        estado['temp_secs'] = _LOGIN_TEMP_SECS
+    return estado
+
+
+def _reset_login_fails(key):
+    from django.core.cache import cache
+    cache.delete('login_fails:' + key)
+    cache.delete('login_lock:' + key)
+
+
 def login_view(request):
     """
     Login unificado para todos los usuarios.
@@ -42,10 +106,22 @@ def login_view(request):
         username = request.POST['username']
         password = request.POST['password']
         is_maestro = request.POST.get('is_maestro') == 'on'
+        key = _login_key(username)
+
+        # Bloqueo total (persistente) o temporal (cache) antes de autenticar
+        _u_block, _is_blocked = _perfil_bloqueado(username)
+        if _is_blocked:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_total': True, 'bloqueo_username': username})
+        _lock_left = _login_temp_lock_left(key)
+        if _lock_left > 0:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_temp': _lock_left})
 
         user = authenticate(request, username=username, password=password)
 
         if user:
+            _reset_login_fails(key)
             def _registrar_acceso(u):
                 ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
                 if ip and ',' in ip:
@@ -119,7 +195,19 @@ def login_view(request):
                 return _welcome_redirect(roles_disponibles[0]['url'])
             return _welcome_redirect('seleccion_rol')
 
-        messages.error(request, 'Credenciales inválidas.')
+        # ── Fallo de autenticación: contar intento y (des)bloquear ──
+        estado = _registrar_fallo_login(username, key)
+        if estado['total']:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_total': True, 'bloqueo_username': username})
+        if estado['temp_secs']:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_temp': estado['temp_secs']})
+        restantes = max(0, _LOGIN_MAX_TEMP - estado['intentos'])
+        msg = 'Credenciales inválidas.'
+        if restantes:
+            msg += f' Te queda{"n" if restantes != 1 else ""} {restantes} intento{"s" if restantes != 1 else ""} antes del bloqueo temporal.'
+        messages.error(request, msg)
 
     return render(request, 'accounts/login.html', {'year': year})
 
@@ -138,7 +226,6 @@ _GRUPO_A_ROL = {
     'tecnicos':             {'titulo': 'Soporte Técnico',       'subtitulo': 'Gestión de tickets técnicos',                       'icon': 'ti-tools',           'clase': 'icon-tech',  'url': '/tickets/dashboard/'},
     'enfermeria':           {'titulo': 'Enfermería',            'subtitulo': 'Atención médica y control de medicamentos',          'icon': 'ti-first-aid-kit',   'clase': 'icon-enf',   'url': '/enfermeria/'},
     'inventario':           {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
-    'finanzas':             {'titulo': 'Finanzas',              'subtitulo': 'Gestión de finanzas personales',                    'icon': 'ti-coin',            'clase': 'icon-fin',   'url': '/finanzas/'},
     'reloj':                {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
 }
 
@@ -490,7 +577,6 @@ def menu_view(request):
         'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
         'show_tickets':     is_admin or can_view_tickets or is_administracion or user.groups.filter(name='instructores').exists(),
         'show_sponsors':    is_admin or can_view_sponsors,
-        'show_finanzas':    user.is_superuser or user.email == 'cvalle@ana-hn.org',
         'show_cfp':         user.is_superuser or user.groups.filter(name__in=['director_cfp', 'instructores']).exists(),
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
@@ -514,10 +600,10 @@ def menu_view(request):
     context['show_welcome'] = show_welcome
     context['welcome_name']  = request.user.get_full_name() or request.user.username
 
-    # Superusuario: nuevo panel organizado en 6 grupos
+    # Superusuario: panel acordeón con subdashboards por módulo
     if user.is_superuser:
         return render(request, 'accounts/panel_super.html', {
-            'grupos': GRUPOS_SUPER,
+            'grupos': _grupos_super_con_hrefs(),  # <--- hecho por claude code: hrefs resueltos para el acordeón
             'tickets_pendientes': tickets_pendientes,
             'reportes_bl': reportes_bl,
             'reportes_col': reportes_col,
@@ -548,6 +634,7 @@ GRUPOS_SUPER = [
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         {'t': 'Notas Mitad de Parcial', 's': 'Revisión / Asignaciones', 'i': 'ti-file-certificate', 'c': '#206bc4', 'url': 'notas_parcial_index'},
         {'t': 'Salidas Baño', 's': 'Control de salidas', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
+        {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado (todo en una hoja)', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
      ]},
     {'key': 'reloj', 'titulo': 'Reloj y Sponsors', 'icon': 'ti-clock', 'color': '#f76707',
      'desc': 'Asistencia y patrocinadores',
@@ -555,34 +642,53 @@ GRUPOS_SUPER = [
         {'t': 'Reloj', 's': 'Control de asistencia', 'i': 'ti-clock', 'c': '#f76707', 'url': 'reloj_dashboard'},
         {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:sponsors_dashboard'},
      ]},
-    {'key': 'finanzas', 'titulo': 'Finanzas', 'icon': 'ti-coin', 'color': '#f59f00',
-     'desc': 'Finanzas personales',
-     'cards': [
-        {'t': 'Finanzas', 's': 'Control de finanzas personales', 'i': 'ti-coin', 'c': '#f59f00', 'url': 'finanzas_personales:index'},
-     ]},
     {'key': 'cfp', 'titulo': 'CFP', 'icon': 'ti-school', 'color': '#2fb344',
      'desc': 'Centro de Formación Profesional',
      'cards': [
         {'t': 'Contabilidad CFP', 's': 'Talleres y cursos del CFP', 'i': 'ti-calculator', 'c': '#2fb344', 'url': 'cfp:dashboard'},
         {'t': 'Notas CFP', 's': 'Registro de notas por curso', 'i': 'ti-list-numbers', 'c': '#206bc4', 'url': 'cfp:notas_cursos'},
      ]},
-    {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#4263eb',
-     'desc': 'Auditoría, actividad, permisos y correos',
+    {'key': 'monitoreo', 'titulo': 'Monitoreo', 'icon': 'ti-chart-histogram', 'color': '#d6336c',
+     'desc': 'Auditoría y actividad del sistema',
      'cards': [
         {'t': 'Auditoría', 's': 'Cambios del sistema', 'i': 'ti-shield-check', 'c': '#206bc4', 'url': 'settings_auditoria'},
         {'t': 'Actividad', 's': 'Logs de actividad', 'i': 'ti-activity', 'c': '#0ca678', 'url': 'settings_actividad'},
+     ]},
+    {'key': 'permisos', 'titulo': 'Permisos', 'icon': 'ti-shield-lock', 'color': '#7048e8',
+     'desc': 'Accesos, coordinadores y desbloqueo de login',
+     'cards': [
         {'t': 'Permisos Reloj', 's': 'Acceso por usuario', 'i': 'ti-clock-cog', 'c': '#f76707', 'url': 'settings_reloj_permisos'},
         {'t': 'Permisos Coordinadores', 's': 'Acceso coordinadores', 'i': 'ti-users-group', 'c': '#7048e8', 'url': 'settings_coord_permisos'},
+        {'t': 'Desbloqueo de accesos', 's': 'Cuentas bloqueadas por login', 'i': 'ti-lock-open', 'c': '#2fb344', 'url': 'settings_desbloqueos'},
+     ]},
+    {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#4263eb',
+     'desc': 'Configuración de correos',
+     'cards': [
         {'t': 'Correos', 's': 'Configuración de correos', 'i': 'ti-mail', 'c': '#d63939', 'url': 'settings_correos'},
      ]},
-    {'key': 'construccion', 'titulo': 'En construcción', 'icon': 'ti-tools', 'color': '#f59f00',
-     'desc': 'Módulos próximos', 'wip': True,
+    {'key': 'construccion', 'titulo': 'Modo Mantenimiento', 'icon': 'ti-tool', 'color': '#f59f00',
+     'desc': 'Bloquear el sistema temporalmente',
      'cards': [
-        {'t': 'Control de sistema de redes', 's': 'Próximamente', 'i': 'ti-network', 'c': '#f59f00', 'url': 'camaras:index', 'wip': True},
-        {'t': 'Control de telefonía', 's': 'Próximamente', 'i': 'ti-phone', 'c': '#f59f00', 'url': 'atencion_padres:index', 'wip': True},
-        {'t': 'Registro de control VPN', 's': 'Próximamente', 'i': 'ti-lock-access', 'c': '#f59f00', 'url': None, 'wip': True},
+        {'t': 'Modo Mantenimiento', 's': 'Bloquear el sistema temporalmente', 'i': 'ti-tool', 'c': '#f59f00', 'url': 'mantenimiento_modo'},
      ]},
 ]
+
+
+# <--- hecho por claude code: resuelve los href de cada tarjeta para el panel acordeón
+def _reverse_seguro(name, args=None):
+    if not name:
+        return ''
+    try:
+        return reverse(name, kwargs=args) if args else reverse(name)
+    except Exception:
+        return ''
+
+
+def _grupos_super_con_hrefs():
+    return [
+        {**g, 'cards': [{**c, 'href': _reverse_seguro(c.get('url'), c.get('args'))} for c in g['cards']]}
+        for g in GRUPOS_SUPER
+    ]
 
 
 @login_required
@@ -607,6 +713,54 @@ def panel_grupo(request, grupo):
         'titulo': g['titulo'], 'icon': g['icon'], 'desc': g.get('desc', ''),
         'cards': cards, 'wip': g.get('wip', False),
     })
+
+
+# ── Modo Mantenimiento (página propia, grupo "En construcción") ──────────────
+@login_required
+def mantenimiento_modo(request):
+    if not request.user.is_superuser:
+        return redirect('menu')
+    todos_usuarios = User.objects.filter(is_active=True).exclude(email='').order_by('first_name', 'last_name')
+    return render(request, 'accounts/mantenimiento_modo.html', {'todos_usuarios': todos_usuarios})
+
+
+# ── Desbloqueo de accesos (cuentas bloqueadas por intentos de login) ─────────
+@login_required
+def settings_desbloqueos(request):
+    if not request.user.is_superuser:
+        return redirect('menu')
+    perfiles = (PerfilUsuario.objects
+                .filter(login_bloqueado=True).select_related('usuario')
+                .order_by('-login_bloqueado_en'))
+    bloqueados = [{
+        'user_id': p.usuario_id,
+        'nombre':  p.usuario.get_full_name() or p.usuario.username,
+        'email':   p.usuario.email or p.usuario.username,
+        'fecha':   p.login_bloqueado_en,
+    } for p in perfiles]
+    return render(request, 'accounts/settings_desbloqueos.html', {
+        'active_tab': 'desbloqueos',
+        'bloqueados': bloqueados,
+        'can_manage_users': request.user.is_superuser,
+        'can_see_activity': request.user.is_superuser,
+    })
+
+
+@login_required
+def desbloquear_usuario(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    try:
+        p = PerfilUsuario.objects.select_related('usuario').get(usuario_id=request.POST.get('user_id'))
+    except PerfilUsuario.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'No encontrado'}, status=404)
+    p.login_bloqueado = False
+    p.login_bloqueado_en = None
+    p.save(update_fields=['login_bloqueado', 'login_bloqueado_en'])
+    _reset_login_fails(_login_key(p.usuario.username))   # limpia contadores de cache
+    return JsonResponse({'ok': True})
 
 
 @login_required

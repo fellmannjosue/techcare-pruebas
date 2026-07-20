@@ -41,17 +41,52 @@ class GradoMantenimiento(models.Model):
 
 
 class MaintenanceRecord(AuditModel):
+    # <--- hecho por claude code: registro polimórfico computadora / impresora
+    TIPO_EQUIPO_CHOICES = [
+        ('computadora', 'Computadora'),
+        ('impresora',   'Impresora'),
+    ]
+    TIPO_MANT_IMPRESORA_CHOICES = [
+        ('llenado_tinta',         'Llenado de tinta'),
+        ('actualizacion_sistema', 'Actualización de sistema'),
+    ]
+    ESTADO_TINTA_CHOICES = [
+        ('vacio', 'Vacío'),
+        ('media', 'Media'),
+        ('llena', 'Llena'),
+        ('full',  'Full'),
+    ]
+    TIPO_TINTA_CHOICES = [
+        ('544', '544'),
+        ('504', '504'),
+    ]
+
     record_id    = models.CharField("ID Registro", max_length=20, unique=True, blank=True)
+    tipo_equipo  = models.CharField("Tipo de equipo", max_length=20, choices=TIPO_EQUIPO_CHOICES, default='computadora')
     computadora  = models.ForeignKey(
         'inventario.Computadora',
         on_delete=models.SET_NULL, null=True, blank=True,
         verbose_name="Computadora"
     )
-    model        = models.CharField("Modelo", max_length=100)
+    impresora    = models.ForeignKey(
+        'inventario.Impresora',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Impresora"
+    )
+    model        = models.CharField("Modelo", max_length=100, blank=True)
     serie        = models.CharField("Serie", max_length=100, blank=True)
-    teacher_name = models.CharField("Nombre del Maestro", max_length=150)
-    grade        = models.CharField("Grado", max_length=100)
-    tipo_falla   = models.ForeignKey(TipoFalla, on_delete=models.SET_NULL, null=True, verbose_name="Tipo de Falla")
+    teacher_name = models.CharField("Nombre del Maestro", max_length=150, blank=True)
+    grade        = models.CharField("Grado", max_length=100, blank=True)
+    area         = models.CharField("Área", max_length=100, blank=True)  # <--- hecho por claude code: área manual (impresora)
+    tipo_falla   = models.ForeignKey(TipoFalla, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Tipo de Falla")
+    # <--- hecho por claude code: campos específicos de mantenimiento de impresora
+    tipo_mant_impresora = models.CharField("Tipo de mantenimiento (impresora)", max_length=30, choices=TIPO_MANT_IMPRESORA_CHOICES, blank=True)
+    estado_tinta = models.CharField("Estado de la tinta", max_length=10, choices=ESTADO_TINTA_CHOICES, blank=True)
+    tinta_negra    = models.BooleanField("Tinta negra rellenada", default=False)
+    tinta_magenta  = models.BooleanField("Tinta magenta rellenada", default=False)
+    tinta_amarillo = models.BooleanField("Tinta amarillo rellenada", default=False)
+    tinta_cyan     = models.BooleanField("Tinta cyan rellenada", default=False)
+    tipo_tinta   = models.CharField("Tipo de tinta", max_length=10, choices=TIPO_TINTA_CHOICES, blank=True)
     solucion     = models.TextField("Solución Aplicada", null=True, blank=True)
     date         = models.DateField("Fecha del Mantenimiento")
     status       = models.CharField(

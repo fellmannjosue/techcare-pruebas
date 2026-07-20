@@ -48,6 +48,9 @@ urlpatterns = [
     path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
     path('settings/reloj/permisos/',                            views.settings_reloj_permisos,           name='settings_reloj_permisos'),
     path('settings/coordinadores/permisos/',                    views.settings_coord_permisos,           name='settings_coord_permisos'),
+    path('mantenimiento-modo/',                                 views.mantenimiento_modo,                name='mantenimiento_modo'),
+    path('settings/desbloqueos/',                               views.settings_desbloqueos,              name='settings_desbloqueos'),
+    path('settings/desbloqueos/desbloquear/',                   views.desbloquear_usuario,               name='desbloquear_usuario'),
 
     # Recuperación de contraseña (vistas estándar de Django)
     path('password_reset/', auth_views.PasswordResetView.as_view(

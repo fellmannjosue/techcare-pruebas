@@ -53,13 +53,28 @@
     </ul>
   </li>
 
+
+  {# <--- hecho por claude code: Configuración dividida en Monitoreo / Permisos / Configuración #}
   <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbFinanzas" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span>
-      <span class="nav-link-title">Finanzas</span><span class="nav-link-arrow"></span>
+    <a class="nav-link collapsed" href="#sbMonitoreo" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-chart-histogram text-pink"></i></span>
+      <span class="nav-link-title">Monitoreo</span><span class="nav-link-arrow"></span>
     </a>
-    <ul class="navbar-nav collapse ps-4" id="sbFinanzas">
-      <li class="nav-item"><a class="nav-link" href="{% url 'finanzas_personales:index' %}"><span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span><span class="nav-link-title">Finanzas</span></a></li>
+    <ul class="navbar-nav collapse ps-4" id="sbMonitoreo">
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_auditoria' %}"><span class="nav-link-icon"><i class="ti ti-shield-check"></i></span><span class="nav-link-title">Auditoría</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_actividad' %}"><span class="nav-link-icon"><i class="ti ti-activity"></i></span><span class="nav-link-title">Actividad</span></a></li>
+    </ul>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbPermisos" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-shield-lock text-purple"></i></span>
+      <span class="nav-link-title">Permisos</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbPermisos">
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_reloj_permisos' %}"><span class="nav-link-icon"><i class="ti ti-clock-cog"></i></span><span class="nav-link-title">Permisos Reloj</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_coord_permisos' %}"><span class="nav-link-icon"><i class="ti ti-users-group"></i></span><span class="nav-link-title">Permisos Coordinadores</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_desbloqueos' %}"><span class="nav-link-icon"><i class="ti ti-lock-open"></i></span><span class="nav-link-title">Desbloqueo de accesos</span></a></li>
     </ul>
   </li>
 
@@ -69,24 +84,16 @@
       <span class="nav-link-title">Configuración</span><span class="nav-link-arrow"></span>
     </a>
     <ul class="navbar-nav collapse ps-4" id="sbConfig">
-      <li class="nav-item"><a class="nav-link" href="{% url 'settings_auditoria' %}"><span class="nav-link-icon"><i class="ti ti-shield-check"></i></span><span class="nav-link-title">Auditoría</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'settings_actividad' %}"><span class="nav-link-icon"><i class="ti ti-activity"></i></span><span class="nav-link-title">Actividad</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'settings_reloj_permisos' %}"><span class="nav-link-icon"><i class="ti ti-clock-cog"></i></span><span class="nav-link-title">Permisos Reloj</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'settings_coord_permisos' %}"><span class="nav-link-icon"><i class="ti ti-users-group"></i></span><span class="nav-link-title">Permisos Coordinadores</span></a></li>
       <li class="nav-item"><a class="nav-link" href="{% url 'settings_correos' %}"><span class="nav-link-icon"><i class="ti ti-mail"></i></span><span class="nav-link-title">Correos</span></a></li>
     </ul>
   </li>
 
+  {# <--- hecho por claude code: enlace directo a Modo Mantenimiento (antes "En construcción") #}
   <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbWip" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-tools text-yellow"></i></span>
-      <span class="nav-link-title">En construcción</span><span class="nav-link-arrow"></span>
+    <a class="nav-link" href="{% url 'mantenimiento_modo' %}">
+      <span class="nav-link-icon"><i class="ti ti-tool text-yellow"></i></span>
+      <span class="nav-link-title">Modo Mantenimiento</span>
     </a>
-    <ul class="navbar-nav collapse ps-4" id="sbWip">
-      <li class="nav-item"><a class="nav-link" href="{% url 'camaras:index' %}"><span class="nav-link-icon"><i class="ti ti-network"></i></span><span class="nav-link-title">Control de sistema de redes</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'atencion_padres:index' %}"><span class="nav-link-icon"><i class="ti ti-phone"></i></span><span class="nav-link-title">Control de telefonía</span></a></li>
-      <li class="nav-item"><a class="nav-link disabled" href="#"><span class="nav-link-icon"><i class="ti ti-lock-access"></i></span><span class="nav-link-title">Registro de control VPN</span></a></li>
-    </ul>
   </li>
   {% else %}
 
@@ -325,15 +332,6 @@
   </li>
   {% endif %}
 
-  {# ── Finanzas Personales ─────────────────────────────── #}
-  {% if nav_finanzas %}
-  <li class="nav-item">
-    <a class="nav-link" href="{% url 'finanzas_personales:index' %}">
-      <span class="nav-link-icon"><i class="ti ti-coin text-yellow"></i></span>
-      <span class="nav-link-title">Finanzas</span>
-    </a>
-  </li>
-  {% endif %}
 
   {# ── Mantenimiento ───────────────────────────────────── #}
   {% if nav_maintenance %}

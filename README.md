@@ -2,6 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
+- **Versión del sistema:** 6.0.1.2 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -11,6 +12,19 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ---
 
 ## Novedades recientes
+
+> El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v6.0.1.2 — Ruteo de reportes Bilingüe
+
+- **Ruteo BL sin fugas** — Cada reporte académico/conductual del área Bilingüe llega **solo a su coordinador** (C1/C2/C3/C4). Regla combinada: la **materia manda** (C3/C4), si no el **grado/grupo** del alumno decide C1 (1–3) / C2 (4–9), y un **override por docente** desempata. Solo aplica a reportes nuevos.
+- **Pantalla de Ruteo unificada** (`conducta/routing_bl.html`, solo superuser por defecto): mapeo de materias→coordinador, catálogo de docentes y portal de Grupos (grado-sección) en una sola hoja, con **autoguardado**. Configuración en `media/conducta/routing_bl.json` (no en BD; **no** se versiona).
+- **Catálogo de docentes** — Cada docente con sus **materias** y **coordinador**; admite **varias cargas** por docente (los que **reportan a dos coordinadores**, ej. Miss Saravia → C1 y C3). Separadores: `,` = un paquete, `;` = cargas separadas. Filas agrupadas por coordinador.
+- **Grupos** — Selección de las clases de cada docente por grupo con un **menú desplegable multi-select**; los alumnos se cargan desde SQL Server con "Refrescar alumnado".
+- **Permisos por coordinador** — Cada coordinador puede tener acceso **Sin acceso / Solo lectura / Puede editar** a la pantalla de Ruteo (lo fija el superusuario).
+- **Versión + Novedades** — Número de versión en el pie de página de toda la app y ventana de novedades por versión (ver sección dedicada).
+
+### Anteriores
 
 - **Convocatoria de Tutorías (Bilingüe)** — Módulo `conducta`. Los maestros bilingües crean convocatorias por alumno (carga automática de grado/sección, asignaturas por grado con días fijos del horario), generan un registro y lo ven en su Historial (tab *Tutorías*). Los coordinadores (tab *Tutorías*) ven/editan/eliminan y descargan el PDF (carta "Compromiso de Asistencia a Tutoría" con logo `encabezado.jpg`, una sola hoja, desprendible ACLARATORIA). Ruteo por grado: **C1** (grados 1–3, Catherine Varela) y **C2** (grados 4–9, David Ruiz) con notificación al coordinador. Matriz Grado×Día×Asignatura configurable por parcial. Modelos: `TutoriaHorario`, `ConvocatoriaTutoria`, `ConvocatoriaAsignatura`, `TutoriaGrupoMaestro`.
 - **Bono por Asistencia** — Módulo `reloj`, tab del Reporte Mensual de Permisos (antes "Pierde Bono"). Cálculo **automático** con reglas configurables (modal *Reglas del bono*, solo superusuario): Otro Pagado, Enfermedad, hora máx. de entrada (6:57), y reglas extra. **Vigilancia** con dos turnos (19:00 → entrada máx 18:45; 00:00 → 23:45). **Maestros por hora** con horario especial por día (ej. Juan Pablo Chirinos lunes 11:30). **No Pagado y Compensatorio nunca pierden** el bono. Sub-tabs *Lista de empleados con bono* (solo conservan) y *Detalle*; override manual del superusuario; PDF de la lista. Modelos: `BonoConfig`, `BonoReglaExtra`, `BonoHorarioEmpleado` + `ReportePermisoMensual.bono_override`.
@@ -275,6 +289,12 @@ Sistema de reportes para maestros con revisión por coordinadores. Áreas: Bilin
 | `coordinador/bl/c1/` … `c4/` | `dashboard_c1` … `c4` | Dashboards por coordinador BL |
 | `coordinador/bl/progress/` | `dashboard_coordi_bl` | Dashboard coordinador Progress BL |
 | `coordinador/bl/materias/` | `materias_docentes_bl` | **NUEVO** — Tabla Materias-Docentes BL |
+| `routing-bl/` | `routing_bl_config` | **NUEVO** — Pantalla de Ruteo BL (mapeo + catálogo docentes + grupos). Acceso por permiso de coordinador |
+| `routing-bl/guardar/` | `routing_bl_guardar` | Guarda mapeo/catálogo (materias C3/C4, grados, `docentes_catalogo`) |
+| `routing-bl/refrescar/` | `routing_bl_refrescar` | Trae el alumnado BL desde SQL Server y reconstruye grupos |
+| `routing-bl/visibilidad/` | `routing_bl_toggle_vis` | Fija el permiso de un coordinador (none/lectura/edit) — solo superuser |
+| `routing-bl/descargar/` · `routing-bl/cargar/` | `routing_bl_descargar` · `routing_bl_cargar` | Exportar/importar el JSON (solo superuser) |
+| `grupos-bl/guardar/` | `grupos_bl_guardar` | Guarda coordinador + clases de un grupo |
 | `reporte/conductual/bilingue/` | `reporte_conductual_bilingue` | Crear reporte conductual BL |
 | `reporte/informativo/bilingue/` | `reporte_informativo_bilingue` | Crear reporte informativo BL |
 | `progress_report/bilingue/` | `progress_report_bilingue` | Crear progress report |
@@ -595,6 +615,22 @@ Gestión de patrocinadores y padrinos institucionales.
 Registro de mantenimientos preventivos/correctivos con generación de reportes PDF.
 
 **URLs:** `/mantenimiento/` · `/mantenimiento/download/<id>/` · `/mantenimiento/<pk>/editar/` · `/mantenimiento/<pk>/eliminar/`
+
+---
+
+## Versionado y novedades
+
+El sistema muestra su **versión en el pie de página** (todas las plantillas base la incluyen vía `templates/_version_footer.html`) y una **ventana de novedades** que se abre **una vez por versión** para cada usuario.
+
+- **Fuente de datos:** `core/changelog.json` (`{version, entradas:[{version, fecha, commit, cambios[]}]}`). Lo lee `core/version.py`; lo expone el context processor `core.context_processors.version_context`.
+- **Generación automática:** el comando `manage.py gen_changelog` toma los mensajes de commit nuevos (`git log`), **sube el build** (`6.0.1.2` → `6.0.1.3`) y agrega una entrada. Se dispara con el hook `.git/hooks/post-commit` (Apache/`www-data` **no** puede ejecutar git en este repo, por eso el hook corre como el dueño y la app solo **lee** el JSON).
+- **Marcador de rango:** `.git/changelog_base` (local, no se commitea) guarda el último commit incluido; sobrevive a `git commit --amend`.
+- **Fijar versión mayor manualmente:** `manage.py gen_changelog --set-version 6.1.0.0`.
+- **"Visto" por usuario:** `PerfilUsuario.version_vista`; al cerrar el modal se marca vía `POST /core/api/version/visto/` (`marcar_version_vista`).
+
+### Comando "actualízalo todo"
+
+Al pedir *"actualiza todo"* el flujo es: (1) `manage.py check` · (2) actualizar `README.md` · (3) actualizar `AGENTS.md` (contexto del proyecto para agentes, **sin credenciales**) · (4) `git add` revisado + commit · (5) el hook regenera el changelog → `git commit --amend --no-edit` para incluirlo · (6) `git push`.
 
 ---
 

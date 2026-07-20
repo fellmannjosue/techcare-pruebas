@@ -2258,6 +2258,8 @@ def _especial_rank(nombre):
 # <--- hecho por claude code
 _TIPOS_PERMISO_COMP = ('compensatorio_dias',)
 _HORAS_POR_DIA_COMP = 8  # conversión días → horas cuando el permiso se registró en días
+# <--- hecho por claude code: los minutos de más del receso solo cuentan como tiempo tomado a partir de junio 2026
+_RECESO_TOMADO_DESDE = date(2026, 6, 1)
 
 
 def _permiso_horas_val(horas, dias):
@@ -2604,15 +2606,17 @@ def compensatorio_calculo_list(request):
     }
 
     # ── Receso: minutos de más (sobre los 30) se descuentan como Tiempo Tomado ──
-    # Desde la fecha_inicio más antigua hasta hoy (mismo período del compensatorio).
+    # <--- hecho por claude code: solo se cuentan a partir de _RECESO_TOMADO_DESDE (junio 2026)
     receso_extra_map = {}  # {emp_code: horas de más en receso}
     if todos_registros:
-        try:
-            _rec = _receso_compute(min(r.fecha_inicio for r in todos_registros), hoy)
-            receso_extra_map = {str(row['emp_code']): row['extra_total'] / 60.0
-                                for row in _rec.get('rows', [])}
-        except Exception as _ex:
-            print('[compensatorio] receso extra:', _ex)
+        _desde = max(min(r.fecha_inicio for r in todos_registros), _RECESO_TOMADO_DESDE)
+        if _desde <= hoy:
+            try:
+                _rec = _receso_compute(_desde, hoy)
+                receso_extra_map = {str(row['emp_code']): row['extra_total'] / 60.0
+                                    for row in _rec.get('rows', [])}
+            except Exception as _ex:
+                print('[compensatorio] receso extra:', _ex)
 
     # ── Construir registros_data ─────────────────────────────────────────────
     def _min_to_h(m): return round(m / 60, 1)
@@ -3428,18 +3432,22 @@ def compensatorio_calculo_get_tomado(request, pk):
     total_permiso = round(sum(e['horas'] for e in entries), 2)
     manual, total_manual = _tomado_manual_payload(obj)
     # Receso: minutos de más (sobre los 30) por MES → se cuentan como tiempo tomado extra
+    # <--- hecho por claude code: solo se cuentan a partir de _RECESO_TOMADO_DESDE (junio 2026)
     receso_por_mes = {}
-    try:
-        _rec = _receso_compute(obj.fecha_inicio, date.today())
-        for row in _rec.get('rows', []):
-            if str(row['emp_code']) == str(obj.emp_code):
-                for d in row['dias']:
-                    if d.get('extra', 0) > 0:
-                        mk = d['fecha'].strftime('%Y-%m')
-                        receso_por_mes[mk] = receso_por_mes.get(mk, 0) + d['extra']
-                break
-    except Exception as _ex:
-        print('[tomado] receso extra:', _ex)
+    _hoy = date.today()
+    _desde = max(obj.fecha_inicio, _RECESO_TOMADO_DESDE)
+    if _desde <= _hoy:
+        try:
+            _rec = _receso_compute(_desde, _hoy)
+            for row in _rec.get('rows', []):
+                if str(row['emp_code']) == str(obj.emp_code):
+                    for d in row['dias']:
+                        if d.get('extra', 0) > 0:
+                            mk = d['fecha'].strftime('%Y-%m')
+                            receso_por_mes[mk] = receso_por_mes.get(mk, 0) + d['extra']
+                    break
+        except Exception as _ex:
+            print('[tomado] receso extra:', _ex)
     _MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
                  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     receso = [{'mes': f'{_MESES_ES[int(mk[5:7]) - 1]} {mk[:4]}', 'minutos': v}
@@ -4931,6 +4939,78 @@ def _dias_disponibles_calc(es_docente, dias_corresponden, dias_usados, hoy, es_c
     return round(corresponden - usados, 2)
 
 
+# <--- hecho por claude code: vacaciones proporcional (año actual) y acumulada (histórica)
+def _dias360(d1, d2):
+    """Días entre d1 y d2 con base 30 días/mes (método 30E/360).
+    Todo día 31 se trata como 30, así ningún mes aporta más de 30 días."""
+    dd1 = min(d1.day, 30)
+    dd2 = min(d2.day, 30)
+    return (d2.year - d1.year) * 360 + (d2.month - d1.month) * 30 + (dd2 - dd1)
+
+
+def _tasa_vac_anual(k, es_docente, dias_fijos):
+    """Días de vacación que se ganan en el año de servicio k (1-indexado)."""
+    if dias_fijos is not None:
+        return float(dias_fijos)
+    if es_docente:
+        return 60.0
+    if k == 1:
+        return 10.0
+    if k == 2:
+        return 12.0
+    if k == 3:
+        return 15.0
+    return 20.0  # 4º año en adelante
+
+
+def _add_years(d, n):
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:  # 29 de febrero → 28
+        return d.replace(year=d.year + n, day=28)
+
+
+def _pos_escolar(d):
+    """Posición de la fecha d dentro del año escolar (0 el 1 feb … 300 el 30 nov), 30 días/mes."""
+    if d.month < 2:
+        return 0
+    if d.month > 11:
+        return 300
+    return min(300, (d.month - 2) * 30 + min(d.day, 30))
+
+
+def _dias_escolar_docente(hoy, fecha_inicio=None):
+    """Días transcurridos del año escolar del docente (1 feb → 30 nov), 30 días/mes, tope 300.
+    Si el docente ingresó dentro de este mismo año escolar, cuenta desde su ingreso."""
+    p_ini = 0
+    if fecha_inicio and fecha_inicio.year == hoy.year and fecha_inicio.month >= 2:
+        p_ini = _pos_escolar(fecha_inicio)
+    return max(0, _pos_escolar(hoy) - p_ini)
+
+
+def _vac_accrual(es_docente, fecha_inicio, hoy, dias_fijos, dias_corresponden):
+    """Vacaciones con base 30 días/mes.
+    Devuelve (proporcional_del_año_actual, acumulado_años_completos).
+    - proporcional: solo lo ganado en el año en curso (se reinicia cada ciclo).
+    - acumulado: suma de los años YA COMPLETOS (lo "viejo"); NO incluye el proporcional del año en curso.
+    - No docente / caso especial: base 360 días/año, tasa por antigüedad (10/12/15/20 · fijos).
+    - Docente: 60 días sobre el año escolar 1 feb → 30 nov = 300 días (30 días/mes).
+    """
+    if not fecha_inicio:
+        return 0.0, float(dias_corresponden or 0)
+    años = _years_of_service(fecha_inicio, hoy)
+    completado = sum(_tasa_vac_anual(k, es_docente, dias_fijos) for k in range(1, años + 1))
+    if es_docente and dias_fijos is None:
+        # <--- hecho por claude code: docente = 60 días ÷ 300 (1 feb → 30 nov, 30 días/mes)
+        proporcional = round(_dias_escolar_docente(hoy, fecha_inicio) / 300.0 * 60.0, 2)
+    else:
+        aniversario = _add_years(fecha_inicio, años)
+        dias_periodo = max(0, min(_dias360(aniversario, hoy), 360))  # 30 días/mes, tope 360
+        tasa_actual = _tasa_vac_anual(años + 1, es_docente, dias_fijos)
+        proporcional = round(dias_periodo / 360.0 * tasa_actual, 2)
+    return proporcional, round(float(completado), 2)
+
+
 @login_required
 @_reloj_ver_required('vacaciones')
 def vacaciones_list(request):
@@ -4990,6 +5070,13 @@ def vacaciones_list(request):
             grupo = 'docente_bl' if cfg.grupo_docente == 'bl' else 'docente_colegio'
         else:
             grupo = 'no_docente'   # incluye no docentes y sin configurar
+        # <--- hecho por claude code: proporcional (año actual) + acumulada (histórica − usados)
+        proporcional, acumulado_bruto = _vac_accrual(
+            bool(cfg and cfg.es_docente),
+            cfg.fecha_inicio_labores if cfg else None,
+            hoy, cfg.dias_fijos if cfg else None, dias_corresponden,
+        )
+        acumulada = round(acumulado_bruto - dias_usados, 2)
         filas.append({
             'emp_code':         ec,
             'nombre':           nombre,
@@ -4998,6 +5085,8 @@ def vacaciones_list(request):
             'dias_corresponden':dias_corresponden,
             'dias_usados':      dias_usados,
             'dias_disponibles': dias_disponibles,
+            'proporcional':     proporcional,
+            'acumulada':        acumulada,
             'grupo':            grupo,
         })
 
@@ -5203,11 +5292,18 @@ def vacacion_editar_dias_usados(request):
     dias_disponibles = _dias_disponibles_calc(
         cfg.es_docente, dias_corresponden, total_usados, hoy, es_caso_especial=cfg.dias_fijos is not None,
     )
+    # <--- hecho por claude code: recalcular proporcional (año actual) y acumulada (histórica − usados)
+    proporcional, acumulado_bruto = _vac_accrual(
+        cfg.es_docente, cfg.fecha_inicio_labores, hoy, cfg.dias_fijos, dias_corresponden,
+    )
+    acumulada = round(acumulado_bruto - total_usados, 2)
     return JsonResponse({
         'ok': True,
         'dias_usados':       total_usados,
         'dias_disponibles':  dias_disponibles,
         'dias_corresponden': dias_corresponden,
+        'proporcional':      proporcional,
+        'acumulada':         acumulada,
     })
 
 

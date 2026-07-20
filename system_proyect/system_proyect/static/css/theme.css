@@ -1,0 +1,207 @@
+/* ============================================================================
+   TechCare — Tema del sistema (tokens de diseño + claro/oscuro + componentes)
+   hecho por claude code. Se carga DESPUÉS de responsive_global/responsive.css.
+   Base reutilizable: colores, superficies, radios, sombras + modo oscuro.
+   ========================================================================== */
+
+:root {
+  /* Marca */
+  --tc-brand:      #206bc4;
+  --tc-brand-2:    #4263eb;
+
+  /* Superficies y texto (claro) */
+  --tc-bg:         #f4f6fb;   /* fondo de página */
+  --tc-surface:    #ffffff;   /* tarjetas */
+  --tc-surface-2:  #f8fafc;   /* fondos sutiles */
+  --tc-border:     rgba(15, 23, 42, .08);
+  --tc-text:       #16202c;
+  --tc-heading:    #0f1b2a;
+  --tc-muted:      #5b6b7f;
+
+  /* Forma */
+  --tc-radius:     16px;
+  --tc-radius-sm:  12px;
+  --tc-shadow:     0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06);
+  --tc-shadow-hover: 0 12px 30px rgba(16,24,40,.14);
+
+  /* Overrides de variables Tabler para que todo herede el tema */
+  --tblr-primary: var(--tc-brand);
+  --tblr-font-sans-serif: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+
+/* ── Modo oscuro ──────────────────────────────────────────────────────────── */
+:root[data-bs-theme="dark"] {
+  --tc-bg:         #0e131b;
+  --tc-surface:    #171e28;
+  --tc-surface-2:  #1c2531;
+  --tc-border:     rgba(255, 255, 255, .09);
+  --tc-text:       #dbe4ee;
+  --tc-heading:    #f1f5f9;
+  --tc-muted:      #90a0b3;
+  --tc-shadow:     0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4);
+  --tc-shadow-hover: 0 14px 34px rgba(0,0,0,.55);
+}
+
+/* ── Tipografía / base ────────────────────────────────────────────────────── */
+body { font-family: var(--tblr-font-sans-serif); }
+
+/* En oscuro, sobreescribimos las reglas hardcodeadas (con !important) del CSS global */
+:root[data-bs-theme="dark"] body,
+:root[data-bs-theme="dark"] .page,
+:root[data-bs-theme="dark"] .page-wrapper { background-color: var(--tc-bg) !important; color: var(--tc-text); }
+:root[data-bs-theme="dark"] .card {
+  background-color: var(--tc-surface) !important;
+  border-color: var(--tc-border) !important;
+  box-shadow: var(--tc-shadow) !important;
+  color: var(--tc-text);
+}
+:root[data-bs-theme="dark"] .text-muted,
+:root[data-bs-theme="dark"] .text-secondary { color: var(--tc-muted) !important; }
+:root[data-bs-theme="dark"] .page-title,
+:root[data-bs-theme="dark"] h1, :root[data-bs-theme="dark"] h2,
+:root[data-bs-theme="dark"] h3, :root[data-bs-theme="dark"] .h1 { color: var(--tc-heading) !important; }
+:root[data-bs-theme="dark"] .table { --tblr-table-bg: transparent; color: var(--tc-text); }
+:root[data-bs-theme="dark"] .dropdown-menu { background-color: var(--tc-surface); border-color: var(--tc-border); }
+:root[data-bs-theme="dark"] .bg-light { background-color: var(--tc-surface-2) !important; color: var(--tc-text); }
+:root[data-bs-theme="dark"] .border { border-color: var(--tc-border) !important; }
+
+/* ── Botón toggle de tema ─────────────────────────────────────────────────── */
+#tc-theme-toggle { border-radius: 12px; }
+#tc-theme-toggle .ti-sun { display: none; }
+:root[data-bs-theme="dark"] #tc-theme-toggle .ti-sun  { display: inline-block; }
+:root[data-bs-theme="dark"] #tc-theme-toggle .ti-moon { display: none; }
+
+/* ============================================================================
+   COMPONENTES DEL PANEL
+   ========================================================================== */
+
+/* Hero de bienvenida */
+.tc-hero {
+  border-radius: var(--tc-radius);
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(120deg, rgba(32,107,196,.10), rgba(66,99,235,.10) 55%, rgba(47,179,68,.08));
+  border: 1px solid var(--tc-border);
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+:root[data-bs-theme="dark"] .tc-hero {
+  background: linear-gradient(120deg, rgba(32,107,196,.20), rgba(66,99,235,.16) 55%, rgba(47,179,68,.12));
+}
+.tc-hero .tc-hero-avatar {
+  width: 52px; height: 52px; border-radius: 14px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tc-brand); color: #fff; font-size: 1.6rem;
+}
+.tc-hero h1 { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--tc-heading); }
+.tc-hero .tc-hero-sub { color: var(--tc-muted); font-size: .9rem; }
+
+/* KPI tile (estadísticas) */
+.tc-stat {
+  position: relative; display: flex; align-items: center; gap: 1rem;
+  background: var(--tc-surface); border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius); padding: 1.1rem 1.25rem; overflow: hidden;
+  box-shadow: var(--tc-shadow); transition: transform .14s ease, box-shadow .14s ease;
+  text-decoration: none; height: 100%;
+}
+.tc-stat::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  background: var(--tc-accent, var(--tc-brand));
+}
+a.tc-stat:hover { transform: translateY(-3px); box-shadow: var(--tc-shadow-hover); }
+.tc-stat .tc-stat-ico {
+  width: 54px; height: 54px; border-radius: 14px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; font-size: 1.7rem;
+  color: var(--tc-accent, var(--tc-brand));
+  background: color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 14%, transparent);
+}
+.tc-stat .tc-stat-num { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--tc-heading); }
+.tc-stat .tc-stat-lbl { color: var(--tc-muted); font-size: .85rem; margin-top: .15rem; }
+
+/* Tarjeta de módulo (grupos) */
+.tc-module {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--tc-surface); border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius); padding: 1.1rem 1.2rem; height: 100%;
+  box-shadow: var(--tc-shadow); text-decoration: none;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.tc-module:hover {
+  transform: translateY(-4px); box-shadow: var(--tc-shadow-hover);
+  border-color: color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 45%, var(--tc-border));
+}
+.tc-module .tc-module-ico {
+  width: 56px; height: 56px; border-radius: 16px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; font-size: 1.9rem; color: #fff;
+  background: linear-gradient(135deg,
+              var(--tc-accent, var(--tc-brand)),
+              color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 60%, #000 8%));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 35%, transparent);
+}
+.tc-module .tc-module-title { font-weight: 700; font-size: 1.15rem; color: var(--tc-heading); line-height: 1.15; }
+.tc-module .tc-module-desc  { color: var(--tc-muted); font-size: .82rem; margin-top: .1rem; }
+.tc-module .tc-module-chevron { margin-left: auto; color: var(--tc-muted); transition: transform .14s ease; }
+.tc-module:hover .tc-module-chevron { transform: translateX(3px); color: var(--tc-accent, var(--tc-brand)); }
+.tc-module .tc-badge-wip {
+  font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  background: #f59f0022; color: #b26b00; padding: .12rem .4rem; border-radius: 6px; vertical-align: middle;
+}
+
+/* Fallback si el navegador no soporta color-mix (chips a color plano) */
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .tc-stat .tc-stat-ico { background: var(--tc-surface-2); }
+  .tc-module .tc-module-ico { background: var(--tc-accent, var(--tc-brand)); }
+}
+
+/* Tarjeta centrada (grupos del panel + menú de usuarios) */
+.tc-tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: .5rem; height: 100%; text-decoration: none;
+  background: var(--tc-surface); border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius); padding: 1.25rem 1rem;
+  box-shadow: var(--tc-shadow);
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.tc-tile:hover {
+  transform: translateY(-4px); box-shadow: var(--tc-shadow-hover);
+  border-color: color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 45%, var(--tc-border));
+}
+.tc-tile .tc-tile-ico {
+  width: 60px; height: 60px; border-radius: 16px; margin-bottom: .35rem;
+  display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff;
+  background: linear-gradient(135deg,
+              var(--tc-accent, var(--tc-brand)),
+              color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 62%, #000 8%));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--tc-accent, var(--tc-brand)) 32%, transparent);
+}
+.tc-tile .tc-tile-title { font-weight: 700; color: var(--tc-heading); line-height: 1.15; }
+.tc-tile .tc-tile-sub   { color: var(--tc-muted); font-size: .8rem; }
+.tc-tile.tc-tile-wip { opacity: .75; }
+.tc-tile .tc-badge-wip {
+  font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  background: #f59f0022; color: #b26b00; padding: .12rem .45rem; border-radius: 6px; margin-top: .25rem;
+}
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .tc-tile .tc-tile-ico { background: var(--tc-accent, var(--tc-brand)); }
+}
+
+/* Menú de usuarios: puente para dar aspecto de chip a las tarjetas del grid
+   (card-link-pop) sin reescribir el markup — ícono en chip + bordes suaves. */
+.card.card-link-pop { border-radius: var(--tc-radius) !important; }
+.card.card-link-pop .card-body > .mb-2 {
+  width: 58px; height: 58px; margin: 0 auto .55rem; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tc-surface-2);
+}
+.card.card-link-pop .card-body > .mb-2 i { font-size: 1.85rem !important; }
+:root[data-bs-theme="dark"] .card.card-link-pop .card-body > .mb-2 { background: rgba(255,255,255,.06); }
+
+/* ── Sidebar: ítem activo + refinamiento ──────────────────────────────────── */
+.navbar-vertical .nav-link.active,
+.navbar-vertical .nav-item > .nav-link.active {
+  background: rgba(255,255,255,.10);
+  border-radius: 10px;
+  color: #fff !important;
+  font-weight: 600;
+}
+.navbar-vertical .nav-link.active .nav-link-icon i { color: #fff !important; }
+.navbar-vertical .nav-link { border-radius: 10px; transition: background .12s ease; }
+.navbar-vertical .nav-link:hover { background: rgba(255,255,255,.06); }

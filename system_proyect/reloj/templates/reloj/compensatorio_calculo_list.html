@@ -190,14 +190,12 @@
           </td>
           {# Compensado + Tiempo extra (calculado) #}
           <td class="text-center font-monospace fw-semibold comp-te-{{ r.pk }}">{{ item.comp_mas_te_hrs }} h</td>
-          {# Tiempo tomado: viene del permiso. Solo el superuser puede editarlo. #}
+          {# <--- hecho por claude code: el modal de detalle se abre para todos (solo lectura); el superuser además puede agregar/eliminar entradas manuales. #}
           <td class="text-center">
-            {% if request.user.is_superuser %}
-            <button class="btn btn-sm btn-ghost-secondary btn-set-tomado px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{% if item.tomado_es_override %}{{ item.tomado_hrs|unlocalize }}{% endif %}" title="Editar tiempo tomado">
+            <button class="btn btn-sm btn-ghost-secondary btn-set-tomado px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{% if item.tomado_es_override %}{{ item.tomado_hrs|unlocalize }}{% endif %}" title="{% if request.user.is_superuser %}Editar tiempo tomado{% else %}Ver detalle del tiempo tomado{% endif %}">
               <span class="badge {% if item.tomado_es_override %}bg-yellow-lt text-yellow{% else %}bg-pink-lt text-pink{% endif %} tomado-badge-{{ r.pk }}"><i class="ti ti-calendar-minus me-1"></i>{% if item.tomado_hrs > 0 %}{{ item.tomado_hrs }} h{% else %}—{% endif %}</span>
-              <i class="ti ti-pencil ms-1 text-muted" style="font-size:.7rem;"></i>
+              <i class="ti {% if request.user.is_superuser %}ti-pencil{% else %}ti-eye{% endif %} ms-1 text-muted" style="font-size:.7rem;"></i>
             </button>
-            {% else %}<span class="badge bg-pink-lt text-pink tomado-badge-{{ r.pk }}">{% if item.tomado_hrs > 0 %}{{ item.tomado_hrs }} h{% else %}—{% endif %}</span>{% endif %}
           </td>
           <td class="text-center">
             {% if item.saldo == 0 %}<span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>

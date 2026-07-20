@@ -184,10 +184,8 @@
     });
   }
 
-  // Badge en page load
-  fetch(URL_ESTADO).then(r => r.json()).then(d => {
-    if(d.activo){ badge.style.display = ''; startCountdown(d.end_time || ''); }
-  });
+  // Estado al cargar: inicializa controles + badge (funciona con modal o página)
+  fetch(URL_ESTADO).then(r => r.json()).then(aplicarEstado);
 
   window.mantToggle = async function(){
     activateBtn.disabled   = true;

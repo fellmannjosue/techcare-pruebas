@@ -159,7 +159,7 @@
       {% endif %}
       <div class="table-responsive mb-2"><table class="table table-sm table-vcenter">
         <thead><tr><th class="text-center" style="width:120px;">Fecha</th><th class="text-center" style="width:90px;">Horas</th><th>Razón</th>{% if request.user.is_superuser %}<th class="text-center" style="width:60px;">Eliminar</th>{% endif %}</tr></thead>
-        <tbody id="tomm-tbody"><tr id="tomm-empty"><td colspan="4" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas manuales</td></tr></tbody>
+        <tbody id="tomm-tbody"><tr id="tomm-empty"><td colspan="{% if request.user.is_superuser %}4{% else %}3{% endif %}" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas manuales</td></tr></tbody>
       </table></div>
 
       {# <--- hecho por claude code: receso — minutos de más por mes (se cuentan como tomado) #}

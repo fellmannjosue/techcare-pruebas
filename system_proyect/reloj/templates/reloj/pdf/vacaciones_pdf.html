@@ -17,7 +17,8 @@
   <table>
     <thead><tr>
       <th>Empleado</th><th>Tipo</th><th class="c">Inicio labores</th><th class="c">Años</th>
-      <th class="c">Días corresp.</th><th class="c">Días usados</th><th class="c">Días disponibles</th>
+      <th class="c">Días corresp.</th><th class="c">Días usados</th>
+      <th class="c">Vac. proporcional</th><th class="c">Vac. acumulada</th>
     </tr></thead>
     <tbody>
       {% for f in filas %}
@@ -28,10 +29,11 @@
         <td class="c">{% if f.años is not None %}{{ f.años }}{% else %}—{% endif %}</td>
         <td class="c">{{ f.dias_corresponden }}</td>
         <td class="c">{{ f.dias_usados }}</td>
-        <td class="c">{% if f.dias_corresponden %}{{ f.dias_disponibles }}{% else %}—{% endif %}</td>
+        <td class="c">{% if f.cfg.fecha_inicio_labores %}{{ f.proporcional|floatformat:'-2' }}{% else %}—{% endif %}</td>
+        <td class="c">{% if f.cfg.fecha_inicio_labores %}{{ f.acumulada|floatformat:'-2' }}{% else %}—{% endif %}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" class="c">Sin empleados.</td></tr>
+      <tr><td colspan="8" class="c">Sin empleados.</td></tr>
       {% endfor %}
     </tbody>
   </table>

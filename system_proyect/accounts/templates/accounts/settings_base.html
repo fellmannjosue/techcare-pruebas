@@ -100,20 +100,11 @@
                 {% endif %}
 
                 {% if can_see_activity %}
+                {# <--- hecho por claude code: Actividad, Auditoría y Correos viven ahora en el panel (Monitoreo / Configuración) #}
                 <div class="nav-section">Sistema</div>
                 <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'actividad' %}active{% endif %}" href="{% url 'settings_actividad' %}">
-                    <i class="ti ti-activity me-2"></i>Actividad
-                  </a>
                   <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
                     <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
-                  </a>
-                  {# <--- hecho por claude code: visor de auditoría (triggers MySQL) #}
-                  <a class="nav-link {% if active_tab == 'auditoria' %}active{% endif %}" href="{% url 'settings_auditoria' %}">
-                    <i class="ti ti-shield-lock me-2"></i>Auditoría
-                  </a>
-                  <a class="nav-link {% if active_tab == 'correos' %}active{% endif %}" href="{% url 'settings_correos' %}">
-                    <i class="ti ti-mail me-2"></i>Correos
                   </a>
                   <a class="nav-link {% if active_tab == 'envio_login' %}active{% endif %}" href="{% url 'settings_envio_login' %}">
                     <i class="ti ti-send me-2"></i>Enviar instrucciones
@@ -134,18 +125,7 @@
                     <i class="ti ti-shield-half me-2"></i>Config. Roles
                   </a>
                 </nav>
-                <div class="nav-section">Reloj</div>
-                <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'reloj_permisos' %}active{% endif %}" href="{% url 'settings_reloj_permisos' %}">
-                    <i class="ti ti-shield-check me-2"></i>Permisos de edición
-                  </a>
-                </nav>
-                <div class="nav-section">Coordinadores</div>
-                <nav class="nav flex-column gap-1">
-                  <a class="nav-link {% if active_tab == 'coord_permisos' %}active{% endif %}" href="{% url 'settings_coord_permisos' %}">
-                    <i class="ti ti-shield-check me-2 text-teal"></i>Permisos de edición
-                  </a>
-                </nav>
+                {# <--- hecho por claude code: Permisos Reloj y Permisos Coordinadores viven ahora en el panel (Permisos) #}
                 {% endif %}
 
               </div>
@@ -167,5 +147,7 @@
 {% block extra_js %}{% endblock %}
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}
+{# <--- hecho por claude code: versión + novedades #}
+{% include "_version_footer.html" %}
 </body>
 </html>

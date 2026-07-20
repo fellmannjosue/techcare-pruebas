@@ -6,12 +6,18 @@
   <title>Panel Principal – TechCare</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}">
+  {# <--- hecho por claude code: tema claro/oscuro sin parpadeo + fuente Inter #}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-bs-theme',t);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
   <!-- Responsive global -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=2"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
@@ -67,6 +73,10 @@
               </span>
             </div>
             {% endif %}
+            {# <--- hecho por claude code: toggle claro/oscuro #}
+            <button type="button" id="tc-theme-toggle" class="btn btn-ghost-secondary" title="Modo claro / oscuro">
+              <i class="ti ti-moon fs-3"></i><i class="ti ti-sun fs-3"></i>
+            </button>
             <!-- Campanita de notificaciones -->
             <div class="dropdown">
               <a href="#" id="notifDropdownToggle" class="btn btn-ghost-secondary position-relative"
@@ -286,20 +296,6 @@
           </div>
           {% endif %}
 
-          {% if show_finanzas %}
-          <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'finanzas_personales:index' %}" class="text-decoration-none">
-              <div class="card card-link card-link-pop text-center py-3">
-                <div class="card-body">
-                  <div class="mb-2"><i class="ti ti-coin text-yellow" style="font-size:2.5rem;"></i></div>
-                  <div class="fw-bold">Finanzas</div>
-                  <div class="text-muted small mt-1">Control de finanzas personales</div>
-                </div>
-              </div>
-            </a>
-          </div>
-          {% endif %}
-
           {% if show_coordinador_bilingue %}
           <div class="col-6 col-sm-4 col-lg-3">
             <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="text-decoration-none">
@@ -457,6 +453,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="{% static 'accounts/js/theme.js' %}?v=2"></script> {# tema: toggle + sidebar activo - claude code #}
 <script src="{% static 'accounts/js/notifications.js' %}"></script>
 <script src="{% static 'accounts/js/dashboard_summary.js' %}"></script>
 
@@ -687,5 +684,7 @@
 
 {% include "accounts/_welcome_overlay.html" %}
 
+{# <--- hecho por claude code: versión + novedades #}
+{% include "_version_footer.html" %}
 </body>
 </html>

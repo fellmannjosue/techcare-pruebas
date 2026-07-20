@@ -7,6 +7,12 @@
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
   <title>{% block title %}Tickets{% endblock %} – TechCare</title>
 
+  {# <--- hecho por claude code: tema claro/oscuro sin parpadeo (FOUC) #}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-bs-theme',t);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet"/>
@@ -14,6 +20,7 @@
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=1"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
@@ -49,6 +56,12 @@
           <div class="col">
             <div class="page-pretitle">{% block page_pretitle %}Tickets{% endblock %}</div>
             <h2 class="page-title">{% block page_title %}Tickets{% endblock %}</h2>
+          </div>
+          {# <--- hecho por claude code: toggle modo claro/oscuro #}
+          <div class="col-auto">
+            <button type="button" id="tc-theme-toggle" class="btn btn-ghost-secondary" title="Modo claro / oscuro">
+              <i class="ti ti-moon fs-3"></i><i class="ti ti-sun fs-3"></i>
+            </button>
           </div>
           {# Campanita de notificaciones #}
           <div class="col-auto">
@@ -97,7 +110,10 @@
 <audio id="notifSound" src="{% static 'accounts/sound/notification.mp3' %}" preload="auto"></audio>
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
 <script src="{% static 'accounts/js/notifications.js' %}"></script>
+<script src="{% static 'accounts/js/theme.js' %}?v=1"></script> {# tema: toggle + sidebar activo - claude code #}
 
 {% include "accounts/_welcome_overlay.html" %}
+{# <--- hecho por claude code: versión + novedades #}
+{% include "_version_footer.html" %}
 </body>
 </html>

@@ -11,7 +11,9 @@
           <th class="text-center">Años</th>
           <th class="text-center">Días corresponden</th>
           <th class="text-center">Días usados</th>
-          <th class="text-center">Días disponibles</th>
+          {# <--- hecho por claude code: proporcional (año actual) + acumulada (histórica) #}
+          <th class="text-center">Vacaciones proporcional</th>
+          <th class="text-center">Vacaciones acumulada</th>
           <th class="text-center w-1"></th>
         </tr>
       </thead>
@@ -89,14 +91,24 @@
             </div>
           </td>
 
-          <td class="text-center td-disponibles">
-            {% if f.dias_corresponden > 0 %}
-              {% if f.dias_disponibles <= 0 %}
-                <span class="badge bg-red-lt text-red fw-bold">{{ f.dias_disponibles }}</span>
-              {% elif f.dias_disponibles <= 5 %}
-                <span class="badge bg-orange-lt text-orange fw-bold">{{ f.dias_disponibles }}</span>
+          {# <--- hecho por claude code: Vacaciones proporcional (solo el año en curso) #}
+          <td class="text-center td-proporcional">
+            {% if f.cfg.fecha_inicio_labores %}
+              <span class="fw-semibold text-azure">{{ f.proporcional|floatformat:'-2' }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          {# <--- hecho por claude code: Vacaciones acumulada (histórica − usados) #}
+          <td class="text-center td-acumulada">
+            {% if f.cfg.fecha_inicio_labores %}
+              {% if f.acumulada <= 0 %}
+                <span class="badge bg-red-lt text-red fw-bold">{{ f.acumulada|floatformat:'-2' }}</span>
+              {% elif f.acumulada <= 5 %}
+                <span class="badge bg-orange-lt text-orange fw-bold">{{ f.acumulada|floatformat:'-2' }}</span>
               {% else %}
-                <span class="badge bg-green-lt text-green fw-bold">{{ f.dias_disponibles }}</span>
+                <span class="badge bg-green-lt text-green fw-bold">{{ f.acumulada|floatformat:'-2' }}</span>
               {% endif %}
             {% else %}
               <span class="text-muted">—</span>
@@ -117,7 +129,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron empleados.</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">No se encontraron empleados.</td></tr>
         {% endfor %}
       </tbody>
     </table>

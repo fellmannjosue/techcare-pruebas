@@ -12,6 +12,12 @@
 {% endblock %}
 
 {% block page_actions %}
+  {# <--- hecho por claude code: enlace a Ruteo (solo si el admin lo hizo visible) #}
+  {% if nav_ruteo_bl %}
+  <a href="{% url 'routing_bl_config' %}" class="btn btn-ghost-indigo me-2" title="Ver configuración de ruteo (solo lectura)">
+    <i class="ti ti-route me-1"></i>Ruteo
+  </a>
+  {% endif %}
   {% if request.user.is_superuser %}
   <button type="button" class="btn btn-ghost-warning me-2"
           data-bs-toggle="modal" data-bs-target="#modalReenviarReportes"

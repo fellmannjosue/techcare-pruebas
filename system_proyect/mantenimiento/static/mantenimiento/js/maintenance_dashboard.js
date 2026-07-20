@@ -1,5 +1,7 @@
 // Datos de computadoras para auto-fill (inyectados desde el bridge window._PAGE)
 const COMP_DATA = window._PAGE.computadorasJson;
+// <--- hecho por claude code: datos de impresoras para auto-fill
+const IMP_DATA = window._PAGE.impresorasJson || {};
 
 $(function () {
 
@@ -60,6 +62,26 @@ $(function () {
     }
   });
 
+  // <--- hecho por claude code: toggle Computadora / Impresora ──────────────
+  function setEquipo(tipo) {
+    $('#id_tipo_equipo').val(tipo);
+    $('.equipo-computadora').toggleClass('d-none', tipo !== 'computadora');
+    $('.equipo-impresora').toggleClass('d-none', tipo !== 'impresora');
+    $('.mant-equipo-btn').each(function(){
+      const activo = $(this).data('equipo') === tipo;
+      $(this).toggleClass('btn-primary', activo).toggleClass('btn-outline-primary', !activo);
+    });
+  }
+  $('.mant-equipo-btn').on('click', function(){ setEquipo($(this).data('equipo')); });
+
+  // <--- hecho por claude code: auto-llenado al seleccionar impresora
+  $('#id_impresora').on('change', function(){
+    const data = IMP_DATA[this.value] || {};
+    $('#imp-modelo').val(data.modelo || '');
+    $('#imp-persona').val(data.asignado || '');
+    $('#imp-serie').val(data.serie || '');
+  });
+
   // Toggle serie manual
   $('#chk-serie-mant').on('change', function(){
     const inp = $('#id_serie');
@@ -113,6 +135,67 @@ $(function () {
     });
   }
   window.removeFile = i => { selectedFiles.splice(i,1); renderPreviews(); };
+
+  // <--- hecho por claude code: drop-zone de fotos para el modal de EDITAR ──────
+  const editDropZone = document.getElementById('edit-drop-zone');
+  const editFotosInput = document.getElementById('edit-fotos-input');
+  const editPreview  = document.getElementById('edit-fotos-preview');
+  let   editSelectedFiles = [];
+
+  if (editDropZone) {
+    editDropZone.addEventListener('click',     () => editFotosInput.click());
+    editDropZone.addEventListener('dragover',  e  => { e.preventDefault(); editDropZone.classList.add('drag-over'); });
+    editDropZone.addEventListener('dragleave', () => editDropZone.classList.remove('drag-over'));
+    editDropZone.addEventListener('drop', e => {
+      e.preventDefault(); editDropZone.classList.remove('drag-over');
+      editAddFiles(e.dataTransfer.files);
+    });
+    editFotosInput.addEventListener('change', () => editAddFiles(editFotosInput.files));
+  }
+
+  function editAddFiles(files) {
+    for (const f of files) {
+      if (editSelectedFiles.length >= 5) break;
+      if (!f.type.startsWith('image/')) continue;
+      editSelectedFiles.push(f);
+    }
+    editRenderPreviews();
+    const dt = new DataTransfer();
+    editSelectedFiles.forEach(f => dt.items.add(f));
+    editFotosInput.files = dt.files;
+  }
+
+  function editRenderPreviews() {
+    editPreview.innerHTML = '';
+    editSelectedFiles.forEach((f, i) => {
+      const url = URL.createObjectURL(f);
+      const wrap = document.createElement('div');
+      wrap.style.position = 'relative';
+      wrap.innerHTML = `<img src="${url}" title="${f.name}">
+        <button type="button" class="btn btn-sm btn-ghost-danger" onclick="editRemoveFile(${i})"
+          style="position:absolute;top:-4px;right:-4px;padding:0 4px;font-size:.7rem;">✕</button>`;
+      editPreview.appendChild(wrap);
+    });
+  }
+  window.editRemoveFile = i => { editSelectedFiles.splice(i,1); editRenderPreviews(); };
+
+  // Reinicia el selector de fotos nuevas y pinta las fotos ya adjuntas del registro
+  function resetEditFotos(fotos) {
+    editSelectedFiles = [];
+    if (editFotosInput) editFotosInput.value = '';
+    if (editPreview) editPreview.innerHTML = '';
+    const cont = document.getElementById('edit-fotos-actuales');
+    if (cont) {
+      cont.innerHTML = '';
+      (fotos || []).forEach(ft => {
+        const wrap = document.createElement('div');
+        wrap.title = 'Foto ya guardada';
+        wrap.innerHTML = `<img src="${ft.url}" style="opacity:.9">`;
+        cont.appendChild(wrap);
+      });
+    }
+  }
+  window._resetEditFotos = resetEditFotos;
 
   // ── Signature pads (reutilizable: técnico + maestro) ──
   function initPad(canvasId, clearBtnId) {
@@ -247,6 +330,8 @@ $(function () {
       } else {
         $('#edit-firma-mae-actual').hide();
       }
+      // <--- hecho por claude code: reinicia fotos nuevas y muestra las ya adjuntas
+      resetEditFotos(d.fotos);
       $('#modalEditarRegistro').modal('show');
     }).fail(() => Swal.fire('Error', 'No se pudo cargar el registro.', 'error'));
   });

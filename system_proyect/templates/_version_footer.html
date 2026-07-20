@@ -1,0 +1,64 @@
+{# <--- hecho por claude code: footer con la versión + modal de novedades (se incluye en cada base) #}
+{% if user.is_authenticated %}
+<div class="text-center text-muted small py-3" id="tc-version-footer">
+  TechCare <span class="text-body">v{{ app_version }}</span>
+  {% if novedades %}
+  · <a href="#" class="text-decoration-none" id="tc-ver-novedades">Novedades</a>
+  {% endif %}
+</div>
+
+{% if novedades %}
+<div class="modal modal-blur fade" id="tc-novedades-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-sparkles me-2 text-yellow"></i>Novedades · v{{ app_version }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        {% for e in novedades %}
+        <div class="{% if not forloop.first %}mt-3 pt-3 border-top{% endif %}">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge {% if forloop.first %}bg-green-lt text-green{% else %}bg-secondary-lt text-muted{% endif %}">v{{ e.version }}</span>
+            <span class="text-muted small">{{ e.fecha }}</span>
+          </div>
+          <ul class="mb-0 ps-3 small">
+            {% for c in e.cambios %}<li>{{ c }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var el = document.getElementById('tc-novedades-modal');
+  if(!el || typeof bootstrap === 'undefined') return;
+  var modal = new bootstrap.Modal(el);
+
+  function marcarVisto(){
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    fetch("{% url 'marcar_version_vista' %}", {
+      method: 'POST',
+      headers: {'X-CSRFToken': m ? m[1] : '', 'Content-Type': 'application/json'},
+      body: '{}'
+    }).catch(function(){});
+  }
+
+  // Se muestra solo una vez por versión; al cerrarlo queda marcado como visto.
+  {% if mostrar_novedades %}
+  el.addEventListener('hidden.bs.modal', marcarVisto, {once: true});
+  modal.show();
+  {% endif %}
+
+  var link = document.getElementById('tc-ver-novedades');
+  if(link) link.addEventListener('click', function(e){ e.preventDefault(); modal.show(); });
+})();
+</script>
+{% endif %}
+{% endif %}

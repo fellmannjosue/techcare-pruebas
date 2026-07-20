@@ -65,9 +65,18 @@
               <label class="form-label">Estudiante</label>
               <select id="id_alumno" name="alumno" class="form-select">
                 <option value="">-- Selecciona un estudiante --</option>
-                {% for s in students %}
+                {# <--- hecho por claude code: alumnos agrupados por grupo (grado-sección) #}
+                {% if students_agrupados %}
+                  {% for g in students_agrupados %}
+                  <optgroup label="{{ g.grupo }}">
+                    {% for s in g.alumnos %}<option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>{% endfor %}
+                  </optgroup>
+                  {% endfor %}
+                {% else %}
+                  {% for s in students %}
                   <option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>
-                {% endfor %}
+                  {% endfor %}
+                {% endif %}
               </select>
             </div>
             <div class="col-md-6">
@@ -120,5 +129,5 @@
 
 {% block extra_js %}
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="{% static 'conducta/js/formularios.js' %}"></script>
+  <script src="{% static 'conducta/js/formularios.js' %}?v=2"></script>
 {% endblock %}

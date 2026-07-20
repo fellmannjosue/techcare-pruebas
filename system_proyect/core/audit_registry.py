@@ -56,17 +56,6 @@ def register_all():
     ):
         _safe_register(m)
 
-    # ── finanzas_personales ──
-    from finanzas_personales.models import (
-        Categoria, ConfiguracionUsuario, EntradaRapida, MetaAhorro,
-        Pendiente, Presupuesto, PresupuestoCategoria, Transaccion,
-    )
-    for m in (
-        Categoria, ConfiguracionUsuario, EntradaRapida, MetaAhorro,
-        Pendiente, Presupuesto, PresupuestoCategoria, Transaccion,
-    ):
-        _safe_register(m)
-
     # ── inventario ──
     from inventario.models import (
         AreaComputadora, AreaTelevisor, AsignadoAComputadora, CategoriaInventario,

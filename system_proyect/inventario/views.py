@@ -289,6 +289,22 @@ def inventario_televisores(request):
     })
 
 
+# <--- hecho por claude code: Asset ID autoincremental de impresoras (ANAIMP-001), mirror de _siguiente_asset_id_televisor
+def _siguiente_asset_id_impresora():
+    prefix = 'ANAIMP-'
+    ultimo = Impresora.objects.filter(
+        asset_id__startswith=prefix
+    ).order_by('-asset_id').values_list('asset_id', flat=True).first()
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
 @login_required
 def inventario_impresoras(request):
     year = datetime.datetime.now().year
@@ -296,7 +312,9 @@ def inventario_impresoras(request):
     if request.method == "POST":
         form = ImpresoraForm(request.POST)
         if form.is_valid():
-            form.save()
+            imp = form.save(commit=False)
+            imp.asset_id = _siguiente_asset_id_impresora()  # <--- hecho por claude code: ID auto en el servidor
+            imp.save()
             return redirect("inventario:inventario_impresoras")
     else:
         form = ImpresoraForm()
@@ -304,6 +322,7 @@ def inventario_impresoras(request):
     return render(request, "inventario/inventario_impresoras.html", {
         "form": form,
         "year": year,
+        "next_id": _siguiente_asset_id_impresora(),  # <--- hecho por claude code: mostrar el próximo ID
         "impresoras": Impresora.objects.order_by("-id")
     })
 

@@ -53,8 +53,7 @@ document.getElementById('btn-guardar-usados').addEventListener('click', function
     const tr  = document.querySelector(`tr[data-emp="${empCode}"]`);
     if (tr) {
       const usados = data.dias_usados;
-      const disp   = data.dias_disponibles;
-      const dc     = data.dias_corresponden;
+      const acum   = data.acumulada;
 
       const tdUsados = tr.querySelector('.td-usados');
       tdUsados.querySelector('.btn-editar-usados').dataset.usados = usados;
@@ -67,10 +66,11 @@ document.getElementById('btn-guardar-usados').addEventListener('click', function
         valEl.textContent = '0';
       }
 
-      const tdDisp = tr.querySelector('.td-disponibles');
-      if (dc > 0) {
-        const cls = disp <= 0 ? 'bg-red-lt text-red' : disp <= 5 ? 'bg-orange-lt text-orange' : 'bg-green-lt text-green';
-        tdDisp.innerHTML = `<span class="badge ${cls} fw-bold">${disp}</span>`;
+      // <--- hecho por claude code: la acumulada depende de los usados; la proporcional no cambia
+      const tdAcum = tr.querySelector('.td-acumulada');
+      if (tdAcum && acum !== undefined) {
+        const cls = acum <= 0 ? 'bg-red-lt text-red' : acum <= 5 ? 'bg-orange-lt text-orange' : 'bg-green-lt text-green';
+        tdAcum.innerHTML = `<span class="badge ${cls} fw-bold">${acum}</span>`;
       }
     }
     if (modalEU) modalEU.hide();

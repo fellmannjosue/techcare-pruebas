@@ -2,6 +2,16 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # <--- hecho por claude code: config de ruteo BILINGÜE (solo superusuario)
+    path('routing-bl/',            views.routing_bl_config,     name='routing_bl_config'),
+    path('routing-bl/refrescar/',  views.routing_bl_refrescar,  name='routing_bl_refrescar'),
+    path('routing-bl/guardar/',    views.routing_bl_guardar,    name='routing_bl_guardar'),
+    path('routing-bl/descargar/',  views.routing_bl_descargar,  name='routing_bl_descargar'),
+    path('routing-bl/cargar/',     views.routing_bl_cargar,     name='routing_bl_cargar'),
+    path('routing-bl/visibilidad/',views.routing_bl_toggle_vis, name='routing_bl_toggle_vis'),
+    path('grupos-bl/',             views.grupos_bl_config,      name='grupos_bl_config'),
+    path('grupos-bl/guardar/',     views.grupos_bl_guardar,     name='grupos_bl_guardar'),
+
     # Convocatoria de tutorías (Bilingüe)  <--- hecho por claude code
     path('tutorias/grado/', views.convocatoria_grado, name='convocatoria_grado'),
     path('tutorias/marca/', views.convocatoria_marca_toggle, name='convocatoria_marca_toggle'),

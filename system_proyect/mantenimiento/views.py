@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_protect
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 
-from inventario.models import Computadora
+from inventario.models import Computadora, Impresora
 from .models import MaintenanceRecord, MaestroMantenimiento, GradoMantenimiento, FotoMantenimiento, TipoFalla
 from .forms import MaintenanceRecordForm, FirmaMaestroForm
 
@@ -24,9 +24,26 @@ SITE_URL = 'https://servicios.ana-hn.org:437'
 
 def _siguiente_record_id():
     prefix = 'ANAMAESCOMP'
-    ultimo = MaintenanceRecord.objects.filter(
-        record_id__startswith=prefix
-    ).order_by('-record_id').values_list('record_id', flat=True).first()
+    ultimo = (MaintenanceRecord.objects
+              .filter(record_id__startswith=prefix)
+              .exclude(record_id__startswith='ANAMAESIMP')  # no mezclar con el prefijo de impresora
+              .order_by('-record_id').values_list('record_id', flat=True).first())
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
+# <--- hecho por claude code: ID propio para mantenimientos de impresora (ANAMAESIMP-001)
+def _siguiente_record_id_impresora():
+    prefix = 'ANAMAESIMP-'
+    ultimo = (MaintenanceRecord.objects
+              .filter(record_id__startswith=prefix)
+              .order_by('-record_id').values_list('record_id', flat=True).first())
     if ultimo:
         try:
             n = int(ultimo[len(prefix):])
@@ -58,13 +75,23 @@ def maintenance_dashboard(request):
         form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES)
         if form.is_valid():
             record = form.save(commit=False)
-            record.record_id = _siguiente_record_id()
-            comp = record.computadora
-            if comp:
-                if not record.teacher_name:
-                    record.teacher_name = comp.asignado_a or ''
-                if not record.grade:
-                    record.grade = comp.grado or ''
+            # <--- hecho por claude code: rama impresora vs computadora
+            if record.tipo_equipo == 'impresora':
+                record.record_id = _siguiente_record_id_impresora()
+                imp = record.impresora
+                if imp:
+                    record.model        = imp.modelo or ''
+                    record.serie        = imp.serie or ''
+                    if not record.teacher_name:
+                        record.teacher_name = imp.asignado_a or ''
+            else:
+                record.record_id = _siguiente_record_id()
+                comp = record.computadora
+                if comp:
+                    if not record.teacher_name:
+                        record.teacher_name = comp.asignado_a or ''
+                    if not record.grade:
+                        record.grade = comp.grado or ''
             firma_data = request.POST.get('firma_data', '').strip()
             if firma_data:
                 record.firma = firma_data
@@ -74,6 +101,13 @@ def maintenance_dashboard(request):
             record.save()
             for f in request.FILES.getlist('fotos'):
                 FotoMantenimiento.objects.create(registro=record, imagen=f)
+            # <--- hecho por claude code: al llenar tinta, reflejar en el inventario de la impresora
+            if record.tipo_equipo == 'impresora' and record.impresora_id and record.tipo_mant_impresora == 'llenado_tinta':
+                imp = record.impresora
+                if record.estado_tinta:
+                    imp.nivel_tinta = record.get_estado_tinta_display()
+                imp.ultima_vez_llenado = record.date
+                imp.save(update_fields=['nivel_tinta', 'ultima_vez_llenado'])
             from django.contrib import messages
             messages.success(request, f'Registro {record.record_id} guardado correctamente.')
         else:
@@ -104,6 +138,18 @@ def maintenance_dashboard(request):
         for c in comps_qs
     })
 
+    # <--- hecho por claude code: datos de impresoras para el auto-llenado del formulario
+    imps_qs = Impresora.objects.order_by('asset_id')
+    impresoras_json = json.dumps({
+        str(i.id): {
+            'modelo':   i.modelo,
+            'serie':    i.serie or '',
+            'asignado': i.asignado_a or '',
+            'nivel_tinta': i.nivel_tinta or '',
+        }
+        for i in imps_qs
+    })
+
     return render(request, 'mantenimiento/maintenance_dashboard.html', {
         'form':              form,
         'records':           records,
@@ -114,10 +160,13 @@ def maintenance_dashboard(request):
         'completado':        records.filter(status='Completado').count(),
         'computadoras':      comps_qs,
         'computadoras_json': computadoras_json,
+        'impresoras':        imps_qs,
+        'impresoras_json':   impresoras_json,
         'maestros':          MaestroMantenimiento.objects.all(),
         'grados':            GradoMantenimiento.objects.all(),
         'tipos_falla':       TipoFalla.objects.all().order_by('nombre'),
         'next_record_id':    _siguiente_record_id(),
+        'next_record_id_imp':_siguiente_record_id_impresora(),
     })
 
 
@@ -208,15 +257,26 @@ def download_maintenance_pdf(request, record_id):
     story.append(_st("Datos del Equipo"))
     story.append(Spacer(1, 0.1*cm))
 
-    comp = record.computadora
-    equipo_data = [
-        field_row("ID de Activo:",   comp.asset_id if comp else "—"),
-        field_row("Modelo:",         record.model or (comp.modelo if comp else "—")),
-        field_row("Serie:",          record.serie or (comp.serie if comp else "—")),
-        field_row("Asignado a:",     comp.asignado_a if comp else "—"),
-        field_row("Área:",           comp.area if comp else "—"),
-        field_row("Grado:",          record.grade or (comp.grado if comp else "—")),
-    ]
+    # <--- hecho por claude code: datos del equipo según tipo (computadora / impresora)
+    if record.tipo_equipo == 'impresora':
+        imp = record.impresora
+        equipo_data = [
+            field_row("ID de Activo:",   imp.asset_id if imp else "—"),
+            field_row("Modelo:",         record.model or (imp.modelo if imp else "—")),
+            field_row("Serie:",          record.serie or (imp.serie if imp else "—")),
+            field_row("Asignado a:",     record.teacher_name or (imp.asignado_a if imp else "—")),
+            field_row("Área:",           record.area or "—"),
+        ]
+    else:
+        comp = record.computadora
+        equipo_data = [
+            field_row("ID de Activo:",   comp.asset_id if comp else "—"),
+            field_row("Modelo:",         record.model or (comp.modelo if comp else "—")),
+            field_row("Serie:",          record.serie or (comp.serie if comp else "—")),
+            field_row("Asignado a:",     comp.asignado_a if comp else "—"),
+            field_row("Área:",           comp.area if comp else "—"),
+            field_row("Grado:",          record.grade or (comp.grado if comp else "—")),
+        ]
     equipo_tbl = Table(equipo_data, colWidths=[4*cm, 13.3*cm])
     equipo_tbl.setStyle(TableStyle([
         ("FONTSIZE",    (0,0), (-1,-1), 9),
@@ -235,12 +295,26 @@ def download_maintenance_pdf(request, record_id):
     story.append(_st("Diagnóstico y Solución"))
     story.append(Spacer(1, 0.1*cm))
 
-    tipo_falla = str(record.tipo_falla) if record.tipo_falla else "—"
-    diag_data = [
-        field_row("Tipo de Falla:",   tipo_falla),
-        field_row("Solución aplicada:", record.solucion or "—"),
-        field_row("Observaciones:",    record.observaciones or "—"),
-    ]
+    # <--- hecho por claude code: diagnóstico según tipo (computadora / impresora)
+    if record.tipo_equipo == 'impresora':
+        colores = [n for n, ok in (
+            ("Negra", record.tinta_negra), ("Magenta", record.tinta_magenta),
+            ("Amarillo", record.tinta_amarillo), ("Cyan", record.tinta_cyan)) if ok]
+        diag_data = [
+            field_row("Tipo de mantenimiento:", record.get_tipo_mant_impresora_display() or "—"),
+            field_row("Estado de la tinta:",    record.get_estado_tinta_display() or "—"),
+            field_row("Colores rellenados:",    ", ".join(colores) if colores else "—"),
+            field_row("Tipo de tinta:",         record.tipo_tinta or "—"),
+            field_row("Solución aplicada:",     record.solucion or "—"),
+            field_row("Observaciones:",         record.observaciones or "—"),
+        ]
+    else:
+        tipo_falla = str(record.tipo_falla) if record.tipo_falla else "—"
+        diag_data = [
+            field_row("Tipo de Falla:",   tipo_falla),
+            field_row("Solución aplicada:", record.solucion or "—"),
+            field_row("Observaciones:",    record.observaciones or "—"),
+        ]
     diag_tbl = Table(diag_data, colWidths=[4*cm, 13.3*cm])
     diag_tbl.setStyle(TableStyle([
         ("FONTSIZE",    (0,0), (-1,-1), 9),
@@ -254,6 +328,44 @@ def download_maintenance_pdf(request, record_id):
         ("VALIGN",      (0,0), (-1,-1), "TOP"),
     ]))
     story.append(diag_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Sección: Fotos de evidencia (hecho por claude code: siempre se adjuntan) ──
+    fotos = list(record.fotos.all())
+    story.append(_st("Fotos de Evidencia"))
+    story.append(Spacer(1, 0.15*cm))
+
+    def _foto_flowable(foto, max_w=8.3*cm, max_h=6*cm):
+        """RLImage escalada (respeta proporción) desde el archivo de la foto, o '' si falla."""
+        try:
+            p = foto.imagen.path
+            with PILImage.open(p) as im:
+                iw, ih = im.size
+            ratio = min(max_w / float(iw), max_h / float(ih))
+            return RLImage(p, width=iw * ratio, height=ih * ratio)
+        except Exception:
+            return ""
+
+    celdas = [c for c in (_foto_flowable(f) for f in fotos) if c]
+    if celdas:
+        filas = []
+        for i in range(0, len(celdas), 2):
+            fila = celdas[i:i+2]
+            if len(fila) == 1:
+                fila.append("")   # completar la última fila
+            filas.append(fila)
+        fotos_tbl = Table(filas, colWidths=[8.65*cm, 8.65*cm])
+        fotos_tbl.setStyle(TableStyle([
+            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+            ("ALIGN",        (0,0), (-1,-1), "CENTER"),
+            ("TOPPADDING",   (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 6),
+            ("BOX",          (0,0), (-1,-1), 0.3, colors.HexColor("#cccccc")),
+            ("INNERGRID",    (0,0), (-1,-1), 0.3, colors.HexColor("#eeeeee")),
+        ]))
+        story.append(fotos_tbl)
+    else:
+        story.append(Paragraph("Sin fotos adjuntas.", st_center))
     story.append(Spacer(1, 0.4*cm))
 
     # ── Sección: Firmas (Técnico y Maestro) ───────────────────────
@@ -325,7 +437,23 @@ def editar_mantenimiento(request, pk):
     record = get_object_or_404(MaintenanceRecord, pk=pk)
 
     if request.method == 'POST':
-        form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES, instance=record)
+        # <--- hecho por claude code: el modal de edición es de computadora; preservamos el
+        # tipo de equipo y los campos específicos del registro para no borrarlos al guardar.
+        post = _resolver_post_tipo_falla(request).copy()
+        post['tipo_equipo'] = record.tipo_equipo
+        if record.tipo_equipo == 'impresora':
+            post['impresora']           = record.impresora_id or ''
+            post['area']                = record.area
+            post['tipo_mant_impresora'] = record.tipo_mant_impresora
+            post['estado_tinta']        = record.estado_tinta
+            post['tipo_tinta']          = record.tipo_tinta
+            for cb, val in (('tinta_negra', record.tinta_negra), ('tinta_magenta', record.tinta_magenta),
+                            ('tinta_amarillo', record.tinta_amarillo), ('tinta_cyan', record.tinta_cyan)):
+                if val:
+                    post[cb] = 'on'
+                else:
+                    post.pop(cb, None)
+        form = MaintenanceRecordForm(post, request.FILES, instance=record)
         if form.is_valid():
             rec = form.save(commit=False)
             comp = rec.computadora
@@ -367,6 +495,8 @@ def editar_mantenimiento(request, pk):
         'observaciones':record.observaciones or '',
         'firma':        record.firma or '',
         'firma_tecnico':record.firma_tecnico or '',
+        # <--- hecho por claude code: fotos existentes para mostrarlas en el modal de edición
+        'fotos':        [{'id': f.id, 'url': f.imagen.url} for f in record.fotos.all()],
     }
     return JsonResponse(data)
 
@@ -428,12 +558,17 @@ def eliminar_mantenimiento(request, pk):
     record = get_object_or_404(MaintenanceRecord, pk=pk)
     if request.method == 'POST':
         record.delete()
-        # Renumerar registros restantes desde 001
-        PREFIX = 'ANAMAESCOMP'
+        # <--- hecho por claude code: renumerar por separado computadora (ANAMAESCOMP###) e impresora (ANAMAESIMP-###)
         for i, r in enumerate(
-            MaintenanceRecord.objects.all().order_by('id'), start=1
+            MaintenanceRecord.objects.filter(tipo_equipo='impresora').order_by('id'), start=1
         ):
-            nuevo_id = f"{PREFIX}{i:03d}"
+            nuevo_id = f"ANAMAESIMP-{i:03d}"
+            if r.record_id != nuevo_id:
+                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
+        for i, r in enumerate(
+            MaintenanceRecord.objects.exclude(tipo_equipo='impresora').order_by('id'), start=1
+        ):
+            nuevo_id = f"ANAMAESCOMP{i:03d}"
             if r.record_id != nuevo_id:
                 MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
         msg.success(request, 'Registro eliminado y numeración reiniciada.')
