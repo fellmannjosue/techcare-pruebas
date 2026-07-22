@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
   <!-- Responsive global -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=2"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
@@ -437,19 +437,8 @@
       </div>
     </div>
 
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl">
-        <div class="row text-center">
-          <div class="col-12">
-            <p class="text-muted mb-0 small">
-              © {{ year }} Soporte Técnico – Asociación Nuevo Amanecer. Todos los derechos reservados.
-            </p>
-          </div>
-        </div>
-      </div>
-    </footer>
-
-  </div>
+    {% include "_footer.html" %}
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
@@ -684,7 +673,5 @@
 
 {% include "accounts/_welcome_overlay.html" %}
 
-{# <--- hecho por claude code: versión + novedades #}
-{% include "_version_footer.html" %}
 </body>
 </html>

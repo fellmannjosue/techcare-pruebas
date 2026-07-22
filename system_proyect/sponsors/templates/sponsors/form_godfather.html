@@ -1,120 +1,47 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulario de Godfather</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'sponsors/css/form_godfather.css' %}">
-</head>
-<body>
-<div class="container mt-5">
-    <h2 class="text-center mb-4">Formulario de Godfather</h2>
+{# <--- hecho por claude code: lista de padrinazgos (antes solo formulario) #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}Padrinazgos{% endblock %}
+{% block page_pretitle %}Sponsors{% endblock %}
+{% block page_title %}Padrinazgos{% endblock %}
 
-    <div class="btn-toolbar">
-        <a href="{% url 'sponsors:add_descr_godfather' %}" class="btn btn-outline-primary">+ Descripción Padrino</a>
-        <a href="{% url 'sponsors:add_sponsored' %}" class="btn btn-outline-success">+ Apadrinado</a>
+{% block content %}
+<div class="row row-cards">
+  <div class="col-12 col-xl-4">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-users me-2 text-purple"></i>Nuevo registro</h3></div>
+      <form method="post">{% csrf_token %}
+        <div class="card-body">
+          {% for f in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ f.label }}</label>
+            {{ f }}
+            {% if f.errors %}<div class="text-danger small mt-1">{{ f.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer text-end"><button class="btn btn-primary"><i class="ti ti-plus me-1"></i>Guardar</button></div>
+      </form>
     </div>
-
-    <form method="POST" class="form-section">
-        {% csrf_token %}
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Sponsor</label>
-                {{ form.sponsor }}
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Apadrinado</label>
-                {{ form.sponsored }}
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Tipo / Descripción</label>
-                {{ form.descr_godfather }}
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Número</label>
-                {{ form.number }}
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Código Dinero</label>
-                {{ form.money_code }}
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <label class="form-label">Monto</label>
-                {{ form.amount }}
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Fecha Inicio</label>
-                {{ form.start_date }}
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Diploma</label>
-                {{ form.diploma }}
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <div class="form-check">
-                    {{ form.desactivated }}
-                    <label class="form-check-label ms-2">Desactivado</label>
-                </div>
-            </div>
-        </div>
-
-        <div class="text-end mt-4">
-            <button type="submit" class="btn btn-primary">Guardar</button>
-            <a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-secondary">Cancelar</a>
-        </div>
-    </form>
-
-    <div class="mt-4">
-        <h5 class="mb-3">Registros existentes</h5>
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>#</th>
-                    <th>Apadrinado</th>
-                    <th>Tipo</th>
-                    <th>Número</th>
-                    <th>Moneda</th>
-                    <th>Monto</th>
-                    <th>Fecha Inicio</th>
-                    <th>Diploma</th>
-                    <th>Desactivado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in godfathers %}
-                <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ item.sponsored }}</td>
-                    <td>{{ item.descr_godfather.name }}</td>
-                    <td>{{ item.number }}</td>
-                    <td>{{ item.money_code }}</td>
-                    <td>{{ item.amount }}</td>
-                    <td>{{ item.start_date|date:"d/m/Y" }}</td>
-                    <td>{{ item.diploma|date:"d/m/Y" }}</td>
-                    <td>
-                        {% if item.desactivated %}
-                            <input type="checkbox" checked disabled>
-                        {% else %}
-                            <input type="checkbox" disabled>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-      <div class="footer">
-    © {{ year }} Soporte Técnico - Asociación Nuevo Amanecer. Todos los derechos reservados.
   </div>
-
+  <div class="col-12 col-xl-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Últimos padrinazgos <span class="text-muted small ms-2">{{ total }} en total</span></h3>
+      </div>
+      <div class="table-responsive" style="max-height:70vh;overflow:auto;">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>Sponsor</th><th>Apadrinado</th><th>Número</th><th>Inicio</th><th>Monto</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for o in godfather_list %}
+            <tr><td class="fw-medium">{{ o.sponsor.first_name_1|default:"" }} {{ o.sponsor.last_name_1|default:"" }}</td><td>{% if o.sponsored %}{{ o.sponsored.first_name_1|default:"" }} {{ o.sponsored.last_name_1|default:"" }}{% else %}<span class="text-muted">—</span>{% endif %}</td><td>{{ o.number|default:"—" }}</td><td>{{ o.start_date|date:"d/m/Y"|default:"—" }}</td><td>{{ o.amount|default:"—" }}</td><td>{% if o.desactivated %}<span class="badge bg-red-lt text-red">Desactivado</span>{% else %}<span class="badge bg-green-lt text-green">Activo</span>{% endif %}</td></tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Sin registros</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+    </div>
+  </div>
 </div>
-</body>
-</html>
+{% endblock %}

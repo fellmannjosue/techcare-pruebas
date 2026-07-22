@@ -309,6 +309,12 @@ CONSTANCE_CONFIG = {
         'Emails bloqueados específicamente (separados por coma). Si hay valores, SOLO esos usuarios ven el mantenimiento.',
         str,
     ),
+    # <--- hecho por claude code: bloqueo selectivo de formularios (JSON {modulo: lectura|bloqueado})
+    'MAINTENANCE_MODULES': (
+        '',
+        'Bloqueo por formulario, en JSON. Ej: {"agendas":"lectura","tickets":"bloqueado"}. Vacío = todo normal.',
+        str,
+    ),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     'Modo Mantenimiento': {
@@ -318,6 +324,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
             'MAINTENANCE_MESSAGE',
             'MAINTENANCE_END_TIME',
             'MAINTENANCE_BLOCKED_USERS',
+            'MAINTENANCE_MODULES',
         ),
         'collapse': False,
     }

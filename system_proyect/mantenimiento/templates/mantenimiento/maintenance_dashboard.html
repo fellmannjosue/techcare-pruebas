@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css"/>
   <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=3">
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
 </head>
 
 <body class="antialiased">
@@ -173,10 +173,8 @@
       </div>
     </div>
 
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl"><div class="text-center text-muted small py-2">© {% now "Y" %} Sistema TechCare – Asociación Nuevo Amanecer</div></div>
-    </footer>
-  </div>
+    {% include "_footer.html" %}
+</div>
 </div>
 
 

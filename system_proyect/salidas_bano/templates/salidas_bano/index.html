@@ -9,7 +9,7 @@
   <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <style>
     /* ── Tabs principales ─── */
     .nav-tabs-main .nav-link {
@@ -604,5 +604,7 @@ window._SB = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=9"></script>
+{# <--- hecho por claude code: footer unificado #}
+{% include "_footer.html" %}
 </body>
 </html>

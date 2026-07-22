@@ -52,7 +52,8 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - Roles = **grupos de Django por nombre** (revisados en `core/context_processors.py`, `accounts/panel_roles.py`). Casi ninguno usa permisos de Django (excepción: `inventario`). Los permisos del Reloj vienen del modelo `reloj.RelojPermiso`.
 
 ## Versionado y novedades
-- Versión y changelog en `core/changelog.json`; lo lee `core/version.py`, lo expone `version_context`, y `templates/_version_footer.html` pinta el pie + el modal.
+- Versión y changelog en `core/changelog.json`; lo lee `core/version.py`, lo expone `version_context`, y `templates/_footer.html` pinta el pie (+ `_version_modal.html` para el modal).
+- **Footer**: uno solo para todo el sistema (`templates/_footer.html`), sticky por Flexbox (`body` columna + `min-height:100vh`, `.page-body{flex:1 0 auto}`, `footer.tc-footer{margin-top:auto}`); nunca `position:fixed`. Tabler impone `.footer{padding:2rem 0}`, por eso se usa el selector `footer.tc-footer`. Al tocar `static/css/responsive_global.css` hay que **subir el `?v=N`** del `<link>` en las plantillas o el navegador sirve el CSS viejo.
 - `manage.py gen_changelog` genera entradas desde `git log` y sube el build; lo dispara `.git/hooks/post-commit`. Marcador de rango en `.git/changelog_base` (local, sobrevive a `--amend`).
 - `PerfilUsuario.version_vista` recuerda qué versión vio cada usuario.
 
@@ -61,6 +62,13 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - Decisión de coordinador: `_coord_bl(materia, docente, grado)` → override único fuerza → materia manda (C3/C4) → grupo/grado (C1 grados 1-3, C2 grados 4-9) → override múltiple restringe por grado. Un docente puede reportar a **varios** coordinadores (override = unión de sus cargas).
 - Nombres/correos de coordinadores: C1 cvarela · C2 druiz · C3 ialcerro · C4 jmartinez.
 - Permisos por coordinador (`coord_permisos`): `none` / `lectura` / `edit`; los endpoints de guardar usan `_puede_editar_ruteo`.
+
+## Modo mantenimiento (dos niveles)
+- **General**: `MAINTENANCE_MODE` + filtro por área (`all`/`staff`/`bilingue`/`colegio`) o lista de correos.
+- **Por formulario**: `MAINTENANCE_MODULES` (constance, JSON) pone cada módulo en `normal` / `lectura` / `bloqueado`. `lectura` corta solo las escrituras. Funciona aunque el general esté apagado y respeta el mismo filtro de audiencia. Registro de módulos y rutas en `core/maintenance_modules.py`; el filtro compartido es `core.middleware._audiencia_afectada`.
+
+## Datos legacy (sponsors)
+Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `managed = False`. **Revisa el esquema real antes de tocar los modelos**: hay una columna `decription` (typo en la BD), otra llamada `check` (palabra reservada), y `Sponsor.city` es NOT NULL.
 
 ## Gotchas
 - **Nunca** borrar/pisar `media/conducta/routing_bl.json` en pruebas: contiene la config real (alumnos, grupos, catálogo). Escribir solo vía la app o `sudo -u www-data`.

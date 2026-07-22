@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   {% block extra_head %}{% endblock %}
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
@@ -58,19 +58,13 @@
         {% block content %}{% endblock %}
       </div>
     </div>
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-fluid text-center">
-        <p class="text-muted mb-0 small">© {% now "Y" %} Soporte Técnico – Asociación Nuevo Amanecer.</p>
-      </div>
-    </footer>
-  </div>
+    {% include "_footer.html" %}
+</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 {% block extra_js %}{% endblock %}
 {% include "accounts/_welcome_overlay.html" %}
-{# <--- hecho por claude code: versión + novedades #}
-{% include "_version_footer.html" %}
 </body>
 </html>

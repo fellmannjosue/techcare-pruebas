@@ -633,8 +633,13 @@ GRUPOS_SUPER = [
         {'t': 'Enfermería', 's': 'Panel de enfermería', 'i': 'ti-stethoscope', 'c': '#d63939', 'url': 'enfermeria:enfermeria_dashboard'},
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         {'t': 'Notas Mitad de Parcial', 's': 'Revisión / Asignaciones', 'i': 'ti-file-certificate', 'c': '#206bc4', 'url': 'notas_parcial_index'},
-        {'t': 'Salidas Baño', 's': 'Control de salidas', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
         {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado (todo en una hoja)', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
+     ]},
+    # <--- hecho por claude code: grupo propio para salidas (baño y, próximamente, permisos)
+    {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#0ca678',
+     'desc': 'Salidas al baño y con permisos',
+     'cards': [
+        {'t': 'Salidas al baño', 's': 'Control de salidas al baño', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
      ]},
     {'key': 'reloj', 'titulo': 'Reloj y Sponsors', 'icon': 'ti-clock', 'color': '#f76707',
      'desc': 'Asistencia y patrocinadores',
@@ -721,7 +726,14 @@ def mantenimiento_modo(request):
     if not request.user.is_superuser:
         return redirect('menu')
     todos_usuarios = User.objects.filter(is_active=True).exclude(email='').order_by('first_name', 'last_name')
-    return render(request, 'accounts/mantenimiento_modo.html', {'todos_usuarios': todos_usuarios})
+    # <--- hecho por claude code: módulos bloqueables (normal | lectura | bloqueado)
+    from constance import config as _cfg
+    from core.maintenance_modules import modulos_para_ui, ESTADO_LABELS
+    return render(request, 'accounts/mantenimiento_modo.html', {
+        'todos_usuarios': todos_usuarios,
+        'mant_modulos': modulos_para_ui(_cfg),
+        'mant_estados': ESTADO_LABELS,
+    })
 
 
 # ── Desbloqueo de accesos (cuentas bloqueadas por intentos de login) ─────────

@@ -15,6 +15,15 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
 
+### v6.0.1.3 — Sponsors, bloqueo por formulario y footer unificado
+
+- **🔒 Sponsors: módulo era público** — Ninguna de sus 18 vistas exigía sesión, exponiendo **3,561 donantes** (correos, teléfonos, direcciones, fechas de nacimiento) y **30,045 ingresos** a cualquiera sin autenticar. Además `delete_sponsor` **borraba por GET**, sin CSRF ni confirmación, arrastrando en cascada ingresos y padrinazgos. Corregido: `@login_required` en todas, borrado solo por POST con confirmación.
+- **Sponsors: bugs corregidos** — (1) dar de alta un sponsor fallaba con `IntegrityError` porque el form excluía `city` (NOT NULL) y la vista nunca lo asignaba; (2) `title`/`directed` se pedían obligatorios siendo `null=True`; (3) Correspondencia reventaba con `OperationalError 1054` — la columna real se llama `decription` (typo en la BD), ahora mapeada con `db_column`; (4) las pantallas de **Ingresos, Apadrinados y Correspondencia** eran plantillas **vacías** (página en blanco); (5) `Godfather` no mapeaba `spn_sponsored_id` ni `spn_descr_godfather_id`, así que un padrinazgo no podía indicar **a quién** apadrina.
+- **Sponsors: rendimiento y vista** — Lista paginada (50) con buscador: **1.27 MB → 63 KB**; alta de sponsor **1.46 MB → 103 KB**; autocompletar limitado a 20 resultados distintos. Módulo migrado a **Tabler** con `base_sponsors.html` (sidebar + footer), reemplazando 9 CSS sueltos e iconos PNG.
+- **Modo mantenimiento: bloqueo por formulario** — Además del bloqueo general, cada formulario puede quedar en **Normal / Solo lectura / Bloqueado**: Agendas, Reportes informativos, Reportes conductuales, Notas mitad de parcial, Convocatoria de tutorías, Progress Report y Tickets. *Solo lectura* deja consultar pero corta los POST. Respeta el mismo filtro de área/usuarios; el superusuario nunca se bloquea. Config en `MAINTENANCE_MODULES` (constance) y registro en `core/maintenance_modules.py`.
+- **Menú admin: grupo "Salidas"** — "Salidas al baño" salió de *Académico* a su propio grupo, listo para sumar "Salidas con permisos".
+- **Footer unificado y sticky** — Antes eran dos bloques separados (copyright y versión), descolgados del layout. Ahora es un solo footer con Flexbox: copyright a la izquierda, `TechCare vX · Novedades` a la derecha, pegado al fondo con `margin-top:auto` (sin `position:fixed`). Aplicado a **todas** las plantillas vía `templates/_footer.html`.
+
 ### v6.0.1.2 — Ruteo de reportes Bilingüe
 
 - **Ruteo BL sin fugas** — Cada reporte académico/conductual del área Bilingüe llega **solo a su coordinador** (C1/C2/C3/C4). Regla combinada: la **materia manda** (C3/C4), si no el **grado/grupo** del alumno decide C1 (1–3) / C2 (4–9), y un **override por docente** desempata. Solo aplica a reportes nuevos.
@@ -620,7 +629,10 @@ Registro de mantenimientos preventivos/correctivos con generación de reportes P
 
 ## Versionado y novedades
 
-El sistema muestra su **versión en el pie de página** (todas las plantillas base la incluyen vía `templates/_version_footer.html`) y una **ventana de novedades** que se abre **una vez por versión** para cada usuario.
+El sistema muestra su **versión en el pie de página** y una **ventana de novedades** que se abre **una vez por versión** para cada usuario.
+
+- **Footer único (`templates/_footer.html`)** — incluido por todas las plantillas base. Una sola fila: copyright a la izquierda, `TechCare vX · Novedades` a la derecha. Es *sticky* por Flexbox (`body` en columna con `min-height:100vh`, `.page-body` con `flex:1`, `footer.tc-footer` con `margin-top:auto`); **no** usa `position:fixed/absolute`. Estilos en `static/css/responsive_global.css` (enlazado con `?v=N` para romper caché al cambiarlo).
+- **Modal (`templates/_version_modal.html`)** — lo incluye el footer; su JS espera al evento `load` porque el footer se renderiza antes que los `<script>` de Bootstrap.
 
 - **Fuente de datos:** `core/changelog.json` (`{version, entradas:[{version, fecha, commit, cambios[]}]}`). Lo lee `core/version.py`; lo expone el context processor `core.context_processors.version_context`.
 - **Generación automática:** el comando `manage.py gen_changelog` toma los mensajes de commit nuevos (`git log`), **sube el build** (`6.0.1.2` → `6.0.1.3`) y agrega una entrada. Se dispara con el hook `.git/hooks/post-commit` (Apache/`www-data` **no** puede ejecutar git en este repo, por eso el hook corre como el dueño y la app solo **lee** el JSON).

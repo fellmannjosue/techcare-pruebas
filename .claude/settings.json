@@ -76,7 +76,9 @@
       "Bash(../venv313/bin/python manage.py gen_changelog --set-version 6.0.1.2)",
       "Bash(chmod +x /home/admin2/techcare_project/.git/hooks/post-commit)",
       "Bash(../venv313/bin/python manage.py gen_changelog)",
-      "Bash(sudo -S -u www-data head -3 core/changelog.json)"
+      "Bash(sudo -S -u www-data head -3 core/changelog.json)",
+      "Bash(awk '{print $1, $3, $4}')",
+      "Bash(systemctl show *)"
     ],
     "additionalDirectories": [
       "/home/admin2/techcare_project/system_proyect/conducta",

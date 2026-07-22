@@ -36,12 +36,16 @@ class TitleForm(forms.ModelForm):
         }
 
 class SponsorForm(forms.ModelForm):
+    # <--- hecho por claude code: 'city' se incluye en el form. Antes se excluía con la nota
+    # "se maneja manualmente" pero la vista nunca lo asignaba y, al ser NOT NULL,
+    # guardar un sponsor nuevo reventaba con IntegrityError.
     class Meta:
         model = Sponsor
-        exclude = ['city']  # Manejamos 'city' manualmente
+        fields = '__all__'
 
         widgets = {
             "id": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),  # ID solo lectura
+            "city": forms.Select(attrs={"class": "form-select"}),
             "title": forms.Select(attrs={"class": "form-control"}),
             "directed": forms.Select(attrs={"class": "form-control"}),
             "last_name_1": forms.TextInput(attrs={"class": "form-control"}),
@@ -158,14 +162,35 @@ class SponsorForm(forms.ModelForm):
             "civil_status": "Estado Civil",
             "nationality": "Nacionalidad",
             "padrino_ch_d": "Padrino CH/D",
+            "city": "Ciudad",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # En el modelo title/directed son null=True (SET_NULL) pero sin blank=True,
+        # así que el ModelForm los pedía como obligatorios. Se corrige aquí.
+        for f in ('title', 'directed'):
+            if f in self.fields:
+                self.fields[f].required = False
+        if 'city' in self.fields:
+            self.fields['city'].queryset = City.objects.select_related('country').order_by('name')
+            # Muestra ciudad, código postal y país en la misma opción (antes lo hacía un JS aparte)
+            self.fields['city'].label_from_instance = (
+                lambda c: f"{c.name or '—'} ({c.zip_code or 's/n'})"
+                          f"{' · ' + c.country.name if c.country_id and c.country else ''}"
+            )
+
 
 class GodfatherForm(forms.ModelForm):
     class Meta:
         model = Godfather
-        fields = ['sponsor', 'number', 'start_date', 'diploma', 'money_code', 'amount', 'desactivated']
+        # <--- hecho por claude code: se agregan sponsored y descr_godfather (columnas ya existentes)
+        fields = ['sponsor', 'sponsored', 'descr_godfather', 'number', 'start_date',
+                  'diploma', 'money_code', 'amount', 'desactivated']
         labels = {
             'sponsor': 'Sponsor',
+            'sponsored': 'Apadrinado',
+            'descr_godfather': 'Tipo de padrinazgo',
             'number': 'Número',
             'start_date': 'Fecha de Inicio',
             'diploma': 'Diploma',

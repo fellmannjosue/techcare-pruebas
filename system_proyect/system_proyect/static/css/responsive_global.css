@@ -226,3 +226,58 @@ body {
 .navbar-vertical .navbar-toggler { color: #0c3a4f !important; border-color: #6db6d6 !important; }
 /* Avatar/encabezado del sidebar si los hubiera */
 .navbar-vertical hr, .navbar-vertical .navbar-nav + .navbar-nav { border-color: rgba(12,58,79,.18) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Footer sticky unificado  <--- hecho por claude code
+   El footer se pega al fondo del viewport cuando el contenido es
+   corto, y baja de forma natural cuando el contenido lo excede.
+   Sin position:fixed/absolute.
+   ═══════════════════════════════════════════════════════════════ */
+html { height: 100%; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* El wrapper (sidebar + contenido) ocupa el alto disponible */
+body > .wrapper,
+body > .page {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La columna de contenido crece para empujar el footer hacia abajo */
+.page-wrapper {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.page-body { flex: 1 0 auto; }
+
+/* margin-top:auto es lo que "pega" el footer al fondo */
+/* footer.tc-footer gana a .footer{padding:2rem 0} de Tabler */
+footer.tc-footer {
+  margin-top: auto;
+  padding: .75rem 0;
+  border-top: 1px solid var(--tblr-border-color, #e6e7e9);
+}
+
+footer.tc-footer .container-fluid { padding-left: 1.5rem; padding-right: 1.5rem; }
+
+/* Una sola fila: copyright a la izquierda, versión a la derecha */
+footer.tc-footer .tc-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 575.98px) {
+  footer.tc-footer .tc-footer-row { justify-content: center; text-align: center; }
+}

@@ -1,129 +1,125 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Dashboard de Sponsors – TechCare</title>
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body class="antialiased">
-<div class="wrapper">
+{# <--- hecho por claude code: dashboard migrado a Tabler (antes: PNGs y CSS suelto) #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}Sponsors{% endblock %}
+{% block page_pretitle %}Panel{% endblock %}
+{% block page_title %}Sponsors y Padrinos{% endblock %}
 
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-sponsors">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="navbar-brand navbar-brand-autodark">
-        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
-        </a>
-      </div>
-      <div class="collapse navbar-collapse" id="sidebar-sponsors">
-        {% include 'accounts/_sidebar.html' %}
-        <div class="mt-auto pt-3 border-top border-secondary">
-          <div class="d-flex align-items-center gap-2 px-2 py-1">
-            <img src="{% static 'accounts/img/user.png' %}" class="avatar avatar-sm" alt="">
-            <div class="flex-fill">
-              <div class="text-white small fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
-            </div>
-            <a href="{% url 'logout' %}" class="text-muted" title="Cerrar sesión">
-              <i class="ti ti-logout fs-5"></i>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <div class="page-wrapper">
-    <div class="page-header d-print-none">
-      <div class="container-xl">
-        <div class="row align-items-center">
-          <div class="col">
-            <div class="page-pretitle">Módulo</div>
-            <h2 class="page-title">Dashboard de Sponsors</h2>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="page-body">
-      <div class="container-xl">
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4 justify-content-center">
-
-          <div class="col">
-            <div class="card h-100 text-center" style="cursor:pointer;"
-                 onclick="redirectWithAlert('{% url 'sponsors:add_sponsor' %}', 'Formulario Sponsors')">
-              <div class="card-body">
-                <i class="fa-solid fa-hand-holding-heart fa-3x text-warning mb-3"></i>
-                <div class="fw-bold mb-1">Formulario Sponsors</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col">
-            <div class="card h-100 text-center" style="cursor:pointer;"
-                 onclick="redirectWithAlert('{% url 'sponsors:add_city' %}', 'Agregar Ciudad')">
-              <div class="card-body">
-                <i class="fa-solid fa-city fa-3x text-primary mb-3"></i>
-                <div class="fw-bold mb-1">Agregar Ciudad</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col">
-            <div class="card h-100 text-center" style="cursor:pointer;"
-                 onclick="redirectWithAlert('{% url 'sponsors:add_country' %}', 'Agregar País')">
-              <div class="card-body">
-                <i class="fa-solid fa-flag fa-3x text-success mb-3"></i>
-                <div class="fw-bold mb-1">Agregar País</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col">
-            <div class="card h-100 text-center" style="cursor:pointer;"
-                 onclick="redirectWithAlert('{% url 'sponsors:add_directed' %}', 'Agregar Directed')">
-              <div class="card-body">
-                <i class="fa-solid fa-share-nodes fa-3x text-info mb-3"></i>
-                <div class="fw-bold mb-1">Agregar Directed</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col">
-            <div class="card h-100 text-center" style="cursor:pointer;"
-                 onclick="redirectWithAlert('{% url 'sponsors:add_title' %}', 'Agregar Título')">
-              <div class="card-body">
-                <i class="fa-solid fa-certificate fa-3x text-danger mb-3"></i>
-                <div class="fw-bold mb-1">Agregar Título</div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-xl">
-        <div class="text-center text-muted small py-2">
-          © {% now "Y" %} Sistema TechCare – Asociación Nuevo Amanecer
-        </div>
-      </div>
-    </footer>
+{% block content %}
+<div class="row row-cards mb-3">
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm"><div class="card-body d-flex align-items-center">
+      <span class="bg-pink text-white avatar me-3"><i class="ti ti-heart-handshake"></i></span>
+      <div><div class="fs-2 fw-bold">{{ stats.sponsors }}</div><div class="text-muted small">Sponsors</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm"><div class="card-body d-flex align-items-center">
+      <span class="bg-purple text-white avatar me-3"><i class="ti ti-users"></i></span>
+      <div><div class="fs-2 fw-bold">{{ stats.godfathers }}</div><div class="text-muted small">Padrinazgos</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm"><div class="card-body d-flex align-items-center">
+      <span class="bg-green text-white avatar me-3"><i class="ti ti-user-heart"></i></span>
+      <div><div class="fs-2 fw-bold">{{ stats.sponsored }}</div><div class="text-muted small">Apadrinados</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card card-sm"><div class="card-body d-flex align-items-center">
+      <span class="bg-orange text-white avatar me-3"><i class="ti ti-cash"></i></span>
+      <div><div class="fs-2 fw-bold">{{ stats.incomes }}</div><div class="text-muted small">Ingresos</div></div>
+    </div></div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="{% static 'sponsors/js/dashboard.js' %}"></script>
-</body>
-</html>
+<h3 class="mb-2"><i class="ti ti-layout-grid me-2 text-pink"></i>Gestión</h3>
+<div class="row row-cards mb-4">
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:sponsor_list' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-list text-pink mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Lista de Sponsors</div><div class="text-muted small mt-1">Buscar y editar</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_sponsor' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-user-plus text-blue mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Nuevo Sponsor</div><div class="text-muted small mt-1">Registrar</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_godfather' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-users text-purple mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Padrinazgos</div><div class="text-muted small mt-1">Godfather</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_sponsored' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-user-heart text-green mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Apadrinados</div><div class="text-muted small mt-1">Sponsored</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_income' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-cash text-orange mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Ingresos</div><div class="text-muted small mt-1">Donaciones</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_correspondence' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-mail text-cyan mb-2" style="font-size:2.2rem;"></i>
+        <div class="fw-bold">Correspondencia</div><div class="text-muted small mt-1">Envíos</div>
+      </div></div>
+    </a>
+  </div>
+</div>
+
+<h3 class="mb-2"><i class="ti ti-settings me-2 text-muted"></i>Catálogos</h3>
+<div class="row row-cards">
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_country' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-world text-blue mb-2" style="font-size:2rem;"></i><div class="fw-bold">Países</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_city' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-building-community text-teal mb-2" style="font-size:2rem;"></i><div class="fw-bold">Ciudades</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_title' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-id-badge text-yellow mb-2" style="font-size:2rem;"></i><div class="fw-bold">Títulos</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_directed' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-mail-forward text-indigo mb-2" style="font-size:2rem;"></i><div class="fw-bold">Dirigido a</div>
+      </div></div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'sponsors:add_descr_godfather' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3"><div class="card-body">
+        <i class="ti ti-file-description text-purple mb-2" style="font-size:2rem;"></i><div class="fw-bold">Descr. Padrino</div>
+      </div></div>
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -55,6 +55,38 @@ class SoloProgressMiddleware:
         return self.get_response(request)
 
 
+def _audiencia_afectada(user, config):
+    """<--- hecho por claude code: ¿el filtro de área/usuarios alcanza a este usuario?
+
+    Misma regla que usaba el mantenimiento general; extraída para reutilizarla
+    también en el bloqueo por formulario. El superusuario nunca queda afectado.
+    """
+    is_auth = bool(user and user.is_authenticated)
+    if is_auth and user.is_superuser:
+        return False
+    is_staff_user = is_auth and user.is_staff
+
+    # Modo usuarios específicos: solo esos correos
+    blocked_str = getattr(config, 'MAINTENANCE_BLOCKED_USERS', '') or ''
+    if blocked_str.strip():
+        if not is_auth:
+            return False
+        emails = {e.strip().lower() for e in blocked_str.split(',') if e.strip()}
+        return (user.email or '').lower() in emails
+
+    area = getattr(config, 'MAINTENANCE_AREA', 'all')
+    if area == 'staff':
+        if not is_staff_user:
+            return False
+        return (user.email or '').lower() not in _STAFF_EXCEPTIONS_ALL
+    if area == 'all':
+        return is_auth          # anónimos no se bloquean (pueden llegar al login)
+    if is_staff_user:
+        return False            # área específica: staff siempre exento
+    grupos = _AREA_GROUPS.get(area, ())
+    return bool(is_auth and grupos and user.groups.filter(name__in=grupos).exists())
+
+
 class MaintenanceModeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -67,7 +99,9 @@ class MaintenanceModeMiddleware:
             return self.get_response(request)
 
         if not en_mantenimiento:
-            return self.get_response(request)
+            # <--- hecho por claude code: el bloqueo por formulario funciona aunque
+            # el mantenimiento general esté apagado.
+            return self._chequear_modulos(request, config) or self.get_response(request)
 
         # Auto-deactivar cuando se cumple el tiempo de fin
         end_str = getattr(config, 'MAINTENANCE_END_TIME', '')
@@ -92,39 +126,10 @@ class MaintenanceModeMiddleware:
         user = getattr(request, 'user', None)
         area = getattr(config, 'MAINTENANCE_AREA', 'all')
 
-        # Superuser siempre pasa
-        if user and user.is_authenticated and user.is_superuser:
-            return self.get_response(request)
-        else:
-            is_auth       = bool(user and user.is_authenticated)
-            is_staff_user = is_auth and user.is_staff
-
-            # Modo usuarios específicos: solo esos usuarios ven el mantenimiento
-            blocked_str = getattr(config, 'MAINTENANCE_BLOCKED_USERS', '')
-            if blocked_str.strip():
-                blocked_emails = {e.strip().lower() for e in blocked_str.split(',') if e.strip()}
-                if not is_auth or user.email.lower() not in blocked_emails:
-                    return self.get_response(request)
-            else:
-                # Modo área
-                if area == 'staff':
-                    # Solo bloquear usuarios staff (excepto excepciones permanentes)
-                    if not is_staff_user:
-                        return self.get_response(request)
-                    if user.email.lower() in _STAFF_EXCEPTIONS_ALL:
-                        return self.get_response(request)
-                elif area == 'all':
-                    # <--- hecho por claude code: bloquear TODOS (incluso staff). Solo superuser pasa (ya comprobado arriba).
-                    if not is_auth:
-                        return self.get_response(request)
-                    # Todos los usuarios autenticados (no superuser) son bloqueados
-                else:
-                    # Área específica (bilingue/colegio): solo maestros del área; staff siempre exento
-                    if is_staff_user:
-                        return self.get_response(request)
-                    grupos = _AREA_GROUPS.get(area, ())
-                    if not (is_auth and grupos and user.groups.filter(name__in=grupos).exists()):
-                        return self.get_response(request)
+        # <--- hecho por claude code: misma regla de siempre, ahora en _audiencia_afectada()
+        if not _audiencia_afectada(user, config):
+            # No le toca el mantenimiento general, pero sí puede tocarle un formulario bloqueado
+            return self._chequear_modulos(request, config) or self.get_response(request)
 
         mensaje  = getattr(config, 'MAINTENANCE_MESSAGE', '')
         end_time = getattr(config, 'MAINTENANCE_END_TIME', '')
@@ -133,4 +138,46 @@ class MaintenanceModeMiddleware:
             'maint_message':  mensaje,
             'maint_end_time': end_time,
             'maint_area':     _AREA_LABELS.get(area, area),
+        }, status=503)
+
+    # <--- hecho por claude code: bloqueo selectivo por formulario
+    def _chequear_modulos(self, request, config):
+        """Devuelve una respuesta si el formulario está restringido para este usuario; si no, None.
+
+        'bloqueado' → no entra. 'lectura' → puede ver pero no guardar (se cortan POST/PUT/DELETE).
+        """
+        from core.maintenance_modules import modulo_de_ruta, leer_estados, ESTADO_LABELS
+
+        ruta = request.path_info
+        if any(ruta.startswith(p) for p in _RUTAS_PERMITIDAS):
+            return None
+
+        mod = modulo_de_ruta(ruta)
+        if not mod:
+            return None
+
+        estado = leer_estados(config).get(mod['key'], 'normal')
+        if estado == 'normal':
+            return None
+
+        if not _audiencia_afectada(getattr(request, 'user', None), config):
+            return None
+
+        # En "solo lectura" únicamente se cortan las escrituras
+        if estado == 'lectura' and request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return None
+
+        if estado == 'lectura':
+            mensaje = (f'<strong>{mod["label"]}</strong> está en modo <strong>solo lectura</strong>. '
+                       'Puedes consultar la información, pero por ahora no se pueden guardar cambios.')
+        else:
+            mensaje = (f'<strong>{mod["label"]}</strong> está temporalmente <strong>bloqueado</strong> '
+                       'por mantenimiento. Vuelve a intentarlo más tarde.')
+
+        return render(request, 'core/mantenimiento.html', {
+            'maint_message':  mensaje,
+            'maint_end_time': getattr(config, 'MAINTENANCE_END_TIME', ''),
+            'maint_area':     mod['label'],
+            'maint_modulo':   mod['label'],
+            'maint_estado':   ESTADO_LABELS.get(estado, estado),
         }, status=503)

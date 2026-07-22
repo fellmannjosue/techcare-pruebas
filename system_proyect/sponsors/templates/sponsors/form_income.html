@@ -1,0 +1,59 @@
+{# <--- hecho por claude code: template estaba VACÍO (0 bytes) → página en blanco #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}Ingresos{% endblock %}
+{% block page_pretitle %}Sponsors{% endblock %}
+{% block page_title %}Ingresos{% endblock %}
+
+{% block content %}
+<div class="row row-cards">
+  <div class="col-12 col-xl-4">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-cash me-2 text-orange"></i>Nuevo registro</h3></div>
+      <form method="post">{% csrf_token %}
+        <div class="card-body">
+          {% for f in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ f.label }}</label>
+            {{ f }}
+            {% if f.errors %}<div class="text-danger small mt-1">{{ f.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer text-end"><button class="btn btn-primary"><i class="ti ti-plus me-1"></i>Guardar</button></div>
+      </form>
+    </div>
+  </div>
+  <div class="col-12 col-xl-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Ingresos registrados <span class="text-muted small ms-2">{{ total }} en total</span></h3>
+      </div>
+      <div class="table-responsive" style="max-height:70vh;overflow:auto;">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>Sponsor</th><th>Fecha</th><th>Monto</th><th>Moneda</th><th>Recibo</th><th>Origen</th></tr></thead>
+          <tbody>
+            {% for o in income_list %}
+            <tr><td class="fw-medium">{{ o.sponsor.first_name_1|default:"" }} {{ o.sponsor.last_name_1|default:"" }}</td><td>{{ o.date|date:"d/m/Y"|default:"—" }}</td><td class="fw-bold">{{ o.amount|default:"—" }}</td><td>{{ o.currency_code|default:"—" }}</td><td>{{ o.receipt|default:"—" }}</td><td>{{ o.origin|default:"—" }}</td></tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Sin registros</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+            {% if page_obj.paginator.num_pages > 1 %}
+      <div class="card-footer d-flex align-items-center">
+        <p class="m-0 text-muted small">Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong></p>
+        <ul class="pagination m-0 ms-auto">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ti ti-chevron-left"></i></a></li>
+          {% endif %}
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ti ti-chevron-right"></i></a></li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

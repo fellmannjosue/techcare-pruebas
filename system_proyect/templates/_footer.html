@@ -1,0 +1,14 @@
+{# <--- hecho por claude code: footer único y sticky. Izquierda: copyright · Derecha: versión + Novedades #}
+<footer class="footer footer-transparent d-print-none tc-footer">
+  <div class="container-fluid">
+    <div class="tc-footer-row">
+      <span class="text-muted small">© {% now "Y" %} Soporte Técnico – Asociación Nuevo Amanecer.</span>
+      {% if user.is_authenticated and app_version %}
+      <span class="text-muted small">
+        TechCare <span class="text-body">v{{ app_version }}</span>{% if novedades %} · <a href="#" class="text-decoration-none" id="tc-ver-novedades">Novedades</a>{% endif %}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+</footer>
+{% if user.is_authenticated %}{% include "_version_modal.html" %}{% endif %}

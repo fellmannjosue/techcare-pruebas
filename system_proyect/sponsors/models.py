@@ -175,6 +175,15 @@ class Godfather(models.Model):
     id = models.AutoField(primary_key=True, db_column='spn_godfather_id')
     sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, db_column='spn_sponsors_id', verbose_name="Sponsor", related_name="godfathers")
 
+    # <--- hecho por claude code: la tabla ya tenía estas columnas pero el modelo no las mapeaba,
+    # así que un padrinazgo no podía indicar a quién apadrina ni su tipo.
+    sponsored = models.ForeignKey('Sponsored', on_delete=models.SET_NULL, null=True, blank=True,
+                                  db_column='spn_sponsored_id', related_name='padrinazgos',
+                                  verbose_name="Apadrinado")
+    descr_godfather = models.ForeignKey('Descr_Godfather', on_delete=models.SET_NULL, null=True, blank=True,
+                                        db_column='spn_descr_godfather_id', related_name='padrinazgos',
+                                        verbose_name="Tipo de padrinazgo")
+
     number = models.IntegerField(null=True, blank=True, verbose_name="Número")
     start_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Inicio")
     diploma = models.DateTimeField(null=True, blank=True, verbose_name="Diploma")
@@ -192,11 +201,14 @@ class Correspondence(models.Model):
     sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, db_column='spn_sponsors_id', verbose_name="Sponsor", related_name="correspondences")
 
     date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha")
-    description = models.CharField(max_length=100, null=True, blank=True, verbose_name="Descripción")
+    # <--- hecho por claude code: la columna real se llama 'decription' (typo en la BD).
+    # Sin db_column, Django buscaba 'description' y reventaba con OperationalError 1054.
+    description = models.CharField(max_length=100, null=True, blank=True,
+                                   db_column='decription', verbose_name="Descripción")
 
     class Meta:
         db_table = 'tbl_spn_correspondence'
-        managed = False  
+        managed = False
 
 # -------------------------- INCOME -------------------------- #
 class Income(models.Model):

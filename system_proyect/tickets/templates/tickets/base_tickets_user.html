@@ -18,7 +18,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet"/>
   {% block extra_head %}{% endblock %}
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=1"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
@@ -87,18 +87,8 @@
       </div>
     </div>
 
-    <footer class="footer footer-transparent d-print-none">
-      <div class="container-fluid">
-        <div class="row text-center align-items-center">
-          <div class="col-12 col-lg-auto">
-            <p class="mb-0 text-secondary">
-              © {{ year|default:"2026" }} Soporte Técnico – Asociación Nuevo Amanecer.
-            </p>
-          </div>
-        </div>
-      </div>
-    </footer>
-  </div>
+    {% include "_footer.html" %}
+</div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -113,7 +103,5 @@
 <script src="{% static 'accounts/js/theme.js' %}?v=1"></script> {# tema: toggle + sidebar activo - claude code #}
 
 {% include "accounts/_welcome_overlay.html" %}
-{# <--- hecho por claude code: versión + novedades #}
-{% include "_version_footer.html" %}
 </body>
 </html>

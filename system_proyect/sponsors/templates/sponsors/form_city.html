@@ -1,72 +1,46 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Ciudades</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="{% static 'sponsors/css/form_city.css' %}">
-</head>
-<body>
+{# <--- hecho por claude code: migrado a Tabler sobre base_sponsors #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}Ciudades{% endblock %}
+{% block page_pretitle %}Catálogos{% endblock %}
+{% block page_title %}Ciudades{% endblock %}
 
-    <div class="container">
-        <h2>Gestión de Ciudades</h2>
-
-
-        <!-- Formulario para agregar una ciudad -->
-        <form method="post" class="mt-3">
-            {% csrf_token %}
-            <div class="mb-3">
-                {{ form.zip_code.label_tag }}
-                {{ form.zip_code }}
-            </div>
-            <div class="mb-3">
-                {{ form.name.label_tag }}
-                {{ form.name }}
-            </div>
-            <div class="mb-3">
-                {{ form.country.label_tag }}
-                {{ form.country }}
-            </div>
-            <button type="submit" class="btn btn-success">Guardar Ciudad</button>
-            <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-secondary">Regresar</a>
-        </form>
+{% block content %}
+<div class="row row-cards">
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-building-community me-2 text-teal"></i>Agregar</h3></div>
+      <form method="post">{% csrf_token %}
+        <div class="card-body">
+          {% for f in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ f.label }}</label>
+            {{ f }}
+            {% if f.errors %}<div class="text-danger small mt-1">{{ f.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer text-end">
+          <button class="btn btn-primary"><i class="ti ti-plus me-1"></i>Agregar</button>
+        </div>
+      </form>
     </div>
-
-    <!-- Tabla de ciudades registradas -->
-    <div class="container table-container">
-        <h3>Lista de Ciudades</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Código Postal</th>
-                    <th>Ciudad</th>
-                    <th>País</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for city in city_list %}
-                <tr>
-                    <td>{{ city.id }}</td>
-                    <td>{{ city.zip_code }}</td>
-                    <td>{{ city.name }}</td>
-                    <td>{{ city.country.name }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center">No hay ciudades registradas.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-      <div class="footer">
-    © {{ year }} Soporte Técnico - Asociación Nuevo Amanecer. Todos los derechos reservados.
   </div>
-
-
-</body>
-</html>
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Registrados</h3></div>
+      <div class="table-responsive" style="max-height:70vh;overflow:auto;">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th style="width:80px;">ID</th><th>Ciudad</th><th>Código Postal</th><th>País</th></tr></thead>
+          <tbody>
+            {% for o in city_list %}
+            <tr><td class="text-muted">{{ o.id }}</td><td class="fw-medium">{{ o.name|default:"—" }}</td><td>{{ o.zip_code|default:"—" }}</td><td>{{ o.country.name|default:"—" }}</td></tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Sin registros</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -198,3 +198,33 @@ def estado_mantenimiento(request):
         'message':       getattr(config, 'MAINTENANCE_MESSAGE', ''),
         'blocked_users': blocked_out,
     })
+
+
+# ── BLOQUEO POR FORMULARIO ─────────────────────────────────────────────────────
+# <--- hecho por claude code: estados por módulo (normal | lectura | bloqueado)
+
+@login_required
+@require_GET
+def modulos_estado(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    from constance import config
+    from core.maintenance_modules import modulos_para_ui
+    mods = [{'key': m['key'], 'label': m['label'], 'estado': m['estado']}
+            for m in modulos_para_ui(config)]
+    return JsonResponse({'ok': True, 'modulos': mods})
+
+
+@login_required
+@require_POST
+def modulos_guardar(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    from constance import config
+    from core.maintenance_modules import guardar_estados
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+    estados = guardar_estados(config, body.get('modulos') or {})
+    return JsonResponse({'ok': True, 'modulos': estados})

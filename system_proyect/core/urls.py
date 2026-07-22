@@ -1,5 +1,6 @@
 from django.urls import path
-from .views_maintenance import toggle_mantenimiento, estado_mantenimiento
+from .views_maintenance import (toggle_mantenimiento, estado_mantenimiento,
+                                modulos_estado, modulos_guardar)
 from .views_version import marcar_version_vista   # <--- hecho por claude code
 
 # Notificaciones
@@ -35,6 +36,9 @@ urlpatterns = [
     # ============================
     path("api/mantenimiento/toggle/", toggle_mantenimiento, name="toggle_mantenimiento"),
     path("api/mantenimiento/estado/", estado_mantenimiento, name="estado_mantenimiento"),
+    # <--- hecho por claude code: bloqueo por formulario
+    path("api/mantenimiento/modulos/", modulos_estado, name="modulos_estado"),
+    path("api/mantenimiento/modulos/guardar/", modulos_guardar, name="modulos_guardar"),
 
     # ============================
     # 🆕 VERSIÓN / NOVEDADES   <--- hecho por claude code

@@ -1,416 +1,105 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
+{# <--- hecho por claude code: formulario migrado a Tabler; itera los campos para no perder ninguno #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}{% if edit_mode %}Editar Sponsor{% else %}Nuevo Sponsor{% endif %}{% endblock %}
+{% block page_pretitle %}Sponsors{% endblock %}
+{% block page_title %}
+  {% if edit_mode %}Editar: {{ sponsor.first_name_1|default:"" }} {{ sponsor.last_name_1|default:"" }}{% else %}Nuevo Sponsor{% endif %}
+{% endblock %}
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formulario de Sponsors</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="{% static 'sponsors/css/form_sponsor.css' %}">
-</head>
-
-<body>
-  <div class="form-container">
-    <h2 class="text-center">Formulario de Sponsors</h2>
-
-    <form method="post">
-      {% csrf_token %}
-
-      <div class="row">
-        <!-- Columna 1 -->
-        <div class="col-md-4">
-          <!-- Cuadro de buscadores -->
-          <div class="box-bordered mb-3">
-            <h5>Buscadores</h5>
-          
-   <!-- Buscar por Apellido -->
-            <div class="mb-2">
-              <label for="search_lastname" class="form-label">Buscar por Apellido</label>
-              <select id="search_lastname" class="form-select">
-                <option value="">Seleccione un Apellido</option>
-                {% for sponsor in sponsors %}
-                  <option value="{{ sponsor.id }}">
-                    {{ sponsor.last_name_1 }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <!-- Buscar por Nombre -->
-            <div class="mb-2">
-              <label for="search_name" class="form-label">Buscar por Nombre</label>
-              <select id="search_name" class="form-select">
-                <option value="">Seleccione un Nombre</option>
-                {% for sponsor in sponsors %}
-                  <option value="{{ sponsor.id }}">
-                    {{ sponsor.first_name_1 }} {{ sponsor.last_name_1 }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-          
-         
-          
-            <!-- Buscar por ID -->
-            <div>
-              <label for="search_id" class="form-label">Buscar por ID</label>
-              <select id="search_id" class="form-select">
-                <option value="">Seleccione un ID</option>
-                {% for sponsor in sponsors %}
-                  <option value="{{ sponsor.id }}">
-                    {{ sponsor.id }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-          
-
-          <!-- Persona ID -->
-          <div class="mb-3">
-            <label class="form-label">Persona ID</label>
-            {{ form.id }}
-          </div>
-
-          <!-- Dirigido, Título -->
-          <div class="mb-3">
-            <label class="form-label">Dirigido</label>
-            {{ form.directed }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Título</label>
-            {{ form.title }}
-          </div>
-
-          <!-- Apellidos, Nombres -->
-          <div class="mb-3">
-            <label class="form-label">Primer Apellido</label>
-            {{ form.last_name_1 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Segundo Apellido</label>
-            {{ form.last_name_2 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Primer Nombre</label>
-            {{ form.first_name_1 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Segundo Nombre</label>
-            {{ form.first_name_2 }}
-          </div>
-
-          <!-- Unión Libre, Contacto, Anexo, Dirección Postal, Calle -->
-          <div class="form-check mb-3">
-            {{ form.free_union }}
-            <label class="form-check-label" for="id_free_union">Unión Libre</label>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Contacto</label>
-            {{ form.contact }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Anexo</label>
-            {{ form.annex }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Dirección Postal</label>
-            {{ form.address }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Calle</label>
-            {{ form.street }}
-          </div>
-
- <!-- Ciudad -->
-<div class="mb-3">
-  <label class="form-label">Ciudad</label>
-  <select id="id_city" name="city_select" class="form-select">
-    <option value="">Selecciona una Ciudad</option>
-    {% for city in cities %}
-      <option
-        value="{{ city.id }}"
-        data-zip="{{ city.zip_code }}"
-        data-country="{{ city.country.name }}"
-        {% if sponsor and sponsor.city and sponsor.city.id == city.id %}selected{% endif %}
-      >
-        {{ city.name }} ({{ city.zip_code }})
-      </option>
-    {% endfor %}
-  </select>
+{% block page_actions %}
+<div class="col-auto ms-auto d-print-none">
+  <button type="button" class="btn btn-outline-secondary" onclick="window.print()"><i class="ti ti-printer me-1"></i>Imprimir</button>
+  <a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Volver a la lista</a>
 </div>
+{% endblock %}
 
-<!-- Código Postal -->
-<div class="mb-3">
-  <label class="form-label">Código Postal</label>
-  <input
-    type="text"
-    id="postal_code"
-    class="form-control"
-    value="{% if sponsor and sponsor.city %}{{ sponsor.city.zip_code }}{% endif %}"
-    readonly
-  />
+{% block content %}
+{% if form.errors %}
+<div class="alert alert-danger">
+  <i class="ti ti-alert-triangle me-2"></i>Revisa los campos marcados: hay {{ form.errors|length }} error(es).
 </div>
+{% endif %}
 
-<!-- País -->
-<div class="mb-3">
-  <label class="form-label">País</label>
-  <input
-    type="text"
-    id="country"
-    class="form-control"
-    value="{% if sponsor and sponsor.city and sponsor.city.country %}{{ sponsor.city.country.name }}{% endif %}"
-    readonly
-  />
-</div>
-
-          <!-- Campo adicional -->
-          <div class="mb-3">
-            <label for="id_padrino_ch_d" class="form-label">{{ form.padrino_ch_d.label }}</label>
-            {{ form.padrino_ch_d }}
+<form method="post" id="form-sponsor">
+  {% csrf_token %}
+  <div class="row row-cards">
+    {# ── Datos (campos de texto/selección) ── #}
+    <div class="col-12 col-xl-8">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ti ti-user me-2 text-pink"></i>Datos del sponsor</h3></div>
+        <div class="card-body">
+          <div class="row g-3">
+            {% for f in form %}
+              {% if f.field.widget.input_type != 'checkbox' %}
+              <div class="col-12 col-md-6 col-xl-4">
+                <label class="form-label{% if f.field.required %} required{% endif %}">{{ f.label }}</label>
+                {{ f }}
+                {% if f.errors %}<div class="text-danger small mt-1">{{ f.errors|striptags }}</div>{% endif %}
+              </div>
+              {% endif %}
+            {% endfor %}
           </div>
-
         </div>
+      </div>
+    </div>
 
-        <!-- Columna 2 -->
-        <div class="col-md-4">
-          <!-- Teléfono, Fax, Email -->
-          <div class="mb-3">
-            <label class="form-label">Teléfono 1</label>
-            {{ form.phone_1 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Teléfono 2</label>
-            {{ form.phone_2 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Fax</label>
-            {{ form.fax }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Correo Electrónico</label>
-            {{ form.email }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Correo Electrónico 2</label>
-            {{ form.email_2 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Correo Electrónico 3</label>
-            {{ form.email_3 }}
-          </div>
-
-          <!-- Checkboxes de Email/Reporte -->
-          <div class="form-check">
-            {{ form.report_email }}
-            <label class="form-check-label" for="id_report_email">Reporte Email</label>
-          </div>
-          <div class="form-check">
-            {{ form.only_email }}
-            <label class="form-check-label" for="id_only_email">Solo Recibe Email</label>
-          </div>
-          <div class="form-check">
-            {{ form.only_easter_rep }}
-            <label class="form-check-label" for="id_only_easter_rep">Solo Email OB</label>
-          </div>
-          <div class="form-check mb-3">
-            {{ form.financial_report }}
-            <label class="form-check-label" for="id_financial_report">Reporte Financiero</label>
-          </div>
-
-          <!-- Idioma, Profesión, Fechas Nac, Sexo, etc. -->
-          <div class="mb-3">
-            <label class="form-label">Idioma Reporte</label>
-            {{ form.language }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Profesión</label>
-            {{ form.profession }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Fecha Nacimiento 1</label>
-            {{ form.date_of_birth }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Fecha Nacimiento 2</label>
-            {{ form.date_of_birth_2 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Sexo</label>
-            {{ form.gender }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Estado Civil
+    {# ── Marcas / banderas (checkboxes) ── #}
+    <div class="col-12 col-xl-4">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ti ti-flag me-2 text-orange"></i>Marcas</h3></div>
+        <div class="card-body" style="max-height:60vh;overflow:auto;">
+          {% for f in form %}
+            {% if f.field.widget.input_type == 'checkbox' %}
+            <label class="form-check form-switch">
+              {{ f }}
+              <span class="form-check-label">{{ f.label }}</span>
             </label>
-            {{ form.civil_status }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">
-              Nacionalidad</label>
-            {{ form.nationality }}
-          </div>
-
-          <!-- Dirigido Carta, Primer Contacto, Último Contacto, Notas -->
-          <div class="mb-3">
-            <label class="form-label">Dirigido Carta</label>
-            {{ form.addressed_to }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Dirigido Carta Aled</label>
-            {{ form.addressed_to_2 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Primer Contacto</label>
-            {{ form.first_contact }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Último Contacto</label>
-            {{ form.last_contact }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nota 1</label>
-            {{ form.note_1 }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nota 2</label>
-            {{ form.note_2 }}
-          </div>
-        </div>
-
-        <!-- Columna 3 -->
-        <div class="col-md-4">
-          <!-- Grupo "3 checkboxes" en un cuadro -->
-          <div class="border p-2 mb-3">
-            <h5>Estado</h5>
-            <div class="form-check mb-1">
-              {{ form.deceased }}
-              <label class="form-check-label" for="id_deceased">Fallecido</label>
-            </div>
-            <div class="form-check mb-1">
-              {{ form.deactivated }}
-              <label class="form-check-label" for="id_deactivated">Desactivado</label>
-            </div>
-            <div class="form-check">
-              {{ form.bad_address }}
-              <label class="form-check-label" for="id_bad_address">Dirección Mala</label>
-            </div>
-          </div>
-
-          <!-- Resto de checkboxes -->
-          <div class="form-check mb-1">
-            {{ form.expect_reaction }}
-            <label class="form-check-label" for="id_expect_reaction">Esperar Reac.</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.no_correspondence }}
-            <label class="form-check-label" for="id_no_correspondence">No Corresp</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.deactivate_soon }}
-            <label class="form-check-label" for="id_deactivate_soon">Desact Prox</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.private }}
-            <label class="form-check-label" for="id_private">Privado</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.sponsor }}
-            <label class="form-check-label" for="id_sponsor">Bienhechor</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.godfather }}
-            <label class="form-check-label" for="id_godfather">Padrino</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.member }}
-            <label class="form-check-label" for="id_member">Miembro</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.visitor }}
-            <label class="form-check-label" for="id_visitor">Visitante</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.former_volunteer }}
-            <label class="form-check-label" for="id_former_volunteer">Ex Voluntario</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.member}}
-            <label class="form-check-label" for="id_member">Miembro JD</label>
-          </div>
-          <div class="form-check mb-3">
-            {{ form.member_asamblea }}
-            <label class="form-check-label" for="id_member_asamblea">Miembro Asamblea</label>
-          </div>
-
-          <!-- Puesto -->
-          <div class="mb-3">
-            <label class="form-label">Puesto</label>
-            <input type="text" class="form-control" placeholder="Puesto" name="puesto" />
-          </div>
-
-          <!-- Reconocimientos -->
-          <div class="form-check mb-1">
-            {{ form.recog_2010 }}
-            <label class="form-check-label" for="id_recog_2010">Recon 2010</label>
-          </div>
-          <div class="form-check mb-1">
-            {{ form.recog_2020_blanket }}
-            <label class="form-check-label" for="id_recog_2020_blanket">Recon 2020 Manta</label>
-          </div>
-          <div class="form-check mb-3">
-            {{ form.recog_2020_plate }}
-            <label class="form-check-label" for="id_recog_2020_plate">Recon 2020 Plato</label>
-          </div>
-
-          <!-- Fechas: Visita, Egr Vol -->
-          <div class="mb-3">
-            <label class="form-label" for="id_visitor_date">Fecha Visit</label>
-            {{ form.visitor_date }}
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="id_volunt_dep_date">Fecha Egr Vol</label>
-            {{ form.volunt_dep_date }}
-          </div>
+            {% endif %}
+          {% endfor %}
         </div>
       </div>
-
-      <!-- Botones -->
-      <div class="text-center mt-4">
-        <button type="button" id="godfather_button" class="btn btn-info"
-          onclick="redirectWithAlert('{% url 'sponsors:add_godfather' %}', 'Godfather')" disabled>
-          Godfather
-        </button>
-        <button type="button" class="btn btn-warning"
-          onclick="redirectWithAlert('{% url 'sponsors:add_income' %}', 'Income')">
-          Income
-        </button>
-        <button type="button" class="btn btn-primary"
-          onclick="redirectWithAlert('{% url 'sponsors:add_correspondence' %}', 'Correspondence')">
-          Correspondence
-        </button>
-        <button type="submit" class="btn btn-success">Guardar Sponsor</button>
-        <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-secondary">
-          Cancelar
-        </a>
-        <!-- Botón Imprimir PDF -->
-        <button type="button" class="btn btn-dark" onclick="imprimirFormulario()">
-          Imprimir
-        </button>
-        <!-- Botón Enviar PDF Email -->
-        <button type="button" class="btn btn-outline-dark" onclick="enviarPdfEmail()">
-          Enviar PDF Email
-        </button>
-      </div>
-    </form>
-  </div>
-    <div class="footer">
-    © {{ year }} Soporte Técnico - Asociación Nuevo Amanecer. Todos los derechos reservados.
+    </div>
   </div>
 
+  <div class="mt-3 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">
+      <i class="ti ti-device-floppy me-1"></i>{% if edit_mode %}Guardar cambios{% else %}Agregar sponsor{% endif %}
+    </button>
+    <a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+    {% if edit_mode %}
+    <button type="button" class="btn btn-outline-danger ms-auto" id="btn-eliminar">
+      <i class="ti ti-trash me-1"></i>Eliminar
+    </button>
+    {% endif %}
+  </div>
+</form>
 
-  <script src="{% static 'sponsors/js/sponsors.js' %}"></script>
-</body>
+{% if edit_mode %}
+{# Eliminar va por POST con confirmación: antes se borraba con un simple GET #}
+<form method="post" action="{% url 'sponsors:delete_sponsor' sponsor.id %}" id="form-eliminar" class="d-none">
+  {% csrf_token %}
+</form>
+{% endif %}
+{% endblock %}
 
-</html>
+{% block extra_js %}
+<script>
+(function(){
+  var btn = document.getElementById('btn-eliminar');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    Swal.fire({
+      icon: 'warning',
+      title: '¿Eliminar este sponsor?',
+      html: 'Se borrará también su <strong>historial de ingresos, padrinazgos y correspondencia</strong>.<br>Esta acción no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d63939'
+    }).then(function(r){
+      if(r.isConfirmed) document.getElementById('form-eliminar').submit();
+    });
+  });
+})();
+</script>
+{% endblock %}

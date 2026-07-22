@@ -9,7 +9,7 @@
   <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <style>
     .sb-config-header { font-size:.65rem;letter-spacing:.08em;padding:.5rem 1rem .25rem;
                         color:rgba(255,255,255,.4);text-transform:uppercase;font-weight:600; }
@@ -222,5 +222,7 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+{# <--- hecho por claude code: footer unificado #}
+{% include "_footer.html" %}
 </body>
 </html>

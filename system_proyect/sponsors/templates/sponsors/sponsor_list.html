@@ -1,0 +1,96 @@
+{# <--- hecho por claude code: lista paginada + buscador (antes cargaba los ~3,500 de golpe) #}
+{% extends 'sponsors/base_sponsors.html' %}
+{% block title %}Lista de Sponsors{% endblock %}
+{% block page_pretitle %}Sponsors{% endblock %}
+{% block page_title %}Lista de Sponsors{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto ms-auto d-print-none">
+  <a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i>Nuevo Sponsor</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-list me-2 text-pink"></i>{{ total }} sponsor{{ total|pluralize:"s" }}</h3>
+    <div class="card-actions">
+      <form method="get" class="d-flex gap-2">
+        <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
+               placeholder="Nombre, apellido, correo o ID" style="min-width:240px;">
+        <button class="btn btn-sm btn-outline-primary"><i class="ti ti-search"></i></button>
+        {% if q %}<a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-sm btn-ghost-secondary">Limpiar</a>{% endif %}
+      </form>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th style="width:80px;">ID</th>
+          <th>Nombre</th>
+          <th>Ciudad / País</th>
+          <th>Contacto</th>
+          <th>Estado</th>
+          <th style="width:110px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sponsors %}
+        <tr>
+          <td class="text-muted">{{ s.id }}</td>
+          <td>
+            <div class="fw-medium">{{ s.first_name_1|default:"" }} {{ s.last_name_1|default:"" }}</div>
+            {% if s.profession %}<div class="text-muted small">{{ s.profession }}</div>{% endif %}
+          </td>
+          <td class="small">
+            {% if s.city %}{{ s.city.name|default:"—" }}<span class="text-muted"> · {{ s.city.country.name|default:"" }}</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="small">
+            {% if s.email %}<div><i class="ti ti-mail me-1 text-muted"></i>{{ s.email }}</div>{% endif %}
+            {% if s.phone_1 %}<div><i class="ti ti-phone me-1 text-muted"></i>{{ s.phone_1 }}</div>{% endif %}
+            {% if not s.email and not s.phone_1 %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            {% if s.sponsor %}<span class="badge bg-pink-lt text-pink me-1">Padrino</span>{% endif %}
+            {% if s.godfather %}<span class="badge bg-purple-lt text-purple me-1">Bienhechor</span>{% endif %}
+            {% if s.member %}<span class="badge bg-blue-lt text-blue me-1">Miembro</span>{% endif %}
+            {% if s.deceased %}<span class="badge bg-secondary-lt text-muted me-1">Fallecido</span>{% endif %}
+            {% if s.deactivated %}<span class="badge bg-red-lt text-red me-1">Desactivado</span>{% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'sponsors:edit_sponsor' s.id %}" class="btn btn-sm btn-outline-primary">
+              <i class="ti ti-edit me-1"></i>Editar
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">
+          <i class="ti ti-mood-empty" style="font-size:2rem;"></i>
+          <div class="mt-2">{% if q %}Sin resultados para “{{ q }}”.{% else %}No hay sponsors registrados.{% endif %}</div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="card-footer d-flex align-items-center">
+    <p class="m-0 text-muted small">
+      Página <strong>{{ page_obj.number }}</strong> de <strong>{{ page_obj.paginator.num_pages }}</strong>
+    </p>
+    <ul class="pagination m-0 ms-auto">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1{% if q %}&q={{ q }}{% endif %}"><i class="ti ti-chevrons-left"></i></a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}"><i class="ti ti-chevron-left"></i></a></li>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}"><i class="ti ti-chevron-right"></i></a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if q %}&q={{ q }}{% endif %}"><i class="ti ti-chevrons-right"></i></a></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
