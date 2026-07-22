@@ -15,6 +15,18 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
 
+### v6.0.2.0 — JS/CSS fuera del HTML, notificaciones y tema
+
+> Release **técnico**: las novedades de esta versión solo se le muestran al superusuario.
+
+- **Cero JS y CSS dentro de los templates** — Se migraron **2,539 líneas** repartidas en **70 plantillas** (JS) y **31** (CSS) a archivos estáticos propios. Como un `.js` no lo procesa Django, los valores del servidor viajan por tres patrones: `data-*` en un div de config (URLs y banderas), **islas JSON** (`<script type="application/json">`, mismo patrón que `json_script`) para objetos y listas, y `{% if %}` de Django convertido a `if` de JavaScript donde había lógica de permisos. Cada archivo se validó con `node --check` y cada isla renderizando la página y parseando el JSON.
+- **Notificaciones arregladas** — La campanita y su JS estaban **duplicados a mano en solo 3 plantillas**, así que en los otros 14 módulos las notificaciones se generaban pero **nadie las veía**. Ahora hay un parcial único (`accounts/_notificaciones.html`) incluido desde `_user_dropdown.html`, presente en los 17 módulos.
+- **Modo oscuro retirado** — Quedaba a medias (la barra lateral se aclaraba, formularios y modales sin cubrir) y `menu.js` re-aplicaba el tema guardado en cada carga, así que no se podía volver a claro. Se eliminó el toggle, `theme.js`, `theme-init.js` y el CSS del tema oscuro: el sistema queda **siempre en claro**, conservando la barra lateral oscura del diseño original.
+- **Versiones menores** — `gen_changelog --menor` sube un 5º segmento (`6.0.1.3.001`) y marca la entrada para que **solo el superusuario** vea la ventana de novedades; los releases normales se anuncian a todos.
+- **Sponsors** — Botón *Volver* en las 13 pantallas (por defecto en la base del módulo) y estilos parejos en los 10 formularios mediante un mixin que asigna `form-select`/`form-control`/`form-check-input` según el tipo de campo.
+- **Bloqueo por formulario** — *Solo lectura* ahora **deshabilita los campos** en pantalla (antes dejaba escribir y solo fallaba al guardar); pantalla propia con botón *Volver*; la tarjeta guarda también el área y los docentes seleccionados (antes esa selección no tenía efecto); aviso al restringir sin elegir docente y botón *Restaurar* con confirmación.
+- **Correcciones** — Comentarios `{# … #}` multilínea que se imprimían como texto en pantalla (en Django son de una sola línea); `Correspondence.description` mapeada a la columna real `decription`; decimales con coma por localización y listas de Python que rompían el JSON.
+
 ### v6.0.1.3 — Sponsors, bloqueo por formulario y footer unificado
 
 - **🔒 Sponsors: módulo era público** — Ninguna de sus 18 vistas exigía sesión, exponiendo **3,561 donantes** (correos, teléfonos, direcciones, fechas de nacimiento) y **30,045 ingresos** a cualquiera sin autenticar. Además `delete_sponsor` **borraba por GET**, sin CSRF ni confirmación, arrastrando en cascada ingresos y padrinazgos. Corregido: `@login_required` en todas, borrado solo por POST con confirmación.

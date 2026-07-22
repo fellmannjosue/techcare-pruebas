@@ -1,7 +1,11 @@
 {% load static %}
 {# Dropdown de usuario – incluido en el pie de todos los sidebars #}
 <div class="mt-auto pt-3 border-top border-secondary">
-  <div class="dropup px-2 py-1">
+
+  {# <--- hecho por claude code: campanita + tema, aquí para que existan en TODOS los módulos #}
+  {% include 'accounts/_notificaciones.html' %}
+
+<div class="dropup px-2 py-1">
     <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle-no-caret"
        data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" id="userDropdown">
       {% if request.user.perfil.avatar %}

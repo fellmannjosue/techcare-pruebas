@@ -1,3 +1,8 @@
+/* <--- hecho por claude code: MD_POR_GRADO llega por la isla JSON del template */
+(function(){ var el=document.getElementById('md-por-grado-data');
+  if (el && !window.MD_POR_GRADO) { try { window.MD_POR_GRADO = JSON.parse(el.textContent); }
+    catch(e){ window.MD_POR_GRADO = {}; } } })();
+
 // ===========================
 //   JS UNIFICADO CONDUCTA + INFORMATIVO + PROGRESS REPORT
 // ===========================

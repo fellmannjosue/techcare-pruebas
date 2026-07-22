@@ -216,13 +216,14 @@
 </div>
 
 {# ── Modal: Tiempo Extra Autorizado ── #}
-<script>
-window._PAGE = {
-  canEditExtra: {{ can_edit_extra|yesno:'true,false' }},
-  urlSetExtra: "{% url 'reloj_compensatorio_set_extra' %}",
-  urlTeAddByEmp: "{% if emp_code_f %}/reloj/compensatorio/emp/{{ emp_code_f }}/tiempo-extra/add/{% endif %}"
-};
+<script type="application/json" id="compensatorio_list-data">
+{
+  "canEditExtra":  {{ can_edit_extra|yesno:'true,false' }},
+  "urlSetExtra":   "{% url 'reloj_compensatorio_set_extra' %}",
+  "urlTeAddByEmp": "{% if emp_code_f %}/reloj/compensatorio/emp/{{ emp_code_f }}/tiempo-extra/add/{% endif %}"
+}
 </script>
+<script src="{% static 'reloj/js/compensatorio_list_page.js' %}?v=1"></script>
 
 {% if can_edit_extra %}
 <div class="modal modal-blur fade" id="modalExtraDia" tabindex="-1" role="dialog">

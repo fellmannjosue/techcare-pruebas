@@ -16,7 +16,8 @@
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});});}</script>
+<script src="{% static 'accounts/js/settings_base.js' %}?v=1"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 <body class="antialiased">
 <div class="wrapper">

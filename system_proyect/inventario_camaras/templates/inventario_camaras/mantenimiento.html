@@ -165,12 +165,9 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._IC = {
-  csrf: '{{ csrf_token }}',
-  camarasPorGrupo: {{ camaras_grupo_json|safe }},
-  editBase: '/inventario-camaras/mantenimiento/',
-};
-</script>
+<div id="mantenimiento-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{{ camaras_grupo_json|safe }}"></div>
+<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=1"></script>
 <script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=2"></script>
 {% endblock %}

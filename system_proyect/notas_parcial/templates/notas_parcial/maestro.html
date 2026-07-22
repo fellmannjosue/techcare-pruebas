@@ -1,4 +1,5 @@
 {% extends 'notas_parcial/base_notas.html' %}
+{% load static %}
 {% load static notas_tags %}
 
 {% block title %}Mis Reportes – Notas Mitad de Parcial{% endblock %}
@@ -163,15 +164,13 @@
 
 </div>
 
-<script>
-window._PAGE = Object.assign(window._PAGE || {}, {
-  csrf:      '{{ csrf_token }}',
-  urlSave:   '{% url "notas_parcial_comentario" %}',
-  urlFin:    '{% url "notas_parcial_finalizar" %}',
-  gradoSel:  '{{ grado_sel }}',
-  seccionSel:'{{ seccion_sel }}',
-  urlMaestro:'{% url "notas_parcial_maestro" %}',
-});
-</script>
+<div id="maestro-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "notas_parcial_comentario" %}"
+     data-v2="{% url "notas_parcial_finalizar" %}"
+     data-v3="{{ grado_sel }}"
+     data-v4="{{ seccion_sel }}"
+     data-v5="{% url "notas_parcial_maestro" %}"></div>
+<script src="{% static 'notas_parcial/js/maestro.js' %}?v=1"></script>
 <script src="{% static 'notas_parcial/js/maestro.js' %}?v=2"></script>
 {% endblock %}

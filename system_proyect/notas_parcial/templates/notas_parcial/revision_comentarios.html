@@ -166,12 +166,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = Object.assign(window._PAGE || {}, {
-  csrf:                '{{ csrf_token }}',
-  urlComentario:       '{% url "notas_parcial_comentario" %}',
-  urlEliminarComentario:'{% url "notas_parcial_eliminar_comentario" %}',
-});
-</script>
+<div id="revision_comentarios-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "notas_parcial_comentario" %}"
+     data-v2="{% url "notas_parcial_eliminar_comentario" %}"></div>
+<script src="{% static 'notas_parcial/js/revision_comentarios.js' %}?v=1"></script>
 <script src="{% static 'notas_parcial/js/revision_comentarios.js' %}"></script>
 {% endblock %}

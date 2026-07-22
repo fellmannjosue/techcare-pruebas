@@ -428,21 +428,19 @@
 
 </div>
 
-<script>
-window._PAGE = Object.assign(window._PAGE || {}, {
-  csrf:       '{{ csrf_token }}',
-  urlSave:    '{% url "notas_parcial_comentario" %}',
-  urlAsig:    '{% url "notas_parcial_asignar" %}',
-  urlLeer:    '{% url "notas_parcial_leer_notif" %}',
-  urlEmail:   '{% url "notas_parcial_enviar_email" %}',
-  area:       '{{ area }}',
-  parcial:    '{{ parcial }}',
-  anio:       '{{ anio }}',
-  curso:      '{{ curso }}',
-  grado:      '{{ grado }}',
-  seccion:    '{{ seccion }}',
-  soloCarrusel: {{ solo_carrusel|yesno:"true,false" }},
-});
-</script>
+<div id="coordinador-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "notas_parcial_comentario" %}"
+     data-v2="{% url "notas_parcial_asignar" %}"
+     data-v3="{% url "notas_parcial_leer_notif" %}"
+     data-v4="{% url "notas_parcial_enviar_email" %}"
+     data-v5="{{ area }}"
+     data-v6="{{ parcial }}"
+     data-v7="{{ anio }}"
+     data-v8="{{ curso }}"
+     data-v9="{{ grado }}"
+     data-v10="{{ seccion }}"
+     data-v11="{{ solo_carrusel|yesno:"true,false" }}"></div>
+<script src="{% static 'notas_parcial/js/coordinador.js' %}?v=1"></script>
 <script src="{% static 'notas_parcial/js/coordinador.js' %}?v=2"></script>
 {% endblock %}

@@ -88,7 +88,13 @@
 <div class="card mt-3">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-forms me-2 text-orange"></i>Bloqueo por formulario</h3>
-    <div class="card-actions"><span id="mant-mod-status" class="text-muted small"></span></div>
+    <div class="card-actions d-flex align-items-center gap-2">
+      <span id="mant-mod-status" class="text-muted small"></span>
+      {# <--- hecho por claude code: volver todos los formularios a Normal #}
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="mant-mod-reset">
+        <i class="ti ti-rotate me-1"></i>Restaurar
+      </button>
+    </div>
   </div>
   <div class="card-body">
     <p class="text-muted small mb-3">
@@ -116,37 +122,10 @@
   </div>
 </div>
 
-<script>
-(function(){
-  var sels = document.querySelectorAll('.mant-mod-sel');
-  var st   = document.getElementById('mant-mod-status');
-  var csrf = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '';
-  function guardar(){
-    var payload = {};
-    sels.forEach(function(s){ payload[s.dataset.key] = s.value; });
-    st.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
-    fetch("{% url 'modulos_guardar' %}", {
-      method:'POST', headers:{'X-CSRFToken':csrf,'Content-Type':'application/json'},
-      body: JSON.stringify({modulos: payload})
-    }).then(function(r){return r.json();}).then(function(d){
-      st.innerHTML = d.ok ? '<i class="ti ti-check me-1 text-green"></i>Guardado'
-                          : '<i class="ti ti-alert-triangle me-1 text-danger"></i>Error';
-      sels.forEach(function(s){
-        var box = s.closest('.border');
-        box.classList.remove('border-danger','border-warning');
-        if(s.value==='bloqueado') box.classList.add('border-danger');
-        else if(s.value==='lectura') box.classList.add('border-warning');
-      });
-    }).catch(function(){ st.innerHTML='<i class="ti ti-alert-triangle me-1 text-danger"></i>Error'; });
-  }
-  sels.forEach(function(s){
-    s.addEventListener('change', guardar);
-    var box=s.closest('.border');
-    if(s.value==='bloqueado') box.classList.add('border-danger');
-    else if(s.value==='lectura') box.classList.add('border-warning');
-  });
-})();
-</script>
+<div id="mantenimiento_modo-config" hidden
+     data-modulos-guardar="{% url 'modulos_guardar' %}"
+     data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'accounts/js/mantenimiento_modo.js' %}?v=1"></script>
 
 {# badge oculto requerido por menu.js #}
 <span id="mant-badge" style="display:none"><span id="mant-badge-txt"></span></span>

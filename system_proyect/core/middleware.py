@@ -101,7 +101,7 @@ class MaintenanceModeMiddleware:
         if not en_mantenimiento:
             # <--- hecho por claude code: el bloqueo por formulario funciona aunque
             # el mantenimiento general esté apagado.
-            return self._chequear_modulos(request, config) or self.get_response(request)
+            return self._continuar(request, config)
 
         # Auto-deactivar cuando se cumple el tiempo de fin
         end_str = getattr(config, 'MAINTENANCE_END_TIME', '')
@@ -129,7 +129,7 @@ class MaintenanceModeMiddleware:
         # <--- hecho por claude code: misma regla de siempre, ahora en _audiencia_afectada()
         if not _audiencia_afectada(user, config):
             # No le toca el mantenimiento general, pero sí puede tocarle un formulario bloqueado
-            return self._chequear_modulos(request, config) or self.get_response(request)
+            return self._continuar(request, config)
 
         mensaje  = getattr(config, 'MAINTENANCE_MESSAGE', '')
         end_time = getattr(config, 'MAINTENANCE_END_TIME', '')
@@ -139,6 +139,69 @@ class MaintenanceModeMiddleware:
             'maint_end_time': end_time,
             'maint_area':     _AREA_LABELS.get(area, area),
         }, status=503)
+
+    # <--- hecho por claude code: sigue el flujo normal, pero aplicando el bloqueo por
+    # formulario y, si el módulo está en "solo lectura", dejando la página no editable.
+    def _continuar(self, request, config):
+        bloqueo = self._chequear_modulos(request, config)
+        if bloqueo is not None:
+            return bloqueo
+        return self._aplicar_solo_lectura(request, config, self.get_response(request))
+
+    def _aplicar_solo_lectura(self, request, config, response):
+        """En modo 'lectura' la página se ve pero NO se puede escribir: deshabilita los
+        campos de los formularios que envían datos y oculta los botones de guardar.
+        (El corte de POST en el servidor sigue existiendo como respaldo real.)"""
+        mod = getattr(request, '_tc_solo_lectura', None)
+        if not mod:
+            return response
+        ctype = (response.get('Content-Type') or '').lower()
+        if 'text/html' not in ctype or getattr(response, 'streaming', False):
+            return response
+        if response.status_code != 200 or not hasattr(response, 'content'):
+            return response
+        try:
+            html = response.content.decode(response.charset or 'utf-8')
+        except (UnicodeDecodeError, LookupError):
+            return response
+        if '</body>' not in html:
+            return response
+
+        etiqueta = mod['label'].replace('"', '&quot;')
+        extra = """
+<div id="tc-solo-lectura-bar" style="position:sticky;top:0;z-index:1080;background:#fff3bf;
+     border-bottom:1px solid #f0c000;color:#664d03;padding:.5rem 1rem;font-size:.875rem;text-align:center;">
+  <strong>Solo lectura</strong> — %s está temporalmente en consulta. No se pueden guardar cambios.
+</div>
+<script>
+(function(){
+  function bloquear(){
+    // Solo los formularios que ESCRIBEN (POST). Los de búsqueda (GET) siguen usables.
+    document.querySelectorAll('form').forEach(function(f){
+      var m = (f.getAttribute('method') || 'get').toLowerCase();
+      if (m !== 'post') return;
+      f.querySelectorAll('input, select, textarea, button').forEach(function(el){
+        if (el.type === 'hidden') return;
+        el.disabled = true;
+      });
+      f.addEventListener('submit', function(e){ e.preventDefault(); }, true);
+    });
+    // Botones sueltos que suelen guardar/eliminar
+    document.querySelectorAll('[type=submit], .btn-primary[onclick], .btn-danger[onclick]').forEach(function(el){
+      el.disabled = true;
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bloquear);
+  else bloquear();
+})();
+</script>
+""" % etiqueta
+
+        html = html.replace('</body>', extra + '</body>', 1)
+        response.content = html.encode(response.charset or 'utf-8')
+        if response.has_header('Content-Length'):
+            response['Content-Length'] = str(len(response.content))
+        return response
 
     # <--- hecho por claude code: bloqueo selectivo por formulario
     def _chequear_modulos(self, request, config):
@@ -163,21 +226,23 @@ class MaintenanceModeMiddleware:
         if not _audiencia_afectada(getattr(request, 'user', None), config):
             return None
 
-        # En "solo lectura" únicamente se cortan las escrituras
+        # En "solo lectura": la página se muestra, pero marcada para dejarla no editable
         if estado == 'lectura' and request.method in ('GET', 'HEAD', 'OPTIONS'):
+            request._tc_solo_lectura = mod
             return None
 
-        if estado == 'lectura':
-            mensaje = (f'<strong>{mod["label"]}</strong> está en modo <strong>solo lectura</strong>. '
-                       'Puedes consultar la información, pero por ahora no se pueden guardar cambios.')
-        else:
-            mensaje = (f'<strong>{mod["label"]}</strong> está temporalmente <strong>bloqueado</strong> '
-                       'por mantenimiento. Vuelve a intentarlo más tarde.')
+        # <--- hecho por claude code: pantalla propia (no la de "sistema en mantenimiento"),
+        # con botón de volver, porque el resto del sistema sigue disponible.
+        try:
+            inicio = reverse('menu')
+        except NoReverseMatch:
+            inicio = '/'
 
-        return render(request, 'core/mantenimiento.html', {
-            'maint_message':  mensaje,
+        return render(request, 'core/formulario_bloqueado.html', {
+            'mod_label':      mod['label'],
+            'mod_key':        mod['key'],
+            'solo_lectura':   estado == 'lectura',
+            'estado_label':   ESTADO_LABELS.get(estado, estado),
             'maint_end_time': getattr(config, 'MAINTENANCE_END_TIME', ''),
-            'maint_area':     mod['label'],
-            'maint_modulo':   mod['label'],
-            'maint_estado':   ESTADO_LABELS.get(estado, estado),
+            'inicio_url':     inicio,
         }, status=503)

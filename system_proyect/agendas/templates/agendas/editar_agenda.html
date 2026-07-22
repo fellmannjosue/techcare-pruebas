@@ -138,6 +138,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>window._PAGE = { agendaId: {{ agenda.pk }}, csrf: '{{ csrf_token }}', subirUrl: '{% url "agendas:subir_imagen" %}' };</script>
+<div id="editar_agenda-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "agendas:subir_imagen" %}"
+     data-v2="{{ agenda.pk }}"></div>
+<script src="{% static 'agendas/js/editar_agenda.js' %}?v=1"></script>
 <script src="{% static 'agendas/js/editar_agenda.js' %}"></script>
 {% endblock %}

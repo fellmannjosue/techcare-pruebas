@@ -8,17 +8,26 @@ def current_year(request):
 
 
 def version_context(request):
-    """<--- hecho por claude code: versión en el footer + modal de novedades (una vez por versión)."""
+    """<--- hecho por claude code: versión en el footer + modal de novedades (una vez por versión).
+
+    Regla del usuario: un release **menor** (< 50 archivos, versión tipo 6.0.1.3.001)
+    solo le muestra las novedades al superusuario; los demás no reciben la ventana
+    por cada arreglito. Un release normal se le anuncia a todos.
+    """
     from core.version import version_actual, novedades
     v = version_actual()
+    ent = novedades()
+    es_menor = bool(ent and ent[0].get('menor'))
     mostrar = False
     u = getattr(request, 'user', None)
     if u is not None and u.is_authenticated:
         try:
-            mostrar = (u.perfil.version_vista or '') != v
+            no_vista = (u.perfil.version_vista or '') != v
+            mostrar = no_vista and (not es_menor or u.is_superuser)
         except Exception:
             mostrar = False
-    return {'app_version': v, 'novedades': novedades(), 'mostrar_novedades': mostrar}
+    return {'app_version': v, 'novedades': ent, 'mostrar_novedades': mostrar,
+            'version_menor': es_menor}
 
 
 def nav_context(request):

@@ -289,23 +289,20 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'reloj/js/autorefresh.js' %}"></script>
-<script>
-window._PAGE = {
-  csrf:               '{{ csrf_token }}',
-  addUrl:             '{% url "reloj_comentario_add" %}',
-  deleteBase:         '{% url "reloj_comentario_delete" pk=99999 %}',
-  urlPermSave:        '{% url "reloj_permiso_reporte_save" %}',
-  urlPermDelete:      '{% url "reloj_permiso_reporte_delete" pk=99999 %}',
-  urlVacBalance:      '{% url "reloj_vacacion_balance" %}',
-  permisosMap:        {{ permisos_json|safe }},
-  canEditPermisos:    {{ can_edit_permisos|yesno:"true,false" }},
-  canDeletePermisos:  {{ can_delete_permisos|yesno:"true,false" }},
-  tipoLabels: {
-    {% for campo, etiqueta, color in campos_permiso %}
-    '{{ campo }}': { label: '{{ etiqueta }}', color: '{{ color }}' },
-    {% endfor %}
-  }
-};
+<script type="application/json" id="reporte-data">
+{
+  "csrf":              "{{ csrf_token }}",
+  "addUrl":            "{% url 'reloj_comentario_add' %}",
+  "deleteBase":        "{% url 'reloj_comentario_delete' pk=99999 %}",
+  "urlPermSave":       "{% url 'reloj_permiso_reporte_save' %}",
+  "urlPermDelete":     "{% url 'reloj_permiso_reporte_delete' pk=99999 %}",
+  "urlVacBalance":     "{% url 'reloj_vacacion_balance' %}",
+  "permisosMap":       {{ permisos_json|safe }},
+  "canEditPermisos":   {{ can_edit_permisos|yesno:"true,false" }},
+  "canDeletePermisos": {{ can_delete_permisos|yesno:"true,false" }},
+  "tipoLabels": { {% for campo, etiqueta, color in campos_permiso %}"{{ campo|escapejs }}": {"label": "{{ etiqueta|escapejs }}", "color": "{{ color|escapejs }}"}{% if not forloop.last %}, {% endif %}{% endfor %} }
+}
 </script>
+<script src="{% static 'reloj/js/reporte_page.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/reporte.js' %}?v=4"></script>
 {% endblock %}

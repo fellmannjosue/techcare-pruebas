@@ -10,81 +10,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
-  <style>
-    /* ── Tabs principales ─── */
-    .nav-tabs-main .nav-link {
-      font-size: .9rem; font-weight: 600; padding: .75rem 1.4rem;
-      border-radius: 0; border: none; border-bottom: 3px solid transparent;
-      color: var(--tblr-muted);
-    }
-    .nav-tabs-main .nav-link.active {
-      color: var(--tblr-teal); border-bottom-color: var(--tblr-teal);
-      background: transparent;
-    }
-    .nav-tabs-main .nav-link:hover:not(.active) { color: var(--tblr-body-color); }
-
-    /* ── Semáforo radios ─── */
-    .sem-radio { display: none; }
-    .sem-label {
-      cursor: pointer; font-size: .72rem; font-weight: 700;
-      padding: .22em .6em; border-radius: 99px; border: 2px solid;
-      transition: background .12s, color .12s; white-space: nowrap; line-height: 1.6;
-    }
-    .sem-radio:checked + .sem-label.verde    { background: #2fb344; color: #fff !important; border-color: #2fb344; }
-    .sem-radio:checked + .sem-label.amarillo { background: #f6b200; color: #fff !important; border-color: #f6b200; }
-    .sem-radio:checked + .sem-label.rojo     { background: #d63939; color: #fff !important; border-color: #d63939; }
-    .sem-radio:checked + .sem-label.negro    { background: #1d273b; color: #fff !important; border-color: #1d273b; }
-    .sem-label.verde    { color: #2fb344; border-color: #2fb344; }
-    .sem-label.amarillo { color: #b78f00; border-color: #f6b200; }
-    .sem-label.rojo     { color: #d63939; border-color: #d63939; }
-    .sem-label.negro    { color: #1d273b; border-color: #1d273b; }
-
-    /* ── Badge historial ─── */
-    .badge-sem { font-size: .75rem; padding: .3em .65em; border-radius: 99px; }
-    .badge-sem.verde    { background: #2fb344; color: #fff; }
-    .badge-sem.amarillo { background: #f6b200; color: #fff; }
-    .badge-sem.rojo     { background: #d63939; color: #fff; }
-    .badge-sem.negro    { background: #1d273b; color: #fff; }
-
-    /* ── Historial borde ─── */
-    .hist-row.verde td:first-child    { border-left: 4px solid #2fb344; }
-    .hist-row.amarillo td:first-child { border-left: 4px solid #f6b200; }
-    .hist-row.rojo td:first-child     { border-left: 4px solid #d63939; }
-    .hist-row.negro td:first-child    { border-left: 4px solid #1d273b; }
-
-    /* ── Tabs de grado ─── */
-    .nav-grados { border-bottom: 2px solid #e6ebf1; padding: .5rem 1rem 0; }
-    .nav-grados .nav-link {
-      font-size: .82rem; font-weight: 600; padding: .5rem 1.1rem;
-      border-radius: 6px 6px 0 0; color: #667380; border: none;
-      border-bottom: 3px solid transparent; margin-bottom: -2px;
-    }
-    .nav-grados .nav-link.active {
-      color: #0ca678; border-bottom-color: #0ca678; background: #f0faf6;
-    }
-    .nav-grados .nav-link:hover:not(.active) { background: #f4f6f8; color: #354052; }
-
-    /* ── Bell badge ─── */
-    #bell-badge { position:absolute;top:2px;right:2px;font-size:.65rem;min-width:16px;
-                  height:16px;line-height:16px;padding:0 4px;border-radius:99px; }
-    /* ── Toasts ─── */
-    #toast-container { position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;
-                        display:flex;flex-direction:column;gap:.5rem;max-width:360px; }
-
-    /* ── Semáforo automático: indicador de próximo color ─── */
-    .sem-next-lbl {
-      font-size: .7rem; font-weight: 700; padding: .12em .4em;
-      border-radius: 4px; display: inline-block;
-    }
-    .sem-next-lbl.verde    { color: #2fb344; }
-    .sem-next-lbl.amarillo { color: #b78f00; }
-    .sem-next-lbl.rojo     { color: #d63939; }
-    .sem-next-lbl.negro    { color: #1d273b; }
-
-    /* ── Fila bloqueada (Negro) ─── */
-    .fila-bloqueada { background: #f8f9fa !important; }
-    .fila-bloqueada td { color: #888 !important; }
-  </style>
+<link rel="stylesheet" href="{% static 'salidas_bano/css/index.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 <body class="antialiased">
 <div class="wrapper">
@@ -582,26 +509,21 @@
 </div>
 
 {# ── Variables JS ─── #}
-<script>
-window._SB = {
-  urlGuardar:        "{% url 'salidas_bano:guardar' %}",
-  urlNotifCount:     "{% url 'salidas_bano:notif_count' %}",
-  urlNotifList:      "{% url 'salidas_bano:notif_list' %}",
-  urlNotifLeerTodas: "{% url 'salidas_bano:notif_leer_todas' %}",
-  urlHistorialBase:  "{% url 'salidas_bano:historial' 0 %}",
-  urlRegresoBase:    "/salidas-bano/{pk}/regreso/",
-  urlEliminarBase:   "/salidas-bano/{pk}/eliminar/",
-  urlNotifLeerBase:  "/salidas-bano/notif/{pk}/leer/",
-  area:              "{{ area_sel }}",
-  periodoId:         "{{ periodo_id }}",
-  csrfToken:         "{{ csrf_token }}",
-  fechaHoy:          "{{ fecha_hoy }}",
-  esCoord:           {{ es_coordinador|yesno:"true,false" }},
-  alumnosPorGrado:   {{ alumnos_por_grado|safe }},
-  salidasHoy:        {{ salidas_hoy|safe }},
-  clasesPorGrado:    {{ clases_por_grado|safe }},
-};
-</script>
+<div id="index-config" hidden
+     data-v0="{% url 'salidas_bano:guardar' %}"
+     data-v1="{% url 'salidas_bano:notif_count' %}"
+     data-v2="{% url 'salidas_bano:notif_list' %}"
+     data-v3="{% url 'salidas_bano:notif_leer_todas' %}"
+     data-v4="{% url 'salidas_bano:historial' 0 %}"
+     data-v5="{{ area_sel }}"
+     data-v6="{{ periodo_id }}"
+     data-v7="{{ csrf_token }}"
+     data-v8="{{ fecha_hoy }}"
+     data-v9="{{ es_coordinador|yesno:"true,false" }}"
+     data-v10="{{ alumnos_por_grado|safe }}"
+     data-v11="{{ salidas_hoy|safe }}"
+     data-v12="{{ clases_por_grado|safe }}"></div>
+<script src="{% static 'salidas_bano/js/index.js' %}?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=9"></script>
 {# <--- hecho por claude code: footer unificado #}

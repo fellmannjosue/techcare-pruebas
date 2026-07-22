@@ -1,0 +1,19 @@
+/* <--- hecho por claude code: extraído del template */
+.nt-wrap { overflow-x:auto; }
+  .nt-table { border-collapse:collapse; font-size:12px; white-space:nowrap; }
+  .nt-table th, .nt-table td { border:1px solid #e2e8f0; padding:3px 5px; text-align:center; }
+  .nt-table thead th { background:#f1f5f9; position:sticky; top:0; z-index:2; }
+  .nt-col-no   { position:sticky; left:0;   background:#fff; z-index:3; min-width:34px; }
+  .nt-col-name { position:sticky; left:34px; background:#fff; z-index:3; text-align:left; min-width:210px; }
+  .nt-table thead .nt-col-no, .nt-table thead .nt-col-name { z-index:4; background:#f1f5f9; }
+  .nt-input { width:46px; border:1px solid #cbd5e1; border-radius:4px; padding:2px; text-align:center; font-size:12px; }
+  .nt-input:focus { outline:2px solid #206bc4; }
+  .nota-verde { color:#2fb344; font-weight:700; }
+  .nota-azul  { color:#206bc4; font-weight:700; }
+  .nota-rojo  { color:#d63939; font-weight:700; }
+  .nota-negro { color:#1e293b; }
+  .nt-mod-sep { border-left:2px solid #94a3b8 !important; }
+  .nt-final { background:#eef6ff; font-weight:700; }
+  .nt-meta-row td { background:#eaf7ef; font-weight:700; }
+  .leyenda span { display:inline-flex; align-items:center; gap:4px; margin-right:14px; font-size:12px; }
+  .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }

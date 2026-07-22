@@ -5,28 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sin conexión — TechCare</title>
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}">
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-      min-height:100vh;display:flex;align-items:center;justify-content:center;
-      background:linear-gradient(160deg,#1e3a5f 0%,#2c5282 100%);color:#fff;padding:24px}
-    .box{max-width:420px;width:100%;text-align:center;
-      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-      border-radius:20px;padding:40px 30px;backdrop-filter:blur(6px)}
-    .icon{width:96px;height:96px;margin:0 auto 22px;border-radius:50%;
-      background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
-    .icon svg{width:52px;height:52px;stroke:#fff}
-    h1{font-size:1.6rem;margin-bottom:10px;font-weight:700}
-    p{color:#cbd9ea;line-height:1.5;margin-bottom:24px;font-size:.98rem}
-    .estado{font-size:.85rem;margin-bottom:18px;color:#ffd8a8}
-    button{background:#fff;color:#1e3a5f;border:0;border-radius:10px;
-      padding:12px 26px;font-size:1rem;font-weight:600;cursor:pointer;transition:.15s}
-    button:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.25)}
-    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e03131;margin-right:6px;
-      animation:pulse 1.4s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-    .marca{margin-top:26px;font-size:.78rem;color:#8aa0bd}
-  </style>
+<link rel="stylesheet" href="{% static 'accounts/css/offline.css' %}?v=1">
 </head>
 <body>
   <div class="box">
@@ -43,15 +22,6 @@
     <button onclick="location.reload()">Reintentar</button>
     <div class="marca">TechCare · Asociación Nuevo Amanecer</div>
   </div>
-  <script>
-    // Reintenta automáticamente cuando vuelve la conexión
-    function actualizar(){
-      var e=document.getElementById('estado');
-      if(navigator.onLine){ e.textContent='Conexión restablecida, recargando…'; setTimeout(function(){location.reload();},700); }
-      else { e.textContent='Esperando conexión…'; }
-    }
-    window.addEventListener('online', actualizar);
-    actualizar();
-  </script>
+<script src="{% static 'accounts/js/offline.js' %}?v=1"></script>
 </body>
 </html>

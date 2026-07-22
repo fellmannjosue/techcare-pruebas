@@ -30,47 +30,10 @@
 }
 
 /* ── Modo oscuro ──────────────────────────────────────────────────────────── */
-:root[data-bs-theme="dark"] {
-  --tc-bg:         #0e131b;
-  --tc-surface:    #171e28;
-  --tc-surface-2:  #1c2531;
-  --tc-border:     rgba(255, 255, 255, .09);
-  --tc-text:       #dbe4ee;
-  --tc-heading:    #f1f5f9;
-  --tc-muted:      #90a0b3;
-  --tc-shadow:     0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.4);
-  --tc-shadow-hover: 0 14px 34px rgba(0,0,0,.55);
-}
-
 /* ── Tipografía / base ────────────────────────────────────────────────────── */
 body { font-family: var(--tblr-font-sans-serif); }
 
 /* En oscuro, sobreescribimos las reglas hardcodeadas (con !important) del CSS global */
-:root[data-bs-theme="dark"] body,
-:root[data-bs-theme="dark"] .page,
-:root[data-bs-theme="dark"] .page-wrapper { background-color: var(--tc-bg) !important; color: var(--tc-text); }
-:root[data-bs-theme="dark"] .card {
-  background-color: var(--tc-surface) !important;
-  border-color: var(--tc-border) !important;
-  box-shadow: var(--tc-shadow) !important;
-  color: var(--tc-text);
-}
-:root[data-bs-theme="dark"] .text-muted,
-:root[data-bs-theme="dark"] .text-secondary { color: var(--tc-muted) !important; }
-:root[data-bs-theme="dark"] .page-title,
-:root[data-bs-theme="dark"] h1, :root[data-bs-theme="dark"] h2,
-:root[data-bs-theme="dark"] h3, :root[data-bs-theme="dark"] .h1 { color: var(--tc-heading) !important; }
-:root[data-bs-theme="dark"] .table { --tblr-table-bg: transparent; color: var(--tc-text); }
-:root[data-bs-theme="dark"] .dropdown-menu { background-color: var(--tc-surface); border-color: var(--tc-border); }
-:root[data-bs-theme="dark"] .bg-light { background-color: var(--tc-surface-2) !important; color: var(--tc-text); }
-:root[data-bs-theme="dark"] .border { border-color: var(--tc-border) !important; }
-
-/* ── Botón toggle de tema ─────────────────────────────────────────────────── */
-#tc-theme-toggle { border-radius: 12px; }
-#tc-theme-toggle .ti-sun { display: none; }
-:root[data-bs-theme="dark"] #tc-theme-toggle .ti-sun  { display: inline-block; }
-:root[data-bs-theme="dark"] #tc-theme-toggle .ti-moon { display: none; }
-
 /* ============================================================================
    COMPONENTES DEL PANEL
    ========================================================================== */
@@ -82,9 +45,6 @@ body { font-family: var(--tblr-font-sans-serif); }
   background: linear-gradient(120deg, rgba(32,107,196,.10), rgba(66,99,235,.10) 55%, rgba(47,179,68,.08));
   border: 1px solid var(--tc-border);
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-}
-:root[data-bs-theme="dark"] .tc-hero {
-  background: linear-gradient(120deg, rgba(32,107,196,.20), rgba(66,99,235,.16) 55%, rgba(47,179,68,.12));
 }
 .tc-hero .tc-hero-avatar {
   width: 52px; height: 52px; border-radius: 14px; flex: 0 0 auto;
@@ -192,8 +152,6 @@ a.tc-stat:hover { transform: translateY(-3px); box-shadow: var(--tc-shadow-hover
   background: var(--tc-surface-2);
 }
 .card.card-link-pop .card-body > .mb-2 i { font-size: 1.85rem !important; }
-:root[data-bs-theme="dark"] .card.card-link-pop .card-body > .mb-2 { background: rgba(255,255,255,.06); }
-
 /* ── Sidebar: ítem activo + refinamiento ──────────────────────────────────── */
 .navbar-vertical .nav-link.active,
 .navbar-vertical .nav-item > .nav-link.active {
@@ -205,3 +163,21 @@ a.tc-stat:hover { transform: translateY(-3px); box-shadow: var(--tc-shadow-hover
 .navbar-vertical .nav-link.active .nav-link-icon i { color: #fff !important; }
 .navbar-vertical .nav-link { border-radius: 10px; transition: background .12s ease; }
 .navbar-vertical .nav-link:hover { background: rgba(255,255,255,.06); }
+
+/* ============================================================================
+   MODO OSCURO — cobertura completa   <--- hecho por claude code
+   Antes solo se cubrían body/tarjetas/texto: la barra lateral, el encabezado,
+   los formularios y los modales quedaban con los colores de Tabler y el tema
+   se veía a medias.
+   ========================================================================== */
+
+/* ── Barra lateral: SIEMPRE oscura (en modo claro y en oscuro) ────────────── */
+/* <--- hecho por claude code: NO se fuerza el fondo de la barra lateral.
+   Lo define Tabler con el data-bs-theme="dark" del <aside> (color original). */
+
+/* ── Encabezado de página y migas ─────────────────────────────────────────── */
+/* ── Formularios ──────────────────────────────────────────────────────────── */
+/* ── Tablas ───────────────────────────────────────────────────────────────── */
+/* ── Modales, offcanvas y menús ───────────────────────────────────────────── */
+/* ── Botones y pestañas ───────────────────────────────────────────────────── */
+/* ── Footer y separadores ─────────────────────────────────────────────────── */

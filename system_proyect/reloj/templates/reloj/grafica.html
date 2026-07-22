@@ -78,14 +78,12 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script>
-window.GRAFICA_CONTEXT = {
-  presentes: {{ presentes|default:0 }},
-  ausentes:  {{ ausentes|default:0 }},
-  fecha_inicio: "{{ fecha_inicio }}",
-  fecha_fin:    "{{ fecha_fin }}",
-  detalleURL:   "{% url 'reloj_grafica_detalle' %}"
-};
-</script>
+<div id="grafica-config" hidden
+     data-v0="{{ fecha_inicio }}"
+     data-v1="{{ fecha_fin }}"
+     data-v2="{% url 'reloj_grafica_detalle' %}"
+     data-v3="{{ presentes|default:0 }}"
+     data-v4="{{ ausentes|default:0 }}"></div>
+<script src="{% static 'reloj/js/grafica.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/grafica.js' %}"></script>
 {% endblock %}

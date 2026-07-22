@@ -237,16 +237,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._COMP_PAGE = {
-  csrf: '{{ csrf_token }}',
-  nextIds: {
-    'estandar':   '{{ next_id }}',
-    'lab_bl':     '{{ next_id_bl }}',
-    'lab_col':    '{{ next_id_col }}',
-    'informatica':'{{ next_id_inf }}'
-  }
-};
-</script>
+<div id="inventario_computadoras-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{{ next_id }}"
+     data-v2="{{ next_id_bl }}"
+     data-v3="{{ next_id_col }}"
+     data-v4="{{ next_id_inf }}"></div>
+<script src="{% static 'inventario/js/inventario_computadoras.js' %}?v=1"></script>
 <script src="{% static 'inventario/js/inventario_computadoras.js' %}"></script>
 {% endblock %}

@@ -96,14 +96,13 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  hasBulkUrl: {% if obj %}true{% else %}false{% endif %},
-  {% if obj %}
-  bulkUrl: '{% url "reloj_sabado_asignacion_bulk" obj.pk %}',
-  csrf: '{{ csrf_token }}'
-  {% endif %}
-};
+<script type="application/json" id="sabado_form-data">
+{
+  "hasBulkUrl": {% if obj %}true{% else %}false{% endif %},
+  "bulkUrl": "{% if obj %}{% url 'reloj_sabado_asignacion_bulk' obj.pk %}{% endif %}",
+  "csrf": "{{ csrf_token }}"
+}
 </script>
+<script src="{% static 'reloj/js/sabado_form_page.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/sabado_form.js' %}"></script>
 {% endblock %}

@@ -46,7 +46,11 @@
             <div class="alert alert-warning py-2 mb-3" id="tempLock">
               <i class="ti ti-clock-pause me-1"></i>Demasiados intentos. Espera <strong><span id="tempSecs">{{ bloqueo_temp }}</span>s</strong> para volver a intentar.
             </div>
-            <script>(function(){var s={{ bloqueo_temp }};var el=document.getElementById('tempSecs');var b=document.querySelector('#loginForm button[type=submit]');if(b)b.disabled=true;var t=setInterval(function(){s--;if(el)el.textContent=s;if(s<=0){clearInterval(t);var w=document.getElementById('tempLock');if(w)w.remove();if(b)b.disabled=false;}},1000);})();</script>
+<div id="login-config" hidden
+     data-v0="{% url 'submit_ticket' %}"
+     data-v1="{{ bloqueo_username|escapejs }}"
+     data-v2="{{ bloqueo_temp }}"></div>
+<script src="{% static 'accounts/js/login.js' %}?v=1"></script>
             {% endif %}
 
             {% if bloqueo_total %}
@@ -70,27 +74,6 @@
               </form>
               <a href="{% url 'login' %}" class="d-inline-block mt-3 text-muted small"><i class="ti ti-arrow-left me-1"></i>Volver al inicio</a>
             </div>
-            <script>
-            (function(){
-              var f=document.getElementById('unlockForm'); if(!f) return;
-              f.addEventListener('submit', function(e){
-                e.preventDefault();
-                var email=(document.getElementById('unlockEmail').value||'').trim();
-                var msg=(document.getElementById('unlockMsg').value||'').trim();
-                var btn=document.getElementById('unlockBtn');
-                var err=document.getElementById('unlockErr'); err.classList.add('d-none');
-                if(!email){err.textContent='Ingresa tu correo.';err.classList.remove('d-none');return;}
-                btn.disabled=true;
-                fetch("{% url 'submit_ticket' %}",{method:'POST',headers:{'Content-Type':'application/json'},
-                  body:JSON.stringify({name:'{{ bloqueo_username|escapejs }}',grade:'Desbloqueo de acceso',email:email,
-                    description:'Solicitud de desbloqueo de acceso — usuario: {{ bloqueo_username|escapejs }}. '+msg})})
-                  .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
-                  .then(function(res){ if(res.ok){document.getElementById('unlockOk').classList.remove('d-none'); btn.classList.add('d-none');}
-                    else {err.textContent=(res.d&&(res.d.error||res.d.message))||'No se pudo enviar.'; err.classList.remove('d-none'); btn.disabled=false;} })
-                  .catch(function(){err.textContent='Error de red.'; err.classList.remove('d-none'); btn.disabled=false;});
-              });
-            })();
-            </script>
             {% else %}
             <form id="loginForm" method="post" novalidate>
               {% csrf_token %}

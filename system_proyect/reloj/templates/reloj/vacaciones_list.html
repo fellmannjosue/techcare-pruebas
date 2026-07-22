@@ -211,12 +211,10 @@
 </div>
 
 {# <--- hecho por claude code: bridge window._PAGE para vacaciones_list.js #}
-<script>
-window._PAGE = {
-  csrf:      '{{ csrf_token }}',
-  urlSave:   '{% url "reloj_vacacion_config_save" %}',
-  urlEditar: '{% url "reloj_vacacion_editar_dias" %}'
-};
-</script>
+<div id="vacaciones_list-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "reloj_vacacion_config_save" %}"
+     data-v2="{% url "reloj_vacacion_editar_dias" %}"></div>
+<script src="{% static 'reloj/js/vacaciones_list.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/vacaciones_list.js' %}?v=2"></script>
 {% endblock %}

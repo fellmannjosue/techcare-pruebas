@@ -113,13 +113,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  csrf:                 '{{ csrf_token }}',
-  urlActualizarFecha:   '{% url "notas_parcial_actualizar_fecha" %}',
-  urlEliminarAsignacion:'{% url "notas_parcial_eliminar_asignacion" %}',
-  urlPrecargar:         '{% url "notas_parcial_precargar" %}',
-};
-</script>
+<div id="asignaciones-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "notas_parcial_actualizar_fecha" %}"
+     data-v2="{% url "notas_parcial_eliminar_asignacion" %}"
+     data-v3="{% url "notas_parcial_precargar" %}"></div>
+<script src="{% static 'notas_parcial/js/asignaciones.js' %}?v=1"></script>
 <script src="{% static 'notas_parcial/js/asignaciones.js' %}"></script>
 {% endblock %}

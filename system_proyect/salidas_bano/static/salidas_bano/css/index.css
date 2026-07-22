@@ -1,0 +1,73 @@
+/* ── Tabs principales ─── */
+    .nav-tabs-main .nav-link {
+      font-size: .9rem; font-weight: 600; padding: .75rem 1.4rem;
+      border-radius: 0; border: none; border-bottom: 3px solid transparent;
+      color: var(--tblr-muted);
+    }
+    .nav-tabs-main .nav-link.active {
+      color: var(--tblr-teal); border-bottom-color: var(--tblr-teal);
+      background: transparent;
+    }
+    .nav-tabs-main .nav-link:hover:not(.active) { color: var(--tblr-body-color); }
+
+    /* ── Semáforo radios ─── */
+    .sem-radio { display: none; }
+    .sem-label {
+      cursor: pointer; font-size: .72rem; font-weight: 700;
+      padding: .22em .6em; border-radius: 99px; border: 2px solid;
+      transition: background .12s, color .12s; white-space: nowrap; line-height: 1.6;
+    }
+    .sem-radio:checked + .sem-label.verde    { background: #2fb344; color: #fff !important; border-color: #2fb344; }
+    .sem-radio:checked + .sem-label.amarillo { background: #f6b200; color: #fff !important; border-color: #f6b200; }
+    .sem-radio:checked + .sem-label.rojo     { background: #d63939; color: #fff !important; border-color: #d63939; }
+    .sem-radio:checked + .sem-label.negro    { background: #1d273b; color: #fff !important; border-color: #1d273b; }
+    .sem-label.verde    { color: #2fb344; border-color: #2fb344; }
+    .sem-label.amarillo { color: #b78f00; border-color: #f6b200; }
+    .sem-label.rojo     { color: #d63939; border-color: #d63939; }
+    .sem-label.negro    { color: #1d273b; border-color: #1d273b; }
+
+    /* ── Badge historial ─── */
+    .badge-sem { font-size: .75rem; padding: .3em .65em; border-radius: 99px; }
+    .badge-sem.verde    { background: #2fb344; color: #fff; }
+    .badge-sem.amarillo { background: #f6b200; color: #fff; }
+    .badge-sem.rojo     { background: #d63939; color: #fff; }
+    .badge-sem.negro    { background: #1d273b; color: #fff; }
+
+    /* ── Historial borde ─── */
+    .hist-row.verde td:first-child    { border-left: 4px solid #2fb344; }
+    .hist-row.amarillo td:first-child { border-left: 4px solid #f6b200; }
+    .hist-row.rojo td:first-child     { border-left: 4px solid #d63939; }
+    .hist-row.negro td:first-child    { border-left: 4px solid #1d273b; }
+
+    /* ── Tabs de grado ─── */
+    .nav-grados { border-bottom: 2px solid #e6ebf1; padding: .5rem 1rem 0; }
+    .nav-grados .nav-link {
+      font-size: .82rem; font-weight: 600; padding: .5rem 1.1rem;
+      border-radius: 6px 6px 0 0; color: #667380; border: none;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+    }
+    .nav-grados .nav-link.active {
+      color: #0ca678; border-bottom-color: #0ca678; background: #f0faf6;
+    }
+    .nav-grados .nav-link:hover:not(.active) { background: #f4f6f8; color: #354052; }
+
+    /* ── Bell badge ─── */
+    #bell-badge { position:absolute;top:2px;right:2px;font-size:.65rem;min-width:16px;
+                  height:16px;line-height:16px;padding:0 4px;border-radius:99px; }
+    /* ── Toasts ─── */
+    #toast-container { position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;
+                        display:flex;flex-direction:column;gap:.5rem;max-width:360px; }
+
+    /* ── Semáforo automático: indicador de próximo color ─── */
+    .sem-next-lbl {
+      font-size: .7rem; font-weight: 700; padding: .12em .4em;
+      border-radius: 4px; display: inline-block;
+    }
+    .sem-next-lbl.verde    { color: #2fb344; }
+    .sem-next-lbl.amarillo { color: #b78f00; }
+    .sem-next-lbl.rojo     { color: #d63939; }
+    .sem-next-lbl.negro    { color: #1d273b; }
+
+    /* ── Fila bloqueada (Negro) ─── */
+    .fila-bloqueada { background: #f8f9fa !important; }
+    .fila-bloqueada td { color: #888 !important; }

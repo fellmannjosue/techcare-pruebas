@@ -1,0 +1,66 @@
+{# <--- hecho por claude code: bloqueo de UN formulario (el resto del sistema sigue disponible) #}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ mod_label }} no disponible – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="{% static 'core/css/formulario_bloqueado.css' %}?v=1">
+</head>
+<body>
+  <div class="card fb-card">
+    <div class="card-body text-center p-4 p-md-5">
+
+      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo"
+           style="width:52px;height:52px;object-fit:contain;" class="mb-3">
+
+      {% if solo_lectura %}
+        <div class="fb-icon bg-yellow-lt text-yellow mb-3"><i class="ti ti-eye"></i></div>
+        <h1 class="h2 mb-1">Solo lectura</h1>
+        <p class="text-muted mb-3">
+          <strong>{{ mod_label }}</strong> está temporalmente en <strong>solo lectura</strong>.
+          Puedes consultar la información, pero por ahora no se pueden guardar cambios.
+        </p>
+      {% else %}
+        <div class="fb-icon bg-red-lt text-red mb-3"><i class="ti ti-lock"></i></div>
+        <h1 class="h2 mb-1">Formulario no disponible</h1>
+        <p class="text-muted mb-3">
+          <strong>{{ mod_label }}</strong> está temporalmente <strong>bloqueado</strong> por mantenimiento.
+        </p>
+      {% endif %}
+
+      <div class="alert alert-info text-start py-2 mb-4">
+        <i class="ti ti-info-circle me-1"></i>
+        El resto del sistema sigue funcionando con normalidad. Puedes seguir usando las demás opciones.
+      </div>
+
+      {% if maint_end_time %}
+      <p class="text-muted small mb-3">
+        <i class="ti ti-clock me-1"></i>Estimado hasta: {{ maint_end_time }}
+      </p>
+      {% endif %}
+
+      <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+        <button type="button" class="btn btn-primary" id="btn-volver">
+          <i class="ti ti-arrow-left me-1"></i>Volver
+        </button>
+        <a href="{{ nav_home_url|default:inicio_url }}" class="btn btn-outline-secondary">
+          <i class="ti ti-home me-1"></i>Ir al inicio
+        </a>
+      </div>
+
+    </div>
+    <div class="card-footer text-center text-muted small py-3">
+      © {% now "Y" %} Soporte Técnico – Asociación Nuevo Amanecer
+    </div>
+  </div>
+
+<div id="formulario_bloqueado-config" hidden
+     data-v0="{{ nav_home_url|default:inicio_url|escapejs }}"></div>
+<script src="{% static 'core/js/formulario_bloqueado.js' %}?v=1"></script>
+</body>
+</html>

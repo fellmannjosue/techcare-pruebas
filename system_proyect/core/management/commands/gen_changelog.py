@@ -69,12 +69,24 @@ def _escribir_base(h):
 
 
 def _subir_build(version):
-    """'6.0.1.2' → '6.0.1.3'. Si el formato es raro, deja la versión igual."""
+    """'6.0.1.2' → '6.0.1.3'. Si venía en menor ('6.0.1.3.001'), sube el build y limpia
+    el 5º segmento. Si el formato es raro, deja la versión igual."""
     partes = version.split('.')
+    if len(partes) == 5:            # 6.0.1.3.001 -> 6.0.1.4
+        partes = partes[:4]
     if not partes or not partes[-1].isdigit():
         return version
     partes[-1] = str(int(partes[-1]) + 1)
     return '.'.join(partes)
+
+
+def _subir_menor(version):
+    """<--- hecho por claude code: release chico (< 50 archivos).
+    '6.0.1.3' → '6.0.1.3.001' · '6.0.1.3.001' → '6.0.1.3.002'."""
+    partes = version.split('.')
+    if len(partes) == 5 and partes[-1].isdigit():
+        return '.'.join(partes[:4]) + '.%03d' % (int(partes[-1]) + 1)
+    return version + '.001' 
 
 
 class Command(BaseCommand):
@@ -84,6 +96,9 @@ class Command(BaseCommand):
         parser.add_argument('--set-version', dest='set_version', default=None,
                             help='Fija la versión en lugar de subir el build.')
         parser.add_argument('--quiet', action='store_true', help='Sin salida.')
+        parser.add_argument('--menor', action='store_true',
+                            help='Release chico (<50 archivos): sube el 5º segmento y '
+                                 'las novedades solo se muestran al superusuario.')
 
     def handle(self, *args, **opts):
         quiet = opts['quiet']
@@ -119,12 +134,18 @@ class Command(BaseCommand):
             say('Sin commits nuevos; changelog sin cambios.')
             return
 
-        nueva = opts['set_version'] or _subir_build(version_prev)
+        if opts['set_version']:
+            nueva = opts['set_version']
+        elif opts['menor']:
+            nueva = _subir_menor(version_prev)
+        else:
+            nueva = _subir_build(version_prev)
         entradas.insert(0, {
             'version': nueva,
             'fecha': date.today().isoformat(),
             'commit': head,
             'cambios': mensajes,
+            'menor': bool(opts['menor']),   # <--- hecho por claude code: solo la ve el superusuario
         })
         data['version'] = nueva
         data['entradas'] = entradas[:50]   # conserva las últimas 50 versiones

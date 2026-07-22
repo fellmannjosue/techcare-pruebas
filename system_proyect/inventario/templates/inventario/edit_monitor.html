@@ -98,11 +98,6 @@
 
 {{ labs_usados|json_script:"edit-labs-data" }}
 {{ asignados_usados|json_script:"edit-asig-data" }}
-<script>
-window._MONITOR_PAGE = {
-  labsUsados:      JSON.parse(document.getElementById('edit-labs-data').textContent),
-  asignadosUsados: JSON.parse(document.getElementById('edit-asig-data').textContent)
-};
-</script>
+<script src="{% static 'inventario/js/edit_monitor.js' %}?v=1"></script>
 {% load static %}
 <script src="{% static 'inventario/js/edit_monitor.js' %}"></script>

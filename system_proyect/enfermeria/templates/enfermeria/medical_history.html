@@ -211,12 +211,7 @@
 </div>
 
 {# Config JS #}
-<script>
-window._MH = {
-  urlHistorial: '{% url "enfermeria:get_medical_history_data" %}',
-  urlPdf:       '/enfermeria/atencion/pdf/{pk}/',
-};
-</script>
+<script src="{% static 'enfermeria/js/medical_history.js' %}?v=1"></script>
 {% endblock %}
 
 {% block extra_js %}

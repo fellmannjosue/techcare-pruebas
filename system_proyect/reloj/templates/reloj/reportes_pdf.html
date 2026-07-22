@@ -12,10 +12,7 @@
 
 {% block content %}
 {# <--- hecho por claude code: centro de reportes PDF (tabs + preview embebido) #}
-<style>
-  .rep-frame { width:100%; height:72vh; border:1px solid #e2e8f0; border-radius:.5rem; background:#f8fafc; }
-  .rep-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:.6rem; flex-wrap:wrap; }
-</style>
+<link rel="stylesheet" href="{% static 'reloj/css/reportes_pdf.css' %}?v=1">
 
 <div class="card">
   <div class="card-header">
@@ -135,50 +132,8 @@
   </div>
 </div>
 
-<script>
-  // Cargar el PDF de cada tab solo al abrirlo (lazy) para no generar los 5 de golpe.
-  (function () {
-    function cargar(pane) {
-      var f = pane.querySelector('iframe[data-src]');
-      if (f && !f.src) f.src = f.dataset.src;
-    }
-    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (t) {
-      t.addEventListener('shown.bs.tab', function (e) {
-        var sel = e.target.getAttribute('href');
-        var pane = document.querySelector(sel);
-        if (pane) cargar(pane);
-      });
-    });
-  })();
-
-  // Reporte general: aplicar rango Desde/Hasta al iframe y a la descarga
-  (function () {
-    var btn = document.getElementById('rg_ver');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var ini = document.getElementById('rg_ini').value,
-          fin = document.getElementById('rg_fin').value,
-          dl  = document.getElementById('rg_dl'),
-          fr  = document.getElementById('rg_frame'),
-          base = "{% url 'reloj_exportar_pdf' %}";
-      dl.setAttribute('href', base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin);
-      fr.src = base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin + '&inline=1';
-    });
-  })();
-
-  // Gilma: aplicar rango Desde/Hasta al iframe y a la descarga
-  (function () {
-    var btn = document.getElementById('gpdf_ver');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var ini = document.getElementById('gpdf_ini').value,
-          fin = document.getElementById('gpdf_fin').value,
-          dl  = document.getElementById('gpdf_dl'),
-          fr  = document.getElementById('gpdf_frame'),
-          base = dl.getAttribute('href').split('?')[0];
-      dl.setAttribute('href', base + '?fmt=pdf&sec=gilma&gini=' + ini + '&gfin=' + fin);
-      fr.src = base + '?fmt=pdf&inline=1&sec=gilma&gini=' + ini + '&gfin=' + fin;
-    });
-  })();
-</script>
+<div id="reportes_pdf-config" hidden
+     data-reloj-exportar-pdf="{% url 'reloj_exportar_pdf' %}"
+     data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'reloj/js/reportes_pdf.js' %}?v=1"></script>
 {% endblock %}

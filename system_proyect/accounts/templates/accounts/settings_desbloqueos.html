@@ -48,26 +48,9 @@
   </div>
 </div>
 
-<script>
-(function () {
-  var CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value
-             || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-  document.querySelectorAll('.btn-desbloquear').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (!confirm('¿Desbloquear el acceso de ' + this.dataset.nombre + '?')) return;
-      var uid = this.dataset.user, b = this;
-      b.disabled = true;
-      fetch("{% url 'desbloquear_usuario' %}", {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF},
-        body: 'user_id=' + encodeURIComponent(uid),
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) { var tr = b.closest('tr'); if (tr) tr.remove(); }
-        else { alert(d.error || 'Error'); b.disabled = false; }
-      }).catch(function () { alert('Error de red'); b.disabled = false; });
-    });
-  });
-})();
-</script>
+<div id="settings_desbloqueos-config" hidden
+     data-desbloquear-usuario="{% url 'desbloquear_usuario' %}"
+     data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'accounts/js/settings_desbloqueos.js' %}?v=1"></script>
 {% csrf_token %}
 {% endblock %}

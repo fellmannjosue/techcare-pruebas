@@ -18,7 +18,10 @@
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-  <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});});}</script>
+<div id="base-config" hidden
+     data-v0="{{ csrf_token }}"></div>
+<script src="{% static 'inventario_camaras/js/base.js' %}?v=1"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 <body class="antialiased">
 <div class="wrapper">
@@ -93,7 +96,6 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>window.CSRF_TOKEN = '{{ csrf_token }}';</script>
 {% block extra_js %}{% endblock %}
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}

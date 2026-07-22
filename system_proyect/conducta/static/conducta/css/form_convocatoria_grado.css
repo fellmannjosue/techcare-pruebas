@@ -1,0 +1,8 @@
+.conv-chk { width:20px; height:20px; cursor:pointer; }
+  .conv-asig-h { writing-mode:initial; font-size:.8rem; }
+  .asig-dot { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:4px; }
+  .conv-prev-card { background:#fff; border:1px solid #e2e8f0; border-radius:.6rem; padding:22px 26px; max-width:720px; margin:0 auto; font-family:"Times New Roman",serif; }
+  .conv-prev-card .school { text-align:center; font-weight:bold; font-size:1.05rem; }
+  .conv-prev-card table { width:90%; margin:12px auto; border-collapse:collapse; }
+  .conv-prev-card th, .conv-prev-card td { border:1px solid #000; padding:4px 6px; text-align:center; font-size:.8rem; }
+  .conv-prev-card td.asig { text-align:left; }

@@ -110,11 +110,9 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  csrf:      '{{ csrf_token }}',
-  submitUrl: '{% url "submit_ticket" %}',
-};
-</script>
+<div id="submit_ticket-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "submit_ticket" %}"></div>
+<script src="{% static 'tickets/js/submit_ticket.js' %}?v=1"></script>
 <script src="{% static 'tickets/js/submit_ticket.js' %}?v=2"></script>
 {% endblock %}

@@ -7,20 +7,7 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'conducta/css/materias_docentes_bl.css' %}">
 <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-<style>
-.badge-coord {
-  display:inline-block;
-  padding:.28em .65em;
-  border-radius:.4rem;
-  font-size:.78rem;
-  color:#fff;
-  font-weight:600;
-  white-space:nowrap;
-}
-.fila-materia { cursor:pointer; }
-.fila-materia:hover td { background:rgba(32,107,196,.06); }
-.chk-coord-wrap { display:flex; flex-wrap:wrap; gap:.4rem .8rem; }
-</style>
+<link rel="stylesheet" href="{% static 'conducta/css/materias_docentes_bl_extra.css' %}?v=1">
 {% endblock %}
 
 {% block page_pretitle %}Coordinador BL{% endblock %}
@@ -268,19 +255,16 @@
 </div>
 
 {# ── Config para JS ── #}
-<script>
-window._MATERIAS = {
-  csrf:      '{{ csrf_token }}',
-  urlCreate: '{% url "materia_bl_create" %}',
-  urlUpdate: '/conducta/coordinador/bl/materias/{pk}/editar/',
-  urlDelete: '/conducta/coordinador/bl/materias/{pk}/eliminar/',
-  configs: [
-    {% for cfg in configs %}
-    { codigo: '{{ cfg.codigo }}', nombre: '{{ cfg.nombre|escapejs }}', color: '{{ cfg.color|default:"#6c757d" }}' }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ]
-};
+<script type="application/json" id="materias_docentes_bl-data">
+{
+  "csrf":      "{{ csrf_token }}",
+  "urlCreate": "{% url 'materia_bl_create' %}",
+  "urlUpdate": "/conducta/coordinador/bl/materias/{pk}/editar/",
+  "urlDelete": "/conducta/coordinador/bl/materias/{pk}/eliminar/",
+  "configs": [{% for cfg in configs %}{"codigo": "{{ cfg.codigo|escapejs }}", "nombre": "{{ cfg.nombre|escapejs }}", "color": "{{ cfg.color|default:'#6c757d' }}"}{% if not forloop.last %}, {% endif %}{% endfor %}]
+}
 </script>
+<script src="{% static 'conducta/js/materias_docentes_bl_page.js' %}?v=1"></script>
 {% endblock %}
 
 {% block extra_js %}

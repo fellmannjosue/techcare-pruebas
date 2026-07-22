@@ -1,4 +1,5 @@
 {% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
 {% load static l10n %}
 {% block title %}{{ curso_label }} — Notas{% endblock %}
 {% block page_pretitle %}CFP · Programa 2 · {{ anio }}{% endblock %}
@@ -12,26 +13,7 @@
 {% endblock %}
 
 {% block extra_head %}
-<style>
-  .nt-wrap { overflow-x:auto; }
-  .nt-table { border-collapse:collapse; font-size:12px; white-space:nowrap; }
-  .nt-table th, .nt-table td { border:1px solid #e2e8f0; padding:3px 5px; text-align:center; }
-  .nt-table thead th { background:#f1f5f9; position:sticky; top:0; z-index:2; }
-  .nt-col-no   { position:sticky; left:0;   background:#fff; z-index:3; min-width:34px; }
-  .nt-col-name { position:sticky; left:34px; background:#fff; z-index:3; text-align:left; min-width:210px; }
-  .nt-table thead .nt-col-no, .nt-table thead .nt-col-name { z-index:4; background:#f1f5f9; }
-  .nt-input { width:46px; border:1px solid #cbd5e1; border-radius:4px; padding:2px; text-align:center; font-size:12px; }
-  .nt-input:focus { outline:2px solid #206bc4; }
-  .nota-verde { color:#2fb344; font-weight:700; }
-  .nota-azul  { color:#206bc4; font-weight:700; }
-  .nota-rojo  { color:#d63939; font-weight:700; }
-  .nota-negro { color:#1e293b; }
-  .nt-mod-sep { border-left:2px solid #94a3b8 !important; }
-  .nt-final { background:#eef6ff; font-weight:700; }
-  .nt-meta-row td { background:#eaf7ef; font-weight:700; }
-  .leyenda span { display:inline-flex; align-items:center; gap:4px; margin-right:14px; font-size:12px; }
-  .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
-</style>
+<link rel="stylesheet" href="{% static 'cfp/css/notas_curso.css' %}?v=1">
 {% endblock %}
 
 {% block content %}
@@ -261,165 +243,16 @@
   </div>
 </div>
 
-<script>
-const CURSO_PK = {{ cn.pk }};
-const URL_MOD_GUARDAR = "{% url 'cfp:modulo_guardar' %}";
-const URL_MOD_ELIMINAR = "{% url 'cfp:modulo_eliminar' %}";
-const URL_NOTAS_GUARDAR = "{% url 'cfp:notas_guardar' %}";
-const URL_HORAS_GUARDAR = "{% url 'cfp:horas_guardar' %}";
-const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
-const MODULOS = [{% for m in modulos %}{id:{{ m.id }},codigo:"{{ m.codigo_auto|escapejs }}",puntaje:{{ m.puntaje|unlocalize }},fini:"{{ m.fecha_inicio|date:'Y-m-d' }}",ffin:"{{ m.fecha_fin|date:'Y-m-d' }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
-
-function post(url, data) {
-  return fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
-    body:JSON.stringify(data)}).then(r => r.json());
-}
-
-// ── Colores Tab 1 (intento con que aprobó) ──
-function umbralKind(kind) { return kind === 'p' ? 100 : 90; }  // práctico aprueba con 100
-function recolor(inp) {
-  const mod = inp.dataset.modulo, per = inp.dataset.persona, kind = inp.dataset.kind;
-  const grupo = document.querySelectorAll(`.nt-input[data-modulo="${mod}"][data-persona="${per}"][data-kind="${kind}"]`);
-  const umb = umbralKind(kind);
-  let win = -1;
-  grupo.forEach((el, i) => { if (win < 0 && el.value !== '' && parseFloat(el.value) >= umb) win = i; });
-  const cls = ['nota-verde','nota-azul','nota-rojo'];
-  grupo.forEach((el, i) => {
-    el.classList.remove('nota-verde','nota-azul','nota-rojo','nota-negro');
-    if (i === win) el.classList.add(cls[i]);
-    else if (el.value !== '') el.classList.add('nota-negro');
-  });
-}
-
-// ── Compilación (Tab 2) y Módulos (Tab 3) en vivo ──
-const N_MODULOS = {{ n_modulos }};
-function primerAprobado(vals, umbral) {  // primer intento que aprueba, si no 0
-  for (const v of vals) { if (v !== '' && v != null && parseFloat(v) >= umbral) return parseFloat(v); }
-  return 0;
-}
-function recompute() {
-  const data = {};
-  document.querySelectorAll('#tab-prog .nt-input').forEach(el => {
-    const k = el.dataset.modulo + '_' + el.dataset.persona;
-    if (!data[k]) data[k] = {modulo:el.dataset.modulo, persona:el.dataset.persona, t:['','',''], p:['','','']};
-    data[k][el.dataset.kind][parseInt(el.dataset.idx)] = el.value;
-  });
-  const acc = {};
-  Object.values(data).forEach(g => {
-    const cT = primerAprobado(g.t, 90), cP = primerAprobado(g.p, 100);
-    const res = Math.round((cT + cP) / 2 * 100) / 100;
-    setComp('T', g.modulo, g.persona, cT);
-    setComp('P', g.modulo, g.persona, cP);
-    const r = document.querySelector(`[data-res][data-modulo="${g.modulo}"][data-persona="${g.persona}"]`);
-    if (r) r.textContent = res;
-    acc[g.persona] = (acc[g.persona] || 0) + res;
-  });
-  Object.keys(acc).forEach(per => {
-    const nf = N_MODULOS ? Math.round(acc[per] / N_MODULOS * 100) / 100 : 0;
-    const el = document.querySelector(`[data-final][data-persona="${per}"]`);
-    if (el) el.textContent = nf;
-  });
-}
-function setComp(kind, mod, per, val) {
-  const td = document.querySelector(`[data-comp="${kind}"][data-modulo="${mod}"][data-persona="${per}"]`);
-  if (!td) return;
-  td.textContent = val;
-  td.classList.toggle('nota-verde', val > 0);
-}
-
-// ── Autoguardado (debounce) ──
-let saveTimer = null;
-function setStatus(html) { document.getElementById('autosave-status').innerHTML = html; }
-function onNotaInput(inp) {
-  recolor(inp); recompute();
-  setStatus('<i class="ti ti-pencil me-1"></i>Editando…');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(guardarNotas, 900);
-}
-document.querySelectorAll('#tab-prog .nt-input').forEach(recolor);
-recompute();
-
-// ── Módulos ──
-let modBs;
-function abrirModulo() {
-  document.getElementById('modModuloTitle').textContent = 'Nuevo módulo';
-  document.getElementById('mod_pk').value = '';
-  document.getElementById('mod_codigo').value = '';
-  document.getElementById('mod_puntaje').value = '100';
-  document.getElementById('mod_fini').value = '';
-  document.getElementById('mod_ffin').value = '';
-  document.getElementById('mod_del').classList.add('d-none');
-  modBs = modBs || new bootstrap.Modal('#modModulo'); modBs.show();
-}
-function editarModulo(id) {
-  const m = MODULOS.find(x => x.id === id); if (!m) return;
-  document.getElementById('modModuloTitle').textContent = 'Editar ' + m.codigo;
-  document.getElementById('mod_pk').value = m.id;
-  document.getElementById('mod_codigo').value = m.codigo;
-  document.getElementById('mod_puntaje').value = m.puntaje;
-  document.getElementById('mod_fini').value = m.fini || '';
-  document.getElementById('mod_ffin').value = m.ffin || '';
-  document.getElementById('mod_del').classList.remove('d-none');
-  modBs = modBs || new bootstrap.Modal('#modModulo'); modBs.show();
-}
-function guardarModulo(btn) {
-  btn.disabled = true;
-  post(URL_MOD_GUARDAR, {curso_pk:CURSO_PK, pk:document.getElementById('mod_pk').value || null,
-    prefijo:document.getElementById('mod_prefijo').value,
-    codigo:document.getElementById('mod_codigo').value,
-    puntaje:document.getElementById('mod_puntaje').value,
-    fecha_inicio:document.getElementById('mod_fini').value || null,
-    fecha_fin:document.getElementById('mod_ffin').value || null
-  }).then(r => { if (r.ok) location.reload(); else { alert(r.error || 'Error'); btn.disabled = false; } })
-    .catch(() => { alert('Error de red'); btn.disabled = false; });
-}
-function eliminarModulo() {
-  if (!confirm('¿Eliminar este módulo y sus notas?')) return;
-  post(URL_MOD_ELIMINAR, {pk:document.getElementById('mod_pk').value}).then(r => { if (r.ok) location.reload(); });
-}
-
-// ── Guardar notas (Tab 1) — silencioso, sin recargar ──
-function guardarNotas() {
-  const grupos = {};
-  document.querySelectorAll('#tab-prog .nt-input').forEach(el => {
-    const k = el.dataset.modulo + '_' + el.dataset.persona;
-    if (!grupos[k]) {
-      const tr = el.closest('tr');
-      grupos[k] = {modulo:parseInt(el.dataset.modulo), persona:parseInt(el.dataset.persona),
-        nombre:tr.dataset.nombre, identidad:tr.dataset.identidad};
-    }
-    grupos[k][el.dataset.kind + (parseInt(el.dataset.idx)+1)] = el.value === '' ? null : el.value;
-  });
-  setStatus('<i class="ti ti-loader me-1"></i>Guardando…');
-  post(URL_NOTAS_GUARDAR, {curso_pk:CURSO_PK, notas:Object.values(grupos)})
-    .then(r => { setStatus(r.ok ? '<i class="ti ti-circle-check me-1 text-green"></i>Guardado'
-                                : '<i class="ti ti-alert-triangle me-1 text-red"></i>Error al guardar'); })
-    .catch(() => setStatus('<i class="ti ti-alert-triangle me-1 text-red"></i>Sin conexión'));
-}
-
-// ── Horas (Tab 4) ──
-function recalcHoras() {
-  let metaTotal = 0;
-  document.querySelectorAll('.meta-input').forEach(el => metaTotal += parseFloat(el.value || 0));
-  document.getElementById('meta-total').textContent = (Math.round(metaTotal*100)/100);
-  document.querySelectorAll('.tot-part').forEach(td => {
-    const per = td.dataset.persona; let t = 0;
-    document.querySelectorAll(`.hora-input[data-persona="${per}"]`).forEach(el => t += parseFloat(el.value || 0));
-    td.textContent = (Math.round(t*100)/100);
-    const pct = metaTotal ? Math.round(t/metaTotal*1000)/10 : 0;
-    document.querySelector(`.pct-part[data-persona="${per}"]`).textContent = pct + '%';
-  });
-}
-function guardarHoras(btn) {
-  const meta = {};
-  document.querySelectorAll('.meta-input').forEach(el => meta[el.dataset.mes] = el.value || 0);
-  const part = [];
-  document.querySelectorAll('.hora-input').forEach(el => part.push(
-    {persona:parseInt(el.dataset.persona), mes:parseInt(el.dataset.mes), horas:el.value || 0}));
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-  post(URL_HORAS_GUARDAR, {curso_pk:CURSO_PK, meta:meta, part:part})
-    .then(r => { if (r.ok) location.reload(); else { alert('Error'); btn.disabled = false; } })
-    .catch(() => { alert('Error de red'); btn.disabled = false; });
+<script type="application/json" id="notas-curso-data">
+{
+  "cursoPk":         {{ cn.pk }},
+  "nModulos":        {{ n_modulos }},
+  "urlModGuardar":   "{% url 'cfp:modulo_guardar' %}",
+  "urlModEliminar":  "{% url 'cfp:modulo_eliminar' %}",
+  "urlNotasGuardar": "{% url 'cfp:notas_guardar' %}",
+  "urlHorasGuardar": "{% url 'cfp:horas_guardar' %}",
+  "modulos": [{% for m in modulos %}{"id": {{ m.id }}, "codigo": "{{ m.codigo_auto|escapejs }}", "puntaje": {{ m.puntaje|unlocalize }}, "fini": "{{ m.fecha_inicio|date:'Y-m-d' }}", "ffin": "{{ m.fecha_fin|date:'Y-m-d' }}"}{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
+<script src="{% static 'cfp/js/notas_curso.js' %}?v=1"></script>
 {% endblock %}

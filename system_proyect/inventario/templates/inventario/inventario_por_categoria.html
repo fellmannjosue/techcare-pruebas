@@ -217,12 +217,13 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._CAT_PAGE = {
-  csrf:    '{{ csrf_token }}',
-  bulkUrl: "{% url 'inventario:asignar_categoria_bulk' %}",
-  tipoKeys: [{% for grupo in grupos %}"{{ grupo.tipo_key }}"{% if not forloop.last %}, {% endif %}{% endfor %}]
-};
+<script type="application/json" id="inventario_por_categoria-data">
+{
+  "csrf":    "{{ csrf_token }}",
+  "bulkUrl": "{% url 'inventario:asignar_categoria_bulk' %}",
+  "tipoKeys": [{% for grupo in grupos %}"{{ grupo.tipo_key|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]
+}
 </script>
+<script src="{% static 'inventario/js/inventario_por_categoria_page.js' %}?v=1"></script>
 <script src="{% static 'inventario/js/inventario_por_categoria.js' %}"></script>
 {% endblock %}

@@ -15,21 +15,9 @@
   <div><strong>Hoy cierra el llenado de agendas.</strong> Tiempo restante:
     <span class="fw-bold fs-3 ms-1" id="cd-timer">--:--:--</span></div>
 </div>
-<script>
-(function(){
-  var end=new Date("{{ countdown_to }}").getTime();
-  var el=document.getElementById('cd-timer');
-  function tick(){
-    var diff=end-Date.now();
-    if(diff<=0){ document.getElementById('cd-banner').className='alert alert-danger mb-3';
-      el.parentElement.innerHTML='<strong>El llenado de agendas se ha cerrado.</strong> Recarga la página.'; return; }
-    var h=Math.floor(diff/3.6e6), m=Math.floor(diff%3.6e6/6e4), s=Math.floor(diff%6e4/1000);
-    el.textContent=(h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
-    setTimeout(tick,1000);
-  }
-  tick();
-})();
-</script>
+<div id="form_agenda-config" hidden
+     data-v0="{{ countdown_to }}"></div>
+<script src="{% static 'agendas/js/form_agenda.js' %}?v=1"></script>
 {% endif %}
 <div class="card">
   <div class="card-header">
@@ -61,22 +49,6 @@
           <input type="date" name="semana_fin" id="ag_semana_fin" class="form-control" value="{{ semana_fin }}" min="{{ semana_ini }}" required>
         </div>
       </div>
-      <script>
-        (function(){
-          var ini=document.getElementById('ag_semana_inicio'),
-              fin=document.getElementById('ag_semana_fin');
-          if(!ini||!fin)return;
-          function sync(){
-            fin.min=ini.value||'';
-            if(fin.value && ini.value && fin.value<ini.value){
-              fin.setCustomValidity('La fecha final no puede ser anterior a la de inicio.');
-            } else { fin.setCustomValidity(''); }
-          }
-          ini.addEventListener('change',sync);
-          fin.addEventListener('change',sync);
-          sync();
-        })();
-      </script>
 
       {% if materias %}
       <div class="table-responsive">

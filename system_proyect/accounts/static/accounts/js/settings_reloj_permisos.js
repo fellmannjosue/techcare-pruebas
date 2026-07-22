@@ -1,56 +1,55 @@
-// <--- hecho por claude code: permisos reloj — checkboxes AJAX + label dinámico Visualizar
-(function(){
-  const _cfg = document.getElementById('page-config');
-  if (!_cfg) return;
-  const CSRF = _cfg.dataset.csrf;
-  const URL  = _cfg.dataset.url;
-  const badgeTimers = new WeakMap();
+/* <--- hecho por claude code: extraído del template (JS fuera del HTML) */
+// <--- hecho por claude code: permiso provisional para registrar permisos (guardar + cuenta regresiva)
+(function () {
+  const cfg = document.getElementById('page-config');
+  const CSRF = cfg.dataset.csrf, URL = cfg.dataset.url;
 
-  function mostrarGuardado() {
-    const card  = document.querySelector('.card');
-    const badge = card ? card.querySelector('.badge-saved') : null;
-    if (!badge) return;
-    badge.style.display = '';
-    clearTimeout(badgeTimers.get(badge));
-    badgeTimers.set(badge, setTimeout(() => badge.style.display = 'none', 2000));
+  async function guardar(user, valor) {
+    const res = await fetch(URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ user_id: user, campo: 'permisos_registrar_hasta', valor: valor }),
+    });
+    return res.json();
   }
-
-  document.querySelectorAll('.perm-toggle').forEach(function(chk){
-    chk.addEventListener('change', function(){
-      const self   = this;
-      const userId = parseInt(this.dataset.user);
-      const campo  = this.dataset.campo;
-      const valor  = this.checked;
-      self.disabled = true;
-
-      fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type':     'application/json',
-          'X-CSRFToken':      CSRF,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({ user_id: userId, campo: campo, valor: valor }),
-      })
-      .then(r => r.json())
-      .then(data => {
-        self.disabled = false;
-        if (data.ok) {
-          mostrarGuardado();
-          // Actualizar label "Todos" / "Solo marcados" en la columna Visualizar
-          if (campo === 'ver_todos') {
-            const labelEl = self.parentElement.querySelector('.small');
-            if (labelEl) labelEl.textContent = valor ? 'Todos' : 'Solo marcados';
-          }
-        } else {
-          self.checked = !valor;
-          alert('Error al guardar el permiso.');
-        }
-      })
-      .catch(() => {
-        self.disabled = false;
-        self.checked = !valor;
-      });
+  function badge(user, ms) {
+    const b = document.querySelector(`.perm-hasta-cd[data-user="${user}"]`);
+    if (b) b.dataset.ms = ms || 0;
+  }
+  document.querySelectorAll('.perm-hasta-save').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      const user = this.dataset.user;
+      const inp = document.querySelector(`.perm-hasta-input[data-user="${user}"]`);
+      this.disabled = true;
+      const r = await guardar(user, inp.value || '');
+      this.disabled = false;
+      if (r.ok) badge(user, r.hasta_ms); else alert(r.error || 'Error al guardar');
     });
   });
+  document.querySelectorAll('.perm-hasta-clear').forEach(btn => {
+    btn.addEventListener('click', async function () {
+      const user = this.dataset.user;
+      const inp = document.querySelector(`.perm-hasta-input[data-user="${user}"]`);
+      inp.value = '';
+      const r = await guardar(user, '');
+      if (r.ok) badge(user, 0);
+    });
+  });
+  // Cuenta regresiva en vivo
+  function tick() {
+    const now = Date.now();
+    document.querySelectorAll('.perm-hasta-cd').forEach(b => {
+      const ms = parseInt(b.dataset.ms || '0', 10);
+      if (!ms) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Sin permiso'; b.dataset.ms = 0; return; }
+      let diff = Math.floor((ms - now) / 1000);
+      if (diff <= 0) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Vencido'; return; }
+      const d = Math.floor(diff / 86400); diff %= 86400;
+      const h = Math.floor(diff / 3600); diff %= 3600;
+      const m = Math.floor(diff / 60), s = diff % 60;
+      const cls = (ms - now) < 3600000 ? 'bg-red-lt text-red' : 'bg-green-lt text-green';
+      b.className = `ms-auto badge ${cls} perm-hasta-cd`;
+      b.innerHTML = `<i class="ti ti-clock-hour-4 me-1"></i>${d ? d + 'd ' : ''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    });
+  }
+  tick(); setInterval(tick, 1000);
 })();

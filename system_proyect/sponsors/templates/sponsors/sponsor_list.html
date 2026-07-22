@@ -6,6 +6,7 @@
 
 {% block page_actions %}
 <div class="col-auto ms-auto d-print-none">
+  <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-outline-secondary me-1"><i class="ti ti-arrow-left me-1"></i>Volver al panel</a>
   <a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i>Nuevo Sponsor</a>
 </div>
 {% endblock %}

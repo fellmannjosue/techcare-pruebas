@@ -1,6 +1,21 @@
 {
-  "version": "6.0.1.3",
+  "version": "6.0.2.0",
   "entradas": [
+    {
+      "version": "6.0.2.0",
+      "fecha": "2026-07-22",
+      "commit": "6c04c5a",
+      "cambios": [
+        "Release técnico: estos cambios son internos, por eso este aviso solo lo ve el superusuario.",
+        "Todo el JavaScript y CSS salió de los HTML a sus propios archivos (2,539 líneas en 101 plantillas).",
+        "Notificaciones: la campanita ahora aparece en los 17 módulos; antes solo estaba en 3 y el resto nunca las veía.",
+        "Se retiró el modo oscuro: quedaba a medias y no se podía volver a claro. El sistema queda siempre en claro.",
+        "Sponsors: botón Volver en todas las pantallas y formularios con estilo parejo.",
+        "Mantenimiento: 'solo lectura' ahora deshabilita los campos; se guarda el área y los docentes elegidos; botón Restaurar.",
+        "Correcciones: comentarios internos que se imprimían en pantalla y varios errores de datos en formularios."
+      ],
+      "menor": true
+    },
     {
       "version": "6.0.1.3",
       "fecha": "2026-07-22",

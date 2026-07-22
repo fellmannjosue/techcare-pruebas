@@ -1,11 +1,12 @@
 {% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
 {% load static cfp_extras %}
 {% block title %}{{ taller_label }} — CFP{% endblock %}
 {% block page_pretitle %}CFP · Taller{% endblock %}
 {% block page_title %}<i class="ti ti-tools me-2 text-green"></i>{{ taller_label }}{% endblock %}
 
 {% block extra_head %}
-<style>.table td,.table th{white-space:nowrap;font-size:.82rem}.tbl-tot td{font-weight:700;background:#fff8e1}</style>
+<link rel="stylesheet" href="{% static 'cfp/css/taller.css' %}?v=1">
 {% endblock %}
 
 {% block page_actions %}
@@ -154,26 +155,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-const CSRF='{{ csrf_token }}';
-const modalEj=new bootstrap.Modal(document.getElementById('modalEj'));
-function clearEj(){['pk','no_ejecucion','no_curso','no_contrato','nombre_curso','horas','part_inicial','part_pago','costo_hora','horario'].forEach(f=>{const el=document.getElementById('ej-'+f);if(el)el.value='';});const ta=document.getElementById('ej-taller_anio');if(ta)ta.value='';}
-function openEj(){clearEj();modalEj.show();}
-function editEj(id){fetch(`/cfp/ejecucion/${id}/`).then(r=>r.json()).then(d=>{
-  for(const k in d){const el=document.getElementById('ej-'+k);if(el)el.value=(d[k]===null?'':d[k]);}
-  modalEj.show();
-});}
-document.getElementById('formEj').addEventListener('submit',function(e){
-  e.preventDefault();
-  const fd=new FormData(this);fd.append('csrfmiddlewaretoken',CSRF);
-  fetch('{% url "cfp:ejecucion_guardar" %}',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
-    if(d.ok){location.reload();}else{alert(d.error||'Error');}
-  }).catch(()=>alert('Error de red'));
-});
-function delEj(id,nombre){
-  if(!confirm('¿Eliminar la ejecución '+(nombre||'')+'?'))return;
-  const fd=new FormData();fd.append('csrfmiddlewaretoken',CSRF);
-  fetch(`/cfp/ejecucion/${id}/eliminar/`,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();else alert('Error');});
-}
-</script>
+<div id="taller-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "cfp:ejecucion_guardar" %}"></div>
+<script src="{% static 'cfp/js/taller.js' %}?v=1"></script>
 {% endblock %}

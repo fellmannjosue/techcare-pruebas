@@ -101,11 +101,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  baseEditUrl: "{% url 'horarios_edit' 99999 %}",
-  messages: [{% for message in messages %}"{{ message|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]
-};
+<script type="application/json" id="horarios_list-data">
+{
+  "baseEditUrl": "{% url 'horarios_edit' 99999 %}",
+  "messages": [{% for message in messages %}"{{ message|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]
+}
 </script>
+<script src="{% static 'reloj/js/horarios_list_page.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/horarios_list.js' %}"></script>
 {% endblock %}

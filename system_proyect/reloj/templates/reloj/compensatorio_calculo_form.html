@@ -80,15 +80,12 @@
   </div>
 </div>
 
-<script>
-window._PAGE = {
-  minutosDia: {{ minutos_dia }},
-  empMap: {
-    {% for asig in form.fields.emp_code.widget.choices %}
-      {% if asig.0 %}"{{ asig.0 }}": "{{ asig.1 }}",{% endif %}
-    {% endfor %}
-  }
-};
+<script type="application/json" id="compensatorio_calculo_form-data">
+{
+  "minutosDia": {{ minutos_dia }},
+  "empPairs": [{% for asig in form.fields.emp_code.widget.choices %}["{{ asig.0|escapejs }}", "{{ asig.1|escapejs }}"]{% if not forloop.last %}, {% endif %}{% endfor %}]
+}
 </script>
+<script src="{% static 'reloj/js/compensatorio_calculo_form_page.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/compensatorio_calculo_form.js' %}"></script>
 {% endblock %}

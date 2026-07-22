@@ -1,0 +1,2 @@
+.rep-frame { width:100%; height:72vh; border:1px solid #e2e8f0; border-radius:.5rem; background:#f8fafc; }
+  .rep-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:.6rem; flex-wrap:wrap; }

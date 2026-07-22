@@ -8,11 +8,7 @@
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <style>
-    body { background:#f6f7fb; }
-    .firma-card { max-width:640px; margin:2rem auto; }
-    #sign { width:100%; height:200px; border:2px dashed #b6c2d6; border-radius:10px; background:#fff; touch-action:none; }
-  </style>
+<link rel="stylesheet" href="{% static 'mantenimiento/css/firmar.css' %}?v=1">
 </head>
 <body class="antialiased">
 <div class="container">
@@ -71,33 +67,7 @@
 </div>
 
 {% if not exito and not ya_firmado %}
-<script>
-(function () {
-  const canvas = document.getElementById('sign');
-  const ctx = canvas.getContext('2d');
-  let drawing = false, lastX = 0, lastY = 0, hasDrawn = false;
-  function resize() { const r = canvas.getBoundingClientRect(); canvas.width = r.width; canvas.height = r.height; }
-  resize(); window.addEventListener('resize', resize);
-  function pos(e) { const r = canvas.getBoundingClientRect(); const s = e.touches ? e.touches[0] : e; return [s.clientX - r.left, s.clientY - r.top]; }
-  function start(e) { drawing = true;[lastX, lastY] = pos(e); }
-  function move(e) {
-    if (!drawing) return; e.preventDefault();
-    ctx.beginPath(); ctx.moveTo(lastX, lastY);[lastX, lastY] = pos(e); ctx.lineTo(lastX, lastY);
-    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke(); hasDrawn = true;
-  }
-  function end() { drawing = false; }
-  canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move);
-  canvas.addEventListener('mouseup', end); canvas.addEventListener('mouseleave', end);
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, { passive: false });
-  canvas.addEventListener('touchmove', move, { passive: false });
-  canvas.addEventListener('touchend', end);
-  document.getElementById('clear').addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); hasDrawn = false; });
-  document.getElementById('firmaForm').addEventListener('submit', function (e) {
-    if (!hasDrawn) { e.preventDefault(); alert('Por favor firma antes de enviar.'); return; }
-    document.getElementById('firma_data').value = canvas.toDataURL('image/png');
-  });
-})();
-</script>
+<script src="{% static 'mantenimiento/js/firmar.js' %}?v=1"></script>
 {% endif %}
 </body>
 </html>

@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=3">
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
 </head>
 
 <body class="antialiased">
@@ -541,14 +542,12 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}"></script>
 
-<script>
-window._PAGE = {
-  csrf: '{{ csrf_token }}',
-  computadorasJson: {{ computadoras_json|safe }},
-  impresorasJson: {{ impresoras_json|safe }},
-  urlTipoFalla: '{% url "mantenimiento:tipo_falla_crear" %}',
-};
-</script>
+<div id="maintenance_dashboard-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "mantenimiento:tipo_falla_crear" %}"
+     data-v2="{{ computadoras_json|safe }}"
+     data-v3="{{ impresoras_json|safe }}"></div>
+<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=1"></script>
 <script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=6"></script>
 
 {% include "accounts/_notif_notas_toast.html" %}

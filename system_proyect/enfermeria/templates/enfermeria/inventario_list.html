@@ -71,10 +71,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  mensajeExito: {% if request.session.mensaje_exito %}'{{ request.session.mensaje_exito|escapejs }}'{% else %}''{% endif %}
-};
+<script type="application/json" id="inventario_list-data">
+{
+  "mensajeExito": "{% if request.session.mensaje_exito %}{{ request.session.mensaje_exito|escapejs }}{% endif %}"
+}
 </script>
+<script src="{% static 'enfermeria/js/inventario_list_page.js' %}?v=1"></script>
 <script src="{% static 'enfermeria/js/inventario_list.js' %}"></script>
 {% endblock %}

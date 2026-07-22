@@ -8,16 +8,7 @@
 {% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
 
 {% block extra_head %}
-<style>
-  .conv-chk { width:20px; height:20px; cursor:pointer; }
-  .conv-asig-h { writing-mode:initial; font-size:.8rem; }
-  .asig-dot { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:4px; }
-  .conv-prev-card { background:#fff; border:1px solid #e2e8f0; border-radius:.6rem; padding:22px 26px; max-width:720px; margin:0 auto; font-family:"Times New Roman",serif; }
-  .conv-prev-card .school { text-align:center; font-weight:bold; font-size:1.05rem; }
-  .conv-prev-card table { width:90%; margin:12px auto; border-collapse:collapse; }
-  .conv-prev-card th, .conv-prev-card td { border:1px solid #000; padding:4px 6px; text-align:center; font-size:.8rem; }
-  .conv-prev-card td.asig { text-align:left; }
-</style>
+<link rel="stylesheet" href="{% static 'conducta/css/form_convocatoria_grado.css' %}?v=1">
 {% endblock %}
 
 {% block page_actions %}
@@ -116,96 +107,17 @@
 </div>
 {% endif %}
 
-<script>
-(function () {
-  var CSRF = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-  var P = { parcial: {{ parcial }}, anio: {{ anio }}, grado_num: {{ tabla.grado_num|default:0 }}, seccion: "{{ tabla.seccion|default:'' }}" };
-  var SUBJECTS = {{ subjects_json|default:'[]'|safe }};
-  var GRADO_LABEL = "{{ tabla.label|default:''|escapejs }}";
-  var PARCIAL_ROM = "{{ parcial_rom }}";
-  var MI_NOMBRE = "{{ mi_nombre|escapejs }}";
-  var ES_COORD = {{ es_coord|yesno:'true,false' }};
-  var DIA_AB = ['','L','M','M','J','V'];
-
-  // Guardado al instante + "Solicitó: nombre" + bloqueo tras registrar
-  document.querySelectorAll('.conv-chk').forEach(function (chk) {
-    chk.addEventListener('change', function () {
-      var tr = chk.closest('tr');
-      var por = chk.closest('td').querySelector('.conv-por');
-      var marcado = chk.checked;
-      chk.disabled = true; // evita doble clic mientras guarda
-      fetch("{% url 'convocatoria_marca_toggle' %}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-        body: JSON.stringify({
-          parcial: P.parcial, anio: P.anio, grado_num: P.grado_num, seccion: P.seccion,
-          alumno_id: tr.dataset.alumno, alumno_nombre: tr.dataset.nombre,
-          asignatura: chk.dataset.asig, checked: marcado,
-        }),
-      }).then(r => r.json()).then(function (d) {
-        if (!d.ok) { chk.checked = !marcado; chk.disabled = false; alert(d.error || 'No se pudo guardar'); return; }
-        if (marcado) {
-          if (por) por.textContent = 'Solicitó: ' + MI_NOMBRE;
-        } else {
-          if (por) por.textContent = '';
-        }
-        chk.disabled = false;  // queda habilitado: cualquiera puede corregir
-      }).catch(function () { chk.checked = !marcado; chk.disabled = false; alert('Error de red'); });
-    });
-  });
-
-  // ── Vista previa de cartas (Siguiente página) ──
-  var v1 = document.getElementById('conv-ventana1');
-  var v2 = document.getElementById('conv-ventana2');
-  var cartas = [], idx = 0;
-
-  function recolectarCartas() {
-    var diasDe = {}; SUBJECTS.forEach(function (s) { diasDe[s.asignatura] = s.dias || []; });
-    var out = [];
-    document.querySelectorAll('#conv-ventana1 tbody tr[data-alumno]').forEach(function (tr) {
-      var asigs = [];
-      tr.querySelectorAll('.conv-chk:checked').forEach(function (c) { asigs.push(c.dataset.asig); });
-      if (asigs.length) out.push({ nombre: tr.dataset.nombre, asigs: asigs, diasDe: diasDe });
-    });
-    return out;
-  }
-  function fechaTexto() {
-    var t = "{{ fecha_hoy }}".split('-');
-    var M = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    return (+t[2]) + ' días del mes de ' + M[+t[1]-1] + ' del año ' + t[0];
-  }
-  function render() {
-    var wrap = document.getElementById('prev-wrap');
-    var vacio = document.getElementById('prev-vacio');
-    if (!cartas.length) { wrap.innerHTML = ''; vacio.style.display = ''; document.getElementById('prev-cont').textContent = '0 / 0'; return; }
-    vacio.style.display = 'none';
-    if (idx < 0) idx = 0; if (idx >= cartas.length) idx = cartas.length - 1;
-    var c = cartas[idx];
-    var filas = c.asigs.map(function (a, i) {
-      var dl = c.diasDe[a] || [];
-      var cels = [1,2,3,4,5].map(function (n) { return '<td>' + (dl.indexOf(n) >= 0 ? '✔' : '') + '</td>'; }).join('');
-      return '<tr><td>' + (i+1) + '</td><td class="asig">' + a + '</td>' + cels + '</tr>';
-    }).join('');
-    wrap.innerHTML =
-      '<div class="conv-prev-card"><div class="school">NUEVO AMANECER SCHOOL</div>' +
-      '<div style="text-align:center;font-size:.72rem;color:#555;">Aldea La Venta, km. 36 carretera hacia Olancho · Tels. 2758-0300 / 9485-4082</div>' +
-      '<div style="text-align:center;font-weight:bold;margin:8px 0;">COMPROMISO DE ASISTENCIA A TUTORÍA</div>' +
-      '<p style="text-align:justify;font-size:.82rem;">El C.E.B.N.G.B. Nuevo Amanecer pone a disposición de los padres un sistema de tutorías gratuitas de lunes a viernes de <b>7:00 – 7:45 a.m.</b> Vigencia durante todo el <b>' + PARCIAL_ROM + '</b> parcial.</p>' +
-      '<p style="font-size:.82rem;">Su hijo (a) <b>' + c.nombre + '</b> del <b>' + GRADO_LABEL + '</b> ha sido convocado a las siguientes tutorías:</p>' +
-      '<table><thead><tr><th>Nº</th><th>Asignatura(s)</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead><tbody>' + filas + '</tbody></table>' +
-      '<p style="font-size:.75rem;color:#555;">Dado a los ' + fechaTexto() + '.</p>' +
-      '<div style="display:flex;justify-content:space-between;margin-top:34px;font-size:.7rem;text-align:center;font-weight:bold;">' +
-      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">PADRE / ENCARGADO</div>' +
-      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">DOCENTE GUÍA</div>' +
-      '<div style="border-top:1px solid #000;width:30%;padding-top:2px;">COORDINADOR DE ÁREA</div></div></div>';
-    document.getElementById('prev-cont').textContent = (idx+1) + ' / ' + cartas.length;
-  }
-  var bs = document.getElementById('btn-siguiente');
-  if (bs) bs.addEventListener('click', function () { cartas = recolectarCartas(); idx = 0; v1.style.display = 'none'; v2.style.display = ''; render(); });
-  var bv = document.getElementById('btn-volver1');
-  if (bv) bv.addEventListener('click', function () { v2.style.display = 'none'; v1.style.display = ''; });
-  var pa = document.getElementById('prev-ant'); if (pa) pa.addEventListener('click', function () { idx--; render(); });
-  var ps = document.getElementById('prev-sig'); if (ps) ps.addEventListener('click', function () { idx++; render(); });
-})();
-</script>
+<div id="form_convocatoria_grado-config" hidden
+     data-v0="{{ tabla.seccion|default:'' }}"
+     data-v1="{{ tabla.label|default:''|escapejs }}"
+     data-v2="{{ parcial_rom }}"
+     data-v3="{{ mi_nombre|escapejs }}"
+     data-v4="{% url 'convocatoria_marca_toggle' %}"
+     data-v5="{{ fecha_hoy }}"
+     data-v6="{{ parcial }}"
+     data-v7="{{ anio }}"
+     data-v8="{{ tabla.grado_num|default:0 }}"
+     data-v9="{{ subjects_json|default:'[]'|safe }}"
+     data-v10="{{ es_coord|yesno:'true,false' }}"></div>
+<script src="{% static 'conducta/js/form_convocatoria_grado.js' %}?v=1"></script>
 {% endblock %}

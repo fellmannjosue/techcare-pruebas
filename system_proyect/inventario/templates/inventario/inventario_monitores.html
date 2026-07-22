@@ -1,4 +1,5 @@
 {% extends 'inventario/base_inventario.html' %}
+{% load static %}
 {% load static inventario_extras %}
 {% block title %}Monitores{% endblock %}
 {% block page_pretitle %}Monitores{% endblock %}
@@ -218,13 +219,14 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._MONI_PAGE = {
-  labsUsados:      {{ labs_usados|safe }},
-  asignadosUsados: {{ asignados_usados|safe }},
-  nextIds: { {% for prefix, label in prefijos %}"{{ prefix }}": "{{ next_ids|get_item:prefix }}"{% if not forloop.last %}, {% endif %}{% endfor %} }
-};
+<script type="application/json" id="inventario_monitores-data">
+{
+  "labsUsados":      [{% for x in labs_usados %}"{{ x|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+  "asignadosUsados": [{% for x in asignados_usados %}"{{ x|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+  "nextIds": { {% for prefix, label in prefijos %}"{{ prefix|escapejs }}": "{{ next_ids|get_item:prefix }}"{% if not forloop.last %}, {% endif %}{% endfor %} }
+}
 </script>
+<script src="{% static 'inventario/js/inventario_monitores_page.js' %}?v=1"></script>
 <script src="{% static 'inventario/js/inventario_monitores.js' %}"></script>
 <script src="{% static 'inventario/js/monitores_edit.js' %}"></script>
 {% endblock %}

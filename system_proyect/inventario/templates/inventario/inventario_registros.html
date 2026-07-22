@@ -501,10 +501,8 @@
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-<script>
-window._REG_PAGE = {
-  csrf: '{{ csrf_token }}'
-};
-</script>
+<div id="inventario_registros-config" hidden
+     data-v0="{{ csrf_token }}"></div>
+<script src="{% static 'inventario/js/inventario_registros.js' %}?v=1"></script>
 <script src="{% static 'inventario/js/inventario_registros.js' %}"></script>
 {% endblock %}

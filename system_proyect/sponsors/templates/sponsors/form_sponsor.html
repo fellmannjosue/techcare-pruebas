@@ -1,3 +1,4 @@
+{% load static %}
 {# <--- hecho por claude code: formulario migrado a Tabler; itera los campos para no perder ninguno #}
 {% extends 'sponsors/base_sponsors.html' %}
 {% block title %}{% if edit_mode %}Editar Sponsor{% else %}Nuevo Sponsor{% endif %}{% endblock %}
@@ -10,6 +11,7 @@
 <div class="col-auto ms-auto d-print-none">
   <button type="button" class="btn btn-outline-secondary" onclick="window.print()"><i class="ti ti-printer me-1"></i>Imprimir</button>
   <a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Volver a la lista</a>
+  <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-outline-secondary"><i class="ti ti-layout-grid me-1"></i>Panel</a>
 </div>
 {% endblock %}
 
@@ -83,23 +85,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function(){
-  var btn = document.getElementById('btn-eliminar');
-  if(!btn) return;
-  btn.addEventListener('click', function(){
-    Swal.fire({
-      icon: 'warning',
-      title: '¿Eliminar este sponsor?',
-      html: 'Se borrará también su <strong>historial de ingresos, padrinazgos y correspondencia</strong>.<br>Esta acción no se puede deshacer.',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#d63939'
-    }).then(function(r){
-      if(r.isConfirmed) document.getElementById('form-eliminar').submit();
-    });
-  });
-})();
-</script>
+<script src="{% static 'sponsors/js/form_sponsor.js' %}?v=1"></script>
 {% endblock %}

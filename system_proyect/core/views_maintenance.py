@@ -226,5 +226,25 @@ def modulos_guardar(request):
         body = json.loads(request.body or b'{}')
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    # <--- hecho por claude code: el bloqueo por formulario también persiste su AUDIENCIA
+    # (área + usuarios). Antes esos campos solo se guardaban al activar el mantenimiento
+    # general, así que elegir un docente aquí no tenía ningún efecto.
+    if 'area' in body:
+        area = str(body.get('area') or 'all').strip()
+        if area in {'all', 'staff', 'bilingue', 'colegio'}:
+            config.MAINTENANCE_AREA = area
+    if 'blocked_users' in body:
+        correos = body.get('blocked_users') or []
+        config.MAINTENANCE_BLOCKED_USERS = ','.join(
+            e.strip().lower() for e in correos if str(e).strip()
+        )
+
     estados = guardar_estados(config, body.get('modulos') or {})
-    return JsonResponse({'ok': True, 'modulos': estados})
+    blocked_raw = getattr(config, 'MAINTENANCE_BLOCKED_USERS', '')
+    return JsonResponse({
+        'ok': True,
+        'modulos': estados,
+        'area': getattr(config, 'MAINTENANCE_AREA', 'all'),
+        'blocked_users': [e for e in blocked_raw.split(',') if e.strip()],
+    })

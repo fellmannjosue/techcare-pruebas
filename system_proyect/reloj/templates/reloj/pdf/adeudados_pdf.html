@@ -1,18 +1,8 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<style>
-  @page { size: letter landscape; margin: 1.2cm; }
-  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
-  h1 { font-size: 15px; margin: 0 0 2px; }
-  h2 { font-size: 12px; margin: 14px 0 4px; color: #334155; }
-  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
-  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
-  td.c, th.c { text-align: center; }
-  tr:nth-child(even) td { background: #f8fafc; }
-</style></head><body>
+<link rel="stylesheet" href="{% static 'reloj/css/adeudados_pdf.css' %}?v=1">
+</head><body>
   <h1>Adeudados / Instructores — Tiempo trabajado y tomado</h1>
   <div class="sub">Año: {{ anio_sel }} · Generado por empleado</div>
 

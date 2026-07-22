@@ -27,9 +27,6 @@
   <div class="tc-lo-barwrap"><div id="tcLogoutBar"></div></div>
 </div>
 
-<script>
-  window.TC_LOGOUT_URL = "{% url 'logout' %}?inactive=1";
-  window.TC_IDLE_MINUTES = 240;  // 4 horas
-</script>
+<script src="{% static 'accounts/js/idle_logout.js' %}?v=1"></script>
 <script src="{% static 'accounts/js/idle_logout.js' %}?v=3"></script>
 {% endif %}

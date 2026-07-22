@@ -1,5 +1,6 @@
 {% extends 'calculadoras/base_calculadoras.html' %}
 {% load static %}
+{% load l10n %}
 {% block title %}Divisas{% endblock %}
 {% block page_pretitle %}Calculadoras{% endblock %}
 {% block page_title %}Conversión de Divisas{% endblock %}
@@ -74,13 +75,14 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-window._PAGE = {
-  csrf:    '{{ csrf_token }}',
-  urlTasa: '{% url "calculadoras_tasa_actualizar" %}',
-  urlAuto: '{% url "calculadoras_tasa_auto" %}',
-  tasas:   { {% for k,v in tasas.items %}'{{ k }}': {{ v.tasa }},{% endfor %} }
-};
+<script type="application/json" id="divisas-data">
+{
+  "csrf":    "{{ csrf_token }}",
+  "urlTasa": "{% url 'calculadoras_tasa_actualizar' %}",
+  "urlAuto": "{% url 'calculadoras_tasa_auto' %}",
+  "tasas": { {% for k,v in tasas.items %}"{{ k|escapejs }}": {{ v.tasa|unlocalize }}{% if not forloop.last %}, {% endif %}{% endfor %} }
+}
 </script>
+<script src="{% static 'calculadoras/js/divisas_page.js' %}?v=1"></script>
 <script src="{% static 'calculadoras/js/divisas.js' %}"></script>
 {% endblock %}

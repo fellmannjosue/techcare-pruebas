@@ -1,11 +1,12 @@
 {% extends 'tickets/base_tickets_user.html' %}
+{% load static %}
 {% load static cfp_extras %}
 {% block title %}Contabilidad CFP{% endblock %}
 {% block page_pretitle %}CFP{% endblock %}
 {% block page_title %}<i class="ti ti-calculator me-2 text-green"></i>Contabilidad CFP{% endblock %}
 
 {% block extra_head %}
-<style>.taller-card{transition:.15s}.taller-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.12)}</style>
+<link rel="stylesheet" href="{% static 'cfp/css/dashboard.css' %}?v=1">
 {% endblock %}
 
 {% block page_actions %}

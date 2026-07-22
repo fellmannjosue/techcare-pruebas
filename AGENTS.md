@@ -46,7 +46,8 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 (ej. `media/conducta/routing_bl.json`) se corren con `sudo -u www-data`.
 
 ## Convenciones
-- **Comentarios de autoría en templates:** `{# <--- hecho por claude code: ... #}` (una línea; nunca `<!--{# ... #}-->`).
+- **Comentarios de autoría en templates:** `{# <--- hecho por claude code: ... #}` — **una sola línea**. Django no soporta `{# #}` multilínea: si no cierra en la misma línea, deja de ser comentario y **se imprime como texto en la página**. Para varias líneas usar `{% comment %}`.
+- **Nada de JS ni CSS dentro del HTML.** Todo va a `<app>/static/<app>/js|css/`. Los valores de Django llegan por `data-*` en un div de config, o por islas JSON (`{{ x|json_script:"id" }}` / `<script type="application/json">`). Ojo al generar JSON desde plantillas: las comas finales de un `{% for %}` lo invalidan (usar `{% if not forloop.last %}`), los decimales salen con coma por la localización (usar `|unlocalize`) y `{{ lista|safe }}` imprime repr de Python con comillas simples (válido en JS, **inválido en JSON**). Validar con `node --check` y parseando la isla de la página renderizada.
 - Variables Django→JS: preferir `data-*` en un `<div hidden>` o `|json_script`; evitar `<script>` con literales Django salvo casos heredados.
 - Badges Tabler: `bg-blue-lt text-blue`, `bg-orange-lt text-orange`, `bg-green-lt text-green`, etc.
 - Roles = **grupos de Django por nombre** (revisados en `core/context_processors.py`, `accounts/panel_roles.py`). Casi ninguno usa permisos de Django (excepción: `inventario`). Los permisos del Reloj vienen del modelo `reloj.RelojPermiso`.

@@ -1,18 +1,8 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<style>
-  @page { size: letter landscape; margin: 1cm; }
-  body { font-family: Helvetica, Arial, sans-serif; font-size: 8px; color: #222; }
-  h1 { font-size: 14px; margin: 0 0 2px; }
-  .sub { color: #666; font-size: 8px; margin-bottom: 8px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #cbd5e1; padding: 2px 4px; text-align: center; }
-  th { background: #f1f5f9; font-size: 7px; text-transform: uppercase; }
-  td.l, th.l { text-align: left; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  h2 { font-size: 11px; margin: 12px 0 4px; }
-</style></head><body>
+<link rel="stylesheet" href="{% static 'reloj/css/permiso_reporte_pdf.css' %}?v=1">
+</head><body>
   <h1>Reporte Mensual de Permisos</h1>
   <div class="sub">Mes: {{ mes|date:"F Y" }} · Generado por empleado</div>
 

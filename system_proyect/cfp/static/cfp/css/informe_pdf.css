@@ -1,0 +1,20 @@
+/* <--- hecho por claude code: extraído del template */
+@page { size: legal; margin: 1.3cm 1.4cm; }
+  * { font-family: 'Helvetica', Arial, sans-serif; }
+  body { color:#000; font-size: 10px; }
+  .center { text-align:center; }
+  h1 { font-size: 14px; margin:0 0 8px; text-align:center; }
+  .sec { font-weight:bold; font-size:11px; margin:6px 0 2px; }
+  table { width:100%; border-collapse:collapse; }
+  .dg td { padding:2px 4px; vertical-align:bottom; }
+  .dg .lbl { color:#000; }
+  .dg .val { border-bottom:.5px solid #000; }
+  .cuentas td { padding:2px 6px; }
+  .cuentas .grp { font-weight:bold; }
+  .cuentas .item { padding-left:14px; }
+  .num { text-align:right; border-bottom:.5px solid #999; min-width:90px; }
+  .sub { text-align:right; border-top:.5px solid #000; font-weight:bold; }
+  .tot td { font-weight:bold; border-top:1px solid #000; }
+  .util { font-weight:bold; }
+  .neg { color:#c00; }
+  .hl { background:#efefef; }

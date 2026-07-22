@@ -1,0 +1,13 @@
+/* <--- hecho por claude code: extraído del template */
+.badge-coord {
+  display:inline-block;
+  padding:.28em .65em;
+  border-radius:.4rem;
+  font-size:.78rem;
+  color:#fff;
+  font-weight:600;
+  white-space:nowrap;
+}
+.fila-materia { cursor:pointer; }
+.fila-materia:hover td { background:rgba(32,107,196,.06); }
+.chk-coord-wrap { display:flex; flex-wrap:wrap; gap:.4rem .8rem; }

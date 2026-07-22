@@ -1,17 +1,9 @@
+{% load static %}
 {% load static l10n %}
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<style>
-  @page { size: letter landscape; margin: 1.2cm; }
-  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
-  h1 { font-size: 15px; margin: 0 0 2px; }
-  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
-  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
-  td.c, th.c { text-align: center; }
-  tr:nth-child(even) td { background: #f8fafc; }
-</style></head><body>
+<link rel="stylesheet" href="{% static 'reloj/css/calculo_pdf.css' %}?v=1">
+</head><body>
 
 {% if sec == 'adeudados' %}
   <h1>Control de adeudados</h1>

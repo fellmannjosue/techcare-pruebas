@@ -1,0 +1,16 @@
+/* Saldo restante un poco más grande (Tab 2 y Tab 5) */
+  [class*="saldo-badge-"], [class*="inst-saldo-"] {
+    font-size: .95rem !important;
+    padding: .35em .6em !important;
+  }
+  /* Tabla resaltada del tab fusionado: bordes claros + separador de mes */
+  #tab3 table.table-bordered > :not(caption) > * > * { border-color: #cbd5e1; }
+  #tab3 .mes-sep { border-left: 2px solid #475569 !important; }
+  #tab3 td, #tab3 th { vertical-align: middle; }
+  /* Inputs de Tr más limpios (sin flechas) */
+  #tab3 .mc-inp { width: 54px; font-size: .82rem; padding: .12rem .1rem; }
+  #tab3 .mc-inp::-webkit-outer-spin-button,
+  #tab3 .mc-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  #tab3 .mc-inp { -moz-appearance: textfield; }
+  /* Celdas To (tomado, solo lectura) */
+  #tab3 .mc-tom { font-size: .82rem; color: #be185d; min-width: 50px; }

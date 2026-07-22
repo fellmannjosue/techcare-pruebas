@@ -1,7 +1,33 @@
 from django import forms
 from .models import City, Country, Directed, Title, Sponsor, Godfather, Correspondence,Income,Sponsored, Descr_Godfather
 
-class CountryForm(forms.ModelForm):
+
+class EstiloBootstrapMixin:
+    """<--- hecho por claude code: aplica las clases de Tabler/Bootstrap a TODOS los campos.
+
+    Antes cada form listaba los widgets a mano y los que se olvidaban (ej. sponsor,
+    apadrinado, tipo de padrinazgo, número) salían sin estilo y con anchos distintos.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in self.fields.values():
+            w = campo.widget
+            if isinstance(w, (forms.CheckboxInput, forms.CheckboxSelectMultiple)):
+                clase = 'form-check-input'
+            elif isinstance(w, (forms.Select, forms.SelectMultiple)):
+                clase = 'form-select'
+            elif isinstance(w, (forms.RadioSelect, forms.FileInput)):
+                clase = 'form-control'
+            else:
+                clase = 'form-control'
+            existentes = w.attrs.get('class', '')
+            # no duplicar y dejar que 'form-select' gane sobre un 'form-control' heredado
+            clases = [c for c in existentes.split() if c not in ('form-control', 'form-select')]
+            if clase not in clases:
+                clases.append(clase)
+            w.attrs['class'] = ' '.join(clases).strip()
+
+class CountryForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Country
         fields = ['name', ]
@@ -9,7 +35,7 @@ class CountryForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese el nombre del país'}),
         }
 
-class CityForm(forms.ModelForm):
+class CityForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = City
         fields = ['zip_code', 'name', 'country']
@@ -19,7 +45,7 @@ class CityForm(forms.ModelForm):
             'country': forms.Select(attrs={'class': 'form-select'}),
         }
 
-class DirectedForm(forms.ModelForm):
+class DirectedForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Directed
         fields = ['description']
@@ -27,7 +53,7 @@ class DirectedForm(forms.ModelForm):
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese la descripción'}),
         }
 
-class TitleForm(forms.ModelForm):
+class TitleForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Title
         fields = ['description']
@@ -35,7 +61,7 @@ class TitleForm(forms.ModelForm):
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese el título'}),
         }
 
-class SponsorForm(forms.ModelForm):
+class SponsorForm(EstiloBootstrapMixin, forms.ModelForm):
     # <--- hecho por claude code: 'city' se incluye en el form. Antes se excluía con la nota
     # "se maneja manualmente" pero la vista nunca lo asignaba y, al ser NOT NULL,
     # guardar un sponsor nuevo reventaba con IntegrityError.
@@ -181,7 +207,7 @@ class SponsorForm(forms.ModelForm):
             )
 
 
-class GodfatherForm(forms.ModelForm):
+class GodfatherForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Godfather
         # <--- hecho por claude code: se agregan sponsored y descr_godfather (columnas ya existentes)
@@ -206,7 +232,7 @@ class GodfatherForm(forms.ModelForm):
             'desactivated': forms.CheckboxInput(),
         }
 
-class CorrespondenceForm(forms.ModelForm):
+class CorrespondenceForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Correspondence
         fields = ['sponsor', 'date', 'description']
@@ -220,7 +246,7 @@ class CorrespondenceForm(forms.ModelForm):
             'description': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-class IncomeForm(forms.ModelForm):
+class IncomeForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Income
         fields = [
@@ -257,7 +283,7 @@ class IncomeForm(forms.ModelForm):
             'payment_mail': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-class SponsoredForm(forms.ModelForm):
+class SponsoredForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Sponsored
         fields = ['last_name_1', 'last_name_2', 'first_name_1', 'first_name_2', 'active']
@@ -276,7 +302,7 @@ class SponsoredForm(forms.ModelForm):
             'active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-class DescrGodfatherForm(forms.ModelForm):
+class DescrGodfatherForm(EstiloBootstrapMixin, forms.ModelForm):
     class Meta:
         model = Descr_Godfather
         fields = ['name', 'description']

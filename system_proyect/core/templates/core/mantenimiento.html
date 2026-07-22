@@ -76,11 +76,9 @@
   </div>
 
 {% if maint_end_time %}
-<script>
-window._PAGE = {
-  maintEndTime: '{{ maint_end_time }}'
-};
-</script>
+<div id="mantenimiento-config" hidden
+     data-v0="{{ maint_end_time }}"></div>
+<script src="{% static 'core/js/mantenimiento.js' %}?v=1"></script>
 <script src="{% static 'core/js/mantenimiento.js' %}"></script>
 {% endif %}
 

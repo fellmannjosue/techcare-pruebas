@@ -9,12 +9,7 @@
 {# <--- hecho por claude code: dashboard general para staff multi-rol #}
 <p class="text-muted mb-4">Accesos según tus roles asignados.</p>
 
-<style>
-  .dg-section-title { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:#64748b; font-weight:600; }
-  .dg-card { transition:transform .12s ease, box-shadow .12s ease; }
-  .dg-card:hover { transform:translateY(-2px); box-shadow:0 .5rem 1rem rgba(0,0,0,.08); }
-  .dg-toggle .btn.active { color:#fff; }
-</style>
+<link rel="stylesheet" href="{% static 'accounts/css/dashboard_general.css' %}?v=1">
 
 {# ───────────── TICKETS ───────────── #}
 {% if show_tickets %}
@@ -228,27 +223,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function () {
-  // Toggle de área para maestro (BL / Colegio) — solo cuando hay ambas áreas.
-  var toggle = document.getElementById('dg-area-toggle');
-  if (!toggle) return;
-  var KEY = 'dgMaestroArea';
-  function aplicar(area) {
-    document.querySelectorAll('.dg-maestro-area').forEach(function (el) {
-      el.style.display = (el.dataset.area === area) ? '' : 'none';
-    });
-    toggle.querySelectorAll('button').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.area === area);
-    });
-    try { localStorage.setItem(KEY, area); } catch (e) {}
-  }
-  toggle.querySelectorAll('button').forEach(function (b) {
-    b.addEventListener('click', function () { aplicar(this.dataset.area); });
-  });
-  var guardada = null;
-  try { guardada = localStorage.getItem(KEY); } catch (e) {}
-  aplicar(guardada === 'colegio' ? 'colegio' : 'bilingue');
-})();
-</script>
+<script src="{% static 'accounts/js/dashboard_general.js' %}?v=1"></script>
 {% endblock %}

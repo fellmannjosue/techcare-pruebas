@@ -200,11 +200,9 @@
 
 </div>
 
-<script>
-window._PAGE = Object.assign(window._PAGE || {}, {
-  csrf:       '{{ csrf_token }}',
-  urlSave:    '{% url "notas_parcial_comentario" %}',
-});
-</script>
+<div id="index-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "notas_parcial_comentario" %}"></div>
+<script src="{% static 'notas_parcial/js/index.js' %}?v=1"></script>
 <script src="{% static 'notas_parcial/js/index.js' %}"></script>
 {% endblock %}

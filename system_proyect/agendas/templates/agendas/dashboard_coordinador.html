@@ -200,34 +200,9 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}"></script>
-<script>window._PAGE = { csrf: '{{ csrf_token }}' };</script>
+<div id="dashboard_coordinador-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "agendas:bloqueo_config_guardar" %}"></div>
+<script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=1"></script>
 <script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=2"></script>
-<script>
-(function () {
-  var act = document.getElementById('bq-activo');
-  if (act) act.addEventListener('change', function () {
-    document.getElementById('bq-activo-lbl').textContent = act.checked ? 'Activo' : 'Inactivo';
-  });
-  var all = document.getElementById('bq-all'), none = document.getElementById('bq-none');
-  if (all)  all.addEventListener('click',  function () { document.querySelectorAll('.bq-maestro').forEach(function (c) { c.checked = true; }); });
-  if (none) none.addEventListener('click', function () { document.querySelectorAll('.bq-maestro').forEach(function (c) { c.checked = false; }); });
-  var form = document.getElementById('form-bloqueo');
-  if (form) form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var fd = new FormData();
-    fd.append('csrfmiddlewaretoken', window._PAGE.csrf);
-    fd.append('activo', act.checked ? '1' : '0');
-    fd.append('mensaje', document.getElementById('bq-mensaje').value);
-    fd.append('mensaje_jueves', document.getElementById('bq-mensaje-jue').value);
-    fd.append('mensaje_viernes', document.getElementById('bq-mensaje-vie').value);
-    fd.append('jueves_limite', document.getElementById('bq-jueves').value);
-    document.querySelectorAll('.bq-maestro:checked').forEach(function (c) { fd.append('maestros', c.value); });
-    var btn = document.getElementById('bq-guardar'); btn.disabled = true;
-    fetch('{% url "agendas:bloqueo_config_guardar" %}', { method: 'POST', body: fd })
-      .then(function (r) { return r.json(); })
-      .then(function (d) { btn.disabled = false; if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); } })
-      .catch(function () { btn.disabled = false; alert('Error de red'); });
-  });
-})();
-</script>
 {% endblock %}

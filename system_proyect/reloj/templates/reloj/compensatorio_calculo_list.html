@@ -15,24 +15,7 @@
 
 {% block content %}
 {# <--- hecho por claude code: reestructura en 5 tabs #}
-<style>
-  /* Saldo restante un poco más grande (Tab 2 y Tab 5) */
-  [class*="saldo-badge-"], [class*="inst-saldo-"] {
-    font-size: .95rem !important;
-    padding: .35em .6em !important;
-  }
-  /* Tabla resaltada del tab fusionado: bordes claros + separador de mes */
-  #tab3 table.table-bordered > :not(caption) > * > * { border-color: #cbd5e1; }
-  #tab3 .mes-sep { border-left: 2px solid #475569 !important; }
-  #tab3 td, #tab3 th { vertical-align: middle; }
-  /* Inputs de Tr más limpios (sin flechas) */
-  #tab3 .mc-inp { width: 54px; font-size: .82rem; padding: .12rem .1rem; }
-  #tab3 .mc-inp::-webkit-outer-spin-button,
-  #tab3 .mc-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  #tab3 .mc-inp { -moz-appearance: textfield; }
-  /* Celdas To (tomado, solo lectura) */
-  #tab3 .mc-tom { font-size: .82rem; color: #be185d; min-width: 50px; }
-</style>
+<link rel="stylesheet" href="{% static 'reloj/css/compensatorio_calculo_list.css' %}?v=1">
 
 {% if messages %}
   {% for m in messages %}
@@ -384,73 +367,24 @@
 
 </div>{# /tab-content #}
 
-<script>
-  // Reactivar el tab de Gilma tras filtrar (?tab=gilma)
-  (function () {
-    var p = new URLSearchParams(window.location.search);
-    var map = { gilma: 'tab-gilma-btn' };
-    var id = map[p.get('tab')];
-    if (id) {
-      var btn = document.getElementById(id);
-      if (btn && window.bootstrap) new bootstrap.Tab(btn).show();
-    }
-  })();
-  // Atajos de rango: Mes / Quincena 1 (1–15) / Quincena 2 (16–fin), según el mes de "Hasta"
-  (function () {
-    function fmt(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
-    document.querySelectorAll('[data-grange]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var base = document.getElementById('g_fin').value || document.getElementById('g_ini').value || new Date().toISOString().slice(0, 10);
-        var dt = new Date(base + 'T00:00:00'), y = dt.getFullYear(), m = dt.getMonth();
-        var last = new Date(y, m + 1, 0).getDate(), r = this.dataset.grange, ini, fin;
-        if (r === 'mes') { ini = fmt(y, m, 1); fin = fmt(y, m, last); }
-        else if (r === 'q1') { ini = fmt(y, m, 1); fin = fmt(y, m, 15); }
-        else { ini = fmt(y, m, 16); fin = fmt(y, m, last); }
-        document.getElementById('g_ini').value = ini;
-        document.getElementById('g_fin').value = fin;
-        document.getElementById('gilmaRangoForm').submit();
-      });
-    });
-  })();
-</script>
+<div id="compensatorio_calculo_list-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "reloj_compensatorio_emp_buscar" %}"
+     data-v2="{% url "reloj_compensatorio_mensual_add" %}"
+     data-v3="{% url "reloj_compensatorio_mensual_cell" %}"
+     data-v4="{% url "reloj_compensatorio_mensual_comentario" %}"
+     data-v5="{% url "reloj_compensatorio_mensual_detalle_get" %}"
+     data-v6="{% url "reloj_compensatorio_mensual_detalle_add" %}"
+     data-v7="{% url "reloj_compensatorio_instructor_add" %}"
+     data-v8="{{ can_edit|yesno:'true,false' }}"
+     data-v9="{{ can_edit_extra|yesno:'true,false' }}"
+     data-v10="{{ can_delete_extra|yesno:'true,false' }}"
+     data-v11="{{ request.user.is_superuser|yesno:'true,false' }}"
+     data-v12="{{ anio_sel }}"></div>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=1"></script>
 
 {% include 'reloj/_compensatorio_modales.html' %}
 
-<script>
-window._PAGE = {
-  csrf:         '{{ csrf_token }}',
-  canEdit:      {{ can_edit|yesno:'true,false' }},
-  canEditExtra:   {{ can_edit_extra|yesno:'true,false' }},
-  canDeleteExtra: {{ can_delete_extra|yesno:'true,false' }},
-  isSuperuser:    {{ request.user.is_superuser|yesno:'true,false' }},
-  anio:         {{ anio_sel }},
-  urlTeGet:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/',
-  urlTeAdd:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/add/',
-  urlTeDel:     '/reloj/compensatorio-te/{te_pk}/delete/',
-  urlEmpBuscar: '{% url "reloj_compensatorio_emp_buscar" %}',
-  urlSetHorasAdeudadas: '/reloj/compensatorio-calculo/{pk}/set-horas-adeudadas/',
-  urlSetTomado: '/reloj/compensatorio-calculo/{pk}/set-tomado/',
-  urlGetTomado: '/reloj/compensatorio-calculo/{pk}/tomado/',
-  urlTomManualAdd: '/reloj/compensatorio-calculo/{pk}/tomado-manual/add/',
-  urlTomManualDel: '/reloj/compensatorio-tomado-manual/{pk}/delete/',
-  urlMensualAdd:    '{% url "reloj_compensatorio_mensual_add" %}',
-  urlMensualCell:   '{% url "reloj_compensatorio_mensual_cell" %}',
-  urlMensualComentario: '{% url "reloj_compensatorio_mensual_comentario" %}',
-  urlDetGet: '{% url "reloj_compensatorio_mensual_detalle_get" %}',
-  urlDetAdd: '{% url "reloj_compensatorio_mensual_detalle_add" %}',
-  urlDetDel: '/reloj/compensatorio-mensual-detalle/{pk}/delete/',
-  urlMensualDel:    '/reloj/compensatorio-mensual/{pk}/delete/',
-  urlInstructorAdd: '{% url "reloj_compensatorio_instructor_add" %}',
-  urlInstructorSet: '/reloj/compensatorio-instructor/{pk}/set/',
-  urlInstructorDel: '/reloj/compensatorio-instructor/{pk}/delete/',
-  urlInstTeGet:  '/reloj/compensatorio-instructor/{pk}/te/',
-  urlInstTeAdd:  '/reloj/compensatorio-instructor/{pk}/te/add/',
-  urlInstTeDel:  '/reloj/compensatorio-instructor-te/{pk}/delete/',
-  urlInstTomGet: '/reloj/compensatorio-instructor/{pk}/tomado/',
-  urlInstTomAdd: '/reloj/compensatorio-instructor/{pk}/tomado/add/',
-  urlInstTomDel: '/reloj/compensatorio-instructor-tomado/{pk}/delete/',
-};
-</script>
 <script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=25"></script>
 
 {% endblock %}
