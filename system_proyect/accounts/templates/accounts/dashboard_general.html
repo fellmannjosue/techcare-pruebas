@@ -195,14 +195,37 @@
 {# ───────────── NOTAS MITAD DE PARCIAL (normal) ───────────── #}
 {% if request.user|es_coord_notas or request.user|es_maestro_notas %}
 <div class="mb-2 dg-section-title"><i class="ti ti-file-certificate me-1 text-blue"></i>Notas Mitad de Parcial</div>
+{# <--- hecho por claude code: tarjeta de coordinador + una por cada área en la #}
+{# que da clase, para que un coordinador-maestro pueda llenar su propio comentario #}
 <div class="row g-3 mb-4">
+  {% if request.user|es_coord_notas %}
   <div class="col-6 col-md-3">
-    <a href="{% if request.user|es_coord_notas %}{% url 'notas_parcial_coordinador' %}{% else %}{% url 'notas_parcial_maestro' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+    <a href="{% url 'notas_parcial_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
       <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#1971c2;"></i></div>
       <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
-      <div class="text-muted small">{% if request.user|es_coord_notas %}Revisión / Asignaciones{% else %}Mis notas{% endif %}</div>
+      <div class="text-muted small">Revisión / Asignaciones</div>
     </a>
   </div>
+  {% endif %}
+  {% for amb in notas_ambitos %}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'notas_parcial_maestro' %}?ambito={{ amb.key }}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#0ca678;"></i></div>
+      <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
+      <div class="text-muted small">Mis notas — {{ amb.label }}</div>
+    </a>
+  </div>
+  {% empty %}
+  {% if not request.user|es_coord_notas %}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'notas_parcial_maestro' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#0ca678;"></i></div>
+      <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
+      <div class="text-muted small">Mis notas</div>
+    </a>
+  </div>
+  {% endif %}
+  {% endfor %}
 </div>
 {% endif %}
 

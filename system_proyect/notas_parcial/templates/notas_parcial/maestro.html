@@ -14,6 +14,18 @@
 <div class="container-xl">
 
   {# ── Lista de asignaciones ─────────────────────────────── #}
+  {# <--- hecho por claude code: aviso del área cuando se entra con ?ambito= #}
+  {% if ambito_label %}
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <span class="badge bg-green-lt text-green fs-6">
+      <i class="ti ti-school me-1"></i>Área: {{ ambito_label }}
+    </span>
+    <a href="{% url 'notas_parcial_maestro' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="ti ti-list me-1"></i>Ver todas mis áreas
+    </a>
+  </div>
+  {% endif %}
+
   {# <--- hecho por claude code: al coordinador-maestro se le mostraban las asignaciones #}
   {# de TODOS como si fueran suyas; ahora ve las suyas y puede alternar #}
   {% if es_coord %}

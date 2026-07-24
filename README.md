@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 6.0.5.0 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 6.0.5.0.001 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,24 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v6.0.5.0.001 — Barrido de bugs de la extracción de JS (release menor)
+
+> Release **menor**: las novedades solo se muestran al superusuario. Corrige secuelas de la migración *JS fuera del HTML* halladas con un diagnóstico automático de las 72 pantallas.
+
+- **9 pantallas sin JavaScript** — La extracción había dejado 9 archivos con solo el bloque de configuración y **cero lógica**: modal de mantenimiento (`menu.js`), gráfica del reloj, edición de vacaciones, mantenimiento de cámaras, historial médico, editar agenda, revisión de comentarios e índice de notas, y el cierre por inactividad. Recuperados (~1,200 líneas) y validados uno por uno.
+- **`window._SB` vs `window._PAGE`** — En *Salidas al baño* el JS que pinta la tabla lee `window._SB`, pero la config extraída lo escribía en `window._PAGE`: los alumnos no cargaban. Corregido.
+- **JSON crudo en atributos `data-*`** — El alumnado (y otros bloques) se inyectaban con `|safe` dentro de `data-v="..."`, y la primera comilla del JSON cerraba el atributo → `JSON.parse` recibía `{` y fallaba. Afectaba Salidas al baño, Mantenimiento, Cámaras, Convocatorias y las gráficas del panel admin. Se quitó `|safe` (Django escapa las comillas y el navegador las restaura).
+- **`abrirModalResumen` indefinida** — Las tarjetas resumen del Panel Principal (`onclick`) no hacían nada porque la función se perdió; reescrita con un modal Bootstrap propio (sin dependencia de SweetAlert).
+- **`{% extends %}` no era el primer tag** — La página *Nuevo Sponsor* daba **error 500**; un comentario quedó antes del `extends`. Corregido.
+- **Tags Django dentro de `.js`** — `medical_history.js` e `idle_logout.js` traían `{% url %}` literal (un `.js` no lo procesa Django); su config pasó a un `data-*` en el template.
+- **Scripts duplicados** — `dt_guard.js` se cargaba dos veces (base + hijo) en 5 pantallas; y el `?v=` de 168 `<script>` se subió para romper la caché del navegador.
+- **Un `const CFG` global por archivo** — Los 33 archivos extraídos declaraban la misma constante global; en cada página el segundo script moría con `SyntaxError`. Renombrados con prefijo de app.
+- **Logo del PDF de inventario** — Ruta `inventory/` (inglés) → `inventario/`.
+- **Notas mitad de parcial** — El comentario del maestro no se guardaba; *Vista Previa*, asignar a varios grados, agrupado por maestro, "Revisado" persistente, bachillerato con `@Curso`, y el PDF de comentarios en **dos columnas** (entran hasta 13 maestros por alumno).
+- **Navegación de maestros de dos áreas** — Nayeli Gonzales / David Ruiz: una tarjeta de Notas por área, el dashboard recuerda el área elegida (antes solo funcionaba para una lista fija de usuarios) y *Volver* regresa al Panel General correcto. Un coordinador-maestro veía las asignaciones de todos como suyas.
+- **Salidas al baño** — Período con fecha de fin anterior a la de inicio (2025 antes que 2026); corregido y con validación en el formulario.
+- **Tickets / login / superusuario** — El panel de técnico ya no queda abierto a cualquier usuario; recuperados el ojito, el usuario sin dominio y el modo admin; el superusuario no se bloquea por intentos fallidos + comando `manage.py resetclave`.
 
 ### v6.0.5.0 — Recuperación del JS perdido, PDF de notas y sincronización de asignaciones
 

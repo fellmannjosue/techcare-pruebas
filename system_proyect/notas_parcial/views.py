@@ -1048,6 +1048,16 @@ def maestro_notas(request):
     else:
         asignaciones = AsignacionMaestro.objects.filter(maestro=user).order_by(*_orden)
 
+    # <--- hecho por claude code: los maestros que dan clase en las DOS áreas entran
+    # con ?ambito=bilingue|colegio para ver solo esa parte (una tarjeta por área en el
+    # Panel General). Sin el parámetro se ven todas, como siempre.
+    ambito = request.GET.get('ambito', '')
+    _AREAS_AMBITO = {'bilingue': [a for a, _ in AREAS_BL],
+                     'colegio':  [a for a, _ in AREAS_COLEGIO]}
+    if ambito in _AREAS_AMBITO:
+        asignaciones = asignaciones.filter(area__in=_AREAS_AMBITO[ambito])
+    ambito_label = {'bilingue': 'Bilingüe', 'colegio': 'Colegio'}.get(ambito, '')
+
     # <--- hecho por claude code: las tarjetas se veían "duplicadas" porque colegio y
     # bachillerato usan los MISMOS nombres de grado (1ero/2do, secciones a/b) y solo
     # las diferenciaba una etiqueta pequeña. Se agrupan por área y en bachillerato el
@@ -1130,6 +1140,8 @@ def maestro_notas(request):
         'asignaciones': asignaciones,
         'grupos_asig':  grupos_asig,   # <--- hecho por claude code: tarjetas agrupadas por área
         'ver_todas':    ver_todas,   # <--- hecho por claude code
+        'ambito':       ambito,          # <--- hecho por claude code
+        'ambito_label': ambito_label,
         # <--- hecho por claude code: en bachillerato el grado se nombra como año
         'titulo_sel':   (f"{_ORDINAL_ANIO.get(grado_sel, grado_sel)} Año"
                          if area_sel == 'bachillerato' and grado_sel else

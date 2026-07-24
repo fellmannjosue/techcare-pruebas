@@ -487,7 +487,8 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navMaestroBL">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_maestro' %}">
+        {# <--- hecho por claude code: el Dashboard debe abrir en SU área #}
+        <a class="nav-link" href="{% url 'dashboard_maestro' %}?area=bilingue">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
         </a>
@@ -536,7 +537,8 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navMaestroCol">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard_maestro' %}">
+        {# <--- hecho por claude code: el Dashboard debe abrir en SU área #}
+        <a class="nav-link" href="{% url 'dashboard_maestro' %}?area=colegio">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
           <span class="nav-link-title">Dashboard</span>
         </a>

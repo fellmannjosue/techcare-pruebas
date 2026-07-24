@@ -422,7 +422,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="{% static 'accounts/js/dashboard_summary.js' %}?v=20"></script>
+<script src="{% static 'accounts/js/dashboard_summary.js' %}?v=21"></script>
 
 {% if False %}{# Modal movido a _user_dropdown.html #}
 <div class="modal fade" id="__modal_placeholder__" tabindex="-1" aria-hidden="true">
@@ -642,7 +642,7 @@
      data-csrf="{{ csrf_token }}"
      data-url-estado-mantenimiento="{% url 'estado_mantenimiento' %}"
      data-url-toggle-mantenimiento="{% url 'toggle_mantenimiento' %}"></div>
-<script src="{% static 'accounts/js/menu.js' %}?v=20"></script>
+<script src="{% static 'accounts/js/menu.js' %}?v=21"></script>
 {% endif %}
 
 {# Toast container global — usado por notifications.js y notif_notas_toast.js #}

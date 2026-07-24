@@ -21,6 +21,15 @@ class PeriodoEscolarForm(forms.ModelForm):
             'activo':       forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    def clean(self):
+        # <--- hecho por claude code: evitar rangos invertidos (asi entró un período
+        # con fin 19/08/2025 antes que su inicio 15/06/2026, y no cargaban los alumnos)
+        cleaned = super().clean()
+        ini, fin = cleaned.get('fecha_inicio'), cleaned.get('fecha_fin')
+        if ini and fin and fin < ini:
+            self.add_error('fecha_fin', 'La fecha de fin no puede ser anterior a la de inicio.')
+        return cleaned
+
 
 class MaestroClaseForm(forms.ModelForm):
     # Declarado a nivel de clase para ser MultipleChoiceField (no CharField)

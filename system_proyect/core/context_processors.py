@@ -95,6 +95,11 @@ def nav_context(request):
         nav_home_url = reverse('panel_general')
     elif is_solo_progress:
         nav_home_url = reverse('progress_report_bilingue')
+    # <--- hecho por claude code: quien es maestro en las DOS áreas entra al Panel
+    # General (así lo hace el login), así que su "Panel Principal" debe volver ahí y
+    # no al dashboard de un área suelta.
+    elif is_maestro_bl and is_maestro_col:
+        nav_home_url = reverse('panel_general')
     elif nav_mbl or nav_mcol:
         nav_home_url = reverse('dashboard_maestro')
     elif nav_coord_col and not nav_coord_bl:

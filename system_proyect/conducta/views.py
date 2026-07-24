@@ -737,13 +737,20 @@ def get_materia_docente_choices(area):
 # ---------------------------
 # DASHBOARDS Y FORMULARIOS
 # ---------------------------
-_USUARIOS_MULTI_AREA = {'druiz@ana-hn.org', 'admin2@ana-hn.org'}
+# <--- hecho por claude code: antes esto era una lista de usuarios escrita a mano
+# ({'druiz', 'admin2'}), así que cualquier otro maestro de las dos áreas (p. ej.
+# Nayeli Gonzales) NO recordaba el área elegida y siempre volvía a Bilingüe.
+# Ahora el criterio son los grupos, igual que en accounts.panel_roles.
+def _maestro_dos_areas(user):
+    return user.groups.filter(name='maestros_bilingue').exists() and \
+           user.groups.filter(name='maestros_colegio').exists()
+
 
 @login_required
 def dashboard_maestro(request):
     user = request.user
     area = request.GET.get('area')
-    if user.username in _USUARIOS_MULTI_AREA:
+    if _maestro_dos_areas(user):
         if area:
             request.session['maestro_area'] = area
         else:
@@ -1149,7 +1156,9 @@ def historial_maestro_bilingue(request):
     agendas_usuario = _agendas_historial(usuario, ['primaria', 'colegio_bl'])
 
     es_admin = request.user.groups.filter(name='administracion').exists()
-    back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
+    # <--- hecho por claude code: '' deja que la plantilla use nav_home_url (el inicio
+    # real del usuario: Panel General si da clase en las dos áreas, su dashboard si no)
+    back_url = 'tickets/submit_ticket/' if es_admin else ''
 
     return render(request, 'conducta/historial_maestro.html', {
         'reportes_informativo': reportes_informativo,
@@ -1176,7 +1185,9 @@ def historial_maestro_colegio(request):
     agendas_usuario = _agendas_historial(usuario, ['colegio'])
 
     es_admin = request.user.groups.filter(name='administracion').exists()
-    back_url = 'tickets/submit_ticket/' if es_admin else '/conducta/dashboard/maestro/'
+    # <--- hecho por claude code: '' deja que la plantilla use nav_home_url (el inicio
+    # real del usuario: Panel General si da clase en las dos áreas, su dashboard si no)
+    back_url = 'tickets/submit_ticket/' if es_admin else ''
 
     return render(request, 'conducta/historial_maestro.html', {
         'reportes_informativo': reportes_informativo,

@@ -520,10 +520,14 @@
      data-v7="{{ csrf_token }}"
      data-v8="{{ fecha_hoy }}"
      data-v9="{{ es_coordinador|yesno:"true,false" }}"
-     data-v10="{{ alumnos_por_grado|safe }}"
-     data-v11="{{ salidas_hoy|safe }}"
-     data-v12="{{ clases_por_grado|safe }}"></div>
-<script src="{% static 'salidas_bano/js/index.js' %}?v=2"></script>
+     {# <--- hecho por claude code: SIN |safe. El JSON lleva comillas dobles y con #}
+     {# |safe la primera " cerraba el atributo, asi que JSON.parse recibia solo "{" #}
+     {# y los alumnos no cargaban. Django escapa las comillas y el navegador las #}
+     {# restaura al leer .dataset. #}
+     data-v10="{{ alumnos_por_grado }}"
+     data-v11="{{ salidas_hoy }}"
+     data-v12="{{ clases_por_grado }}"></div>
+<script src="{% static 'salidas_bano/js/index.js' %}?v=3"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=10"></script>
 {# <--- hecho por claude code: footer unificado #}

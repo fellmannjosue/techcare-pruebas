@@ -817,6 +817,15 @@ def panel_general(request):
         'show_reloj':       user.is_superuser or _g(user, 'reloj'),
         'toggle_area':      maestro_dos_areas(user),
         'welcome_name':     user.get_full_name() or user.username,
+        # <--- hecho por claude code: una tarjeta de Notas Mitad de Parcial por cada área
+        # en la que da clase (Bilingüe / Colegio). Quien además coordina ve la suya
+        # aparte, para poder llenar su propio comentario como docente.
+        'notas_ambitos':    [a for a in (
+                                {'key': 'bilingue', 'label': 'Bilingüe',
+                                 'ok': _g(user, 'maestros_bilingue')},
+                                {'key': 'colegio',  'label': 'Colegio',
+                                 'ok': _g(user, 'maestros_colegio')},
+                             ) if a['ok']],
     }
     return render(request, 'accounts/dashboard_general.html', ctx)
 

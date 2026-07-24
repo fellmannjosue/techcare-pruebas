@@ -216,6 +216,9 @@
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
-<script src="{% static 'enfermeria/js/medical_history.js' %}?v=5"></script>
+{# <--- hecho por claude code: config del JS por data-* (un .js no procesa Django) #}
+<div id="mh-config" hidden
+     data-url-historial="{% url 'enfermeria:get_medical_history_data' %}"
+     data-url-pdf="/enfermeria/atencion/pdf/{pk}/"></div>
+<script src="{% static 'enfermeria/js/medical_history.js' %}?v=6"></script>
 {% endblock %}

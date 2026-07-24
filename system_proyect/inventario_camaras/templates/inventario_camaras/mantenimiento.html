@@ -167,6 +167,6 @@
 {% block extra_js %}
 <div id="mantenimiento-config" hidden
      data-v0="{{ csrf_token }}"
-     data-v1="{{ camaras_grupo_json|safe }}"></div>
-<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=3"></script>
+     data-v1="{{ camaras_grupo_json }}"></div>
+<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=4"></script>
 {% endblock %}

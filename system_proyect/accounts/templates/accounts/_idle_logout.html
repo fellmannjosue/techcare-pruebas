@@ -27,5 +27,9 @@
   <div class="tc-lo-barwrap"><div id="tcLogoutBar"></div></div>
 </div>
 
-<script src="{% static 'accounts/js/idle_logout.js' %}?v=4"></script>
+{# <--- hecho por claude code: config del JS por data-* (un .js no procesa Django) #}
+<div id="idle-config" hidden
+     data-logout-url="{% url 'logout' %}?inactive=1"
+     data-idle-min="240"></div>
+<script src="{% static 'accounts/js/idle_logout.js' %}?v=5"></script>
 {% endif %}

@@ -102,7 +102,11 @@
       "Bash(python -c ' *)",
       "Bash(git -c core.pager=cat diff --cached system_proyect/core/changelog.json)",
       "Bash(cd /home/admin2/techcare_project *)",
-      "Bash(git -c core.pager=cat commit --amend --no-edit -q)"
+      "Bash(git -c core.pager=cat commit --amend --no-edit -q)",
+      "Bash(git -c core.pager=cat log --oneline -1)",
+      "Bash(git -c core.pager=cat log --oneline -1 origin/main)",
+      "Bash(sudo -S bash -c 'ps -eo pid,lstart,cmd | grep \"apache2 -k start\" | grep -v grep | head -1')",
+      "Bash(grep -nB2 \"dataset.groups\\\\b\" accounts/static/accounts/js/menu.js)"
     ],
     "additionalDirectories": [
       "/home/admin2/techcare_project/system_proyect/conducta",
