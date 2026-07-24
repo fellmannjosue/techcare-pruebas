@@ -5,7 +5,8 @@
   <div class="dropup w-100">
     <a href="#" id="notifDropdownToggle"
        class="d-flex align-items-center gap-2 text-decoration-none px-2 py-2 rounded"
-       data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+       data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+       data-bs-boundary="viewport" data-bs-offset="0,10">
       <span class="position-relative">
         <i class="ti ti-bell fs-3 text-white"></i>
         <span id="badgeNotificaciones"
@@ -14,7 +15,7 @@
       </span>
       <span class="text-white small flex-fill">Notificaciones</span>
     </a>
-    <div class="dropdown-menu shadow p-0" style="min-width:340px;max-height:400px;overflow-y:auto;">
+    <div class="dropdown-menu shadow p-0 tc-notif-menu">
       <div class="dropdown-header border-bottom fw-bold py-2 px-3">
         <i class="ti ti-bell me-1"></i>Notificaciones recientes
       </div>
@@ -23,5 +24,5 @@
   </div>
 </div>
 <audio id="notifSound" src="{% static 'accounts/sound/notification.mp3' %}" preload="auto"></audio>
-<script src="{% static 'accounts/js/notifications.js' %}?v=2"></script>
+<script src="{% static 'accounts/js/notifications.js' %}?v=4"></script>
 {% endif %}

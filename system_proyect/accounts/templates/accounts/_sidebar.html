@@ -107,11 +107,27 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navTickets">
       <li class="nav-item">
-        <a class="nav-link" href="/tickets/submit_ticket/">
+        <a class="nav-link" href="{% url 'submit_ticket' %}">
           <span class="nav-link-icon"><i class="ti ti-plus"></i></span>
           <span class="nav-link-title">Nuevo Ticket</span>
         </a>
       </li>
+      {# <--- hecho por claude code: historial propio, visible para cualquier usuario con tickets #}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'mis_tickets' %}">
+          <span class="nav-link-icon"><i class="ti ti-history"></i></span>
+          <span class="nav-link-title">Mis Tickets</span>
+        </a>
+      </li>
+      {# <--- hecho por claude code: el panel de gestión solo para técnicos/admin #}
+      {% if nav_tickets_tecnico %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'technician_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
+          <span class="nav-link-title">Gestión de Tickets</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
   </li>
   {% endif %}
@@ -608,4 +624,4 @@
 
 </ul>
 
-<script src="{% static 'accounts/js/sidebar.js' %}"></script>
+<script src="{% static 'accounts/js/sidebar.js' %}?v=20"></script>

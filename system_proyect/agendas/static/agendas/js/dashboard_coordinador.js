@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #dashboard_coordinador-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_AGENDAS_DASHBOARD_COORDINADOR = (function(){
   var d = document.getElementById("dashboard_coordinador-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -11,7 +11,7 @@ const CFG = (function(){
   };
 })();
 
-window._PAGE = { csrf: CFG.v0 };
+window._PAGE = { csrf: CFG_AGENDAS_DASHBOARD_COORDINADOR.v0 };
 
 (function () {
   var act = document.getElementById('bq-activo');
@@ -33,7 +33,7 @@ window._PAGE = { csrf: CFG.v0 };
     fd.append('jueves_limite', document.getElementById('bq-jueves').value);
     document.querySelectorAll('.bq-maestro:checked').forEach(function (c) { fd.append('maestros', c.value); });
     var btn = document.getElementById('bq-guardar'); btn.disabled = true;
-    fetch(CFG.v1, { method: 'POST', body: fd })
+    fetch(CFG_AGENDAS_DASHBOARD_COORDINADOR.v1, { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (d) { btn.disabled = false; if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); } })
       .catch(function () { btn.disabled = false; alert('Error de red'); });

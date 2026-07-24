@@ -38,7 +38,14 @@ Cambios de **Python/settings/middleware** → reiniciar Apache. Cambios de
 ```bash
 ../venv313/bin/python manage.py collectstatic --noinput   # requiere sudo (archivos de www-data)
 sudo systemctl restart apache2
+# VERIFICAR que de verdad reinició (no basta `is-active`):
+ps -eo pid,lstart,cmd | grep "apache2 -k start" | grep -v grep | head -1
 ```
+⚠️ **Comprobar el reinicio por la hora de arranque del proceso.** Un
+`systemctl restart` que falla (sudo sin clave, etc.) deja Apache corriendo con
+el **código viejo** y `systemctl is-active` sigue diciendo `active`: se pierde
+mucho tiempo depurando "cambios que no se aplican" que sí estaban bien. No
+canalizar la salida del restart a `tail -0` / `/dev/null`.
 La contraseña sudo del servidor **no** está aquí; el operador la conoce (o está
 en la memoria privada del agente, nunca en el repo). Apache corre como
 **`www-data`**: puede **leer** el repo pero **no** escribir archivos de admin2
@@ -48,6 +55,8 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 ## Convenciones
 - **Comentarios de autoría en templates:** `{# <--- hecho por claude code: ... #}` — **una sola línea**. Django no soporta `{# #}` multilínea: si no cierra en la misma línea, deja de ser comentario y **se imprime como texto en la página**. Para varias líneas usar `{% comment %}`.
 - **Nada de JS ni CSS dentro del HTML.** Todo va a `<app>/static/<app>/js|css/`. Los valores de Django llegan por `data-*` en un div de config, o por islas JSON (`{{ x|json_script:"id" }}` / `<script type="application/json">`). Ojo al generar JSON desde plantillas: las comas finales de un `{% for %}` lo invalidan (usar `{% if not forloop.last %}`), los decimales salen con coma por la localización (usar `|unlocalize`) y `{{ lista|safe }}` imprime repr de Python con comillas simples (válido en JS, **inválido en JSON**). Validar con `node --check` y parseando la isla de la página renderizada.
+- **Un identificador global por archivo JS.** Los `.js` no son módulos: se comparte el ámbito global. Toda página carga al menos dos (el de la base + el de la pantalla), así que dos archivos con `const CFG` provocan `SyntaxError: Identifier 'CFG' has already been declared` y **el segundo script no ejecuta nada**. Cada archivo usa su propio nombre (`CFG_MAESTRO`, `CFG_COORDINADOR`, con prefijo de app si el nombre de archivo se repite entre apps). Mismo cuidado con `CSRF`, `URL_*`, etc.: encerrarlos en un IIFE.
+- **Al extraer JS de un template, mover TODA la lógica, no solo la config.** En la v6.0.2.0 el script de migración copió únicamente el bloque `data-*` y 12 pantallas quedaron sin código (ver v6.0.5.0). Contraste útil: comparar el nº de líneas del `.js` actual contra la mejor versión del archivo en el historial (`git log --format=%h` + `git show <c>:<ruta> | wc -l`) y revisar que cada plantilla cargue su `.js` **una sola vez**.
 - Variables Django→JS: preferir `data-*` en un `<div hidden>` o `|json_script`; evitar `<script>` con literales Django salvo casos heredados.
 - Badges Tabler: `bg-blue-lt text-blue`, `bg-orange-lt text-orange`, `bg-green-lt text-green`, etc.
 - Roles = **grupos de Django por nombre** (revisados en `core/context_processors.py`, `accounts/panel_roles.py`). Casi ninguno usa permisos de Django (excepción: `inventario`). Los permisos del Reloj vienen del modelo `reloj.RelojPermiso`.
@@ -67,6 +76,13 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 ## Modo mantenimiento (dos niveles)
 - **General**: `MAINTENANCE_MODE` + filtro por área (`all`/`staff`/`bilingue`/`colegio`) o lista de correos.
 - **Por formulario**: `MAINTENANCE_MODULES` (constance, JSON) pone cada módulo en `normal` / `lectura` / `bloqueado`. `lectura` corta solo las escrituras. Funciona aunque el general esté apagado y respeta el mismo filtro de audiencia. Registro de módulos y rutas en `core/maintenance_modules.py`; el filtro compartido es `core.middleware._audiencia_afectada`.
+
+## Notas mitad de parcial (área activa reciente)
+- Datos desde **SQL Server** vía SP + tabla de staging + caché Django de 8 h (`_llamar_sp`). El SP de **bachillerato exige `@Curso`**: si no viene, `_llamar_sp` pide los dos cursos y los combina. En bachillerato el "grado" **es** el año (1ero→curso 1, 2do→curso 2) y se muestra como "1er Año / 2do Año".
+- Coordinador: agrupar siempre por **grado + sección** (`alumno['grado_seccion']`). Agrupar solo por grado hacía que el banner de maestros tomara la sección del primer alumno y ocultaba a los de las demás.
+- "Mis Reportes" (`maestro_notas`) muestra las asignaciones **del usuario**; un coordinador puede ver todas con `?todos=1`.
+- El "Revisado" del coordinador se guarda en `RevisionFinalizada` (mismo modelo que el "Finalizado" del maestro, con el coordinador como dueño).
+- PDF (`_dibujar_pagina`): un bloque por maestro, dos columnas automáticas y letra 9→6 pt según quepa. `simpleSplit` de reportlab **solo corta en espacios**, por eso `_envolver` parte también las palabras largas. Límite práctico: ~13 maestros por alumno.
 
 ## Datos legacy (sponsors)
 Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `managed = False`. **Revisa el esquema real antes de tocar los modelos**: hay una columna `decription` (typo en la BD), otra llamada `check` (palabra reservada), y `Sponsor.city` es NOT NULL.

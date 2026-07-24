@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #mantenimiento-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_INVENTARIO_CAMARAS_MANTENIMIENTO = (function(){
   var d = document.getElementById("mantenimiento-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -12,7 +12,7 @@ const CFG = (function(){
 })();
 
 window._IC = {
-  csrf: CFG.v0,
-  camarasPorGrupo: CFG.j1,
+  csrf: CFG_INVENTARIO_CAMARAS_MANTENIMIENTO.v0,
+  camarasPorGrupo: CFG_INVENTARIO_CAMARAS_MANTENIMIENTO.j1,
   editBase: '/inventario-camaras/mantenimiento/',
 };

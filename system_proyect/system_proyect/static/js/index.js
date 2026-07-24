@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #index-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_SYSTEM_PROYECT_INDEX = (function(){
   var d = document.getElementById("index-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -16,8 +16,8 @@ const CFG = (function(){
 })();
 
 window._PAGE = {
-  loginsLabels:   CFG.j0,
-  loginsData:     CFG.j1,
-  activityLabels: CFG.j2,
-  activityData:   CFG.j3,
+  loginsLabels:   CFG_SYSTEM_PROYECT_INDEX.j0,
+  loginsData:     CFG_SYSTEM_PROYECT_INDEX.j1,
+  activityLabels: CFG_SYSTEM_PROYECT_INDEX.j2,
+  activityData:   CFG_SYSTEM_PROYECT_INDEX.j3,
 };

@@ -186,14 +186,15 @@
           <i class="ti ti-cards me-1"></i>Vista Previa
         </button>
       </div>
-      <span class="badge bg-success me-1 fs-6" id="txtRevisado" style="display:none;">
+      {# <--- hecho por claude code: el estado "Revisado" ahora se conserva #}
+      <span class="badge bg-success me-1 fs-6" id="txtRevisado" style="display:{% if ya_revisado %}{% else %}none{% endif %};">
         <i class="ti ti-circle-check me-1"></i>Revisado
       </span>
-      <button type="button" class="btn btn-success btn-sm" id="btnRevisado">
+      <button type="button" class="btn btn-success btn-sm" id="btnRevisado" {% if ya_revisado %}disabled{% endif %}>
         <i class="ti ti-clipboard-check me-1"></i>Revisado
       </button>
       <button type="button" class="btn btn-danger btn-sm" id="btnEnviarCorreo"
-              style="pointer-events:none; opacity:.5;" disabled
+              {% if not ya_revisado %}style="pointer-events:none; opacity:.5;" disabled{% endif %}
               data-bs-toggle="modal" data-bs-target="#modalEnviarPDF">
         <i class="ti ti-mail me-1"></i>Enviar PDF por correo
       </button>
@@ -201,19 +202,20 @@
   </div>
 
   <div id="lista-alumnos">
-    {% regroup alumnos by grado as por_grado %}
-    {% for grupo in por_grado %}
+    {# <--- hecho por claude code: agrupar por grado Y sección, no solo por grado #}
+    {% regroup alumnos by grado_seccion as por_grupo %}
+    {% for grupo in por_grupo %}
     <div class="card mb-3">
 
       {# ── Banner asignación de maestros (varios por grado) ── #}
       <div class="asig-banner d-flex align-items-center gap-2 flex-wrap"
-           data-grado="{{ grupo.grouper }}"
+           data-grado="{{ grupo.list.0.grado }}"
            data-seccion="{{ grupo.list.0.grupo }}">
         <span class="fw-semibold text-blue me-1">
           <i class="ti ti-school me-1"></i>Maestros asignados:
         </span>
         <span class="maestros-chips d-inline-flex gap-1 flex-wrap">
-          {% for key, asigs in asignaciones_dict.items %}{% if key.0 == grupo.grouper and key.1 == grupo.list.0.grupo %}
+          {% for key, asigs in asignaciones_dict.items %}{% if key.0 == grupo.list.0.grado and key.1 == grupo.list.0.grupo %}
             {% for asig in asigs %}
             <span class="badge bg-blue-lt text-blue chip-maestro" data-maestro="{{ asig.maestro_id }}">
               {{ asig.maestro.get_full_name|default:asig.maestro.username }}
@@ -226,6 +228,30 @@
           <option value="">— Agregar maestro —</option>
           {% for m in maestros %}<option value="{{ m.pk }}" data-nombre="{{ m.get_full_name|default:m.username }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
         </select>
+        {# <--- hecho por claude code: elegir a qué grados se agrega, no solo a este #}
+        {% if grados_secciones|length > 1 %}
+        <div class="dropdown">
+          <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle btn-grados"
+                  data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <i class="ti ti-school me-1"></i>Grados: <span class="grados-n">1</span>
+          </button>
+          <div class="dropdown-menu p-2 grados-menu" style="max-height:16rem; overflow-y:auto; min-width:13rem;">
+            <div class="d-flex gap-1 mb-2">
+              <button type="button" class="btn btn-sm btn-link p-0 btn-grados-todos">Todos</button>
+              <span class="text-muted">·</span>
+              <button type="button" class="btn btn-sm btn-link p-0 btn-grados-ninguno">Solo este</button>
+            </div>
+            {% for gs in grados_secciones %}
+            <label class="dropdown-item px-1 py-1 d-flex align-items-center gap-2 mb-0">
+              <input type="checkbox" class="form-check-input m-0 chk-grado"
+                     data-grado="{{ gs.grado }}" data-seccion="{{ gs.seccion }}"
+                     {% if gs.grado == grupo.list.0.grado and gs.seccion == grupo.list.0.grupo %}checked{% endif %}>
+              <span class="small">{{ gs.label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
         <button type="button" class="btn btn-sm btn-primary btn-asignar"><i class="ti ti-plus me-1"></i>Agregar</button>
         <span class="asig-msg ms-1 small"></span>
       </div>
@@ -264,7 +290,8 @@
                   <div class="d-flex align-items-start gap-1">
                     <textarea class="form-control form-control-sm comentario-txt" rows="2" maxlength="600"
                               placeholder="Comentario (máx. 40 palabras)…">{{ box.texto }}</textarea>
-                    <button type="button" class="btn btn-sm btn-outline-success btn-guardar-uno" title="Guardar"><i class="ti ti-check"></i></button>
+                    {# <--- hecho por claude code: si ya hay comentario guardado, el check nace marcado #}
+<button type="button" class="btn btn-sm {% if box.texto %}btn-success{% else %}btn-outline-success{% endif %} btn-guardar-uno" title="Guardar"><i class="ti {% if box.texto %}ti-circle-check{% else %}ti-check{% endif %}"></i></button>
                   </div>
                   <div class="d-flex justify-content-between"><span class="cmt-words text-muted small">0/40 palabras</span><span class="estado-msg small"></span></div>
                 </div>
@@ -282,10 +309,11 @@
   </div>
 
   <div class="d-flex justify-content-end mt-3 mb-2 gap-2 align-items-center" id="footerLista">
-    <span class="badge bg-success me-1 fs-6" id="txtRevisado2" style="display:none;">
+    {# <--- hecho por claude code: el estado "Revisado" ahora se conserva #}
+      <span class="badge bg-success me-1 fs-6" id="txtRevisado2" style="display:{% if ya_revisado %}{% else %}none{% endif %};">
       <i class="ti ti-circle-check me-1"></i>Revisado
     </span>
-    <button type="button" class="btn btn-success btn-sm" id="btnRevisado2">
+    <button type="button" class="btn btn-success btn-sm" id="btnRevisado2" {% if ya_revisado %}disabled{% endif %}>
       <i class="ti ti-clipboard-check me-1"></i>Revisado
     </button>
   </div>
@@ -362,8 +390,9 @@
             <div class="cmt-box mb-2" data-maestro="{{ box.maestro_id }}">
               <label class="form-label small mb-1 fw-semibold text-blue"><i class="ti ti-user me-1"></i>{{ box.nombre }}</label>
               <div class="d-flex align-items-start gap-1">
-                <textarea class="form-control form-control-sm comentario-txt" rows="2" placeholder="Comentario (máx. 40 palabras)…">{{ box.texto }}</textarea>
-                <button type="button" class="btn btn-sm btn-outline-success btn-guardar-uno" title="Guardar"><i class="ti ti-check"></i></button>
+                <textarea class="form-control form-control-sm comentario-txt" rows="2" maxlength="600" placeholder="Comentario (máx. 40 palabras)…">{{ box.texto }}</textarea>
+                {# <--- hecho por claude code: si ya hay comentario guardado, el check nace marcado #}
+<button type="button" class="btn btn-sm {% if box.texto %}btn-success{% else %}btn-outline-success{% endif %} btn-guardar-uno" title="Guardar"><i class="ti {% if box.texto %}ti-circle-check{% else %}ti-check{% endif %}"></i></button>
               </div>
               <div class="d-flex justify-content-between"><span class="cmt-words text-muted small">0/40 palabras</span><span class="estado-msg small"></span></div>
             </div>
@@ -440,7 +469,7 @@
      data-v8="{{ curso }}"
      data-v9="{{ grado }}"
      data-v10="{{ seccion }}"
-     data-v11="{{ solo_carrusel|yesno:"true,false" }}"></div>
-<script src="{% static 'notas_parcial/js/coordinador.js' %}?v=1"></script>
-<script src="{% static 'notas_parcial/js/coordinador.js' %}?v=2"></script>
+     data-v11="{{ solo_carrusel|yesno:"true,false" }}"
+     data-v12="{% url "notas_parcial_marcar_revisado" %}"></div>
+<script src="{% static 'notas_parcial/js/coordinador.js' %}?v=110"></script>
 {% endblock %}

@@ -17,8 +17,8 @@
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-<script src="{% static 'inventario/js/base_inventario.js' %}?v=1"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5">
+<script src="{% static 'inventario/js/base_inventario.js' %}?v=2"></script>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
 </head>
 <body class="antialiased">
 <div class="wrapper">
@@ -86,7 +86,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<script src="{% static 'js/dt_guard.js' %}"></script>
+<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% block extra_js %}{% endblock %}
 {% include "accounts/_notif_notas_toast.html" %}

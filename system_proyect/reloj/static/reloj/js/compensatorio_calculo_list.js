@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #compensatorio_calculo_list-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_COMPENSATORIO_CALCULO_LIST = (function(){
   var d = document.getElementById("compensatorio_calculo_list-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -62,29 +62,29 @@ const CFG = (function(){
   })();
 
 window._PAGE = {
-  csrf:         CFG.v0,
-  canEdit:      CFG.j8,
-  canEditExtra:   CFG.j9,
-  canDeleteExtra: CFG.j10,
-  isSuperuser:    CFG.j11,
-  anio:         CFG.j12,
+  csrf:         CFG_COMPENSATORIO_CALCULO_LIST.v0,
+  canEdit:      CFG_COMPENSATORIO_CALCULO_LIST.j8,
+  canEditExtra:   CFG_COMPENSATORIO_CALCULO_LIST.j9,
+  canDeleteExtra: CFG_COMPENSATORIO_CALCULO_LIST.j10,
+  isSuperuser:    CFG_COMPENSATORIO_CALCULO_LIST.j11,
+  anio:         CFG_COMPENSATORIO_CALCULO_LIST.j12,
   urlTeGet:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/',
   urlTeAdd:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/add/',
   urlTeDel:     '/reloj/compensatorio-te/{te_pk}/delete/',
-  urlEmpBuscar: CFG.v1,
+  urlEmpBuscar: CFG_COMPENSATORIO_CALCULO_LIST.v1,
   urlSetHorasAdeudadas: '/reloj/compensatorio-calculo/{pk}/set-horas-adeudadas/',
   urlSetTomado: '/reloj/compensatorio-calculo/{pk}/set-tomado/',
   urlGetTomado: '/reloj/compensatorio-calculo/{pk}/tomado/',
   urlTomManualAdd: '/reloj/compensatorio-calculo/{pk}/tomado-manual/add/',
   urlTomManualDel: '/reloj/compensatorio-tomado-manual/{pk}/delete/',
-  urlMensualAdd:    CFG.v2,
-  urlMensualCell:   CFG.v3,
-  urlMensualComentario: CFG.v4,
-  urlDetGet: CFG.v5,
-  urlDetAdd: CFG.v6,
+  urlMensualAdd:    CFG_COMPENSATORIO_CALCULO_LIST.v2,
+  urlMensualCell:   CFG_COMPENSATORIO_CALCULO_LIST.v3,
+  urlMensualComentario: CFG_COMPENSATORIO_CALCULO_LIST.v4,
+  urlDetGet: CFG_COMPENSATORIO_CALCULO_LIST.v5,
+  urlDetAdd: CFG_COMPENSATORIO_CALCULO_LIST.v6,
   urlDetDel: '/reloj/compensatorio-mensual-detalle/{pk}/delete/',
   urlMensualDel:    '/reloj/compensatorio-mensual/{pk}/delete/',
-  urlInstructorAdd: CFG.v7,
+  urlInstructorAdd: CFG_COMPENSATORIO_CALCULO_LIST.v7,
   urlInstructorSet: '/reloj/compensatorio-instructor/{pk}/set/',
   urlInstructorDel: '/reloj/compensatorio-instructor/{pk}/delete/',
   urlInstTeGet:  '/reloj/compensatorio-instructor/{pk}/te/',

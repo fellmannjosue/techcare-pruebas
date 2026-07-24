@@ -613,7 +613,7 @@
      data-v3="{% url "editar_reporte_ajax" %}"
      data-v4="{% url "bulk_eliminar_reportes" %}"
      data-v5="{{ request.user.is_superuser|yesno:'true,false' }}"></div>
-<script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=1"></script>
+{# <--- hecho por claude code: script movido a extra_js (carga tras jQuery/DataTables/SweetAlert); se quitó el include duplicado que declaraba CFG dos veces #}
 
 {% endblock %}
 
@@ -913,11 +913,9 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="{% static 'js/dt_guard.js' %}"></script>
-  <script src="{% static 'conducta/js/coordinador.js' %}?v=5"></script>
+  <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
+  <script src="{% static 'conducta/js/coordinador.js' %}?v=6"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-  <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=5"></script>
-
   {# ── Toast de descarga (progreso + peso) ── #}
   <div id="zip-toast" style="display:none;position:fixed;bottom:20px;right:20px;z-index:1080;min-width:300px;max-width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:.6rem;box-shadow:0 .75rem 1.5rem rgba(0,0,0,.18);padding:.9rem 1rem;">
     <div class="d-flex align-items-center gap-2 mb-2">
@@ -947,4 +945,7 @@
     </div>
   </div>
 </div>
+
+{# <--- hecho por claude code: script AL FINAL del bloque, tras todo el HTML que referencia (zip-toast, lightbox), para que no truene en null #}
+<script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=8"></script>
 {% endblock %}

@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #formulario_bloqueado-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_FORMULARIO_BLOQUEADO = (function(){
   var d = document.getElementById("formulario_bloqueado-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -14,6 +14,6 @@ const CFG = (function(){
   document.getElementById('btn-volver').addEventListener('click', function(){
     var ref = document.referrer || '';
     if (ref && ref.indexOf(location.pathname) === -1 && history.length > 1) history.back();
-    else location.href = CFG.v0;
+    else location.href = CFG_FORMULARIO_BLOQUEADO.v0;
   });
 })();

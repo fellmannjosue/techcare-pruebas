@@ -22,7 +22,8 @@
   </div>
   {% endif %}
 
-  <div class="col-sm-6 col-lg-5">
+  {% if puede_notas %}
+<div class="col-sm-6 col-lg-5">
     <a href="{% url 'cfp:notas_cursos' %}" class="card card-link card-link-pop text-decoration-none h-100">
       <div class="card-body text-center py-5">
         <span class="avatar avatar-xl mb-3" style="background:#206bc418;color:#206bc4;">
@@ -33,8 +34,9 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
-  {% if puede_contabilidad %}
+  {% if es_director %}
   <div class="col-sm-6 col-lg-5">
     <a href="{% url 'cfp:notas_resumen' %}" class="card card-link card-link-pop text-decoration-none h-100">
       <div class="card-body text-center py-5">

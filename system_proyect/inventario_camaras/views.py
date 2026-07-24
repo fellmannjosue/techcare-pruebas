@@ -540,3 +540,26 @@ def download_mantenimiento_pdf(request, pk):
     resp = HttpResponse(buffer.read(), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="mantenimiento_camara_{rec.record_id}.pdf"'
     return resp
+
+
+# ── App nueva (React/Next compilado a estático) ───────────────────────────
+# <--- hecho por claude code: sirve el index.html del build de Next detrás del
+# login de Django. Los assets los sirve Apache desde /static/. No hay proceso
+# Node en producción: el build se genera en desarrollo y se copia a static/.
+import os
+from django.conf import settings
+from django.http import HttpResponse
+from django.shortcuts import render
+
+
+@login_required
+def app_spa(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return redirect('menu')
+    build = os.path.join(settings.BASE_DIR, 'inventario_camaras', 'static',
+                         'inventario_camaras', 'app', 'index.html')
+    try:
+        with open(build, encoding='utf-8') as fh:
+            return HttpResponse(fh.read())
+    except FileNotFoundError:
+        return render(request, 'inventario_camaras/app_pendiente.html', status=200)

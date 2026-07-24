@@ -210,6 +210,9 @@ def mis_tickets(request):
 # ======================================================
 @login_required
 def technician_dashboard(request):
+    # <--- hecho por claude code: antes cualquier usuario logueado veía TODOS los tickets del sistema
+    if not (request.user.is_superuser or request.user.has_perm('tickets.view_ticket')):
+        return redirect('dashboard_administracion')
     tickets = Ticket.objects.all()
     return render(request, 'tickets/technician_dashboard.html', {'tickets': tickets})
 

@@ -224,6 +224,6 @@
   "tipoKeys": [{% for grupo in grupos %}"{{ grupo.tipo_key|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
-<script src="{% static 'inventario/js/inventario_por_categoria_page.js' %}?v=1"></script>
-<script src="{% static 'inventario/js/inventario_por_categoria.js' %}"></script>
+<script src="{% static 'inventario/js/inventario_por_categoria_page.js' %}?v=2"></script>
+<script src="{% static 'inventario/js/inventario_por_categoria.js' %}?v=20"></script>
 {% endblock %}

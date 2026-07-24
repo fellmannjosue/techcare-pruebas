@@ -86,6 +86,6 @@
   "empPairs": [{% for asig in form.fields.emp_code.widget.choices %}["{{ asig.0|escapejs }}", "{{ asig.1|escapejs }}"]{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
-<script src="{% static 'reloj/js/compensatorio_calculo_form_page.js' %}?v=1"></script>
-<script src="{% static 'reloj/js/compensatorio_calculo_form.js' %}"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_form_page.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_form.js' %}?v=20"></script>
 {% endblock %}

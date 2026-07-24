@@ -125,7 +125,7 @@
 <div id="mantenimiento_modo-config" hidden
      data-modulos-guardar="{% url 'modulos_guardar' %}"
      data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'accounts/js/mantenimiento_modo.js' %}?v=1"></script>
+<script src="{% static 'accounts/js/mantenimiento_modo.js' %}?v=2"></script>
 
 {# badge oculto requerido por menu.js #}
 <span id="mant-badge" style="display:none"><span id="mant-badge-txt"></span></span>
@@ -136,5 +136,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'accounts/js/menu.js' %}?v=2"></script>
+<script src="{% static 'accounts/js/menu.js' %}?v=3"></script>
 {% endblock %}

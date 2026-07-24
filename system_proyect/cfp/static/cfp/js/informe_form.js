@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #informe_form-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_INFORME_FORM = (function(){
   var d = document.getElementById("informe_form-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -16,7 +16,7 @@ function cfpSel(sel){
   else{inp.classList.add('d-none');inp.required=false;inp.value='';}
 }
 (function(){
-  var INGRESO_NETO = CFG.j0;
+  var INGRESO_NETO = CFG_INFORME_FORM.j0;
   function fmt(n){return (n||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function recalc(){
     var tot={}, gran=0;

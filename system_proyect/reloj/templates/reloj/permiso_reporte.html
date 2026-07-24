@@ -58,6 +58,8 @@
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pt-general" type="button">Reporte de permisos</button></li>
   <li class="nav-item"><button class="nav-link" id="pt-receso-btn" data-bs-toggle="tab" data-bs-target="#pt-receso" type="button"><i class="ti ti-coffee me-1 text-orange"></i>Tiempo receso</button></li>
   <li class="nav-item"><button class="nav-link" id="pt-bono-btn" data-bs-toggle="tab" data-bs-target="#pt-bono" type="button"><i class="ti ti-award me-1 text-red"></i>Bono por Asistencia</button></li>
+  {# <--- hecho por claude code: ausentes sin permiso #}
+  <li class="nav-item"><button class="nav-link" id="pt-ausentes-btn" data-bs-toggle="tab" data-bs-target="#pt-ausentes" type="button"><i class="ti ti-user-off me-1 text-danger"></i>Ausentes sin permiso <span id="pt-ausentes-badge" class="badge bg-danger-lt text-danger ms-1 d-none">0</span></button></li>
 </ul>
 <div class="tab-content">
   {# <--- hecho por claude code: un solo reporte de permisos (General alfabético → Maestros por hora → Vigilancia) #}
@@ -248,7 +250,24 @@
     </div>{# /#bono-detalle #}
     </div>{# /sub tab-content #}
   </div>{# /#pt-bono #}
+  {# <--- hecho por claude code: tab Ausentes sin permiso (carga por AJAX al abrirlo) #}
+  <div class="tab-pane fade" id="pt-ausentes">
+    <div class="d-flex align-items-center mb-2 flex-wrap gap-2">
+      <span class="text-muted small">
+        <i class="ti ti-user-off me-1 text-danger"></i>
+        Días <strong>laborables sin marca</strong> y <strong>sin permiso</strong> registrado (hasta hoy) · Mes: <strong>{{ mes|date:"F Y" }}</strong>
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" id="pt-ausentes-reload"><i class="ti ti-refresh me-1"></i>Recargar</button>
+    </div>
+    <div id="pt-ausentes-cont">
+      <p class="text-muted text-center py-4 mb-0"><span class="spinner-border spinner-border-sm me-2"></span>Cargando…</p>
+    </div>
+  </div>
 </div>{# /tab-content principal #}
+
+{# <--- hecho por claude code: modal compartido para registrar permiso desde el tab de ausentes #}
+{% include "reloj/_modal_permiso.html" %}
+
 
 {# ── Modal: Reglas del Bono ── #}
 <div class="modal modal-blur fade" id="modalBonoReglas" tabindex="-1">
@@ -561,10 +580,15 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="{% static 'js/dt_guard.js' %}"></script>
+  <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
 <script type="application/json" id="permiso-reporte-data">
 {
   "urlSet":          "{% url 'reloj_permiso_reporte_set_campo' %}",
+  "urlAusentes":     "{% url 'reloj_permiso_ausentes' %}",
+  "urlPermSave":     "{% url 'reloj_permiso_reporte_save' %}",
+  "urlVacBalance":   "{% url 'reloj_vacacion_balance' %}",
+  "csrf":            "{{ csrf_token }}",
+  "mesActual":       "{{ mes_str }}",
   "urlSetHorasDias": "{% url 'reloj_permiso_set_horas_diarias' %}",
   "urlMDGet":        "{% url 'reloj_maestro_dia_get' %}",
   "urlMDSet":        "{% url 'reloj_maestro_dia_set' %}",
@@ -584,8 +608,9 @@
   "tipoColors": { {% for campo, etiqueta, color in campos_permiso %}"{{ campo|escapejs }}": "{{ color|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %} }
 }
 </script>
-<script src="{% static 'reloj/js/permiso_reporte_page.js' %}?v=1"></script>
-<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=6"></script>
+<script src="{% static 'reloj/js/permiso_reporte_page.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/permiso_ausentes.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=7"></script>
 
 {# ── Ajuste del receso (solo superuser): seleccionar marcas reales del día ── #}
 {% if request.user.is_superuser %}
@@ -598,3 +623,4 @@
 {% if request.user.is_superuser %}
 {% endif %}
 {% endblock %}
+

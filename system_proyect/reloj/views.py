@@ -3987,6 +3987,21 @@ def permiso_reporte_list(request):
             dd += _td2(days=1)
         mh_total_mes[ec_m] = round(tot, 2)
 
+    # <--- hecho por claude code: SÁBADOS ESPECIALES. Solo para maestros por hora:
+    # suma las horas de cada sábado especial del mes al que estén ASIGNADOS.
+    mh_sabados = {ec: 0.0 for ec in maestro_hora_codes}
+    if maestro_hora_codes:
+        _sabs = {s.id: float(s.horas or 0)
+                 for s in SabadoEspecial.objects.filter(fecha__gte=mes_inicio, fecha__lte=mes_fin)}
+        if _sabs:
+            for a in SabadoAsignacion.objects.filter(sabado_id__in=_sabs.keys(),
+                                                     emp_code__in=maestro_hora_codes):
+                ec_s = str(a.emp_code)
+                mh_sabados[ec_s] = round(mh_sabados.get(ec_s, 0.0) + _sabs.get(a.sabado_id, 0.0), 2)
+            for ec_s, h_s in mh_sabados.items():
+                if h_s and ec_s in mh_total_mes:
+                    mh_total_mes[ec_s] = round(mh_total_mes[ec_s] + h_s, 2)
+
     # Restar las horas de los permisos NO PAGADO del total mensual del maestro por hora
     if maestro_hora_codes:
         _np = (PermisoReporte.objects
@@ -4172,6 +4187,7 @@ def permiso_reporte_list(request):
             'es_maestro_hora': ec in maestro_hora_codes,
             'mh_total':        mh_totales.get(ec, 0),
             'mh_total_mes':    mh_total_mes.get(ec, 0),
+            'mh_sabados':      mh_sabados.get(ec, 0),   # <--- hecho por claude code
             'grupo': ('maestro' if ec in maestro_hora_codes
                       else 'vigilante' if 'vigilan' in cargo_l  # 'Vigilancia' → sección Vigilancia (abajo)
                       else 'general'),
@@ -4332,6 +4348,8 @@ def permiso_reporte_list(request):
         'mes':             mes_inicio,
         'mes_str':         mes_str,
         'campos_permiso':  CAMPOS_PERMISO,
+        # <--- hecho por claude code: para el modal de permiso en el tab de ausentes
+        'razones': list(RazonPermiso.objects.filter(activo=True).values_list('texto', flat=True)),
         'error_sql':       error_sql,
         'can_delete':      _reloj_can(request.user, 'reporte', 'eliminar'),
         'dias_semana':     _DIAS_SEMANA,
@@ -4339,6 +4357,7 @@ def permiso_reporte_list(request):
         'horas_diarias_visible': cfg.horas_diarias_visible,
         'tarde_reglas':    _tarde_reglas,
         'maestro_hora_codes':    maestro_hora_codes,
+        'mh_sabados':            mh_sabados,   # <--- hecho por claude code
         'bono_rows':       bono_rows,
         'bono_cfg':        bcfg,
         'bono_reglas_extra': reglas_extra_ctx,
@@ -5645,3 +5664,112 @@ def set_tarde_reglas(request):
     cfg.tarde_reglas = limpias or _TARDE_REGLAS_DEFAULT
     cfg.save(update_fields=['tarde_reglas'])
     return JsonResponse({'ok': True, 'reglas': cfg.tarde_reglas})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tab "Ausentes sin permiso" (reporte mensual de permisos)
+# <--- hecho por claude code: días laborables sin marca y sin permiso registrado,
+# para que el encargado sepa a quién falta cargarle el permiso. Carga por AJAX
+# al abrir el tab (no recarga la página principal, que ya es pesada).
+# ─────────────────────────────────────────────────────────────────────────────
+@login_required
+def permiso_ausentes(request):
+    import calendar as _cal
+    from datetime import date as _date, timedelta as _td
+
+    if not _reloj_can(request.user, 'reporte', 'ver'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    hoy = _date.today()
+    mes_str = request.GET.get('mes', hoy.strftime('%Y-%m'))
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes_inicio = _date(year, month, 1)
+    except Exception:
+        mes_inicio = hoy.replace(day=1)
+    ultimo = _cal.monthrange(mes_inicio.year, mes_inicio.month)[1]
+    mes_fin = _date(mes_inicio.year, mes_inicio.month, ultimo)
+    # No listar días futuros: solo hasta hoy (o fin de mes si el mes ya pasó)
+    tope = min(mes_fin, hoy)
+    if tope < mes_inicio:
+        return JsonResponse({'ok': True, 'mes': mes_str, 'empleados': [], 'total_dias': 0})
+
+    # Días laborables por empleado (default L-V)
+    dias_lab_map = {
+        r.emp_code: _parse_dias_laborables(r.dias_laborables)
+        for r in ReportePermisoMensual.objects.filter(mes=mes_inicio)
+    }
+
+    # Feriados del mes → set de fechas
+    feriados = set()
+    for f in Feriado.objects.filter(fecha_inicio__lte=mes_fin, fecha_fin__gte=mes_inicio):
+        d = max(f.fecha_inicio, mes_inicio)
+        while d <= min(f.fecha_fin, mes_fin):
+            feriados.add(d)
+            d += _td(days=1)
+
+    # Permisos ya registrados → set de (emp_code, fecha)
+    con_permiso = set()
+    for p in PermisoReporte.objects.filter(fecha__lte=tope,
+                                           fecha__gte=mes_inicio - _td(days=45)):
+        ec = (p.emp_code or '').strip()
+        fin = p.fecha_fin or p.fecha
+        d = p.fecha
+        while d <= fin:
+            if mes_inicio <= d <= mes_fin:
+                con_permiso.add((ec, d))
+            d += _td(days=1)
+
+    # Ausentes desde SQL Server (universo empleados × días MENOS los que marcaron)
+    error = None
+    ausentes = {}   # emp_code -> {'nombre','cargo','fechas':[]}
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            cursor.execute(f"""
+                DECLARE @fi DATE = '{mes_inicio}';
+                DECLARE @ff DATE = '{tope}';
+                ;WITH fechas AS (
+                    SELECT @fi AS f UNION ALL SELECT DATEADD(DAY,1,f) FROM fechas WHERE f < @ff
+                ),
+                presentes AS (
+                    SELECT DISTINCT t.emp_code, CONVERT(DATE, t.punch_time) AS fecha
+                    FROM dbo.iclock_transaction t
+                    WHERE t.punch_time >= @fi AND t.punch_time < DATEADD(DAY,1,@ff)
+                )
+                SELECT CAST(e.emp_code AS VARCHAR(20)) AS emp_code,
+                       (e.first_name + ' ' + ISNULL(e.last_name,'')) AS nombre,
+                       ISNULL(pos.position_name,'') AS cargo,
+                       f.f AS fecha
+                FROM dbo.personnel_employee e
+                LEFT JOIN dbo.personnel_position pos ON pos.id = TRY_CONVERT(INT, e.position_id)
+                CROSS JOIN fechas f
+                LEFT JOIN presentes p ON p.emp_code = e.emp_code AND p.fecha = f.f
+                WHERE p.emp_code IS NULL
+                ORDER BY e.last_name, e.first_name, f.f
+                OPTION (MAXRECURSION 0);
+            """)
+            for emp_code, nombre, cargo, fecha in cursor.fetchall():
+                ec = (emp_code or '').strip()
+                # solo días laborables del empleado
+                if _WEEKDAY_COD.get(fecha.weekday()) not in dias_lab_map.get(ec, _DIAS_LABORABLES_DEFAULT):
+                    continue
+                if fecha in feriados:
+                    continue
+                if (ec, fecha) in con_permiso:
+                    continue
+                reg = ausentes.setdefault(ec, {'emp_code': ec,
+                                               'nombre': (nombre or '').strip(),
+                                               'cargo': (cargo or '').strip(),
+                                               'fechas': []})
+                reg['fechas'].append(fecha.strftime('%Y-%m-%d'))
+    except Exception as e:
+        error = f"Error al consultar la base de datos: {e}"
+        return JsonResponse({'ok': False, 'error': error}, status=200)
+
+    lista = sorted(ausentes.values(), key=lambda x: x['nombre'].split(' ')[-1].lower())
+    return JsonResponse({
+        'ok': True, 'mes': mes_str,
+        'empleados': lista,
+        'total_empleados': len(lista),
+        'total_dias': sum(len(e['fechas']) for e in lista),
+    })

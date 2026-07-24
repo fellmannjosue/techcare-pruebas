@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #form_convocatoria_grado-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_FORM_CONVOCATORIA_GRADO = (function(){
   var d = document.getElementById("form_convocatoria_grado-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -31,12 +31,12 @@ const CFG = (function(){
 
 (function () {
   var CSRF = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-  var P = { parcial: CFG.j6, anio: CFG.j7, grado_num: CFG.j8, seccion: CFG.v0 };
-  var SUBJECTS = CFG.j9;
-  var GRADO_LABEL = CFG.v1;
-  var PARCIAL_ROM = CFG.v2;
-  var MI_NOMBRE = CFG.v3;
-  var ES_COORD = CFG.j10;
+  var P = { parcial: CFG_FORM_CONVOCATORIA_GRADO.j6, anio: CFG_FORM_CONVOCATORIA_GRADO.j7, grado_num: CFG_FORM_CONVOCATORIA_GRADO.j8, seccion: CFG_FORM_CONVOCATORIA_GRADO.v0 };
+  var SUBJECTS = CFG_FORM_CONVOCATORIA_GRADO.j9;
+  var GRADO_LABEL = CFG_FORM_CONVOCATORIA_GRADO.v1;
+  var PARCIAL_ROM = CFG_FORM_CONVOCATORIA_GRADO.v2;
+  var MI_NOMBRE = CFG_FORM_CONVOCATORIA_GRADO.v3;
+  var ES_COORD = CFG_FORM_CONVOCATORIA_GRADO.j10;
   var DIA_AB = ['','L','M','M','J','V'];
 
   // Guardado al instante + "Solicitó: nombre" + bloqueo tras registrar
@@ -46,7 +46,7 @@ const CFG = (function(){
       var por = chk.closest('td').querySelector('.conv-por');
       var marcado = chk.checked;
       chk.disabled = true; // evita doble clic mientras guarda
-      fetch(CFG.v4, {
+      fetch(CFG_FORM_CONVOCATORIA_GRADO.v4, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
         body: JSON.stringify({
@@ -82,7 +82,7 @@ const CFG = (function(){
     return out;
   }
   function fechaTexto() {
-    var t = CFG.v5.split('-');
+    var t = CFG_FORM_CONVOCATORIA_GRADO.v5.split('-');
     var M = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     return (+t[2]) + ' días del mes de ' + M[+t[1]-1] + ' del año ' + t[0];
   }

@@ -16,6 +16,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm
 from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.pdfmetrics import stringWidth  # <--- hecho por claude code: medir para partir palabras largas
 from reportlab.pdfgen import canvas
 
 from django.contrib.auth import get_user_model
@@ -175,6 +176,18 @@ def _leer_staging_directo(area, parcial, anio, curso=None):
 
 
 def _llamar_sp(area, parcial, anio, curso=None):
+    # <--- hecho por claude code: el SP de bachillerato exige @Curso. Cuando no
+    # viene (p. ej. el maestro entra desde su tarjeta de asignación, que no guarda
+    # curso) fallaba con "expects parameter '@Curso'" y salía "No se obtuvieron
+    # datos del SP". Aquí se piden los dos cursos y se juntan.
+    if area == 'bachillerato' and not curso:
+        rows, cols = [], []
+        for c in ('1', '2'):
+            r, cl = _llamar_sp(area, parcial, anio, c)
+            rows += r
+            cols = cols or cl
+        return rows, cols
+
     key = _cache_key(area, parcial, anio, curso)
 
     # 1. Caché en BD Django (válida 15 min, compartida entre workers)
@@ -409,6 +422,10 @@ def guardar_comentario(request):
         # Límite de 40 palabras
         if len(comentario.split()) > 40:
             return JsonResponse({'ok': False, 'error': 'El comentario no puede superar las 40 palabras.'})
+        # <--- hecho por claude code: el tope de palabras no frena un "aaaa…" de 300 letras
+        # (es UNA palabra) y eso reventaba el PDF. Tope de caracteres, igual que el textarea.
+        if len(comentario) > 600:
+            return JsonResponse({'ok': False, 'error': 'El comentario no puede superar los 600 caracteres.'})
 
         # Maestro autor del comentario (caja). Por defecto, el usuario actual.
         maestro_id = data.get('maestro_id')
@@ -451,20 +468,7 @@ def generar_pdf(request):
     if not alumnos:
         return HttpResponse('Sin datos para los parámetros indicados.', status=404)
 
-    # Leer comentarios por maestro y combinarlos etiquetados por nombre
-    ids = [a['ingr_egr_id'] for a in alumnos]
-    comentarios_db = {}
-    for c in (NotaComentario.objects
-              .filter(ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area)
-              .select_related('maestro')):
-        if not (c.comentario or '').strip():
-            continue
-        nombre = (c.maestro.get_full_name() or c.maestro.username) if c.maestro_id else 'Maestro'
-        comentarios_db.setdefault(c.ingr_egr_id, []).append(f"{nombre}: {c.comentario.strip()}")
-    for a in alumnos:
-        partes = comentarios_db.get(a['ingr_egr_id'], [])
-        if partes:
-            a['comentario'] = '   ·   '.join(partes)
+    _cargar_comentarios(alumnos, parcial, anio, area)
 
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=letter)
@@ -495,6 +499,127 @@ _NUM_E      = 10
 _ROW_H      = 6
 _HDR_H      = 8
 _X0         = 10   # left margin
+
+# <--- hecho por claude code: espacio que reservan texto legal + firmas + pie de página.
+# El bloque de comentarios crece hasta aquí y no más, así las firmas siempre caen igual.
+_RESERVA_INFERIOR = 52 * mm
+
+
+def _cargar_comentarios(alumnos, parcial, anio, area):
+    """<--- hecho por claude code: comentarios de cada alumno SEPARADOS por maestro.
+
+    Antes se pegaban los de todos los maestros en un solo texto unido por ' · ',
+    y en el PDF salían encimados. Con grados de varios maestros era ilegible.
+    Deja `alumno['comentarios'] = [(maestro, texto), ...]` ordenado por nombre.
+    """
+    ids = [a['ingr_egr_id'] for a in alumnos]
+    por_alumno = {}
+    for c in (NotaComentario.objects
+              .filter(ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area)
+              .select_related('maestro')):
+        texto = (c.comentario or '').strip()
+        if not texto:
+            continue   # un comentario vacío no debe pisar a los llenos
+        nombre = (c.maestro.get_full_name() or c.maestro.username) if c.maestro_id else 'Maestro'
+        por_alumno.setdefault(c.ingr_egr_id, []).append((nombre.strip(), texto))
+    for a in alumnos:
+        partes = sorted(por_alumno.get(a['ingr_egr_id'], []), key=lambda p: p[0].lower())
+        a['comentarios'] = partes
+        a['comentario']  = '   ·   '.join(f'{n}: {t}' for n, t in partes)
+
+
+def _cortar_palabra(palabra, fuente, size, ancho):
+    """Parte una 'palabra' sin espacios que no cabe en el ancho dado."""
+    trozos, actual = [], ''
+    for ch in palabra:
+        if not actual or stringWidth(actual + ch, fuente, size) <= ancho:
+            actual += ch
+        else:
+            trozos.append(actual)
+            actual = ch
+    if actual:
+        trozos.append(actual)
+    return trozos
+
+
+def _envolver(texto, fuente, size, ancho):
+    """<--- hecho por claude code: como simpleSplit, pero además parte las palabras
+    larguísimas sin espacios. simpleSplit solo corta en espacios, así que un texto
+    tipo 'aaaaaa...' de 200 letras se salía de la hoja."""
+    lineas = []
+    for linea in (simpleSplit(texto, fuente, size, ancho) or []):
+        if stringWidth(linea, fuente, size) <= ancho:
+            lineas.append(linea)
+        else:
+            lineas.extend(_cortar_palabra(linea, fuente, size, ancho))
+    return lineas
+
+
+def _bloques_comentarios(comentarios, size, ancho, sangria):
+    """<--- hecho por claude code: un bloque por maestro (nombre + su texto), como lista
+    de renglones (dx, fuente, texto). Se devuelven separados para poder repartirlos en
+    columnas SIN partir a un maestro a la mitad."""
+    bloques = []
+    for nombre, texto in comentarios:
+        renglones = []
+        if not nombre:
+            for l in _envolver(texto, 'Helvetica', size, ancho):
+                renglones.append((0, 'Helvetica', l))
+            bloques.append(renglones)
+            continue
+        # <--- hecho por claude code: el nombre va EN LÍNEA con el comentario. Antes
+        # ocupaba un renglón entero para él solo y con 11-12 maestros no cabía todo.
+        prefijo = f'{nombre}: '
+        ancho_pref = stringWidth(prefijo, 'Helvetica-Bold', size)
+        palabras = texto.split()
+        primera, resto = '', []
+        disponible = ancho - ancho_pref
+        while palabras:
+            cand = (primera + ' ' + palabras[0]).strip()
+            if stringWidth(cand, 'Helvetica', size) <= disponible:
+                primera = cand
+                palabras.pop(0)
+            else:
+                break
+        if not primera and palabras:      # nombre larguísimo: parte la palabra
+            trozos = _cortar_palabra(palabras.pop(0), 'Helvetica', size, max(disponible, 10))
+            primera = trozos[0]
+            palabras = trozos[1:] + palabras
+        renglones.append((0, 'MIXTO', (prefijo, primera)))
+        resto = ' '.join(palabras)
+        if resto:
+            for l in _envolver(resto, 'Helvetica', size, ancho - sangria):
+                renglones.append((sangria, 'Helvetica', l))
+        bloques.append(renglones)
+    return bloques
+
+
+def _repartir_columnas(bloques, cap, n_cols, partir=False, separar=True):
+    """<--- hecho por claude code: acomoda los bloques en n_cols columnas de `cap`
+    renglones. Normalmente NO parte a un maestro a la mitad; con partir=True sí lo
+    hace (último recurso antes de tener que recortar). Devuelve (columnas, sobró)."""
+    cols = [[] for _ in range(n_cols)]
+    i = 0
+    for b in bloques:
+        if separar and cols[i] and len(cols[i]) < cap:
+            b = [None] + b                          # renglón de separación
+        if partir:
+            for renglon in b:
+                while i < n_cols and len(cols[i]) >= cap:
+                    i += 1
+                if i >= n_cols:
+                    return cols, True
+                if renglon is None and not cols[i]:
+                    continue                        # sin separador al inicio de columna
+                cols[i].append(renglon)
+            continue
+        while i < n_cols and len(cols[i]) + len(b) > cap:
+            i += 1
+            b = [x for x in b if x is not None]     # ya no hace falta el separador
+        if i >= n_cols:
+            return cols, True
+        cols[i].extend(b)
+    return cols, False
 
 
 def _dibujar_tabla(pdf, materias, y_top):
@@ -635,18 +760,73 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
     pdf.drawString(10 * mm, y_com, 'Comentarios y sugerencias del Maestro:')
     y_com -= 6 * mm
 
-    comentario = (alumno.get('comentario') or '').strip()
-    if comentario:
-        lineas = simpleSplit(comentario, 'Helvetica', 9, w - 20 * mm)
-    else:
-        lineas = []
+    # <--- hecho por claude code: un bloque por maestro (nombre en negrita + texto sangrado),
+    # con la letra ajustada para que quepan TODOS y sin desbordes horizontales.
+    comentarios = alumno.get('comentarios') or []
+    if not comentarios and (alumno.get('comentario') or '').strip():
+        comentarios = [('', alumno['comentario'].strip())]
 
-    for i in range(6):
-        if i < len(lineas):
-            pdf.setFont('Helvetica', 9)
-            pdf.drawString(10 * mm, y_com, lineas[i])
-        pdf.setLineWidth(0.3)
-        pdf.line(10 * mm, y_com - 1 * mm, w - 10 * mm, y_com - 1 * mm)
+    # <--- hecho por claude code: con 9 maestros no cabían y salía "(continúa…)".
+    # Se prueban configuraciones de menos a más apretada (1 columna primero, luego 2)
+    # y se usa la PRIMERA en la que entren todos los comentarios completos.
+    x0        = 10 * mm
+    ancho_txt = w - 20 * mm
+    canal     = 6 * mm            # separación entre columnas
+    sangria   = 3 * mm
+    alto_disp = max(0, y_com - _RESERVA_INFERIOR)
+    y_top     = y_com
+
+    OPCIONES = [(1, 9, 5.5), (1, 8, 4.8),
+                (2, 9, 5.0), (2, 8, 4.4), (2, 7, 3.9), (2, 6, 3.5)]
+
+    n_cols, size, interlin, columnas = 1, 9, 5.5 * mm, []
+    if comentarios:
+        for nc, s, il in OPCIONES:
+            ancho_c = (ancho_txt - canal) / 2 if nc == 2 else ancho_txt
+            bloques = _bloques_comentarios(comentarios, s, ancho_c, sangria)
+            cap     = max(1, int(alto_disp // (il * mm)))
+            cols, sobro = _repartir_columnas(bloques, cap, nc)
+            n_cols, size, interlin, columnas = nc, s, il * mm, cols
+            if not sobro:
+                break
+        else:
+            # Último recurso: la letra mínima permitiendo partir un maestro entre
+            # columnas. Recupera los renglones que se desperdiciaban al final de cada
+            # columna y evita tener que cortar comentarios.
+            nc, s, il = OPCIONES[-1]
+            ancho_c = (ancho_txt - canal) / 2
+            bloques = _bloques_comentarios(comentarios, s, ancho_c, sangria)
+            cap = max(1, int(alto_disp // (il * mm)))
+            cols, sobro = _repartir_columnas(bloques, cap, nc, partir=True, separar=False)
+            n_cols, size, interlin, columnas = nc, s, il * mm, cols
+            if sobro and columnas and columnas[-1]:
+                columnas[-1] = columnas[-1][:-1] + [(0, 'Helvetica-Oblique', '(continúa…)')]
+
+    ancho_col = (ancho_txt - canal) / 2 if n_cols == 2 else ancho_txt
+    y_min = y_top
+    for c, col in enumerate(columnas):
+        for fila, item in enumerate(col):
+            y = y_top - fila * interlin
+            if item is not None:
+                dx, fuente, txt = item
+                x = x0 + c * (ancho_col + canal) + dx
+                if fuente == 'MIXTO':
+                    # <--- hecho por claude code: nombre en negrita + comentario seguido
+                    nombre, resto = txt
+                    pdf.setFont('Helvetica-Bold', size)
+                    pdf.drawString(x, y, nombre)
+                    pdf.setFont('Helvetica', size)
+                    pdf.drawString(x + stringWidth(nombre, 'Helvetica-Bold', size), y, resto)
+                else:
+                    pdf.setFont(fuente, size)
+                    pdf.drawString(x, y, txt)
+            y_min = min(y_min, y)
+    y_com = y_min - interlin
+
+    # Renglones en blanco para escribir a mano en el espacio que sobró
+    pdf.setLineWidth(0.3)
+    while y_com - 1 * mm >= _RESERVA_INFERIOR:
+        pdf.line(x0, y_com - 1 * mm, w - 10 * mm, y_com - 1 * mm)
         y_com -= 6 * mm
 
     # ── Texto legal ───────────────────────────────────────────────
@@ -662,7 +842,8 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
         y_legal -= 5 * mm
 
     # ── Firmas ────────────────────────────────────────────────────
-    y_firma = y_legal - 24 * mm
+    # <--- hecho por claude code: hueco reducido; sobraba espacio en blanco
+    y_firma = y_legal - 16 * mm
     pdf.setLineWidth(0.5)
     pdf.line(10 * mm, y_firma + 8 * mm, 75 * mm, y_firma + 8 * mm)
     pdf.setFont('Helvetica', 9)
@@ -709,6 +890,7 @@ def coordinador_notas(request):
     ).distinct().order_by('first_name', 'last_name', 'username')
 
     secciones_grado = []
+    grados_secciones = []   # <--- hecho por claude code
 
     if parcial and area:
         if area == 'bachillerato' and not curso:
@@ -718,6 +900,11 @@ def coordinador_notas(request):
             if rows:
                 todos  = _agrupar(rows)
                 grados = sorted({a['grado'] for a in todos})
+                # <--- hecho por claude code: todos los grado-sección del parcial, para
+                # poder asignar un maestro a varios grados de una sola vez.
+                _pares = sorted({(a['grado'], a['grupo']) for a in todos})
+                grados_secciones = [{'grado': g, 'seccion': s, 'label': f'{g} / {s}'}
+                                    for g, s in _pares]
                 if grado:
                     en_grado        = [a for a in todos if a['grado'] == grado]
                     secciones_grado = sorted({a['grupo'] for a in en_grado})
@@ -744,6 +931,11 @@ def coordinador_notas(request):
                 # Cajas de comentario por alumno (una por maestro asignado a su grado-sección)
                 for a in alumnos:
                     gs = (a['grado'], a['grupo'])
+                    # <--- hecho por claude code: clave grado+sección para agrupar en el
+                    # template. Antes se agrupaba SOLO por grado y el banner tomaba la
+                    # sección del primer alumno, así que los maestros de las demás
+                    # secciones no se veían y "Agregar" solo afectaba a la primera.
+                    a['grado_seccion'] = f"{a['grado']} — Sección {a['grupo'] or '—'}"
                     a['coment_boxes'] = [{
                         'maestro_id': asig.maestro_id,
                         'nombre': asig.maestro.get_full_name() or asig.maestro.username,
@@ -770,6 +962,7 @@ def coordinador_notas(request):
         'grados':            grados,
         'seccion':           seccion,
         'secciones_grado':   secciones_grado,
+        'grados_secciones':  grados_secciones,   # <--- hecho por claude code
         'alumnos':           alumnos,
         'error':             error,
         'maestros':          maestros,
@@ -777,6 +970,7 @@ def coordinador_notas(request):
         'notificaciones':    notificaciones,
         'destinatarios':          _destinatarios_para(request.user),
         'solo_carrusel':          _es_solo_revision(request.user) and area in {'bl', 'colegio_bl'},
+        'ya_revisado':            _ya_revisado(request.user, area, parcial, anio, grado, seccion),   # <--- hecho por claude code
         'ocultar_asignaciones':   _es_solo_revision(request.user),
         'areas':                  _areas_para(request.user),
     })
@@ -825,6 +1019,16 @@ def asignar_maestro_view(request):
         return JsonResponse({'ok': False, 'error': str(e)})
 
 
+# <--- hecho por claude code: en bachillerato el "grado" ES el año/curso
+# (1ero → curso 1, 2do → curso 2). El SP lo exige, y la asignación no lo guarda.
+_ORDINAL_ANIO = {'1ero': '1er', '2do': '2do', '3ero': '3er', '1mo': '1er'}
+_CURSO_DE_GRADO = {'1ero': '1', '1mo': '1', '2do': '2', '3ero': '3'}
+
+
+def _curso_de_grado(grado):
+    return _CURSO_DE_GRADO.get((grado or '').strip().lower(), '')
+
+
 # ─── Vista Maestro ───────────────────────────────────────────────────────────
 
 @login_required
@@ -832,14 +1036,36 @@ def asignar_maestro_view(request):
 def maestro_notas(request):
     user = request.user
     # Coordinadores/superusers ven todas las asignaciones; maestros solo las suyas
-    if _es_coordinador(user):
-        asignaciones = AsignacionMaestro.objects.select_related('maestro').order_by(
-            '-anio', 'parcial', 'area', 'grado', 'seccion'
-        )
+    # <--- hecho por claude code: un coordinador que TAMBIÉN es maestro veía en
+    # "Mis Reportes" las asignaciones de todo el mundo como si fueran suyas
+    # (druiz: 2 en la base, 12 tarjetas). Ahora por defecto ve las suyas y, si es
+    # coordinador, puede pasar ?todos=1 para ver todas.
+    es_coord  = _es_coordinador(user)
+    ver_todas = es_coord and request.GET.get('todos') == '1'
+    _orden = ('-anio', 'parcial', 'area', 'grado', 'seccion')
+    if ver_todas:
+        asignaciones = AsignacionMaestro.objects.select_related('maestro').order_by(*_orden)
     else:
-        asignaciones = AsignacionMaestro.objects.filter(maestro=user).order_by(
-            '-anio', 'parcial', 'area', 'grado', 'seccion'
-        )
+        asignaciones = AsignacionMaestro.objects.filter(maestro=user).order_by(*_orden)
+
+    # <--- hecho por claude code: las tarjetas se veían "duplicadas" porque colegio y
+    # bachillerato usan los MISMOS nombres de grado (1ero/2do, secciones a/b) y solo
+    # las diferenciaba una etiqueta pequeña. Se agrupan por área y en bachillerato el
+    # grado se muestra como el año que es (1er Año / 2do Año), con su curso en el enlace.
+    asignaciones = list(asignaciones)
+    for a in asignaciones:
+        a.curso = _curso_de_grado(a.grado) if a.area == 'bachillerato' else ''
+        a.titulo = (f'{_ORDINAL_ANIO.get(a.grado, a.grado)} Año' if a.area == 'bachillerato'
+                    else f'Grado {a.grado}')
+    grupos_asig = []
+    for _area, _label in AREAS:
+        _items = [a for a in asignaciones if a.area == _area]
+        if _items:
+            grupos_asig.append({'area': _area, 'label': _label, 'items': _items})
+    # áreas que no estén en AREAS (por si acaso) van al final
+    _resto = [a for a in asignaciones if a.area not in dict(AREAS)]
+    if _resto:
+        grupos_asig.append({'area': '', 'label': 'Otras', 'items': _resto})
 
     area_sel    = request.GET.get('area', '')
     parcial_sel = request.GET.get('parcial', '')
@@ -902,6 +1128,12 @@ def maestro_notas(request):
 
     return render(request, 'notas_parcial/maestro.html', {
         'asignaciones': asignaciones,
+        'grupos_asig':  grupos_asig,   # <--- hecho por claude code: tarjetas agrupadas por área
+        'ver_todas':    ver_todas,   # <--- hecho por claude code
+        # <--- hecho por claude code: en bachillerato el grado se nombra como año
+        'titulo_sel':   (f"{_ORDINAL_ANIO.get(grado_sel, grado_sel)} Año"
+                         if area_sel == 'bachillerato' and grado_sel else
+                         (f'Grado {grado_sel}' if grado_sel else '')),
         'areas':        AREAS,
         'area_sel':     area_sel,
         'area_label':   area_label,
@@ -1013,20 +1245,7 @@ def enviar_pdf_email(request):
     if not alumnos:
         return JsonResponse({'ok': False, 'error': 'Sin datos para los parámetros indicados.'})
 
-    ids = [a['ingr_egr_id'] for a in alumnos]
-    # Combinar los comentarios de TODOS los maestros, etiquetados por nombre.
-    # (Ignora vacíos para que no pisen a los llenos.)
-    comentarios_db = {}
-    for c in (NotaComentario.objects
-              .filter(ingr_egr_id__in=ids, parcial=int(parcial), anio=int(anio), area=area)
-              .select_related('maestro')):
-        if not (c.comentario or '').strip():
-            continue
-        nombre = (c.maestro.get_full_name() or c.maestro.username) if c.maestro_id else 'Maestro'
-        comentarios_db.setdefault(c.ingr_egr_id, []).append(f"{nombre}: {c.comentario.strip()}")
-    for a in alumnos:
-        partes = comentarios_db.get(a['ingr_egr_id'], [])
-        a['comentario'] = '   ·   '.join(partes) if partes else ''
+    _cargar_comentarios(alumnos, parcial, anio, area)
 
     buf = io.BytesIO()
     pdf = canvas.Canvas(buf, pagesize=letter)
@@ -1169,8 +1388,23 @@ def asignaciones_vista(request):
                 'anio':       a.anio,
                 'cached':     cache.get(ck) is not None,
                 'items':      [],
+                'maestros':   {},   # <--- hecho por claude code
             }
         grupos[key]['items'].append(a)
+        # <--- hecho por claude code: agrupar por maestro. Antes cada maestro
+        # aparecía repetido en una fila por cada grado-sección (12 filas para
+        # quien da todos los grupos) y era imposible leerlo.
+        a.titulo = (f'{_ORDINAL_ANIO.get(a.grado, a.grado)} Año'
+                    if a.area == 'bachillerato' else f'{a.grado}')
+        m = grupos[key]['maestros'].setdefault(a.maestro_id, {
+            'maestro': a.maestro,
+            'nombre':  a.maestro.get_full_name() or a.maestro.username,
+            'filas':   [],
+        })
+        m['filas'].append(a)
+
+    for g in grupos.values():
+        g['maestros'] = sorted(g['maestros'].values(), key=lambda m: m['nombre'].lower())
 
     return render(request, 'notas_parcial/asignaciones.html', {
         'grupos':   list(grupos.values()),
@@ -1298,3 +1532,44 @@ def eliminar_comentario(request):
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
+
+
+# <--- hecho por claude code: el botón "Revisado" del coordinador solo pintaba de verde
+# y al recargar se perdía. Ahora se guarda en RevisionFinalizada (mismo modelo que usa
+# el maestro para "Finalizado") y la pantalla vuelve a abrir ya marcada.
+@login_required
+@_coordinador
+@require_POST
+def marcar_revisado(request):
+    try:
+        data    = json.loads(request.body)
+        area    = data['area']
+        parcial = int(data['parcial'])
+        anio    = int(data['anio'])
+        grado   = data.get('grado', '') or ''
+        seccion = data.get('seccion', '') or ''
+        if data.get('accion') == 'quitar':
+            RevisionFinalizada.objects.filter(
+                maestro=request.user, area=area, parcial=parcial,
+                anio=anio, grado=grado, seccion=seccion).delete()
+        else:
+            RevisionFinalizada.objects.update_or_create(
+                maestro=request.user, area=area, parcial=parcial,
+                anio=anio, grado=grado, seccion=seccion,
+                defaults={'leida': True},
+            )
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+
+
+def _ya_revisado(user, area, parcial, anio, grado, seccion):
+    """True si este coordinador ya marcó como revisada esta selección."""
+    if not (area and parcial and anio):
+        return False
+    try:
+        return RevisionFinalizada.objects.filter(
+            maestro=user, area=area, parcial=int(parcial), anio=int(anio),
+            grado=grado or '', seccion=seccion or '').exists()
+    except Exception:
+        return False

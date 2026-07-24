@@ -189,5 +189,5 @@
   {# <--- hecho por claude code: materia/docente por grupo del alumno #}
   {# <--- hecho por claude code: datos para formularios.js, sin JS inline #}
   {{ md_por_grado_json|default:"{}"|safe|json_script:"md-por-grado-data" }}
-  <script src="{% static 'conducta/js/formularios.js' %}?v=2"></script>
+  <script src="{% static 'conducta/js/formularios.js' %}?v=3"></script>
 {% endblock %}

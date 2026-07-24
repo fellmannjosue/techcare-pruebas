@@ -46,11 +46,6 @@
             <div class="alert alert-warning py-2 mb-3" id="tempLock">
               <i class="ti ti-clock-pause me-1"></i>Demasiados intentos. Espera <strong><span id="tempSecs">{{ bloqueo_temp }}</span>s</strong> para volver a intentar.
             </div>
-<div id="login-config" hidden
-     data-v0="{% url 'submit_ticket' %}"
-     data-v1="{{ bloqueo_username|escapejs }}"
-     data-v2="{{ bloqueo_temp }}"></div>
-<script src="{% static 'accounts/js/login.js' %}?v=1"></script>
             {% endif %}
 
             {% if bloqueo_total %}
@@ -156,6 +151,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js" defer></script>
   <div id="page-config" hidden
        data-show-checkbox-hint="{% if show_checkbox_hint %}true{% else %}false{% endif %}"></div>
-  <script src="{% static 'accounts/js/login.js' %}" defer></script>
+  {# <--- hecho por claude code: datos y JS del bloqueo (solo si aplica) #}
+  {% if bloqueo_temp or bloqueo_total %}
+  <div id="login-config" hidden
+       data-v0="{% url 'submit_ticket' %}"
+       data-v1="{{ bloqueo_username|escapejs }}"
+       data-v2="{{ bloqueo_temp|default:0 }}"></div>
+  <script src="{% static 'accounts/js/login_bloqueo.js' %}?v=2" defer></script>
+  {% endif %}
+  <script src="{% static 'accounts/js/login.js' %}?v=3" defer></script>
 </body>
 </html>

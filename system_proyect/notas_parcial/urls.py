@@ -14,6 +14,8 @@ urlpatterns = [
     path('notificaciones-json/', views.notificaciones_json, name='notas_parcial_notif_json'),
     path('enviar-pdf-email/',      views.enviar_pdf_email,            name='notas_parcial_enviar_email'),
     path('asignaciones/',          views.asignaciones_vista,           name='notas_parcial_asignaciones'),
+    # <--- hecho por claude code: persistir el 'Revisado' del coordinador
+    path('marcar-revisado/',       views.marcar_revisado,              name='notas_parcial_marcar_revisado'),
     path('eliminar-asignacion/',   views.eliminar_asignacion,          name='notas_parcial_eliminar_asignacion'),
     path('actualizar-fecha/',      views.actualizar_fecha_limite,      name='notas_parcial_actualizar_fecha'),
     path('precargar-cache/',       views.precargar_cache,              name='notas_parcial_precargar'),

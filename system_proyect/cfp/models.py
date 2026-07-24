@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 # ── Talleres (subdashboards) ──────────────────────────────────────────────────
 TALLER_CHOICES = [
@@ -308,3 +309,25 @@ class HorasParticipanteMes(models.Model):
     class Meta:
         unique_together = ('curso', 'persona_id', 'mes')
         ordering = ['persona_id', 'mes']
+
+
+# ─────────────────────────────────────────────────────────────
+# Asignación instructor → curso (Programa 2 / Notas)
+# <--- hecho por claude code: cada instructor ve/edita solo SUS cursos.
+# El director y el superusuario ven todos (no necesitan filas aquí).
+# ─────────────────────────────────────────────────────────────
+class InstructorCurso(models.Model):
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='cfp_cursos', verbose_name='Instructor',
+    )
+    curso = models.CharField('Curso', max_length=160)   # una clave de CURSOS_CFP
+
+    class Meta:
+        verbose_name = 'Instructor – Curso CFP'
+        verbose_name_plural = 'Instructores – Cursos CFP'
+        unique_together = ('instructor', 'curso')
+        ordering = ['instructor__username', 'curso']
+
+    def __str__(self):
+        return f'{self.instructor} → {self.curso}'

@@ -78,13 +78,38 @@
       "Bash(../venv313/bin/python manage.py gen_changelog)",
       "Bash(sudo -S -u www-data head -3 core/changelog.json)",
       "Bash(awk '{print $1, $3, $4}')",
-      "Bash(systemctl show *)"
+      "Bash(systemctl show *)",
+      "Bash(../venv313/bin/python manage.py shell -c ' *)",
+      "Bash(python -c \"import fitz\")",
+      "Bash(gs -q -dNOPAUSE -dBATCH -sDEVICE=png16m -r110 -dFirstPage=1 -dLastPage=1 -sOutputFile=caso_sin_comentarios.png caso_sin_comentarios.pdf)",
+      "Bash(python manage.py resetclave --help)",
+      "Bash(git log *)",
+      "Bash(sudo -S -u www-data ../venv313/bin/python manage.py collectstatic --noinput)",
+      "Bash(node --check notas_parcial/static/notas_parcial/js/coordinador.js)",
+      "Bash(sed -i \"s|{% static 'notas_parcial/js/coordinador.js' %}?v=2|{% static 'notas_parcial/js/coordinador.js' %}?v=3|\" notas_parcial/templates/notas_parcial/coordinador.html)",
+      "Bash(curl -sk https://localhost:437/static/notas_parcial/js/coordinador.js)",
+      "Bash(node --check notas_parcial/static/notas_parcial/js/asignaciones.js)",
+      "Bash(sudo -S grep -rniE \"WSGIScriptAlias|WSGIDaemonProcess|python-home|python-path\" /etc/apache2/)",
+      "Bash(sudo -S bash -c 'for p in $\\(pgrep -f apache2 | head -3\\); do echo \"pid $p -> $\\(readlink /proc/$p/cwd\\)\"; done')",
+      "Bash(sudo -S bash -c 'ps -eo pid,lstart,cmd | grep -E \"apache2|wsgi\" | grep -v grep')",
+      "Bash(sudo -S bash -c 'pgrep -af \"servicios_ana|wsgi:\" | head')",
+      "Bash(sudo -S bash -c 'ps -eo pid,lstart,cmd | grep \"apache2 -k start\" | grep -v grep | head -3')",
+      "Bash(sed -n '/class RevisionFinalizada/,/def __str__/p' notas_parcial/models.py)",
+      "Bash(sed -n \"/def finalizar_revision/,/^@/p\" notas_parcial/views.py)",
+      "Bash(grep -n \"^#\\\\{1,3\\\\} \" README.md)",
+      "Bash(git -c core.pager=cat commit -q -F -)",
+      "Bash(python manage.py gen_changelog --set-version 6.0.5.0)",
+      "Bash(python -c ' *)",
+      "Bash(git -c core.pager=cat diff --cached system_proyect/core/changelog.json)",
+      "Bash(cd /home/admin2/techcare_project *)",
+      "Bash(git -c core.pager=cat commit --amend --no-edit -q)"
     ],
     "additionalDirectories": [
       "/home/admin2/techcare_project/system_proyect/conducta",
       "/home/admin2/techcare_project/conducta/templates/conducta",
       "/home/admin2/techcare_project/system_proyect/accounts",
-      "/home/admin2/techcare_project/system_proyect/agendas"
+      "/home/admin2/techcare_project/system_proyect/agendas",
+      "/home/admin2/techcare_project/.git"
     ]
   }
 }

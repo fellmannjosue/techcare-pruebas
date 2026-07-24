@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #grafica-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_GRAFICA = (function(){
   var d = document.getElementById("grafica-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -18,9 +18,9 @@ const CFG = (function(){
 })();
 
 window.GRAFICA_CONTEXT = {
-  presentes: CFG.j3,
-  ausentes:  CFG.j4,
-  fecha_inicio: CFG.v0,
-  fecha_fin:    CFG.v1,
-  detalleURL:   CFG.v2
+  presentes: CFG_GRAFICA.j3,
+  ausentes:  CFG_GRAFICA.j4,
+  fecha_inicio: CFG_GRAFICA.v0,
+  fecha_fin:    CFG_GRAFICA.v1,
+  detalleURL:   CFG_GRAFICA.v2
 };

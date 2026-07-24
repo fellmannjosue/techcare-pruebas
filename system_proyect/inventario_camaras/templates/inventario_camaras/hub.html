@@ -9,6 +9,18 @@
 {% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code: acceso a la app nueva (React + Tailwind, build estático) #}
+<div class="alert alert-primary d-flex align-items-center flex-wrap gap-2 mb-3">
+  <i class="ti ti-sparkles me-1"></i>
+  <div>
+    <strong>Nueva vista interactiva</strong>
+    <div class="small">Árbol Servidor → NVR → Gabinete → Cámara, búsqueda instantánea y edición en panel lateral.</div>
+  </div>
+  <a href="{% url 'inventario_camaras:app_spa' %}" class="btn btn-primary ms-auto">
+    <i class="ti ti-arrow-right me-1"></i>Probar la vista nueva
+  </a>
+</div>
+
 <div class="row row-cards">
 
   <div class="col-12">

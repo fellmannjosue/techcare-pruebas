@@ -169,126 +169,12 @@
 <div class="alert alert-secondary">No hay datos para mostrar en el rango seleccionado.</div>
 {% endif %}
 
-{# <--- hecho por claude code: modal para registrar/editar permiso desde el reporte de asistencia #}
-<div class="modal modal-blur fade" id="modalPermiso" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-license me-2 text-primary"></i><span id="perm-modal-title">Registrar Permiso</span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="perm-pk">
-        <input type="hidden" id="perm-emp-code">
-        <div class="mb-3">
-          <label class="form-label fw-semibold text-muted small">Empleado</label>
-          <div id="perm-nombre-display" class="fw-semibold"></div>
-        </div>
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <label class="form-label" for="perm-fecha">Fecha inicio</label>
-            <input type="date" id="perm-fecha" class="form-control">
-          </div>
-          <div class="col-6">
-            <label class="form-label" for="perm-fecha-fin">Fecha fin</label>
-            <input type="date" id="perm-fecha-fin" class="form-control">
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="perm-tipo">Tipo de Permiso</label>
-          <select id="perm-tipo" class="form-select">
-            {% for campo, etiqueta, color in campos_permiso %}
-            {% if campo != 'enfermedad_incapacidad' and campo != 'enfermedad_maternidad' and campo != 'enfermedad_citamedica' and campo != 'enfermedad_consulta' and campo != 'compensatorio_dias' %}
-            <option value="{{ campo }}" data-color="{{ color }}">{{ etiqueta }}</option>
-            {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-        {# Saldo vacaciones — solo visible cuando tipo=vacaciones_dias #}
-        <div id="perm-vac-balance" class="d-none mb-3 rounded p-2" style="background:#f0faf0;border:1px solid #c3e6cb;">
-          <div id="perm-vac-sin-cfg" class="d-none small text-muted">
-            <i class="ti ti-alert-circle me-1 text-warning"></i>Sin configuración. <a href="{% url 'reloj_vacaciones_list' %}" target="_blank">Configurar aquí</a>.
-          </div>
-          <div id="perm-vac-cards" class="d-none d-flex align-items-center gap-2">
-            <i class="ti ti-beach text-success fs-3"></i>
-            <div>
-              <div class="small fw-semibold text-muted">Saldo de vacaciones</div>
-              <div>
-                <span class="fw-bold" id="perm-vac-disponibles" style="font-size:1.4rem">—</span>
-                <span class="text-muted small ms-1">días disponibles</span>
-              </div>
-            </div>
-          </div>
-          <div id="perm-vac-loading" class="small text-muted">
-            <span class="spinner-border spinner-border-sm me-1"></span>Cargando...
-          </div>
-        </div>
-
-        <div class="mb-3 d-none" id="perm-subtipo-enf-wrap">
-          <label class="form-label" for="perm-subtipo-enf">Subtipo Enfermedad</label>
-          <select id="perm-subtipo-enf" class="form-select">
-            <option value="enfermedad_incapacidad">Incapacidad</option>
-            <option value="enfermedad_maternidad">Incapacidad por maternidad</option>
-            <option value="enfermedad_citamedica">Cita médica</option>
-            <option value="enfermedad_consulta">Consulta médica</option>
-          </select>
-        </div>
-        <div class="mb-3 d-none" id="perm-subtipo-otro-wrap">
-          <label class="form-label" for="perm-subtipo-otro">Subtipo Otro Pagado</label>
-          <select id="perm-subtipo-otro" class="form-select">
-            <option value="otro_pagado_dias">Otro Pagado</option>
-            <option value="compensatorio_dias">Compensatorio</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="perm-razon-sel">Razón</label>
-          <select id="perm-razon-sel" class="form-select">
-            <option value="">— Selecciona una razón —</option>
-            {% for rz in razones %}<option value="{{ rz }}">{{ rz }}</option>{% endfor %}
-            <option value="__nueva__">➕ Agregar otra…</option>
-          </select>
-          <input type="text" id="perm-razon-nueva" class="form-control mt-2 d-none" maxlength="200" placeholder="Escribe la nueva razón…">
-          {# valor real enviado al guardar #}
-          <input type="hidden" id="perm-razon">
-        </div>
-        <div class="mb-2 d-flex align-items-center gap-2">
-          <span class="form-label mb-0 me-1 small text-muted">Registrar como:</span>
-          <div class="btn-group btn-group-sm" role="group">
-            <input type="radio" class="btn-check" name="perm-modo" id="modo-dias" autocomplete="off" checked>
-            <label class="btn btn-outline-primary" for="modo-dias">Días</label>
-            <input type="radio" class="btn-check" name="perm-modo" id="modo-horas" autocomplete="off">
-            <label class="btn btn-outline-primary" for="modo-horas">Horas</label>
-          </div>
-        </div>
-        <div id="wrap-dias" class="mb-1">
-          <label class="form-label" for="perm-dias">Días hábiles</label>
-          <input type="number" id="perm-dias" class="form-control" step="0.5" min="0" max="31" value="1" placeholder="0.5, 1, 2...">
-        </div>
-        <div id="wrap-horas" class="mb-1 d-none">
-          <label class="form-label" for="perm-horas">Horas</label>
-          <input type="number" id="perm-horas" class="form-control" step="0.5" min="0" max="248" placeholder="4, 8, 16...">
-        </div>
-        <div class="form-text" id="perm-dias-hint"></div>
-      </div>
-      <div class="modal-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-ghost-danger d-none" id="btn-eliminar-permiso">
-          <i class="ti ti-trash me-1"></i>Eliminar
-        </button>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="btn-guardar-permiso">
-            <i class="ti ti-check me-1"></i>Guardar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+{% include "reloj/_modal_permiso.html" %}
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="{% static 'reloj/js/autorefresh.js' %}"></script>
+<script src="{% static 'reloj/js/autorefresh.js' %}?v=20"></script>
 <script type="application/json" id="reporte-data">
 {
   "csrf":              "{{ csrf_token }}",
@@ -303,6 +189,6 @@
   "tipoLabels": { {% for campo, etiqueta, color in campos_permiso %}"{{ campo|escapejs }}": {"label": "{{ etiqueta|escapejs }}", "color": "{{ color|escapejs }}"}{% if not forloop.last %}, {% endif %}{% endfor %} }
 }
 </script>
-<script src="{% static 'reloj/js/reporte_page.js' %}?v=1"></script>
-<script src="{% static 'reloj/js/reporte.js' %}?v=4"></script>
+<script src="{% static 'reloj/js/reporte_page.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/reporte.js' %}?v=5"></script>
 {% endblock %}

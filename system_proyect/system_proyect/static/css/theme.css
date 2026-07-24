@@ -181,3 +181,13 @@ a.tc-stat:hover { transform: translateY(-3px); box-shadow: var(--tc-shadow-hover
 /* ── Modales, offcanvas y menús ───────────────────────────────────────────── */
 /* ── Botones y pestañas ───────────────────────────────────────────────────── */
 /* ── Footer y separadores ─────────────────────────────────────────────────── */
+
+/* ── Campanita de notificaciones ──  <--- hecho por claude code
+   El menú vive dentro de la barra lateral (15rem con overflow), así que se
+   posiciona en modo "fixed" para que no lo recorte, y su ancho se adapta. */
+.tc-notif-menu {
+  min-width: 320px;
+  max-width: min(380px, calc(100vw - 2rem));
+  max-height: min(420px, calc(100vh - 8rem));
+  overflow-y: auto;
+}

@@ -254,5 +254,5 @@
   "modulos": [{% for m in modulos %}{"id": {{ m.id }}, "codigo": "{{ m.codigo_auto|escapejs }}", "puntaje": {{ m.puntaje|unlocalize }}, "fini": "{{ m.fecha_inicio|date:'Y-m-d' }}", "ffin": "{{ m.fecha_fin|date:'Y-m-d' }}"}{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
-<script src="{% static 'cfp/js/notas_curso.js' %}?v=1"></script>
+<script src="{% static 'cfp/js/notas_curso.js' %}?v=2"></script>
 {% endblock %}

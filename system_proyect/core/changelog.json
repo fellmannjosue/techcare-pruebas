@@ -1,6 +1,15 @@
 {
-  "version": "6.0.2.0",
+  "version": "6.0.5.0",
   "entradas": [
+    {
+      "version": "6.0.5.0",
+      "fecha": "2026-07-24",
+      "commit": "7fa0994",
+      "cambios": [
+        "fix(js,notas): recuperar el JS perdido en 12 pantallas, PDF de comentarios y sincronizacion de asignaciones"
+      ],
+      "menor": false
+    },
     {
       "version": "6.0.2.0",
       "fecha": "2026-07-22",

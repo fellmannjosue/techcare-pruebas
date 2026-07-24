@@ -14,31 +14,63 @@
 <div class="container-xl">
 
   {# ── Lista de asignaciones ─────────────────────────────── #}
-  {% if asignaciones %}
-  <div class="row g-3 mb-4">
-    {% for asig in asignaciones %}
-    <div class="col-sm-6 col-lg-4">
-      <a href="?area={{ asig.area }}&parcial={{ asig.parcial }}&anio={{ asig.anio }}&grado={{ asig.grado }}&seccion={{ asig.seccion }}"
-         class="card asig-card text-decoration-none text-reset">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-blue-lt text-blue">Parcial {{ asig.parcial }} / {{ asig.anio }}</span>
-            <span class="badge bg-green-lt text-green">{{ asig.area }}</span>
-          </div>
-          <div class="fw-bold">Grado {{ asig.grado }} — Sección {{ asig.seccion|default:"—" }}</div>
-          {% if es_coord %}
-          <div class="text-muted small mt-1">
-            <i class="ti ti-school me-1"></i>{{ asig.maestro.get_full_name|default:asig.maestro.username }}
-          </div>
-          {% endif %}
-          <div class="mt-2 text-primary small">
-            <i class="ti ti-arrow-right me-1"></i>Ver alumnos
-          </div>
-        </div>
-      </a>
-    </div>
-    {% endfor %}
+  {# <--- hecho por claude code: al coordinador-maestro se le mostraban las asignaciones #}
+  {# de TODOS como si fueran suyas; ahora ve las suyas y puede alternar #}
+  {% if es_coord %}
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <span class="text-muted small">
+      {% if ver_todas %}
+        <i class="ti ti-eye me-1"></i>Viendo las asignaciones de <strong>todos los maestros</strong> (vista de coordinador).
+      {% else %}
+        <i class="ti ti-user me-1"></i>Viendo <strong>tus</strong> grupos asignados.
+      {% endif %}
+    </span>
+    {% if ver_todas %}
+    <a href="{% url 'notas_parcial_maestro' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="ti ti-user me-1"></i>Ver solo los míos
+    </a>
+    {% else %}
+    <a href="?todos=1" class="btn btn-sm btn-outline-secondary">
+      <i class="ti ti-users me-1"></i>Ver los de todos los maestros
+    </a>
+    {% endif %}
   </div>
+  {% endif %}
+
+  {% if grupos_asig %}
+  {# <--- hecho por claude code: agrupadas por área; antes colegio y bachillerato usaban #}
+  {# los mismos nombres de grado y las tarjetas parecían repetidas #}
+  {% for g in grupos_asig %}
+  <div class="mb-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <h3 class="mb-0"><i class="ti ti-school me-1 text-green"></i>{{ g.label }}</h3>
+      <span class="badge bg-secondary-lt">{{ g.items|length }} grupo{{ g.items|length|pluralize }}</span>
+    </div>
+    <div class="row g-3">
+      {% for asig in g.items %}
+      <div class="col-sm-6 col-lg-4">
+        <a href="?area={{ asig.area }}&parcial={{ asig.parcial }}&anio={{ asig.anio }}&grado={{ asig.grado|urlencode }}&seccion={{ asig.seccion|urlencode }}{% if asig.curso %}&curso={{ asig.curso }}{% endif %}"
+           class="card asig-card text-decoration-none text-reset h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-blue-lt text-blue">Parcial {{ asig.parcial }} / {{ asig.anio }}</span>
+            </div>
+            <div class="fw-bold">{{ asig.titulo }} — Sección {{ asig.seccion|default:"—" }}</div>
+            {% if es_coord %}
+            <div class="text-muted small mt-1">
+              <i class="ti ti-user me-1"></i>{{ asig.maestro.get_full_name|default:asig.maestro.username }}
+            </div>
+            {% endif %}
+            <div class="mt-2 text-primary small">
+              <i class="ti ti-arrow-right me-1"></i>Ver alumnos
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
   {% else %}
   <div class="alert alert-info">
     <i class="ti ti-info-circle me-2"></i>
@@ -58,7 +90,7 @@
       <h4 class="card-title mb-0 text-blue">
         <i class="ti ti-users me-2"></i>
         {{ area_label }} — Parcial {{ parcial_sel }} / {{ anio_sel }}
-        — Grado {{ grado_sel }} Sección {{ seccion_sel|default:"—" }}
+        — {{ titulo_sel }} Sección {{ seccion_sel|default:"—" }}
       </h4>
       <div class="nav-carrusel">
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAnterior">
@@ -128,7 +160,7 @@
           </label>
           {% for box in a.coment_boxes %}
           <div class="cmt-box" data-maestro="{{ box.maestro_id }}">
-            <textarea class="form-control comentario-txt" rows="3"
+            <textarea class="form-control comentario-txt" rows="3" maxlength="600"
                       placeholder="Escribe el comentario para este alumno (máx. 40 palabras)…">{{ box.texto }}</textarea>
             <div class="d-flex align-items-center gap-2 mt-2">
               <button type="button" class="btn btn-success btn-sm btn-guardar-uno">
@@ -171,6 +203,5 @@
      data-v3="{{ grado_sel }}"
      data-v4="{{ seccion_sel }}"
      data-v5="{% url "notas_parcial_maestro" %}"></div>
-<script src="{% static 'notas_parcial/js/maestro.js' %}?v=1"></script>
-<script src="{% static 'notas_parcial/js/maestro.js' %}?v=2"></script>
+<script src="{% static 'notas_parcial/js/maestro.js' %}?v=99"></script>
 {% endblock %}

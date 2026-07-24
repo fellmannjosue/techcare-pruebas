@@ -264,13 +264,13 @@
   "configs": [{% for cfg in configs %}{"codigo": "{{ cfg.codigo|escapejs }}", "nombre": "{{ cfg.nombre|escapejs }}", "color": "{{ cfg.color|default:'#6c757d' }}"}{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
-<script src="{% static 'conducta/js/materias_docentes_bl_page.js' %}?v=1"></script>
+<script src="{% static 'conducta/js/materias_docentes_bl_page.js' %}?v=2"></script>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="{% static 'js/dt_guard.js' %}"></script>
+<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
 <div id="page-config" hidden data-url-buscar="{% url 'materias_docentes_bl' %}"></div>
-<script src="{% static 'conducta/js/materias_docentes_bl.js' %}?v=3"></script>
+<script src="{% static 'conducta/js/materias_docentes_bl.js' %}?v=4"></script>
 {% endblock %}

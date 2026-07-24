@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'conducta',
     'agendas',
     'core.apps.CoreConfig',
+    'rest_framework',   # <--- hecho por claude code: API del frontend de cámaras
     'reloj',
     'calculadoras',
     'cfp',
@@ -555,3 +556,20 @@ UNFOLD = {
 # urls.W005: Warning conocido de compatibilidad django-unfold con Django 6.x
 # El namespace 'admin' duplicado es interno de unfold y no afecta funcionamiento
 SILENCED_SYSTEM_CHECKS = ['urls.W005']
+
+
+# <--- hecho por claude code: API para el frontend estático de inventario_camaras.
+# Autenticación por SESIÓN (mismo dominio) => sin CORS ni JWT. Todo endpoint
+# exige usuario autenticado; los permisos finos van en cada ViewSet.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'UNAUTHENTICATED_USER': None,
+}

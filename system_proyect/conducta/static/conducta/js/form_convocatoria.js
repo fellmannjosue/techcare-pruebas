@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #form_convocatoria-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_FORM_CONVOCATORIA = (function(){
   var d = document.getElementById("form_convocatoria-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -12,7 +12,7 @@ const CFG = (function(){
 })();
 
 (function () {
-  const HORARIO_URL = CFG.v0;
+  const HORARIO_URL = CFG_FORM_CONVOCATORIA.v0;
   const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const PARCIAL_ROM = {1:'I',2:'II',3:'III',4:'IV'};
   const DIAS = [1,2,3,4,5];
@@ -160,5 +160,5 @@ const CFG = (function(){
   }
 })();
 window.GRADO_LABELS = {1:'Primero',2:'Segundo',3:'Tercero',4:'Cuarto',5:'Quinto',6:'Sexto',7:'Séptimo',8:'Octavo',9:'Noveno'};
-window.CONV_ASIGS = CFG.j1;
+window.CONV_ASIGS = CFG_FORM_CONVOCATORIA.j1;
 window._convPreset = window.CONV_ASIGS.length > 0;

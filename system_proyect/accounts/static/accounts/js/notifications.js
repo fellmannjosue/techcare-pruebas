@@ -202,7 +202,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         document.addEventListener("click", (e) => {
-            if (!dropdown.closest(".dropdown").contains(e.target)) {
+            // <--- hecho por claude code: guarda por si la campanita no está dentro de un .dropdown
+            const cont = dropdown.closest(".dropdown");
+            if (!cont || !cont.contains(e.target)) {
                 dropdownAbierto = false;
             }
         });
@@ -234,3 +236,19 @@ function getCSRFToken() {
     }
     return cookieValue;
 }
+
+/* <--- hecho por claude code: la barra lateral tiene overflow y recortaba el menú.
+   Con la estrategia "fixed" de Popper, el desplegable se sale del contenedor. */
+(function(){
+  function initDropdown(){
+    var t = document.getElementById('notifDropdownToggle');
+    if (!t || typeof bootstrap === 'undefined') return;
+    try {
+      bootstrap.Dropdown.getOrCreateInstance(t, {
+        popperConfig: function (cfg) { cfg.strategy = 'fixed'; return cfg; }
+      });
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDropdown);
+  else initDropdown();
+})();

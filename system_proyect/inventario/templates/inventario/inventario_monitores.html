@@ -226,7 +226,7 @@
   "nextIds": { {% for prefix, label in prefijos %}"{{ prefix|escapejs }}": "{{ next_ids|get_item:prefix }}"{% if not forloop.last %}, {% endif %}{% endfor %} }
 }
 </script>
-<script src="{% static 'inventario/js/inventario_monitores_page.js' %}?v=1"></script>
-<script src="{% static 'inventario/js/inventario_monitores.js' %}"></script>
-<script src="{% static 'inventario/js/monitores_edit.js' %}"></script>
+<script src="{% static 'inventario/js/inventario_monitores_page.js' %}?v=2"></script>
+<script src="{% static 'inventario/js/inventario_monitores.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/monitores_edit.js' %}?v=20"></script>
 {% endblock %}

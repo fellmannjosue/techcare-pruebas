@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 6.0.1.2 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 6.0.5.0 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,24 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v6.0.5.0 — Recuperación del JS perdido, PDF de notas y sincronización de asignaciones
+
+- **🔴 JS perdido en 12 pantallas** — La refactorización que sacó el JavaScript de los HTML (v6.0.2.0) copió **solo el bloque de configuración** y descartó la lógica: 12 archivos quedaron con `data-*` y **cero código**. Pantallas que no hacían nada: *Vista Previa* y carrusel del coordinador de notas, **guardar comentario del maestro**, asignaciones (fecha límite, eliminar, pre-cargar cache), Inventario (Registros, Computadoras, Editar monitor), Mantenimiento, Tickets (enviar y panel de técnico) y los modales de parcial/año. Recuperadas ~1,700 líneas desde el historial de git, cada una validada con `node --check`.
+- **🔴 `SyntaxError: Identifier 'CFG' has already been declared`** — Los 33 archivos extraídos declaraban la **misma constante global**, y toda página carga al menos dos (el de la base + el de la pantalla): el segundo moría y **con él todo su código**. Cada archivo tiene ahora su propio nombre (`CFG_MAESTRO`, `CFG_COORDINADOR`…), con prefijo de app cuando dos apps comparten nombre de archivo. Además 24 plantillas cargaban su `.js` **dos veces**.
+- **PDF de notas: comentarios ilegibles** — Los comentarios de todos los maestros se unían en un solo párrafo con `·`; un texto sin espacios **se salía de la hoja** (`simpleSplit` solo corta en espacios) y con más de 5 maestros el resto **desaparecía sin aviso**. Ahora: un bloque por maestro (nombre en negrita **en línea** con su texto), **dos columnas** automáticas, tamaño de letra que se ajusta solo (9→6 pt) y corte por carácter para palabras largas. Entran **13 maestros** por alumno con comentarios de 40 palabras; más allá avisa con *(continúa…)*. Tope de 600 caracteres en el servidor y en los textarea.
+- **Bachillerato: "No se obtuvieron datos del SP"** — `spEdcNotasInsertBachillerato` exige `@Curso` y las tarjetas del maestro no lo mandaban (la asignación no guarda curso). Ahora se piden los dos cursos y se combinan; las tarjetas llevan el curso en el enlace.
+- **Coordinador: maestros invisibles** — La lista agrupaba **solo por grado** y el banner de maestros tomaba la sección *del primer alumno*: en un grado con secciones a/b solo se veían los de la "a", y *Agregar* asignaba solo a esa. Ahora agrupa por **grado + sección** (en Colegio pasó de 3 banners a 6).
+- **"Mis Reportes" desincronizado** — Un coordinador que además es maestro veía las asignaciones de **todo el mundo** como si fueran suyas (2 en la base, 12 tarjetas). Ahora ve las suyas, con enlace *Ver los de todos los maestros* para conservar la vista de coordinador.
+- **"Revisado" no se guardaba** — El botón solo pintaba de verde; al recargar se perdía, igual que el check de cada comentario. Ambos se persisten y la pantalla vuelve a abrir marcada, con el envío por correo ya habilitado.
+- **Asignar maestro a varios grados** — El desplegable *Grados* permite marcar varios grado-sección y asignar de una vez (la vista ya lo soportaba; faltaba la interfaz). La pantalla de Asignaciones se agrupa **por maestro** (116 filas sueltas → 24 bloques) con botón *Fecha a todos*.
+- **Tercer parcial habilitado** — El aviso "no hemos llegado a ese parcial" queda solo para el 4º. El rango vive en dos constantes de `base_notas.js` (`PARCIAL_MAX` / `PARCIAL_MIN`).
+- **🔒 Tickets: panel de técnico abierto** — `technician_dashboard` mostraba **todos los tickets del sistema** a cualquier usuario autenticado. Ahora exige `tickets.view_ticket`; los demás van al panel de usuario. Los instructores CFP pasaron al grupo `administracion` y el contador "Tickets abiertos" muestra solo los propios.
+- **Login** — El ojito de la contraseña, escribir el usuario sin `@ana-hn.org` y el modo admin dejaron de funcionar porque la migración de JS **sobrescribió** `login.js` y cargaba el script solo cuando había bloqueo. Recuperado y separado en `login.js` + `login_bloqueo.js`.
+- **Superusuario sin bloqueo de login** — Ya no se bloquea por intentos fallidos (si se bloqueaba, nadie podía desbloquear a los demás). Nuevo comando `manage.py resetclave <usuario> [--clave X] [--solo-desbloquear]`.
+- **Reloj** — Pestaña de **ausentes sin permiso registrado** (días laborales sin marca, descontando feriados y permisos ya existentes) que abre el modal de *Registrar Permiso* ya rellenado; para **maestros por hora**, los sábados especiales suman sus horas al total del mes en una columna propia.
+- **CFP** — Rol *Instructor* con cursos asignados (`InstructorCurso`): cada instructor ve solo los suyos. Permiso `contabilidad_cfp` para acceder únicamente a Contabilidad.
+- **Inventario de cámaras** — API JSON (DRF, sesión de Django) y app **Next.js + Tailwind** con exportación estática servida por Apache (sin proceso Node en producción).
 
 ### v6.0.2.0 — JS/CSS fuera del HTML, notificaciones y tema
 
@@ -511,6 +529,8 @@ Sistema de revisión de notas con caché de 8 horas (`DatabaseCache`), flujo de 
 | `asignaciones/` | `notas_parcial_asignaciones` | Gestión asignaciones |
 | `precargar-cache/` | `notas_parcial_precargar` | Precargar caché |
 | `enviar-pdf-email/` | `notas_parcial_enviar_email` | Enviar PDF por correo |
+| `marcar-revisado/` | `notas_parcial_marcar_revisado` | Guarda el estado *Revisado* del coordinador (persiste al recargar) |
+| `comentario/` | `notas_parcial_comentario` | Guardar comentario (máx. 40 palabras / 600 caracteres) |
 
 ### Modelos
 
@@ -736,6 +756,10 @@ python manage.py check
 
 # Crear superusuario
 python manage.py createsuperuser
+
+# Cambiar la contraseña de un usuario y quitarle el bloqueo por intentos fallidos
+python manage.py resetclave usuario@ana-hn.org              # pide la clave por teclado
+python manage.py resetclave usuario@ana-hn.org --solo-desbloquear
 
 # Precargar caché de notas parciales
 python manage.py shell -c "from notas_parcial.views import _precargar_notas; _precargar_notas()"

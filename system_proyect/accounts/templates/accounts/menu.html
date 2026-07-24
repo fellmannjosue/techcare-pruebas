@@ -8,7 +8,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}">
   {# <--- hecho por claude code: tema claro/oscuro sin parpadeo + fuente Inter #}
-<script src="{% static 'accounts/js/menu.js' %}?v=1"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,7 +17,7 @@
   <!-- Responsive global -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=5"> {# tema: tokens + claro/oscuro - claude code #}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
@@ -166,12 +165,13 @@
 
           {% if show_tickets %}
           <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'technician_dashboard' %}" class="text-decoration-none">
+            {# <--- hecho por claude code: técnicos/admin -> panel de gestión; el resto -> panel de usuario #}
+            <a href="{{ tickets_url }}" class="text-decoration-none">
               <div class="card card-link card-link-pop text-center py-3">
                 <div class="card-body">
                   <div class="mb-2"><i class="ti ti-ticket text-blue" style="font-size:2.5rem;"></i></div>
                   <div class="fw-bold">Sistema de Tickets</div>
-                  <div class="text-muted small mt-1">Gestión de solicitudes</div>
+                  <div class="text-muted small mt-1">{{ tickets_sub }}</div>
                 </div>
               </div>
             </a>
@@ -422,7 +422,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="{% static 'accounts/js/dashboard_summary.js' %}"></script>
+<script src="{% static 'accounts/js/dashboard_summary.js' %}?v=20"></script>
 
 {% if False %}{# Modal movido a _user_dropdown.html #}
 <div class="modal fade" id="__modal_placeholder__" tabindex="-1" aria-hidden="true">
@@ -488,7 +488,7 @@
 <div id="bienvenida-config" hidden
      data-url-reenviar="{% url 'reenviar_bienvenida' %}"
      data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'accounts/js/menu_bienvenida.js' %}"></script>
+<script src="{% static 'accounts/js/menu_bienvenida.js' %}?v=20"></script>
 {% endif %}
 
 {% if request.user.is_superuser %}
@@ -642,7 +642,7 @@
      data-csrf="{{ csrf_token }}"
      data-url-estado-mantenimiento="{% url 'estado_mantenimiento' %}"
      data-url-toggle-mantenimiento="{% url 'toggle_mantenimiento' %}"></div>
-<script src="{% static 'accounts/js/menu.js' %}"></script>
+<script src="{% static 'accounts/js/menu.js' %}?v=20"></script>
 {% endif %}
 
 {# Toast container global — usado por notifications.js y notif_notas_toast.js #}

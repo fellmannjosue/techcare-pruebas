@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.conf import settings
+from django.contrib.auth.decorators import login_required  # <--- hecho por claude code
 from django.db import connections
 from django.db.models import Max
 from django.views.decorators.http import require_POST
@@ -15,7 +16,7 @@ from .models import (
     TALLER_CHOICES, TALLER_LABEL, EGRESO_GRUPOS,
     CursoNota, ModuloNota, NotaIntento, HorasMetaMes, HorasParticipanteMes,
     Participante, MESES_FORMACION, MES_LABEL, NOTA_APROBADO, NOTA_APROBADO_PRACTICO,
-    JORNADA_LABEL,
+    JORNADA_LABEL, InstructorCurso
 )
 
 
@@ -25,7 +26,9 @@ def cfp_required(view):
         u = request.user
         if not u.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
-        if not (u.is_superuser or u.groups.filter(name='director_cfp').exists()):
+        # <--- hecho por claude code: 'contabilidad_cfp' entra solo a la parte contable,
+        # sin acceso a Notas CFP (eso lo controla cfp_notas_required).
+        if not _puede_contabilidad(u):
             return HttpResponseForbidden('No tienes permiso para el módulo CFP.')
         return view(request, *args, **kwargs)
     return _w
@@ -339,7 +342,30 @@ def _label(curso):
 MAX_MODULOS = 25
 
 
+def _puede_contabilidad(u):
+    """<--- hecho por claude code: quién entra a Contabilidad (Programa 1)."""
+    return u.is_superuser or u.groups.filter(
+        name__in=['director_cfp', 'contabilidad_cfp']).exists()
+
+
+def _cursos_instructor(u):
+    """<--- hecho por claude code: cursos asignados a un instructor.
+    Devuelve None si ve TODOS (superusuario o director); un set de nombres si es
+    instructor con asignaciones."""
+    if u.is_superuser or u.groups.filter(name='director_cfp').exists():
+        return None
+    return set(InstructorCurso.objects.filter(instructor=u).values_list('curso', flat=True))
+
+
+def _puede_notas(u):
+    """Quién entra a Notas (Programa 2)."""
+    return u.is_superuser or u.groups.filter(
+        name__in=['director_cfp', 'instructores']).exists()
+
+
 def _es_director(u):
+    """Director del CFP. OJO: no confundir con 'puede entrar a Contabilidad'
+    (eso lo decide cfp_required, que además acepta 'contabilidad_cfp')."""
     return u.is_superuser or u.groups.filter(name='director_cfp').exists()
 
 
@@ -360,7 +386,7 @@ def cfp_notas_required(view):
         u = request.user
         if not u.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
-        if not (u.is_superuser or u.groups.filter(name__in=['director_cfp', 'instructores']).exists()):
+        if not _puede_notas(u):
             return HttpResponseForbidden('No tienes permiso para el módulo de Notas CFP.')
         return view(request, *args, **kwargs)
     return _w
@@ -422,11 +448,18 @@ def _color_intento(intentos, umbral=NOTA_APROBADO):
     return 'nota-negro'
 
 
-@cfp_notas_required
+@login_required
 def programas(request):
-    """Landing de CFP: tarjetas Programa 1 (Contabilidad) y Programa 2 (Notas)."""
+    """Landing de CFP. <--- hecho por claude code: antes exigía permiso de NOTAS,
+    así que quien solo tiene Contabilidad recibía 403 al entrar al módulo. Ahora
+    basta con tener acceso a alguna parte, y cada tarjeta aparece según su permiso."""
+    u = request.user
+    if not (_puede_contabilidad(u) or _puede_notas(u)):
+        return HttpResponseForbidden('No tienes permiso para el módulo CFP.')
     return render(request, 'cfp/programas.html', {
-        'puede_contabilidad': _es_director(request.user),
+        'puede_contabilidad': _puede_contabilidad(u),
+        'puede_notas':        _puede_notas(u),
+        'es_director':        _es_director(u),
     })
 
 
@@ -481,8 +514,11 @@ def notas_cursos(request):
     """Lista de cursos del Programa 2 con su conteo de participantes (de SQL Server)."""
     anio = _anio(request)
     conteo = _conteo_cursos(anio)
+    permitidos = _cursos_instructor(request.user)   # None = todos
     cursos = []
     for nombre in CURSOS_CFP:
+        if permitidos is not None and nombre not in permitidos:
+            continue
         n = _n_participantes(anio, nombre, conteo)
         if n:
             cn = CursoNota.objects.filter(anio=anio, curso=nombre).first()
@@ -521,6 +557,10 @@ def _roster(cn, anio, curso):
 
 @cfp_notas_required
 def notas_curso(request, anio, curso):
+    # <--- hecho por claude code: un instructor solo entra a SUS cursos
+    _permitidos = _cursos_instructor(request.user)
+    if _permitidos is not None and curso not in _permitidos:
+        return HttpResponseForbidden('Este curso no está asignado a tu usuario.')
     """Vista del curso con los 4 tabs (Progreso · Compilación · Módulos · Horas)."""
     if curso not in CURSOS_CFP:
         return redirect('cfp:notas_cursos')

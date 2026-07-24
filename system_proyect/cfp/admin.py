@@ -77,3 +77,14 @@ class HorasMetaMesAdmin(admin.ModelAdmin):
 class HorasParticipanteMesAdmin(admin.ModelAdmin):
     list_display = ('curso', 'persona_id', 'mes', 'horas')
     list_filter = ('curso',)
+
+
+# <--- hecho por claude code: asignar cursos a instructores desde el admin
+from .models import InstructorCurso
+
+@admin.register(InstructorCurso)
+class InstructorCursoAdmin(admin.ModelAdmin):
+    list_display = ('instructor', 'curso')
+    list_filter = ('curso',)
+    search_fields = ('instructor__username', 'instructor__email', 'curso')
+    autocomplete_fields = ('instructor',)

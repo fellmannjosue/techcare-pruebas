@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #index-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_SALIDAS_BANO_INDEX = (function(){
   var d = document.getElementById("index-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -34,20 +34,20 @@ const CFG = (function(){
 })();
 
 window._SB = {
-  urlGuardar:        CFG.v0,
-  urlNotifCount:     CFG.v1,
-  urlNotifList:      CFG.v2,
-  urlNotifLeerTodas: CFG.v3,
-  urlHistorialBase:  CFG.v4,
+  urlGuardar:        CFG_SALIDAS_BANO_INDEX.v0,
+  urlNotifCount:     CFG_SALIDAS_BANO_INDEX.v1,
+  urlNotifList:      CFG_SALIDAS_BANO_INDEX.v2,
+  urlNotifLeerTodas: CFG_SALIDAS_BANO_INDEX.v3,
+  urlHistorialBase:  CFG_SALIDAS_BANO_INDEX.v4,
   urlRegresoBase:    "/salidas-bano/{pk}/regreso/",
   urlEliminarBase:   "/salidas-bano/{pk}/eliminar/",
   urlNotifLeerBase:  "/salidas-bano/notif/{pk}/leer/",
-  area:              CFG.v5,
-  periodoId:         CFG.v6,
-  csrfToken:         CFG.v7,
-  fechaHoy:          CFG.v8,
-  esCoord:           CFG.j9,
-  alumnosPorGrado:   CFG.j10,
-  salidasHoy:        CFG.j11,
-  clasesPorGrado:    CFG.j12,
+  area:              CFG_SALIDAS_BANO_INDEX.v5,
+  periodoId:         CFG_SALIDAS_BANO_INDEX.v6,
+  csrfToken:         CFG_SALIDAS_BANO_INDEX.v7,
+  fechaHoy:          CFG_SALIDAS_BANO_INDEX.v8,
+  esCoord:           CFG_SALIDAS_BANO_INDEX.j9,
+  alumnosPorGrado:   CFG_SALIDAS_BANO_INDEX.j10,
+  salidasHoy:        CFG_SALIDAS_BANO_INDEX.j11,
+  clasesPorGrado:    CFG_SALIDAS_BANO_INDEX.j12,
 };

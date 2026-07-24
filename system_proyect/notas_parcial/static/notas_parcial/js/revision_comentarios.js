@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #revision_comentarios-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_REVISION_COMENTARIOS = (function(){
   var d = document.getElementById("revision_comentarios-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -14,7 +14,7 @@ const CFG = (function(){
 })();
 
 window._PAGE = Object.assign(window._PAGE || {}, {
-  csrf:                CFG.v0,
-  urlComentario:       CFG.v1,
-  urlEliminarComentario:CFG.v2,
+  csrf:                CFG_REVISION_COMENTARIOS.v0,
+  urlComentario:       CFG_REVISION_COMENTARIOS.v1,
+  urlEliminarComentario:CFG_REVISION_COMENTARIOS.v2,
 });

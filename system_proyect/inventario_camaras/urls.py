@@ -1,11 +1,28 @@
-from django.urls import path
+from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
+from . import api          # <--- hecho por claude code
+from rest_framework.routers import DefaultRouter
 
 app_name = 'inventario_camaras'
 
+
+# <--- hecho por claude code: API REST para el frontend Next (build estático)
+router = DefaultRouter()
+router.register('servidores', api.ServidorVS, basename='api-servidores')
+router.register('nvrs', api.NVRVS, basename='api-nvrs')
+router.register('gabinetes', api.GabineteVS, basename='api-gabinetes')
+router.register('camaras', api.CamaraVS, basename='api-camaras')
+router.register('componentes', api.ComponenteVS, basename='api-componentes')
+router.register('tipos-falla', api.TipoFallaVS, basename='api-tipos-falla')
+router.register('mantenimientos', api.MantenimientoVS, basename='api-mantenimientos')
+
 urlpatterns = [
     path('', views.hub, name='hub'),
+    # API + app nueva  <--- hecho por claude code
+    path('api/resumen/', api.resumen, name='api_resumen'),
+    path('api/', include(router.urls)),
+    path('app/', views.app_spa, name='app_spa'),
 
     # ── Servidores ──
     path('servidores/', views.servidores, name='servidores'),

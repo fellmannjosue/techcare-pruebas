@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #editar_agenda-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_EDITAR_AGENDA = (function(){
   var d = document.getElementById("editar_agenda-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -13,4 +13,4 @@ const CFG = (function(){
   };
 })();
 
-window._PAGE = { agendaId: CFG.j2, csrf: CFG.v0, subirUrl: CFG.v1 };
+window._PAGE = { agendaId: CFG_EDITAR_AGENDA.j2, csrf: CFG_EDITAR_AGENDA.v0, subirUrl: CFG_EDITAR_AGENDA.v1 };

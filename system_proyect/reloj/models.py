@@ -186,6 +186,9 @@ class FeriadoAsignacion(models.Model):
 class SabadoEspecial(models.Model):
     fecha = models.DateField("Fecha", unique=True)
     descripcion = models.CharField("Descripción", max_length=255, default="Escuela para padres")
+    # <--- hecho por claude code: horas que se suman al total mensual de los
+    # MAESTROS POR HORA asignados a este sábado (no aplica al resto del personal).
+    horas = models.DecimalField("Horas (maestros por hora)", max_digits=5, decimal_places=2, default=5)
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="sabados_creados", verbose_name="Creado por"

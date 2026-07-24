@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Las URLs de Django
    llegan por data-* en #reportes_pdf-config (un .js no procesa Django). */
-const CFG = (function(){
+const CFG_REPORTES_PDF = (function(){
   var d = document.getElementById("reportes_pdf-config").dataset;
   return {
     relojExportarPdf: d.relojExportarPdf,
@@ -32,7 +32,7 @@ const CFG = (function(){
           fin = document.getElementById('rg_fin').value,
           dl  = document.getElementById('rg_dl'),
           fr  = document.getElementById('rg_frame'),
-          base = CFG.relojExportarPdf;
+          base = CFG_REPORTES_PDF.relojExportarPdf;
       dl.setAttribute('href', base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin);
       fr.src = base + '?fecha_inicio=' + ini + '&fecha_fin=' + fin + '&inline=1';
     });

@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Las URLs de Django
    llegan por data-* en #settings_desbloqueos-config (un .js no procesa Django). */
-const CFG = (function(){
+const CFG_SETTINGS_DESBLOQUEOS = (function(){
   var d = document.getElementById("settings_desbloqueos-config").dataset;
   return {
     desbloquearUsuario: d.desbloquearUsuario,
@@ -16,7 +16,7 @@ const CFG = (function(){
       if (!confirm('¿Desbloquear el acceso de ' + this.dataset.nombre + '?')) return;
       var uid = this.dataset.user, b = this;
       b.disabled = true;
-      fetch(CFG.desbloquearUsuario, {
+      fetch(CFG_SETTINGS_DESBLOQUEOS.desbloquearUsuario, {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF},
         body: 'user_id=' + encodeURIComponent(uid),

@@ -33,10 +33,19 @@ def _login_key(username):
     return (username or '').strip().lower()
 
 
+def _es_superusuario(username):
+    """<--- hecho por claude code: el superusuario NUNCA se bloquea por intentos fallidos.
+    Si se bloqueara, no quedaría nadie que pueda desbloquear a los demás."""
+    u = User.objects.filter(username__iexact=(username or '').strip()).first()
+    return bool(u and u.is_superuser)
+
+
 def _perfil_bloqueado(username):
     """(User|None, bloqueado_bool) según perfil.login_bloqueado del usuario real."""
     u = User.objects.filter(username__iexact=(username or '').strip()).first()
     if u:
+        if u.is_superuser:
+            return u, False   # <--- hecho por claude code: exento del bloqueo
         try:
             return u, bool(u.perfil.login_bloqueado)
         except Exception:
@@ -60,6 +69,9 @@ def _registrar_fallo_login(username, key):
     import time
     from django.core.cache import cache
     from django.utils import timezone as _tz
+    # <--- hecho por claude code: al superusuario no se le cuentan intentos ni se le bloquea
+    if _es_superusuario(username):
+        return {'intentos': 0, 'temp_secs': 0, 'total': False}
     n = (cache.get('login_fails:' + key, 0) or 0) + 1
     cache.set('login_fails:' + key, n, 15 * 60)   # ventana de 15 min
     estado = {'intentos': n, 'temp_secs': 0, 'total': False}
@@ -113,7 +125,8 @@ def login_view(request):
         if _is_blocked:
             return render(request, 'accounts/login.html',
                           {'year': year, 'bloqueo_total': True, 'bloqueo_username': username})
-        _lock_left = _login_temp_lock_left(key)
+        # <--- hecho por claude code: el bloqueo temporal tampoco aplica al superusuario
+        _lock_left = 0 if _es_superusuario(username) else _login_temp_lock_left(key)
         if _lock_left > 0:
             return render(request, 'accounts/login.html',
                           {'year': year, 'bloqueo_temp': _lock_left})
@@ -227,6 +240,9 @@ _GRUPO_A_ROL = {
     'enfermeria':           {'titulo': 'Enfermería',            'subtitulo': 'Atención médica y control de medicamentos',          'icon': 'ti-first-aid-kit',   'clase': 'icon-enf',   'url': '/enfermeria/'},
     'inventario':           {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
     'reloj':                {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
+    # <--- hecho por claude code: sin esta entrada, un instructor CFP sin otro grupo
+    # no podía iniciar sesión ('no tienes rol asignado').
+    'instructores':         {'titulo': 'Instructor CFP',        'subtitulo': 'Registrar notas de mis cursos del CFP',              'icon': 'ti-list-numbers',    'clase': 'icon-cfp',   'url': '/cfp/notas/'},
 }
 
 _ROLES_POR_USUARIO = {
@@ -452,9 +468,10 @@ def menu_view(request):
             return redirect('reloj_dashboard')
 
         # Administración → su dashboard
+        # <--- hecho por claude code: 'instructores' excluido; su inicio sigue siendo el Panel Principal (Tickets + CFP)
         if user.groups.filter(name='administracion').exists() and not user.groups.filter(
             name__in=['coordinador_bilingue', 'coordinadores_colegio', 'coordinador_colegio',
-                      'coordinadores', 'maestros_bilingue', 'maestros_colegio']
+                      'coordinadores', 'maestros_bilingue', 'maestros_colegio', 'instructores']
         ).exists():
             return redirect('dashboard_administracion')
 
@@ -484,7 +501,11 @@ def menu_view(request):
     # =====================================================
     # 🔥 TICKETS (todos los NO resueltos)
     # =====================================================
-    tickets_pendientes = Ticket.objects.exclude(status__iexact="Resuelto").count()
+    # <--- hecho por claude code: el técnico ve el total; un usuario normal solo sus propios tickets
+    _qs_tk = Ticket.objects.exclude(status__iexact="Resuelto")
+    if not (user.is_superuser or user.has_perm('tickets.view_ticket')):
+        _qs_tk = _qs_tk.filter(usuario=user)
+    tickets_pendientes = _qs_tk.count()
 
     # =====================================================
     # 🔥 REPORTES DE CONDUCTA — BILINGÜE
@@ -575,7 +596,11 @@ def menu_view(request):
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
         'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
-        'show_tickets':     is_admin or can_view_tickets or is_administracion or user.groups.filter(name='instructores').exists(),
+        # <--- hecho por claude code: 'instructores' ya no da tickets por sí solo; se les puso el grupo 'administracion'
+        'show_tickets':     is_admin or can_view_tickets or is_administracion,
+        # <--- hecho por claude code: solo técnicos/admin van al panel de gestión; el resto al panel de usuario
+        'tickets_url':      reverse('technician_dashboard') if (is_admin or can_view_tickets) else reverse('dashboard_administracion'),
+        'tickets_sub':      'Gestión de solicitudes' if (is_admin or can_view_tickets) else 'Generar y consultar mis tickets',
         'show_sponsors':    is_admin or can_view_sponsors,
         'show_cfp':         user.is_superuser or user.groups.filter(name__in=['director_cfp', 'instructores']).exists(),
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,

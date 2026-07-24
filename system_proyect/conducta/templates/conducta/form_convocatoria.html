@@ -113,10 +113,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'conducta/vendor/jquery-3.7.1.min.js' %}"></script>
-<script src="{% static 'conducta/vendor/select2.min.js' %}"></script>
+<script src="{% static 'conducta/vendor/jquery-3.7.1.min.js' %}?v=20"></script>
+<script src="{% static 'conducta/vendor/select2.min.js' %}?v=20"></script>
 <div id="form_convocatoria-config" hidden
      data-v0="{% url 'convocatoria_horario_ajax' %}"
      data-v1="{{ conv_asigs_json|default:'[]'|safe }}"></div>
-<script src="{% static 'conducta/js/form_convocatoria.js' %}?v=1"></script>
+<script src="{% static 'conducta/js/form_convocatoria.js' %}?v=2"></script>
 {% endblock %}

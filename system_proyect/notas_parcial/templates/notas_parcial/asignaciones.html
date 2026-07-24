@@ -43,21 +43,39 @@
       <thead>
         <tr>
           <th>Grado / Sección</th>
-          <th>Maestro asignado</th>
           <th>Asignado por</th>
           <th>Asignado el</th>
           <th style="min-width:220px">Fecha límite</th>
           <th></th>
         </tr>
       </thead>
-      <tbody>
-        {% for a in g.items %}
+      {# <--- hecho por claude code: una sección por maestro. Antes cada maestro salía #}
+      {# repetido en una fila por grupo (hasta 12 veces) y no se podía leer. #}
+      {% for m in g.maestros %}
+      <tbody class="bloque-maestro">
+        <tr class="fila-maestro">
+          <td colspan="5" class="bg-blue-lt">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="fw-bold text-blue">
+                <i class="ti ti-user me-1"></i>{{ m.nombre }}
+              </span>
+              <span class="d-flex align-items-center gap-2">
+                <span class="badge bg-white text-blue">{{ m.filas|length }} grupo{{ m.filas|length|pluralize }}</span>
+                <button class="btn btn-sm btn-outline-primary btn-fecha-maestro"
+                        data-ids="{% for a in m.filas %}{{ a.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                        title="Poner la misma fecha límite a todos sus grupos">
+                  <i class="ti ti-calendar-plus me-1"></i>Fecha a todos
+                </button>
+              </span>
+            </div>
+          </td>
+        </tr>
+        {% for a in m.filas %}
         <tr id="fila-{{ a.pk }}">
-          <td>
-            <span class="fw-semibold">{{ a.grado }}</span>
+          <td class="ps-4">
+            <span class="fw-semibold">{{ a.titulo }}</span>
             {% if a.seccion %}<span class="text-muted ms-1">/ {{ a.seccion }}</span>{% endif %}
           </td>
-          <td>{{ a.maestro.get_full_name|default:a.maestro.username }}</td>
           <td class="text-muted small">{{ a.asignado_por.get_full_name|default:a.asignado_por.username|default:"—" }}</td>
           <td class="text-muted small">{{ a.asignado_en|date:"d/m/Y H:i" }}</td>
           <td>
@@ -70,7 +88,7 @@
               <i class="ti ti-device-floppy"></i>
             </button>
             <button class="btn btn-sm btn-danger btn-eliminar-asig" data-id="{{ a.pk }}"
-                    data-nombre="{{ a.maestro.get_full_name|default:a.maestro.username }}"
+                    data-nombre="{{ m.nombre }}"
                     data-grado="{{ a.grado }}" data-seccion="{{ a.seccion }}"
                     title="Quitar asignación">
               <i class="ti ti-x"></i>
@@ -79,6 +97,7 @@
         </tr>
         {% endfor %}
       </tbody>
+      {% endfor %}
     </table>
   </div>
 </div>
@@ -118,6 +137,5 @@
      data-v1="{% url "notas_parcial_actualizar_fecha" %}"
      data-v2="{% url "notas_parcial_eliminar_asignacion" %}"
      data-v3="{% url "notas_parcial_precargar" %}"></div>
-<script src="{% static 'notas_parcial/js/asignaciones.js' %}?v=1"></script>
-<script src="{% static 'notas_parcial/js/asignaciones.js' %}"></script>
+<script src="{% static 'notas_parcial/js/asignaciones.js' %}?v=99"></script>
 {% endblock %}

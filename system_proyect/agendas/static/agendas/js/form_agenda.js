@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #form_agenda-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_FORM_AGENDA = (function(){
   var d = document.getElementById("form_agenda-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -10,7 +10,7 @@ const CFG = (function(){
 })();
 
 (function(){
-  var end=new Date(CFG.v0).getTime();
+  var end=new Date(CFG_FORM_AGENDA.v0).getTime();
   var el=document.getElementById('cd-timer');
   function tick(){
     var diff=end-Date.now();

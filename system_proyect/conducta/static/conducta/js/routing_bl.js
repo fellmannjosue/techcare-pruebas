@@ -2,7 +2,7 @@
    <--- hecho por claude code: extraído del template (nada de JS en el HTML).
    Las URLs y banderas de Django llegan por #routing-bl-config (data-*)
    y los JSON por {{ ...|json_script }}. */
-const CFG = (function () {
+const CFG_ROUTING_BL = (function () {
   var d = document.getElementById("routing-bl-config").dataset;
   return {
     urlGuardar:   d.urlGuardar,
@@ -39,7 +39,7 @@ const CFG = (function () {
   // <--- hecho por claude code: el mapeo (materias/grados) NO toca overrides
   window.guardarMapeo = function(){
     setStatusMapeo('saving');
-    jpost(CFG.urlGuardar, {
+    jpost(CFG_ROUTING_BL.urlGuardar, {
       materias_c3: document.getElementById('materias_c3').value,
       materias_c4: document.getElementById('materias_c4').value,
       grados_c1:   document.getElementById('grados_c1').value,
@@ -63,7 +63,7 @@ const CFG = (function () {
   // ── Refrescar alumnado ──
   document.getElementById('btn-refrescar').addEventListener('click', function(){
     const btn=this; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Consultando SQL Server...';
-    post(CFG.urlRefrescar, {}).then(d=>{
+    post(CFG_ROUTING_BL.urlRefrescar, {}).then(d=>{
       btn.disabled=false; btn.innerHTML='<i class="ti ti-refresh me-1"></i>Refrescar alumnado desde SQL Server';
       if(d.ok){ Swal.fire({icon:'success',title:`${d.n_alumnos} alumnos cargados`,timer:1200,showConfirmButton:false}).then(()=>location.reload()); }
       else Swal.fire('Error', d.error||'No se pudo refrescar','error');
@@ -74,7 +74,7 @@ const CFG = (function () {
   document.getElementById('file-json').addEventListener('change', function(){
     if(!this.files.length) return;
     const fd = new FormData(); fd.append('archivo', this.files[0]);
-    post(CFG.urlCargar, {body: fd}).then(d=>{
+    post(CFG_ROUTING_BL.urlCargar, {body: fd}).then(d=>{
       if(d.ok){ Swal.fire({icon:'success',title:'JSON cargado',text:`${d.n_alumnos} alumnos`,timer:1500,showConfirmButton:false}).then(()=>location.reload()); }
       else Swal.fire('Error', d.error||'No se pudo cargar','error');
     }).catch(()=>Swal.fire('Error','Conexión','error'));
@@ -139,7 +139,7 @@ const CFG = (function () {
   }
   function docGuardar(){
     setStatusMapeo('saving');
-    jpost(CFG.urlGuardar, { docentes_catalogo: window.DOC_ENTRIES })
+    jpost(CFG_ROUTING_BL.urlGuardar, { docentes_catalogo: window.DOC_ENTRIES })
       .then(d=>setStatusMapeo(d.ok?'saved':'error')).catch(()=>setStatusMapeo('error'));
   }
   function resetForm(){
@@ -324,7 +324,7 @@ const CFG = (function () {
     const key = card.dataset.key;
     const payload = collect(card);
     setStatus('saving');
-    fetch(CFG.urlGrupos, {
+    fetch(CFG_ROUTING_BL.urlGrupos, {
       method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/json'},
       body: JSON.stringify({grupos:{[key]:payload}})
     }).then(r=>r.json()).then(d=>{
@@ -374,7 +374,7 @@ const CFG = (function () {
     let prev = sel.value;
     sel.addEventListener('change', function(){
       const coord = sel.dataset.coord, permiso = sel.value;
-      fetch(CFG.urlPermisos, {
+      fetch(CFG_ROUTING_BL.urlPermisos, {
         method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/json'},
         body: JSON.stringify({coord: coord, permiso: permiso})
       }).then(r=>r.json()).then(d=>{
@@ -384,7 +384,7 @@ const CFG = (function () {
     });
   });
   // Modo SOLO LECTURA para coordinadores: deshabilita controles y oculta acciones
-  if(CFG.soloLectura){
+  if(CFG_ROUTING_BL.soloLectura){
     document.querySelectorAll('.card input, .card select, .card textarea').forEach(el=>{ el.disabled = true; });
     // <--- hecho por claude code: en solo-lectura, el dropdown de materias no se puede tocar
     document.querySelectorAll('.grp-mat-btn, .grp-mat-check').forEach(b=>{ b.disabled = true; });

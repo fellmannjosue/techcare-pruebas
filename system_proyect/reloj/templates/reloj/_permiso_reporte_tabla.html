@@ -13,7 +13,8 @@
             <th class="th-permiso th-pct75">Horas<br>Extra 75%</th>
             <th class="th-permiso th-pct100">Horas<br>Extra 100%</th>
             {% if horas_diarias_visible or request.user.is_superuser %}<th class="col-mins col-hdl">Horas<br>Diarias Lab.{% if request.user.is_superuser and not horas_diarias_visible %} <span class="badge bg-yellow-lt text-yellow ms-1" style="font-size:.6rem;">Solo tú</span>{% endif %}</th>{% endif %}
-            {% if tab_maestro %}<th class="col-mins">Total horas<br>al mes</th>{% endif %}
+            {# <--- hecho por claude code: horas de sábados especiales (solo maestros por hora) #}
+            {% if tab_maestro %}<th class="col-mins">Sábados<br>especiales</th><th class="col-mins">Total horas<br>al mes</th>{% endif %}
             <th class="col-mins">Horas<br>Rebaja Otra</th>
             <th class="col-mins">Minutos<br>Tarde</th>
           </tr>
@@ -143,6 +144,11 @@
             {# ── Total horas al mes (solo tab maestros) ── #}
             {% if tab_maestro %}
             <td class="text-center">
+              {% if row.mh_sabados %}
+                <span class="badge bg-orange-lt text-orange" title="Horas de sábados especiales asignados (ya incluidas en el total)">+{{ row.mh_sabados|floatformat:'-2' }} h</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center">
               <span class="badge bg-teal-lt text-teal fw-bold mhmes-{{ row.emp_code|slugify }}">{{ row.mh_total_mes|floatformat:'-2' }} h</span>
             </td>
             {% endif %}
@@ -176,7 +182,7 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="{% if tab_maestro %}13{% elif horas_diarias_visible or request.user.is_superuser %}12{% else %}11{% endif %}" class="text-center text-muted py-4">
+            <td colspan="{% if tab_maestro %}14{% elif horas_diarias_visible or request.user.is_superuser %}12{% else %}11{% endif %}" class="text-center text-muted py-4">
               <i class="ti ti-users-off me-2"></i>Sin empleados disponibles.
             </td>
           </tr>

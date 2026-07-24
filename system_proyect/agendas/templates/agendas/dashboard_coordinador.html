@@ -199,10 +199,9 @@
 {% block extra_js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="{% static 'js/dt_guard.js' %}"></script>
+<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
 <div id="dashboard_coordinador-config" hidden
      data-v0="{{ csrf_token }}"
      data-v1="{% url "agendas:bloqueo_config_guardar" %}"></div>
-<script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=1"></script>
-<script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=2"></script>
+<script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=3"></script>
 {% endblock %}

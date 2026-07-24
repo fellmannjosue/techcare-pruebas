@@ -210,10 +210,14 @@ class FeriadoForm(forms.ModelForm):
 class SabadoEspecialForm(forms.ModelForm):
     class Meta:
         model = SabadoEspecial
-        fields = ["fecha", "descripcion"]
+        fields = ["fecha", "descripcion", "horas"]   # <--- hecho por claude code: horas
         widgets = {
             "fecha": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "descripcion": forms.TextInput(attrs={"class": "form-control"}),
+            "horas": forms.NumberInput(attrs={"class": "form-control", "step": "0.5", "min": "0"}),
+        }
+        help_texts = {
+            "horas": "Horas que se suman al total mensual de los maestros por hora asignados.",
         }
 
 

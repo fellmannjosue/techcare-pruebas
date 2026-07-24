@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Los valores de Django
    llegan por data-* en #vacaciones_list-config (un .js no lo procesa Django). */
-const CFG = (function(){
+const CFG_VACACIONES_LIST = (function(){
   var d = document.getElementById("vacaciones_list-config").dataset;
   function j(x){ try { return JSON.parse(x); } catch(e){ return x; } }
   return {
@@ -14,7 +14,7 @@ const CFG = (function(){
 })();
 
 window._PAGE = {
-  csrf:      CFG.v0,
-  urlSave:   CFG.v1,
-  urlEditar: CFG.v2
+  csrf:      CFG_VACACIONES_LIST.v0,
+  urlSave:   CFG_VACACIONES_LIST.v1,
+  urlEditar: CFG_VACACIONES_LIST.v2
 };

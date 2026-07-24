@@ -1,6 +1,6 @@
 /* <--- hecho por claude code: extraído del template. Las URLs de Django
    llegan por data-* en #mantenimiento_modo-config (un .js no procesa Django). */
-const CFG = (function(){
+const CFG_MANTENIMIENTO_MODO = (function(){
   var d = document.getElementById("mantenimiento_modo-config").dataset;
   return {
     modulosGuardar: d.modulosGuardar,
@@ -34,7 +34,7 @@ const CFG = (function(){
     var payload = {};
     sels.forEach(function(s){ payload[s.dataset.key] = s.value; });
     st.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
-    fetch(CFG.modulosGuardar, {
+    fetch(CFG_MANTENIMIENTO_MODO.modulosGuardar, {
       method:'POST', headers:{'X-CSRFToken':csrf,'Content-Type':'application/json'},
       body: JSON.stringify({modulos: payload, blocked_users: usuariosSeleccionados(), area: areaActual()})
     }).then(function(r){return r.json();}).then(function(d){

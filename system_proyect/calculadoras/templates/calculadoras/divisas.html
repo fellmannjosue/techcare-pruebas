@@ -83,6 +83,6 @@
   "tasas": { {% for k,v in tasas.items %}"{{ k|escapejs }}": {{ v.tasa|unlocalize }}{% if not forloop.last %}, {% endif %}{% endfor %} }
 }
 </script>
-<script src="{% static 'calculadoras/js/divisas_page.js' %}?v=1"></script>
-<script src="{% static 'calculadoras/js/divisas.js' %}"></script>
+<script src="{% static 'calculadoras/js/divisas_page.js' %}?v=2"></script>
+<script src="{% static 'calculadoras/js/divisas.js' %}?v=20"></script>
 {% endblock %}

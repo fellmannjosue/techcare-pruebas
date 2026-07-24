@@ -116,12 +116,15 @@ def nav_context(request):
     is_salidas_bano = is_admin or grp('control baño coord', 'control baños col')
 
     return {
-        'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion', 'instructores'),
+        # <--- hecho por claude code: 'instructores' salió de aquí; los instructores CFP van en 'administracion'
+        'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
+        # <--- hecho por claude code: True solo para quien gestiona tickets ajenos (panel de técnico)
+        'nav_tickets_tecnico':  is_admin or can('tickets.view_ticket'),
         'nav_reloj':            is_admin or grp('reloj'),
         'nav_calculadoras':     is_admin or grp('reloj'),
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
-        'nav_cfp':              is_admin or grp('director_cfp', 'instructores'),
+        'nav_cfp':              is_admin or grp('director_cfp', 'instructores', 'contabilidad_cfp'),
         'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_coord_bl':         nav_coord_bl,
