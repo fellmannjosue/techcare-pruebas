@@ -1,6 +1,15 @@
 {
-  "version": "6.0.5.0.001",
+  "version": "6.0.5.0.002",
   "entradas": [
+    {
+      "version": "6.0.5.0.002",
+      "fecha": "2026-07-27",
+      "commit": "cf96fbe",
+      "cambios": [
+        "fix(reloj,mant,agendas): recuperar mas JS perdido (compensatorio, editar mant., permisos, agendas)"
+      ],
+      "menor": true
+    },
     {
       "version": "6.0.5.0.001",
       "fecha": "2026-07-24",

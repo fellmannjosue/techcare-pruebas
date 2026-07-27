@@ -52,4 +52,52 @@
     });
   }
   tick(); setInterval(tick, 1000);
+
+  // <--- hecho por claude code: AUTOGUARDADO de los checkboxes de módulo (VER/EDIT/ELIM
+  // y "Todos"). Este handler se había PERDIDO al extraer el JS del HTML (commit dde91be):
+  // solo quedó el guardado de la fecha provisional, así que marcar un permiso no hacía
+  // nada. Recuperado de d5d2026.
+  let _badgeTimer;
+  function mostrarGuardado(card) {
+    const badge = (card || document).querySelector('.badge-saved')
+               || document.querySelector('.badge-saved');
+    if (!badge) return;
+    badge.style.display = '';
+    clearTimeout(_badgeTimer);
+    _badgeTimer = setTimeout(() => { badge.style.display = 'none'; }, 2000);
+  }
+
+  document.querySelectorAll('.perm-toggle').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      const self  = this;
+      const userId = parseInt(this.dataset.user);
+      const campo  = this.dataset.campo;
+      const valor  = this.checked;
+      self.disabled = true;
+      fetch(URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type':     'application/json',
+          'X-CSRFToken':      CSRF,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ user_id: userId, campo: campo, valor: valor }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        self.disabled = false;
+        if (data.ok) {
+          mostrarGuardado(self.closest('.card'));
+          if (campo === 'ver_todos') {
+            const labelEl = self.parentElement.querySelector('.small');
+            if (labelEl) labelEl.textContent = valor ? 'Todos' : 'Solo marcados';
+          }
+        } else {
+          self.checked = !valor;
+          alert(data.error || 'Error al guardar el permiso.');
+        }
+      })
+      .catch(() => { self.disabled = false; self.checked = !valor; });
+    });
+  });
 })();
