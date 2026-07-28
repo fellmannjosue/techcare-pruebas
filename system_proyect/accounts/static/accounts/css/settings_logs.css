@@ -29,9 +29,9 @@
 .log-hl  { background: rgba(255,215,0,.3); border-radius: 2px; padding: 0 2px; }
 
 /* ── Tab pills ── */
-.log-tabs .nav-link         { color: #6c757d; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: .55rem .9rem; font-size: .85rem; white-space: nowrap; }
-.log-tabs .nav-link.active  { color: #206bc4; border-bottom-color: #206bc4; background: transparent; font-weight: 600; }
-.log-tabs .nav-link:hover:not(.active) { color: #333; border-bottom-color: #dee2e6; }
+.log-tabs .nav-link         { color: var(--ps-muted); border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: .55rem .9rem; font-size: .85rem; white-space: nowrap; }
+.log-tabs .nav-link.active  { color: var(--ps-marca); border-bottom-color: var(--ps-marca); background: transparent; font-weight: 600; }
+.log-tabs .nav-link:hover:not(.active) { color: var(--ps-text); border-bottom-color: var(--ps-border); }
 
 /* ── Toolbar dark ── */
 .log-toolbar {
@@ -64,7 +64,7 @@
 /* ── Tabla logs ── */
 .log-table-wrap { max-height: 520px; overflow-y: auto; }
 .log-table-wrap::-webkit-scrollbar { width: 5px; }
-.log-table-wrap::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 3px; }
+.log-table-wrap::-webkit-scrollbar-thumb { background: var(--ps-border); border-radius: 3px; }
 
 /* ── Spinner ── */
 .log-spinner { display: none; }

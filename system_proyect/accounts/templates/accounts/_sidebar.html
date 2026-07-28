@@ -44,12 +44,32 @@
   <li class="nav-item">
     <a class="nav-link collapsed" href="#sbReloj" data-bs-toggle="collapse">
       <span class="nav-link-icon"><i class="ti ti-clock text-orange"></i></span>
-      <span class="nav-link-title">Reloj y Sponsors</span><span class="nav-link-arrow"></span>
+      <span class="nav-link-title">Reloj</span><span class="nav-link-arrow"></span>
     </a>
     <ul class="navbar-nav collapse ps-4" id="sbReloj">
       <li class="nav-item"><a class="nav-link" href="{% url 'reloj_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-clock"></i></span><span class="nav-link-title">Reloj</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'calculadoras_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-calculator"></i></span><span class="nav-link-title">Calculadoras</span></a></li>
+    </ul>
+  </li>
+
+  {# <--- hecho por claude code: Sponsors en su propio grupo (separado de Reloj) #}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbSponsors" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-heart-handshake text-pink"></i></span>
+      <span class="nav-link-title">Sponsors</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbSponsors">
       <li class="nav-item"><a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-heart-handshake text-pink"></i></span><span class="nav-link-title">Sponsors</span></a></li>
+    </ul>
+  </li>
+
+  {# <--- hecho por claude code: Calculadoras en su propio grupo (separado de Reloj y Sponsors) #}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbCalc" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-calculator text-cyan"></i></span>
+      <span class="nav-link-title">Calculadoras</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbCalc">
+      <li class="nav-item"><a class="nav-link" href="{% url 'calculadoras_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-calculator"></i></span><span class="nav-link-title">Calculadoras</span></a></li>
     </ul>
   </li>
 

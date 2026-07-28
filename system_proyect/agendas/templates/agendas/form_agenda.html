@@ -3,7 +3,7 @@
 {% block title %}Nueva Agenda{% endblock %}
 {% block page_title %}Nueva Agenda{% endblock %}
 {% block nav_form %}active{% endblock %}
-{% block breadcrumb %}
+{% block crumbs %}
 <li class="breadcrumb-item"><a href="{% url 'agendas:historial_maestro' %}">Agendas</a></li>
 <li class="breadcrumb-item active">Nueva Agenda</li>
 {% endblock %}
@@ -101,5 +101,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'agendas/js/form_agenda.js' %}?v=20"></script>
+<script src="{% static 'agendas/js/form_agenda.js' %}?v=21"></script>
 {% endblock %}

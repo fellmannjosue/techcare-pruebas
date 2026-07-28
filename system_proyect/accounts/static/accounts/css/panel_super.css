@@ -1,17 +1,71 @@
-/* <--- hecho por claude code: extraído del template */
-.pa-item { border:1px solid var(--tc-border,#e6e7e9); border-radius:14px; overflow:hidden; margin-bottom:.75rem; background:var(--tc-surface,#fff); box-shadow:0 1px 2px rgba(0,0,0,.04); }
-  .pa-btn { display:flex; align-items:center; gap:.9rem; width:100%; border:0; background:transparent; padding:.85rem 1rem; cursor:pointer; text-align:left; }
-  .pa-btn:focus { outline:none; }
-  .pa-ico { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px;
-            color:#fff; font-size:1.35rem; flex-shrink:0;
-            background:linear-gradient(135deg, var(--tc-accent) 0%, color-mix(in srgb, var(--tc-accent) 65%, #000) 100%); }
-  .pa-txt { display:flex; flex-direction:column; line-height:1.2; }
-  .pa-title { font-weight:700; color:var(--tc-heading,#1a2233); font-size:1.02rem; }
-  .pa-desc { color:#64748b; font-size:.82rem; }
-  .pa-chev { margin-left:auto; color:#94a3b8; transition:transform .2s ease; flex-shrink:0; }
-  .pa-btn[aria-expanded="true"] .pa-chev { transform:rotate(90deg); }
-  .pa-btn[aria-expanded="true"] { background:color-mix(in srgb, var(--tc-accent) 8%, transparent); }
-  .pa-body { padding:.25rem 1rem 1rem; }
-  .pa-count { margin-left:.5rem; font-size:.72rem; font-weight:600; color:#94a3b8; }
-  .dg-card { transition:transform .12s ease, box-shadow .12s ease; }
-  .dg-card:hover { transform:translateY(-2px); box-shadow:0 .5rem 1rem rgba(0,0,0,.08); }
+/* <--- hecho por claude code: panel del superusuario con el sistema de diseño del portal
+   (tokens --ps-*), acabado premium y compatible con modo oscuro. */
+
+/* Encabezado de sección "MÓDULOS" */
+.dg-section-title { color: var(--ps-muted) !important; }
+
+/* Tarjeta-acordeón de cada grupo */
+.pa-item {
+  border: 1px solid var(--ps-border);
+  border-radius: var(--ps-radius, 16px);
+  overflow: hidden;
+  margin-bottom: .8rem;
+  background: var(--ps-surface);
+  box-shadow: var(--ps-shadow);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.pa-item:hover {
+  border-color: color-mix(in srgb, var(--tc-accent) 45%, var(--ps-border));
+  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--tc-accent) 55%, transparent);
+}
+
+.pa-btn {
+  display: flex; align-items: center; gap: 1rem;
+  width: 100%; border: 0; background: transparent;
+  padding: 1rem 1.15rem; cursor: pointer; text-align: left;
+}
+.pa-btn:focus { outline: none; }
+
+.pa-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 13px;
+  color: #fff; font-size: 1.4rem; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--tc-accent) 0%, color-mix(in srgb, var(--tc-accent) 62%, #000) 100%);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--tc-accent) 70%, transparent);
+}
+
+.pa-txt { display: flex; flex-direction: column; line-height: 1.25; }
+.pa-title { font-weight: 700; color: var(--ps-text); font-size: 1.03rem; display: flex; align-items: center; }
+.pa-desc { color: var(--ps-muted); font-size: .84rem; }
+
+.pa-count {
+  margin-left: .55rem; font-size: .72rem; font-weight: 700;
+  min-width: 1.35rem; height: 1.35rem; padding: 0 .45rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  color: var(--tc-accent);
+  background: color-mix(in srgb, var(--tc-accent) 14%, transparent);
+}
+
+.pa-chev { margin-left: auto; color: var(--ps-muted); transition: transform .2s ease; flex-shrink: 0; }
+.pa-btn[aria-expanded="true"] .pa-chev { transform: rotate(90deg); color: var(--tc-accent); }
+.pa-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--tc-accent) 9%, transparent); }
+
+.pa-body { padding: .35rem 1.15rem 1.15rem; }
+
+/* Sub-tarjetas de módulo (estilo tile del portal) */
+.dg-card {
+  background: var(--ps-surface-2, var(--ps-surface)) !important;
+  border: 1px solid var(--ps-border) !important;
+  border-radius: 14px !important;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.dg-card .ti { transition: transform .14s ease; }
+.dg-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--tc-accent, var(--ps-marca)) 45%, var(--ps-border)) !important;
+  box-shadow: 0 12px 24px -14px rgba(16,24,40,.35) !important;
+}
+.dg-card:hover .ti { transform: scale(1.08); }
+.dg-card .fw-semibold { color: var(--ps-text) !important; }
+.dg-card .text-muted { color: var(--ps-muted) !important; }

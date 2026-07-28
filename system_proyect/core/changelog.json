@@ -1,6 +1,20 @@
 {
-  "version": "6.0.5.0.002",
+  "version": "7.0.0.0",
   "entradas": [
+    {
+      "version": "7.0.0.0",
+      "fecha": "2026-07-28",
+      "commit": "6697e48",
+      "cambios": [
+        "Nueva interfaz unificada en todo el sistema (un solo estilo, claro y oscuro).",
+        "Sidebar rediseñado tipo tarjeta, ahora legible también en modo oscuro.",
+        "Calculadoras: cada calculadora en su propia página, con animación al calcular y botones para volver.",
+        "Salidas al baño: autoguardado sin botón; el semáforo se colorea cuando el alumno regresa.",
+        "Agendas: corregido el registro del docente (se recuperó el autoguardado al cambiar de grado).",
+        "Panel y menú: Calculadoras y Sponsors quedaron en grupos propios."
+      ],
+      "menor": false
+    },
     {
       "version": "6.0.5.0.002",
       "fecha": "2026-07-27",

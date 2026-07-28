@@ -1,10 +1,10 @@
 body {
-    background: #f4f6fa;
+    background: var(--ps-bg);
 }
 .register-container {
     max-width: 420px;
     margin: 40px auto 0 auto;
-    background: #fff;
+    background: var(--ps-surface);
     border-radius: 16px;
     box-shadow: 0 8px 28px rgba(31, 56, 139, 0.10);
     padding: 32px 26px 18px 26px;
@@ -16,7 +16,7 @@ body {
 .register-title {
     font-size: 2rem;
     font-weight: bold;
-    color: #1064ea;
+    color: var(--ps-marca);
     text-align: center;
     margin-bottom: 28px;
     margin-top: 6px;
@@ -24,7 +24,7 @@ body {
 .form-label {
     font-weight: 600;
     margin-bottom: 3px;
-    color: #263146;
+    color: var(--ps-text);
 }
 .form-control, select.form-select {
     border-radius: 8px;
@@ -37,7 +37,7 @@ body {
     border-bottom-left-radius: 0;
 }
 .btn-primary {
-    background: #1064ea;
+    background: var(--ps-marca);
     border-radius: 8px;
     font-weight: 500;
     font-size: 1.1rem;
@@ -45,10 +45,10 @@ body {
     transition: background .2s;
 }
 .btn-primary:hover {
-    background: #1e49b6;
+    background: var(--ps-marca-2);
 }
 .footer {
-    color: #888;
+    color: var(--ps-muted);
     font-size: .96rem;
     text-align: center;
     margin-top: 22px;
@@ -65,7 +65,7 @@ body {
 .list-group-item:hover,
 .list-group-item.active {
     background: #f1f5ff;
-    color: #1064ea;
+    color: var(--ps-marca);
 }
 @media (max-width: 576px) {
     .register-container {

@@ -1,7 +1,7 @@
 /* static/enfermeria/css/historial.css */
 
 body {
-  background: #eef2f7;
+  background: var(--ps-bg);
   font-family: 'Segoe UI', sans-serif;
 }
 

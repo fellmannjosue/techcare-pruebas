@@ -1,0 +1,16 @@
+{# <--- hecho por claude code: campo de formulario uniforme (label + control + ayuda + error). Params: field (opcional col). #}
+<div class="{{ col|default:'col-12' }}">
+  {% if field.field.widget.input_type == 'checkbox' %}
+    <label class="tc-check">
+      {{ field }}
+      <span>{{ field.label }}</span>
+    </label>
+  {% else %}
+    <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+      {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+    </label>
+    {{ field }}
+  {% endif %}
+  {% if field.help_text %}<div class="tc-hint">{{ field.help_text|safe }}</div>{% endif %}
+  {% if field.errors %}<div class="tc-field-error">{{ field.errors|striptags }}</div>{% endif %}
+</div>

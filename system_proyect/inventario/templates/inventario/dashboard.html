@@ -6,103 +6,30 @@
 {% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
-<div class="row row-cards g-4">
+{# <--- hecho por claude code: reconstruido con la biblioteca de componentes (ui/tile) #}
+<div class="tc-grid">
+  {% url 'inventario:inventario_computadoras' as u_comp %}
+  {% include 'ui/tile.html' with href=u_comp icon='ti-device-desktop' color='#3b82f6' title='Computadoras' subtitle='Inventario y gestión' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_computadoras' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-device-desktop text-blue" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Computadoras</div>
-          <div class="text-muted small mt-1">Inventario y gestión</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_televisores' as u_tv %}
+  {% include 'ui/tile.html' with href=u_tv icon='ti-device-tv' color='#06b6d4' title='Televisores' subtitle='Registro y control' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_televisores' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-device-tv text-cyan" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Televisores</div>
-          <div class="text-muted small mt-1">Registro y control</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_impresoras' as u_imp %}
+  {% include 'ui/tile.html' with href=u_imp icon='ti-printer' color='#f97316' title='Impresoras' subtitle='Gestión e insumos' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_impresoras' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-printer text-orange" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Impresoras</div>
-          <div class="text-muted small mt-1">Gestión e insumos</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_routers' as u_rt %}
+  {% include 'ui/tile.html' with href=u_rt icon='ti-wifi' color='#22c55e' title='Routers' subtitle='Inventario de red' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_routers' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-wifi text-green" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Routers</div>
-          <div class="text-muted small mt-1">Inventario de red</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_datashows' as u_ds %}
+  {% include 'ui/tile.html' with href=u_ds icon='ti-video' color='#a855f7' title='DataShows' subtitle='Control de proyectores' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_datashows' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-video text-purple" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">DataShows</div>
-          <div class="text-muted small mt-1">Control de proyectores</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_monitores' as u_mon %}
+  {% include 'ui/tile.html' with href=u_mon icon='ti-device-imac' color='#64748b' title='Monitores' subtitle='Control de monitores' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_monitores' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-device-imac text-secondary" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Monitores</div>
-          <div class="text-muted small mt-1">Control de monitores</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {% url 'inventario:inventario_por_categoria' as u_cat %}
+  {% include 'ui/tile.html' with href=u_cat icon='ti-category' color='#3b82f6' title='Por Categoría' subtitle='Filtrar por categoría' %}
 
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_por_categoria' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-category text-blue" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Por Categoría</div>
-          <div class="text-muted small mt-1">Filtrar por categoría</div>
-        </div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'inventario:inventario_registros' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-clipboard-list text-teal" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Ver Registros</div>
-          <div class="text-muted small mt-1">Historial y reportes</div>
-        </div>
-      </div>
-    </a>
-  </div>
-
+  {% url 'inventario:inventario_registros' as u_reg %}
+  {% include 'ui/tile.html' with href=u_reg icon='ti-clipboard-list' color='#14b8a6' title='Ver Registros' subtitle='Historial y reportes' %}
 </div>
 {% endblock %}

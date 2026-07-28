@@ -4,14 +4,14 @@
     border-radius:50%; font-weight:700; flex-shrink:0;
   }
   .perm-mod-header { font-size:.68rem; white-space:nowrap; }
-  .perm-subhead    { font-size:.7rem; color:#64748b; font-weight:600; }
+  .perm-subhead    { font-size:.7rem; color:var(--ps-muted); font-weight:600; }
   /* Visualizar global */
-  .col-ver-global     { border-left: 3px solid #6366f1 !important; background:#f5f3ff; }
+  .col-ver-global     { border-left: 3px solid var(--ps-marca) !important; background:#f5f3ff; }
   .col-ver-global-hd  { background:#ede9fe !important; }
   /* Columna Ver por módulo */
   .col-ver-mod        { background:#f0fdf4; }
   .col-ver-mod-hd     { background:#dcfce7 !important; color:#166534 !important; }
   /* Separador entre grupos de módulo */
-  .col-mod-first      { border-left: 2px solid #e2e8f0 !important; }
+  .col-mod-first      { border-left: 2px solid var(--ps-border) !important; }
   /* Celda vacía para módulos solo-ver */
   .cell-na            { color:#cbd5e1; font-size:.8rem; }

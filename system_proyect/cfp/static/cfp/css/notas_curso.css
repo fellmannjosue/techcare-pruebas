@@ -2,12 +2,12 @@
 .nt-wrap { overflow-x:auto; }
   .nt-table { border-collapse:collapse; font-size:12px; white-space:nowrap; }
   .nt-table th, .nt-table td { border:1px solid #e2e8f0; padding:3px 5px; text-align:center; }
-  .nt-table thead th { background:#f1f5f9; position:sticky; top:0; z-index:2; }
-  .nt-col-no   { position:sticky; left:0;   background:#fff; z-index:3; min-width:34px; }
-  .nt-col-name { position:sticky; left:34px; background:#fff; z-index:3; text-align:left; min-width:210px; }
-  .nt-table thead .nt-col-no, .nt-table thead .nt-col-name { z-index:4; background:#f1f5f9; }
+  .nt-table thead th { background:var(--ps-surface-2); position:sticky; top:0; z-index:2; }
+  .nt-col-no   { position:sticky; left:0;   background:var(--ps-surface); z-index:3; min-width:34px; }
+  .nt-col-name { position:sticky; left:34px; background:var(--ps-surface); z-index:3; text-align:left; min-width:210px; }
+  .nt-table thead .nt-col-no, .nt-table thead .nt-col-name { z-index:4; background:var(--ps-surface-2); }
   .nt-input { width:46px; border:1px solid #cbd5e1; border-radius:4px; padding:2px; text-align:center; font-size:12px; }
-  .nt-input:focus { outline:2px solid #206bc4; }
+  .nt-input:focus { outline:2px solid var(--ps-marca); }
   .nota-verde { color:#2fb344; font-weight:700; }
   .nota-azul  { color:#206bc4; font-weight:700; }
   .nota-rojo  { color:#d63939; font-weight:700; }

@@ -1,6 +1,6 @@
 /* form_sponsor.css – sponsors module */
 body {
-    background-color: #f8f9fa;
+    background-color: var(--ps-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -10,7 +10,7 @@ body {
 }
 
 .form-container {
-    background: white;
+    background: var(--ps-surface);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -19,7 +19,7 @@ body {
 }
 
 .box-bordered {
-    border: 1px solid #ddd;
+    border: 1px solid var(--ps-border);
     padding: 10px;
     border-radius: 5px;
     margin-bottom: 15px;

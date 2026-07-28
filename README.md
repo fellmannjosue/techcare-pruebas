@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 6.0.5.0.001 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.0.0.0 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,30 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.0.0.0 — Nueva interfaz unificada, sidebar rediseñado y mejoras funcionales
+
+> Release **mayor**: rediseño completo del frontend con una sola identidad visual, más varios ajustes funcionales pedidos por el usuario.
+
+**🎨 Migración completa del frontend a un sistema de diseño único**
+- **Base canónica `templates/base_app.html`** — un solo *shell* (sidebar + topbar + breadcrumb + footer + tema claro/oscuro) para todo el sistema. Las **12 bases de módulo** (inventario, reloj, agendas, conducta, enfermería, calculadoras, cámaras, notas de parcial, sponsors, tickets técnico/usuario y configuración) ahora la extienden, unificando el shell de las ~133 pantallas sin tocar vistas, rutas, permisos ni APIs.
+- **Sistema de diseño por tokens** (`portal.css`) + **biblioteca de componentes** (`templates/ui/`: tile, stat, empty_state, field, save_bar, card, messages) + utilidades (`core/forms.py` mixin de widgets, `tc_datatable.js` init único de DataTables).
+- **~48 archivos CSS de contenido** alineados a los tokens `--ps-*` (antes usaban colores claros fijos): ahora el interior de cada pantalla adopta la identidad nueva y **soporta modo oscuro**. El color de marca pasó de azul a índigo.
+- **Sidebar estilo tarjeta** — fondo claro con texto oscuro (y superficie oscura con **texto blanco en modo oscuro**), ítem activo en píldora índigo, grupos como ítems normales (ya no MAYÚSCULAS diminutas) con submenús indentados.
+
+**🧮 Calculadoras**
+- Cada calculadora de tiempo es ahora su **propia página individual** (Entre dos horas, Horas→Días, Minutos→Horas, Fecha a Fecha).
+- **Animación de engranajes "Calculando…"** al calcular, diseño con tokens (claro/oscuro), y botones **Volver a Calculadoras / Volver al Panel Principal**.
+- **Calculadoras es exclusiva del superusuario** (nadie más la ve ni puede entrar por URL).
+
+**🚻 Salidas al baño**
+- **Autoguardado sin botón**: la salida se guarda sola al poner clase + hora; el alumno queda **"Afuera"** y el **semáforo se colorea al registrar el regreso** (no al salir).
+- Corregidos: **maestros duplicados** en el select de clase y la confusión del campo de regreso (deshabilitado se veía editable).
+
+**🗓️ Otros arreglos**
+- **Agendas (docente)** — se recuperó el autoguardado al cambiar de grado (se había perdido en la extracción de JS): sin él la tabla de materias no cargaba y el docente **no podía registrar**.
+- **Panel y sidebar** — **Calculadoras** y **Sponsors** quedaron en **grupos propios**, separados de "Reloj".
+- **Inventario** — dashboard reconstruido con los componentes nuevos (tiles) como referencia del rediseño.
 
 ### v6.0.5.0.001 — Barrido de bugs de la extracción de JS (release menor)
 

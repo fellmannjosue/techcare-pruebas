@@ -1,8 +1,8 @@
-body { background: #f3f6fb; }
+body { background: var(--ps-bg); }
 .chat-container {
     max-width: 650px;
     margin: 35px auto;
-    background: #fff;
+    background: var(--ps-surface);
     border-radius: 13px;
     box-shadow: 0 2px 18px rgba(0,0,0,0.11);
     padding: 30px 32px 18px 32px;

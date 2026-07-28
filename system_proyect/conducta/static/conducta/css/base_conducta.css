@@ -6,12 +6,12 @@
 }
 
 .campo-lectura-tabler {
-  background: #f4f6fa;
-  border: 1px solid #e6e7e9;
+  background: var(--ps-surface-2);
+  border: 1px solid var(--ps-border);
   border-radius: 6px;
   padding: 7px 12px;
   font-size: .92rem;
-  color: #354052;
+  color: var(--ps-text);
 }
 
 .img-evidencia-hover {

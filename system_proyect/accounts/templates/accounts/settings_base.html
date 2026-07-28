@@ -1,153 +1,97 @@
+{% extends 'base_app.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>{% block title %}Configuración{% endblock %} – TechCare</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+{# <--- hecho por claude code: Configuracion sobre base_app.html; conserva su nav lateral interna y el bloque settings_content. #}
+
+{% block title %}Configuración{% endblock %}
+
+{% block vendor_head %}
   <link rel="stylesheet" href="{% static 'accounts/css/settings_base.css' %}">
-  {% block extra_head %}{% endblock %}
-  <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
-  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
-  <meta name="theme-color" content="#206bc4">
-  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-<script src="{% static 'accounts/js/settings_base.js' %}?v=2"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
-</head>
-<body class="antialiased">
-<div class="wrapper">
+{% endblock %}
 
-  {# ── Sidebar principal de la app ── #}
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-settings">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="navbar-brand">
-        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
-        </a>
-      </div>
-      <div class="collapse navbar-collapse" id="sidebar-settings">
-        {% include 'accounts/_sidebar.html' %}
-        {% include 'accounts/_user_dropdown.html' %}
-      </div>
-    </div>
-  </aside>
+{% block head_js %}
+  <script src="{% static 'accounts/js/settings_base.js' %}?v=2"></script>
+{% endblock %}
 
-  {# ── Page wrapper ── #}
-  <div class="page-wrapper">
-    <div class="page-header d-print-none">
-      <div class="container-xl">
-        <div class="row g-2 align-items-center">
-          <div class="col">
-            <nav aria-label="breadcrumb">
-              <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
-                <li class="breadcrumb-item active">Configuración</li>
-              </ol>
-            </nav>
-            <h2 class="page-title"><i class="ti ti-settings me-2 text-muted"></i>Configuración de cuenta</h2>
-          </div>
-        </div>
-      </div>
-    </div>
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb breadcrumb-muted mb-1">
+    <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+    <li class="breadcrumb-item active">Configuración</li>
+  </ol>
+</nav>
+{% endblock %}
 
-    <div class="page-body">
-      <div class="container-xl">
+{% block page_title %}<i class="ti ti-settings me-2 text-muted"></i>Configuración de cuenta{% endblock %}
 
-        {# Mensajes globales #}
-        {% if messages %}
-          {% for msg in messages %}
-          <div class="alert alert-{{ msg.tags }} alert-dismissible mb-3">
-            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-          {% endfor %}
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  {# ── Panel izquierdo de navegación settings ── #}
+  <div class="col-12 col-md-3 col-lg-2">
+    <div class="card">
+      <div class="card-body p-2 settings-nav">
+
+        <div class="nav-section">Mi cuenta</div>
+        <nav class="nav flex-column gap-1 mb-2">
+          <a class="nav-link {% if active_tab == 'perfil' %}active{% endif %}" href="{% url 'settings_perfil' %}">
+            <i class="ti ti-user-circle me-2"></i>Mi Perfil
+          </a>
+          <a class="nav-link {% if active_tab == 'notificaciones' %}active{% endif %}" href="{% url 'settings_notificaciones' %}">
+            <i class="ti ti-bell me-2"></i>Mis Notificaciones
+          </a>
+        </nav>
+
+        {% if can_manage_users %}
+        <div class="nav-section">Administración</div>
+        <nav class="nav flex-column gap-1 mb-2">
+          <a class="nav-link {% if active_tab == 'usuarios' %}active{% endif %}" href="{% url 'settings_usuarios' %}">
+            <i class="ti ti-users me-2"></i>Usuarios
+          </a>
+          <a class="nav-link {% if active_tab == 'grupos' %}active{% endif %}" href="{% url 'settings_grupos' %}">
+            <i class="ti ti-users-group me-2"></i>Grupos
+          </a>
+        </nav>
         {% endif %}
 
-        <div class="row g-4">
+        {% if can_see_activity %}
+        {# <--- hecho por claude code: Actividad, Auditoria y Correos viven ahora en el panel (Monitoreo / Configuracion) #}
+        <div class="nav-section">Sistema</div>
+        <nav class="nav flex-column gap-1 mb-2">
+          <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
+            <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
+          </a>
+          <a class="nav-link {% if active_tab == 'envio_login' %}active{% endif %}" href="{% url 'settings_envio_login' %}">
+            <i class="ti ti-send me-2"></i>Enviar instrucciones
+          </a>
+        </nav>
+        {% endif %}
 
-          {# ── Panel izquierdo de navegación settings ── #}
-          <div class="col-12 col-md-3 col-lg-2">
-            <div class="card">
-              <div class="card-body p-2 settings-nav">
+        {% if request.user.is_superuser %}
+        <div class="nav-section">Conducta</div>
+        <nav class="nav flex-column gap-1 mb-2">
+          <a class="nav-link {% if active_tab == 'coordinadores' %}active{% endif %}" href="{% url 'settings_coordinadores' %}">
+            <i class="ti ti-user-cog me-2"></i>Config. Coordinadores
+          </a>
+          <a class="nav-link {% if active_tab == 'notificaciones_conducta' %}active{% endif %}" href="{% url 'settings_notificaciones_conducta' %}">
+            <i class="ti ti-bell-ringing me-2"></i>Config. Notificaciones
+          </a>
+          <a class="nav-link {% if active_tab == 'roles' %}active{% endif %}" href="{% url 'settings_roles' %}">
+            <i class="ti ti-shield-half me-2"></i>Config. Roles
+          </a>
+        </nav>
+        {# <--- hecho por claude code: Permisos Reloj y Permisos Coordinadores viven ahora en el panel (Permisos) #}
+        {% endif %}
 
-                <div class="nav-section">Mi cuenta</div>
-                <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'perfil' %}active{% endif %}" href="{% url 'settings_perfil' %}">
-                    <i class="ti ti-user-circle me-2"></i>Mi Perfil
-                  </a>
-                  <a class="nav-link {% if active_tab == 'notificaciones' %}active{% endif %}" href="{% url 'settings_notificaciones' %}">
-                    <i class="ti ti-bell me-2"></i>Mis Notificaciones
-                  </a>
-                </nav>
-
-                {% if can_manage_users %}
-                <div class="nav-section">Administración</div>
-                <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'usuarios' %}active{% endif %}" href="{% url 'settings_usuarios' %}">
-                    <i class="ti ti-users me-2"></i>Usuarios
-                  </a>
-                  <a class="nav-link {% if active_tab == 'grupos' %}active{% endif %}" href="{% url 'settings_grupos' %}">
-                    <i class="ti ti-users-group me-2"></i>Grupos
-                  </a>
-                </nav>
-                {% endif %}
-
-                {% if can_see_activity %}
-                {# <--- hecho por claude code: Actividad, Auditoría y Correos viven ahora en el panel (Monitoreo / Configuración) #}
-                <div class="nav-section">Sistema</div>
-                <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
-                    <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
-                  </a>
-                  <a class="nav-link {% if active_tab == 'envio_login' %}active{% endif %}" href="{% url 'settings_envio_login' %}">
-                    <i class="ti ti-send me-2"></i>Enviar instrucciones
-                  </a>
-                </nav>
-                {% endif %}
-
-                {% if request.user.is_superuser %}
-                <div class="nav-section">Conducta</div>
-                <nav class="nav flex-column gap-1 mb-2">
-                  <a class="nav-link {% if active_tab == 'coordinadores' %}active{% endif %}" href="{% url 'settings_coordinadores' %}">
-                    <i class="ti ti-user-cog me-2"></i>Config. Coordinadores
-                  </a>
-                  <a class="nav-link {% if active_tab == 'notificaciones_conducta' %}active{% endif %}" href="{% url 'settings_notificaciones_conducta' %}">
-                    <i class="ti ti-bell-ringing me-2"></i>Config. Notificaciones
-                  </a>
-                  <a class="nav-link {% if active_tab == 'roles' %}active{% endif %}" href="{% url 'settings_roles' %}">
-                    <i class="ti ti-shield-half me-2"></i>Config. Roles
-                  </a>
-                </nav>
-                {# <--- hecho por claude code: Permisos Reloj y Permisos Coordinadores viven ahora en el panel (Permisos) #}
-                {% endif %}
-
-              </div>
-            </div>
-          </div>
-
-          {# ── Contenido principal ── #}
-          <div class="col-12 col-md-9 col-lg-10">
-            {% block settings_content %}{% endblock %}
-          </div>
-
-        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-{% block extra_js %}{% endblock %}
-{% include "accounts/_notif_notas_toast.html" %}
-{% include "accounts/_welcome_overlay.html" %}
-{% include "_footer.html" %}
-</body>
-</html>
+  {# ── Contenido principal ── #}
+  <div class="col-12 col-md-9 col-lg-10">
+    {% block settings_content %}{% endblock %}
+  </div>
+
+</div>
+{% endblock %}

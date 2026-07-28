@@ -4,7 +4,7 @@
     border-radius:50%; font-weight:700; flex-shrink:0;
   }
   .perm-mod-header { font-size:.68rem; white-space:nowrap; }
-  .perm-subhead    { font-size:.7rem; color:#64748b; font-weight:600; }
+  .perm-subhead    { font-size:.7rem; color:var(--ps-muted); font-weight:600; }
   .timer-wrap      { font-size:.65rem; line-height:1.2; }
   /* columna módulo: borde izquierdo para separar grupos */
-  .col-mod-first   { border-left: 2px solid #e2e8f0 !important; }
+  .col-mod-first   { border-left: 2px solid var(--ps-border) !important; }

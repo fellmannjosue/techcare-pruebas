@@ -1,0 +1,118 @@
+{% load static %}
+{# <--- hecho por claude code: BASE CANONICA del sistema. Shell unico (sidebar + topbar + footer + tema); los hijos aportan contenido y libs por vendor_head / head_js / vendor_js. #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}TechCare{% endblock %} – TechCare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
+
+  {# Tipografía + tema sin parpadeo #}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  {# Base Tabler (aún da la retícula/utilidades; portal.css lo re-estiliza al diseño nuevo) #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  {# DataTables (común: casi todos los módulos con tablas lo usan) #}
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet"/>
+
+  {% block vendor_head %}{% endblock %}   {# CSS/libs propios del módulo (Select2, CSS de módulo) #}
+  {% block head_js %}{% endblock %}       {# JS del módulo que debe cargar temprano #}
+
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  {# Sistema de diseño del portal (identidad visual única de TODO el sistema) #}
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+
+  <link rel="manifest" href="/static/accounts/manifest.json">
+  <meta name="theme-color" content="#0e1424">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="wrapper">
+
+  {# ── Sidebar (unificado, por permisos) ──────────────────────────────── #}
+  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#tc-sidebar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand">
+        <a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="34" class="me-2">
+          <span class="fw-bold fs-5 text-white">TechCare</span>
+        </a>
+      </div>
+      <div class="collapse navbar-collapse" id="tc-sidebar">
+        {% include 'accounts/_sidebar.html' %}
+        {% include 'accounts/_user_dropdown.html' %}
+      </div>
+    </div>
+  </aside>
+
+  {# ── Área principal ─────────────────────────────────────────────────── #}
+  <div class="page-wrapper">
+    <div class="page-header d-print-none">
+      <div class="container-fluid">
+        <div class="row g-2 align-items-center">
+          <div class="col">
+            {% block breadcrumb %}
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb breadcrumb-muted mb-1">
+                <li class="breadcrumb-item"><a href="{{ nav_home_url|default:'/accounts/menu/' }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
+                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
+              </ol>
+            </nav>
+            {% endblock %}
+            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+          </div>
+          <div class="col-auto ms-auto d-print-none">
+            <div class="btn-list">
+              {% block back_button %}{% endblock %}
+              {% block page_actions %}{% endblock %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="container-fluid">
+        {% block messages %}{% endblock %}   {# los modulos que muestran mensajes lo activan con ui/messages.html #}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+
+    {% include "_footer.html" %}
+  </div>
+</div>
+
+{% block modals %}{% endblock %}
+
+{# ── Stack JS común (normalizado) ───────────────────────────────────────── #}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'js/tc_datatable.js' %}?v=1"></script>
+
+{% block vendor_js %}{% endblock %}   {# libs propias del módulo (Select2, etc.) #}
+{% block module_js %}{% endblock %}   {# JS base del módulo #}
+{% block extra_js %}{% endblock %}    {# JS de la página #}
+{% block post_js %}{% endblock %}     {# JS/markup que debe ir DESPUES del extra_js (orden sensible) #}
+
+{% include "accounts/_notif_notas_toast.html" %}
+{% include "accounts/_welcome_overlay.html" %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+</body>
+</html>

@@ -126,7 +126,7 @@ def nav_context(request):
         # <--- hecho por claude code: True solo para quien gestiona tickets ajenos (panel de técnico)
         'nav_tickets_tecnico':  is_admin or can('tickets.view_ticket'),
         'nav_reloj':            is_admin or grp('reloj'),
-        'nav_calculadoras':     is_admin or grp('reloj'),
+        'nav_calculadoras':     is_admin,  # <--- hecho por claude code: Calculadoras solo superuser
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
         'nav_cfp':              is_admin or grp('director_cfp', 'instructores', 'contabilidad_cfp'),

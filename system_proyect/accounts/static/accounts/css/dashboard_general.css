@@ -1,5 +1,5 @@
 /* <--- hecho por claude code: extraído del template */
-.dg-section-title { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:#64748b; font-weight:600; }
+.dg-section-title { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--ps-muted); font-weight:600; }
   .dg-card { transition:transform .12s ease, box-shadow .12s ease; }
   .dg-card:hover { transform:translateY(-2px); box-shadow:0 .5rem 1rem rgba(0,0,0,.08); }
   .dg-toggle .btn.active { color:#fff; }

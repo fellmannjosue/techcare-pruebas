@@ -22,7 +22,7 @@
 }
 .btn-permiso-cell:hover { filter: brightness(.88); }
 .btn-permiso-cell.has-value { color: #000; }
-.btn-permiso-cell.no-value  { background: #f8f9fa; color: #adb5bd; border-style: dashed; }
+.btn-permiso-cell.no-value  { background: var(--ps-surface-2); color: var(--ps-muted); border-style: dashed; }
 
 .cell-ausencias   { background: #00FFFF; }
 .cell-otro-pagado { background: #D0CECE; }

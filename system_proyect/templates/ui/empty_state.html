@@ -1,0 +1,6 @@
+{# <--- hecho por claude code: estado vacío. Params: icon title subtitle. #}
+<div class="tc-empty">
+  <span class="tc-empty__icon"><i class="ti {{ icon|default:'ti-inbox' }}"></i></span>
+  <div class="tc-empty__title">{{ title|default:'Sin datos' }}</div>
+  {% if subtitle %}<div class="tc-empty__sub">{{ subtitle }}</div>{% endif %}
+</div>

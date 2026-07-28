@@ -38,6 +38,9 @@ class PerfilUsuario(models.Model):
     login_bloqueado_en = models.DateTimeField('Bloqueado el', null=True, blank=True)
     # <--- hecho por claude code: última versión cuyas novedades vio el usuario
     version_vista      = models.CharField('Última versión vista', max_length=20, blank=True, default='')
+    # <--- hecho por claude code: portal nuevo del superusuario (toggle Nueva/Clásica).
+    # Mientras esté en False (default) el sistema clásico funciona igual que hoy.
+    prefer_new_ui      = models.BooleanField('Prefiere el portal nuevo', default=False)
 
     class Meta:
         verbose_name = 'Perfil de usuario'

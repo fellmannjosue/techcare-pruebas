@@ -9,6 +9,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="{% static 'mantenimiento/css/firmar.css' %}?v=1">
+  {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
+  {% if True %}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {% endif %}
 </head>
 <body class="antialiased">
 <div class="container">
@@ -68,6 +73,9 @@
 
 {% if not exito and not ya_firmado %}
 <script src="{% static 'mantenimiento/js/firmar.js' %}?v=2"></script>
+{% endif %}
+{% if True %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
 </body>
 </html>

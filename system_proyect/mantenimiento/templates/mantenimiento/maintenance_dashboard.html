@@ -14,6 +14,11 @@
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
+  {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
+  {% if True %}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {% endif %}
 </head>
 
 <body class="antialiased">
@@ -551,5 +556,8 @@
 
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}
+{% if True %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+{% endif %}
 </body>
 </html>

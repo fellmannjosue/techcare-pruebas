@@ -1,5 +1,5 @@
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from datetime import date
@@ -9,14 +9,17 @@ from .models import TasaCambio, MONEDA_CHOICES
 
 API_URL = 'https://open.exchangerate-api.com/v6/latest/USD'
 
+# <--- hecho por claude code: Calculadoras es SOLO para el superusuario (nadie más).
+solo_super = user_passes_test(lambda u: u.is_superuser, login_url='menu')
 
-@login_required
+
+@solo_super
 def dashboard(request):
     tasas = {t.moneda: t for t in TasaCambio.objects.all()}
     return render(request, 'calculadoras/dashboard.html', {'tasas': tasas})
 
 
-@login_required
+@solo_super
 def divisas(request):
     tasas = {t.moneda: t for t in TasaCambio.objects.all()}
     return render(request, 'calculadoras/divisas.html', {
@@ -25,28 +28,49 @@ def divisas(request):
     })
 
 
-@login_required
+@solo_super
 def tiempo(request):
     return render(request, 'calculadoras/tiempo.html', {})
 
 
-@login_required
+# <--- hecho por claude code: una sola vista para las 4 calculadoras de tiempo como paginas individuales.
+TIEMPO_META = {
+    'entre_horas': {'titulo': 'Entre dos horas', 'icono': 'ti-clock-bolt'},
+    'horas_dias': {'titulo': 'Horas → Días', 'icono': 'ti-clock-hour-4'},
+    'minutos_horas': {'titulo': 'Minutos → Horas', 'icono': 'ti-hourglass'},
+    'fecha_fecha': {'titulo': 'Fecha a Fecha', 'icono': 'ti-calendar-stats'},
+}
+
+
+@solo_super
+def tiempo_calc(request, calc):
+    meta = TIEMPO_META.get(calc)
+    if meta is None:
+        return redirect('calculadoras_dashboard')
+    return render(request, 'calculadoras/tiempo_calc.html', {
+        'calc': calc,
+        'titulo': meta['titulo'],
+        'icono': meta['icono'],
+    })
+
+
+@solo_super
 def almacenamiento(request):
     return render(request, 'calculadoras/almacenamiento.html', {})
 
 
-@login_required
+@solo_super
 def ip_calculator(request):
     return render(request, 'calculadoras/ip.html', {})
 
 
-@login_required
+@solo_super
 def lorem_ipsum(request):
     return render(request, 'calculadoras/lorem.html', {})
 
 
 @require_POST
-@login_required
+@solo_super
 def actualizar_tasa(request):
     moneda = request.POST.get('moneda', '').strip().upper()
     tasa_str = request.POST.get('tasa', '').strip().replace(',', '.')
@@ -70,7 +94,7 @@ def actualizar_tasa(request):
     return JsonResponse({'ok': True, 'tasa': str(obj.tasa), 'fecha': str(obj.fecha_actualizacion)})
 
 
-@login_required
+@solo_super
 def fetch_tasas_auto(request):
     """Obtiene tasas USD/EUR/CHF → HNL desde open.exchangerate-api.com y las guarda."""
     try:

@@ -359,26 +359,38 @@
           <table class="table table-vcenter table-hover table-bordered">
             <thead>
               <tr>
-                <th>Grado</th><th>Docente</th><th>Semana</th><th class="text-center">Estado</th>
+                <th>Grado</th><th>Docente</th><th class="text-center">Estado</th>
                 <th class="text-center">Materias</th><th class="text-center">Acción</th>
               </tr>
             </thead>
+            {# <--- hecho por claude code: agrupado por INICIO de semana (así no se parte #}
+            {# cuando algunas agendas de la misma semana tienen distinta fecha de fin) #}
+            {% regroup agendas_usuario by semana_inicio as por_semana %}
+            {% for semana in por_semana %}
             <tbody>
-              {% for a in agendas_usuario %}
+              <tr class="table-active">
+                <td colspan="5" class="fw-bold text-purple">
+                  <i class="ti ti-calendar-week me-1"></i>Semana {{ semana.grouper|date:"d/m/Y" }} – {{ semana.list.0.semana_fin|date:"d/m/Y" }}
+                  <span class="badge bg-purple-lt text-purple ms-2">{{ semana.list|length }}</span>
+                </td>
+              </tr>
+              {% for a in semana.list %}
               <tr>
-                <td class="fw-semibold">{{ a.grado }}</td>
+                <td class="fw-semibold ps-4">{{ a.grado }}</td>
                 <td class="text-muted">{{ a.docente }}</td>
-                <td>{{ a.semana_inicio|date:"d/m/Y" }} – {{ a.semana_fin|date:"d/m/Y" }}</td>
                 <td class="text-center"><span class="badge bg-blue-lt text-blue">{{ a.estado }}</span></td>
                 <td class="text-center">{{ a.n_materias }}</td>
                 <td class="text-center">
                   <a href="{% url 'agendas:editar_agenda' a.pk %}" class="btn btn-sm btn-outline-primary"><i class="ti ti-eye me-1"></i>Ver / Editar</a>
                 </td>
               </tr>
-              {% empty %}
-              <tr><td colspan="6" class="text-center text-muted py-3">No hay agendas registradas.</td></tr>
               {% endfor %}
             </tbody>
+            {% empty %}
+            <tbody>
+              <tr><td colspan="5" class="text-center text-muted py-3">No hay agendas registradas.</td></tr>
+            </tbody>
+            {% endfor %}
           </table>
         </div>
       </div>

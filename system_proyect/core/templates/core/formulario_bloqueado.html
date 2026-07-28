@@ -10,6 +10,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="{% static 'core/css/formulario_bloqueado.css' %}?v=1">
+  {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
+  {% if True %}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {% endif %}
 </head>
 <body>
   <div class="card fb-card">
@@ -62,5 +67,8 @@
 <div id="formulario_bloqueado-config" hidden
      data-v0="{{ nav_home_url|default:inicio_url|escapejs }}"></div>
 <script src="{% static 'core/js/formulario_bloqueado.js' %}?v=2"></script>
+{% if True %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+{% endif %}
 </body>
 </html>

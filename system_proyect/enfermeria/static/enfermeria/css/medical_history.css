@@ -20,7 +20,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #f8fafc;
+  background: var(--ps-surface-2);
 }
 
 /* btn-xs helper */

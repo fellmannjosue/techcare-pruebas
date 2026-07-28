@@ -17,7 +17,8 @@ parciales, sponsors, mantenimiento, CFP y calculadoras.
 
 ## Layout del repo
 - Código: `system_proyect/` (una app Django por dominio: `accounts`, `conducta`, `reloj`, `core`, …).
-- Cada app tiene su **propia plantilla base** con `<html>` completo (no hay un base global único).
+- **Base canónica única `templates/base_app.html`** (desde v7): shell unificado (sidebar + topbar + footer + tema). Las 12 bases de módulo la extienden y solo aportan lo suyo por los bloques `vendor_head / head_js / breadcrumb / page_actions / vendor_js / module_js / extra_js / post_js`. `salidas_bano`, `mantenimiento` y las pantallas de login/reset son standalone (shell propio, pero con el tema `portal.css`). Sistema de diseño por tokens `--ps-*` en `portal_super/static/portal_super/css/portal.css` (cargado global). Componentes en `templates/ui/`.
+- **OJO comentarios de plantilla:** `{# … #}` SIEMPRE en una sola línea y sin `{% %}`/`{{ }}` literales dentro — un comentario multilínea rompe el parser de Django (bloques duplicados / auto-include / fuga de texto).
 - Estáticos servidos por Apache desde `system_proyect/staticfiles/` (generada por `collectstatic`).
 - `media/` está en `.gitignore` — **datos de alumnos/config no se versionan** (ej. `media/conducta/routing_bl.json`).
 

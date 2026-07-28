@@ -1,0 +1,16 @@
+/* hecho por claude code: estilos con tokens + animacion de engranajes para calculadoras de tiempo */
+.calc-wrap{max-width:640px;margin:0 auto;}
+.calc-card{background:var(--ps-surface)!important;border:1px solid var(--ps-border)!important;border-radius:var(--ps-radius)!important;box-shadow:var(--ps-shadow)!important;}
+.calc-card .card-title{color:var(--ps-text)!important;}
+.calc-gears{display:inline-flex;align-items:center;justify-content:center;color:var(--ps-marca);}
+.calc-gears .g1{font-size:2.6rem;animation:calc-spin 1.6s linear infinite;}
+.calc-gears .g2{font-size:1.7rem;margin-left:-8px;margin-top:14px;animation:calc-spin-rev 1.6s linear infinite;}
+@keyframes calc-spin{to{transform:rotate(360deg);}}
+@keyframes calc-spin-rev{to{transform:rotate(-360deg);}}
+.calc-loading{display:none;flex-direction:column;align-items:center;gap:.4rem;padding:1.5rem 0;color:var(--ps-muted);}
+.calc-loading.show{display:flex;}
+.calc-result{background:var(--ps-surface-2)!important;border:1px solid var(--ps-border)!important;border-radius:12px;padding:1.25rem;text-align:center;}
+.calc-result .big{font-size:2.2rem;font-weight:800;color:var(--ps-marca);line-height:1.1;}
+.calc-result .lbl{color:var(--ps-muted);font-size:.85rem;}
+.calc-chip{background:var(--ps-surface)!important;border:1px solid var(--ps-border)!important;border-radius:10px;padding:.6rem;}
+.calc-chip .v{font-weight:800;font-size:1.4rem;color:var(--ps-text);}

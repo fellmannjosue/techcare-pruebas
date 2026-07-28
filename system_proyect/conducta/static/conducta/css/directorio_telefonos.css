@@ -15,4 +15,4 @@
 }
 .btn-wa:hover { background-color: #1ebe5d; color: #fff; }
 
-.sin-tel { color: #adb5bd; font-size: .8rem; font-style: italic; }
+.sin-tel { color: var(--ps-muted); font-size: .8rem; font-style: italic; }

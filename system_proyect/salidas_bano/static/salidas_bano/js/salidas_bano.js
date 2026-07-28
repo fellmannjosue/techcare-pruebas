@@ -35,7 +35,15 @@
    * Badge de estado actual + indicador del próximo color.
    * count = número de salidas YA registradas hoy.
    */
-  function buildSemInfo(count, bloqueado) {
+  function buildSemInfo(count, bloqueado, abierta) {
+    // <--- hecho por claude code: el color del semáforo se aplica al REGRESAR.
+    // Mientras el alumno está afuera se muestra "Afuera" (neutro), no el color.
+    if (abierta) {
+      const semPend = SEMAFORO_AUTO[Math.min(Math.max(count, 1) - 1, 3)];
+      const pc = SEM[semPend];
+      return `<span class="badge-sem" style="background:var(--ps-surface-2,#eef2ff);color:var(--ps-marca,#4f46e5);border:1px solid var(--ps-border,#dbe2ff);font-weight:700;">🚪 Afuera</span>`
+           + `<div class="sem-next-lbl ${semPend} mt-1" title="Al regresar quedará ${pc.label}">→ ${pc.icon} ${pc.label} al volver</div>`;
+    }
     if (count === 0) {
       return `<span class="sem-next-lbl verde" title="Primera salida será Verde">Primera: 🟢</span>`;
     }
@@ -58,7 +66,14 @@
   function buildClaseSelect(grado, valActual) {
     const gradoExacto = clasesPorGrado[grado] || [];
     const todasClases = Object.values(clasesPorGrado).flat();
-    const clases = gradoExacto.length ? gradoExacto : todasClases;
+    const fuente = gradoExacto.length ? gradoExacto : todasClases;
+    // <--- hecho por claude code: quitar maestros/clases duplicados (misma etiqueta)
+    const vistos = new Set();
+    const clases = [];
+    fuente.forEach(c => {
+      const k = (c.label || c.value || '').trim();
+      if (k && !vistos.has(k)) { vistos.add(k); clases.push(c); }
+    });
 
     let opts = clases.map(c =>
       `<option value="${escHtml(c.value)}" ${c.value === valActual ? 'selected' : ''}>${escHtml(c.label)}</option>`
@@ -98,18 +113,17 @@
     const lastMaestro = sal ? sal.last_maestro        : '';
     const salidaId    = sal ? sal.last_id             : '';
 
-    // ¿Está bloqueado para maestros regulares? (count ≥ 3 y no coordinador)
-    const bloqueado = count >= 3 && !esCoord;
-    const rowClass  = bloqueado ? 'fila-alumno fila-bloqueada' : 'fila-alumno';
+    // <--- hecho por claude code: "abierta" = alumno actualmente AFUERA
+    // (última salida con hora de salida y SIN regreso). El semáforo se colorea
+    // al registrar el regreso, no al salir. Sin botón: todo es autoguardado.
+    const abierta = !!(sal && (sal.abierta === true ||
+                       (sal.abierta === undefined && hrSalida && !hrRegreso)));
 
-    // Botón guardar
-    const guardBtn = bloqueado
-      ? `<button class="btn btn-sm btn-outline-secondary" disabled title="Alumno en Negro — solo coordinador">
-           <i class="ti ti-lock"></i>
-         </button>`
-      : `<button class="btn btn-sm btn-teal btn-guardar" title="Registrar salida">
-           <i class="ti ti-device-floppy"></i>
-         </button>`;
+    // ¿Bloqueado para maestros regulares? (count ≥ 3 y no coordinador, y no afuera)
+    const bloqueado = count >= 3 && !esCoord && !abierta;
+    const rowClass  = bloqueado ? 'fila-alumno fila-bloqueada'
+                    : abierta   ? 'fila-alumno fila-afuera'
+                    : 'fila-alumno';
 
     // Botón eliminar (solo coordinadores, solo cuando hay salida registrada hoy)
     const elimBtn = (esCoord && salidaId)
@@ -121,39 +135,42 @@
          </button>`
       : '';
 
-    // ── Campos del formulario ────────────────────────────────────────────────
-    // Cuando bloqueado: mostrar estático con datos de la última salida
-    // Cuando activo:    siempre VACÍO para que cada maestro empiece limpio
-    const claseHtml = bloqueado
-      ? `<span class="text-muted small">${escHtml(lastClase) || '—'}</span>`
-      : buildClaseSelect(grado, '');   // siempre vacío — no pre-llenar
+    // ── Campos del formulario, según estado ──────────────────────────────────
+    let claseHtml, fechaHtml, hsSalidaHtml, hrRegresoHtml, comentHtml;
 
-    const fechaHtml = bloqueado
-      ? `<span class="text-muted small">${SB.fechaHoy}</span>`
-      : `<input type="date" class="form-control form-control-sm fecha-input text-center"
+    if (bloqueado) {
+      // Estático con datos de la última salida
+      claseHtml     = `<span class="text-muted small">${escHtml(lastClase) || '—'}</span>`;
+      fechaHtml     = `<span class="text-muted small">${SB.fechaHoy}</span>`;
+      hsSalidaHtml  = `<span class="text-muted small">${escHtml(hrSalida) || '—'}</span>`;
+      hrRegresoHtml = `<span class="text-muted small">${escHtml(hrRegreso) || '—'}</span>`;
+      comentHtml    = `<span class="text-muted small">${escHtml(sal ? sal.last_comentario : '') || '—'}</span>`;
+    } else if (abierta) {
+      // Alumno AFUERA: clase y hora de salida en solo-lectura; regreso habilitado
+      claseHtml     = `<span class="small fw-semibold">${escHtml(lastClase) || '—'}</span>`;
+      fechaHtml     = `<span class="text-muted small">${SB.fechaHoy}</span>`;
+      hsSalidaHtml  = `<span class="small">${escHtml(hrSalida) || '—'}</span>`;
+      hrRegresoHtml = `<input type="time" class="form-control form-control-sm hora-regreso text-center"
+               value="" style="min-width:80px;border-color:var(--ps-marca,#6366f1);box-shadow:0 0 0 .12rem rgba(99,102,241,.18);"
+               title="Registra la hora de regreso">`;
+      comentHtml    = `<input type="text" class="form-control form-control-sm comentario-input"
+               value="${escHtml(sal ? sal.last_comentario : '')}" placeholder="Observación…">`;
+    } else {
+      // Estado LISTO: editable, vacío para empezar limpio. La salida se autoguarda
+      // en cuanto haya clase + hora. El regreso queda deshabilitado hasta salir.
+      claseHtml     = buildClaseSelect(grado, '');
+      fechaHtml     = `<input type="date" class="form-control form-control-sm fecha-input text-center"
                value="${SB.fechaHoy}" style="min-width:120px;">`;
-
-    const hsSalidaHtml = bloqueado
-      ? `<span class="text-muted small">${escHtml(hrSalida) || '—'}</span>`
-      : `<input type="time" class="form-control form-control-sm hora-salida text-center"
-               value="" style="min-width:80px;">`; // siempre vacío
-
-    const comentHtml = bloqueado
-      ? `<span class="text-muted small">${escHtml(sal ? sal.last_comentario : '') || '—'}</span>`
-      : `<input type="text" class="form-control form-control-sm comentario-input"
-               value="" placeholder="Observación…">`;  // siempre vacío
-
-    // Hora regreso:
-    // - Bloqueado: texto estático
-    // - Activo con salidaId existente: habilitado (puede agregar regreso a la última)
-    // - Activo sin salidaId: deshabilitado hasta ingresar hora_salida
-    const hrRegresoHtml = bloqueado
-      ? `<span class="text-muted small">${escHtml(hrRegreso) || '—'}</span>`
-      : `<input type="time" class="form-control form-control-sm hora-regreso text-center"
-               value="" style="min-width:80px;" ${salidaId ? '' : 'disabled'}>`;
+      hsSalidaHtml  = `<input type="time" class="form-control form-control-sm hora-salida text-center"
+               value="" style="min-width:80px;">`;
+      // <--- hecho por claude code: en estado "listo" el regreso NO se puede usar
+      // (el alumno aún no ha salido) → guion muted, no un input que parece editable.
+      hrRegresoHtml = `<span class="text-muted small" title="Se habilita cuando el alumno registra su salida">—</span>`;
+      comentHtml    = `<input type="text" class="form-control form-control-sm comentario-input"
+               value="" placeholder="Observación…">`;
+    }
 
     // ── Info de última salida (solo lectura) bajo el nombre ──────────────────
-    // Muestra maestro + hora de salida anterior sin contaminar el formulario
     let infoUltima = '';
     if (lastMaestro && count > 0) {
       infoUltima = `<div class="text-muted maestro-display" style="font-size:.7rem;">
@@ -171,14 +188,15 @@
         data-grado="${escHtml(alumno.grado)}"
         data-grupo="${escHtml(alumno.grupo)}"
         data-salida-id="${salidaId}"
-        data-count="${count}">
+        data-count="${count}"
+        data-abierta="${abierta ? '1' : ''}">
       <td>
         <div class="fw-semibold">${escHtml(alumno.nombre)}</div>
         <div class="text-muted small">Grupo <strong>${alumno.grupo.toUpperCase()}</strong></div>
         ${infoUltima}
       </td>
       <td class="text-center">
-        ${buildSemInfo(count, bloqueado)}
+        ${buildSemInfo(count, bloqueado, abierta)}
       </td>
       <td>${claseHtml}</td>
       <td class="text-center">${fechaHtml}</td>
@@ -187,7 +205,6 @@
       <td>${comentHtml}</td>
       <td class="text-center">
         <div class="btn-group btn-group-sm">
-          ${guardBtn}
           <button class="btn btn-sm btn-outline-secondary btn-historial"
                   data-iid="${uid}" data-nombre="${escHtml(alumno.nombre)}"
                   title="Historial">
@@ -250,167 +267,101 @@
   });
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // Activar hora-regreso cuando hora-salida recibe un valor (ANTES de guardar)
+  // Reconstruir una fila desde el estado local (salidasHoy) conservando el filtro
   // ══════════════════════════════════════════════════════════════════════════════
 
-  document.addEventListener('input', function (e) {
-    if (!e.target.classList.contains('hora-salida')) return;
-    const fila = e.target.closest('tr.fila-alumno');
-    if (!fila) return;
-    const hrEl = fila.querySelector('.hora-regreso');
-    if (!hrEl) return;
-
-    if (e.target.value.trim()) {
-      // Hay hora de salida → habilitar regreso
-      hrEl.disabled = false;
-    } else if (!fila.dataset.salidaId) {
-      // Se borró la hora de salida y no hay salida guardada → volver a deshabilitar
-      hrEl.disabled = true;
-    }
-  });
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // Guardar salida (semáforo auto — sin enviar color al servidor)
-  // ══════════════════════════════════════════════════════════════════════════════
-
-  document.addEventListener('click', function (e) {
-    if (!e.target.closest('.btn-guardar')) return;
-    const fila = e.target.closest('tr.fila-alumno');
-    if (!fila) return;
-
+  function rebuildFila(fila) {
     const iid    = fila.dataset.iid;
-    const nombre = fila.dataset.nombre;
     const grado  = fila.dataset.grado;
-    const grupo  = fila.dataset.grupo;
+    const alumno = {
+      ingr_egr_id: parseInt(iid),
+      nombre:      fila.dataset.nombre,
+      grado:       grado,
+      grupo:       fila.dataset.grupo,
+    };
+    const tmp = document.createElement('tbody');
+    tmp.innerHTML = buildFila(alumno, grado);
+    const filaEl  = tmp.firstElementChild;
+    const tabla   = fila.closest('table');
+    const tablaId = tabla ? tabla.id : '';
+    const grpAct  = grupoActivo[tablaId] || '';
+    if (grpAct && filaEl.dataset.grupo !== grpAct) filaEl.style.display = 'none';
+    fila.replaceWith(filaEl);
+    return filaEl;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // Autoguardado de la SALIDA — <--- hecho por claude code: sin botón.
+  // Se guarda automáticamente al tener clase + hora de salida. El semáforo NO se
+  // colorea aquí; el alumno queda "Afuera" hasta que se registre su regreso.
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  function autoGuardarSalida(fila) {
+    if (!fila || fila.dataset.saving === '1') return;
+    if (fila.classList.contains('fila-bloqueada') || fila.classList.contains('fila-afuera')) return;
+    const sal0 = salidasHoy[fila.dataset.iid];
+    if (sal0 && sal0.abierta) return;   // ya está afuera: primero el regreso
 
     const claseEl = fila.querySelector('.clase-input');
-    const fechaEl = fila.querySelector('.fecha-input');
     const hsEl    = fila.querySelector('.hora-salida');
-    const hrEl    = fila.querySelector('.hora-regreso');
     const cmtEl   = fila.querySelector('.comentario-input');
+    if (!claseEl || !hsEl) return;
 
-    const clase        = claseEl ? claseEl.value.trim()  : '';
-    const hora_salida  = hsEl    ? hsEl.value.trim()      : '';
-    const hora_regreso = hrEl    ? hrEl.value.trim()      : '';
-    const comentario   = cmtEl   ? cmtEl.value.trim()     : '';
+    const clase       = claseEl.value.trim();
+    const hora_salida = hsEl.value.trim();
+    const comentario  = cmtEl ? cmtEl.value.trim() : '';
+    if (!clase || !hora_salida) return;              // esperar a que estén ambos
+    if (!SB.periodoId) { showToast('No hay período activo configurado.', 'danger'); return; }
 
-    if (!clase) {
-      showToast('Selecciona la clase / maestro.', 'warning'); return;
-    }
-    if (!hora_salida) {
-      showToast('Ingresa la hora de salida.', 'warning'); return;
-    }
-    if (!SB.periodoId) {
-      showToast('No hay período activo configurado.', 'danger'); return;
-    }
-
-    const btn = e.target.closest('.btn-guardar');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fila.dataset.saving = '1';
 
     fetch(SB.urlGuardar, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': SB.csrfToken },
       body: JSON.stringify({
         periodo_id:   SB.periodoId,
-        ingr_egr_id:  iid,
-        alumno:       nombre,
-        grado:        grado,
-        grupo:        grupo,
+        ingr_egr_id:  fila.dataset.iid,
+        alumno:       fila.dataset.nombre,
+        grado:        fila.dataset.grado,
+        grupo:        fila.dataset.grupo,
         area:         SB.area,
         clase:        clase,
         hora_salida:  hora_salida,
-        hora_regreso: hora_regreso,   // opcional — si viene vacío el server lo ignora
+        hora_regreso: '',
         comentario:   comentario,
       }),
     })
     .then(r => r.json())
     .then(d => {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
+      fila.dataset.saving = '';
+      if (!d.ok) { showToast(d.error || 'Error al guardar la salida.', 'danger'); return; }
 
-      if (d.ok) {
-        const newCount = d.count;
-        const newSem   = d.semaforo;
-
-        // Actualizar estado local
-        salidasHoy[iid] = {
-          count:             newCount,
-          semaforo:          newSem,
-          last_id:           d.id,
-          last_clase:        clase,
-          last_maestro:      d.maestro,
-          last_hora_salida:  d.hora_salida,
-          last_hora_regreso: d.hora_regreso || '',
-          last_comentario:   comentario,
-        };
-
-        fila.dataset.salidaId = d.id;
-        fila.dataset.count    = newCount;
-
-        // ¿Ahora queda bloqueado?
-        const ahora_bloqueado = newCount >= 3 && !esCoord;
-
-        // Actualizar celda de semáforo
-        fila.cells[1].innerHTML = buildSemInfo(newCount, ahora_bloqueado);
-
-        // Actualizar info de última salida bajo el nombre del alumno
-        let maestroDiv = fila.cells[0].querySelector('.maestro-display');
-        if (!maestroDiv) {
-          maestroDiv = document.createElement('div');
-          maestroDiv.className = 'text-muted maestro-display';
-          maestroDiv.style.fontSize = '.7rem';
-          fila.cells[0].appendChild(maestroDiv);
-        }
-        maestroDiv.innerHTML =
-          `<i class="ti ti-user me-1"></i>${escHtml(d.maestro)}`
-          + (d.hora_salida ? ` <span class="ms-1 text-muted">· ${escHtml(d.hora_salida)}</span>` : '');
-
-        // ── Limpiar formulario para el siguiente maestro ──────────────────────
-        if (claseEl) claseEl.value = '';
-        if (hsEl)    hsEl.value    = '';
-        if (cmtEl)   cmtEl.value   = '';
-        // Regreso: limpiar valor pero mantener habilitado (ya hay salidaId)
-        if (hrEl) {
-          hrEl.value    = '';
-          hrEl.disabled = false;
-        }
-
-        // Bloquear fila si llega a Negro y no es coordinador
-        if (ahora_bloqueado) {
-          fila.classList.add('fila-bloqueada');
-          const btnGuard = fila.querySelector('.btn-guardar');
-          if (btnGuard) {
-            btnGuard.disabled = true;
-            btnGuard.innerHTML = '<i class="ti ti-lock"></i>';
-            btnGuard.title = 'Alumno en Negro — solo coordinador';
-            btnGuard.classList.remove('btn-teal');
-            btnGuard.classList.add('btn-outline-secondary');
-          }
-        }
-
-        // Toast con mensaje apropiado
-        const cfg = SEM[newSem] || { icon: '', label: newSem };
-        let toastMsg  = `${cfg.icon} ${nombre} — ${cfg.label} registrado.`;
-        let toastTipo = 'success';
-        if (newSem === 'negro') {
-          toastMsg  = `⚫ ${nombre} — NEGRO. Coordinador notificado.`;
-          toastTipo = 'danger';
-          actualizarBadge(1);
-        } else if (newSem === 'rojo') {
-          toastTipo = 'warning';
-        }
-        showToast(toastMsg, toastTipo);
-
-      } else {
-        showToast(d.error || 'Error al guardar.', 'danger');
-      }
+      // El alumno queda AFUERA; el color se aplicará al registrar el regreso.
+      salidasHoy[fila.dataset.iid] = {
+        count:             d.count,
+        semaforo:          d.semaforo,
+        last_id:           d.id,
+        last_clase:        clase,
+        last_maestro:      d.maestro,
+        last_hora_salida:  d.hora_salida,
+        last_hora_regreso: '',
+        last_comentario:   comentario,
+        abierta:           true,
+      };
+      const filaEl = rebuildFila(fila);
+      showToast(`🚪 ${filaEl.dataset.nombre} salió — registrado. Marca el regreso al volver.`, 'info');
+      const hrEl = filaEl.querySelector('.hora-regreso');
+      if (hrEl) hrEl.focus();
     })
-    .catch(() => {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
-      showToast('Error de conexión.', 'danger');
-    });
+    .catch(() => { fila.dataset.saving = ''; showToast('Error de conexión.', 'danger'); });
+  }
+
+  // Disparadores del autoguardado de la salida: elegir clase o poner la hora.
+  document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('hora-salida') ||
+        e.target.classList.contains('clase-input')) {
+      autoGuardarSalida(e.target.closest('tr.fila-alumno'));
+    }
   });
 
   // ══════════════════════════════════════════════════════════════════════════════
@@ -509,6 +460,8 @@
     if (!salidaId) return;
     const hrVal = e.target.value.trim();
     if (!hrVal) return;
+    if (fila.dataset.saving === '1') return;
+    fila.dataset.saving = '1';
     const url = SB.urlRegresoBase.replace('{pk}', salidaId);
     fetch(url, {
       method:  'POST',
@@ -517,15 +470,22 @@
     })
     .then(r => r.json())
     .then(d => {
-      if (d.ok) {
-        const dur = d.duracion !== null ? ` (${d.duracion} min)` : '';
-        showToast(`⟵ ${fila.dataset.nombre} regresó${dur}`, 'info');
-        // Actualizar estado local
-        const sal = salidasHoy[fila.dataset.iid];
-        if (sal) sal.last_hora_regreso = hrVal;
-      }
+      fila.dataset.saving = '';
+      if (!d.ok) { showToast(d.error || 'Error al registrar el regreso.', 'danger'); return; }
+
+      // <--- hecho por claude code: el alumno regresó → AHORA se colorea el semáforo
+      const sal = salidasHoy[fila.dataset.iid];
+      if (sal) { sal.last_hora_regreso = hrVal; sal.abierta = false; }
+
+      const filaEl = rebuildFila(fila);   // reconstruye ya coloreado y listo para otra salida
+      const dur = (d.duracion !== null && d.duracion !== undefined) ? ` (${d.duracion} min)` : '';
+      const cfg = SEM[sal ? sal.semaforo : ''] || { icon: '', label: '' };
+      let tipo = 'success';
+      if (sal && sal.semaforo === 'negro') { tipo = 'danger'; actualizarBadge(1); }
+      else if (sal && sal.semaforo === 'rojo') { tipo = 'warning'; }
+      showToast(`⟵ ${filaEl.dataset.nombre} regresó — ${cfg.icon} ${cfg.label}${dur}`, tipo);
     })
-    .catch(() => {});
+    .catch(() => { fila.dataset.saving = ''; showToast('Error de conexión.', 'danger'); });
   });
 
   // ══════════════════════════════════════════════════════════════════════════════

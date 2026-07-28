@@ -1,0 +1,12 @@
+{# <--- hecho por claude code: mensajes de Django con el estilo del portal. Uso: {% include 'ui/messages.html' %} #}
+{% if messages %}
+<div class="tc-messages mb-3">
+  {% for msg in messages %}
+  <div class="tc-alert tc-alert--{{ msg.tags|default:'info' }}">
+    <i class="ti {% if 'success' in msg.tags %}ti-circle-check{% elif 'error' in msg.tags or 'danger' in msg.tags %}ti-alert-circle{% elif 'warning' in msg.tags %}ti-alert-triangle{% else %}ti-info-circle{% endif %}"></i>
+    <span>{{ msg }}</span>
+    <button type="button" class="tc-alert__close" onclick="this.parentElement.remove()"><i class="ti ti-x"></i></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

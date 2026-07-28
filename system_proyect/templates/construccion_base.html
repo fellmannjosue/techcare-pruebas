@@ -9,6 +9,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/construccion_base.css' %}">
+  {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
+  {% if True %}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {% endif %}
 </head>
 <body class="d-flex align-items-center justify-content-center p-3">
 
@@ -126,5 +131,8 @@
   </div>
 
   <script src="{% static 'accounts/js/construccion_base.js' %}?v=20"></script>
+{% if True %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+{% endif %}
 </body>
 </html>

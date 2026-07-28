@@ -2,7 +2,7 @@
 
 /* ===== Layout base ===== */
 body {
-  background-color: #eef2f7;
+  background-color: var(--ps-bg);
   font-family: 'Segoe UI', sans-serif;
   margin: 0;
   min-height: 100vh;
@@ -17,7 +17,7 @@ body {
 .sidebar .nav-link.active,
 .sidebar .nav-link:focus,
 .sidebar .nav-link:hover {
-  background: #0069d9;
+  background: var(--ps-marca);
   color: #fff !important;
   border-radius: 8px;
   font-weight: 600;
@@ -48,7 +48,7 @@ body {
 .sidebar .collapse .nav-link:focus,
 .sidebar .collapse .nav-link:hover {
   color: #fff !important;
-  background: #0069d9 !important;
+  background: var(--ps-marca) !important;
   font-weight: 600;
 }
 .sidebar .fa-angle-down {
@@ -66,13 +66,13 @@ body {
 
 /* ===== Extra: Mantén el hover igual para todo el sidebar ===== */
 .sidebar .nav-link:not(.active):hover {
-  background: #2357ad;
+  background: var(--ps-marca-2);
   color: #fff !important;
 }
 
 /* ===== Cards ===== */
 .card, .menu-item {
-  background: #fff;
+  background: var(--ps-surface);
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(60,60,100,0.10);
   cursor: pointer;
@@ -92,7 +92,7 @@ body {
 .card-title, .menu-item span, .menu-item .fw-bold {
   font-size: 1.08rem;
   font-weight: 600;
-  color: #2a2a36;
+  color: var(--ps-text);
   margin-top: 6px;
 }
 
@@ -135,7 +135,7 @@ body {
   padding: 16px 0 4px 0;
   color: #666;
   font-size: 14px;
-  background: #fff;
+  background: var(--ps-surface);
   border-top: 1px solid #eee;
   margin-top: auto;
 }
@@ -152,7 +152,7 @@ body {
 .dropdown-menu-dark .dropdown-item:active,
 .dropdown-menu-dark .dropdown-item:focus,
 .dropdown-menu-dark .dropdown-item:hover {
-  background-color: #0069d9;
+  background-color: var(--ps-marca);
   color: #fff;
 }
 .dropdown-divider {

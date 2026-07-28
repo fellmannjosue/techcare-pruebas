@@ -1116,6 +1116,8 @@ def _agendas_historial(usuario, areas):
             'docente': docente,
             'semana_inicio': a.semana_inicio,
             'semana_fin': a.semana_fin,
+            # <--- hecho por claude code: etiqueta para agrupar por semana en el historial
+            'semana_label': f"{a.semana_inicio:%d/%m/%Y} – {a.semana_fin:%d/%m/%Y}",
             'estado': a.get_estado_display(),
             'n_materias': llenas,
         })

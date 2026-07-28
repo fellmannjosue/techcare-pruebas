@@ -1,108 +1,24 @@
+{% extends 'base_app.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>{% block title %}Conducta – TechCare{% endblock %}</title>
-  <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
+{# <--- hecho por claude code: base del modulo Conducta sobre la base canonica base_app.html. #}
 
-  <!-- Tabler CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
-  <!-- Tabler Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <!-- CSS propio del módulo -->
+{% block title %}Conducta{% endblock %}
+
+{% block vendor_head %}
   <link rel="stylesheet" href="{% static 'conducta/css/base_conducta.css' %}">
-  {% block extra_head %}{% endblock %}
-  <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
-  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
-  <meta name="theme-color" content="#206bc4">
-  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-<script src="{% static 'conducta/js/base_conducta.js' %}?v=2"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
-</head>
+{% endblock %}
 
-<body class="antialiased">
-<div class="wrapper">
+{% block head_js %}
+  <script src="{% static 'conducta/js/base_conducta.js' %}?v=2"></script>
+{% endblock %}
 
-  <!-- ══════════════════ SIDEBAR ══════════════════ -->
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb breadcrumb-muted mb-1">
+    <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
+    <li class="breadcrumb-item active">{% block page_pretitle %}Conducta{% endblock %}</li>
+  </ol>
+</nav>
+{% endblock %}
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="navbar-brand">
-        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
-        </a>
-      </div>
-
-      <div class="collapse navbar-collapse" id="sidebar-menu">
-        {% include 'accounts/_sidebar.html' %}
-
-        {% include 'accounts/_user_dropdown.html' %}
-      </div>
-    </div>
-  </aside>
-  <!-- /SIDEBAR -->
-
-  <!-- ══════════════════ PAGE WRAPPER ══════════════════ -->
-  <div class="page-wrapper">
-
-    <div class="page-header d-print-none">
-      <div class="container-fluid">
-        <div class="row align-items-center">
-          <div class="col">
-            <nav aria-label="breadcrumb">
-              <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
-                <li class="breadcrumb-item active">{% block page_pretitle %}Conducta{% endblock %}</li>
-              </ol>
-            </nav>
-            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
-          </div>
-          <div class="col-auto ms-auto d-flex gap-2">
-            {% block page_actions %}{% endblock %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="page-body">
-      <div class="container-fluid">
-
-        {% if messages %}
-          {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible mb-3" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-
-        {% block content %}{% endblock %}
-
-      </div>
-    </div>
-
-    {% include "_footer.html" %}
-</div>
-  <!-- /PAGE WRAPPER -->
-
-</div>
-
-{% block modals %}{% endblock %}
-
-<!-- Tabler JS -->
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-{% block extra_js %}{% endblock %}
-{% include "accounts/_notif_notas_toast.html" %}
-{% include "accounts/_welcome_overlay.html" %}
-</body>
-</html>
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}

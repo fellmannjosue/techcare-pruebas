@@ -1,6 +1,6 @@
 /* ====== Caja principal del editor ====== */
 .editor-reporte-box {
-    background: #f9fafc;
+    background: var(--ps-surface);
     border-radius: 1.25rem;
     padding: 2.2rem 2rem 1.3rem 2rem;
     box-shadow: 0 4px 24px rgba(44,62,80,0.13);
@@ -11,7 +11,7 @@
 
 .editor-reporte-box h2 {
     margin-bottom: 1.3rem;
-    color: #2b4059;
+    color: var(--ps-text);
     font-weight: bold;
     letter-spacing: 0.04em;
 }
@@ -19,26 +19,26 @@
 .editor-reporte-box label,
 .editor-reporte-box .campo-label {
     font-weight: 600;
-    color: #234a60;
+    color: var(--ps-text);
 }
 
 .editor-reporte-box .campo-lectura {
-    background: #f2f5fa;
+    background: var(--ps-surface-2);
     border-radius: 8px;
     padding: 10px 14px;
     margin-bottom: 16px;
     font-size: 15px;
-    color: #343952;
-    border: 1px solid #e1e4ea;
+    color: var(--ps-text);
+    border: 1px solid var(--ps-border);
     min-height: 36px;
 }
 
 .editor-reporte-box input[readonly],
 .editor-reporte-box textarea[readonly],
 .editor-reporte-box select[disabled] {
-    background: #f2f5fa !important;
-    color: #818a98 !important;
-    border: 1px solid #e1e4ea;
+    background: var(--ps-surface-2) !important;
+    color: var(--ps-muted) !important;
+    border: 1px solid var(--ps-border);
 }
 
 .editor-reporte-box .form-control,
@@ -70,17 +70,17 @@
 .editor-reporte-box ul {
     padding-left: 1.1rem;
     font-size: 15px;
-    color: #3a3e47;
+    color: var(--ps-text);
 }
 
 .editor-reporte-box hr {
-    border-top: 1px solid #e1e4ea;
+    border-top: 1px solid var(--ps-border);
     margin: 18px 0 20px 0;
 }
 
 /* ==== Estilo para campo de firma/coordinador ==== */
 .editor-reporte-box .form-label {
     font-weight: 700;
-    color: #1a3047;
+    color: var(--ps-text);
     margin-bottom: 0.5rem;
 }

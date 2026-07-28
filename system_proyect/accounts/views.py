@@ -610,7 +610,7 @@ def menu_view(request):
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
         'show_agendas':        is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
         'show_directorio':     is_admin or is_coord_bilingue or is_coord_colegio,
-        'show_calculadoras':   is_admin or is_group_reloj,
+        'show_calculadoras':   is_admin,  # <--- hecho por claude code: Calculadoras solo superuser
 
         # Apps en construcción — solo superuser
         'show_atencion_padres': user.is_superuser,
@@ -625,8 +625,14 @@ def menu_view(request):
     context['show_welcome'] = show_welcome
     context['welcome_name']  = request.user.get_full_name() or request.user.username
 
-    # Superusuario: panel acordeón con subdashboards por módulo
+    # Superusuario: si eligió el portal nuevo, va a la SPA; si no, panel clásico.
     if user.is_superuser:
+        # <--- hecho por claude code: toggle Nueva/Clásica (perfil.prefer_new_ui)
+        try:
+            if user.perfil.prefer_new_ui:
+                return redirect('portal_super:app_spa')
+        except Exception:
+            pass
         return render(request, 'accounts/panel_super.html', {
             'grupos': _grupos_super_con_hrefs(),  # <--- hecho por claude code: hrefs resueltos para el acordeón
             'tickets_pendientes': tickets_pendientes,
@@ -666,11 +672,22 @@ GRUPOS_SUPER = [
      'cards': [
         {'t': 'Salidas al baño', 's': 'Control de salidas al baño', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
      ]},
-    {'key': 'reloj', 'titulo': 'Reloj y Sponsors', 'icon': 'ti-clock', 'color': '#f76707',
-     'desc': 'Asistencia y patrocinadores',
+    {'key': 'reloj', 'titulo': 'Reloj', 'icon': 'ti-clock', 'color': '#f76707',
+     'desc': 'Control de asistencia',
      'cards': [
         {'t': 'Reloj', 's': 'Control de asistencia', 'i': 'ti-clock', 'c': '#f76707', 'url': 'reloj_dashboard'},
+     ]},
+    # <--- hecho por claude code: Sponsors en su propio grupo (antes iba con Reloj)
+    {'key': 'sponsors', 'titulo': 'Sponsors', 'icon': 'ti-heart-handshake', 'color': '#d6336c',
+     'desc': 'Gestión de patrocinadores',
+     'cards': [
         {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:sponsors_dashboard'},
+     ]},
+    # <--- hecho por claude code: Calculadoras en su propio grupo (antes iba con Reloj)
+    {'key': 'calculadoras', 'titulo': 'Calculadoras', 'icon': 'ti-calculator', 'color': '#1098ad',
+     'desc': 'Herramientas de cálculo',
+     'cards': [
+        {'t': 'Calculadoras', 's': 'Herramientas de cálculo', 'i': 'ti-calculator', 'c': '#1098ad', 'url': 'calculadoras_dashboard'},
      ]},
     {'key': 'cfp', 'titulo': 'CFP', 'icon': 'ti-school', 'color': '#2fb344',
      'desc': 'Centro de Formación Profesional',

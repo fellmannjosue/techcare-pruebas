@@ -9,6 +9,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/seleccion_rol.css' %}">
+  {# <--- hecho por claude code: tema del portal (global, todo el sistema) #}
+  {% if True %}
+  <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {% endif %}
 </head>
 <body>
   <div class="rol-card card mx-3">
@@ -44,5 +49,8 @@
     </div>
   </div>
 {% include "accounts/_welcome_overlay.html" %}
+{% if True %}
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+{% endif %}
 </body>
 </html>

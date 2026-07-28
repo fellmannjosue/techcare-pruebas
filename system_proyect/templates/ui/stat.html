@@ -1,0 +1,9 @@
+{# <--- hecho por claude code: tarjeta de estadística. Params: icon label value hint color. #}
+<div class="tc-stat">
+  <span class="tc-stat__icon" style="--tc-stat-color: {{ color|default:'#6366f1' }};"><i class="ti {{ icon|default:'ti-chart-bar' }}"></i></span>
+  <div class="tc-stat__body">
+    <div class="tc-stat__label">{{ label }}</div>
+    <div class="tc-stat__value">{{ value }}</div>
+    {% if hint %}<div class="tc-stat__hint">{{ hint }}</div>{% endif %}
+  </div>
+</div>

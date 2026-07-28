@@ -1,71 +1,27 @@
+{% extends 'base_app.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>{% block title %}Calculadoras{% endblock %} – TechCare</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  {% block extra_head %}{% endblock %}
-  <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
-  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
-  <meta name="theme-color" content="#206bc4">
-  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-<script src="{% static 'calculadoras/js/base_calculadoras.js' %}?v=2"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
-</head>
-<body class="antialiased">
-<div class="wrapper">
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-calc">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="navbar-brand">
-        <a href="{% url 'calculadoras_dashboard' %}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
-        </a>
-      </div>
-      <div class="collapse navbar-collapse" id="sidebar-calc">
-        {% include 'accounts/_sidebar.html' %}
-        {% include 'accounts/_user_dropdown.html' %}
-      </div>
-    </div>
-  </aside>
-  <div class="page-wrapper">
-    <div class="page-header d-print-none">
-      <div class="container-fluid">
-        <div class="row g-2 align-items-center">
-          <div class="col">
-            <nav aria-label="breadcrumb">
-              <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item"><a href="{% url 'calculadoras_dashboard' %}"><i class="ti ti-calculator me-1"></i>Calculadoras</a></li>
-                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
-              </ol>
-            </nav>
-            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
-          </div>
-          {% block page_actions %}{% endblock %}
-        </div>
-      </div>
-    </div>
-    <div class="page-body">
-      <div class="container-fluid">
-        {% block content %}{% endblock %}
-      </div>
-    </div>
-    {% include "_footer.html" %}
-</div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-{% block extra_js %}{% endblock %}
-{% include "accounts/_welcome_overlay.html" %}
-</body>
-</html>
+{# <--- hecho por claude code: base del modulo Calculadoras sobre la base canonica base_app.html. #}
+
+{% block title %}Calculadoras{% endblock %}
+
+{% block vendor_head %}
+  <link rel="stylesheet" href="{% static 'calculadoras/css/calc.css' %}?v=1">
+{% endblock %}
+
+{% block head_js %}
+  <script src="{% static 'calculadoras/js/base_calculadoras.js' %}?v=2"></script>
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'calculadoras_dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver a Calculadoras</a>
+  <a href="{% url 'menu' %}" class="btn btn-outline-secondary"><i class="ti ti-home me-1"></i>Volver al Panel Principal</a>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb breadcrumb-muted mb-1">
+    <li class="breadcrumb-item"><a href="{% url 'calculadoras_dashboard' %}"><i class="ti ti-calculator me-1"></i>Calculadoras</a></li>
+    <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
+  </ol>
+</nav>
+{% endblock %}

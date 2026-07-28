@@ -1,11 +1,11 @@
 /* form_title.css – sponsors module */
 body {
-    background-color: #f8f9fa;
+    background-color: var(--ps-bg);
     padding: 20px;
 }
 .container {
     max-width: 800px;
-    background: #ffffff;
+    background: var(--ps-surface);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);

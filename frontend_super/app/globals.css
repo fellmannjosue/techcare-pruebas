@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/* <--- hecho por claude code: dark mode por CLASE (.dark) para el toggle manual,
+   no por prefers-color-scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Sistema de diseño del portal SuperUser ─────────────────────────────── */
+@theme {
+  /* Marca (indigo/azul TechCare) */
+  --color-marca-50:  #eef2ff;
+  --color-marca-100: #e0e7ff;
+  --color-marca-200: #c7d2fe;
+  --color-marca-300: #a5b4fc;
+  --color-marca-400: #818cf8;
+  --color-marca-500: #6366f1;
+  --color-marca-600: #4f46e5;
+  --color-marca-700: #4338ca;
+  --color-marca-800: #3730a3;
+  --color-marca-900: #312e81;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-xl2: 1rem;
+  --shadow-card: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+  --shadow-soft: 0 4px 24px -8px rgba(16,24,40,.12);
+}
+
+/* ── Variables semánticas claro/oscuro ───────────────────────────────────── */
+:root {
+  --bg:        #f7f8fc;
+  --surface:   #ffffff;
+  --surface-2: #f1f3f9;
+  --border:    #e5e8f0;
+  --text:      #0f172a;
+  --text-muted:#64748b;
+  --sidebar-bg:#0e1424;
+  --sidebar-fg:#c7cfe0;
+  --sidebar-fg-muted:#7f8aa3;
+  --sidebar-active:#1b2440;
+}
+:root.dark {
+  --bg:        #0b0f1a;
+  --surface:   #121826;
+  --surface-2: #0f1522;
+  --border:    #1e2740;
+  --text:      #e6eaf3;
+  --text-muted:#8b96ad;
+  --sidebar-bg:#080b14;
+  --sidebar-fg:#c7cfe0;
+  --sidebar-fg-muted:#6b7690;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar discreto */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+/* Clases utilitarias apoyadas en las variables (usables en React y en Django) */
+.tc-surface { background: var(--surface); border-color: var(--border); }
+.tc-bg      { background: var(--bg); }
+.tc-text    { color: var(--text); }
+.tc-muted   { color: var(--text-muted); }
+.tc-border  { border-color: var(--border); }
+.tc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl2);
+  box-shadow: var(--shadow-card);
+}
+
+/* Animaciones */
+@keyframes tc-fade-up { from { opacity:0; transform: translateY(8px);} to {opacity:1; transform:none;} }
+.tc-anim { animation: tc-fade-up .4s cubic-bezier(.16,1,.3,1) both; }
+@keyframes tc-shimmer { 100% { transform: translateX(100%); } }
+.tc-skeleton {
+  position: relative; overflow: hidden;
+  background: var(--surface-2); border-radius: .6rem;
+}
+.tc-skeleton::after {
+  content:""; position:absolute; inset:0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+  animation: tc-shimmer 1.4s infinite;
+}

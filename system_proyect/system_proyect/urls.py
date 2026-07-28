@@ -69,6 +69,8 @@ urlpatterns = [
     # 11) Inventario y Mantenimiento de Cámaras
     # ──────────────────────────────────────────────────────────────────────────
     path('inventario-camaras/', include(('inventario_camaras.urls', 'inventario_camaras'), namespace='inventario_camaras')),
+    # <--- hecho por claude code: portal nuevo del superusuario
+    path('portal/', include('portal_super.urls')),
 
     # Apps en construcción (solo superuser)
     path('atencion-padres/', include(('atencion_padres.urls', 'atencion_padres'), namespace='atencion_padres')),

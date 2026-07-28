@@ -19,7 +19,7 @@
 }
 
 .sin-tel {
-  color: #adb5bd;
+  color: var(--ps-muted);
   font-size: .8rem;
   font-style: italic;
 }

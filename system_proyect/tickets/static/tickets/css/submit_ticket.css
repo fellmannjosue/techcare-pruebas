@@ -3,16 +3,16 @@
   margin: 0 auto;
 }
 .dropzone-box {
-  border: 2px dashed #ced4da;
+  border: 2px dashed var(--ps-border);
   border-radius: 10px;
   padding: 2rem 1.5rem;
   text-align: center;
-  background: #f8f9fa;
+  background: var(--ps-surface-2);
   transition: border-color .2s, background .2s;
   cursor: default;
 }
 .dropzone-box.drag-over {
-  border-color: #206bc4;
+  border-color: var(--ps-marca);
   background: #e8f0fe;
 }
 .dropzone-box .dz-icon {
@@ -30,10 +30,10 @@
   align-items: center;
   gap: .75rem;
   padding: .6rem .85rem;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: var(--ps-surface);
+  border: 1px solid var(--ps-border);
   border-radius: 8px;
   margin-top: .6rem;
 }
-.file-preview-wrap .file-icon { font-size: 1.4rem; color: #206bc4; }
+.file-preview-wrap .file-icon { font-size: 1.4rem; color: var(--ps-marca); }
 .file-preview-wrap .file-name { font-size: .84rem; color: #495057; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,5 +1,5 @@
 .historial-container {
-    background: #fff;
+    background: var(--ps-surface);
     border-radius: 12px;
     box-shadow: 0 0 12px #0001;
     padding: 30px 25px 25px 25px;
@@ -11,8 +11,8 @@
     vertical-align: middle;
     font-size: 15px;
     letter-spacing: 1px;
-    color: #0c2746;
-    background: #eef2f7;
+    color: var(--ps-text);
+    background: var(--ps-surface-2);
 }
 
 .table td {
@@ -45,7 +45,7 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
     z-index: 1;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--ps-border);
     cursor: zoom-in;
 }
 

@@ -1,4 +1,4 @@
-.alumno-card:hover { background: #f8f9fa; }
+.alumno-card:hover { background: var(--ps-surface-2); }
 .grade-badge  { font-size: .72rem; }
 textarea.comentario-txt { resize: vertical; min-height: 60px; font-size: .85rem; }
 .saved-ok  { color: #2fb344; font-size: .8rem; }

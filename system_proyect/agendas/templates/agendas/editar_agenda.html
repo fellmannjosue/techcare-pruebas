@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Editar Agenda{% endblock %}
 {% block page_title %}Editar Agenda – {{ agenda.grado.nombre }}{% endblock %}
-{% block breadcrumb %}
+{% block crumbs %}
 <li class="breadcrumb-item"><a href="{% url 'agendas:historial_maestro' %}">Agendas</a></li>
 <li class="breadcrumb-item active">Editar – {{ agenda.grado.nombre }}</li>
 {% endblock %}

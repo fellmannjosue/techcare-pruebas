@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'cfp',
     'notas_parcial',
     'inventario_camaras',
+    'portal_super',   # <--- hecho por claude code: portal nuevo del superusuario (SPA + API)
 
     # Apps en construcción
     'atencion_padres',

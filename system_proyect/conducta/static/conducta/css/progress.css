@@ -1,14 +1,14 @@
 body {
-    background: #eaf1f8;
+    background: var(--ps-bg);
 }
 .form-container {
-    background: #fff;
+    background: var(--ps-surface);
     max-width: 950px;
     margin: 36px auto;
     border-radius: 18px;
     padding: 32px 36px;
     box-shadow: 0 2px 16px rgba(80,110,190,0.11);
-    border: 1px solid #e3e8f0;
+    border: 1px solid var(--ps-border);
 }
 .form-container h2 {
     font-weight: 700;
@@ -71,12 +71,12 @@ body {
     vertical-align: middle !important;
     font-size: 1rem;
     padding: 8px 12px;
-    border: 1px solid #dde6ee;
-    background: #fff;
+    border: 1px solid var(--ps-border);
+    background: var(--ps-surface);
 }
 .progress-table th, #tabla-materias th {
-    background: #f7fafd;
-    color: #2a4478;
+    background: var(--ps-surface-2);
+    color: var(--ps-text);
     font-weight: 700;
 }
 .progress-table td input[type="text"],

@@ -7,7 +7,7 @@
     padding: 25px;
     border-radius: 10px;
     margin-bottom: 30px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--ps-border);
 }
 .btn-toolbar {
     display: flex;

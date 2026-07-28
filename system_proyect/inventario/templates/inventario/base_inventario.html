@@ -1,95 +1,25 @@
+{% extends 'base_app.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>{% block title %}Inventario{% endblock %} – TechCare</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon"/>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
-  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-  <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet"/>
-  {% block extra_head %}{% endblock %}
-  <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
-  <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
-  <meta name="theme-color" content="#206bc4">
-  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
-<script src="{% static 'inventario/js/base_inventario.js' %}?v=2"></script>
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
-</head>
-<body class="antialiased">
-<div class="wrapper">
+{# <--- hecho por claude code: extiende la base canonica base_app.html; aporta solo lo del modulo (breadcrumb, boton volver, service worker). #}
 
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-inventario">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="navbar-brand">
-        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
-        </a>
-      </div>
-      <div class="collapse navbar-collapse" id="sidebar-inventario">
-        {% include 'accounts/_sidebar.html' %}
-        {% include 'accounts/_user_dropdown.html' %}
-      </div>
-    </div>
-  </aside>
+{% block title %}Inventario{% endblock %}
 
-  <div class="page-wrapper">
-    <div class="page-header d-print-none">
-      <div class="container-fluid">
-        <div class="row g-2 align-items-center">
-          <div class="col">
-            <nav aria-label="breadcrumb">
-              <ol class="breadcrumb breadcrumb-muted mb-1">
-                <li class="breadcrumb-item">
-                  <a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Dashboard</a>
-                </li>
-                <li class="breadcrumb-item">
-                  <a href="{% url 'inventario:dashboard' %}">Inventario</a>
-                </li>
-                <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
-              </ol>
-            </nav>
-            <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
-          </div>
-          <div class="col-auto ms-auto d-print-none">
-            <div class="btn-list">
-              {% block back_button %}
-              <a href="{% url 'panel_grupo' 'soporte' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
-                <i class="ti ti-arrow-left"></i> Volver al panel
-              </a>
-              {% endblock %}
-              {% block page_actions %}{% endblock %}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="page-body">
-      <div class="container-fluid">
-        {% block content %}{% endblock %}
-      </div>
-    </div>
-    {% include "_footer.html" %}
-</div>
-</div>
+{% block head_js %}
+  <script src="{% static 'inventario/js/base_inventario.js' %}?v=2"></script>
+{% endblock %}
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<script src="{% static 'js/dt_guard.js' %}?v=20"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-{% block extra_js %}{% endblock %}
-{% include "accounts/_notif_notas_toast.html" %}
-{% include "accounts/_welcome_overlay.html" %}
-</body>
-</html>
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb breadcrumb-muted mb-1">
+    <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'inventario:dashboard' %}">Inventario</a></li>
+    <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'panel_grupo' 'soporte' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+  <i class="ti ti-arrow-left"></i> Volver al panel
+</a>
+{% endblock %}

@@ -1,5 +1,5 @@
 body {
-  background-color: #eef2f7;
+  background-color: var(--ps-bg);
 }
 .sidebar {
   min-height: 100vh;
@@ -9,7 +9,7 @@ body {
 .sidebar .nav-link.active,
 .sidebar .nav-link:focus,
 .sidebar .nav-link:hover {
-  background: #0069d9;
+  background: var(--ps-marca);
   color: #fff !important;
   border-radius: 8px;
   font-weight: 600;
@@ -54,7 +54,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #fff;
+  background: var(--ps-surface);
   padding: 22px 0;
 }
 .card-dashboard:hover {
@@ -84,9 +84,9 @@ body {
 .footer {
   text-align: center;
   padding: 16px 0 4px 0;
-  color: #666;
+  color: var(--ps-muted);
   font-size: 14px;
-  background: #fff;
-  border-top: 1px solid #eee;
+  background: var(--ps-surface);
+  border-top: 1px solid var(--ps-border);
   margin-top: auto;
 }

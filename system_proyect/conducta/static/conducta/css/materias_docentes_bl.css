@@ -21,7 +21,7 @@
   font-size: .8rem;
   text-transform: uppercase;
   letter-spacing: .05em;
-  color: var(--tblr-muted, #6c757d);
+  color: var(--ps-muted);
 }
 
 /* ── Buscador responsive ── */

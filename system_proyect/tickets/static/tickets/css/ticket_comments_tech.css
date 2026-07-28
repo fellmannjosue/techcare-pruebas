@@ -3,24 +3,24 @@
   display: flex;
   height: calc(100vh - 185px);
   overflow: hidden;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--ps-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--ps-surface);
 }
 
 /* ── Left sidebar: ticket list ── */
 .ticket-sidebar {
   width: 290px;
   flex-shrink: 0;
-  border-right: 1px solid #e9ecef;
+  border-right: 1px solid var(--ps-border);
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--ps-surface);
   overflow: hidden;
 }
 .ticket-sidebar-header {
   padding: .75rem 1rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--ps-border);
   flex-shrink: 0;
 }
 .ticket-sidebar-list {
@@ -34,8 +34,8 @@
   text-decoration: none;
   transition: background .12s;
 }
-.ticket-item:hover { background: #f8f9fa; }
-.ticket-item.active { background: #e8f0fe; border-left: 3px solid #206bc4; }
+.ticket-item:hover { background: var(--ps-surface-2); }
+.ticket-item.active { background: #e8f0fe; border-left: 3px solid var(--ps-marca); }
 .ticket-item .ti-id {
   font-family: var(--bs-font-monospace, monospace);
   font-size: .75rem;
@@ -43,7 +43,7 @@
   font-weight: 600;
 }
 .ticket-item .ti-name { font-size: .82rem; color: #354052; margin-top: 2px; }
-.ticket-item .ti-desc { font-size: .74rem; color: #adb5bd; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-item .ti-desc { font-size: .74rem; color: var(--ps-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Right: chat panel ── */
 .ticket-chat-panel {
@@ -55,21 +55,21 @@
 }
 .chat-panel-header {
   padding: .85rem 1.25rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--ps-border);
   flex-shrink: 0;
-  background: #fff;
+  background: var(--ps-surface);
 }
 .chat-panel-status-bar {
   padding: .6rem 1.25rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--ps-border);
   flex-shrink: 0;
-  background: #fafbfc;
+  background: var(--ps-surface-2);
 }
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 1.25rem;
-  background: #f8fafc;
+  background: var(--ps-surface-2);
   scroll-behavior: smooth;
 }
 
@@ -81,36 +81,36 @@
   font-size: .75rem; font-weight: 700; text-transform: uppercase;
   flex-shrink: 0;
 }
-.chat-avatar.av-other { background: #e9ecef; color: #495057; }
-.chat-avatar.av-me    { background: #206bc4; color: #fff; }
+.chat-avatar.av-other { background: var(--ps-surface-2); color: #495057; }
+.chat-avatar.av-me    { background: var(--ps-marca); color: #fff; }
 .chat-bubble {
   display: inline-block; max-width: 480px;
   padding: .6rem 1rem; border-radius: 8px;
   font-size: .88rem; line-height: 1.55; word-break: break-word;
 }
-.bubble-other { background: #fff; border: 1px solid #e9ecef; color: #354052; border-radius: 0 8px 8px 8px; }
-.bubble-me    { background: #206bc4; color: #fff; border-radius: 8px 0 8px 8px; }
-.chat-item-meta { font-size: .73rem; color: #adb5bd; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
+.bubble-other { background: var(--ps-surface); border: 1px solid var(--ps-border); color: #354052; border-radius: 0 8px 8px 8px; }
+.bubble-me    { background: var(--ps-marca); color: #fff; border-radius: 8px 0 8px 8px; }
+.chat-item-meta { font-size: .73rem; color: var(--ps-muted); margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
 .chat-item-meta .meta-name { font-weight: 600; color: #495057; }
 .bubble-me-wrap .chat-item-meta { justify-content: flex-end; }
 
 /* ── Footer ── */
 .chat-footer {
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--ps-border);
   padding: .85rem 1.25rem;
-  background: #fff;
+  background: var(--ps-surface);
   flex-shrink: 0;
 }
 .chat-input {
   resize: none; overflow: hidden;
   min-height: 42px; max-height: 140px;
-  border-radius: 8px; border: 1px solid #ced4da;
+  border-radius: 8px; border: 1px solid var(--ps-border);
   padding: 9px 14px; font-size: .9rem; width: 100%; line-height: 1.5;
 }
-.chat-input:focus { outline: none; border-color: #206bc4; box-shadow: 0 0 0 3px rgba(32,107,196,.12); }
+.chat-input:focus { outline: none; border-color: var(--ps-marca); box-shadow: 0 0 0 3px rgba(32,107,196,.12); }
 .chat-empty-state {
   height: 100%; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; color: #adb5bd; gap: .5rem;
+  align-items: center; justify-content: center; color: var(--ps-muted); gap: .5rem;
 }
 
 /* Toast nuevo ticket */
@@ -123,7 +123,7 @@
 .chat-attach-thumb { width:40px; height:40px; object-fit:cover; border-radius:.35rem; }
 .chat-attach-fileicon { font-size:1.4rem; color:#475569; }
 .chat-attach-fname { font-size:.85rem; font-weight:600; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.chat-attach-size { font-size:.72rem; color:#94a3b8; }
+.chat-attach-size { font-size:.72rem; color:var(--ps-muted); }
 .chat-adjunto-img { max-width:200px; max-height:200px; border-radius:.5rem; display:block; margin-top:.35rem; cursor:pointer; }
 .chat-adjunto-img-link { display:inline-block; }
 .chat-adjunto-file { display:inline-flex; align-items:center; gap:.4rem; margin-top:.35rem; padding:.4rem .6rem; background:rgba(0,0,0,.06); border-radius:.5rem; text-decoration:none; color:inherit; font-size:.85rem; font-weight:600; }
@@ -135,7 +135,7 @@
   .ticket-panel-wrap { flex-direction: column; height: calc(100vh - 130px); }
   .ticket-sidebar {
     width: 100%; flex: 0 0 auto; max-height: 34%;
-    border-right: none; border-bottom: 1px solid #e9ecef;
+    border-right: none; border-bottom: 1px solid var(--ps-border);
   }
   .ticket-chat-panel { flex: 1 1 auto; min-height: 0; }
   .chat-panel-header,
