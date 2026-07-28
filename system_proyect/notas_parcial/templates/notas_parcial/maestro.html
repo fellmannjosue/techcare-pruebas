@@ -153,8 +153,8 @@
               {% for mat in a.materias %}
               <tr>
                 <td class="asig">{{ mat.nombre }}</td>
-                <td {% if mat.tarea|nota_baja %}class="nota-baja"{% endif %}>{{ mat.tarea|default:"" }}</td>
-                {% for val in mat.cuadros %}<td {% if val|nota_baja %}class="nota-baja"{% endif %}>{{ val|default:"" }}</td>{% endfor %}
+                <td {% if mat.tarea|nota_baja %}class="nota-baja"{% endif %}>{{ mat.tarea|floatformat:"0" }}</td>
+                {% for val in mat.cuadros %}<td {% if val|nota_baja %}class="nota-baja"{% endif %}>{{ val|floatformat:"0" }}</td>{% endfor %}
                 {% for _ in "1234567890" %}{% if forloop.counter > mat.cuadros|length %}<td></td>{% endif %}{% endfor %}
               </tr>
               {% endfor %}

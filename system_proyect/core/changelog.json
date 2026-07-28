@@ -1,6 +1,15 @@
 {
-  "version": "7.0.0.0",
+  "version": "7.0.0.0.001",
   "entradas": [
+    {
+      "version": "7.0.0.0.001",
+      "fecha": "2026-07-28",
+      "commit": "d4052fe",
+      "cambios": [
+        "fix(notas,reloj,panel): notas sin decimales, \"Tomado\" por permiso y colores del panel"
+      ],
+      "menor": true
+    },
     {
       "version": "7.0.0.0",
       "fecha": "2026-07-28",

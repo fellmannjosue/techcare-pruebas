@@ -88,11 +88,13 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - "Mis Reportes" (`maestro_notas`) muestra las asignaciones **del usuario**; un coordinador puede ver todas con `?todos=1`.
 - El "Revisado" del coordinador se guarda en `RevisionFinalizada` (mismo modelo que el "Finalizado" del maestro, con el coordinador como dueño).
 - PDF (`_dibujar_pagina`): un bloque por maestro, dos columnas automáticas y letra 9→6 pt según quepa. `simpleSplit` de reportlab **solo corta en espacios**, por eso `_envolver` parte también las palabras largas. Límite práctico: ~13 maestros por alumno.
+- Las notas se pintan **sin decimales**: pantalla con `floatformat:"0"`, PDF con `_nota_int` (`Decimal` + `ROUND_HALF_UP`, para que coincidan). Si cambias uno, cambia el otro. El rojo de nota baja (`nota_baja`, < 70) evalúa el valor **real**, no el redondeado.
 
 ## Datos legacy (sponsors)
 Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `managed = False`. **Revisa el esquema real antes de tocar los modelos**: hay una columna `decription` (typo en la BD), otra llamada `check` (palabra reservada), y `Sponsor.city` es NOT NULL.
 
 ## Gotchas
+- **Reloj · Control Compensatorio**: todos los tabs de `compensatorio_calculo_list` se rigen por el mismo permiso `calculo_comp` (`can_edit_extra` = `editar`). Los inputs del template deben ir con `{% if can_edit_extra %}`, no con `is_superuser`: el endpoint `compensatorio_mensual_cell` ya valida `calculo_comp:editar`, así que usar `is_superuser` en la plantilla dejaba la UI más restrictiva que el backend.
 - **Nunca** borrar/pisar `media/conducta/routing_bl.json` en pruebas: contiene la config real (alumnos, grupos, catálogo). Escribir solo vía la app o `sudo -u www-data`.
 - `git` en este repo se hace **directo a `main`** (flujo del proyecto). Rama principal = `main`.
 - Al terminar código: `manage.py check` verde y, si corresponde, reiniciar Apache.

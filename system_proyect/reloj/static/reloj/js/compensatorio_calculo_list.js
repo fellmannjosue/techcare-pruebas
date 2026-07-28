@@ -596,7 +596,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
 // ══════════════ Tab fusionado: Tiempo compensatorio general ══════════════
 if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
   const ANIO = window._PAGE.anio;
-  // Total = Σ trabajadas ; Tomado: solo superuser lo edita (si no, fijo del permiso) ; Saldo = Tr − To
+  // Total = Σ trabajadas ; Tomado: lo edita quien tenga Control Compensatorio→Editar (si no, fijo del permiso) ; Saldo = Tr − To
   function recompRow(tr, empId) {
     let st = 0, so = 0;
     tr.querySelectorAll('.cell-trab').forEach(i => st += parseFloat(i.value) || 0);
@@ -617,7 +617,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
       recompRow(this.closest('tr'), empId);
     });
   });
-  // To (tomado): editable solo superuser — el template solo pinta inputs para él
+  // To (tomado): editable con permiso calculo_comp:editar — el template solo pinta inputs si can_edit_extra
   document.querySelectorAll('.cell-tom').forEach(inp => {
     inp.addEventListener('change', async function () {
       const empId = this.dataset.emp, mes = this.dataset.mes;

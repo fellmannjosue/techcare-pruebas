@@ -647,7 +647,7 @@ def menu_view(request):
 
 # <--- hecho por claude code: panel del superusuario por 6 grupos
 GRUPOS_SUPER = [
-    {'key': 'soporte', 'titulo': 'Soporte y TI', 'icon': 'ti-headset', 'color': '#206bc4',
+    {'key': 'soporte', 'titulo': 'Soporte y TI', 'icon': 'ti-headset', 'color': '#00BFFF',
      'desc': 'Tickets, inventario y mantenimiento',
      'cards': [
         {'t': 'Sistema de Tickets', 's': 'Gestión de solicitudes', 'i': 'ti-ticket', 'c': '#206bc4', 'url': 'technician_dashboard'},
@@ -655,7 +655,7 @@ GRUPOS_SUPER = [
         {'t': 'Mantenimiento', 's': 'Reportes de mantenimiento', 'i': 'ti-tool', 'c': '#d63939', 'url': 'mantenimiento:maintenance_dashboard'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
      ]},
-    {'key': 'academico', 'titulo': 'Académico', 'icon': 'ti-school', 'color': '#0ca678',
+    {'key': 'academico', 'titulo': 'Académico', 'icon': 'ti-school', 'color': '#228B22',
      'desc': 'Coordinación, agendas, enfermería y notas',
      'cards': [
         {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
@@ -667,24 +667,24 @@ GRUPOS_SUPER = [
         {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado (todo en una hoja)', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
      ]},
     # <--- hecho por claude code: grupo propio para salidas (baño y, próximamente, permisos)
-    {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#0ca678',
+    {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#DC143C',
      'desc': 'Salidas al baño y con permisos',
      'cards': [
         {'t': 'Salidas al baño', 's': 'Control de salidas al baño', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
      ]},
-    {'key': 'reloj', 'titulo': 'Reloj', 'icon': 'ti-clock', 'color': '#f76707',
+    {'key': 'reloj', 'titulo': 'Reloj', 'icon': 'ti-clock', 'color': '#FF8C00',
      'desc': 'Control de asistencia',
      'cards': [
         {'t': 'Reloj', 's': 'Control de asistencia', 'i': 'ti-clock', 'c': '#f76707', 'url': 'reloj_dashboard'},
      ]},
     # <--- hecho por claude code: Sponsors en su propio grupo (antes iba con Reloj)
-    {'key': 'sponsors', 'titulo': 'Sponsors', 'icon': 'ti-heart-handshake', 'color': '#d6336c',
+    {'key': 'sponsors', 'titulo': 'Sponsors', 'icon': 'ti-heart-handshake', 'color': '#FF00FF',
      'desc': 'Gestión de patrocinadores',
      'cards': [
         {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:sponsors_dashboard'},
      ]},
     # <--- hecho por claude code: Calculadoras en su propio grupo (antes iba con Reloj)
-    {'key': 'calculadoras', 'titulo': 'Calculadoras', 'icon': 'ti-calculator', 'color': '#1098ad',
+    {'key': 'calculadoras', 'titulo': 'Calculadoras', 'icon': 'ti-calculator', 'color': '#000080',
      'desc': 'Herramientas de cálculo',
      'cards': [
         {'t': 'Calculadoras', 's': 'Herramientas de cálculo', 'i': 'ti-calculator', 'c': '#1098ad', 'url': 'calculadoras_dashboard'},
@@ -695,25 +695,25 @@ GRUPOS_SUPER = [
         {'t': 'Contabilidad CFP', 's': 'Talleres y cursos del CFP', 'i': 'ti-calculator', 'c': '#2fb344', 'url': 'cfp:dashboard'},
         {'t': 'Notas CFP', 's': 'Registro de notas por curso', 'i': 'ti-list-numbers', 'c': '#206bc4', 'url': 'cfp:notas_cursos'},
      ]},
-    {'key': 'monitoreo', 'titulo': 'Monitoreo', 'icon': 'ti-chart-histogram', 'color': '#d6336c',
+    {'key': 'monitoreo', 'titulo': 'Monitoreo', 'icon': 'ti-chart-histogram', 'color': '#C0C0C0',
      'desc': 'Auditoría y actividad del sistema',
      'cards': [
         {'t': 'Auditoría', 's': 'Cambios del sistema', 'i': 'ti-shield-check', 'c': '#206bc4', 'url': 'settings_auditoria'},
         {'t': 'Actividad', 's': 'Logs de actividad', 'i': 'ti-activity', 'c': '#0ca678', 'url': 'settings_actividad'},
      ]},
-    {'key': 'permisos', 'titulo': 'Permisos', 'icon': 'ti-shield-lock', 'color': '#7048e8',
+    {'key': 'permisos', 'titulo': 'Permisos', 'icon': 'ti-shield-lock', 'color': '#EE82EE',
      'desc': 'Accesos, coordinadores y desbloqueo de login',
      'cards': [
         {'t': 'Permisos Reloj', 's': 'Acceso por usuario', 'i': 'ti-clock-cog', 'c': '#f76707', 'url': 'settings_reloj_permisos'},
         {'t': 'Permisos Coordinadores', 's': 'Acceso coordinadores', 'i': 'ti-users-group', 'c': '#7048e8', 'url': 'settings_coord_permisos'},
         {'t': 'Desbloqueo de accesos', 's': 'Cuentas bloqueadas por login', 'i': 'ti-lock-open', 'c': '#2fb344', 'url': 'settings_desbloqueos'},
      ]},
-    {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#4263eb',
+    {'key': 'config', 'titulo': 'Configuración', 'icon': 'ti-settings', 'color': '#32CD32',
      'desc': 'Configuración de correos',
      'cards': [
         {'t': 'Correos', 's': 'Configuración de correos', 'i': 'ti-mail', 'c': '#d63939', 'url': 'settings_correos'},
      ]},
-    {'key': 'construccion', 'titulo': 'Modo Mantenimiento', 'icon': 'ti-tool', 'color': '#f59f00',
+    {'key': 'construccion', 'titulo': 'Modo Mantenimiento', 'icon': 'ti-tool', 'color': '#FFD700',
      'desc': 'Bloquear el sistema temporalmente',
      'cards': [
         {'t': 'Modo Mantenimiento', 's': 'Bloquear el sistema temporalmente', 'i': 'ti-tool', 'c': '#f59f00', 'url': 'mantenimiento_modo'},

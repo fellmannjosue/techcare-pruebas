@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.0.0.0 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.0.0.0.001 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,14 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.0.0.0.001 — Notas enteras, "Tomado" por permiso y colores del panel (release menor)
+
+> Release **menor**: las novedades solo se muestran al superusuario.
+
+- **Notas de Mitad de Parcial** — las notas se muestran **sin decimales** (`80.00` → `80`) tanto en las pantallas de **maestro** y **coordinador** como en el **PDF**. El redondeo del PDF (`_nota_int`) usa `ROUND_HALF_UP`, igual que `floatformat:"0"` en pantalla, para que ambos coincidan (`78.5` → `79`). El coloreado de nota baja (< 70) sigue evaluando el valor real, no el redondeado.
+- **Reloj · Control Compensatorio** — la columna **"Tomado" (To)** de la matriz mensual ahora es editable por cualquier usuario con el permiso *Control Compensatorio → Editar* (antes solo el superusuario la veía editable, aunque el endpoint ya aceptaba ese mismo permiso).
+- **Panel del superusuario** — paleta de colores de los 11 grupos personalizada (Soporte, Académico, Salidas, Reloj, Sponsors, Calculadoras, CFP, Monitoreo, Permisos, Configuración y Modo Mantenimiento).
 
 ### v7.0.0.0 — Nueva interfaz unificada, sidebar rediseñado y mejoras funcionales
 

@@ -3,6 +3,7 @@ import json
 import os
 from collections import OrderedDict
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP  # <--- hecho por claude code: redondeo de notas igual que floatformat
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -622,6 +623,17 @@ def _repartir_columnas(bloques, cap, n_cols, partir=False, separar=True):
     return cols, False
 
 
+def _nota_int(v):
+    # <--- hecho por claude code: nota entera para el PDF (80.0 -> 80); '' si None/vacío.
+    # <--- hecho por claude code: ROUND_HALF_UP para que el PDF redondee igual que floatformat:"0" en pantalla (78.5 -> 79)
+    if v is None or v == '':
+        return ''
+    try:
+        return str(Decimal(str(v)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    except (TypeError, ValueError, ArithmeticError):
+        return str(v)
+
+
 def _dibujar_tabla(pdf, materias, y_top):
     """Draw the grades table. Returns the Y position after the last row."""
     col_ws  = [_COL_ASIG, _COL_TAREAS] + [_COL_E] * _NUM_E
@@ -668,7 +680,7 @@ def _dibujar_tabla(pdf, materias, y_top):
                 pdf.setFillColor(colors.red if float(tareas) < 70 else colors.black)
             except (TypeError, ValueError):
                 pdf.setFillColor(colors.black)
-            pdf.drawCentredString(x + _COL_TAREAS * mm / 2, y - _ROW_H * mm + 2 * mm, str(tareas))
+            pdf.drawCentredString(x + _COL_TAREAS * mm / 2, y - _ROW_H * mm + 2 * mm, _nota_int(tareas))
             pdf.setFillColor(colors.black)
         x += _COL_TAREAS * mm
 
@@ -680,7 +692,7 @@ def _dibujar_tabla(pdf, materias, y_top):
                     pdf.setFillColor(colors.red if float(val) < 70 else colors.black)
                 except (TypeError, ValueError):
                     pdf.setFillColor(colors.black)
-                pdf.drawCentredString(x + _COL_E * mm / 2, y - _ROW_H * mm + 2 * mm, str(val))
+                pdf.drawCentredString(x + _COL_E * mm / 2, y - _ROW_H * mm + 2 * mm, _nota_int(val))
                 pdf.setFillColor(colors.black)
             x += _COL_E * mm
 

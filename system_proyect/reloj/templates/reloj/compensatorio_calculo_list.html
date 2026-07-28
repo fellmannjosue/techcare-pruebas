@@ -232,7 +232,8 @@
           <td><div class="fw-semibold">{{ row.emp.nombre_empleado }}</div><div class="text-muted" style="font-size:.72rem;">{{ row.emp.emp_code }}</div></td>
           {% for mes, trab, tom, tomp in row.meses %}
           <td class="p-0 mes-sep">{% if can_edit_extra %}<input type="number" step="0.01" min="0" class="form-control form-control-sm text-center cell-trab border-0 mc-inp" data-emp="{{ row.emp.pk }}" data-mes="{{ mes }}" value="{% if trab %}{{ trab|unlocalize }}{% endif %}">{% else %}<span>{% if trab %}{{ trab|floatformat:'-2' }}{% endif %}</span>{% endif %}</td>
-          <td class="text-center mc-tom" style="background:#fdf2f8;">{% if request.user.is_superuser %}<input type="number" step="0.01" min="0" class="form-control form-control-sm text-center cell-tom border-0 mc-inp" style="background:transparent;" data-emp="{{ row.emp.pk }}" data-mes="{{ mes }}" data-permiso="{{ tomp|unlocalize }}" value="{% if tom %}{{ tom|unlocalize }}{% endif %}">{% elif tom %}{{ tom|floatformat:'-2' }}{% else %}<span class="text-muted">·</span>{% endif %}</td>
+          {# <--- hecho por claude code: editar "Tomado" (TO) sigue el permiso Control Compensatorio→Editar (antes solo superuser) #}
+          <td class="text-center mc-tom" style="background:#fdf2f8;">{% if can_edit_extra %}<input type="number" step="0.01" min="0" class="form-control form-control-sm text-center cell-tom border-0 mc-inp" style="background:transparent;" data-emp="{{ row.emp.pk }}" data-mes="{{ mes }}" data-permiso="{{ tomp|unlocalize }}" value="{% if tom %}{{ tom|unlocalize }}{% endif %}">{% elif tom %}{{ tom|floatformat:'-2' }}{% else %}<span class="text-muted">·</span>{% endif %}</td>
           {% endfor %}
           <td class="text-center fw-semibold mtot-trab-{{ row.emp.pk }} mes-sep">{{ row.total_trab|floatformat:'-2' }}</td>
           <td class="text-center fw-semibold mtot-tomado-{{ row.emp.pk }}">{{ row.total_tom|floatformat:'-2' }}</td>
