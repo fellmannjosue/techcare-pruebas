@@ -1,65 +1,154 @@
-{% load static %}
 {% load cfp_extras %}
+{# <--- hecho por claude code: réplica del formulario oficial del INFOP (papel legal) #}
+{# <--- hecho por claude code: aquí NO va un link al CSS: WeasyPrint recibe este HTML #}
+{# <--- hecho por claude code: como string y no resuelve /static/; la vista pasa la hoja en `stylesheets`. #}
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8">
-<link rel="stylesheet" href="{% static 'cfp/css/informe_pdf.css' %}?v=1">
-</head>
+<html lang="es"><head><meta charset="utf-8"></head>
 <body>
-  <h1>INFORME CONTABLE</h1>
+<div class="hoja">
+
+  {# ── Encabezado institucional ── #}
+  <table class="encabezado">
+    <tr>
+      <td class="enc-infop">
+        Instituto Nacional de Formación Profesional<br>
+        Unidad de Centros Colaboradores
+      </td>
+      <td class="enc-centro">
+        Centro de Formación Profesional<br>
+        Nuevo Amanecer
+      </td>
+      <td class="enc-logo">
+        {% if logo_url %}<img src="{{ logo_url }}" alt="">{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="titulo">INFORME CONTABLE</div>
   <div class="sec">1. DATOS GENERALES</div>
+
+  {# ── Datos generales: etiqueta + línea de llenado ── #}
   <table class="dg">
-    <tr><td class="lbl" style="width:18%">Nombre de la Entidad:</td><td class="val" style="width:40%">Asociación Nuevo Amanecer</td>
-        <td class="lbl" style="width:12%">Localidad:</td><td class="val">{{ inf.localidad }}</td></tr>
-    <tr><td class="lbl">Nombre del Curso:</td><td class="val">{{ ej.nombre_curso }}</td>
-        <td class="lbl">No. de Contrato:</td><td class="val">{{ ej.no_contrato }}</td></tr>
-    <tr><td class="lbl">Dirección del curso:</td><td class="val">{{ inf.direccion }}</td>
-        <td class="lbl">Participantes Egresados:</td><td class="val">{{ inf.egresados }}</td></tr>
-    <tr><td class="lbl">Fecha de inicio:</td><td class="val">{{ inf.fecha_inicio|date:'d/m/Y' }}</td>
-        <td class="lbl">Fecha de finalización:</td><td class="val">{{ inf.fecha_fin|date:'d/m/Y' }}</td></tr>
-    <tr><td class="lbl">Convenio:</td><td class="val">{{ inf.convenio }}</td>
-        <td class="lbl">Horario:</td><td class="val">{{ inf.horario|default:ej.horario }}</td></tr>
-    <tr><td class="lbl">Instructor Responsable:</td><td class="val">{{ inf.instructor }}</td>
-        <td class="lbl">No. del Curso:</td><td class="val">{{ ej.no_curso }}</td></tr>
-    <tr><td class="lbl">Regional:</td><td class="val">{{ inf.regional }}</td>
-        <td class="lbl">Centro Programa - Proyecto:</td><td class="val">{{ inf.centro_programa }}</td></tr>
+    <tr>
+      <td class="lbl w-ent">Nombre de la Entidad/ Centro</td>
+      <td class="val">Asociación Nuevo Amanecer</td>
+      <td class="lbl w-loc">Localidad:</td>
+      <td class="val">{{ inf.localidad }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Nombre del Curso:</td>
+      <td class="val">{{ ej.nombre_curso }}</td>
+      <td class="lbl">No. de Contrato:</td>
+      <td class="val">{{ ej.no_contrato }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Dirección del curso:</td>
+      <td class="val">{{ inf.direccion }}</td>
+      <td class="lbl">Participantes Egresados:</td>
+      <td class="val center">{{ inf.egresados }}</td>
+    </tr>
   </table>
 
-  <div class="sec center" style="margin-top:10px;">DETALLE DE LAS CUENTAS</div>
+  <table class="dg">
+    <tr>
+      <td class="lbl w-fi">Fecha de inicio:</td>
+      <td class="val">{{ inf.fecha_inicio|date:'j-M-y' }}</td>
+      <td class="lbl w-ff">Fecha de finalización:</td>
+      <td class="val">{{ inf.fecha_fin|date:'j-M-y' }}</td>
+      <td class="lbl w-cv">Convenio:</td>
+      <td class="val center">{{ inf.convenio }}</td>
+    </tr>
+  </table>
+
+  <table class="dg">
+    <tr>
+      <td class="lbl w-instr">Instructor Responsable del curso:</td>
+      <td class="val">{{ inf.instructor }}</td>
+    </tr>
+  </table>
+
+  {# ── Fila de códigos: No. del curso + casillas de dígitos ── #}
+  <table class="dg codigos">
+    <tr>
+      <td class="lbl w-nc">No del Curso:</td>
+      <td class="val w-ncv">{{ ej.no_curso }}</td>
+      <td class="lbl caps">REGIONAL:</td>
+      <td class="cajas">{% for c in inf.regional %}<span class="caja">{{ c }}</span>{% endfor %}</td>
+      <td class="lbl caps">CENTRO PROGRAMA - PROYECTO:</td>
+      <td class="cajas">{% for c in inf.centro_programa %}<span class="caja">{{ c }}</span>{% endfor %}</td>
+    </tr>
+  </table>
+  <div class="horario">{{ inf.horario|default:ej.horario }}</div>
+
+  <div class="titulo-detalle">DETALLE&nbsp;&nbsp;DE&nbsp;&nbsp;LAS&nbsp;&nbsp;CUENTAS</div>
+
+  {# ── Cuerpo contable: 3 columnas (concepto · parciales · totales) ── #}
   <table class="cuentas">
-    <tr class="hl"><td class="grp">INGRESOS</td><td class="num"></td></tr>
-    <tr><td class="item">Valor del Curso según contrato:</td><td class="num">{{ ej.monto_contrato|money }}</td></tr>
-    <tr><td class="item">(−) Pérdida por deserción:</td><td class="num">{{ ej.perdida|money }}</td></tr>
-    <tr><td class="item"><b>Ingreso Neto:</b></td><td class="num"><b>{{ ej.costo_real|money }}</b></td></tr>
+    <colgroup><col class="c-desc"><col class="c-sub"><col class="c-tot"></colgroup>
 
-    <tr class="hl"><td class="grp">EGRESOS</td><td class="num"></td></tr>
+    <tr class="cab"><td class="center">INGRESOS</td><td></td><td></td></tr>
+    <tr>
+      <td class="item">Valor del Curso según contrato:</td>
+      <td></td><td class="num">{{ ej.monto_contrato|money }}</td>
+    </tr>
+    <tr class="espacio"><td></td><td></td><td></td></tr>
+    <tr>
+      <td class="item">(-) Perdida por deserción:</td>
+      <td></td><td class="num">{{ ej.perdida|money_c }}</td>
+    </tr>
+    <tr>
+      <td class="item">Ingreso Neto:</td>
+      <td></td><td class="num">{{ ej.costo_real|money }}</td>
+    </tr>
+
+    <tr class="cab-egresos"><td class="center">EGRESOS</td><td></td><td></td></tr>
+
     {% for g in grupos %}
-    <tr><td class="grp">{{ g.label }}</td><td class="num"></td></tr>
-    {% for f in g.filas %}
-    <tr><td class="item">{{ f.label }}</td><td class="num">{% if f.valor %}{{ f.valor|money }}{% endif %}</td></tr>
+    <tr><td class="grupo"><span class="grupo-txt">{{ g.label }}</span></td><td></td><td></td></tr>
+      {% for f in g.filas %}
+      <tr>
+        <td class="item linea">{{ f.label }}</td>
+        <td class="num">{% if f.valor %}{{ f.valor|money }}{% endif %}</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    <tr><td></td><td class="sub">{{ g.subtotal|money_c }}</td><td></td></tr>
     {% endfor %}
-    <tr><td></td><td class="sub">{{ g.subtotal|money }}</td></tr>
-    {% endfor %}
 
-    <tr class="tot"><td>Total Egresos</td><td class="num">{{ inf.total_egresos|money }}</td></tr>
-    <tr class="tot util"><td>Utilidad (Ingresos menos Total Egresos)</td>
-        <td class="num {% if inf.utilidad < 0 %}neg{% endif %}">{{ inf.utilidad|money }}</td></tr>
+    <tr class="total">
+      <td class="der">Total Egresos</td>
+      <td></td><td class="num">{{ inf.total_egresos|money }}</td>
+    </tr>
+    <tr class="total utilidad">
+      <td>Utilidad (Ingresos menos Total Egresos)</td>
+      <td></td>
+      <td class="num {% if inf.utilidad < 0 %}neg{% endif %}">{{ inf.utilidad|money }}</td>
+    </tr>
   </table>
 
-  {# ── Cierre: lugar/fecha, firmas y notas ── #}
-  <table class="dg" style="margin-top:22px;">
-    <tr><td class="lbl" style="width:14%">Lugar y fecha:</td>
-        <td class="val">{{ lugar_fecha_str }}</td></tr>
+  {# ── Cierre: lugar/fecha, firmas y nota ── #}
+  <table class="dg cierre">
+    <tr>
+      <td class="lbl w-lug">Lugar y fecha</td>
+      <td class="val">{{ lugar_fecha_str }}</td>
+    </tr>
   </table>
 
-  <table class="dg" style="margin-top:18px;">
-    <tr><td class="lbl" style="width:48%">Firma y sello del contador del centro:</td>
-        <td class="val">&nbsp;</td></tr>
-    <tr><td class="lbl" style="padding-top:14px;">Firma y sello del responsable del centro:</td>
-        <td class="val" style="padding-top:14px;">&nbsp;</td></tr>
+  <table class="dg firmas">
+    <tr>
+      <td class="lbl w-fir">Firma y sello del contador del centro:</td>
+      <td class="val">&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="lbl">Firma y sello del responsable del centro:</td>
+      <td class="val">&nbsp;</td>
+    </tr>
   </table>
 
-  <div style="margin-top:16px; font-size:9.5px; line-height:1.5;">
-    <b>Nota:</b> todos los gastos adicionales para la ejecución de este curso son asumidos por la Asociación.<br>
-    Hasta este momento no se ha recibido por parte del Convenio ningún desembolso, se está trabajando con fondos prestados.
+  <div class="nota">
+    <b>Nota:</b> todos los gastos adicionales para la ejecución de este curso son asumidos por la Asociación
+    hasta este momento no se ha recibido por parte del Convenio ningun desembolso, se está trabajando con fondos prestados
   </div>
+
+</div>
 </body></html>
