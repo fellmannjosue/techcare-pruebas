@@ -24,6 +24,7 @@ from django.contrib.auth import get_user_model
 
 from django.core.mail import send_mail
 from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada
+from . import pdf_emoji  # <--- hecho por claude code: emojis a color en el PDF de comentarios
 
 User = get_user_model()
 
@@ -531,9 +532,11 @@ def _cargar_comentarios(alumnos, parcial, anio, area):
 
 def _cortar_palabra(palabra, fuente, size, ancho):
     """Parte una 'palabra' sin espacios que no cabe en el ancho dado."""
+    # <--- hecho por claude code: se recorre por UNIDADES (un emoji completo cuenta
+    # como una) para no partir una bandera o una familia con ZWJ a la mitad.
     trozos, actual = [], ''
-    for ch in palabra:
-        if not actual or stringWidth(actual + ch, fuente, size) <= ancho:
+    for ch in pdf_emoji.unidades(palabra):
+        if not actual or pdf_emoji.ancho(actual + ch, fuente, size) <= ancho:
             actual += ch
         else:
             trozos.append(actual)
@@ -547,12 +550,30 @@ def _envolver(texto, fuente, size, ancho):
     """<--- hecho por claude code: como simpleSplit, pero además parte las palabras
     larguísimas sin espacios. simpleSplit solo corta en espacios, así que un texto
     tipo 'aaaaaa...' de 200 letras se salía de la hoja."""
-    lineas = []
-    for linea in (simpleSplit(texto, fuente, size, ancho) or []):
-        if stringWidth(linea, fuente, size) <= ancho:
-            lineas.append(linea)
+    if not pdf_emoji.hay_emoji(texto):
+        lineas = []
+        for linea in (simpleSplit(texto, fuente, size, ancho) or []):
+            if stringWidth(linea, fuente, size) <= ancho:
+                lineas.append(linea)
+            else:
+                lineas.extend(_cortar_palabra(linea, fuente, size, ancho))
+        return lineas
+    # <--- hecho por claude code: con emojis simpleSplit no sirve (mide con stringWidth,
+    # que no conoce el ancho del emoji y devolvería renglones desbordados): ajuste propio.
+    lineas, actual = [], ''
+    for palabra in (texto or '').split():
+        cand = (actual + ' ' + palabra).strip()
+        if not actual or pdf_emoji.ancho(cand, fuente, size) <= ancho:
+            actual = cand
         else:
-            lineas.extend(_cortar_palabra(linea, fuente, size, ancho))
+            lineas.append(actual)
+            actual = palabra
+        if pdf_emoji.ancho(actual, fuente, size) > ancho:   # palabra sola muy larga
+            trozos = _cortar_palabra(actual, fuente, size, ancho)
+            lineas.extend(trozos[:-1])
+            actual = trozos[-1] if trozos else ''
+    if actual:
+        lineas.append(actual)
     return lineas
 
 
@@ -571,13 +592,13 @@ def _bloques_comentarios(comentarios, size, ancho, sangria):
         # <--- hecho por claude code: el nombre va EN LÍNEA con el comentario. Antes
         # ocupaba un renglón entero para él solo y con 11-12 maestros no cabía todo.
         prefijo = f'{nombre}: '
-        ancho_pref = stringWidth(prefijo, 'Helvetica-Bold', size)
+        ancho_pref = pdf_emoji.ancho(prefijo, 'Helvetica-Bold', size)
         palabras = texto.split()
         primera, resto = '', []
         disponible = ancho - ancho_pref
         while palabras:
             cand = (primera + ' ' + palabras[0]).strip()
-            if stringWidth(cand, 'Helvetica', size) <= disponible:
+            if pdf_emoji.ancho(cand, 'Helvetica', size) <= disponible:
                 primera = cand
                 palabras.pop(0)
             else:
@@ -825,13 +846,10 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
                 if fuente == 'MIXTO':
                     # <--- hecho por claude code: nombre en negrita + comentario seguido
                     nombre, resto = txt
-                    pdf.setFont('Helvetica-Bold', size)
-                    pdf.drawString(x, y, nombre)
-                    pdf.setFont('Helvetica', size)
-                    pdf.drawString(x + stringWidth(nombre, 'Helvetica-Bold', size), y, resto)
+                    x_resto = pdf_emoji.dibujar(pdf, x, y, nombre, 'Helvetica-Bold', size)
+                    pdf_emoji.dibujar(pdf, x_resto, y, resto, 'Helvetica', size)
                 else:
-                    pdf.setFont(fuente, size)
-                    pdf.drawString(x, y, txt)
+                    pdf_emoji.dibujar(pdf, x, y, txt, fuente, size)
             y_min = min(y_min, y)
     y_com = y_min - interlin
 
