@@ -617,6 +617,10 @@ def menu_view(request):
         'show_salidas_bano':    user.is_superuser or user.groups.filter(
                                     name__in=['control baño coord', 'control baños col']
                                 ).exists(),
+        # <--- hecho por claude code: Salidas Baño CFP con sus propios grupos
+        'show_salidas_bano_cfp': user.is_superuser or user.groups.filter(
+                                    name__in=['control baño coord cfp', 'control baños cfp']
+                                ).exists(),
         'show_camaras':         user.is_superuser,
     }
 
@@ -670,7 +674,9 @@ GRUPOS_SUPER = [
     {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#DC143C',
      'desc': 'Salidas al baño y con permisos',
      'cards': [
-        {'t': 'Salidas al baño', 's': 'Control de salidas al baño', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
+        {'t': 'Salidas al baño · Colegio', 's': 'Colegio y Bachillerato', 'i': 'ti-door-exit', 'c': '#0ca678', 'url': 'salidas_bano:index'},
+        # <--- hecho por claude code: misma pantalla, participantes de CFP por curso
+        {'t': 'Salidas al baño · CFP', 's': 'Centro de Formación Profesional', 'i': 'ti-door-exit', 'c': '#f76707', 'url': 'salidas_bano:index_cfp'},
      ]},
     {'key': 'reloj', 'titulo': 'Reloj', 'icon': 'ti-clock', 'color': '#FF8C00',
      'desc': 'Control de asistencia',
@@ -2193,6 +2199,7 @@ def settings_correos(request):
         ('notas_parcial_col',  'Notas Parcial Colegio',     'ti-book text-teal'),
         ('salidas_negro_col',  'Salidas ⚫ Colegio',        'ti-door-exit text-dark'),
         ('salidas_negro_bach', 'Salidas ⚫ Bachillerato',   'ti-door-exit text-secondary'),
+        ('salidas_negro_cfp',  'Salidas ⚫ CFP',            'ti-door-exit text-orange'),
         ('enfermeria',         'Enfermería',                'ti-stethoscope text-red'),
         ('tickets',            'Tickets Soporte',           'ti-ticket text-purple'),
     ]
@@ -2274,6 +2281,7 @@ def settings_correos(request):
             'user':        u,
             'negro_col':   getattr(d, 'salidas_negro_col',  False) if d else False,
             'negro_bach':  getattr(d, 'salidas_negro_bach', False) if d else False,
+            'negro_cfp':   getattr(d, 'salidas_negro_cfp',  False) if d else False,  # <--- hecho por claude code
         })
 
     ctx = _settings_ctx(request, 'correos')
@@ -2321,7 +2329,7 @@ def settings_correos_notif_toggle(request):
         CAMPOS_VALIDOS = {
             'conducta_bl', 'conducta_col', 'progress_bl',
             'notas_parcial_bl', 'notas_parcial_col',
-            'salidas_negro_col', 'salidas_negro_bach',
+            'salidas_negro_col', 'salidas_negro_bach', 'salidas_negro_cfp',
             'enfermeria', 'tickets',
         }
         if campo not in CAMPOS_VALIDOS:

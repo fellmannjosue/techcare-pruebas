@@ -780,6 +780,17 @@
                     Alerta negra bachillerato
                   </span>
                 </label>
+                {# <--- hecho por claude code: destinatario de la alerta negra de CFP #}
+                <label class="d-flex align-items-center gap-2 cursor-pointer">
+                  <input type="checkbox" class="form-check-input notif-toggle"
+                         data-user="{{ item.user.pk }}"
+                         data-campo="salidas_negro_cfp"
+                         {% if item.negro_cfp %}checked{% endif %}>
+                  <span class="small">
+                    <span class="badge bg-orange-lt text-orange me-1" style="font-size:.62rem;">CFP</span>
+                    Alerta negra CFP
+                  </span>
+                </label>
               </div>
             </div>
           </div>

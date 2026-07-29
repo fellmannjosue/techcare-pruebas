@@ -37,7 +37,9 @@
       <li class="nav-item"><a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span><span class="nav-link-title">Enfermería</span></a></li>
       <li class="nav-item"><a class="nav-link" href="{% url 'directorio_telefonos' %}"><span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span><span class="nav-link-title">Directorio</span></a></li>
       <li class="nav-item"><a class="nav-link" href="{% url 'notas_parcial_index' %}"><span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span><span class="nav-link-title">Notas Mitad de Parcial</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span><span class="nav-link-title">Salidas Baño</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span><span class="nav-link-title">Salidas Baño · Colegio</span></a></li>
+      {# <--- hecho por claude code: Salidas Baño de CFP (participantes por curso) #}
+      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index_cfp' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-orange"></i></span><span class="nav-link-title">Salidas Baño · CFP</span></a></li>
     </ul>
   </li>
 
@@ -631,7 +633,16 @@
   <li class="nav-item">
     <a class="nav-link" href="{% url 'salidas_bano:index' %}">
       <span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span>
-      <span class="nav-link-title">Salidas Baño</span>
+      <span class="nav-link-title">Salidas Baño · Colegio</span>
+    </a>
+  </li>
+  {% endif %}
+  {# <--- hecho por claude code: Salidas Baño de CFP, con sus propios grupos de acceso #}
+  {% if nav_salidas_bano_cfp %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'salidas_bano:index_cfp' %}">
+      <span class="nav-link-icon"><i class="ti ti-door-exit text-orange"></i></span>
+      <span class="nav-link-title">Salidas Baño · CFP</span>
     </a>
   </li>
   {% endif %}

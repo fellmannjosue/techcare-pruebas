@@ -50,6 +50,90 @@ GRADO_DISPLAY = {
     },
 }
 
+# ── Ámbitos: dos pantallas independientes sobre el mismo módulo ──────────────
+# <--- hecho por claude code: el Colegio (7mo-11vo) y el CFP comparten sistema
+# (semáforo, notificaciones, historial) pero NO comparten alumnos ni permisos.
+# En CFP el eje no es el grado sino el CURSO, y la llave del alumno es PersonaID.
+AMBITOS = {
+    'colegio': {
+        'label':       'Colegio',
+        'areas':       [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')],
+        'grp_maestro': 'control baños col',
+        'grp_coord':   'control baño coord',
+        'label_grado': 'Grado',
+        'label_grupo': 'Grupo',
+        'url_name':    'salidas_bano:index',
+    },
+    'cfp': {
+        'label':       'CFP',
+        'areas':       [('cfp', 'CFP')],
+        'grp_maestro': 'control baños cfp',
+        'grp_coord':   'control baño coord cfp',
+        'label_grado': 'Curso',
+        'label_grupo': 'Jornada',
+        'url_name':    'salidas_bano:index_cfp',
+    },
+}
+
+
+def _ambito_de_area(area):
+    """El área dice a qué pantalla pertenece un registro."""
+    return 'cfp' if area == 'cfp' else 'colegio'
+
+
+def _alumnos_cfp():
+    """Participantes de CFP desde SQL Server, con el MISMO shape que los del colegio.
+
+    Sale de la misma BD (`padres_sqlserver`) que usa Notas CFP, pero por curso:
+    la llave es PersonaID y el 'grado' es el curso (tc.Descripcion).
+    """
+    from cfp.views import CURSOS_CFP          # importado aquí para no acoplar al importar el módulo
+    if not CURSOS_CFP:
+        return []
+    try:
+        marcas = ','.join(['%s'] * len(CURSOS_CFP))
+        sql = f"""
+          SELECT
+            ip.PersonaID,
+            LTRIM(RTRIM(
+              ISNULL(d.Nombre1,'')   + ' ' + ISNULL(d.Nombre2,'') + ' ' +
+              ISNULL(d.Apellido1,'') + ' ' + ISNULL(d.Apellido2,''))) AS Nombre,
+            tc.Descripcion AS Curso
+          FROM tblEdcIngrPrevisto ip
+            INNER JOIN tblPrsDtosGen  d  ON d.PersonaID  = ip.PersonaID
+            INNER JOIN tblEdcTipoCrso tc ON tc.TipoCrsoID = ip.TipoCursoID
+          WHERE ip.Año = %s AND tc.Descripcion IN ({marcas})
+          ORDER BY tc.Descripcion, Nombre
+        """
+        with connections['padres_sqlserver'].cursor() as cursor:
+            cursor.execute(sql, [date.today().year] + CURSOS_CFP)
+            rows = cursor.fetchall()
+        return [
+            {
+                'ingr_egr_id': int(row[0]),
+                'nombre':      ' '.join((row[1] or '').split()),
+                'grado':       (row[2] or '').strip(),   # el curso hace de "grado"
+                'grupo':       '',                       # CFP no separa grupos en SQL Server
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        print('[salidas_bano] ERROR SQL Server (cfp):', e)
+        return []
+
+
+def _alumnos_area(area):
+    """Alumnos del área, venga del colegio o del CFP."""
+    return _alumnos_cfp() if area == 'cfp' else _alumnos_sqlserver(area)
+
+
+def _display_grados(area):
+    """Mapa {valor: etiqueta} para mostrar el grado (colegio) o el curso (CFP)."""
+    if area == 'cfp':
+        from cfp.views import CURSO_LABEL
+        return CURSO_LABEL
+    return GRADO_DISPLAY.get(area, {})
+
 
 def _get_periodo_activo(area):
     """Retorna el periodo activo para el área dada (o None)."""
@@ -117,18 +201,20 @@ GRP_MAESTRO = 'control baños col'
 GRP_COORD   = 'control baño coord'
 
 
-def _puede_acceder(user):
-    """Superuser, staff, control baños col o control baño coord."""
+def _puede_acceder(user, ambito='colegio'):
+    """Superuser, staff o los grupos del ámbito (colegio y CFP son independientes)."""
     if user.is_superuser or user.is_staff:
         return True
-    return user.groups.filter(name__in=[GRP_MAESTRO, GRP_COORD]).exists()
+    cfg = AMBITOS.get(ambito, AMBITOS['colegio'])
+    return user.groups.filter(name__in=[cfg['grp_maestro'], cfg['grp_coord']]).exists()
 
 
-def _es_coordinador_sb(user):
-    """¿Puede gestionar períodos y maestros-clases?"""
+def _es_coordinador_sb(user, ambito='colegio'):
+    """¿Puede gestionar períodos y maestros-clases de ESE ámbito?"""
     if user.is_superuser:
         return True
-    return user.groups.filter(name=GRP_COORD).exists()
+    cfg = AMBITOS.get(ambito, AMBITOS['colegio'])
+    return user.groups.filter(name=cfg['grp_coord']).exists()
 
 
 def _puede_editar_salidas(user):
@@ -159,37 +245,49 @@ def _puede_eliminar_salidas(user):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @login_required
-def index(request):
-    if not _puede_acceder(request.user):
+def index(request, ambito='colegio'):
+    # <--- hecho por claude code: misma pantalla para dos ámbitos (Colegio y CFP);
+    # cada uno con sus propios alumnos, períodos, maestros-clases y permisos.
+    cfg = AMBITOS.get(ambito, AMBITOS['colegio'])
+    if not _puede_acceder(request.user, ambito):
         return HttpResponseForbidden()
 
-    es_coord   = _es_coordinador_sb(request.user)
+    es_coord   = _es_coordinador_sb(request.user, ambito)
     tab_activo = request.GET.get('tab', 'salidas')   # salidas | periodos | maestros
 
-    # ── Grados disponibles para el form Maestros-Clases (agrupados por área) ────
-    _AREA_LABELS = [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')]
-    grados_para_mc = {}   # {'Colegio': ['1ero','2do','3ero'], 'Bachillerato': [...]}
-    for _ak, _alabel in _AREA_LABELS:
-        _gs = sorted(set(a['grado'] for a in _alumnos_sqlserver(_ak) if a['grado']))
+    # Áreas que existen en este ámbito (Colegio+Bachillerato, o solo CFP)
+    areas       = cfg['areas']
+    areas_claves = [a for a, _ in areas]
+
+    # ── Grados/cursos disponibles para el form Maestros-Clases ─────────────────
+    grados_para_mc = {}   # {'Colegio': ['1ero','2do',...], 'CFP': ['Panadero',...]}
+    for _ak, _alabel in areas:
+        _gs = sorted(set(a['grado'] for a in _alumnos_area(_ak) if a['grado']))
         # Agrega grados ya guardados en MaestroClase para ese área
         _gs_extra = list(MaestroClase.objects.filter(area=_ak)
                          .values_list('grado', flat=True).distinct())
         _gs = sorted(set(_gs) | set(_gs_extra))
         if _gs:
-            _dm = GRADO_DISPLAY.get(_ak, {})
+            _dm = _display_grados(_ak)
             grados_para_mc[_alabel] = [(_g, _dm.get(_g, _g)) for _g in _gs]
 
     # ── Manejar POSTs del coordinador ──────────────────────────────────────────
-    periodo_form = PeriodoEscolarForm()
-    mc_form      = MaestroClaseForm(grado_choices=grados_para_mc)
+    # <--- hecho por claude code: el ámbito acota tanto las áreas elegibles como los
+    # objetos editables ('ambos' = Colegio+Bachillerato, no existe en CFP).
+    areas_admin  = areas_claves + ([] if ambito == 'cfp' else ['ambos'])
+    area_choices = [(a, l) for a, l in PeriodoEscolar.AREA_CHOICES if a in areas_admin]
+
+    periodo_form = PeriodoEscolarForm(area_choices=area_choices)
+    mc_form      = MaestroClaseForm(grado_choices=grados_para_mc, area_choices=area_choices)
 
     if request.method == 'POST' and es_coord:
         accion = request.POST.get('accion', '')
 
         if accion == 'guardar_periodo':
             edit_pid = request.POST.get('edit_id')
-            inst = PeriodoEscolar.objects.filter(pk=edit_pid).first() if edit_pid else None
-            periodo_form = PeriodoEscolarForm(request.POST, instance=inst)
+            inst = (PeriodoEscolar.objects.filter(pk=edit_pid, area__in=areas_admin).first()
+                    if edit_pid else None)
+            periodo_form = PeriodoEscolarForm(request.POST, instance=inst, area_choices=area_choices)
             if periodo_form.is_valid():
                 periodo_form.save()
                 messages.success(request, 'Período guardado.')
@@ -197,14 +295,17 @@ def index(request):
             tab_activo = 'periodos'
 
         elif accion == 'eliminar_periodo':
-            PeriodoEscolar.objects.filter(pk=request.POST.get('obj_id')).delete()
+            PeriodoEscolar.objects.filter(pk=request.POST.get('obj_id'),
+                                          area__in=areas_admin).delete()
             messages.success(request, 'Período eliminado.')
             return redirect(f'{request.path}?tab=periodos')
 
         elif accion == 'guardar_mc':
             edit_mid = request.POST.get('edit_id')
-            inst = MaestroClase.objects.filter(pk=edit_mid).first() if edit_mid else None
-            mc_form = MaestroClaseForm(request.POST, instance=inst, grado_choices=grados_para_mc)
+            inst = (MaestroClase.objects.filter(pk=edit_mid, area__in=areas_admin).first()
+                    if edit_mid else None)
+            mc_form = MaestroClaseForm(request.POST, instance=inst,
+                                       grado_choices=grados_para_mc, area_choices=area_choices)
             if mc_form.is_valid():
                 mc_form.save()
                 messages.success(request, 'Asignación guardada.')
@@ -212,27 +313,34 @@ def index(request):
             tab_activo = 'maestros'
 
         elif accion == 'eliminar_mc':
-            MaestroClase.objects.filter(pk=request.POST.get('obj_id')).delete()
+            MaestroClase.objects.filter(pk=request.POST.get('obj_id'),
+                                        area__in=areas_admin).delete()
             messages.success(request, 'Asignación eliminada.')
             return redirect(f'{request.path}?tab=maestros')
 
     # Editar desde GET
     if request.GET.get('editar_periodo') and es_coord:
-        inst = PeriodoEscolar.objects.filter(pk=request.GET['editar_periodo']).first()
+        inst = PeriodoEscolar.objects.filter(pk=request.GET['editar_periodo'],
+                                             area__in=areas_admin).first()
         if inst:
-            periodo_form = PeriodoEscolarForm(instance=inst)
+            periodo_form = PeriodoEscolarForm(instance=inst, area_choices=area_choices)
         tab_activo = 'periodos'
 
     if request.GET.get('editar_mc') and es_coord:
-        inst = MaestroClase.objects.filter(pk=request.GET['editar_mc']).first()
+        inst = MaestroClase.objects.filter(pk=request.GET['editar_mc'],
+                                           area__in=areas_admin).first()
         if inst:
-            mc_form = MaestroClaseForm(instance=inst, grado_choices=grados_para_mc)
+            mc_form = MaestroClaseForm(instance=inst, grado_choices=grados_para_mc,
+                                       area_choices=area_choices)
         tab_activo = 'maestros'
 
     # ── Datos de salidas (tab principal) ───────────────────────────────────────
-    area      = request.GET.get('area', 'colegio')
+    # <--- hecho por claude code: el área pedida tiene que pertenecer al ámbito, si no
+    # desde /salidas-bano/cfp/?area=colegio se verían los alumnos del colegio.
+    area      = request.GET.get('area', areas_claves[0])
+    if area not in areas_claves:
+        area = areas_claves[0]
     grado_sel = request.GET.get('grado', '')
-    areas = [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')]
 
     periodo = None
     alumnos_por_grado = {}
@@ -245,7 +353,7 @@ def index(request):
     if not periodo:
         error = f'No hay período activo para {dict(areas).get(area, area)}. Configúralo en la pestaña Períodos.'
 
-    todos = _alumnos_sqlserver(area)
+    todos = _alumnos_area(area)
     for a in todos:
         g = a['grado']
         if g not in alumnos_por_grado:
@@ -278,8 +386,10 @@ def index(request):
             }
 
     # Incluye registros del área exacta + los marcados como 'ambos'
+    # <--- hecho por claude code: 'ambos' es Colegio+Bachillerato; en CFP no aplica.
+    _areas_mc = [area] if area == 'cfp' else [area, 'ambos']
     for mc in (MaestroClase.objects
-               .filter(area__in=[area, 'ambos'])
+               .filter(area__in=_areas_mc)
                .select_related('maestro')
                .order_by('grado', 'maestro__first_name', 'clase')):
         nombre  = mc.maestro.get_full_name() or mc.maestro.username
@@ -293,8 +403,11 @@ def index(request):
             clases_por_grado[g].append(entrada)
 
     # ── Datos para tabs de coordinador ─────────────────────────────────────────
-    periodos_lista = PeriodoEscolar.objects.all().order_by('-anio', '-parcial') if es_coord else []
-    mc_lista       = (MaestroClase.objects.select_related('maestro')
+    # <--- hecho por claude code: cada ámbito solo administra SUS áreas (ver areas_admin)
+    periodos_lista = (PeriodoEscolar.objects.filter(area__in=areas_admin)
+                      .order_by('-anio', '-parcial') if es_coord else [])
+    mc_lista       = (MaestroClase.objects.filter(area__in=areas_admin)
+                      .select_related('maestro')
                       .order_by('area', 'grado', 'maestro__first_name') if es_coord else [])
 
     ctx = {
@@ -313,8 +426,14 @@ def index(request):
         'es_coordinador':    es_coord,
         'fecha_hoy':         date.today().strftime('%Y-%m-%d'),
         'tab_activo':        tab_activo,
-        # Nombres modernos de grado (7mo-11vo): lista de (raw, label)
-        'grados_display':    [(g, GRADO_DISPLAY.get(area, {}).get(g, g)) for g in grados],
+        # Nombres modernos de grado (7mo-11vo) o nombre del curso en CFP
+        'grados_display':    [(g, _display_grados(area).get(g, g)) for g in grados],
+        # <--- hecho por claude code: contexto del ámbito (Colegio / CFP)
+        'ambito':            ambito,
+        'ambito_label':      cfg['label'],
+        'label_grado':       cfg['label_grado'],
+        'label_grupo':       cfg['label_grupo'],
+        'es_cfp':            ambito == 'cfp',
         # Coordinador
         'periodo_form':      periodo_form,
         'mc_form':           mc_form,
@@ -353,6 +472,12 @@ def guardar_salida(request):
     if not all([periodo_id, ingr_egr_id, alumno, area, clase, hora_salida]):
         return JsonResponse({'ok': False, 'error': 'Faltan campos requeridos.'}, status=400)
 
+    # <--- hecho por claude code: el área viene del navegador, así que hay que
+    # comprobar que el usuario pertenezca a ESE ámbito (antes no se validaba).
+    ambito = _ambito_de_area(area)
+    if not _puede_acceder(request.user, ambito):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.'}, status=403)
+
     periodo = get_object_or_404(PeriodoEscolar, pk=periodo_id)
 
     # Parsear hora
@@ -367,7 +492,7 @@ def guardar_salida(request):
     ).count()
 
     # Bloquear si ya alcanzó Negro (count >= 3) y no es coordinador
-    if count_hoy >= 3 and not _es_coordinador_sb(request.user):
+    if count_hoy >= 3 and not _es_coordinador_sb(request.user, ambito):
         nombre_corto = alumno.split()[0] if alumno else 'El alumno'
         return JsonResponse({
             'ok':    False,
@@ -449,12 +574,13 @@ def marcar_regreso(request, pk):
 @require_POST
 def eliminar_salida(request, pk):
     """Elimina una salida registrada. Solo coordinadores con permiso activo."""
-    if not _es_coordinador_sb(request.user):
+    # <--- hecho por claude code: el coordinador de un ámbito no borra salidas del otro
+    salida = get_object_or_404(SalidaBano, pk=pk)
+    if not _es_coordinador_sb(request.user, _ambito_de_area(salida.area)):
         return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
     if not _puede_eliminar_salidas(request.user):
         return JsonResponse({'ok': False, 'error': 'Permiso de eliminación no activo o expirado.'}, status=403)
 
-    salida = get_object_or_404(SalidaBano, pk=pk)
     ingr_egr_id = salida.ingr_egr_id
     area        = salida.area
     salida.delete()
@@ -555,6 +681,10 @@ def historial_alumno(request, ingr_egr_id):
     periodo  = _get_periodo_activo(area) if area else None
 
     qs = SalidaBano.objects.filter(ingr_egr_id=ingr_egr_id)
+    # <--- hecho por claude code: hay que filtrar por área — en CFP este ID es el
+    # PersonaID y en el colegio el IngrEgrID: son espacios distintos y pueden chocar.
+    if area:
+        qs = qs.filter(area=area)
     if periodo:
         qs = qs.filter(periodo=periodo)
     qs = qs.select_related('maestro').order_by('-fecha', '-hora_salida')
@@ -602,19 +732,32 @@ def _enviar_email_negro(salida, request):
     try:
         from django.core.mail import EmailMultiAlternatives
 
-        area_label  = 'Colegio' if salida.area == 'colegio' else 'Bachillerato'
+        # <--- hecho por claude code: CFP tiene su propia etiqueta y su propio destinatario
+        area_label  = {'colegio': 'Colegio', 'bachillerato': 'Bachillerato',
+                       'cfp': 'CFP'}.get(salida.area, salida.area)
         hora_str    = salida.hora_salida.strftime('%H:%M') if salida.hora_salida else '—'
         maestro_str = salida.maestro.get_full_name() or salida.maestro.username if salida.maestro else '—'
         comentario  = salida.comentario or '—'
         from accounts.models import DestinatarioEmail
         from core.utils_notifications import crear_notificacion as _crear_notif_global
-        campo_mod = 'salidas_negro_bach' if salida.area == 'bachillerato' else 'salidas_negro_col'
+        campo_mod = {'bachillerato': 'salidas_negro_bach',
+                     'cfp':          'salidas_negro_cfp'}.get(salida.area, 'salidas_negro_col')
         dest_qs = DestinatarioEmail.objects.filter(**{campo_mod: True}).select_related('user')
         extras    = [d.user.email for d in dest_qs if d.user.email]
         to_email  = list(set(extras))
         from_email = settings.DEFAULT_FROM_EMAIL
 
-        asunto = f'⚫ ALERTA NEGRA — {salida.alumno}  |  {area_label} {salida.grado} Grupo {salida.grupo}'
+        # <--- hecho por claude code: en CFP el eje es el curso y no hay grupo
+        if salida.area == 'cfp':
+            etiqueta_ubic = 'Curso'
+            ubicacion     = f'{area_label} · {salida.grado}'
+            ubicacion_html = f'{area_label} · <strong>{salida.grado}</strong>'
+        else:
+            etiqueta_ubic = 'Grado / Grupo'
+            ubicacion     = f'{area_label} {salida.grado} — Grupo {salida.grupo}'
+            ubicacion_html = f'{area_label} <strong>{salida.grado}</strong> — Grupo {salida.grupo}'
+
+        asunto = f'⚫ ALERTA NEGRA — {salida.alumno}  |  {ubicacion}'
 
         # ── Texto plano ───────────────────────────────────────────────────────
         texto = (
@@ -622,7 +765,7 @@ def _enviar_email_negro(salida, request):
             f'{"="*45}\n\n'
             f'El/la siguiente estudiante ha alcanzado su 4ª salida al baño el día de hoy.\n\n'
             f'  Alumno/a    : {salida.alumno}\n'
-            f'  Grado/Grupo : {area_label} {salida.grado} — Grupo {salida.grupo}\n'
+            f'  {etiqueta_ubic:<12}: {ubicacion}\n'
             f'  Clase       : {salida.clase}\n'
             f'  Hora salida : {hora_str}\n'
             f'  Registrado  : {maestro_str}\n'
@@ -645,7 +788,7 @@ def _enviar_email_negro(salida, request):
 
         tabla_rows = (
             row('👤', 'Alumno/a',       f'<strong style="font-size:15px;">{salida.alumno}</strong>', shade=True)
-          + row('🏫', 'Grado / Grupo',  f'{area_label} <strong>{salida.grado}</strong> — Grupo {salida.grupo}')
+          + row('🏫', etiqueta_ubic,    ubicacion_html)
           + row('📖', 'Clase / Maestro', salida.clase,          shade=True)
           + row('🕐', 'Hora de salida', hora_str)
           + row('👩‍🏫', 'Registrado por', maestro_str,            shade=True)

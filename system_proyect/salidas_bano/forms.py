@@ -7,6 +7,12 @@ User = get_user_model()
 
 
 class PeriodoEscolarForm(forms.ModelForm):
+    # <--- hecho por claude code: el coordinador de un ámbito solo elige SUS áreas
+    def __init__(self, *args, area_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if area_choices:
+            self.fields['area'].choices = area_choices
+
     class Meta:
         model  = PeriodoEscolar
         fields = ['nombre', 'parcial', 'anio', 'area', 'fecha_inicio', 'fecha_fin', 'activo']
@@ -53,12 +59,17 @@ class MaestroClaseForm(forms.ModelForm):
             'area':    forms.Select(attrs={'class': 'form-select'}),
         }
 
-    def __init__(self, *args, grado_choices=None, **kwargs):
+    def __init__(self, *args, grado_choices=None, area_choices=None, **kwargs):
         """
         grado_choices: dict agrupado {'Colegio': ['1ero','2do','3ero'], 'Bachillerato': ['1ero','2do']}
+        area_choices:  limita el desplegable de Área a las del ámbito actual
         """
         instance = kwargs.get('instance')
         super().__init__(*args, **kwargs)
+
+        # <--- hecho por claude code: el coordinador de un ámbito solo elige SUS áreas
+        if area_choices:
+            self.fields['area'].choices = area_choices
 
         # Solo usuarios activos, ordenados por nombre
         self.fields['maestro'].queryset = (

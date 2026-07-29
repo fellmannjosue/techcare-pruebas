@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Salidas Baño – TechCare</title>
+  <title>Salidas Baño {{ ambito_label }} – TechCare</title>{# <--- hecho por claude code: distingue Colegio / CFP #}
   <link rel="shortcut icon" href="{% static 'accounts/img/nuevo.ico' %}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
@@ -49,11 +49,11 @@
             <nav aria-label="breadcrumb">
               <ol class="breadcrumb breadcrumb-muted mb-1">
                 <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Inicio</a></li>
-                <li class="breadcrumb-item active">Salidas al Baño</li>
+                <li class="breadcrumb-item active">Salidas al Baño · {{ ambito_label }}</li>
               </ol>
             </nav>
             <h2 class="page-title">
-              <i class="ti ti-door-exit me-2 text-teal"></i>Control de Salidas al Baño
+              <i class="ti ti-door-exit me-2 text-teal"></i>Control de Salidas al Baño · {{ ambito_label }}
             </h2>
           </div>
           <div class="col-auto">
@@ -114,6 +114,8 @@
               <div class="px-3 py-3 border-bottom bg-light">
                 <form method="get" id="frm-area" class="row g-3 align-items-center">
                   <input type="hidden" name="tab" value="salidas">
+                  {# <--- hecho por claude code: en CFP el ámbito tiene una sola área, no hace falta selector #}
+                  {% if areas|length > 1 %}
                   <div class="col-auto">
                     <label class="form-label mb-0 fw-semibold me-2">Área</label>
                   </div>
@@ -124,6 +126,14 @@
                       {% endfor %}
                     </select>
                   </div>
+                  {% else %}
+                  <input type="hidden" name="area" id="sel-area" value="{{ area_sel }}">
+                  <div class="col-auto">
+                    <span class="badge bg-orange-lt text-orange py-2 px-3 fs-6">
+                      <i class="ti ti-school me-1"></i>{{ ambito_label }}
+                    </span>
+                  </div>
+                  {% endif %}
                   {% if periodo %}
                   <div class="col-auto">
                     <span class="badge bg-teal-lt text-teal py-2 px-3 fs-6">
@@ -137,7 +147,7 @@
                   {% if grados %}
                   <div class="col-auto">
                     <span class="badge bg-blue-lt text-blue py-2 px-3">
-                      <i class="ti ti-users me-1"></i>{{ grados|length }} grado{{ grados|length|pluralize }}
+                      <i class="ti ti-users me-1"></i>{{ grados|length }} {{ label_grado|lower }}{{ grados|length|pluralize }}
                     </span>
                   </div>
                   {% endif %}
@@ -358,9 +368,9 @@
                         {% if mc_form.clase.errors %}<div class="text-danger small mt-1">{{ mc_form.clase.errors }}</div>{% endif %}
                       </div>
                       <div class="mb-3">
-                        <label class="form-label fw-semibold">Grado <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold">{{ label_grado }} <span class="text-danger">*</span></label>
                         {{ mc_form.grado }}
-                        <div class="form-text"><i class="ti ti-info-circle me-1"></i>Mantén <kbd>Ctrl</kbd> (o <kbd>Cmd</kbd>) para seleccionar varios grados.</div>
+                        <div class="form-text"><i class="ti ti-info-circle me-1"></i>Mantén <kbd>Ctrl</kbd> (o <kbd>Cmd</kbd>) para seleccionar varios.</div>
                         {% if mc_form.grado.errors %}<div class="text-danger small mt-1">{{ mc_form.grado.errors }}</div>{% endif %}
                       </div>
                       <div class="mb-4">
@@ -392,7 +402,7 @@
                         <tr>
                           <th>Maestro</th>
                           <th>Clase</th>
-                          <th class="text-center">Grado</th>
+                          <th class="text-center">{{ label_grado }}</th>
                           <th class="text-center">Área</th>
                           <th class="text-center" style="width:90px">Acc.</th>
                         </tr>

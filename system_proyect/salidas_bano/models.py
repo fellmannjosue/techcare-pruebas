@@ -5,10 +5,12 @@ from django.conf import settings
 
 class PeriodoEscolar(models.Model):
     """Parcial con fechas — configurable manualmente por el admin."""
+    # <--- hecho por claude code: 'ambos' = Colegio + Bachillerato, NUNCA incluye CFP
     AREA_CHOICES = [
         ('colegio',      'Colegio'),
         ('bachillerato', 'Bachillerato'),
         ('ambos',        'Ambos'),
+        ('cfp',          'CFP'),
     ]
     nombre       = models.CharField("Nombre", max_length=60)          # "Parcial 1 2026"
     parcial      = models.PositiveSmallIntegerField("Número de parcial")
@@ -30,11 +32,16 @@ class PeriodoEscolar(models.Model):
 
 
 class MaestroClase(models.Model):
-    """Define qué maestro imparte qué clase en qué grado/área."""
+    """Define qué maestro imparte qué clase en qué grado/área.
+
+    En CFP el campo `grado` guarda el CURSO (tc.Descripcion de SQL Server).
+    """
+    # <--- hecho por claude code: 'ambos' = Colegio + Bachillerato, NUNCA incluye CFP
     AREA_CHOICES = [
         ('colegio',      'Colegio'),
         ('bachillerato', 'Bachillerato'),
         ('ambos',        'Ambos'),
+        ('cfp',          'CFP'),
     ]
     maestro = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -68,13 +75,17 @@ class SalidaBano(models.Model):
     AREA_CHOICES = [
         ('colegio',      'Colegio'),
         ('bachillerato', 'Bachillerato'),
+        ('cfp',          'CFP'),
     ]
 
     # ── Identificación del alumno ──────────────────────────────────────────
+    # <--- hecho por claude code: en CFP este campo guarda el PersonaID (no el
+    # IngrEgrID); el área lo discrimina, son espacios de ID distintos.
     ingr_egr_id = models.IntegerField("ID Alumno (SQL Server)", db_index=True)
     alumno      = models.CharField("Nombre alumno", max_length=120)
-    grado       = models.CharField("Grado", max_length=30)
-    grupo       = models.CharField("Grupo", max_length=5)      # a, b, c
+    # <--- hecho por claude code: en CFP `grado` guarda el CURSO y `grupo` la jornada
+    grado       = models.CharField("Grado", max_length=160)
+    grupo       = models.CharField("Grupo", max_length=20, blank=True, default='')
     area        = models.CharField("Área", max_length=20, choices=AREA_CHOICES)
 
     # ── Período escolar ────────────────────────────────────────────────────

@@ -7,6 +7,8 @@ app_name = 'salidas_bano'
 urlpatterns = [
     # ── Vista principal ──────────────────────────────────────────────────────
     path('',                             views.index,              name='index'),
+    # <--- hecho por claude code: misma vista, ámbito CFP (participantes por curso)
+    path('cfp/',                         views.index, {'ambito': 'cfp'}, name='index_cfp'),
 
     # ── APIs de registro ─────────────────────────────────────────────────────
     path('guardar/',                     views.guardar_salida,     name='guardar'),

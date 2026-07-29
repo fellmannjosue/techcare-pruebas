@@ -102,6 +102,7 @@ class DestinatarioEmail(models.Model):
     notas_parcial_col  = models.BooleanField('Notas Parcial Colegio',      default=False)
     salidas_negro_col  = models.BooleanField('Salidas Negro – Colegio',    default=False)
     salidas_negro_bach = models.BooleanField('Salidas Negro – Bachillerato', default=False)
+    salidas_negro_cfp  = models.BooleanField('Salidas Negro – CFP',          default=False)  # <--- hecho por claude code
     enfermeria         = models.BooleanField('Enfermería',                  default=False)
     tickets            = models.BooleanField('Tickets Soporte',             default=False)
 

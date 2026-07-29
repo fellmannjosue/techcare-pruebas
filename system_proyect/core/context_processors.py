@@ -119,6 +119,8 @@ def nav_context(request):
         nav_home_url = reverse('menu')
 
     is_salidas_bano = is_admin or grp('control baño coord', 'control baños col')
+    # <--- hecho por claude code: CFP tiene sus propios grupos, independientes del colegio
+    is_salidas_bano_cfp = is_admin or grp('control baño coord cfp', 'control baños cfp')
 
     return {
         # <--- hecho por claude code: 'instructores' salió de aquí; los instructores CFP van en 'administracion'
@@ -142,6 +144,7 @@ def nav_context(request):
         'nav_solo_progress':    is_solo_progress,
         'nav_progress_only':    is_progress_only,
         'nav_salidas_bano':     is_salidas_bano,
+        'nav_salidas_bano_cfp': is_salidas_bano_cfp,
         # <--- hecho por claude code: enlace a Ruteo BL para coordinadores C1/C2/C4 (si el toggle está activo)
         'nav_ruteo_bl':         _puede_ver_ruteo_bl(request),
     }
