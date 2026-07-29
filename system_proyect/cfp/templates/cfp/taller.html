@@ -134,7 +134,11 @@
       <input type="hidden" name="anio" value="{{ anio }}">
       <input type="hidden" name="taller" value="{{ taller_key }}">
       <div class="row g-2">
-        <div class="col-md-4"><label class="form-label">No. de Ejecución</label><input name="no_ejecucion" id="ej-no_ejecucion" class="form-control" placeholder="ANA-RC-2025-001"></div>
+        {# <--- hecho por claude code: se genera solo si se deja vacío #}
+        <div class="col-md-4"><label class="form-label">No. de Ejecución</label>
+          <input name="no_ejecucion" id="ej-no_ejecucion" class="form-control" placeholder="Se genera solo: CFP-ANA-001-26">
+          <div class="form-text">Déjalo vacío y el sistema le asigna el correlativo del año.</div>
+        </div>
         <div class="col-md-4"><label class="form-label">No. del Curso</label><input name="no_curso" id="ej-no_curso" class="form-control" placeholder="RC-0001-010"></div>
         <div class="col-md-4"><label class="form-label">No. de Contrato</label><input name="no_contrato" id="ej-no_contrato" class="form-control" placeholder="CSCC-CADERH-019-2026"></div>
         <div class="col-md-8"><label class="form-label">Nombre del Curso *</label><input name="nombre_curso" id="ej-nombre_curso" class="form-control" required></div>

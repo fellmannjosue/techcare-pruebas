@@ -18,10 +18,15 @@ function cfpSel(sel){
 (function(){
   var INGRESO_NETO = CFG_INFORME_FORM.j0;
   function fmt(n){return (n||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  // <--- hecho por claude code: los gastos se escriben con separador de miles, así que
+  // hay que quitarlo antes de sumar (el backend hace lo mismo en _to_dec).
+  function num(v){ return parseFloat(String(v==null?'':v).replace(/,/g,'').trim()) || 0; }
+  function crudo(i){ return String(i.value).replace(/,/g,'').trim(); }
+
   function recalc(){
     var tot={}, gran=0;
     document.querySelectorAll('input[data-grupo]').forEach(function(i){
-      var g=i.dataset.grupo, v=parseFloat(i.value)||0;
+      var g=i.dataset.grupo, v=num(i.value);
       tot[g]=(tot[g]||0)+v; gran+=v;
     });
     document.querySelectorAll('input[data-total]').forEach(function(i){
@@ -32,6 +37,17 @@ function cfpSel(sel){
     if(ut){var u=INGRESO_NETO-gran; ut.textContent='L '+fmt(u);
       ut.className=(u<0?'text-danger':'text-green');}
   }
+
+  // Al enfocar se quita el formato (para editar cómodo) y al salir se vuelve a poner.
+  document.addEventListener('focusin',function(e){
+    var i=e.target; if(!i||i.dataset.gasto===undefined) return;
+    var s=crudo(i); i.value = s==='' ? '' : String(num(s));
+  });
+  document.addEventListener('focusout',function(e){
+    var i=e.target; if(!i||i.dataset.gasto===undefined) return;
+    var s=crudo(i); i.value = s==='' ? '' : fmt(num(s));
+  });
   document.addEventListener('input',function(e){ if(e.target&&e.target.dataset.grupo!==undefined) recalc(); });
+
   recalc();
 })();

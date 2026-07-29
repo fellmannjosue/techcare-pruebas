@@ -122,6 +122,10 @@ def _to_int(v, d=0):
 
 
 def _to_dec(v, d=0):
+    # <--- hecho por claude code: los campos de gasto se escriben con separador de
+    # miles ("5,460.00"); sin quitar las comas float() reventaría y guardaría 0.
+    if isinstance(v, str):
+        v = v.replace(',', '').replace(' ', '').strip()
     try:
         return round(float(v), 2)
     except (TypeError, ValueError):
@@ -140,7 +144,12 @@ def ejecucion_guardar(request):
     obj.anio         = _to_int(request.POST.get('anio'), date.today().year)
     obj.taller       = taller
     obj.taller_anio  = _to_int(request.POST.get('taller_anio')) or None
+    # <--- hecho por claude code: si se deja vacío se genera CFP-ANA-001-26 solo;
+    # si se escribe algo, manda lo escrito (los códigos viejos no se tocan).
     obj.no_ejecucion = (request.POST.get('no_ejecucion') or '').strip()
+    if not obj.no_ejecucion:
+        from .models import generar_no_ejecucion
+        obj.no_ejecucion = generar_no_ejecucion(obj.anio)
     obj.no_curso     = (request.POST.get('no_curso') or '').strip()
     obj.no_contrato  = (request.POST.get('no_contrato') or '').strip()
     obj.nombre_curso = (request.POST.get('nombre_curso') or '').strip()
@@ -183,6 +192,18 @@ def _datos_generales():
     return dg
 
 
+def _lugar_fecha(inf):
+    """<--- hecho por claude code: "Lugar; 05 de junio del año 2026" para los PDF."""
+    _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+              'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    lugar = inf.lugar or inf.lugar_fecha
+    fstr = ''
+    if inf.fecha_lugar:
+        f = inf.fecha_lugar
+        fstr = f"{f.day:02d} de {_MESES[f.month - 1]} del año {f.year}"
+    return '; '.join(p for p in (lugar, fstr) if p)
+
+
 def _informe_ctx(ej, inf):
     # Sugerir la división del 20% (Instructores y Director) en los 3 gastos de
     # personal: cada campo vacío muestra su tercio (para que se vea y cuadre).
@@ -200,11 +221,28 @@ def _informe_ctx(ej, inf):
                 eg[k] = v
         inf.egresos = eg  # solo en memoria (no se guarda salvo POST)
 
+    # <--- hecho por claude code: cada grupo lleva su % de la distribución del curso
+    # (20/60/20) y el monto al que debería cuadrar, para que el contador lo vea al llenar.
+    from .models import EGRESO_GRUPO_PCT
+    montos = {'personal': ej.dist_instr, 'materia': ej.dist_seguro, 'administracion': ej.dist_admin}
+
+    from .models import _CLAVES_CARGO
     grupos = []
     for g, lbl, items in EGRESO_GRUPOS:
-        filas = [{'key': f'{g}_{k}', 'label': il, 'valor': inf.egresos.get(f'{g}_{k}', '')} for k, il in items]
+        # <--- hecho por claude code: los cargos de Administración son de solo lectura,
+        # su monto sale del reparto de la planilla.
+        filas = [{'key': f'{g}_{k}', 'label': il,
+                  'valor': inf.egresos.get(f'{g}_{k}', ''),
+                  'calculado': g == 'administracion' and k in _CLAVES_CARGO}
+                 for k, il in items]
+        nota = ''
+        if g in EGRESO_GRUPO_PCT:
+            pct, desc = EGRESO_GRUPO_PCT[g]
+            nota = f'↳ {pct:.0%} {desc} — L {montos.get(g, 0):,.2f}'
+            if g == 'personal':
+                nota += ' dividido en 3'
         grupos.append({'key': g, 'label': lbl, 'filas': filas, 'subtotal': inf.grupo_subtotal(g),
-                       'nota': '↳ 20% Instructores y Director dividido en 3' if g == 'personal' else ''})
+                       'nota': nota})
 
     # Datos generales COMPARTIDOS: sobrescriben los del informe (en memoria, para mostrar/PDF)
     dg = _datos_generales()
@@ -214,6 +252,9 @@ def _informe_ctx(ej, inf):
     inf.horario     = dg.horario
     inf.lugar       = dg.lugar
     inf.fecha_lugar = dg.fecha_lugar
+    # <--- hecho por claude code: Regional y Centro-Prog-Proy son del centro, no del curso
+    inf.regional        = dg.regional
+    inf.centro_programa = dg.centro_programa
 
     # Opciones de los selects agregables (catálogo + valor guardado actual)
     from .models import CfpOpcion
@@ -227,16 +268,7 @@ def _informe_ctx(ej, inf):
             vals.add(cur)
         opciones[campo] = sorted(vals)
 
-    # "Lugar y fecha" combinado para el PDF
-    _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
-              'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-    lugar = inf.lugar or inf.lugar_fecha
-    if inf.fecha_lugar:
-        f = inf.fecha_lugar
-        fstr = f"{f.day:02d} de {_MESES[f.month - 1]} del año {f.year}"
-    else:
-        fstr = ''
-    lugar_fecha_str = '; '.join(p for p in (lugar, fstr) if p)
+    lugar_fecha_str = _lugar_fecha(inf)
 
     return {'ej': ej, 'inf': inf, 'grupos': grupos, 'opciones': opciones,
             'lugar_fecha_str': lugar_fecha_str,
@@ -247,6 +279,8 @@ def _informe_ctx(ej, inf):
 def informe_form(request, pk):
     ej = get_object_or_404(EjecucionCurso, pk=pk)
     inf, _ = InformeContable.objects.get_or_create(ejecucion=ej)
+    # <--- hecho por claude code: autoguardado — el mismo POST, pero devolviendo JSON
+    es_ajax = request.GET.get('ajax') == '1'
     if request.method == 'POST':
         from .models import CfpOpcion
         def _opcion(campo):
@@ -254,7 +288,10 @@ def informe_form(request, pk):
             val = (request.POST.get(campo) or '').strip()
             if val == '__nueva__':
                 val = (request.POST.get(campo + '_nueva') or '').strip()
-            if val:
+            # <--- hecho por claude code: al autoguardar NO se cataloga mientras se teclea
+            # (si no entrarían "Aldea de La V", "Aldea de La Ve"...). El JS manda
+            # catalogar=1 al SALIR del campo, que es cuando el texto ya está completo.
+            if val and (not es_ajax or request.POST.get('catalogar') == '1'):
                 CfpOpcion.objects.get_or_create(campo=campo, valor=val)
             return val
         # Datos generales COMPARTIDOS por todos los cursos (registro único)
@@ -270,29 +307,138 @@ def informe_form(request, pk):
         inf.fecha_inicio    = request.POST.get('fecha_inicio') or None
         inf.fecha_fin       = request.POST.get('fecha_fin') or None
         inf.convenio        = (request.POST.get('convenio') or '').strip()
-        inf.regional        = (request.POST.get('regional') or '').strip()
-        inf.centro_programa = (request.POST.get('centro_programa') or '').strip()
+        # <--- hecho por claude code: regional y centro_programa ya NO se leen del POST;
+        # son del centro (CfpDatosGenerales) y se muestran de solo lectura.
+        inf.regional        = dg.regional
+        inf.centro_programa = dg.centro_programa
         inf.egresados       = _to_int(request.POST.get('egresados'))
+        # <--- hecho por claude code: los cargos de Administración NO se escriben aquí;
+        # los calcula la planilla. Se ignora lo que venga del POST y se re-sincroniza.
+        from .models import _CLAVES_CARGO
+        calculadas = {f'administracion_{k}' for k in _CLAVES_CARGO}
         egresos = {}
         for g, _lbl, items in EGRESO_GRUPOS:
             for k, _il in items:
-                val = _to_dec(request.POST.get(f'{g}_{k}'))
+                clave = f'{g}_{k}'
+                if clave in calculadas:
+                    continue
+                val = _to_dec(request.POST.get(clave))
                 if val:
-                    egresos[f'{g}_{k}'] = val
+                    egresos[clave] = val
         inf.egresos = egresos
         inf.save()
+        inf.sincronizar_cargos()   # el seguro/teléfono cambió → cambia el reparto
+        if es_ajax:
+            # Devuelve los cargos recalculados para refrescarlos sin recargar la página.
+            return JsonResponse({
+                'ok': True,
+                'cargos': {f'administracion_{k}': inf.egresos.get(f'administracion_{k}', 0) or 0
+                           for k in _CLAVES_CARGO},
+                'a_repartir': inf.admin_a_repartir,
+            })
         messages.success(request, 'Informe guardado.')
         return redirect(request.path)
     return render(request, 'cfp/informe_form.html', _informe_ctx(ej, inf))
+
+
+def _planilla_ctx(ej, inf):
+    """<--- hecho por claude code: contexto común de la planilla (pantalla y PDF)."""
+    from .models import CARGOS_ADMIN, ADMIN_CAPTURADOS
+    capturados = [{'label': lbl,
+                   'valor': inf.egresos.get(f'administracion_{k}', 0) or 0}
+                  for k, lbl in ADMIN_CAPTURADOS]
+    reparto = inf.reparto_planilla()
+    return {
+        'ej': ej, 'inf': inf,
+        'cargos':      CARGOS_ADMIN,
+        'capturados':  capturados,
+        'reparto':     [{'p': p, 'monto': m} for p, m in reparto],
+        'total_admin': ej.dist_admin,
+        'capturado':   inf.admin_capturado,
+        'a_repartir':  inf.admin_a_repartir,
+        'n_personas':  len(reparto),
+        'lugar_fecha_str': _lugar_fecha(inf),
+        'taller_label': TALLER_LABEL.get(ej.taller, ej.taller),
+    }
+
+
+@cfp_required
+def planilla_form(request, pk):
+    """Planilla de gastos administrativos: quién cobra el resto del 20%."""
+    from .models import GastoAdministrativo
+    ej = get_object_or_404(EjecucionCurso, pk=pk)
+    inf, _ = InformeContable.objects.get_or_create(ejecucion=ej)
+
+    if request.method == 'POST':
+        # Se reescribe la planilla completa con lo que venga del formulario.
+        nombres = request.POST.getlist('nombre')
+        dnis    = request.POST.getlist('dni')
+        cargos  = request.POST.getlist('cargo')
+        ej.planilla.all().delete()
+        nuevas = []
+        for i, nombre in enumerate(nombres):
+            nombre = (nombre or '').strip()
+            if not nombre:                      # una fila sin nombre no es nadie
+                continue
+            nuevas.append(GastoAdministrativo(
+                ejecucion=ej, nombre=nombre,
+                dni=(dnis[i] if i < len(dnis) else '').strip(),
+                cargo=(cargos[i] if i < len(cargos) else '').strip(),
+                orden=i))
+        GastoAdministrativo.objects.bulk_create(nuevas)
+        inf.sincronizar_cargos()                # el informe refleja la planilla
+        # <--- hecho por claude code: autoguardado — mismo POST, respuesta JSON
+        if request.GET.get('ajax') == '1':
+            return JsonResponse({'ok': True,
+                                 'a_repartir': inf.admin_a_repartir,
+                                 'personas': len(nuevas)})
+        messages.success(request, 'Planilla guardada.')
+        return redirect(request.path)
+
+    ctx = _planilla_ctx(ej, inf)
+    # Sugerencias de personas ya usadas en otros cursos (evita reescribir el DNI)
+    ctx['conocidos'] = list(GastoAdministrativo.objects
+                            .exclude(nombre='')
+                            .values('nombre', 'dni', 'cargo').distinct()[:200])
+    return render(request, 'cfp/planilla_form.html', ctx)
+
+
+@cfp_required
+def planilla_pdf(request, pk):
+    ej = get_object_or_404(EjecucionCurso, pk=pk)
+    inf, _ = InformeContable.objects.get_or_create(ejecucion=ej)
+    from weasyprint import HTML, CSS
+    from django.contrib.staticfiles import finders
+
+    ctx = _planilla_ctx(ej, inf)
+    logo = finders.find('cfp/img/logo_ana.png')
+    ctx['logo_url'] = f'file://{logo}' if logo else ''
+    html  = render(request, 'cfp/planilla_pdf.html', ctx).content.decode('utf-8')
+    hoja  = finders.find('cfp/css/planilla_pdf.css')
+    pdf = HTML(string=html).write_pdf(stylesheets=[CSS(filename=hoja)] if hoja else [])
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="planilla_{ej.no_ejecucion or ej.id}.pdf"'
+    return resp
 
 
 @cfp_required
 def informe_pdf(request, pk):
     ej = get_object_or_404(EjecucionCurso, pk=pk)
     inf, _ = InformeContable.objects.get_or_create(ejecucion=ej)
-    from weasyprint import HTML
-    html = render(request, 'cfp/informe_pdf.html', _informe_ctx(ej, inf)).content.decode('utf-8')
-    pdf = HTML(string=html).write_pdf()
+    from weasyprint import HTML, CSS
+    from django.contrib.staticfiles import finders
+
+    # <--- hecho por claude code: el CSS y el logo se pasan por RUTA DE DISCO.
+    # Con HTML(string=...) WeasyPrint no tiene base_url, así que un <link> a
+    # /static/... no se resolvía y el PDF salía SIN estilos (y en A4, no legal).
+    ctx = _informe_ctx(ej, inf)
+    logo = finders.find('cfp/img/logo_ana.png')
+    ctx['logo_url'] = f'file://{logo}' if logo else ''
+
+    html  = render(request, 'cfp/informe_pdf.html', ctx).content.decode('utf-8')
+    hoja  = finders.find('cfp/css/informe_pdf.css')
+    hojas = [CSS(filename=hoja)] if hoja else []
+    pdf = HTML(string=html).write_pdf(stylesheets=hojas)
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="informe_{ej.no_ejecucion or ej.id}.pdf"'
     return resp

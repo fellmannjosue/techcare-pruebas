@@ -11,27 +11,84 @@ TALLER_CHOICES = [
 TALLER_LABEL = dict(TALLER_CHOICES)
 
 # Distribución fija
-PCT_SEGURO = 0.60   # Seguro, Materiales, Mantenimiento
+PCT_SEGURO = 0.60   # Materia Prima y Mantenimiento
 PCT_INSTR  = 0.20   # Instructores y director
 PCT_ADMIN  = 0.20   # Administración
 
 # ── Estructura fija de egresos del informe (Tab 3) ───────────────────────────
+# <--- hecho por claude code: los 3 grupos calcan la distribución 20/60/20 del curso.
+# Se fusionaron "Materia Prima y Material Didáctico" + "Mantenimiento" en el 60% y
+# se eliminó "Amortización y Depreciación".
 EGRESO_GRUPOS = [
     ('personal', 'Gastos de Personal', [
         ('instructor', 'Instructor'), ('encargado', 'Encargado del centro'),
         ('apoyo', 'Personal de apoyo')]),
-    ('materia', 'Materia Prima y Material Didáctico', [
-        ('materiales', 'Materiales'), ('manual', 'Manual'), ('disketes', 'Disketes'),
-        ('papel', 'Papel'), ('marcadores', 'Marcadores'), ('otros', 'Otros')]),
-    ('amortizacion', 'Amortización y Depreciación', [
-        ('equipos', 'Equipos'), ('maquinaria', 'Maquinarias'), ('instalaciones', 'Instalaciones')]),
-    ('mantenimiento', 'Mantenimiento', [
-        ('equipos', 'Equipos'), ('maquinaria', 'Maquinaria'), ('instalaciones', 'Instalaciones')]),
-    ('administracion', 'Gastos de Administración', [
-        ('electricidad', 'Electricidad'), ('telefono', 'Teléfono'), ('agua', 'Agua'),
-        ('alquileres', 'Alquileres'),
-        ('seguro', 'Seguro de Accidentes Personales (participantes)'), ('otros', 'Otros')]),
+    ('materia', 'Materia Prima y Mantenimiento', [
+        # <--- hecho por claude code: "Disketes" del formulario viejo pasó a "Imprevistos"
+        ('materiales', 'Materiales'), ('manual', 'Manual'), ('imprevistos', 'Imprevistos'),
+        ('papel', 'Papel'), ('marcadores', 'Marcadores'),
+        ('equipos', 'Equipos'), ('maquinaria', 'Maquinaria'), ('instalaciones', 'Instalaciones'),
+        ('otros', 'Otros')]),
+    ('administracion', 'Gastos de Administración', []),   # se rellena abajo
 ]
+
+# ── Grupo de Administración: dos naturalezas distintas ───────────────────────
+# <--- hecho por claude code: primero se CAPTURAN seguro/teléfono/otros (el seguro
+# depende de la cantidad de alumnos), y el resto del 20% se reparte en la PLANILLA
+# entre los cargos. Por eso los cargos no se escriben: los calcula la planilla.
+CARGOS_ADMIN = [
+    ('administracion', 'Administración'), ('contador', 'Contador'),
+    ('asistente', 'Asistente Administrativo'), ('soporte', 'Soporte Técnico'),
+    ('vigilancia', 'Vigilancia'), ('auditor', 'Auditor'),
+]
+ADMIN_CAPTURADOS = [
+    ('telefono', 'Teléfono'),
+    ('seguro', 'Seguro de Accidentes Personales (participantes)'),
+    ('otros', 'Otros'),
+]
+CARGO_LABEL = dict(CARGOS_ADMIN)
+_CLAVES_CARGO     = [k for k, _ in CARGOS_ADMIN]
+_CLAVES_CAPTURADO = [k for k, _ in ADMIN_CAPTURADOS]
+
+# El informe conserva el orden visual: cargos primero, luego lo capturado.
+EGRESO_GRUPOS[2] = ('administracion', 'Gastos de Administración',
+                    CARGOS_ADMIN + ADMIN_CAPTURADOS)
+
+# <--- hecho por claude code: a qué porcentaje del curso corresponde cada grupo
+EGRESO_GRUPO_PCT = {
+    'personal':       (PCT_INSTR,  'Instructores y Director'),
+    'materia':        (PCT_SEGURO, 'Materia Prima y Mantenimiento'),
+    'administracion': (PCT_ADMIN,  'Administración'),
+}
+
+
+import re  # <--- hecho por claude code: para leer el correlativo del No. de Ejecución
+
+# ── Código automático de ejecución: CFP-ANA-<correlativo>-<año> ───────────────
+# <--- hecho por claude code: el correlativo es de 3 dígitos y se REINICIA cada año;
+# el sufijo son los 2 últimos dígitos del año (2026 -> 26).
+NO_EJEC_PREFIJO = 'CFP-ANA-'
+_RE_NO_EJEC = re.compile(r'^CFP-ANA-(\d{3})-(\d{2})$')
+
+
+def generar_no_ejecucion(anio):
+    """Siguiente código libre del año: CFP-ANA-001-26, CFP-ANA-002-26…
+
+    Solo mira los códigos con el formato nuevo, así los antiguos escritos a mano
+    (ej. ANA-RC-2025-005) se respetan y no estorban la numeración.
+    """
+    sufijo = f'{anio % 100:02d}'
+    usados = set()
+    for codigo in (EjecucionCurso.objects
+                   .filter(no_ejecucion__startswith=NO_EJEC_PREFIJO)
+                   .values_list('no_ejecucion', flat=True)):
+        m = _RE_NO_EJEC.match(codigo or '')
+        if m and m.group(2) == sufijo:
+            usados.add(int(m.group(1)))
+    n = 1
+    while n in usados:          # salta huecos por si se borró un curso intermedio
+        n += 1
+    return f'{NO_EJEC_PREFIJO}{n:03d}-{sufijo}'
 
 
 class EjecucionCurso(models.Model):
@@ -132,6 +189,67 @@ class InformeContable(models.Model):
     def utilidad(self):
         return round(self.ingreso_neto - self.total_egresos, 2)
 
+    # ── Planilla de gastos administrativos ──────────────────────────────────
+    # <--- hecho por claude code: el 20% NO se reparte entero. Primero se descuenta
+    # lo que ya está determinado (seguro según nº de alumnos, teléfono, otros) y solo
+    # el resto se divide en partes iguales entre las personas de la planilla.
+    @property
+    def admin_capturado(self):
+        """Seguro + Teléfono + Otros: lo que se escribe a mano y no se reparte."""
+        return round(sum(float(self.egresos.get(f'administracion_{k}', 0) or 0)
+                         for k in _CLAVES_CAPTURADO), 2)
+
+    @property
+    def admin_a_repartir(self):
+        """Lo que queda del 20% de Administración para la planilla."""
+        return round(self.ejecucion.dist_admin - self.admin_capturado, 2)
+
+    def reparto_planilla(self):
+        """[(persona, monto)] en partes iguales; el residuo de centavos va al último."""
+        filas = list(self.ejecucion.planilla.all())
+        n = len(filas)
+        if not n:
+            return []
+        total = self.admin_a_repartir
+        parte = round(total / n, 2)
+        montos = [parte] * (n - 1) + [round(total - parte * (n - 1), 2)]
+        return list(zip(filas, montos))
+
+    def sincronizar_cargos(self, guardar=True):
+        """Vuelca el reparto de la planilla en los egresos del informe (por cargo)."""
+        eg = dict(self.egresos or {})
+        for k in _CLAVES_CARGO:
+            eg.pop(f'administracion_{k}', None)
+        for persona, monto in self.reparto_planilla():
+            clave = f'administracion_{persona.cargo}'
+            eg[clave] = round(eg.get(clave, 0) + monto, 2)
+        self.egresos = eg
+        if guardar:
+            self.save(update_fields=['egresos'])
+        return eg
+
+
+class GastoAdministrativo(models.Model):
+    """<--- hecho por claude code: una persona de la planilla administrativa de un curso.
+
+    El MONTO no se guarda a propósito: se calcula siempre desde el informe
+    (20% − seguro − teléfono − otros, en partes iguales). Guardarlo dejaría
+    copias desactualizadas en cuanto cambie el seguro.
+    """
+    ejecucion = models.ForeignKey(EjecucionCurso, on_delete=models.CASCADE, related_name='planilla')
+    nombre    = models.CharField('Nombre completo', max_length=200)
+    dni       = models.CharField('DNI', max_length=30, blank=True, default='')
+    cargo     = models.CharField('Cargo', max_length=40, choices=CARGOS_ADMIN)
+    orden     = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden', 'id']
+        verbose_name        = 'Planilla administrativa'
+        verbose_name_plural = 'Planilla administrativa'
+
+    def __str__(self):
+        return f'{self.nombre} — {self.get_cargo_display()}'
+
 
 class CfpDatosGenerales(models.Model):
     """Datos generales COMPARTIDOS por todos los informes/cursos (registro único id=1)."""
@@ -141,6 +259,11 @@ class CfpDatosGenerales(models.Model):
     horario     = models.CharField(max_length=80,  blank=True, default='')
     lugar       = models.CharField(max_length=300, blank=True, default='')
     fecha_lugar = models.DateField(null=True, blank=True)
+    # <--- hecho por claude code: son del CENTRO, iguales para todos los cursos.
+    # En el informe se muestran de solo lectura; se cambian desde el admin.
+    regional        = models.CharField('Regional', max_length=20, blank=True, default='01')
+    centro_programa = models.CharField('Centro-Programa-Proyecto', max_length=40,
+                                       blank=True, default='6400')
 
     def __str__(self):
         return 'Datos generales CFP (compartidos)'

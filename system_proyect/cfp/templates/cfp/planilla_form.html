@@ -1,0 +1,138 @@
+{% extends 'tickets/base_tickets_user.html' %}
+{% load static cfp_extras l10n %}
+{# <--- hecho por claude code: planilla de gastos administrativos (reparto del resto del 20%) #}
+{% block title %}Planilla administrativa — {{ ej.nombre_curso }}{% endblock %}
+{% block page_pretitle %}CFP · {{ taller_label }}{% endblock %}
+{% block page_title %}<i class="ti ti-users me-2 text-green"></i>Planilla de Gastos Administrativos — {{ ej.nombre_curso }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'cfp:informe_form' ej.id %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Informe</a>
+<a href="{% url 'cfp:planilla_pdf' ej.id %}" target="_blank" class="btn btn-danger"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+{% endblock %}
+
+{% block content %}
+{% if messages %}{% for m in messages %}<div class="alert alert-success">{{ m }}</div>{% endfor %}{% endif %}
+
+{# ── La cascada: de dónde sale el monto a repartir ── #}
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title">Cómo se llega al monto a repartir</h3></div>
+  <div class="card-body">
+    <div class="row text-center g-2" id="cascada">
+      <div class="col">
+        <div class="text-muted small">20% Administración</div>
+        <div class="h3 mb-0">L {{ total_admin|money }}</div>
+      </div>
+      {% for c in capturados %}
+      <div class="col">
+        <div class="text-muted small">(−) {{ c.label }}</div>
+        <div class="h3 mb-0 text-muted">L {{ c.valor|money }}</div>
+      </div>
+      {% endfor %}
+      <div class="col">
+        <div class="text-muted small">A repartir en la planilla</div>
+        <div class="h3 mb-0 {% if a_repartir < 0 %}text-danger{% else %}text-green{% endif %}">L {{ a_repartir|money }}</div>
+      </div>
+    </div>
+    <div class="text-muted small mt-3">
+      <i class="ti ti-info-circle me-1"></i>El seguro, el teléfono y otros se escriben en el
+      <a href="{% url 'cfp:informe_form' ej.id %}">Informe Contable</a>; aquí solo se reparte lo que queda,
+      en partes iguales entre las personas de la lista.
+    </div>
+    {% if a_repartir < 0 %}
+    <div class="alert alert-danger mt-3 mb-0">
+      <i class="ti ti-alert-triangle me-1"></i>Lo capturado (seguro + teléfono + otros) supera el 20% de
+      Administración. Revisa esos montos en el informe: el reparto está saliendo negativo.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Personas ── #}
+{# <--- hecho por claude code: autoguardado (ver cfp/js/autoguardado.js) #}
+<form method="post" id="frm-planilla" data-autoguardado>{% csrf_token %}
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">Personas</h3>
+    <div class="card-actions">
+      <button type="button" class="btn btn-sm btn-green" id="btn-agregar">
+        <i class="ti ti-plus me-1"></i>Agregar persona
+      </button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter mb-0" id="tbl-planilla">
+      <thead>
+        <tr>
+          <th style="width:32%">Nombre completo</th>
+          <th style="width:16%">DNI</th>
+          <th style="width:22%">Cargo</th>
+          <th style="width:14%" class="text-end">Monto del curso</th>
+          <th style="width:10%" class="text-center">Quitar</th>
+        </tr>
+      </thead>
+      <tbody id="tb-planilla">
+        {% for r in reparto %}
+        <tr class="fila-persona">
+          <td><input name="nombre" class="form-control form-control-sm inp-nombre" list="lista-conocidos" value="{{ r.p.nombre }}" autocomplete="off"></td>
+          <td><input name="dni" class="form-control form-control-sm inp-dni" value="{{ r.p.dni }}"></td>
+          <td>
+            <select name="cargo" class="form-select form-select-sm inp-cargo">
+              {% for k, lbl in cargos %}<option value="{{ k }}" {% if r.p.cargo == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+            </select>
+          </td>
+          <td class="text-end fw-bold text-green celda-monto">L {{ r.monto|money }}</td>
+          <td class="text-center"><button type="button" class="btn btn-sm btn-ghost-danger btn-quitar"><i class="ti ti-trash"></i></button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="3" class="text-end">Total repartido</th>
+          <th class="text-end text-green" id="total-repartido">L 0.00</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="card-body border-top" id="msj-vacio" {% if reparto %}hidden{% endif %}>
+    <div class="text-muted text-center py-2">
+      <i class="ti ti-users-plus me-1"></i>Aún no hay personas en la planilla. Agrega la primera.
+    </div>
+  </div>
+</div>
+
+<datalist id="lista-conocidos">
+  {% for c in conocidos %}<option value="{{ c.nombre }}" data-dni="{{ c.dni }}" data-cargo="{{ c.cargo }}"></option>{% endfor %}
+</datalist>
+
+<div class="d-flex align-items-center mb-4">
+  {# <--- hecho por claude code: sin botón Guardar, todo es autoguardado #}
+  <span id="tc-autoguardado" class="small text-muted"></span>
+  <div class="ms-auto text-muted">
+    <span id="resumen-reparto"></span>
+  </div>
+</div>
+</form>
+
+{# Plantilla de fila nueva (la clona el JS) #}
+<template id="tpl-fila">
+  <tr class="fila-persona">
+    <td><input name="nombre" class="form-control form-control-sm inp-nombre" list="lista-conocidos" autocomplete="off"></td>
+    <td><input name="dni" class="form-control form-control-sm inp-dni"></td>
+    <td>
+      <select name="cargo" class="form-select form-select-sm inp-cargo">
+        {% for k, lbl in cargos %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+      </select>
+    </td>
+    <td class="text-end fw-bold text-green celda-monto">L 0.00</td>
+    <td class="text-center"><button type="button" class="btn btn-sm btn-ghost-danger btn-quitar"><i class="ti ti-trash"></i></button></td>
+  </tr>
+</template>
+
+<div id="planilla-config" hidden data-v0="{{ a_repartir|unlocalize }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'cfp/js/planilla_form.js' %}?v=2"></script>
+<script src="{% static 'cfp/js/autoguardado.js' %}?v=2"></script>
+{% endblock %}

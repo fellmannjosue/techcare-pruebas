@@ -14,6 +14,10 @@ urlpatterns = [
     path('informe/<int:pk>/', views.informe_form, name='informe_form'),
     path('informe/<int:pk>/pdf/', views.informe_pdf, name='informe_pdf'),
 
+    # ── Planilla de gastos administrativos (reparto del resto del 20%) ──
+    path('planilla/<int:pk>/',     views.planilla_form, name='planilla_form'),
+    path('planilla/<int:pk>/pdf/', views.planilla_pdf,  name='planilla_pdf'),
+
     # ── Programa 2: Notas CFP ──
     path('programas/', views.programas, name='programas'),
     path('notas/', views.notas_cursos, name='notas_cursos'),

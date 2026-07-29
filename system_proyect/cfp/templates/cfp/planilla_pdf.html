@@ -1,0 +1,108 @@
+{% load cfp_extras %}
+{# <--- hecho por claude code: planilla de gastos administrativos — comprobante de pago con firma #}
+{# <--- hecho por claude code: el CSS lo pasa la vista en `stylesheets` (WeasyPrint no resuelve /static/) #}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"></head>
+<body>
+<div class="hoja">
+
+  <table class="encabezado">
+    <tr>
+      <td class="enc-infop">
+        Instituto Nacional de Formación Profesional<br>
+        Unidad de Centros Colaboradores
+      </td>
+      <td class="enc-centro">
+        Centro de Formación Profesional<br>
+        Nuevo Amanecer
+      </td>
+      <td class="enc-logo">{% if logo_url %}<img src="{{ logo_url }}" alt="">{% endif %}</td>
+    </tr>
+  </table>
+
+  <div class="titulo">PLANILLA DE GASTOS ADMINISTRATIVOS</div>
+
+  {# ── Datos del curso ── #}
+  <table class="dg">
+    <tr>
+      <td class="lbl">Nombre del Curso:</td><td class="val">{{ ej.nombre_curso }}</td>
+      <td class="lbl">No. del Curso:</td><td class="val">{{ ej.no_curso|default:ej.no_ejecucion }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">No. de Contrato:</td><td class="val">{{ ej.no_contrato }}</td>
+      <td class="lbl">Participantes:</td><td class="val center">{{ ej.part_pago }}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Instructor Responsable:</td><td class="val">{{ inf.instructor }}</td>
+      <td class="lbl">Monto del curso:</td><td class="val der">L {{ ej.costo_real|money }}</td>
+    </tr>
+  </table>
+
+  {# ── De dónde sale lo que se reparte ── #}
+  <div class="subtitulo">DETERMINACIÓN DEL MONTO A REPARTIR</div>
+  <table class="cascada">
+    <tr><td>20% de Administración del curso</td><td class="num">{{ total_admin|money }}</td></tr>
+    {% for c in capturados %}
+    <tr><td class="resta">(−) {{ c.label }}</td><td class="num">{{ c.valor|money_c }}</td></tr>
+    {% endfor %}
+    <tr class="tot"><td>Monto a repartir</td><td class="num">{{ a_repartir|money }}</td></tr>
+  </table>
+
+  {# ── Personas y firma ── #}
+  <div class="subtitulo">DETALLE DE PAGOS</div>
+  <table class="personas">
+    <thead>
+      <tr>
+        <th class="c-n">No.</th>
+        <th class="c-nom">Nombre completo</th>
+        <th class="c-dni">DNI</th>
+        <th class="c-cargo">Cargo</th>
+        <th class="c-monto">Monto</th>
+        <th class="c-firma">Firma</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reparto %}
+      <tr>
+        <td class="center">{{ forloop.counter }}</td>
+        <td>{{ r.p.nombre }}</td>
+        <td class="center">{{ r.p.dni }}</td>
+        <td>{{ r.p.get_cargo_display }}</td>
+        <td class="num">{{ r.monto|money }}</td>
+        <td></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="center vacio">Sin personas registradas en la planilla.</td></tr>
+      {% endfor %}
+      <tr class="tot">
+        <td colspan="4" class="der">TOTAL</td>
+        <td class="num">{{ a_repartir|money }}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  {# ── Cierre ── #}
+  <table class="dg cierre">
+    <tr><td class="lbl w-lug">Lugar y fecha</td><td class="val">{{ lugar_fecha_str }}</td></tr>
+  </table>
+
+  <table class="dg firmas">
+    <tr>
+      <td class="lbl w-fir">Firma y sello del contador del centro:</td>
+      <td class="val">&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="lbl">Firma y sello del responsable del centro:</td>
+      <td class="val">&nbsp;</td>
+    </tr>
+  </table>
+
+  <div class="nota">
+    <b>Nota:</b> el monto a repartir corresponde al 20% de Administración del curso, una vez descontados
+    el seguro de accidentes de los participantes, el teléfono y otros gastos ya determinados. El reparto
+    se hace en partes iguales entre las personas listadas.
+  </div>
+
+</div>
+</body></html>

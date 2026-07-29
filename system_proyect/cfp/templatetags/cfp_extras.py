@@ -13,6 +13,17 @@ def money(value):
 
 
 @register.filter
+def money_c(value):
+    """<--- hecho por claude code: formato contable del informe INFOP — el cero se
+    imprime como un guion, igual que en la hoja de Excel original."""
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return value or ''
+    return '-' if n == 0 else f"{n:,.2f}"
+
+
+@register.filter
 def get(d, key):
     """Acceso a dict por clave variable en templates."""
     try:
