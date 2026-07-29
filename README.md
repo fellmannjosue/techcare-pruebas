@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.0.0.0.001 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.0.1.002 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,40 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.0.1.002 — Salidas al Baño CFP, Planilla de Gastos Administrativos e Informe Contable rediseñado
+
+> Release **menor**: las novedades solo se muestran al superusuario.
+
+**🚻 Salidas al Baño para CFP**
+- El módulo `salidas_bano` ahora atiende **dos ámbitos independientes**: **Colegio** (`/salidas-bano/`, con sus áreas Colegio y Bachillerato) y **CFP** (`/salidas-bano/cfp/`). Comparten semáforo, autoguardado, notificaciones e historial, pero **no comparten alumnos ni permisos**.
+- Los participantes de CFP salen de la **misma base que Notas CFP** (`padres_sqlserver`, por `tblEdcIngrPrevisto`+`tblEdcTipoCrso`): el eje es el **curso** en vez del grado y la llave del alumno es `PersonaID` en vez de `IngrEgrID`.
+- **Grupos de acceso propios**: `control baños cfp` y `control baño coord cfp` (comando `crear_grupos_sb`, reescrito porque creaba grupos que el módulo ya no consultaba).
+- **Seguridad**: el endpoint de guardar salida **no validaba el área** que mandaba el navegador; ahora comprueba el ámbito. El historial tampoco filtraba por área, y `PersonaID`/`IngrEgrID` son espacios de ID distintos que podían colisionar.
+- Destinatario de correo propio para la **alerta negra de CFP**.
+
+**🧾 CFP · Planilla de Gastos Administrativos (nueva)**
+- Pantalla y **PDF con columna de firma** (papel carta) para registrar quién cobra el 20% de Administración de cada curso: **nombre, DNI, cargo, curso, monto y firma**.
+- Respeta el orden real del cálculo: primero se capturan **seguro, teléfono y otros** en el informe, y **solo el resto se reparte en partes iguales**; el residuo de centavos se asigna al último, igual que ya hacía el 20% de personal.
+- El monto **no se guarda**, se calcula siempre: si cambia el seguro, todo se reajusta y no quedan copias desactualizadas.
+- Los **6 cargos del informe** pasaron a ser de solo lectura, alimentados por la planilla (antes se podían escribir en dos sitios y contradecirse).
+
+**📄 CFP · Informe Contable rediseñado (papel legal)**
+- Réplica del formulario oficial del INFOP: encabezado institucional con logo, campos con línea de llenado, **casillas de un dígito** para Regional y Centro-Programa-Proyecto, cuadro de cuentas a 3 columnas y formato contable (el cero se imprime como `-`).
+- **Bug de fondo**: la vista pasaba el HTML a WeasyPrint como string sin `base_url`, así que el `<link>` a `/static/` nunca se resolvía — **el PDF salía sin estilos y en A4**. Ahora la hoja y el logo se pasan por ruta de disco. Es el **único PDF del sistema en papel legal**.
+- Egresos reagrupados a la distribución real del curso: **20% Personal · 60% Materia Prima y Mantenimiento · 20% Administración**; se eliminó *Amortización y Depreciación* y cada grupo muestra su porcentaje y el monto al que debe cuadrar.
+
+**⚙️ CFP · Otros**
+- **Autoguardado** en Informe Contable y Planilla (sin botón Guardar), con indicador de estado. Los selects *"Agregar nueva…"* solo catalogan al salir del campo, para no llenar el catálogo de textos a medio escribir.
+- **No. de Ejecución automático**: `CFP-ANA-001-26`, correlativo anual que salta huecos y respeta los códigos antiguos escritos a mano.
+- **Regional** y **Centro-Programa-Proyecto** pasaron a los datos generales compartidos: iguales para todos los cursos y de solo lectura en el informe.
+- Los campos de gasto aceptan y muestran **separador de miles**; el parser del backend reventaba con `"5,460.00"` y guardaba 0.
+
+**🐞 Arreglos varios**
+- **Emojis a color en el PDF de notas de mitad de parcial**: Helvetica no tiene glifos de emoji y los pintaba como cuadro negro (■) en los 246 comentarios que ya los usaban. Ahora se dibujan como imagen desde `NotoColorEmoji.ttf`, sin descuadrar el ajuste de línea. **Requiere `fonts-noto-color-emoji` en el servidor.**
+- **Notas sin decimales** en pantalla y PDF, con el mismo redondeo en ambos (`ROUND_HALF_UP`).
+- **Reloj**: la columna "Tomado" del Control Compensatorio ahora se edita con el permiso `calculo_comp:editar` (la UI estaba más restrictiva que el backend).
+- Paleta de colores personalizada en los grupos del panel del superusuario.
 
 ### v7.0.0.0.001 — Notas enteras, "Tomado" por permiso y colores del panel (release menor)
 

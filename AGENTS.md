@@ -78,6 +78,15 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - Nombres/correos de coordinadores: C1 cvarela · C2 druiz · C3 ialcerro · C4 jmartinez.
 - Permisos por coordinador (`coord_permisos`): `none` / `lectura` / `edit`; los endpoints de guardar usan `_puede_editar_ruteo`.
 
+## CFP · Contabilidad (área activa reciente)
+- **Distribución fija del curso**: 20% Personal (`dist_instr`) · 60% Materia Prima y Mantenimiento (`dist_seguro`) · 20% Administración (`dist_admin`). `EGRESO_GRUPOS` en `cfp/models.py` es la **fuente única**: el formulario y el PDF se generan de ahí, no hay listas duplicadas.
+- **El 20% de Administración NO se reparte entero.** Primero se capturan a mano seguro/teléfono/otros (`ADMIN_CAPTURADOS`) y el resto (`admin_a_repartir`) se divide en **partes iguales** entre las personas de la **planilla** (`GastoAdministrativo`); el residuo de centavos va al último. Los 6 cargos (`CARGOS_ADMIN`) son de **solo lectura** en el informe: los escribe `sincronizar_cargos()`.
+- El **monto por persona no se guarda**, se calcula en `reparto_planilla()`. Guardarlo dejaría cifras viejas cuando cambie el seguro.
+- **PDFs con WeasyPrint**: el HTML se pasa como string, así que **no hay `base_url`** y un `<link>` a `/static/` se ignora en silencio (el PDF sale sin estilos y en A4). El CSS y el logo van por ruta de disco con `finders.find()` → `stylesheets=[CSS(filename=...)]` y `src="file://…"`. El **informe contable es el único PDF en papel legal**; la planilla va en carta.
+- **Autoguardado** (`cfp/js/autoguardado.js`): mismo POST con `?ajax=1`, la vista devuelve JSON en vez de redirigir. Los selects "Agregar nueva…" solo catalogan cuando el JS manda `catalogar=1` (al salir del campo), si no el catálogo se llena de textos a medio escribir.
+- **Datos compartidos por TODOS los cursos** en `CfpDatosGenerales` (registro único): localidad, dirección, instructor, horario, lugar, regional, centro-programa. Ojo al probar: un POST con esos campos vacíos los borra **para todos los cursos**.
+- `no_ejecucion` **no es la llave** (la llave es el pk). Se genera solo con `generar_no_ejecucion()`: `CFP-ANA-001-26`, correlativo anual que salta huecos e ignora los códigos antiguos con otro formato.
+
 ## Modo mantenimiento (dos niveles)
 - **General**: `MAINTENANCE_MODE` + filtro por área (`all`/`staff`/`bilingue`/`colegio`) o lista de correos.
 - **Por formulario**: `MAINTENANCE_MODULES` (constance, JSON) pone cada módulo en `normal` / `lectura` / `bloqueado`. `lectura` corta solo las escrituras. Funciona aunque el general esté apagado y respeta el mismo filtro de audiencia. Registro de módulos y rutas en `core/maintenance_modules.py`; el filtro compartido es `core.middleware._audiencia_afectada`.
@@ -88,12 +97,19 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - "Mis Reportes" (`maestro_notas`) muestra las asignaciones **del usuario**; un coordinador puede ver todas con `?todos=1`.
 - El "Revisado" del coordinador se guarda en `RevisionFinalizada` (mismo modelo que el "Finalizado" del maestro, con el coordinador como dueño).
 - PDF (`_dibujar_pagina`): un bloque por maestro, dos columnas automáticas y letra 9→6 pt según quepa. `simpleSplit` de reportlab **solo corta en espacios**, por eso `_envolver` parte también las palabras largas. Límite práctico: ~13 maestros por alumno.
+- **Emojis en el PDF**: Helvetica (Type1/WinAnsi) no tiene glifos de emoji y los pintaba como cuadro negro (■). `notas_parcial/pdf_emoji.py` los dibuja como imagen a color sacada de `NotoColorEmoji.ttf` con Pillow, y expone `ancho()`/`dibujar()` (versiones de `stringWidth`/`drawString` que conocen el ancho del emoji) + `unidades()` para no partir banderas ni secuencias ZWJ al ajustar línea. **Dependencia del servidor: `apt install fonts-noto-color-emoji`**; si falta, el emoji ocupa 0 y no se dibuja (nunca vuelve el ■). El font es CBDT: FreeType solo acepta su rejilla de **109 px**, cualquier otro tamaño lanza `invalid pixel size`.
 - Las notas se pintan **sin decimales**: pantalla con `floatformat:"0"`, PDF con `_nota_int` (`Decimal` + `ROUND_HALF_UP`, para que coincidan). Si cambias uno, cambia el otro. El rojo de nota baja (`nota_baja`, < 70) evalúa el valor **real**, no el redondeado.
 
 ## Datos legacy (sponsors)
 Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `managed = False`. **Revisa el esquema real antes de tocar los modelos**: hay una columna `decription` (typo en la BD), otra llamada `check` (palabra reservada), y `Sponsor.city` es NOT NULL.
 
+## Salidas al Baño (dos ámbitos)
+- Un solo módulo, **dos pantallas independientes**: Colegio (`/salidas-bano/`, áreas `colegio`+`bachillerato`) y CFP (`/salidas-bano/cfp/`, área `cfp`). La misma vista `index(request, ambito=...)`; la config está en `AMBITOS` (`salidas_bano/views.py`).
+- En CFP el eje es el **curso** (no el grado) y `SalidaBano.ingr_egr_id` guarda el **PersonaID**, no el IngrEgrID: son espacios de ID distintos, por eso **todo filtro debe incluir el área** (pasó en el historial).
+- Grupos separados por ámbito; `'ambos'` significa Colegio+Bachillerato y **nunca** incluye CFP. El área que manda el navegador se valida contra el ámbito (antes no se validaba).
+
 ## Gotchas
+- **Migraciones gitignoradas**: `system_proyect/.gitignore` excluye `*/migrations/*.py`. Viven solo en el servidor; un clon limpio del repo no las trae.
 - **Reloj · Control Compensatorio**: todos los tabs de `compensatorio_calculo_list` se rigen por el mismo permiso `calculo_comp` (`can_edit_extra` = `editar`). Los inputs del template deben ir con `{% if can_edit_extra %}`, no con `is_superuser`: el endpoint `compensatorio_mensual_cell` ya valida `calculo_comp:editar`, así que usar `is_superuser` en la plantilla dejaba la UI más restrictiva que el backend.
 - **Nunca** borrar/pisar `media/conducta/routing_bl.json` en pruebas: contiene la config real (alumnos, grupos, catálogo). Escribir solo vía la app o `sudo -u www-data`.
 - `git` en este repo se hace **directo a `main`** (flujo del proyecto). Rama principal = `main`.

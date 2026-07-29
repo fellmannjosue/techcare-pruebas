@@ -1,6 +1,22 @@
 {
-  "version": "7.0.0.0.001",
+  "version": "7.0.1.002",
   "entradas": [
+    {
+      "version": "7.0.1.002",
+      "fecha": "2026-07-29",
+      "commit": "3e6efae",
+      "cambios": [
+        "Creación de Salidas al Baño para CFP (separado del Colegio, con sus propios permisos)",
+        "Creación de la Planilla de Gastos Administrativos en Contabilidad CFP, con su PDF para firma",
+        "Informe Contable de CFP rediseñado con el formato oficial del INFOP, en papel legal",
+        "Los egresos de CFP se reagruparon a la distribución real del curso: 20% Personal, 60% Materia Prima y Mantenimiento, 20% Administración",
+        "Autoguardado en el Informe Contable y en la Planilla de CFP (ya no hace falta el botón Guardar)",
+        "No. de Ejecución automático en CFP: CFP-ANA-001-26",
+        "Los emojis ya salen a color en el PDF de Notas de Mitad de Parcial (antes se veían como un cuadro negro)",
+        "Reparación de bugs varios"
+      ],
+      "menor": true
+    },
     {
       "version": "7.0.0.0.001",
       "fecha": "2026-07-28",
