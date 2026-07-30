@@ -290,6 +290,10 @@
     return filaEl;
   }
 
+  // <--- hecho por claude code: lo usa la alerta de regreso (salidas_alerta.js) para
+  // repintar la fila cuando el regreso se registra desde el modal.
+  window.sbRebuildFila = rebuildFila;
+
   // ══════════════════════════════════════════════════════════════════════════════
   // Autoguardado de la SALIDA — <--- hecho por claude code: sin botón.
   // Se guarda automáticamente al tener clase + hora de salida. El semáforo NO se

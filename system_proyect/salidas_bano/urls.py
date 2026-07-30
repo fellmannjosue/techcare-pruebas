@@ -13,6 +13,8 @@ urlpatterns = [
     # ── APIs de registro ─────────────────────────────────────────────────────
     path('guardar/',                     views.guardar_salida,     name='guardar'),
     path('<int:pk>/regreso/',            views.marcar_regreso,     name='regreso'),
+    # <--- hecho por claude code: alerta de regreso sin registrar
+    path('pendientes/',                  views.salidas_pendientes, name='pendientes'),
     path('<int:pk>/eliminar/',           views.eliminar_salida,    name='eliminar_salida'),
 
     # ── Notificaciones ───────────────────────────────────────────────────────

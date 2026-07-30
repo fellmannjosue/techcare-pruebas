@@ -30,6 +30,8 @@ const CFG_SALIDAS_BANO_INDEX = (function(){
     j11: j(d.v11),
     v12: d.v12,
     j12: j(d.v12),
+    v13: d.v13,
+    v14: d.v14,
   };
 })();
 
@@ -50,4 +52,7 @@ window._SB = {
   alumnosPorGrado:   CFG_SALIDAS_BANO_INDEX.j10,
   salidasHoy:        CFG_SALIDAS_BANO_INDEX.j11,
   clasesPorGrado:    CFG_SALIDAS_BANO_INDEX.j12,
+  // <--- hecho por claude code: alerta de regreso sin registrar
+  urlPendientes:     CFG_SALIDAS_BANO_INDEX.v13,
+  sonidoAlerta:      CFG_SALIDAS_BANO_INDEX.v14,
 };

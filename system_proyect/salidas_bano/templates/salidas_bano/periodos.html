@@ -230,5 +230,7 @@
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
+{# <--- hecho por claude code: contenedor de los toast (notifications.js lo busca por id) #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
 </body>
 </html>

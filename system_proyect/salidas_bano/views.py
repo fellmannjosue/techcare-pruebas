@@ -544,6 +544,65 @@ def guardar_salida(request):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# API: alumnos que siguen AFUERA (para la alerta de regreso sin registrar)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# <--- hecho por claude code: minutos que se toleran antes de avisar al maestro
+MINUTOS_ALERTA_REGRESO = 5
+
+
+@login_required
+@require_GET
+def salidas_pendientes(request):
+    """Alumnos con una salida abierta (sin hora de regreso) del día de hoy.
+
+    Se consulta al SERVIDOR y no al estado del navegador: así el aviso desaparece
+    aunque el regreso lo haya registrado otro maestro desde otra pantalla.
+    """
+    area = request.GET.get('area', '')
+    ambito = _ambito_de_area(area)
+    if not _puede_acceder(request.user, ambito):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    periodo = _get_periodo_activo(area)
+    if not periodo:
+        return JsonResponse({'ok': True, 'pendientes': [], 'minutos_alerta': MINUTOS_ALERTA_REGRESO})
+
+    # <--- hecho por claude code: el proyecto va con USE_TZ=False, así que
+    # timezone.localtime() revienta ("naive datetime"). Se usa la hora local directa.
+    ahora = datetime.now()
+    ahora_min = ahora.hour * 60 + ahora.minute
+    items = []
+    for s in (SalidaBano.objects
+              .filter(periodo=periodo, area=area, fecha=date.today(),
+                      hora_regreso__isnull=True)
+              .select_related('maestro')
+              .order_by('hora_salida')):
+        if not s.hora_salida:
+            continue
+        transcurridos = ahora_min - (s.hora_salida.hour * 60 + s.hora_salida.minute)
+        if transcurridos < 0:      # marca futura (reloj desfasado): se ignora
+            continue
+        items.append({
+            'id':          s.id,
+            'ingr_egr_id': s.ingr_egr_id,
+            'alumno':      s.alumno,
+            'grado':       s.grado,
+            'grupo':       s.grupo,
+            'clase':       s.clase,
+            'hora_salida': s.hora_salida.strftime('%H:%M'),
+            'minutos':     transcurridos,
+            'maestro':     (s.maestro.get_full_name() or s.maestro.username) if s.maestro else '',
+        })
+    return JsonResponse({
+        'ok': True,
+        'pendientes': items,
+        'minutos_alerta': MINUTOS_ALERTA_REGRESO,
+        'ahora': ahora.strftime('%H:%M'),
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # API: registrar regreso
 # ══════════════════════════════════════════════════════════════════════════════
 

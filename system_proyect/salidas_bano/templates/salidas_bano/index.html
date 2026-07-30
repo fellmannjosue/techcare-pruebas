@@ -541,14 +541,57 @@
      {# restaura al leer .dataset. #}
      data-v10="{{ alumnos_por_grado }}"
      data-v11="{{ salidas_hoy }}"
-     data-v12="{{ clases_por_grado }}"></div>
-<script src="{% static 'salidas_bano/js/index.js' %}?v=3"></script>
+     data-v12="{{ clases_por_grado }}"
+     {# <--- hecho por claude code: alerta de regreso sin registrar #}
+     data-v13="{% url 'salidas_bano:pendientes' %}"
+     {# <--- hecho por claude code: sonido del aviso (un .js no procesa {% static %}) #}
+     {# <--- hecho por claude code: el ?v= es obligatorio, si no el navegador se queda con el mp3 viejo #}
+     data-v14="{% static 'accounts/sound/hey.mp3' %}?v=2"></div>
+
+{# <--- hecho por claude code: modal que avisa de los alumnos que siguen afuera #}
+<div class="modal modal-blur fade" id="modalPendientes" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger-lt">
+        <h5 class="modal-title text-danger">
+          <i class="ti ti-alert-triangle me-2"></i>Falta registrar el regreso
+        </h5>
+      </div>
+      <div class="modal-body">
+        {# <--- hecho por claude code: aquí sale el motivo si el guardado falla #}
+        <div id="pend-msg"></div>
+        <p class="text-muted small mb-3" id="pend-intro"></p>
+        <div class="table-responsive">
+          <table class="table table-vcenter mb-0">
+            <thead><tr>
+              <th>Alumno</th><th class="text-center">Salió</th>
+              <th class="text-center">Afuera</th><th style="width:170px">Hora de regreso</th>
+            </tr></thead>
+            <tbody id="pend-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="text-muted small me-auto">
+          <i class="ti ti-info-circle me-1"></i>El aviso vuelve a salir hasta que registres el regreso.
+        </span>
+        <button type="button" class="btn btn-ghost-secondary" id="pend-despues">Después</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'salidas_bano/js/index.js' %}?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=12"></script>
+<script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=13"></script>
+<script src="{% static 'salidas_bano/js/salidas_alerta.js' %}?v=5"></script>
 {# <--- hecho por claude code: footer unificado #}
 {% include "_footer.html" %}
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
+{# <--- hecho por claude code: contenedor de los toast (notifications.js lo busca por id) #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
 </body>
 </html>
