@@ -1,0 +1,65 @@
+/* <--- hecho por claude code: Ingreso de Notas — rejilla estilo CFP.
+   Usa los tokens --ps-* del sistema de diseño, así funciona en claro y oscuro. */
+
+.tabla-notas { font-size: .82rem; }
+
+.tabla-notas thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--ps-surface, #fff);
+  border-bottom: 2px solid var(--ps-border, #dee2e6);
+  white-space: nowrap;
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.tabla-notas .col-no     { width: 42px; }
+.tabla-notas .col-alumno { min-width: 240px; }
+.tabla-notas .col-nota   { width: 62px; }
+
+/* La columna del alumno se queda fija al desplazar en horizontal */
+.tabla-notas th.col-alumno,
+.tabla-notas td:nth-child(2),
+.tabla-notas th.col-no,
+.tabla-notas td:nth-child(1) {
+  position: sticky;
+  background: var(--ps-surface, #fff);
+  z-index: 1;
+}
+.tabla-notas th.col-no,     .tabla-notas td:nth-child(1) { left: 0; }
+.tabla-notas th.col-alumno, .tabla-notas td:nth-child(2) { left: 42px; }
+.tabla-notas th.col-alumno { z-index: 3; }
+.tabla-notas th.col-no     { z-index: 3; }
+
+.celda-nota {
+  padding: .15rem .2rem;
+  min-width: 54px;
+}
+.celda-nota:focus {
+  border-color: var(--ps-primary, #6366f1);
+  box-shadow: 0 0 0 .15rem rgba(99, 102, 241, .25);
+}
+
+/* Estado del guardado de cada celda */
+.celda-guardando { background: var(--ps-surface-2, #f8f9fa); }
+.celda-ok        { border-color: #2fb344; background: rgba(47, 179, 68, .08); }
+.celda-error     { border-color: #d63939; background: rgba(214, 57, 57, .10); }
+
+/* Alumno marcado como "No Participa" en el sistema académico */
+.fila-no-participa { opacity: .55; }
+.fila-no-participa td:nth-child(2)::after {
+  content: ' · No participa';
+  font-size: .7rem;
+  color: #d63939;
+}
+
+/* <--- hecho por claude code: evaluación continua = ExamenFinal2/3/4.
+   Se tinta para que no se confunda con un cuadro ni con el examen final. */
+.tabla-notas th.col-evalconti {
+  background: rgba(99, 102, 241, .10);
+  color: var(--ps-primary, #6366f1);
+}
+.tabla-notas .celda-evalconti { background: rgba(99, 102, 241, .05); }
+.tabla-notas .celda-evalconti:focus { background: var(--ps-surface, #fff); }

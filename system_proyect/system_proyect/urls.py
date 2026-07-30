@@ -75,6 +75,7 @@ urlpatterns = [
     # Apps en construcción (solo superuser)
     path('atencion-padres/', include(('atencion_padres.urls', 'atencion_padres'), namespace='atencion_padres')),
     path('salidas-bano/',    include(('salidas_bano.urls',    'salidas_bano'),    namespace='salidas_bano')),
+    path('ingresos-notas/',  include(('ingresos_notas.urls',  'ingresos_notas'),  namespace='ingresos_notas')),  # <--- hecho por claude code
     path('camaras/',         include(('camaras.urls',         'camaras'),         namespace='camaras')),
 ]
 

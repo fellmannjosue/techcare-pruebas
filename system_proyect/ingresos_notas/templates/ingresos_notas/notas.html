@@ -1,0 +1,118 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: Ingreso de Notas — formulario 1 (Notas) #}
+{% block title %}Ingreso de Notas{% endblock %}
+{% block page_pretitle %}Ingresos de Notas · {{ area_label }}{% endblock %}
+{% block page_title %}<i class="ti ti-list-numbers me-2 text-indigo"></i>Ingreso de Notas{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'ingresos_notas/css/notas.css' %}?v=3">
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-warning"><i class="ti ti-alert-triangle me-2"></i>{{ error }}</div>
+{% endif %}
+
+{# ── Los tres formularios del programa ── #}
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#f-notas" type="button"><i class="ti ti-list-numbers me-1"></i>Notas</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#f-asistencias" type="button"><i class="ti ti-calendar-x me-1"></i>Asistencias</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#f-habitos" type="button"><i class="ti ti-star me-1"></i>Record de hábitos</button></li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade show active" id="f-notas">
+
+  {# ── Selectores ── #}
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <form method="get" class="row g-2 align-items-end" id="frm-area">
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Área</label>
+          <select name="area" class="form-select" onchange="this.form.submit()">
+            {% for k, lbl in areas %}
+            <option value="{{ k }}" {% if area_sel == k %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Grado / Grupo</label>
+          <select class="form-select" id="sel-grado">
+            <option value="">— Seleccionar —</option>
+            {# <--- hecho por claude code: se muestra 7mo-11vo, pero el valor sigue siendo el de la base #}
+            {% for g in grados %}
+            <option value="{{ g.grado }}|{{ g.grupo }}">{{ g.label }} · grupo {{ g.grupo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Clase</label>
+          <select class="form-select" id="sel-clase" disabled>
+            <option value="">— Elige primero el grado —</option>
+          </select>
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label mb-1 fw-semibold">Parcial</label>
+          <select class="form-select" id="sel-parcial">
+            {% for p in parciales %}<option value="{{ p }}">Parcial {{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        {# <--- hecho por claude code: vacío = lo decide la clase (hay materias de 2 y de 19) #}
+        <div class="col-sm-1">
+          <label class="form-label mb-1 fw-semibold" title="Vacío = los que use la clase">Cuadros</label>
+          <input type="number" class="form-control" id="sel-cuadros" min="1" max="{{ max_cuadros }}" placeholder="auto">
+        </div>
+      </form>
+      <div class="text-muted small mt-2">
+        <i class="ti ti-info-circle me-1"></i>Año {{ anio }} · las notas se guardan solas en el
+        sistema académico al salir de cada casilla. Se registra quién y cuándo.
+      </div>
+    </div>
+  </div>
+
+  {# ── Rejilla ── #}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title" id="rejilla-titulo">Participantes</h3>
+      <div class="card-actions"><span id="tc-estado" class="small text-muted"></span></div>
+    </div>
+    <div id="rejilla-cont">
+      <div class="card-body text-center text-muted py-5">
+        <i class="ti ti-hand-click" style="font-size:2rem"></i>
+        <div class="mt-2">Elige grado y clase para ver a los alumnos.</div>
+      </div>
+    </div>
+  </div>
+
+</div>{# /f-notas #}
+
+<div class="tab-pane fade" id="f-asistencias">
+  <div class="card"><div class="card-body text-center text-muted py-5">
+    <i class="ti ti-calendar-x" style="font-size:2rem"></i>
+    <div class="mt-2">Formulario de asistencias — pendiente.</div>
+    <div class="small">Escribe en <code>tblEdcAusencias*</code>, que alimenta los recargos por
+      no asistencia. Se hace al final, por su efecto económico.</div>
+  </div></div>
+</div>
+
+<div class="tab-pane fade" id="f-habitos">
+  <div class="card"><div class="card-body text-center text-muted py-5">
+    <i class="ti ti-star" style="font-size:2rem"></i>
+    <div class="mt-2">Record de hábitos — pendiente.</div>
+    <div class="small">6 hábitos por alumno, materia y fecha en <code>tblEdcRecordHabitos*</code>.</div>
+  </div></div>
+</div>
+</div>{# /tab-content #}
+
+<div id="notas-config" hidden
+     data-v0="{% url 'ingresos_notas:api_clases' %}"
+     data-v1="{% url 'ingresos_notas:api_alumnos' %}"
+     data-v2="{% url 'ingresos_notas:api_guardar' %}"
+     data-v3="{{ area_sel }}"
+     data-v4="{{ csrf_token }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'ingresos_notas/js/notas.js' %}?v=4"></script>
+{% endblock %}

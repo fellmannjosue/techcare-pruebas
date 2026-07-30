@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     # Apps en construcción
     'atencion_padres',
     'salidas_bano',
+    'ingresos_notas',  # <--- hecho por claude code: ingreso de notas al sistema academico
     'camaras',
 ]
 
