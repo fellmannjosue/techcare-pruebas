@@ -283,7 +283,9 @@ if (window._PAGE.esSuperusuario) {
       hora_limite: document.getElementById('bregla_hora_val').value,
       regla_vigilancia: document.getElementById('bregla_vig').checked,
       hora_vigilancia: document.getElementById('bregla_vig_val').value,
-      hora_vigilancia_2: document.getElementById('bregla_vig2_val').value
+      hora_vigilancia_2: document.getElementById('bregla_vig2_val').value,
+      // <--- hecho por claude code: regla de falta de marca
+      regla_marca_faltante: !!(document.getElementById('bregla_marca') || {}).checked
     }).then(function (d) {
       if (d.ok) { var p = new URLSearchParams(location.search); p.set('ptab', 'bono'); location.search = p.toString(); }
       else alert(d.error || 'Error');

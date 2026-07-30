@@ -60,6 +60,9 @@
   <li class="nav-item"><button class="nav-link" id="pt-bono-btn" data-bs-toggle="tab" data-bs-target="#pt-bono" type="button"><i class="ti ti-award me-1 text-red"></i>Bono por Asistencia</button></li>
   {# <--- hecho por claude code: ausentes sin permiso #}
   <li class="nav-item"><button class="nav-link" id="pt-ausentes-btn" data-bs-toggle="tab" data-bs-target="#pt-ausentes" type="button"><i class="ti ti-user-off me-1 text-danger"></i>Ausentes sin permiso <span id="pt-ausentes-badge" class="badge bg-danger-lt text-danger ms-1 d-none">0</span></button></li>
+  {# <--- hecho por claude code: tabs de marcas faltantes (comparten un solo endpoint) #}
+  <li class="nav-item"><button class="nav-link" id="pt-sinentrada-btn" data-bs-toggle="tab" data-bs-target="#pt-sinentrada" type="button"><i class="ti ti-login me-1 text-orange"></i>No marcó entrada <span id="pt-sinentrada-badge" class="badge bg-orange-lt text-orange ms-1 d-none">0</span></button></li>
+  <li class="nav-item"><button class="nav-link" id="pt-sinsalida-btn" data-bs-toggle="tab" data-bs-target="#pt-sinsalida" type="button"><i class="ti ti-logout me-1 text-azure"></i>No marcó salida <span id="pt-sinsalida-badge" class="badge bg-azure-lt text-azure ms-1 d-none">0</span></button></li>
 </ul>
 <div class="tab-content">
   {# <--- hecho por claude code: un solo reporte de permisos (General alfabético → Maestros por hora → Vigilancia) #}
@@ -263,6 +266,42 @@
       <p class="text-muted text-center py-4 mb-0"><span class="spinner-border spinner-border-sm me-2"></span>Cargando…</p>
     </div>
   </div>
+
+  {# <--- hecho por claude code: días con una sola marca — falta la ENTRADA #}
+  <div class="tab-pane fade" id="pt-sinentrada">
+    <div class="d-flex align-items-end mb-2 flex-wrap gap-2 mf-filtro">
+      <div><label class="form-label mb-1 small text-muted">Desde</label>
+        <input type="date" class="form-control form-control-sm mf-desde" value="{{ mf_desde }}"></div>
+      <div><label class="form-label mb-1 small text-muted">Hasta</label>
+        <input type="date" class="form-control form-control-sm mf-hasta" value="{{ mf_hasta }}"></div>
+      <button type="button" class="btn btn-sm btn-primary mf-aplicar"><i class="ti ti-filter me-1"></i>Aplicar</button>
+      <span class="text-muted small ms-auto">
+        <i class="ti ti-login me-1 text-orange"></i>
+        Días con <strong>una sola marca</strong> hecha <strong>después</strong> de la mitad de su jornada: marcó la salida pero no la entrada.
+      </span>
+    </div>
+    <div id="pt-sinentrada-cont">
+      <p class="text-muted text-center py-4 mb-0"><span class="spinner-border spinner-border-sm me-2"></span>Cargando…</p>
+    </div>
+  </div>
+
+  {# <--- hecho por claude code: días con una sola marca — falta la SALIDA #}
+  <div class="tab-pane fade" id="pt-sinsalida">
+    <div class="d-flex align-items-end mb-2 flex-wrap gap-2 mf-filtro">
+      <div><label class="form-label mb-1 small text-muted">Desde</label>
+        <input type="date" class="form-control form-control-sm mf-desde" value="{{ mf_desde }}"></div>
+      <div><label class="form-label mb-1 small text-muted">Hasta</label>
+        <input type="date" class="form-control form-control-sm mf-hasta" value="{{ mf_hasta }}"></div>
+      <button type="button" class="btn btn-sm btn-primary mf-aplicar"><i class="ti ti-filter me-1"></i>Aplicar</button>
+      <span class="text-muted small ms-auto">
+        <i class="ti ti-logout me-1 text-azure"></i>
+        Días con <strong>una sola marca</strong> hecha <strong>antes</strong> de la mitad de su jornada: marcó la entrada pero no la salida.
+      </span>
+    </div>
+    <div id="pt-sinsalida-cont">
+      <p class="text-muted text-center py-4 mb-0"><span class="spinner-border spinner-border-sm me-2"></span>Cargando…</p>
+    </div>
+  </div>
 </div>{# /tab-content principal #}
 
 {# <--- hecho por claude code: modal compartido para registrar permiso desde el tab de ausentes #}
@@ -294,7 +333,7 @@
           </label>
           <div class="list-group-item d-flex align-items-center gap-2 flex-wrap">
             <input class="form-check-input m-0 bono-rule-chk" type="checkbox" id="bregla_hora" {% if bono_cfg.regla_hora_activa %}checked{% endif %} {% if not request.user.is_superuser %}disabled{% endif %}>
-            <span><b>3. Hora máxima de entrada</b> — si la entrada pasa de</span>
+            <span><b>3. Hora máxima de entrada</b> — si la entrada llega a o pasa de</span>
             <input type="time" id="bregla_hora_val" class="form-control form-control-sm" style="width:auto;" value="{{ bono_cfg.hora_limite|time:'H:i' }}" {% if not request.user.is_superuser %}disabled{% endif %}>
             <span>pierde el bono.</span>
           </div>
@@ -306,6 +345,11 @@
             <span class="ms-2">Turno 00:00 — entrada máx</span>
             <input type="time" id="bregla_vig2_val" class="form-control form-control-sm" style="width:auto;" value="{{ bono_cfg.hora_vigilancia_2|time:'H:i' }}" {% if not request.user.is_superuser %}disabled{% endif %}>
           </div>
+          {# <--- hecho por claude code: regla de falta de marca (sin tolerancia) #}
+          <label class="list-group-item d-flex align-items-center gap-2">
+            <input class="form-check-input m-0 bono-rule-chk" type="checkbox" id="bregla_marca" {% if bono_cfg.regla_marca_faltante %}checked{% endif %} {% if not request.user.is_superuser %}disabled{% endif %}>
+            <span><b>5. Falta de marca</b> — si algún día laborable le falta la marca de <b>entrada</b> o la de <b>salida</b>, pierde el bono. A diferencia de la tardanza, esta regla <b>no tolera ninguna vez</b>. Se comprueba contra el horario asignado del empleado (ver los tabs «No marcó entrada / salida»).</span>
+          </label>
         </div>
 
         <div class="d-flex align-items-center mb-2">
@@ -584,6 +628,7 @@
 {
   "urlSet":          "{% url 'reloj_permiso_reporte_set_campo' %}",
   "urlAusentes":     "{% url 'reloj_permiso_ausentes' %}",
+  "urlMarcasFaltantes": "{% url 'reloj_permiso_marcas_faltantes' %}",
   "urlPermSave":     "{% url 'reloj_permiso_reporte_save' %}",
   "urlVacBalance":   "{% url 'reloj_vacacion_balance' %}",
   "csrf":            "{{ csrf_token }}",
@@ -607,8 +652,9 @@
   "tipoColors": { {% for campo, etiqueta, color in campos_permiso %}"{{ campo|escapejs }}": "{{ color|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %} }
 }
 </script>
-<script src="{% static 'reloj/js/permiso_reporte_page.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/permiso_reporte_page.js' %}?v=3"></script>
 <script src="{% static 'reloj/js/permiso_ausentes.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/permiso_marcas.js' %}?v=3"></script>
 <script src="{% static 'reloj/js/permiso_reporte.js' %}?v=7"></script>
 
 {# ── Ajuste del receso (solo superuser): seleccionar marcas reales del día ── #}

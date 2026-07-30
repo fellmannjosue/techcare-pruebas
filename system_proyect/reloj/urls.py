@@ -135,6 +135,8 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('permisos/reporte/', views.permiso_reporte_list, name='reloj_permiso_reporte'),
     path('permisos/ausentes/', views.permiso_ausentes, name='reloj_permiso_ausentes'),  # <--- hecho por claude code
+    # <--- hecho por claude code: tabs "No marcó entrada" / "No marcó salida"
+    path('permisos/marcas-faltantes/', views.permiso_marcas_faltantes, name='reloj_permiso_marcas_faltantes'),
     path('permisos/reporte/set-campo/', views.permiso_reporte_set_campo, name='reloj_permiso_reporte_set_campo'),
     # Receso: ajuste manual de marcas de almuerzo
     path('compensatorio-calculo/receso-ajuste/', views.receso_ajuste_set, name='reloj_receso_ajuste_set'),

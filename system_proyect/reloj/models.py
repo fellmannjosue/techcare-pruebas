@@ -752,6 +752,9 @@ class BonoConfig(models.Model):
     hora_vigilancia       = models.TimeField("Vigilancia turno 19:00 — entrada máx", default=_t(18, 45))
     hora_vigilancia_2     = models.TimeField("Vigilancia turno 00:00 — entrada máx", default=_t(23, 45))
     regla_vigilancia      = models.BooleanField("Regla: Vigilancia activa", default=True)
+    # <--- hecho por claude code: día laborable con UNA sola marca (le falta la entrada
+    # o la salida) hace perder el bono de inmediato, sin tolerancia.
+    regla_marca_faltante  = models.BooleanField("Regla: Falta de marca activa", default=True)
 
     class Meta:
         db_table = "reloj_bono_config"

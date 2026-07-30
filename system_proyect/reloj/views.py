@@ -4244,6 +4244,46 @@ def permiso_reporte_list(request):
     _SPLIT_VIG = 21 * 60  # entradas antes de 21:00 = turno tarde; después = turno noche
     _intentos_tarde = bcfg.intentos_tarde or 0  # entradas tarde toleradas; pierde al siguiente
 
+    # ── Días sin la marca de entrada o de salida ──
+    # <--- hecho por claude code: MISMO criterio que los tabs "No marcó entrada/salida":
+    # se compara la primera/última marca del día contra el horario asignado. No sirve
+    # contar marcas (un día normal son 2 y con receso son 4). Esta regla NO tolera nada.
+    marca_falta_map = {}
+    if bcfg.regla_marca_faltante:
+        _tope_mf = min(mes_fin, hoy)
+        try:
+            with connections['zkbio_sqlserver'].cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT CAST(emp_code AS VARCHAR(20)),
+                           CONVERT(DATE, punch_time),
+                           MIN(CONVERT(VARCHAR(5), CAST(punch_time AS TIME), 108)),
+                           MAX(CONVERT(VARCHAR(5), CAST(punch_time AS TIME), 108))
+                    FROM dbo.iclock_transaction
+                    WHERE punch_time >= '{mes_inicio}'
+                      AND punch_time < DATEADD(DAY, 1, '{_tope_mf}')
+                    GROUP BY CAST(emp_code AS VARCHAR(20)), CONVERT(DATE, punch_time)
+                    ORDER BY CONVERT(DATE, punch_time)
+                """)
+                _cache_hor = {}
+                for code, _f, _prim, _ult in cursor.fetchall():
+                    ec = (code or '').strip()
+                    ent, sal = _horario_del_dia(ec, _f, _cache_hor)
+                    if not ent or not sal:          # ese día no trabaja / sin horario
+                        continue
+                    mp, mu = _hm(_prim), _hm(_ult)
+                    if mp is None or mu is None:
+                        continue
+                    lim_e = (ent.hour * 60 + ent.minute) + TOLERANCIA_MARCA_MIN
+                    lim_s = (sal.hour * 60 + sal.minute) - TOLERANCIA_MARCA_MIN
+                    if mp > lim_e:
+                        marca_falta_map.setdefault(ec, []).append(
+                            {'fecha': _f.strftime('%Y-%m-%d'), 'hora': _prim, 'falta': 'entrada'})
+                    if mu < lim_s and _f < hoy:
+                        marca_falta_map.setdefault(ec, []).append(
+                            {'fecha': _f.strftime('%Y-%m-%d'), 'hora': _ult, 'falta': 'salida'})
+        except Exception:
+            pass
+
     # Otro Pagado REAL (excluye Compensatorio): el compensatorio NO hace perder el bono,
     # pero el otro pagado normal sí. (Compensatorio se suma a otro_pagado_dias en el
     # mensual, así que lo recalculamos directo desde PermisoReporte por tipo.)
@@ -4310,6 +4350,10 @@ def permiso_reporte_list(request):
             val = float(getattr(r, pt, 0) or 0) if r else 0
             if val > 0:
                 tipos.append(CAMPOS_PERMISO_MAP.get(pt, pt))
+        # <--- hecho por claude code: falta de marca — pierde de inmediato, sin tolerancia
+        marcas_falta = marca_falta_map.get(ec, [])
+        if marcas_falta:
+            tipos.append('Falta de marca')
         # dias_tarde solo se llena cuando la regla aplicable está activa.
         # Se toleran `intentos_tarde` entradas tardías; pierde a partir de la siguiente.
         pierde_auto = bool(tipos) or (len(dias_tarde) > _intentos_tarde)
@@ -4324,6 +4368,8 @@ def permiso_reporte_list(request):
             'emp_code': row['emp_code'], 'nombre': row['nombre'], 'nombre_sort': row['nombre_sort'],
             'cargo': row['cargo'], 'marcas': marcas_fmt, 'n_marcas': len(marcas_fmt),
             'dias_tarde': dias_tarde, 'n_tarde': len(dias_tarde), 'tipos': tipos,
+            # <--- hecho por claude code: días sin la marca de entrada o de salida
+            'marcas_falta': marcas_falta, 'n_falta': len(marcas_falta),
             'pierde': pierde, 'pierde_auto': pierde_auto, 'override': override,
         })
 
@@ -4347,6 +4393,9 @@ def permiso_reporte_list(request):
         'receso':          receso,
         'mes':             mes_inicio,
         'mes_str':         mes_str,
+        # <--- hecho por claude code: rango inicial del filtro de los tabs de marcas faltantes
+        'mf_desde':        mes_inicio.isoformat(),
+        'mf_hasta':        min(mes_fin, hoy).isoformat() if mes_fin >= mes_inicio else hoy.isoformat(),
         'campos_permiso':  CAMPOS_PERMISO,
         # <--- hecho por claude code: para el modal de permiso en el tab de ausentes
         'razones': list(RazonPermiso.objects.filter(activo=True).values_list('texto', flat=True)),
@@ -4404,6 +4453,8 @@ def bono_reglas_save(request):
     cfg.regla_enfermedad = bool(body.get('regla_enfermedad'))
     cfg.regla_hora_activa = bool(body.get('regla_hora_activa'))
     cfg.regla_vigilancia = bool(body.get('regla_vigilancia'))
+    # <--- hecho por claude code: regla de falta de marca
+    cfg.regla_marca_faltante = bool(body.get('regla_marca_faltante'))
     for campo, attr in (('hora_vigilancia', 'hora_vigilancia'), ('hora_vigilancia_2', 'hora_vigilancia_2')):
         hv = (body.get(campo) or '').strip()
         if hv:
@@ -5772,4 +5823,160 @@ def permiso_ausentes(request):
         'empleados': lista,
         'total_empleados': len(lista),
         'total_dias': sum(len(e['fechas']) for e in lista),
+    })
+
+
+# <--- hecho por claude code: tabs "No marcó entrada" / "No marcó salida"
+# Margen contra el horario asignado. Una salida 20 min antes es salida anticipada
+# normal; que la última marca del día sea HORAS antes de su hora significa que no
+# marcó. Con los datos de julio hay un corte claro: 763 días caen dentro de 15 min
+# de su hora y solo 37 se pasan de 1 h.
+TOLERANCIA_MARCA_MIN = 60
+
+
+def _horario_del_dia(emp_code, fecha, cache):
+    """(entrada, salida) del empleado ese día según su plantilla asignada.
+
+    Devuelve (None, None) si ese día no trabaja o no tiene horario. El resultado
+    se cachea por (emp_code, weekday) porque se consulta para muchos días.
+    """
+    clave = (emp_code, fecha.weekday())
+    if clave in cache:
+        return cache[clave]
+    regla = None
+    asig = (EmployeeScheduleAssignment.objects
+            .filter(emp_code=emp_code, activo=True, fecha_inicio__lte=fecha)
+            .filter(models.Q(fecha_fin__isnull=True) | models.Q(fecha_fin__gte=fecha))
+            .order_by('-fecha_inicio').first())
+    if asig:
+        regla = ScheduleRule.objects.filter(template=asig.template,
+                                            weekday=fecha.weekday()).first()
+    if not regla or not regla.trabaja:
+        cache[clave] = (None, None)
+        return cache[clave]
+    entrada = regla.entrada_manana
+    salida  = regla.salida_tarde or regla.salida_manana
+    cache[clave] = (entrada, salida)
+    return cache[clave]
+
+
+@login_required
+def permiso_marcas_faltantes(request):
+    """Días en los que faltó la marca de entrada o la de salida.
+
+    Los relojes no distinguen entrada de salida (el 96% de las marcas llegan con
+    punch_state '0'), así que se compara contra el HORARIO ASIGNADO del empleado:
+
+      · falta la ENTRADA  → la PRIMERA marca del día es mucho después de su hora
+                             de entrada (más de TOLERANCIA_MARCA_MIN).
+      · falta la SALIDA   → la ÚLTIMA marca del día es mucho antes de su hora de
+                             salida (más de TOLERANCIA_MARCA_MIN).
+
+    OJO: no sirve mirar "días con una sola marca". Un día normal son 2 marcas
+    (entrada y salida) y hay días de 4 (con receso); alguien puede marcar dos veces
+    por la mañana y no marcar nunca la salida.
+    """
+    from datetime import date as _date, timedelta as _td
+
+    if not _reloj_can(request.user, 'reporte', 'ver'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    hoy = _date.today()
+    def _fecha(param, defecto):
+        try:
+            return _date.fromisoformat(request.GET.get(param) or '')
+        except ValueError:
+            return defecto
+
+    desde = _fecha('desde', hoy.replace(day=1))
+    hasta = _fecha('hasta', hoy)
+    if hasta < desde:
+        desde, hasta = hasta, desde
+    if (hasta - desde).days > 366:               # tope de seguridad
+        hasta = desde + _td(days=366)
+
+    # Feriados del rango → set de fechas
+    feriados = set()
+    for f in Feriado.objects.filter(fecha_inicio__lte=hasta, fecha_fin__gte=desde):
+        d = max(f.fecha_inicio, desde)
+        while d <= min(f.fecha_fin, hasta):
+            feriados.add(d)
+            d += _td(days=1)
+
+    empleados = {}
+    try:
+        with connections['zkbio_sqlserver'].cursor() as cursor:
+            # Universo COMPLETO de empleados (aparecen todos, tengan o no incidencias)
+            cursor.execute("""
+                SELECT CAST(e.emp_code AS VARCHAR(20)),
+                       (e.first_name + ' ' + ISNULL(e.last_name,'')),
+                       ISNULL(pos.position_name,'')
+                FROM dbo.personnel_employee e
+                LEFT JOIN dbo.personnel_position pos ON pos.id = TRY_CONVERT(INT, e.position_id)
+                ORDER BY e.last_name, e.first_name
+            """)
+            for emp_code, nombre, cargo in cursor.fetchall():
+                ec = (emp_code or '').strip()
+                empleados[ec] = {'emp_code': ec, 'nombre': (nombre or '').strip(),
+                                 'cargo': (cargo or '').strip(),
+                                 'sin_entrada': [], 'sin_salida': []}
+
+            # Primera y última marca de CADA día trabajado del rango
+            cursor.execute(f"""
+                SELECT CAST(emp_code AS VARCHAR(20)) AS emp_code,
+                       CONVERT(DATE, punch_time) AS fecha,
+                       COUNT(*) AS n,
+                       MIN(CONVERT(VARCHAR(5), CAST(punch_time AS TIME), 108)) AS primera,
+                       MAX(CONVERT(VARCHAR(5), CAST(punch_time AS TIME), 108)) AS ultima
+                FROM dbo.iclock_transaction
+                WHERE punch_time >= '{desde}' AND punch_time < DATEADD(DAY, 1, '{hasta}')
+                GROUP BY CAST(emp_code AS VARCHAR(20)), CONVERT(DATE, punch_time)
+                ORDER BY fecha
+            """)
+            filas = cursor.fetchall()
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'Error al consultar la base de datos: {e}'},
+                            status=200)
+
+    def _min(hhmm):
+        try:
+            h, m = hhmm.split(':')
+            return int(h) * 60 + int(m)
+        except (AttributeError, ValueError):
+            return None
+
+    cache_horario = {}
+    for emp_code, fecha, n_marcas, primera, ultima in filas:
+        ec = (emp_code or '').strip()
+        reg = empleados.get(ec)
+        if reg is None or fecha in feriados:
+            continue
+        entrada, salida = _horario_del_dia(ec, fecha, cache_horario)
+        if not entrada or not salida:            # ese día no trabaja o sin horario
+            continue
+        m_prim, m_ult = _min(primera), _min(ultima)
+        if m_prim is None or m_ult is None:
+            continue
+        lim_entrada = (entrada.hour * 60 + entrada.minute) + TOLERANCIA_MARCA_MIN
+        lim_salida  = (salida.hour  * 60 + salida.minute)  - TOLERANCIA_MARCA_MIN
+
+        if m_prim > lim_entrada:
+            reg['sin_entrada'].append({'fecha': fecha.strftime('%Y-%m-%d'), 'hora': primera,
+                                       'marcas': n_marcas,
+                                       'esperada': entrada.strftime('%H:%M')})
+        # La salida solo se puede exigir si el día ya terminó.
+        if m_ult < lim_salida and fecha < hoy:
+            reg['sin_salida'].append({'fecha': fecha.strftime('%Y-%m-%d'), 'hora': ultima,
+                                      'marcas': n_marcas,
+                                      'esperada': salida.strftime('%H:%M')})
+
+    lista = sorted(empleados.values(), key=lambda x: (x['nombre'] or '').lower())
+    return JsonResponse({
+        'ok': True,
+        'desde': desde.isoformat(), 'hasta': hasta.isoformat(),
+        'hoy_excluido_salida': desde <= hoy <= hasta,
+        'empleados': lista,
+        'total_empleados': len(lista),
+        'total_sin_entrada': sum(len(e['sin_entrada']) for e in lista),
+        'total_sin_salida':  sum(len(e['sin_salida'])  for e in lista),
     })
