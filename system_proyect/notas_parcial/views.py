@@ -355,7 +355,7 @@ def notas_index(request):
         'grados':          grados,
         'seccion':         seccion,
         'secciones_grado': secciones_grado,
-        'alumnos':         alumnos,
+        'alumnos':         _marcar_area_grado(alumnos),
         'error':           error,
     })
 
@@ -507,6 +507,43 @@ _X0         = 10   # left margin
 _RESERVA_INFERIOR = 52 * mm
 
 
+def _coordinadores_de(area):
+    """<--- hecho por claude code: coordinadores que deben enterarse de ESA área.
+
+    Bilingüe y Colegio tienen sus propios grupos, así que el aviso no cruza áreas.
+    El superusuario no entra: recibiría el aviso de todos los maestros del colegio.
+    """
+    grupos = _GRUPOS_BL if area in dict(AREAS_BL) else _GRUPOS_COLEGIO
+    grupos = grupos & _GRUPOS_COORD          # solo los de coordinación, no los de maestro
+    return (User.objects.filter(groups__name__in=grupos, is_active=True)
+            .exclude(email='').distinct())
+
+
+def _notificar_coordinadores(maestro, area, area_label, parcial, anio,
+                             grado, seccion, maestro_nombre, url):
+    """Toast + campana para el coordinador cuando un maestro termina su reporte."""
+    from core.utils_notifications import crear_notificacion
+    donde = f'{grado}' + (f' {seccion}' if seccion else '')
+    mensaje = (f'{maestro_nombre} terminó de llenar el reporte de notas · '
+               f'{area_label} {donde} · Parcial {parcial}/{anio}')
+    for coord in _coordinadores_de(area):
+        if coord.pk == maestro.pk:           # si es coord-maestro, no se avisa a sí mismo
+            continue
+        try:
+            crear_notificacion(coord, mensaje, modulo='notas_parcial',
+                               tipo='exito', extra=url, enviar_correo=False)
+        except Exception as e:
+            print('[notas_parcial] no se pudo notificar a', coord, e)
+
+
+def _marcar_area_grado(alumnos):
+    """<--- hecho por claude code: deja listo el texto "Colegio 7mo A" para las
+    vistas previas, con el MISMO criterio que el PDF (una sola fuente de verdad)."""
+    for a in alumnos:
+        a['area_grado'] = _area_grado(a)
+    return alumnos
+
+
 def _cargar_comentarios(alumnos, parcial, anio, area):
     """<--- hecho por claude code: comentarios de cada alumno SEPARADOS por maestro.
 
@@ -528,6 +565,23 @@ def _cargar_comentarios(alumnos, parcial, anio, area):
         partes = sorted(por_alumno.get(a['ingr_egr_id'], []), key=lambda p: p[0].lower())
         a['comentarios'] = partes
         a['comentario']  = '   ·   '.join(f'{n}: {t}' for n, t in partes)
+
+
+# <--- hecho por claude code: en Colegio la base guarda 1ero/2do/3ero, pero esos
+# años se llaman 7mo/8vo/9no. Colegio Bilingüe ya viene bien desde la base y
+# Primaria son grados reales, así que solo se traduce Colegio.
+_GRADO_PDF = {
+    'Colegio': {'1ero': '7mo', '1mo': '7mo', '2do': '8vo', '3ero': '9no'},
+}
+
+
+def _area_grado(alumno):
+    """Texto de "Área y Grado" del reporte: "Colegio  7mo  A"."""
+    area  = (alumno.get('area_curso') or '').strip()
+    grado = (alumno.get('grado') or '').strip()
+    grupo = (alumno.get('grupo') or '').strip()
+    grado = _GRADO_PDF.get(area, {}).get(grado, grado)
+    return f"{area}  {grado}  {grupo.upper()}"
 
 
 def _cortar_palabra(palabra, fuente, size, ancho):
@@ -734,9 +788,9 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
     pdf.setFont('Helvetica-Bold', 12)
     pdf.drawCentredString(w / 2, h - 14 * mm, 'Centro Educativo Nuevo Amanecer')
     pdf.setFont('Helvetica', 10)
-    pdf.drawCentredString(w / 2, h - 20 * mm, 'La Venta D.C.')
+    pdf.drawCentredString(w / 2, h - 20 * mm, 'La Venta, Distrito Central.')
     pdf.setFont('Helvetica-Bold', 12)
-    pdf.drawCentredString(w / 2, h - 28 * mm, 'Reporte de Notas a mitad de Parcial')
+    pdf.drawCentredString(w / 2, h - 28 * mm, 'Reporte de Notas a Mitad de Parcial')
 
     # Línea separadora
     pdf.setLineWidth(0.5)
@@ -744,10 +798,10 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
 
     # ── Info fila 1 ───────────────────────────────────────────────
     y = h - 38 * mm
-    area_grado = f"{alumno['area_curso']}  {alumno['grado']}  {alumno['grupo']}"
+    area_grado = _area_grado(alumno)
 
     pdf.setFont('Helvetica-Bold', 9)
-    pdf.drawString(10 * mm, y, 'Area y Grado:')
+    pdf.drawString(10 * mm, y, 'Área y Grado:')
     pdf.setFont('Helvetica', 9)
     pdf.drawString(36 * mm, y, area_grado)
 
@@ -862,9 +916,9 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
     # ── Texto legal ───────────────────────────────────────────────
     y_legal = y_com - 5 * mm
     legal = (
-        'El presente documento es una herramienta para facilitar el mejoramiento del desempeño '
-        'de su hijo(a), favor de firmar y enviar de regreso lo más tarde el día viernes. '
-        'Gracias por su colaboración.'
+        'El presente documento es una herramienta para facilitar la mejora del desempeño '
+        'académico de su hijo(a), favor firmar y enviar de regreso al día siguiente de ser '
+        'recibido. Gracias por su colaboración.'
     )
     pdf.setFont('Helvetica', 8)
     for line in simpleSplit(legal, 'Helvetica', 8, w - 20 * mm):
@@ -993,7 +1047,7 @@ def coordinador_notas(request):
         'seccion':           seccion,
         'secciones_grado':   secciones_grado,
         'grados_secciones':  grados_secciones,   # <--- hecho por claude code
-        'alumnos':           alumnos,
+        'alumnos':           _marcar_area_grado(alumnos),
         'error':             error,
         'maestros':          maestros,
         'asignaciones_dict': asignaciones_dict,
@@ -1184,7 +1238,7 @@ def maestro_notas(request):
         'grado_sel':    grado_sel,
         'seccion_sel':  seccion_sel,
         'curso_sel':    curso_sel,
-        'alumnos':      alumnos,
+        'alumnos':      _marcar_area_grado(alumnos),
         'error':        error,
         'asig_activa':  asig_activa,
         'es_coord':     _es_coordinador(user),
@@ -1220,15 +1274,12 @@ def finalizar_revision(request):
         coord_url = request.build_absolute_uri(
             f'/notas-parcial/coordinador/?{urlencode(params)}'
         )
-        asunto = f'Revisión completada – {maestro_nombre}'
-        cuerpo = (
-            f'El/la maestro/a {maestro_nombre} ha finalizado de ingresar comentarios a los reportes de notas:\n\n'
-            f'  Área:    {area_label}\n'
-            f'  Parcial: {parcial} / {anio}\n'
-            f'  Grado:   {grado}  Sección: {seccion or "—"}\n\n'
-            f'Haz clic en el siguiente enlace para revisar y generar el PDF:\n'
-            f'{coord_url}'
-        )
+
+        # <--- hecho por claude code: avisar al COORDINADOR del área. Antes aquí solo
+        # se armaba un asunto/cuerpo que no se enviaba a ningún lado (código muerto),
+        # así que el coordinador nunca se enteraba de que el maestro había terminado.
+        _notificar_coordinadores(request.user, area, area_label, parcial, anio,
+                                 grado, seccion, maestro_nombre, coord_url)
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
@@ -1354,7 +1405,7 @@ def enviar_pdf_email(request):
 
         <tr><td style="background:#f8f9fa;padding:14px 32px;text-align:center;">
           <p style="margin:0;color:#aaa;font-size:11px;">
-            Centro Educativo Nuevo Amanecer &mdash; La Venta D.C.
+            Centro Educativo Nuevo Amanecer &mdash; La Venta, Distrito Central.
           </p>
         </td></tr>
 

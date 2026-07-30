@@ -96,6 +96,11 @@
 
 {% block modals %}{% endblock %}
 
+{# <--- hecho por claude code: contenedor de los toast de notificación. Vive aquí #}
+{# porque notifications.js lo busca por id y, si no lo encuentra, NO pinta el toast #}
+{# (sonaba el aviso pero no se veía nada en las pantallas de módulo). #}
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="tc-notif-global" style="z-index:9999;"></div>
+
 {# ── Stack JS común (normalizado) ───────────────────────────────────────── #}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>

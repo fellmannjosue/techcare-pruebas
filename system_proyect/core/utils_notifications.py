@@ -26,6 +26,9 @@ _MODULO_LABEL = {
     'reloj':         'Control de Horario',
     'inventario':    'Inventario',
     'enfermeria':    'Enfermería',
+    # <--- hecho por claude code: si no, el toast mostraba "Notas_parcial"
+    'notas_parcial': 'Notas de Parcial',
+    'salidas_bano':  'Salidas al Baño',
 }
 
 
