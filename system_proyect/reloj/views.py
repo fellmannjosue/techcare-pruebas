@@ -5665,6 +5665,39 @@ def permiso_reporte_set_horas_diarias(request):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# AJAX: comentario GLOBAL del empleado en el mes
+# <--- hecho por claude code: uno por empleado y mes, no atado a un tipo de permiso
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+@require_POST
+def permiso_reporte_set_comentario(request):
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para editar'}, status=403)
+
+    from datetime import date as _date
+    emp_code = (request.POST.get('emp_code') or '').strip()
+    mes_str  = (request.POST.get('mes') or '').strip()
+    texto    = (request.POST.get('comentario') or '').strip()[:2000]
+
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'Empleado inválido'}, status=400)
+    try:
+        year, month = map(int, mes_str.split('-'))
+        mes = _date(year, month, 1)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Mes inválido'}, status=400)
+
+    nombre = (request.POST.get('nombre') or '').strip()
+    obj, _ = ReportePermisoMensual.objects.get_or_create(
+        emp_code=emp_code, mes=mes,
+        defaults={'nombre_empleado': nombre or emp_code},
+    )
+    obj.comentario = texto
+    obj.save(update_fields=['comentario', 'actualizado_en'])
+    return JsonResponse({'ok': True, 'comentario': texto, 'tiene': bool(texto)})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # AJAX: superuser toggle visibilidad columna Factor H/Día
 # ──────────────────────────────────────────────────────────────────────────────
 @login_required

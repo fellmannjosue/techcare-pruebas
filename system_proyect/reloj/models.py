@@ -718,6 +718,10 @@ class ReportePermisoMensual(models.Model):
     horas_diarias_laboradas   = models.DecimalField("Horas diarias laboradas", max_digits=4, decimal_places=1, default=8.0)
     dias_laborables           = models.CharField("Días laborables", max_length=20, default="L,M,X,J,V", blank=True)
     horario_comentario        = models.CharField("Comentario horario", max_length=200, blank=True, default="")
+    # <--- hecho por claude code: comentario GLOBAL del empleado para ese mes (no
+    # va atado a un tipo de permiso). Distinto de `horario_comentario`, que es
+    # solo sobre la jornada.
+    comentario                = models.TextField("Comentario del mes", blank=True, default="")
     pierde_bono          = models.BooleanField("Pierde bono",       default=False)
     # Override manual del superusuario sobre el cálculo automático del bono:
     # '' = automático · 'si' = forzar pierde · 'no' = forzar conserva

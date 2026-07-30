@@ -17,6 +17,8 @@
             {% if tab_maestro %}<th class="col-mins">Sábados<br>especiales</th><th class="col-mins">Total horas<br>al mes</th>{% endif %}
             <th class="col-mins">Horas<br>Rebaja Otra</th>
             <th class="col-mins">Minutos<br>Tarde</th>
+            {# <--- hecho por claude code: comentario global del empleado en el mes #}
+            <th class="col-mins">Comentario</th>
           </tr>
         </thead>
         <tbody>
@@ -178,11 +180,23 @@
                 <span class="text-muted small">N/A</span>
               {% endif %}
             </td>
+
+            {# <--- hecho por claude code: comentario global del empleado en el mes #}
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-ghost-secondary btn-coment-emp px-2"
+                      data-emp="{{ row.emp_code }}"
+                      data-nombre="{{ row.nombre|escapejs }}"
+                      data-texto="{% if r %}{{ r.comentario|escapejs }}{% endif %}"
+                      title="{% if r and r.comentario %}{{ r.comentario|truncatechars:120 }}{% else %}Agregar comentario{% endif %}">
+                <i class="ti ti-message-2{% if r and r.comentario %} text-blue{% endif %}"></i>
+                {% if r and r.comentario %}<span class="badge bg-blue ms-1" style="width:7px;height:7px;padding:0;border-radius:50%;"></span>{% endif %}
+              </button>
+            </td>
           </tr>
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="{% if tab_maestro %}14{% elif horas_diarias_visible or request.user.is_superuser %}12{% else %}11{% endif %}" class="text-center text-muted py-4">
+            <td colspan="{% if tab_maestro %}15{% elif horas_diarias_visible or request.user.is_superuser %}13{% else %}12{% endif %}" class="text-center text-muted py-4">
               <i class="ti ti-users-off me-2"></i>Sin empleados disponibles.
             </td>
           </tr>

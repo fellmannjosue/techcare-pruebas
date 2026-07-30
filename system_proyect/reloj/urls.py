@@ -169,6 +169,8 @@ urlpatterns = [
     # Horas diarias laboradas (AJAX)
     # ─────────────────────────────────────────────
     path('permisos/reporte/set-horas-diarias/', views.permiso_reporte_set_horas_diarias, name='reloj_permiso_set_horas_diarias'),
+    # <--- hecho por claude code: comentario global por empleado/mes
+    path('permisos/reporte/set-comentario/', views.permiso_reporte_set_comentario, name='reloj_permiso_set_comentario'),
     # Bono por Asistencia
     path('permisos/bono/reglas/', views.bono_reglas_save, name='reloj_bono_reglas_save'),
     path('permisos/bono/regla-extra/', views.bono_regla_extra_add, name='reloj_bono_regla_extra_add'),
