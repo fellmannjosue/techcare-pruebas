@@ -95,6 +95,10 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - **Cuadro1..20 son evaluaciones normales y se usan** (hay clases con 19 y otras con 2) → la cantidad de columnas se detecta por clase. Las **Especial 1/2/3 son `ExamenFinal2/3/4`**, no los últimos cuadros. `Nivelacion` está oculta a pedido del usuario.
 - Permisos por área con grupos `ingreso notas bilingue` / `ingreso notas colegio` (+ `ingreso notas` como paraguas). **Las APIs validan el área**, no solo el desplegable.
 
+## Reloj · Reporte de Permisos
+- `ReportePermisoMensual` es **una fila por (emp_code, mes)** — por eso un campo ahí es "global por empleado" en ese mes. Ojo: `horario_comentario` es solo sobre la jornada; **`comentario`** es la nota general (endpoint `permiso_reporte_set_comentario`, permiso `reporte:editar`).
+- Los tabs **No marcó entrada / No marcó salida** comparan la PRIMERA y la ÚLTIMA marca del día contra el horario asignado (`TOLERANCIA_MARCA_MIN`). **No sirve contar marcas**: un día normal son 2 y con receso 4, y se puede marcar dos veces por la mañana sin marcar la salida.
+
 ## Notificaciones (toast + campana)
 - `core.utils_notifications.crear_notificacion(usuario, mensaje, modulo, tipo, extra, enviar_correo)` crea la fila; `accounts/js/notifications.js` la muestra sondeando.
 - **TRAMPA**: `mostrarToastNotif()` hace `getElementById('tc-notif-global')` y si no existe **sale sin pintar nada** — sonaba el aviso y no se veía. El contenedor vive en `templates/base_app.html` (lo heredan las 12 bases) y en las standalone; **no duplicarlo** en las bases que ya extienden base_app.

@@ -1,6 +1,26 @@
 {
-  "version": "7.0.2.003",
+  "version": "7.4.0",
   "entradas": [
+    {
+      "version": "7.4.0",
+      "fecha": "2026-07-30",
+      "commit": "20a5558",
+      "cambios": [
+        "Nuevo programa Ingresos de Notas: registra las notas directamente en el sistema académico, separado por área",
+        "Salidas al Baño para CFP, separado del Colegio y con sus propios permisos",
+        "Salidas al Baño: aviso con sonido cuando falta registrar el regreso de un alumno",
+        "Reloj: nuevas vistas para ver quién no marcó entrada y quién no marcó salida, con filtro de fechas",
+        "Reloj: comentario general por empleado en el Reporte de Permisos",
+        "Reloj: el Bono por Asistencia ahora también se pierde por una marca faltante",
+        "CFP: Planilla de Gastos Administrativos con su PDF para firma",
+        "CFP: Informe Contable rediseñado con el formato oficial del INFOP",
+        "Notas de Parcial: al terminar un maestro su reporte, le llega el aviso al coordinador",
+        "Notas de Parcial: los emojis ya salen a color en el PDF y se corrigieron varios textos",
+        "Se corrigieron los avisos que sonaban pero no se veían en pantalla",
+        "Reparación de bugs varios"
+      ],
+      "menor": false
+    },
     {
       "version": "7.0.2.003",
       "fecha": "2026-07-30",

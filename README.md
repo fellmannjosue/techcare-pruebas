@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.0.2.003 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.4.0 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,22 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.4.0 — Ingresos de Notas, control de marcas y avisos en tiempo real
+
+> Release **general**: reúne todo lo publicado desde la v7.0.0.0, que hasta ahora solo había visto el superusuario en las versiones menores 7.0.0.0.001, 7.0.1.002 y 7.0.2.003. El detalle de cada una está más abajo.
+
+**Lo nuevo de esta versión**
+- **Reporte de Permisos** — columna **Comentario**: una nota general por empleado y mes, con aviso visual de quién tiene comentario. No va atada a un tipo de permiso.
+
+**Lo que trae acumulado desde la v7.0.0.0**
+- **Ingresos de Notas** (programa nuevo): ingresa notas directamente en el sistema académico, separado por área, con las columnas que use cada clase y permisos por encargada.
+- **Salidas al Baño para CFP**, separado del Colegio y con sus propios permisos.
+- **Salidas al Baño**: alerta con sonido cuando falta registrar el regreso de un alumno.
+- **Reloj**: quién no marcó entrada y quién no marcó salida, con filtro de fechas; y una regla más del Bono por Asistencia.
+- **CFP**: Planilla de Gastos Administrativos con su PDF para firma, e Informe Contable rediseñado con el formato oficial del INFOP.
+- **Notas de Parcial**: aviso al coordinador cuando un maestro termina, emojis a color en el PDF y varias correcciones de texto.
+- Arreglo de los avisos que sonaban pero no se veían en pantalla.
 
 ### v7.0.2.003 — Ingresos de Notas, alerta de regreso en Salidas al Baño y control de marcas en Reloj
 
