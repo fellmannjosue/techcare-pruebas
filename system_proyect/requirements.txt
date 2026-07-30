@@ -1,3 +1,7 @@
+# Dependencias del SISTEMA que NO instala pip (apt):
+#   fonts-noto-color-emoji  -> emojis a color en el PDF de notas de parcial
+#   mod_wsgi se instala DENTRO de este venv (Apache lo carga desde aqui)
+#
 # ──────────────────────────────────────────────
 # Framework principal
 # ──────────────────────────────────────────────
@@ -48,6 +52,8 @@ reportlab==4.5.0
 python-pptx==1.0.2
 python-docx==1.2.0
 openpyxl==3.1.5
+et-xmlfile==2.0.0
+xlrd==2.0.2
 xlsxwriter==3.2.9
 lxml==6.1.0
 tablib==3.9.0
@@ -73,6 +79,13 @@ webencodings==0.5.1
 zopfli==0.4.1
 
 # ──────────────────────────────────────────────
+# Lectura de PDF (pdfplumber para extraer, pypdfium2 para rasterizar)
+# ──────────────────────────────────────────────
+pdfplumber==0.11.10
+pdfminer.six==20260107
+pypdfium2==5.10.1
+
+# ──────────────────────────────────────────────
 # IA
 # ──────────────────────────────────────────────
 openai==2.33.0
@@ -95,6 +108,7 @@ typing_extensions==4.15.0
 # Miscelánea
 # ──────────────────────────────────────────────
 chardet==7.4.3
+cryptography==49.0.0
 charset-normalizer==3.4.7
 colorama==0.4.6
 diff-match-patch==20241021

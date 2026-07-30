@@ -847,7 +847,7 @@ ssh admin2@192.168.10.6
 
 # Activar entorno virtual
 cd techcare_project
-source venv313/bin/activate
+source venv/bin/activate
 cd system_proyect
 
 # Reiniciar Apache (aplica cambios Python y templates)

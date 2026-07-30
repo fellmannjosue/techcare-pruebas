@@ -12,7 +12,7 @@ tickets, asistencia (reloj), conducta, inventario, enfermería, agendas, notas
 parciales, sponsors, mantenimiento, CFP y calculadoras.
 
 - Producción: https://servicios.ana-hn.org:437 · Apache + mod_wsgi
-- Stack: Django 6 · Python 3.13 (venv `venv313`) · MySQL (principal) + SQL Server (reloj y datos de alumnos)
+- Stack: Django 6 · Python 3.13 (venv `venv`) · MySQL (principal) + SQL Server (reloj y datos de alumnos)
 - UI: Tabler UI (beta19) + Tabler Icons webfont · Admin: Unfold
 
 ## Layout del repo
@@ -25,8 +25,8 @@ parciales, sponsors, mantenimiento, CFP y calculadoras.
 ## Ejecutar / verificar (siempre desde `system_proyect/`)
 ```bash
 cd /home/admin2/techcare_project/system_proyect
-../venv313/bin/python manage.py check          # antes de dar por hecho cualquier cambio
-../venv313/bin/python manage.py makemigrations && ../venv313/bin/python manage.py migrate
+../venv/bin/python manage.py check          # antes de dar por hecho cualquier cambio
+../venv/bin/python manage.py makemigrations && ../venv/bin/python manage.py migrate
 ```
 - **Test client:** pasar `SERVER_NAME='servicios.ana-hn.org'` (ALLOWED_HOSTS).
 - Para módulos MySQL/SQL Server, correr contra la BD real (no hay fixtures).
@@ -37,7 +37,7 @@ Cambios de **Python/settings/middleware** → reiniciar Apache. Cambios de
 `collectstatic` + bump `?v=N` en el `<script>/<link>` + reiniciar.
 
 ```bash
-../venv313/bin/python manage.py collectstatic --noinput   # requiere sudo (archivos de www-data)
+../venv/bin/python manage.py collectstatic --noinput   # requiere sudo (archivos de www-data)
 sudo systemctl restart apache2
 # VERIFICAR que de verdad reinició (no basta `is-active`):
 ps -eo pid,lstart,cmd | grep "apache2 -k start" | grep -v grep | head -1
