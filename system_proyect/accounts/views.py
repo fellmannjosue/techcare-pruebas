@@ -670,6 +670,12 @@ GRUPOS_SUPER = [
         {'t': 'Notas Mitad de Parcial', 's': 'Revisión / Asignaciones', 'i': 'ti-file-certificate', 'c': '#206bc4', 'url': 'notas_parcial_index'},
         {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado (todo en una hoja)', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
      ]},
+    # <--- hecho por claude code: Ingresos de Notas en grupo propio (solo 2 usuarias)
+    {'key': 'ingresos_notas', 'titulo': 'Ingresos de Notas', 'icon': 'ti-list-numbers', 'color': '#6366f1',
+     'desc': 'Notas, asistencias y hábitos por área',
+     'cards': [
+        {'t': 'Ingresos de Notas', 's': 'Notas, asistencias y hábitos por área', 'i': 'ti-list-numbers', 'c': '#6366f1', 'url': 'ingresos_notas:index'},
+     ]},
     # <--- hecho por claude code: grupo propio para salidas (baño y, próximamente, permisos)
     {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#DC143C',
      'desc': 'Salidas al baño y con permisos',

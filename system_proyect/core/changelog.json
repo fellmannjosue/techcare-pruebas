@@ -1,6 +1,22 @@
 {
-  "version": "7.0.1.002",
+  "version": "7.0.2.003",
   "entradas": [
+    {
+      "version": "7.0.2.003",
+      "fecha": "2026-07-30",
+      "commit": "28363b2",
+      "cambios": [
+        "Creación del programa Ingresos de Notas: ingresa notas directamente al sistema académico, separado por área",
+        "Salidas al Baño: alerta con sonido cuando falta registrar el regreso de un alumno (más de 5 minutos afuera)",
+        "Reloj: dos vistas nuevas para ver quién no marcó entrada y quién no marcó salida, con filtro de fechas",
+        "Reloj: nueva regla del Bono por Asistencia — una marca faltante hace perder el bono",
+        "Notas de Parcial: al terminar un maestro su reporte, ahora le llega el aviso al coordinador",
+        "Se corrigieron los avisos que sonaban pero no se veían en pantalla",
+        "Notas de Parcial: correcciones de texto en el PDF (Área y Grado, grados 7mo-11vo, Mitad de Parcial)",
+        "Reparación de bugs varios"
+      ],
+      "menor": true
+    },
     {
       "version": "7.0.1.002",
       "fecha": "2026-07-29",

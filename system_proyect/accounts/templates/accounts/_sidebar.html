@@ -53,6 +53,17 @@
     </ul>
   </li>
 
+  {# <--- hecho por claude code: Ingresos de Notas en su propio grupo #}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#sbIngNotas" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-list-numbers text-indigo"></i></span>
+      <span class="nav-link-title">Ingresos de Notas</span><span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="sbIngNotas">
+      <li class="nav-item"><a class="nav-link" href="{% url 'ingresos_notas:index' %}"><span class="nav-link-icon"><i class="ti ti-list-numbers"></i></span><span class="nav-link-title">Ingresos de Notas</span></a></li>
+    </ul>
+  </li>
+
   {# <--- hecho por claude code: Sponsors en su propio grupo (separado de Reloj) #}
   <li class="nav-item">
     <a class="nav-link collapsed" href="#sbSponsors" data-bs-toggle="collapse">
@@ -628,6 +639,15 @@
   </li>
   {% endif %}
 
+  {# <--- hecho por claude code: Ingreso de Notas al sistema academico #}
+  {% if nav_ingresos_notas %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'ingresos_notas:index' %}">
+      <span class="nav-link-icon"><i class="ti ti-list-numbers text-indigo"></i></span>
+      <span class="nav-link-title">Ingresos de Notas</span>
+    </a>
+  </li>
+  {% endif %}
   {# ── Salidas Baño ────────────────────────────────────── #}
   {% if nav_salidas_bano %}
   <li class="nav-item">

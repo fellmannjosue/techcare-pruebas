@@ -145,6 +145,8 @@ def nav_context(request):
         'nav_progress_only':    is_progress_only,
         'nav_salidas_bano':     is_salidas_bano,
         'nav_salidas_bano_cfp': is_salidas_bano_cfp,
+        # <--- hecho por claude code: Ingreso de Notas al sistema academico
+        'nav_ingresos_notas':   is_admin or grp('ingreso notas', 'ingreso notas bilingue', 'ingreso notas colegio'),
         # <--- hecho por claude code: enlace a Ruteo BL para coordinadores C1/C2/C4 (si el toggle está activo)
         'nav_ruteo_bl':         _puede_ver_ruteo_bl(request),
     }

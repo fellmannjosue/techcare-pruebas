@@ -87,6 +87,19 @@ ni ejecutar `git` en este repo. Scripts que deban escribir archivos de www-data
 - **Datos compartidos por TODOS los cursos** en `CfpDatosGenerales` (registro único): localidad, dirección, instructor, horario, lugar, regional, centro-programa. Ojo al probar: un POST con esos campos vacíos los borra **para todos los cursos**.
 - `no_ejecucion` **no es la llave** (la llave es el pk). Se genera solo con `generar_no_ejecucion()`: `CFP-ANA-001-26`, correlativo anual que salta huecos e ignora los códigos antiguos con otro formato.
 
+## Ingresos de Notas (escribe en el sistema académico)
+- App `ingresos_notas` (`/ingresos-notas/`). Es lo ÚNICO en TechCare que **escribe** en SQL Server; el resto de integraciones son de solo lectura.
+- Cadena: `tblPrsDtosGen → tblPrsTipo → tblEdcArea → tblEdcEjecCrso → tblEdcMaterias<rama> → tblEdcEval<rama>`. Dos ramas vivas y simétricas: **BL** (PrimariaBL, ColegioBL) y **Acad** (Colegio, Bachillerato). La rama `Col1` está MUERTA (0 registros del año) y no se toca.
+- Las filas de evaluación **ya existen** (se crean al matricular): ingresar una nota es un `UPDATE` de una columna. El legacy audita con `trg_Audit_tblEdcEval*` pero **solo en UPDATE**, por eso además se guarda todo en `EscrituraNota` (MySQL). **Nunca `DELETE`.**
+- `spEdcNotasInsert*` **NO escribe nada** pese al nombre: son los generadores del boletín (79 mil caracteres de SELECT). No sirven para guardar.
+- **Cuadro1..20 son evaluaciones normales y se usan** (hay clases con 19 y otras con 2) → la cantidad de columnas se detecta por clase. Las **Especial 1/2/3 son `ExamenFinal2/3/4`**, no los últimos cuadros. `Nivelacion` está oculta a pedido del usuario.
+- Permisos por área con grupos `ingreso notas bilingue` / `ingreso notas colegio` (+ `ingreso notas` como paraguas). **Las APIs validan el área**, no solo el desplegable.
+
+## Notificaciones (toast + campana)
+- `core.utils_notifications.crear_notificacion(usuario, mensaje, modulo, tipo, extra, enviar_correo)` crea la fila; `accounts/js/notifications.js` la muestra sondeando.
+- **TRAMPA**: `mostrarToastNotif()` hace `getElementById('tc-notif-global')` y si no existe **sale sin pintar nada** — sonaba el aviso y no se veía. El contenedor vive en `templates/base_app.html` (lo heredan las 12 bases) y en las standalone; **no duplicarlo** en las bases que ya extienden base_app.
+- Agregar el módulo a `_MODULO_LABEL` o el toast muestra el nombre técnico ("Notas_parcial").
+
 ## Modo mantenimiento (dos niveles)
 - **General**: `MAINTENANCE_MODE` + filtro por área (`all`/`staff`/`bilingue`/`colegio`) o lista de correos.
 - **Por formulario**: `MAINTENANCE_MODULES` (constance, JSON) pone cada módulo en `normal` / `lectura` / `bloqueado`. `lectura` corta solo las escrituras. Funciona aunque el general esté apagado y respeta el mismo filtro de audiencia. Registro de módulos y rutas en `core/maintenance_modules.py`; el filtro compartido es `core.middleware._audiencia_afectada`.

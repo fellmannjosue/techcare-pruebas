@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.0.1.002 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.0.2.003 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,34 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.0.2.003 — Ingresos de Notas, alerta de regreso en Salidas al Baño y control de marcas en Reloj
+
+> Release **menor**: las novedades solo se muestran al superusuario.
+
+**📝 Ingresos de Notas (programa nuevo)**
+- Programa nuevo en `/ingresos-notas/` para **ingresar notas directamente en el sistema académico** (SQL Server). Es lo primero en TechCare que **escribe** en esa base; hasta ahora todo era de solo lectura.
+- Selectores en cascada **Área → Grado/Grupo → Clase → Parcial** y rejilla estilo CFP con **autoguardado por celda**: la columna del alumno queda fija al desplazar y `Enter` baja a la fila siguiente.
+- **Las columnas dependen de la clase**: hay materias que usan 2 cuadros y otras que llegan a 19, así que se detecta el último con nota y se agrega uno en blanco. Las **Especial 1/2/3** (`ExamenFinal2/3/4`) solo salen de 7mo en adelante.
+- Alumnos ordenados **primero las niñas y luego los varones**, alfabético por nombre. En Colegio y Bachillerato los grados se muestran como **7mo–11vo** aunque la base guarde 1ero/2do/3ero.
+- **Seguridad al escribir**: lista blanca de columnas por área (nada fuera de ella se toca), rango 0–100, nunca `DELETE`, y **bitácora propia en MySQL** (`EscrituraNota`) con quién, cuándo y el valor anterior — el trigger del legacy solo audita los `UPDATE`.
+- **Permisos por área**: grupos `ingreso notas bilingue` y `ingreso notas colegio`; cada encargada solo ve y escribe lo suyo, validado también en las APIs (no basta con ocultar el desplegable).
+
+**🚻 Salidas al Baño — alerta de regreso sin registrar**
+- Si un alumno lleva **más de 5 minutos** fuera sin que se registre su regreso, se abre un modal con **sonido en bucle** para registrarlo ahí mismo. El sonido se corta al tocar el modal y el aviso solo desaparece cuando el regreso queda registrado.
+- La consulta va **al servidor cada 3 s**, así que el aviso también se va si el regreso lo registró otro maestro desde otra pantalla. Al registrar desde el modal, la fila de la tabla se repinta sin recargar.
+
+**🕐 Reloj — quién no marcó entrada o salida**
+- Dos tabs nuevos en el Reporte de Permisos con **filtro Desde/Hasta**. Como los relojes no distinguen entrada de salida (el 96% de las marcas llegan con el mismo estado), se compara la **primera y la última marca del día contra el horario asignado** del empleado.
+- **Regla 5 del Bono por Asistencia**: cualquier día con marca faltante hace perder el bono, sin tolerancia (a diferencia de la tardanza, que perdona 2).
+
+**📄 Notas de Parcial**
+- Al marcar **"Finalizado"**, ahora le llega un **toast al coordinador** de su área avisando que el maestro terminó. Antes se armaba el aviso y no se enviaba a ningún lado.
+- Textos del PDF corregidos: **"Área y Grado"** con tilde y el grado de Colegio como **7mo/8vo/9no** con la sección en mayúscula; **"Reporte de Notas a Mitad de Parcial"**; *"La Venta, Distrito Central."*; y el texto para los padres actualizado.
+
+**🐞 Arreglos**
+- **Los toast de notificación no se veían** fuera del menú y de tickets: `notifications.js` busca un contenedor por id y, si no lo encuentra, no pinta nada. Sonaba el aviso pero no aparecía. El contenedor pasó a `base_app.html` (lo heredan las 12 bases de módulo) y a las pantallas standalone.
+- En el módulo CFP, "Disketes" pasó a **"Imprevistos"**.
 
 ### v7.0.1.002 — Salidas al Baño CFP, Planilla de Gastos Administrativos e Informe Contable rediseñado
 
