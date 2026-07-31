@@ -159,7 +159,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME', 'sponsors2'),
         'USER': os.getenv('DB_USER', 'admin3'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'Test-12345'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', '192.168.10.6'),
         'PORT': os.getenv('DB_PORT', '3306'),
     },
@@ -169,7 +169,22 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
     'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD', '121800-Jfellmann'),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+    'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+    'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+    'OPTIONS': {
+        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+    },
+},
+
+# <--- hecho por claude code: base ACADÉMICA REAL (AdmonANASQL), mismo servidor y
+# credenciales que Test2 — solo cambia el nombre de la base. Hoy `admin2` NO tiene
+# permisos ahí; hasta que se los den, `NOTAS_PARCIAL_DB` sigue apuntando a Test2.
+'academico_real': {
+    'ENGINE': 'mssql',
+    'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
+    'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
     'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
     'OPTIONS': {
@@ -182,7 +197,7 @@ DATABASES = {
     'ENGINE': 'mssql',
     'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
     'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
-    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD', 'biotime-2026'),
+    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
     'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
     'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
     'OPTIONS': {
@@ -192,6 +207,19 @@ DATABASES = {
 
 
 }
+
+# <--- hecho por claude code: qué base usa "Notas Mitad de Parcial". Se cambia con
+# la variable de entorno NOTAS_PARCIAL_DB=academico_real (sin tocar código) en
+# cuanto admin2 tenga permisos de lectura en AdmonANASQL. El resto de módulos
+# (Ingreso de Notas, reloj, enfermería…) siguen en Test2.
+NOTAS_PARCIAL_DB = os.getenv('NOTAS_PARCIAL_DB', 'padres_sqlserver')
+
+# <--- hecho por claude code: se migra ÁREA POR ÁREA, según dónde ya haya permisos
+# en AdmonANASQL. Las que estén aquí usan NOTAS_PARCIAL_DB; el resto sigue en Test2.
+# Vacío = ninguna migrada. Se listan separadas por coma en el .env.
+NOTAS_PARCIAL_AREAS_REAL = [
+    a.strip() for a in os.getenv('NOTAS_PARCIAL_AREAS_REAL', '').split(',') if a.strip()
+]
 
 # ─────────────────────────────────────────────────────────────
 # 9. VALIDADORES DE CONTRASEÑAS

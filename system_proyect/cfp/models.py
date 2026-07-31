@@ -95,7 +95,7 @@ class EjecucionCurso(models.Model):
     anio         = models.PositiveSmallIntegerField('Año', default=2025, db_index=True)
     taller       = models.CharField('Taller', max_length=20, choices=TALLER_CHOICES)
     taller_anio  = models.PositiveSmallIntegerField('Año del taller (Mecánica: 1 o 2)', null=True, blank=True)
-    no_ejecucion = models.CharField('No. de Ejecución', max_length=40, blank=True)
+    no_ejecucion = models.CharField('N° de Expediente', max_length=40, blank=True)
     no_curso     = models.CharField('No. del Curso', max_length=40, blank=True)
     no_contrato  = models.CharField('No. de Contrato', max_length=60, blank=True)
     nombre_curso = models.CharField('Nombre del Curso', max_length=120)

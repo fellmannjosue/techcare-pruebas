@@ -1,10 +1,88 @@
-/* <--- hecho por claude code: extraído del template */
-@page { size: letter landscape; margin: 1.2cm; }
-  body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #222; }
-  h1 { font-size: 15px; margin: 0 0 2px; }
-  .sub { color: #666; font-size: 9px; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #cbd5e1; padding: 3px 5px; }
-  th { background: #f1f5f9; font-size: 8px; text-transform: uppercase; text-align: left; }
-  td.c, th.c { text-align: center; }
-  tr:nth-child(even) td { background: #f8fafc; }
+/* <--- hecho por claude code: rediseño de los reportes de compensatorio.
+   Misma identidad visual que el Reporte Mensual de Permisos: horizontal,
+   encabezado oscuro, filas alternas y columnas de valor con color. */
+
+@page {
+  size: letter landscape;
+  margin: 1.1cm 1.2cm 1.4cm;
+  @bottom-right {
+    content: "Página " counter(page) " de " counter(pages);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 7px;
+    color: #94a3b8;
+  }
+  @bottom-left {
+    content: "TechCare · Asociación Nuevo Amanecer";
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 7px;
+    color: #94a3b8;
+  }
+}
+
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 8.5px;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* ── Encabezado ── */
+h1 {
+  font-size: 16px;
+  margin: 0;
+  color: #1e293b;
+  letter-spacing: -.2px;
+}
+.sub {
+  color: #64748b;
+  font-size: 8.5px;
+  margin: 2px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #0d9488;
+}
+
+/* ── Tabla ── */
+table { width: 100%; border-collapse: collapse; }
+thead { display: table-header-group; }   /* el encabezado se repite en cada hoja */
+tr { page-break-inside: avoid; }
+
+th {
+  background: #0f766e;
+  color: #fff;
+  font-size: 7.5px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  font-weight: bold;
+  padding: 6px 5px;
+  text-align: left;
+  border: 1px solid #115e59;
+}
+td {
+  border: 1px solid #e2e8f0;
+  padding: 4px 5px;
+}
+td.c, th.c { text-align: center; }
+tbody tr:nth-child(even) td { background: #f8fafc; }
+
+/* Nombre del empleado */
+.emp      { font-weight: bold; color: #0f172a; }
+.emp-code { color: #94a3b8; font-weight: normal; }
+
+/* ── Columnas de valores ── */
+.v-trab  { background: #eff6ff !important; color: #1d4ed8; font-weight: bold; }
+.v-tom   { background: #fff7ed !important; color: #c2410c; font-weight: bold; }
+.v-saldo { background: #f0fdf4 !important; color: #15803d; font-weight: bold; }
+/* Saldo negativo o en cero: que se distinga de un saldo a favor */
+.v-saldo-neg  { background: #fef2f2 !important; color: #dc2626; font-weight: bold; }
+.v-saldo-cero { background: #f8fafc !important; color: #94a3b8; font-weight: bold; }
+
+.nulo  { color: #cbd5e1; }
+.vacio { color: #94a3b8; padding: 10px; text-align: center; }
+
+/* Fila de totales (Gilma) */
+.total td {
+  background: #e2e8f0 !important;
+  font-weight: bold;
+  color: #0f172a;
+  border-top: 2px solid #0f766e;
+}

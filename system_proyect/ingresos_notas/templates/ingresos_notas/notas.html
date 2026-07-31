@@ -16,13 +16,15 @@
 
 {# ── Los tres formularios del programa ── #}
 <ul class="nav nav-tabs mb-3" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#f-notas" type="button"><i class="ti ti-list-numbers me-1"></i>Notas</button></li>
+  <li class="nav-item"><button class="nav-link {% if tab_sel != 'tareas' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#f-notas" type="button"><i class="ti ti-list-numbers me-1"></i>Notas</button></li>
+  {# <--- hecho por claude code: Tareas va aparte del Record de hábitos: se registra a diario #}
+  <li class="nav-item"><button class="nav-link {% if tab_sel == 'tareas' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#f-tareas" type="button"><i class="ti ti-notebook me-1"></i>Tareas</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#f-asistencias" type="button"><i class="ti ti-calendar-x me-1"></i>Asistencias</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#f-habitos" type="button"><i class="ti ti-star me-1"></i>Record de hábitos</button></li>
 </ul>
 
 <div class="tab-content">
-<div class="tab-pane fade show active" id="f-notas">
+<div class="tab-pane fade {% if tab_sel != 'tareas' %}show active{% endif %}" id="f-notas">
 
   {# ── Selectores ── #}
   <div class="card mb-3">
@@ -87,6 +89,80 @@
 
 </div>{# /f-notas #}
 
+{# ── Tab Tareas ── #}
+<div class="tab-pane fade {% if tab_sel == 'tareas' %}show active{% endif %}" id="f-tareas">
+
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        {# <--- hecho por claude code: al cambiar de área se recarga, y `tab` la devuelve aquí #}
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Área</label>
+          <form method="get" id="frm-area-tareas">
+            <input type="hidden" name="tab" value="tareas">
+            <select name="area" class="form-select" onchange="this.form.submit()">
+              {% for k, lbl in areas %}
+              <option value="{{ k }}" {% if area_sel == k %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Grado / Grupo</label>
+          <select class="form-select" id="tr-grado">
+            <option value="">— Seleccionar —</option>
+            {% for g in grados %}
+            <option value="{{ g.grado }}|{{ g.grupo }}">{{ g.label }} · grupo {{ g.grupo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Clase</label>
+          <select class="form-select" id="tr-clase" disabled>
+            <option value="">— Elige primero el grado —</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Fecha</label>
+          <input type="date" class="form-control" id="tr-fecha" value="{{ hoy }}">
+        </div>
+      </div>
+      <div class="row g-2 align-items-end mt-1">
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Tarea</label>
+          <select class="form-select" id="tr-tarea" disabled>
+            <option value="1">Tarea 1</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <button class="btn btn-outline-primary w-100" id="tr-nueva" disabled>
+            <i class="ti ti-plus me-1"></i>Nueva tarea
+          </button>
+        </div>
+      </div>
+      <div class="text-muted small mt-2">
+        <i class="ti ti-info-circle me-1"></i>Puntos de 0 a 10 · se guardan solos al salir de
+        cada casilla. Llena una tarea completa antes de crear la siguiente.
+      </div>
+      <div id="tr-aviso" class="mt-2"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title" id="tr-titulo">Participantes</h3>
+      <div class="card-actions"><span id="tr-estado" class="small text-muted"></span></div>
+    </div>
+    <div id="tr-cont">
+      <div class="card-body text-center text-muted py-5">
+        <i class="ti ti-hand-click" style="font-size:2rem"></i>
+        <div class="mt-2">Elige grado y clase para registrar tareas.</div>
+      </div>
+    </div>
+  </div>
+
+</div>{# /f-tareas #}
+
 <div class="tab-pane fade" id="f-asistencias">
   <div class="card"><div class="card-body text-center text-muted py-5">
     <i class="ti ti-calendar-x" style="font-size:2rem"></i>
@@ -110,9 +186,12 @@
      data-v1="{% url 'ingresos_notas:api_alumnos' %}"
      data-v2="{% url 'ingresos_notas:api_guardar' %}"
      data-v3="{{ area_sel }}"
-     data-v4="{{ csrf_token }}"></div>
+     data-v4="{{ csrf_token }}"
+     data-v5="{% url 'ingresos_notas:api_tareas' %}"
+     data-v6="{% url 'ingresos_notas:api_tarea_guardar' %}"></div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'ingresos_notas/js/notas.js' %}?v=4"></script>
+<script src="{% static 'ingresos_notas/js/notas.js' %}?v=5"></script>
+<script src="{% static 'ingresos_notas/js/tareas.js' %}?v=1"></script>
 {% endblock %}

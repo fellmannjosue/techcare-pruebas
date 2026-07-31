@@ -36,12 +36,32 @@ RAMAS = {
     'bl': {
         'materias': 'tblEdcMateriasBL', 'pk_materia': 'EdcMateriaBLID',
         'eval': 'tblEdcEvalBL',         'pk_eval': 'EdcEvalBLID',
+        'record': 'tblEdcRecordHabitosBL', 'pk_record': 'EdcRecHabitosBLID',
     },
     'acad': {
         'materias': 'tblEdcMateriasAcad', 'pk_materia': 'EdcMateriaAcadID',
         'eval': 'tblEdcEvalAcad',         'pk_eval': 'EdcEvalAcadID',
+        'record': 'tblEdcRecordHabitosAcad', 'pk_record': 'EdcRecHabitosAcadID',
     },
 }
+
+# <--- hecho por claude code: Record de Hábitos. El catálogo (tblEdcDescripHabitos)
+# marca con Academ/AcademBL los 6 que usan Colegio y Bilingüe; `Voc` es de CFP.
+# "Tareas" va en su propio tab porque se registra a diario y en cantidad.
+HABITO_TAREAS = 3
+HABITOS_RECORD = [
+    (18, 'Espíritu de Trabajo'),
+    (19, 'Orden y Presentación'),
+    (20, 'Moralidad'),
+    (21, 'Sociabilidad'),
+    (23, 'ExpresionesADH'),
+]
+# Una tarea NO tiene identificador propio en el legacy: solo Fecha, Puntos y
+# Comentario. Varias tareas del mismo día se distinguen ÚNICAMENTE por el orden
+# de inserción (la PK). Verificado: dentro de una clase y un día todos los
+# alumnos tienen la misma cantidad, así que la posición N es la misma tarea
+# para todos. Por eso se llena una tarea completa antes de crear la siguiente.
+PUNTOS_MAX = 10
 
 # `descr` es el texto exacto de tblEdcDescripAreaEdc.Descripcion.
 # <--- hecho por claude code: `grupo` = quién puede ingresar notas de esa área.
@@ -80,16 +100,21 @@ def _grado_label(area_key, grado):
 CUADROS_MINIMOS = 6      # nunca se muestran menos, aunque la clase esté vacía
 MAX_CUADROS = 20
 
-# <--- hecho por claude code: las "Especial 1/2/3" son ExamenFinal2/3/4, NO los
-# últimos cuadros. Confirmado con los datos: Cuadro19 tiene notas reales este año
-# y ExamenFinal2/3/4 están vacíos en esas mismas clases.
+# <--- hecho por claude code: las "Especial 1/2/3" se guardan en Cuadro18/19/20.
+# Verificado contra Access con la misma fila (Biología, Bachillerato 10mo A, P1):
+# Cuadro1..4 = 39/80/80/95, Cuadro18 = 70 y Cuadro19 = 64, que Access rotula
+# Especial1 y Especial2. ExamenFinal2/3/4 están vacíos y NO se usan.
 EVAL_CONTINUA = [
-    ('ExamenFinal2', 'Especial 1'),
-    ('ExamenFinal3', 'Especial 2'),
-    ('ExamenFinal4', 'Especial 3'),
+    ('Cuadro18', 'Especial 1'),
+    ('Cuadro19', 'Especial 2'),
+    ('Cuadro20', 'Especial 3'),
 ]
 # Las Especial solo aplican de 7mo en adelante.
 AREAS_EVAL_CONTINUA = {'colegio_bl', 'colegio', 'bachillerato'}
+
+# <--- hecho por claude code: donde hay Especial, los cuadros numerados llegan
+# hasta 17: del 18 al 20 son las Especial y se pintan aparte, sin duplicarse.
+MAX_CUADROS_CON_ESPECIAL = 17
 
 # <--- hecho por claude code: `Nivelacion` se oculta a pedido del usuario (no se usa).
 # La columna sigue en la base con sus datos históricos; solo deja de mostrarse y de
@@ -107,7 +132,8 @@ def _columnas(area_key, n_cuadros):
 
     Orden pedido: cuadros → Especial 1-3 → examen final → recuperaciones.
     """
-    n = max(1, min(n_cuadros, MAX_CUADROS))
+    tope = MAX_CUADROS_CON_ESPECIAL if area_key in AREAS_EVAL_CONTINUA else MAX_CUADROS
+    n = max(1, min(n_cuadros, tope))
     cols = [(f'Cuadro{i}', f'C{i}') for i in range(1, n + 1)]
     if area_key in AREAS_EVAL_CONTINUA:
         cols += EVAL_CONTINUA
@@ -221,8 +247,11 @@ def _cuadros_de_la_clase(area_key, anio, grado, grupo, materia_id, parcial):
     capturando. Nunca menos de CUADROS_MINIMOS.
     """
     cfg, rama = AREAS[area_key], RAMAS[AREAS[area_key]['rama']]
+    # <--- hecho por claude code: donde hay Especial no se cuentan 18-20 como cuadros,
+    # o una clase con Especial contestada diría que usa 20 cuadros.
+    tope = MAX_CUADROS_CON_ESPECIAL if area_key in AREAS_EVAL_CONTINUA else MAX_CUADROS
     sel = ", ".join(f"MAX(CASE WHEN ev.Cuadro{i} IS NOT NULL THEN {i} ELSE 0 END)"
-                    for i in range(1, MAX_CUADROS + 1))
+                    for i in range(1, tope + 1))
     sql = f"""
         SELECT {sel}
         FROM dbo.{rama['eval']} ev
@@ -239,7 +268,7 @@ def _cuadros_de_la_clase(area_key, anio, grado, grupo, materia_id, parcial):
         c.execute(sql, [cfg['descr'], anio, grado, grupo, materia_id, parcial])
         fila = c.fetchone()
     usado = max([v or 0 for v in fila]) if fila else 0
-    return max(CUADROS_MINIMOS, min(usado + 1, MAX_CUADROS))
+    return max(CUADROS_MINIMOS, min(usado + 1, tope))
 
 
 def _alumnos_con_notas(area_key, anio, grado, grupo, materia_id, parcial, n_cuadros):
@@ -294,6 +323,67 @@ def _alumnos_con_notas(area_key, anio, grado, grupo, materia_id, parcial, n_cuad
         return filas
 
 
+# ── Record de Hábitos: Tareas ────────────────────────────────────────────────
+def _alumnos_de_la_clase(area_key, anio, grado, grupo, materia_id):
+    """<--- hecho por claude code: alumnos de la clase SIN notas (para hábitos).
+
+    Mismo recorrido de llaves que la rejilla de notas y el mismo orden (primero
+    las niñas, luego los varones, alfabético por nombre).
+    """
+    cfg, rama = AREAS[area_key], RAMAS[AREAS[area_key]['rama']]
+    sql = f"""
+        SELECT m.{rama['pk_materia']},
+               LTRIM(RTRIM(ISNULL(d.Nombre1,'') + ' ' + ISNULL(d.Nombre2,'') + ' ' +
+                           ISNULL(d.Apellido1,'') + ' ' + ISNULL(d.Apellido2,''))) AS nombre,
+               ISNULL(d.NumeroID,'') AS identidad
+        FROM dbo.{rama['materias']} m
+          JOIN dbo.tblEdcEjecCrso ec        ON ec.EjecCrsoID = m.EjecCrsoID
+          JOIN dbo.tblEdcArea a             ON a.AreaID = ec.AreaID
+          JOIN dbo.tblEdcDescripAreaEdc da  ON da.DescrAreaEdcID = a.DescrAreaEdcID
+          JOIN dbo.tblEdcCrso cr            ON cr.CrsoID = ec.CrsoID
+          JOIN dbo.tblPrsTipo t             ON t.IngrEgrID = a.IngrEgrID
+          JOIN dbo.tblPrsDtosGen d          ON d.PersonaID = t.PersonaID
+        WHERE da.Descripcion = %s AND DATEPART(yy, cr.FechaInicio) = %s
+          AND cr.CrsoNumero = %s AND cr.GrupoNumero = %s
+          AND m.EdcDescrMateriaID = %s AND ec.Desertor = 0
+        ORDER BY CASE WHEN d.Sexo = 'femenino' THEN 0
+                      WHEN d.Sexo = 'masculino' THEN 1
+                      ELSE 2 END,
+                 d.Nombre1, d.Nombre2, d.Apellido1
+    """
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute(sql, [cfg['descr'], anio, grado, grupo, materia_id])
+        return [{'materia_id': r[0], 'nombre': ' '.join((r[1] or '').split()),
+                 'identidad': (r[2] or '').strip()} for r in c.fetchall()]
+
+
+def _registros_del_dia(area_key, materia_ids, fecha, habito):
+    """{materia_id: [(rec_id, puntos, comentario), ...]} en orden de inserción.
+
+    El orden por PK ES la identidad de la tarea: la 2ª fila de un alumno es la
+    misma tarea que la 2ª de otro (verificado: dentro de clase y día todos los
+    alumnos tienen la misma cantidad de filas).
+    """
+    if not materia_ids:
+        return {}
+    rama = RAMAS[AREAS[area_key]['rama']]
+    marcas = ','.join(['%s'] * len(materia_ids))
+    sql = f"""
+        SELECT {rama['pk_materia']}, {rama['pk_record']}, Puntos, Comentario
+        FROM dbo.{rama['record']}
+        WHERE EdcDescrHabitosID = %s AND CAST(Fecha AS date) = %s
+          AND {rama['pk_materia']} IN ({marcas})
+        ORDER BY {rama['pk_materia']}, {rama['pk_record']}
+    """
+    por_alumno = {}
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute(sql, [habito, fecha] + list(materia_ids))
+        for mat, rec_id, puntos, coment in c.fetchall():
+            por_alumno.setdefault(mat, []).append(
+                {'rec_id': rec_id, 'puntos': puntos, 'comentario': coment or ''})
+    return por_alumno
+
+
 # ── Pantallas ────────────────────────────────────────────────────────────────
 @notas_required
 def index(request):
@@ -310,6 +400,10 @@ def index(request):
         'anio': _anio_actual(),
         'parciales': PARCIALES,
         'max_cuadros': MAX_CUADROS,
+        'hoy': date.today().isoformat(),   # valor inicial del tab Tareas
+        # <--- hecho por claude code: cambiar de área recarga la página; `tab` la
+        # devuelve al formulario donde estaba y no siempre a Notas.
+        'tab_sel': request.GET.get('tab', ''),
         'error': '',
     }
     try:
@@ -446,3 +540,156 @@ def api_guardar(request):
 
     return JsonResponse({'ok': True, 'eval_id': eval_id, 'accion': accion,
                          'valor': '' if valor is None else valor})
+
+
+# ── APIs del tab Tareas ──────────────────────────────────────────────────────
+def _fecha_valida(texto):
+    """'2026-07-30' -> date, o None si no sirve."""
+    try:
+        return date.fromisoformat((texto or '').strip())
+    except ValueError:
+        return None
+
+
+@notas_required
+@require_GET
+def api_tareas(request):
+    """Alumnos de la clase con la tarea N de esa fecha (puntos y comentario)."""
+    area = request.GET.get('area', '')
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+
+    fecha = _fecha_valida(request.GET.get('fecha'))
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+    try:
+        pedida = int(request.GET.get('tarea') or 0)
+    except ValueError:
+        pedida = 0
+
+    try:
+        alumnos = _alumnos_de_la_clase(
+            area, _anio_actual(), request.GET.get('grado', ''),
+            request.GET.get('grupo', ''), request.GET.get('materia', ''))
+        ids = [a['materia_id'] for a in alumnos]
+        registros = _registros_del_dia(area, ids, fecha, HABITO_TAREAS)
+
+        # Cuántas tareas hay ya ese día y si la clase está pareja
+        cuentas = [len(registros.get(i, [])) for i in ids] or [0]
+        n_tareas = max(cuentas)
+        desiguales = bool(ids) and min(cuentas) != n_tareas
+
+        # Sin tarea pedida se abre la última con datos; si no hay ninguna, la 1
+        tarea = pedida if pedida > 0 else max(1, n_tareas)
+        for a in alumnos:
+            filas = registros.get(a['materia_id'], [])
+            r = filas[tarea - 1] if len(filas) >= tarea else None
+            a['rec_id']     = r['rec_id'] if r else None
+            a['puntos']     = '' if r is None else r['puntos']
+            a['comentario'] = '' if r is None else r['comentario']
+            a['previas']    = len(filas)      # para no desalinear al insertar
+        return JsonResponse({'ok': True, 'alumnos': alumnos, 'tarea': tarea,
+                             'n_tareas': n_tareas, 'desiguales': desiguales,
+                             'puntos_max': PUNTOS_MAX})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+
+
+@notas_required
+@require_POST
+def api_tarea_guardar(request):
+    """Guarda los puntos o el comentario de UNA tarea de UN alumno.
+
+    Si la fila existe es UPDATE. Si no, se INSERTA — pero solo cuando al alumno
+    le faltaba exactamente esa tarea (`previas == tarea - 1`); si le faltan
+    tareas anteriores se rechaza, porque insertarla la correría de posición y
+    quedaría pegada a la tarea equivocada.
+    """
+    try:
+        body = json.loads(request.body or b'{}')
+        area       = body.get('area', '')
+        materia_id = int(body.get('materia_id'))
+        tarea      = int(body.get('tarea'))
+        campo      = (body.get('campo') or '').strip()
+        crudo      = (body.get('valor') or '').strip()
+        alumno     = (body.get('alumno') or '')[:200]
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+
+    fecha = _fecha_valida(body.get('fecha'))
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+    if tarea < 1:
+        return JsonResponse({'ok': False, 'error': 'Tarea inválida'}, status=400)
+    if campo not in ('puntos', 'comentario'):
+        return JsonResponse({'ok': False, 'error': 'Campo no permitido'}, status=400)
+
+    puntos = None
+    if campo == 'puntos':
+        if crudo == '':
+            return JsonResponse({'ok': False,
+                                 'error': 'Los puntos no pueden quedar vacíos'}, status=400)
+        try:
+            puntos = int(round(float(crudo)))
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número'}, status=400)
+        if not (0 <= puntos <= PUNTOS_MAX):
+            return JsonResponse({'ok': False,
+                                 'error': f'Los puntos van de 0 a {PUNTOS_MAX}'}, status=400)
+
+    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    usuario = (request.user.get_username() or '')[:50]
+
+    try:
+        filas = _registros_del_dia(area, [materia_id], fecha, HABITO_TAREAS).get(materia_id, [])
+        with connections['padres_sqlserver'].cursor() as c:
+            if len(filas) >= tarea:
+                actual = filas[tarea - 1]
+                rec_id = actual['rec_id']
+                if campo == 'puntos':
+                    antes, nuevo = actual['puntos'], puntos
+                    c.execute(f"""UPDATE dbo.{rama['record']}
+                                  SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
+                else:
+                    antes, nuevo = actual['comentario'], crudo
+                    c.execute(f"""UPDATE dbo.{rama['record']}
+                                  SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_record']} = %s""",
+                              [crudo or None, usuario, rec_id])
+                accion = 'update'
+            else:
+                if len(filas) != tarea - 1:
+                    return JsonResponse(
+                        {'ok': False, 'error': f'A este alumno le faltan tareas anteriores '
+                                               f'(tiene {len(filas)}). Llena primero la '
+                                               f'tarea {len(filas) + 1}.'}, status=200)
+                if campo == 'comentario':
+                    return JsonResponse(
+                        {'ok': False,
+                         'error': 'Pon primero los puntos y luego el comentario.'}, status=200)
+                antes, nuevo = None, puntos
+                c.execute(f"""INSERT INTO dbo.{rama['record']}
+                              ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
+                               Usuario, FchaReg)
+                              VALUES (%s, %s, %s, %s, %s, GETDATE())""",
+                          [materia_id, HABITO_TAREAS, fecha, puntos, usuario])
+                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
+                r = c.fetchone()
+                rec_id = r[0] if r else None
+                accion = 'insert'
+    except Exception as e:
+        return JsonResponse({'ok': False,
+                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+
+    EscrituraNota.objects.create(
+        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['record'],
+        materia_id=materia_id, eval_id=rec_id, parcial=0,
+        columna=f'Tarea{tarea}@{fecha:%Y-%m-%d}·{campo}',
+        valor_antes='' if antes is None else str(antes),
+        valor_nuevo='' if nuevo is None else str(nuevo),
+        accion=accion, alumno=alumno)
+
+    return JsonResponse({'ok': True, 'rec_id': rec_id, 'accion': accion})

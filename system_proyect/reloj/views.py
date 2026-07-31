@@ -158,10 +158,26 @@ def _permiso_mes_cerrado(fecha, user=None):
 def _reporte_pdf(request, template, context, filename):
     """Renderiza `template` (HTML de impresión) con `context` y devuelve un PDF
     vía WeasyPrint. Inline (?inline=1) para vista previa, o adjunto para descargar."""
-    from weasyprint import HTML as _WHTML
+    from weasyprint import HTML as _WHTML, CSS as _WCSS
+    from django.contrib.staticfiles import finders as _finders
     from django.template.loader import render_to_string as _rts
+    import re as _re
+
     html = _rts(template, context, request=request)
-    pdf_bytes = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    # <--- hecho por claude code: el CSS se carga DEL DISCO, no por HTTP.
+    # Con solo `base_url`, WeasyPrint pedía la hoja a https://servicios…:437/static/…
+    # y esa petición no llega desde el propio servidor (el nombre resuelve a la IP
+    # pública). Al fallar en silencio, el PDF salía sin estilos y en A4 vertical
+    # aunque el CSS dijera `landscape`.
+    hojas = []
+    for href in _re.findall(r'<link[^>]+href="([^"]+\.css[^"]*)"', html):
+        ruta = _finders.find(href.split('?')[0].replace(settings.STATIC_URL, '', 1))
+        if ruta:
+            hojas.append(_WCSS(filename=ruta))
+
+    pdf_bytes = _WHTML(string=html,
+                       base_url=request.build_absolute_uri('/')).write_pdf(stylesheets=hojas)
     disp = 'inline' if request.GET.get('inline') == '1' else 'attachment'
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     resp['Content-Disposition'] = f'{disp}; filename="{filename}"'
@@ -3927,17 +3943,43 @@ _TARDE_REGLAS_DEFAULT = [
 
 
 def _rebaja_por_dia(minutos: int, reglas=None) -> float:
-    """Horas rebajadas según los minutos de tardanza, usando reglas configurables.
-    Toma el tramo más alto cuyo 'min' se alcanza; el último tramo aplica también
-    por encima de su 'max'."""
+    """Horas rebajadas según los minutos de tardanza (total del mes).
+
+    Dentro de los tramos configurados se toma el más alto cuyo 'min' se alcanza
+    (11–30 → 0.5 h, 31–60 → 1 h).
+
+    <--- hecho por claude code: pasado el último tramo ya NO se queda plano en 1 h:
+    se rebaja UNA HORA POR CADA 60 MINUTOS COMPLETOS y los minutos sueltos no
+    suman (334 min → 5 h, no 6). Antes cualquier acumulado, por grande que fuera,
+    rebajaba lo mismo que 31 minutos.
+    """
     reglas = reglas or _TARDE_REGLAS_DEFAULT
+    try:
+        minutos = int(minutos or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+    ordenadas = sorted(
+        [r for r in reglas if str(r.get('min', '')).strip() != ''],
+        key=lambda x: int(x.get('min', 0)))
+
     horas = 0.0
-    for rg in sorted(reglas, key=lambda x: x.get('min', 0)):
+    for rg in ordenadas:
         try:
             if minutos >= int(rg.get('min', 0)):
                 horas = float(rg.get('horas', 0))
         except (TypeError, ValueError):
             continue
+
+    # Por encima del último tramo: 1 hora por cada 60 minutos cumplidos.
+    if ordenadas:
+        try:
+            tope = int(ordenadas[-1].get('max') or 0)
+        except (TypeError, ValueError):
+            tope = 0
+        if tope and minutos > tope:
+            # max() para que nunca rebaje menos que el propio tramo
+            horas = max(horas, float(minutos // 60))
     return horas
 
 

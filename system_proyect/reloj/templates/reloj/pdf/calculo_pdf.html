@@ -2,7 +2,7 @@
 {% load static l10n %}
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<link rel="stylesheet" href="{% static 'reloj/css/calculo_pdf.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'reloj/css/calculo_pdf.css' %}?v=2">
 </head><body>
 
 {% if sec == 'adeudados' %}
@@ -16,7 +16,7 @@
     <tbody>
       {% for item in registros_data %}
       <tr>
-        <td>{{ item.r.nombre_empleado }} <span style="color:#888;">({{ item.r.emp_code }})</span></td>
+        <td>{{ item.r.nombre_empleado }} <span class="emp-code">({{ item.r.emp_code }})</span></td>
         <td class="c">{{ item.horas_adeudadas|floatformat:"-2" }}</td>
         <td class="c">{{ item.comp_mas_te_hrs|floatformat:"-2" }}</td>
         <td class="c">{{ item.tomado_hrs|floatformat:"-2" }}</td>
@@ -36,12 +36,13 @@
     <tbody>
       {% for row in mensual_rows %}
       <tr>
-        <td>{{ row.emp.nombre_empleado }} <span style="color:#888;">({{ row.emp.emp_code }})</span></td>
-        <td class="c">{{ row.total_trab|floatformat:"-2" }}</td>
-        <td class="c">{{ row.total_tom|floatformat:"-2" }}</td>
-        <td class="c">{{ row.total_saldo|floatformat:"-2" }}</td>
+        <td><span class="emp">{{ row.emp.nombre_empleado }}</span> <span class="emp-code">({{ row.emp.emp_code }})</span></td>
+        <td class="c v-trab">{{ row.total_trab|floatformat:"-2" }}</td>
+        <td class="c v-tom">{{ row.total_tom|floatformat:"-2" }}</td>
+        {# <--- hecho por claude code: saldo a favor en verde, negativo en rojo, cero apagado #}
+        <td class="c {% if row.total_saldo > 0 %}v-saldo{% elif row.total_saldo < 0 %}v-saldo-neg{% else %}v-saldo-cero{% endif %}">{{ row.total_saldo|floatformat:"-2" }}</td>
       </tr>
-      {% empty %}<tr><td colspan="4" class="c">Sin registros.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4" class="vacio">Sin registros.</td></tr>{% endfor %}
     </tbody>
   </table>
 
@@ -91,8 +92,8 @@
         <td class="c">{{ d.trab }}</td>
       </tr>
       {% empty %}<tr><td colspan="6" class="c">Sin datos en el rango.</td></tr>{% endfor %}
-      <tr><td colspan="5" class="c" style="font-weight:bold;background:#eef2f7;">TOTAL</td>
-          <td class="c" style="font-weight:bold;background:#eef2f7;">{{ gilma.total_str }}</td></tr>
+      <tr class="total"><td colspan="5" class="c">TOTAL</td>
+          <td class="c">{{ gilma.total_str }}</td></tr>
     </tbody>
   </table>
 
@@ -108,7 +109,7 @@
     <tbody>
       {% for row in instructor_rows %}
       <tr>
-        <td>{{ row.i.nombre_empleado }} <span style="color:#888;">({{ row.i.emp_code }})</span></td>
+        <td>{{ row.i.nombre_empleado }} <span class="emp-code">({{ row.i.emp_code }})</span></td>
         <td class="c">{{ row.horario }}</td>
         <td class="c">{{ row.comp_hrs|floatformat:"-2" }}</td>
         <td class="c">{{ row.te_min }}</td>

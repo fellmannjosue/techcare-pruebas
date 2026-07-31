@@ -1,5 +1,6 @@
 {% load static notas_tags %}
-{% if request.user|es_coord_notas or request.user.is_superuser or request.user.is_staff %}
+{# <--- hecho por claude code: SIN is_staff. Es la marca del admin de Django, no un rol: colaba el toast a administracion/contabilidad (yzavala, glorenzo). Solo coordinadores de notas y superusuario. #}
+{% if request.user|es_coord_notas or request.user.is_superuser %}
 <div id="notif-notas-config" hidden
      data-url-notif="{% url 'notas_parcial_notif_json' %}"
      data-url-leer="{% url 'notas_parcial_leer_notif' %}"

@@ -1,6 +1,15 @@
 {
-  "version": "7.4.0",
+  "version": "7.4.0.001",
   "entradas": [
+    {
+      "version": "7.4.0.001",
+      "fecha": "2026-07-31",
+      "commit": "9b1cdfb",
+      "cambios": [
+        "feat: notas de parcial desde la base academica real, tab Tareas y PDFs del reloj"
+      ],
+      "menor": true
+    },
     {
       "version": "7.4.0",
       "fecha": "2026-07-30",

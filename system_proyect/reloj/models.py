@@ -958,8 +958,9 @@ class RelojConfigGlobal(models.Model):
         help_text='Si False, la columna solo la ve el superusuario.'
     )
     # Reglas configurables de rebaja por tardanza (minutos → horas).
-    # Cada regla: {"min": int, "max": int, "horas": float}. El último tramo
-    # también aplica a valores por encima de su "max".
+    # Cada regla: {"min": int, "max": int, "horas": float}. Por encima del "max"
+    # del último tramo se rebaja 1 hora por cada 60 minutos completos
+    # (<--- hecho por claude code: antes se quedaba plano en el último tramo).
     tarde_reglas = models.JSONField('Reglas de rebaja por tardanza', blank=True, default=list)
 
     class Meta:

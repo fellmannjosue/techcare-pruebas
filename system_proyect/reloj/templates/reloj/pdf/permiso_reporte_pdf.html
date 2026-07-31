@@ -1,7 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
-<link rel="stylesheet" href="{% static 'reloj/css/permiso_reporte_pdf.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'reloj/css/permiso_reporte_pdf.css' %}?v=2">
 </head><body>
   <h1>Reporte Mensual de Permisos</h1>
   <div class="sub">Mes: {{ mes|date:"F Y" }} · Generado por empleado</div>
@@ -16,27 +16,31 @@
     <tbody>
       {% for row in rows %}
       {% ifchanged row.grupo %}
-        {% if row.grupo == 'maestro' %}<tr><td colspan="12" style="background:#e6fffb;font-weight:bold;">Maestros por hora</td></tr>{% endif %}
-        {% if row.grupo == 'vigilante' %}<tr><td colspan="12" style="background:#eef2ff;font-weight:bold;">Vigilancia</td></tr>{% endif %}
+        {# <--- hecho por claude code: los estilos viven en el CSS, no incrustados #}
+        {% if row.grupo == 'maestro' %}<tr class="grupo grupo-maestro"><td colspan="12">Maestros por hora</td></tr>{% endif %}
+        {% if row.grupo == 'vigilante' %}<tr class="grupo grupo-vigilante"><td colspan="12">Vigilancia</td></tr>{% endif %}
       {% endifchanged %}
       {% with r=row.r %}
       <tr>
-        <td class="l">{{ row.nombre }} <span style="color:#888;">({{ row.emp_code }})</span>{% if row.cargo %}<br><span style="color:#999;font-size:7px;">{{ row.cargo }}</span>{% endif %}</td>
-        <td>{% if r.ausencias_dias %}{{ r.ausencias_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
-        <td>{% if r.otro_pagado_dias %}{{ r.otro_pagado_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
-        <td>{% if r.vacaciones_dias %}{{ r.vacaciones_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
-        <td>{% if r.enfermedad_dias %}{{ r.enfermedad_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
-        <td>{% if r.pct25_dias %}{{ r.pct25_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
-        <td>{% if r.pct50_dias %}{{ r.pct50_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
-        <td>{% if r.pct75_dias %}{{ r.pct75_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
-        <td>{% if r.pct100_dias %}{{ r.pct100_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
-        <td>{% if row.es_maestro_hora %}{{ row.mh_total|floatformat:"-2" }} h/mes{% elif r %}{{ r.horas_diarias_laboradas }} h/d{% else %}8.0 h/d{% endif %}</td>
-        <td>{% if row.horas_rebaja %}{{ row.horas_rebaja }}h{% else %}—{% endif %}</td>
-        <td>{% if row.minutos_tarde %}{{ row.minutos_tarde }}m{% else %}—{% endif %}</td>
+        <td class="l">
+          <span class="emp">{{ row.nombre }}</span> <span class="emp-code">({{ row.emp_code }})</span>
+          {% if row.cargo %}<br><span class="cargo">{{ row.cargo }}</span>{% endif %}
+        </td>
+        <td class="{% if r.ausencias_dias %}c-nopag{% else %}nulo{% endif %}">{% if r.ausencias_dias %}{{ r.ausencias_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td class="{% if r.otro_pagado_dias %}c-pagado{% else %}nulo{% endif %}">{% if r.otro_pagado_dias %}{{ r.otro_pagado_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td class="{% if r.vacaciones_dias %}c-vacac{% else %}nulo{% endif %}">{% if r.vacaciones_dias %}{{ r.vacaciones_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td class="{% if r.enfermedad_dias %}c-enferm{% else %}nulo{% endif %}">{% if r.enfermedad_dias %}{{ r.enfermedad_dias|floatformat:"-2" }}d{% else %}—{% endif %}</td>
+        <td class="{% if r.pct25_dias %}c-pct{% else %}nulo{% endif %}">{% if r.pct25_dias %}{{ r.pct25_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td class="{% if r.pct50_dias %}c-pct{% else %}nulo{% endif %}">{% if r.pct50_dias %}{{ r.pct50_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td class="{% if r.pct75_dias %}c-pct{% else %}nulo{% endif %}">{% if r.pct75_dias %}{{ r.pct75_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td class="{% if r.pct100_dias %}c-pct{% else %}nulo{% endif %}">{% if r.pct100_dias %}{{ r.pct100_dias|floatformat:"-2" }}{% else %}—{% endif %}</td>
+        <td class="c-horas">{% if row.es_maestro_hora %}{{ row.mh_total|floatformat:"-2" }} h/mes{% elif r %}{{ r.horas_diarias_laboradas }} h/d{% else %}8.0 h/d{% endif %}</td>
+        <td class="{% if row.horas_rebaja %}c-rebaja{% else %}nulo{% endif %}">{% if row.horas_rebaja %}{{ row.horas_rebaja }}h{% else %}—{% endif %}</td>
+        <td class="{% if row.minutos_tarde %}c-tarde{% else %}nulo{% endif %}">{% if row.minutos_tarde %}{{ row.minutos_tarde }}m{% else %}—{% endif %}</td>
       </tr>
       {% endwith %}
       {% empty %}
-      <tr><td colspan="12">Sin empleados.</td></tr>
+      <tr><td colspan="12" class="vacio">Sin empleados.</td></tr>
       {% endfor %}
     </tbody>
   </table>

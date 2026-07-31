@@ -108,7 +108,9 @@ const CFG_INGRESOS_NOTAS = (function () {
       '<thead><tr><th class="col-no">No</th><th class="col-alumno">Participante</th>';
     columnas.forEach(function (col) {
       // La evaluación continua se resalta para que no se confunda con un cuadro más
-      var ec = /^ExamenFinal[234]$/.test(col.key) ? ' col-evalconti' : '';
+      // <--- hecho por claude code: se marca por ETIQUETA ("Especial N"), no por
+      // columna: las Especial viven en Cuadro18/19/20, no en ExamenFinal2/3/4.
+      var ec = /^Especial/.test(col.label) ? ' col-evalconti' : '';
       h += '<th class="text-center col-nota' + ec + '" title="' + esc(col.key) + '">' +
            esc(col.label) + '</th>';
     });
@@ -121,7 +123,7 @@ const CFG_INGRESOS_NOTAS = (function () {
           '<div class="text-muted small font-monospace">' + esc(a.identidad) + '</div></td>';
       columnas.forEach(function (col) {
         var v = a.notas[col.key];
-        var ec = /^ExamenFinal[234]$/.test(col.key) ? ' celda-evalconti' : '';
+        var ec = /^Especial/.test(col.label) ? ' celda-evalconti' : '';
         h += '<td class="p-1"><input type="text" inputmode="decimal" class="form-control form-control-sm text-center celda-nota' + ec + '"' +
              ' value="' + (v === '' || v == null ? '' : v) + '"' +
              ' data-materia="' + a.materia_id + '" data-col="' + esc(col.key) + '"' +

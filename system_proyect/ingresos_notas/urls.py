@@ -12,4 +12,8 @@ urlpatterns = [
     path('api/clases/',     views.api_clases,  name='api_clases'),
     path('api/alumnos/',    views.api_alumnos, name='api_alumnos'),
     path('api/guardar/',    views.api_guardar, name='api_guardar'),
+
+    # ── Tab Tareas (Record de Hábitos) ───────────────────────────────────────
+    path('api/tareas/',         views.api_tareas,        name='api_tareas'),
+    path('api/tareas/guardar/', views.api_tarea_guardar, name='api_tarea_guardar'),
 ]

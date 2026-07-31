@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.4.0 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.4.0.001 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,19 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.4.0.001 — Base académica real, Tareas y PDFs del reloj
+
+> Release **menor** (17 archivos): la ventana de novedades solo la ve el superusuario. La versión sí sube para todos en el pie de página.
+
+- **Notas Mitad de Parcial ahora lee la base académica REAL (`AdmonANASQL`)**, no la copia `Test2`. La migración es por área (`NOTAS_PARCIAL_DB` + `NOTAS_PARCIAL_AREAS_REAL` en el `.env`), así que se puede mover un área a la vez según los permisos que tenga `admin2` en SQL Server. Las cuatro áreas ya están migradas. La llave del caché incluye la base, para no servir datos de la otra.
+- **Ingreso de Notas: nuevo tab "Tareas"** (Record de Hábitos). Área → Grado → Clase → Fecha, con puntos 0-10 y comentario, autoguardado por celda. Una tarea a la vez, porque el legacy no guarda identificador de tarea y solo el orden de inserción las distingue; incluye validación para no desalinear las tareas de un alumno al que le falten las anteriores.
+- **Corrección importante en Ingreso de Notas:** las *Especial 1/2/3* son **`Cuadro18/19/20`**, no `ExamenFinal2/3/4`. Verificado contra el formulario de Access con la misma fila. En las áreas con Especial los cuadros numerados llegan hasta C17.
+- **Reloj — regla de rebaja por tardanza:** pasado el último tramo ya no se queda plano en 1 h; se rebaja **1 hora por cada 60 minutos completos** (334 min → 5 h). Antes cualquier acumulado rebajaba lo mismo que 31 minutos.
+- **PDFs del reloj arreglados y rediseñados.** El CSS nunca se aplicaba (WeasyPrint intentaba descargarlo por HTTP desde el propio servidor y fallaba en silencio), por eso salían en A4 vertical con letra enorme. Ahora se carga del disco: **los 6 PDFs del módulo** salen horizontales. El *Reporte Mensual de Permisos* y el *Tiempo compensatorio general* además se rediseñaron con encabezado de color, filas alternas, columnas resaltadas y pie con numeración de páginas.
+- **Seguridad:** las contraseñas de las tres bases salieron de `settings.py` y ahora vienen solo del `.env` (que además quedó en `640`, legible únicamente por Apache). Se corrigió el desajuste de nombres (`MSSQL_DB_*` → `MSSQL_TEST2_DB_*`) que hacía que el `.env` nunca se leyera para SQL Server.
+- **Notificaciones:** el toast de "reporte de notas terminado" ya no le llega a administración, contabilidad, enfermería ni dirección CFP. La causa era `is_staff`, que también les daba acceso al panel de coordinación de notas.
+- **CFP:** la columna *No. Ejecución* pasó a llamarse **N° de Expediente**.
 
 ### v7.4.0 — Ingresos de Notas, control de marcas y avisos en tiempo real
 
@@ -841,12 +854,25 @@ DB_PASSWORD=...
 DB_HOST=192.168.10.6
 DB_PORT=3306
 
-# SQL Server (módulo Reloj y datos de alumnos)
-MSSQL_DB_NAME=...
-MSSQL_DB_USER=...
-MSSQL_DB_PASSWORD=...
-MSSQL_DB_HOST=...
-MSSQL_DB_PORT=1433
+# SQL Server — datos de alumnos (Test2)
+MSSQL_TEST2_DB_NAME=...
+MSSQL_TEST2_DB_USER=...
+MSSQL_TEST2_DB_PASSWORD=...
+MSSQL_TEST2_DB_HOST=...
+MSSQL_TEST2_DB_PORT=1433
+
+# SQL Server — módulo Reloj (zkbiotime)
+MSSQL_ZKBIO_DB_NAME=...
+MSSQL_ZKBIO_DB_USER=...
+MSSQL_ZKBIO_DB_PASSWORD=...
+MSSQL_ZKBIO_DB_HOST=...
+MSSQL_ZKBIO_DB_PORT=14332
+
+# Base academica REAL: de donde lee "Notas Mitad de Parcial".
+# Se migra area por area; requiere permisos de admin2 en AdmonANASQL.
+MSSQL_REAL_DB_NAME=AdmonANASQL
+NOTAS_PARCIAL_DB=academico_real
+NOTAS_PARCIAL_AREAS_REAL=bl,colegio_bl,colegio,bachillerato
 
 # Correo (Gmail SMTP)
 EMAIL_HOST_USER=techcare.app2024@gmail.com

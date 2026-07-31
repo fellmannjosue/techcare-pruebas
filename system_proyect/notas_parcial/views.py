@@ -53,7 +53,10 @@ def _areas_para(user):
 
 
 def _es_coordinador(user):
-    if user.is_superuser or user.is_staff:
+    # <--- hecho por claude code: sin is_staff. Es la marca del admin de Django, no un
+    # rol: daba acceso de coordinacion (y el toast) a administracion, contabilidad,
+    # enfermeria y direccion CFP. Los coordinadores reales estan en _GRUPOS_COORD.
+    if user.is_superuser:
         return True
     return user.groups.filter(name__in=_GRUPOS_COORD).exists()
 
@@ -86,6 +89,21 @@ AREAS = [
 ]
 
 # (sp_name, usa_curso)
+# <--- hecho por claude code: base de la que lee este modulo. Por defecto Test2;
+# con NOTAS_PARCIAL_DB=academico_real pasa a AdmonANASQL sin tocar codigo.
+_DB_ACADEMICO = getattr(settings, 'NOTAS_PARCIAL_DB', 'padres_sqlserver')
+_AREAS_REAL   = set(getattr(settings, 'NOTAS_PARCIAL_AREAS_REAL', []))
+
+
+def _db(area):
+    """Base de la que se lee ESA área.
+
+    La migración a AdmonANASQL va por partes: un área pasa solo cuando `admin2`
+    tiene permiso de lectura sobre su tabla de staging. Las demás siguen en Test2,
+    así ninguna se queda en blanco mientras llegan los permisos que faltan.
+    """
+    return _DB_ACADEMICO if area in _AREAS_REAL else 'padres_sqlserver'
+
 SP_MAP = {
     'bl':           ('spEdcNotasInsertPrimariaBL',  False),
     'colegio_bl':   ('spEdcNotasInsertColegioBL',   False),
@@ -150,7 +168,9 @@ def _destinatarios_para(user):
 
 
 def _cache_key(area, parcial, anio, curso):
-    return f'notas_sp_{area}_{parcial}_{anio}_{curso or ""}'
+    # <--- hecho por claude code: la base va en la llave; si no, al migrar un area
+    # se seguiria sirviendo lo cacheado de Test2 durante 8 horas.
+    return f'notas_sp_{_db(area)}_{area}_{parcial}_{anio}_{curso or ""}'
 
 
 def _leer_staging_directo(area, parcial, anio, curso=None):
@@ -159,7 +179,7 @@ def _leer_staging_directo(area, parcial, anio, curso=None):
     if not tabla:
         return [], []
     try:
-        with connections['padres_sqlserver'].cursor() as cursor:
+        with connections[_db(area)].cursor() as cursor:
             bach = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
             sql = (
                 f"SELECT {_COLS_STAGING} "
@@ -209,7 +229,7 @@ def _llamar_sp(area, parcial, anio, curso=None):
         return [], []
     sp, usa_curso = entry
     try:
-        with connections['padres_sqlserver'].cursor() as cursor:
+        with connections[_db(area)].cursor() as cursor:
             if usa_curso and curso:
                 sql = f"EXEC {sp} @Curso='{curso}', @Parcial={int(parcial)}, @Año={int(anio)}"
             else:
@@ -377,7 +397,7 @@ def grados_secciones(request):
         return JsonResponse({'grados': [], 'secciones': []})
 
     try:
-        with connections['padres_sqlserver'].cursor() as cursor:
+        with connections[_db(area)].cursor() as cursor:
             bach_filtro = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
 
             # 1. Exacto: mismo parcial y año
