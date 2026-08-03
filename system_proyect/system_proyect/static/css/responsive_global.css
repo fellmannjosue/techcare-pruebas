@@ -281,3 +281,15 @@ footer.tc-footer .tc-footer-row {
 @media (max-width: 575.98px) {
   footer.tc-footer .tc-footer-row { justify-content: center; text-align: center; }
 }
+
+/* <--- hecho por claude code: campo para saltar de alumno en el carrusel de notas */
+.contador .salto-alumno {
+  width: 68px;
+  display: inline-block;
+  text-align: center;
+  font-weight: 600;
+  padding: .2rem .3rem;
+}
+.contador .salto-alumno::-webkit-outer-spin-button,
+.contador .salto-alumno::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.contador .salto-alumno { -moz-appearance: textfield; }

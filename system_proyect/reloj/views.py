@@ -5128,7 +5128,14 @@ def _vac_accrual(es_docente, fecha_inicio, hoy, dias_fijos, dias_corresponden):
 def vacaciones_list(request):
     from django.db.models import Sum as _Sum
     hoy   = date.today()
-    año   = hoy.year
+    # <--- hecho por claude code: el año era fijo (siempre el actual) y no había forma
+    # de consultar el anterior. Ahora se puede pasar ?anio=YYYY desde la pantalla.
+    try:
+        año = int(request.GET.get('anio') or hoy.year)
+    except (TypeError, ValueError):
+        año = hoy.year
+    if not (2000 <= año <= hoy.year + 1):
+        año = hoy.year
     fi    = date(año, 2, 1)
     ff    = date(año, 11, 30)
 
@@ -5217,9 +5224,10 @@ def vacaciones_list(request):
         'periodo_fin':    ff,
         'hoy':            hoy,
         'can_edit':       _reloj_can(request.user, 'vacaciones', 'editar'),
+        'anio_sel':       año,   # <--- hecho por claude code: para el filtro de la pantalla
     }
     if _es_pdf(request):
-        return _reporte_pdf(request, 'reloj/pdf/vacaciones_pdf.html', ctx, 'vacaciones.pdf')
+        return _reporte_pdf(request, 'reloj/pdf/vacaciones_pdf.html', ctx, f'vacaciones_{año}.pdf')
     return render(request, 'reloj/vacaciones_list.html', ctx)
 
 

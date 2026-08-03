@@ -108,7 +108,12 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAnterior">
           <i class="ti ti-chevron-left"></i> Anterior
         </button>
-        <span class="contador" id="contadorSlide">1 / {{ alumnos|length }}</span>
+        {# <--- hecho por claude code: se puede escribir el numero para saltar directo #}
+        <span class="contador">
+          <input type="number" class="form-control form-control-sm salto-alumno" id="mSalto"
+                 min="1" max="{{ alumnos|length }}" value="1" title="Escribe el número y Enter">
+          <span class="text-muted"> / {{ alumnos|length }}</span>
+        </span>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btnSiguiente">
           Siguiente <i class="ti ti-chevron-right"></i>
         </button>
@@ -193,7 +198,11 @@
       <button type="button" class="btn btn-outline-secondary" id="btnAnterior2">
         <i class="ti ti-chevron-left me-1"></i>Anterior
       </button>
-      <span class="text-muted small" id="contadorSlide2">1 / {{ alumnos|length }}</span>
+      <span class="text-muted small contador">
+        <input type="number" class="form-control form-control-sm salto-alumno" id="mSalto2"
+               min="1" max="{{ alumnos|length }}" value="1" title="Escribe el número y Enter">
+        <span> / {{ alumnos|length }}</span>
+      </span>
       <div class="d-flex gap-2 align-items-center">
         <button type="button" class="btn btn-outline-secondary" id="btnSiguiente2">
           Siguiente<i class="ti ti-chevron-right ms-1"></i>
@@ -215,5 +224,5 @@
      data-v3="{{ grado_sel }}"
      data-v4="{{ seccion_sel }}"
      data-v5="{% url "notas_parcial_maestro" %}"></div>
-<script src="{% static 'notas_parcial/js/maestro.js' %}?v=99"></script>
+<script src="{% static 'notas_parcial/js/maestro.js' %}?v=100"></script>
 {% endblock %}

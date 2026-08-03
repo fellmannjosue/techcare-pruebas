@@ -37,13 +37,26 @@ RAMAS = {
         'materias': 'tblEdcMateriasBL', 'pk_materia': 'EdcMateriaBLID',
         'eval': 'tblEdcEvalBL',         'pk_eval': 'EdcEvalBLID',
         'record': 'tblEdcRecordHabitosBL', 'pk_record': 'EdcRecHabitosBLID',
+        'ausencias': 'tblEdcAusenciasBL', 'pk_ausencia': 'EdcAusenciasBLID',
     },
     'acad': {
         'materias': 'tblEdcMateriasAcad', 'pk_materia': 'EdcMateriaAcadID',
         'eval': 'tblEdcEvalAcad',         'pk_eval': 'EdcEvalAcadID',
         'record': 'tblEdcRecordHabitosAcad', 'pk_record': 'EdcRecHabitosAcadID',
+        'ausencias': 'tblEdcAusenciasAcad', 'pk_ausencia': 'EdcAusenciasAcadID',
     },
 }
+
+# <--- hecho por claude code: Asistencias. Una fila = UNA clase de UN alumno en UNA
+# fecha (el grano es materia + fecha, no el día completo). OJO: estas filas tienen
+# EFECTO ECONÓMICO, alimentan los recargos por no asistencia.
+#   · `DescrAusenciasID`         → el tipo (tblEdcDescripAusencias, 4 opciones)
+#   · `EdcDescrAusenciasRazonID` → la razón (tblEdcDescripAusenciasRazon, 162 activas)
+# La razón va SIEMPRE por ID: está en el 100 % de las filas, mientras que el texto
+# libre `Razon` solo en dos tercios. `RAZON_PENDIENTE` es la que ya usa la
+# encargada cuando todavía no sabe el motivo.
+RAZON_PENDIENTE = 4          # "aa-falta por ingresar"
+AUSENCIA_TIPO_DEFECTO = 4    # "No se presentó"
 
 # <--- hecho por claude code: Record de Hábitos. El catálogo (tblEdcDescripHabitos)
 # marca con Academ/AcademBL los 6 que usan Colegio y Bilingüe; `Voc` es de CFP.
@@ -384,6 +397,52 @@ def _registros_del_dia(area_key, materia_ids, fecha, habito):
     return por_alumno
 
 
+# ── Asistencias ──────────────────────────────────────────────────────────────
+def _tipos_ausencia():
+    """Los 4 tipos del catálogo, en el orden en que los guarda el legacy."""
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute("""SELECT DescrAusenciasID, Descripcion FROM dbo.tblEdcDescripAusencias
+                     ORDER BY DescrAusenciasID""")
+        return [{'id': r[0], 'label': r[1]} for r in c.fetchall()]
+
+
+def _razones_ausencia():
+    """Razones ACTIVAS. La pendiente va primero para que sea la opción por defecto."""
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute("""SELECT EdcDescrAusenciasRazonID, LTRIM(RTRIM(Descripcion))
+                     FROM dbo.tblEdcDescripAusenciasRazon
+                     WHERE Activo = 1
+                     ORDER BY CASE WHEN EdcDescrAusenciasRazonID = %s THEN 0 ELSE 1 END,
+                              Descripcion""", [RAZON_PENDIENTE])
+        return [{'id': r[0], 'label': r[1]} for r in c.fetchall()]
+
+
+def _ausencias_del_dia(area_key, materia_ids, fecha):
+    """{materia_id: {...}} con la ausencia de esa clase y fecha, si existe.
+
+    Puede haber más de una fila por alumno y día (tipos distintos); se toma la
+    última registrada, que es la que el legacy muestra.
+    """
+    if not materia_ids:
+        return {}
+    rama = RAMAS[AREAS[area_key]['rama']]
+    marcas = ','.join(['%s'] * len(materia_ids))
+    sql = f"""
+        SELECT {rama['pk_materia']}, {rama['pk_ausencia']}, DescrAusenciasID,
+               EdcDescrAusenciasRazonID, ISNULL(Otros, '')
+        FROM dbo.{rama['ausencias']}
+        WHERE CAST(Fecha AS date) = %s AND {rama['pk_materia']} IN ({marcas})
+        ORDER BY {rama['pk_materia']}, {rama['pk_ausencia']}
+    """
+    por_alumno = {}
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute(sql, [fecha] + list(materia_ids))
+        for mat, aus_id, tipo, razon, otros in c.fetchall():
+            por_alumno[mat] = {'aus_id': aus_id, 'tipo': tipo,
+                               'razon': razon, 'otros': otros or ''}
+    return por_alumno
+
+
 # ── Pantallas ────────────────────────────────────────────────────────────────
 @notas_required
 def index(request):
@@ -693,3 +752,132 @@ def api_tarea_guardar(request):
         accion=accion, alumno=alumno)
 
     return JsonResponse({'ok': True, 'rec_id': rec_id, 'accion': accion})
+
+
+# ── APIs del tab Asistencias ─────────────────────────────────────────────────
+@notas_required
+@require_GET
+def api_ausencias(request):
+    """Alumnos de la clase con su ausencia de esa fecha (si la tienen)."""
+    area = request.GET.get('area', '')
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+
+    fecha = _fecha_valida(request.GET.get('fecha'))
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    try:
+        alumnos = _alumnos_de_la_clase(
+            area, _anio_actual(), request.GET.get('grado', ''),
+            request.GET.get('grupo', ''), request.GET.get('materia', ''))
+        registros = _ausencias_del_dia(area, [a['materia_id'] for a in alumnos], fecha)
+        for a in alumnos:
+            r = registros.get(a['materia_id'])
+            a['aus_id'] = r['aus_id'] if r else None
+            a['tipo']   = r['tipo']   if r else ''
+            a['razon']  = r['razon']  if r else ''
+            a['otros']  = r['otros']  if r else ''
+        return JsonResponse({'ok': True, 'alumnos': alumnos,
+                             'tipos': _tipos_ausencia(),
+                             'razones': _razones_ausencia(),
+                             'razon_pendiente': RAZON_PENDIENTE,
+                             'tipo_defecto': AUSENCIA_TIPO_DEFECTO,
+                             'ausentes': sum(1 for a in alumnos if a['tipo'])})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+
+
+@notas_required
+@require_POST
+def api_ausencia_guardar(request):
+    """Crea, actualiza o quita la ausencia de UN alumno en UNA fecha.
+
+    Vaciar el tipo BORRA la fila: es la única forma de deshacer una ausencia
+    puesta por error, y estas filas tienen efecto económico. Queda registrado
+    en `EscrituraNota` con acción `delete`, que es el rastro que el legacy no
+    guarda (sus triggers solo cubren UPDATE).
+    """
+    try:
+        body = json.loads(request.body or b'{}')
+        area       = body.get('area', '')
+        materia_id = int(body.get('materia_id'))
+        alumno     = (body.get('alumno') or '')[:200]
+        tipo_txt   = (body.get('tipo') or '').strip()
+        razon_txt  = (body.get('razon') or '').strip()
+        otros      = (body.get('otros') or '').strip()[:255]
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+
+    fecha = _fecha_valida(body.get('fecha'))
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    # El tipo y la razón se validan contra el catálogo: van al SQL como enteros,
+    # pero aun así no se acepta cualquiera.
+    tipos_ok   = {t['id'] for t in _tipos_ausencia()}
+    razones_ok = {r['id'] for r in _razones_ausencia()}
+    tipo = None
+    if tipo_txt:
+        try:
+            tipo = int(tipo_txt)
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Tipo inválido'}, status=400)
+        if tipo not in tipos_ok:
+            return JsonResponse({'ok': False, 'error': 'Tipo fuera del catálogo'}, status=400)
+    razon = RAZON_PENDIENTE
+    if razon_txt:
+        try:
+            razon = int(razon_txt)
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Razón inválida'}, status=400)
+        if razon not in razones_ok:
+            return JsonResponse({'ok': False, 'error': 'Razón fuera del catálogo'}, status=400)
+
+    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    usuario = (request.user.get_username() or '')[:50]
+
+    try:
+        actual = _ausencias_del_dia(area, [materia_id], fecha).get(materia_id)
+        with connections['padres_sqlserver'].cursor() as c:
+            if tipo is None:
+                if not actual:
+                    return JsonResponse({'ok': True, 'accion': 'sin_cambio', 'aus_id': None})
+                c.execute(f"""DELETE FROM dbo.{rama['ausencias']}
+                              WHERE {rama['pk_ausencia']} = %s""", [actual['aus_id']])
+                antes  = f"tipo={actual['tipo']} razon={actual['razon']}"
+                nuevo  = ''
+                aus_id, accion = None, 'delete'
+            elif actual:
+                c.execute(f"""UPDATE dbo.{rama['ausencias']}
+                              SET DescrAusenciasID = %s, EdcDescrAusenciasRazonID = %s,
+                                  Otros = %s, Usuario = %s, FchaReg = GETDATE()
+                              WHERE {rama['pk_ausencia']} = %s""",
+                          [tipo, razon, otros or None, usuario, actual['aus_id']])
+                antes  = f"tipo={actual['tipo']} razon={actual['razon']}"
+                nuevo  = f"tipo={tipo} razon={razon}"
+                aus_id, accion = actual['aus_id'], 'update'
+            else:
+                c.execute(f"""INSERT INTO dbo.{rama['ausencias']}
+                              ({rama['pk_materia']}, DescrAusenciasID,
+                               EdcDescrAusenciasRazonID, Fecha, Otros, Usuario, FchaReg)
+                              VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
+                          [materia_id, tipo, razon, fecha, otros or None, usuario])
+                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
+                r = c.fetchone()
+                antes  = ''
+                nuevo  = f"tipo={tipo} razon={razon}"
+                aus_id, accion = (r[0] if r else None), 'insert'
+    except Exception as e:
+        return JsonResponse({'ok': False,
+                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+
+    EscrituraNota.objects.create(
+        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['ausencias'],
+        materia_id=materia_id, eval_id=aus_id, parcial=0,
+        columna=f'Ausencia@{fecha:%Y-%m-%d}',
+        valor_antes=antes, valor_nuevo=nuevo, accion=accion, alumno=alumno)
+
+    return JsonResponse({'ok': True, 'aus_id': aus_id, 'accion': accion})

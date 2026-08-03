@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Redirigiendo a HTTPS – TechCare</title>
+  <!-- hecho por claude code: Apache devuelve esta pagina cuando alguien entra por
+       http:// a un puerto que solo habla HTTPS ("You're speaking plain HTTP to an
+       SSL-enabled server port", error 400). No se puede redirigir desde Apache
+       conservando la ruta, porque ErrorDocument con URL completa manda siempre a
+       la raiz. Desde aqui si: el navegador conoce la direccion que se pidio, asi
+       que solo se le cambia el protocolo y se conserva puerto, ruta y parametros. -->
+  <script>
+    (function () {
+      try {
+        var u = new URL(window.location.href);
+        if (u.protocol === 'http:') {
+          u.protocol = 'https:';
+          window.location.replace(u.toString());   // replace: no ensucia el historial
+        }
+      } catch (e) { /* sin JS moderno se usa el enlace de abajo */ }
+    })();
+  </script>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         background:#f5f7fb;color:#1e293b;margin:0;min-height:100vh;display:flex;
+         align-items:center;justify-content:center;padding:1rem;}
+    .caja{background:#fff;border-radius:12px;max-width:430px;width:100%;
+          padding:2.5rem 2rem;text-align:center;
+          box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);}
+    h1{font-size:1.25rem;margin:0 0 .7rem;color:#0f172a;}
+    p{color:#64748b;margin:0 0 .6rem;line-height:1.55;font-size:.95rem;}
+    .btn{display:inline-block;background:#4263eb;color:#fff;text-decoration:none;
+         padding:.6rem 1.4rem;border-radius:8px;font-weight:600;margin-top:1rem;}
+    .marca{color:#94a3b8;font-size:.78rem;margin-top:1.6rem;letter-spacing:.04em;}
+    .spin{width:34px;height:34px;border:3px solid #dbe4ff;border-top-color:#4263eb;
+          border-radius:50%;margin:0 auto 1.2rem;animation:g .8s linear infinite;}
+    @keyframes g{to{transform:rotate(360deg)}}
+    @media (prefers-color-scheme: dark){
+      body{background:#151f2c;color:#e2e8f0;}
+      .caja{background:#1c2b3a;box-shadow:0 8px 24px rgba(0,0,0,.35);}
+      h1{color:#f1f5f9;} p{color:#94a3b8;}
+    }
+  </style>
+</head>
+<body>
+  <div class="caja">
+    <div class="spin"></div>
+    <h1>Conectando de forma segura…</h1>
+    <p>Esta dirección usa una conexión cifrada. Te estamos redirigiendo.</p>
+    <p>Si no ocurre nada, usa el botón:</p>
+    <a class="btn" id="ir" href="https://servicios.ana-hn.org:437/">Continuar</a>
+    <div class="marca">TechCare — Asociación Nuevo Amanecer</div>
+  </div>
+  <script>
+    // El boton tambien conserva la ruta original
+    try {
+      var u = new URL(window.location.href);
+      u.protocol = 'https:';
+      document.getElementById('ir').href = u.toString();
+    } catch (e) {}
+  </script>
+</body>
+</html>

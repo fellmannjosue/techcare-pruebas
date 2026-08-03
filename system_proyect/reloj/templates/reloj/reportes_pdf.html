@@ -12,7 +12,7 @@
 
 {% block content %}
 {# <--- hecho por claude code: centro de reportes PDF (tabs + preview embebido) #}
-<link rel="stylesheet" href="{% static 'reloj/css/reportes_pdf.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'reloj/css/reportes_pdf.css' %}?v=2">
 
 <div class="card">
   <div class="card-header">
@@ -32,6 +32,10 @@
   <div class="card-body">
     <div class="tab-content">
 
+      {# <--- hecho por claude code: cada pestaña lleva su filtro de mes o año #}
+      {# la barra declara en data-* la URL base, los parámetros fijos y el tipo #}
+      {# `mesrango` convierte el mes en fecha_inicio/fecha_fin (ese va por rango) #}
+
       {# ── Reporte general (asistencia) ── #}
       <div class="tab-pane active show" id="rep-general">
         <div class="rep-bar gap-2 flex-wrap">
@@ -46,74 +50,90 @@
 
       {# ── Tiempo compensatorio ── #}
       <div class="tab-pane" id="rep-comp">
-        <div class="rep-bar">
-          <span class="text-muted small">Tiempo compensatorio · {{ fi }} a {{ ff }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_list' %}?fmt=pdf"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_compensatorio_list' %}" data-extra="" data-tipo="mesrango">
+          <span class="text-muted small">Tiempo compensatorio · mes:</span>
+          <input type="month" class="form-control form-control-sm rep-mes" value="{{ mes_str }}" style="max-width:170px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_compensatorio_list' %}?fmt=pdf"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_list' %}?fmt=pdf&inline=1"></iframe>
       </div>
 
       {# ── Permiso mensual empleado ── #}
       <div class="tab-pane" id="rep-permiso">
-        <div class="rep-bar">
-          <span class="text-muted small">Permiso mensual por empleado · {{ mes_str }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_permiso_reporte' %}" data-extra="" data-tipo="mes">
+          <span class="text-muted small">Permiso mensual por empleado · mes:</span>
+          <input type="month" class="form-control form-control-sm rep-mes" value="{{ mes_str }}" style="max-width:170px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&mes={{ mes_str }}"></iframe>
       </div>
 
       {# ── Adeudados ── #}
       <div class="tab-pane" id="rep-adeudados">
-        <div class="rep-bar">
-          <span class="text-muted small">Control de adeudados · {{ anio }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=adeudados&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_compensatorio_calculo_list' %}" data-extra="sec=adeudados" data-tipo="anio">
+          <span class="text-muted small">Control de adeudados · año:</span>
+          <input type="number" class="form-control form-control-sm rep-anio" value="{{ anio }}" min="2000" max="2100" style="max-width:110px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=adeudados&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=adeudados&anio={{ anio }}"></iframe>
       </div>
 
       {# ── Tiempo compensatorio general ── #}
       <div class="tab-pane" id="rep-compgeneral">
-        <div class="rep-bar">
-          <span class="text-muted small">Tiempo compensatorio general · {{ anio }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=general&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_compensatorio_calculo_list' %}" data-extra="sec=general" data-tipo="anio">
+          <span class="text-muted small">Tiempo compensatorio general · año:</span>
+          <input type="number" class="form-control form-control-sm rep-anio" value="{{ anio }}" min="2000" max="2100" style="max-width:110px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=general&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=general&anio={{ anio }}"></iframe>
       </div>
 
       {# ── Instructores ── #}
       <div class="tab-pane" id="rep-instructores">
-        <div class="rep-bar">
-          <span class="text-muted small">Instructores · {{ anio }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=instructores&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_compensatorio_calculo_list' %}" data-extra="sec=instructores" data-tipo="anio">
+          <span class="text-muted small">Instructores · año:</span>
+          <input type="number" class="form-control form-control-sm rep-anio" value="{{ anio }}" min="2000" max="2100" style="max-width:110px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&sec=instructores&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_compensatorio_calculo_list' %}?fmt=pdf&inline=1&sec=instructores&anio={{ anio }}"></iframe>
       </div>
 
       {# ── Tiempo receso (mensual) ── #}
       <div class="tab-pane" id="rep-receso">
-        <div class="rep-bar">
-          <span class="text-muted small">Tiempo de receso (almuerzo) · {{ mes_str }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=receso&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_permiso_reporte' %}" data-extra="sec=receso" data-tipo="mes">
+          <span class="text-muted small">Tiempo de receso (almuerzo) · mes:</span>
+          <input type="month" class="form-control form-control-sm rep-mes" value="{{ mes_str }}" style="max-width:170px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=receso&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&sec=receso&mes={{ mes_str }}"></iframe>
       </div>
 
       {# ── Bono por asistencia (lista de empleados que conservan) ── #}
       <div class="tab-pane" id="rep-bono">
-        <div class="rep-bar">
-          <span class="text-muted small">Empleados que conservan el bono · {{ mes_str }}</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=bono&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_permiso_reporte' %}" data-extra="sec=bono" data-tipo="mes">
+          <span class="text-muted small">Empleados que conservan el bono · mes:</span>
+          <input type="month" class="form-control form-control-sm rep-mes" value="{{ mes_str }}" style="max-width:170px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_permiso_reporte' %}?fmt=pdf&sec=bono&mes={{ mes_str }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
         <iframe class="rep-frame" data-src="{% url 'reloj_permiso_reporte' %}?fmt=pdf&inline=1&sec=bono&mes={{ mes_str }}"></iframe>
       </div>
 
       {# ── Vacaciones ── #}
       <div class="tab-pane" id="rep-vac">
-        <div class="rep-bar">
-          <span class="text-muted small">Control de vacaciones</span>
-          <a class="btn btn-sm btn-success ms-auto" href="{% url 'reloj_vacaciones_list' %}?fmt=pdf"><i class="ti ti-download me-1"></i>Descargar PDF</a>
+        <div class="rep-bar gap-2 flex-wrap" data-base="{% url 'reloj_vacaciones_list' %}" data-extra="" data-tipo="anio">
+          <span class="text-muted small">Control de vacaciones · año:</span>
+          <input type="number" class="form-control form-control-sm rep-anio" value="{{ anio }}" min="2000" max="2100" style="max-width:110px;">
+          <button type="button" class="btn btn-sm btn-primary rep-ver"><i class="ti ti-eye me-1"></i>Ver</button>
+          <a class="btn btn-sm btn-success ms-auto rep-dl" href="{% url 'reloj_vacaciones_list' %}?fmt=pdf&anio={{ anio }}"><i class="ti ti-download me-1"></i>Descargar PDF</a>
         </div>
-        <iframe class="rep-frame" data-src="{% url 'reloj_vacaciones_list' %}?fmt=pdf&inline=1"></iframe>
+        <iframe class="rep-frame" data-src="{% url 'reloj_vacaciones_list' %}?fmt=pdf&inline=1&anio={{ anio }}"></iframe>
       </div>
 
       {# ── Gilma Lorenzo (rango de fechas) ── #}
@@ -135,5 +155,5 @@
 <div id="reportes_pdf-config" hidden
      data-reloj-exportar-pdf="{% url 'reloj_exportar_pdf' %}"
      data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'reloj/js/reportes_pdf.js' %}?v=2"></script>
+<script src="{% static 'reloj/js/reportes_pdf.js' %}?v=3"></script>
 {% endblock %}

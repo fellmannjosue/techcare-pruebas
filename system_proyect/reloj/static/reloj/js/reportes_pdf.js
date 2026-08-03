@@ -23,6 +23,62 @@ const CFG_REPORTES_PDF = (function(){
     });
   })();
 
+  // <--- hecho por claude code: filtro por mes/año en cada pestaña. La barra declara
+  // en data-* su URL base, los parámetros fijos (sec=…) y el tipo de filtro, así que
+  // todas las pestañas usan este mismo código en vez de una función por reporte.
+  (function () {
+    function ultimoDia(anio, mes) {           // mes 1-12
+      return new Date(anio, mes, 0).getDate();
+    }
+
+    function consultaDe(bar) {
+      var tipo  = bar.dataset.tipo;
+      var extra = bar.dataset.extra || '';
+      var partes = ['fmt=pdf'];
+      if (extra) partes.push(extra);
+
+      if (tipo === 'anio') {
+        var inp = bar.querySelector('.rep-anio');
+        if (!inp || !inp.value) return null;
+        partes.push('anio=' + encodeURIComponent(inp.value));
+      } else {
+        var m = bar.querySelector('.rep-mes');
+        if (!m || !m.value) return null;
+        if (tipo === 'mesrango') {
+          // Ese reporte trabaja por rango: el mes se convierte en primer y último día
+          var p = m.value.split('-'), a = parseInt(p[0], 10), mm = parseInt(p[1], 10);
+          partes.push('fecha_inicio=' + m.value + '-01');
+          partes.push('fecha_fin=' + m.value + '-' + String(ultimoDia(a, mm)).padStart(2, '0'));
+        } else {
+          partes.push('mes=' + encodeURIComponent(m.value));
+        }
+      }
+      return partes.join('&');
+    }
+
+    document.querySelectorAll('.rep-bar[data-base] .rep-ver').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var bar = btn.closest('.rep-bar');
+        var qs  = consultaDe(bar);
+        if (!qs) return;                       // sin fecha elegida no se hace nada
+        var base = bar.dataset.base;
+        var pane = bar.closest('.tab-pane');
+        var fr   = pane && pane.querySelector('iframe');
+        var dl   = bar.querySelector('.rep-dl');
+        if (dl) dl.setAttribute('href', base + '?' + qs);
+        if (fr) {
+          var url = base + '?' + qs + '&inline=1';
+          fr.dataset.src = url;                // para que la carga diferida no lo pise
+          fr.src = url;
+        }
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Cargando…';
+        setTimeout(function () {
+          btn.innerHTML = '<i class="ti ti-eye me-1"></i>Ver';
+        }, 1500);
+      });
+    });
+  })();
+
   // Reporte general: aplicar rango Desde/Hasta al iframe y a la descarga
   (function () {
     var btn = document.getElementById('rg_ver');

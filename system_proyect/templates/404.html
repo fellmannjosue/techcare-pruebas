@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Página no encontrada – TechCare</title>
+  <link rel="icon" href="{% static 'accounts/img/nuevo.ico' %}" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/error.css' %}?v=1">
+</head>
+{# <--- hecho por claude code: mismo estilo que 403 y 500 #}
+<body class="d-flex align-items-center justify-content-center min-vh-100">
+  <div class="error-card w-100 mx-auto px-3">
+
+    <div class="text-center mb-4">
+      <img src="{% static 'accounts/img/ana-transformed.png' %}"
+           alt="TechCare" height="52" class="mb-3">
+      <h1 class="text-muted fw-bold mb-0" style="font-size:1.1rem;letter-spacing:.05em;">
+        TechCare — Asociación Nuevo Amanecer
+      </h1>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body text-center py-5 px-4">
+
+        <div class="error-icon azul mb-3"><i class="ti ti-map-search"></i></div>
+
+        <h2 class="fw-bold mb-2" style="color:#4263eb;">Página no encontrada</h2>
+        <p class="text-muted mb-1">
+          La dirección que abriste no existe o cambió de lugar.
+        </p>
+        <p class="text-muted small mb-4">
+          Revisa el enlace, o vuelve al menú y entra desde ahí.
+        </p>
+
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="/accounts/menu/" class="btn btn-primary">
+            <i class="ti ti-home me-1"></i>Ir al inicio
+          </a>
+          <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i>Volver atrás
+          </a>
+        </div>
+
+      </div>
+      <div class="card-footer text-center text-muted small py-2">
+        Error 404 — Not Found
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

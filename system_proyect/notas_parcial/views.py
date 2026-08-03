@@ -131,7 +131,12 @@ _COLS_STAGING = (
     'Cuadro1, Cuadro2, Cuadro3, Cuadro4, Cuadro5, '
     'Cuadro6, Cuadro7, Cuadro8, Cuadro9, Cuadro10'
 )
-_CACHE_TTL = 28800  # 8 horas
+# <--- hecho por claude code: 30 min, no 8 horas. Las 8 h tenían sentido cuando la
+# tabla de staging era la fuente rápida y el SP solo se llamaba de milagro; ahora el
+# SP es la ÚNICA fuente viva (la staging está congelada y no podemos regenerarla,
+# solo tenemos lectura), así que la caché es lo único que separa la pantalla de los
+# datos reales. 30 min mantiene el SP fuera del camino sin dejar notas viejas medio día.
+_CACHE_TTL = 1800  # 30 minutos
 
 # Correo destino según usuario — bilingüe → lchavez, colegio → malvarado
 _DEST_POR_USUARIO = {
@@ -212,18 +217,21 @@ def _llamar_sp(area, parcial, anio, curso=None):
 
     key = _cache_key(area, parcial, anio, curso)
 
-    # 1. Caché en BD Django (válida 15 min, compartida entre workers)
+    # 1. Caché en BD Django (compartida entre workers)
     cached = cache.get(key)
     if cached:
         return cached
 
-    # 2. Staging table directo (sin llamar el SP)
-    rows, cols = _leer_staging_directo(area, parcial, anio, curso)
-    if rows:
-        cache.set(key, (rows, cols), _CACHE_TTL)
-        return rows, cols
+    # <--- hecho por claude code: EL SP VA PRIMERO, ya no la tabla de staging.
+    # `tblEdcNotasInsert*` es una FOTO que regenera el sistema de Access, no datos
+    # vivos: estaba congelada en el Parcial 2 mientras las notas reales ya iban en
+    # el 3, y el reporte mostraba lo viejo. Como en AdmonANASQL solo tenemos
+    # LECTURA, no podemos regenerarla nosotros. El SP en cambio es un SELECT puro
+    # (no escribe nada, verificado) que lee las tablas reales, así que devuelve
+    # siempre lo que está en el sistema académico. Tarda ~9 s, y de eso se encarga
+    # la caché. La staging queda como respaldo por si el SP falla.
 
-    # 3. Llamar SP (lento — puebla la staging table y devuelve el result set)
+    # 2. Llamar SP (lee en vivo las tablas reales y devuelve el result set)
     entry = SP_MAP.get(area)
     if not entry:
         return [], []
@@ -1434,10 +1442,23 @@ def enviar_pdf_email(request):
   </table>
 </body></html>
 """
+    # <--- hecho por claude code: copia a los coordinadores de ESA área (los mismos
+    # que reciben el aviso cuando un maestro termina). Se excluye al destinatario
+    # principal y a quien envía, para que a nadie le llegue dos veces.
+    copias = []
+    try:
+        for coord in _coordinadores_de(area):
+            correo = (coord.email or '').strip().lower()
+            if correo and correo != destinatario.lower() and correo not in copias:
+                copias.append(correo)
+    except Exception as e:
+        print('[notas_parcial] no se pudo armar la copia a coordinadores:', e)
+
     mail = DjangoEmailMessage(
         subject=asunto, body=cuerpo_html,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[destinatario],
+        cc=copias or None,
     )
     mail.content_subtype = 'html'
     mail.attach(f'notas_parcial_{parcial}_{anio}.pdf', buf.getvalue(), 'application/pdf')

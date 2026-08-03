@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Servicio no disponible – TechCare</title>
+  <!-- hecho por claude code: esta pagina la sirve APACHE cuando la aplicacion
+       ni siquiera arranca, asi que no puede depender de Django, de la base de
+       datos ni de CDN externos. Todo el estilo va aqui adentro. -->
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         background:#f5f7fb;color:#1e293b;margin:0;min-height:100vh;display:flex;
+         align-items:center;justify-content:center;padding:1rem;}
+    .caja{background:#fff;border-radius:12px;max-width:460px;width:100%;
+          padding:2.5rem 2rem;text-align:center;
+          box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);}
+    .cod{font-size:4rem;font-weight:700;color:#cbd5e1;line-height:1;margin-bottom:.25rem;}
+    h1{font-size:1.35rem;margin:0 0 .7rem;color:#0f172a;}
+    p{color:#64748b;margin:0 0 .6rem;line-height:1.55;font-size:.95rem;}
+    .btn{display:inline-block;background:#4263eb;color:#fff;text-decoration:none;
+         padding:.6rem 1.4rem;border-radius:8px;font-weight:600;margin-top:1.2rem;}
+    .marca{color:#94a3b8;font-size:.78rem;margin-top:1.8rem;letter-spacing:.04em;}
+    @media (prefers-color-scheme: dark){
+      body{background:#151f2c;color:#e2e8f0;}
+      .caja{background:#1c2b3a;box-shadow:0 8px 24px rgba(0,0,0,.35);}
+      h1{color:#f1f5f9;} p{color:#94a3b8;} .cod{color:#33465c;}
+    }
+  </style>
+</head>
+<body>
+  <div class="caja">
+    <div class="cod">500</div>
+    <h1>El sistema no está disponible</h1>
+    <p>TechCare no pudo responder a tu solicitud en este momento.</p>
+    <p>Espera un par de minutos y vuelve a intentarlo. Si el problema sigue,
+       avisa a <strong>Soporte Técnico</strong>.</p>
+    <a class="btn" href="/accounts/menu/">Reintentar</a>
+    <div class="marca">TechCare — Asociación Nuevo Amanecer</div>
+  </div>
+</body>
+</html>

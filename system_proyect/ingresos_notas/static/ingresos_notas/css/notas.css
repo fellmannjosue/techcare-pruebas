@@ -63,3 +63,8 @@
 }
 .tabla-notas .celda-evalconti { background: rgba(99, 102, 241, .05); }
 .tabla-notas .celda-evalconti:focus { background: var(--ps-surface, #fff); }
+
+/* <--- hecho por claude code: tab Asistencias — la fila de quien faltó se tiñe
+   para verla de un vistazo entre los que sí asistieron. */
+.fila-falta > td { background: #fff5f5 !important; }
+.fila-falta .fw-medium { color: #c53030; }

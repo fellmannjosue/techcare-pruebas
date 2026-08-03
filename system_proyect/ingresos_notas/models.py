@@ -12,7 +12,11 @@ class EscrituraNota(models.Model):
     celda y el valor anterior. Es lo que permite deshacer un error sin depender
     de la base ajena.
     """
-    ACCIONES = [('insert', 'Creó la fila'), ('update', 'Actualizó')]
+    # <--- hecho por claude code: `delete` para las asistencias. Quitar una ausencia
+    # puesta por error borra la fila del legacy, y ese rastro no lo guarda nadie más
+    # (sus triggers solo cubren UPDATE). Las notas siguen sin borrarse nunca.
+    ACCIONES = [('insert', 'Creó la fila'), ('update', 'Actualizó'),
+                ('delete', 'Quitó la fila')]
 
     usuario     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                    null=True, related_name='notas_escritas')

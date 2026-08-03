@@ -132,9 +132,11 @@ window._PAGE = Object.assign(window._PAGE || {}, {
     slides[current].classList.remove('activo');
     current = idx;
     slides[current].classList.add('activo');
-    const txt = `${current + 1} / ${slides.length}`;
-    document.getElementById('contadorSlide').textContent  = txt;
-    document.getElementById('contadorSlide2').textContent = txt;
+    // <--- hecho por claude code: el contador ahora es un campo escribible
+    ['mSalto', 'mSalto2'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el) el.value = current + 1;
+    });
     actualizarBotones();
     window.scrollTo({ top: document.getElementById('carrusel-wrap').offsetTop - 80, behavior: 'smooth' });
   }
@@ -143,6 +145,38 @@ window._PAGE = Object.assign(window._PAGE || {}, {
   document.getElementById('btnSiguiente')?.addEventListener('click', () => mostrar(current + 1));
   document.getElementById('btnAnterior2')?.addEventListener('click', () => mostrar(current - 1));
   document.getElementById('btnSiguiente2')?.addEventListener('click', () => mostrar(current + 1));
+
+  // <--- hecho por claude code: escribir el número y Enter salta a ese alumno
+  ['mSalto', 'mSalto2'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ir = function () {
+      let n = parseInt(el.value, 10);
+      if (isNaN(n)) { el.value = current + 1; return; }
+      n = Math.max(1, Math.min(n, slides.length));
+      el.value = n;
+      if (n - 1 !== current) mostrar(n - 1);
+    };
+    el.addEventListener('change', ir);
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); ir(); el.blur(); }
+    });
+  });
+
+  // <--- hecho por claude code: autoguardado del comentario al salir del campo
+  document.addEventListener('focusin', function (e) {
+    if (e.target.classList && e.target.classList.contains('comentario-txt')) {
+      e.target.dataset.antes = e.target.value;
+    }
+  });
+  document.addEventListener('focusout', function (e) {
+    var ta = e.target;
+    if (!ta.classList || !ta.classList.contains('comentario-txt')) return;
+    if (ta.value === (ta.dataset.antes || '')) return;   // no cambió: no se escribe
+    ta.dataset.antes = ta.value;
+    var slide = ta.closest('.slide-alumno');
+    if (slide) guardar(slide);
+  });
 
   // ── Finalizar revisión ──
   const firstSlide = slides[0];

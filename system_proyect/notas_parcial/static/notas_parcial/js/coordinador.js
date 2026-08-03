@@ -94,6 +94,16 @@ window._PAGE = Object.assign(window._PAGE || {}, {
   });
   document.querySelectorAll('.comentario-txt').forEach(actualizarContador);
 
+  // <--- hecho por claude code: se recuerda el texto con el que cargó la página para
+  // saber qué cambió de verdad. Sin esto, "Revisado" reguardaba las 5,448 cajas.
+  document.querySelectorAll('.comentario-txt').forEach(function (ta) {
+    ta.dataset.inicial = ta.value;
+  });
+  function cambio(box) {
+    const ta = box.querySelector('.comentario-txt');
+    return ta && ta.value !== (ta.dataset.inicial || '');
+  }
+
   // ── Guardar comentario (por maestro/caja) ──
   async function guardar(box) {
     const tr  = box.closest('.alumno-card') || box.closest('[data-iid]');
@@ -137,6 +147,22 @@ window._PAGE = Object.assign(window._PAGE || {}, {
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('.btn-guardar-uno');
     if (b) { const box = b.closest('.cmt-box'); if (box) guardar(box); }
+  });
+
+  // <--- hecho por claude code: autoguardado al salir del campo. El botón del check
+  // se deja por costumbre, pero ya no hace falta tocarlo.
+  document.addEventListener('focusin', function (e) {
+    if (e.target.classList && e.target.classList.contains('comentario-txt')) {
+      e.target.dataset.antes = e.target.value;
+    }
+  });
+  document.addEventListener('focusout', function (e) {
+    var ta = e.target;
+    if (!ta.classList || !ta.classList.contains('comentario-txt')) return;
+    if (ta.value === (ta.dataset.antes || '')) return;   // no cambió: no se escribe
+    ta.dataset.antes = ta.value;
+    var box = ta.closest('.cmt-box');
+    if (box) guardar(box);
   });
 
   // ── Asignar / quitar maestro (recarga para refrescar chips + cajas) ──
@@ -241,8 +267,19 @@ window._PAGE = Object.assign(window._PAGE || {}, {
   }
 
   async function revisarTodo() {
-    for (const box of document.querySelectorAll('#lista-alumnos .cmt-box'))
-      await guardar(box);
+    // <--- hecho por claude code: antes recorría TODAS las cajas (5,448 en bilingüe)
+    // y las guardaba UNA POR UNA esperando cada respuesta: ~27 minutos, que es lo que
+    // reportaban los coordinadores. Ahora solo se guardan las que de verdad cambiaron
+    // —con el autoguardado suelen ser cero— y esas van en paralelo, de 8 en 8.
+    const pendientes = Array.from(document.querySelectorAll('#lista-alumnos .cmt-box'))
+                            .filter(cambio);
+    const LOTE = 8;
+    for (let i = 0; i < pendientes.length; i += LOTE) {
+      await Promise.all(pendientes.slice(i, i + LOTE).map(guardar));
+    }
+    document.querySelectorAll('.comentario-txt').forEach(function (ta) {
+      ta.dataset.inicial = ta.value;   // lo guardado pasa a ser el nuevo punto de partida
+    });
     // <--- hecho por claude code: persistir el "Revisado" para que siga marcado al volver
     try {
       await fetch(window._PAGE.urlRevisado, {
@@ -254,11 +291,14 @@ window._PAGE = Object.assign(window._PAGE || {}, {
         }),
       });
     } catch (e) {}
-    // Marcar cada caja como revisada visualmente
+    // Marcar cada caja como revisada visualmente.
+    // <--- hecho por claude code: YA NO se desactivan. Antes se ponía
+    // `btn.disabled = true` y el coordinador dejaba de poder corregir los
+    // comentarios justo cuando repasa el reporte, que es cuando encuentra qué
+    // ajustar. "Revisado" indica que se revisó, no que quede congelado.
     document.querySelectorAll('#lista-alumnos .btn-guardar-uno').forEach(btn => {
       btn.classList.replace('btn-outline-success', 'btn-success');
       btn.innerHTML = '<i class="ti ti-circle-check"></i>';
-      btn.disabled = true;
     });
     activarEnvio();
   }
@@ -311,9 +351,11 @@ window._PAGE = Object.assign(window._PAGE || {}, {
       slides[cur].classList.remove('activo');
       cur = idx;
       slides[cur].classList.add('activo');
-      const txt = `${cur + 1} / ${slides.length}`;
-      document.getElementById('cContador').textContent = txt;
-      document.getElementById('cContador2').textContent = txt;
+      // <--- hecho por claude code: el contador ahora es un campo escribible
+      ['cSalto', 'cSalto2'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el && document.activeElement !== el) el.value = cur + 1;
+      });
       actualizarCarrusel();
       const wrap = document.getElementById('cCarruselWrap');
       if (wrap) window.scrollTo({ top: wrap.offsetTop - 80, behavior: 'smooth' });
@@ -322,6 +364,24 @@ window._PAGE = Object.assign(window._PAGE || {}, {
     document.getElementById('cBtnSiguiente')?.addEventListener('click', () => cMostrar(cur + 1));
     document.getElementById('cBtnAnterior2')?.addEventListener('click', () => cMostrar(cur - 1));
     document.getElementById('cBtnSiguiente2')?.addEventListener('click', () => cMostrar(cur + 1));
+
+    // <--- hecho por claude code: escribir el número y Enter salta a ese alumno
+    ['cSalto', 'cSalto2'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const ir = function () {
+        let n = parseInt(el.value, 10);
+        if (isNaN(n)) { el.value = cur + 1; return; }
+        n = Math.max(1, Math.min(n, slides.length));
+        el.value = n;
+        if (n - 1 !== cur) cMostrar(n - 1);
+      };
+      el.addEventListener('change', ir);
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); ir(); el.blur(); }
+      });
+    });
+
     actualizarCarrusel();
   })();
 

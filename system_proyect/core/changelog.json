@@ -1,6 +1,15 @@
 {
-  "version": "7.4.0.001",
+  "version": "7.4.0.001.001",
   "entradas": [
+    {
+      "version": "7.4.0.001.001",
+      "fecha": "2026-08-03",
+      "commit": "dc28337",
+      "cambios": [
+        "feat: tab Asistencias, notas de parcial en vivo y filtros en los reportes del reloj"
+      ],
+      "menor": true
+    },
     {
       "version": "7.4.0.001",
       "fecha": "2026-07-31",

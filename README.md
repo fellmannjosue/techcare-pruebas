@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.4.0.001 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.4.0.002 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,21 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.4.0.002 — Asistencias, sincronización real de notas y filtros en los reportes
+
+> Release **menor** (19 archivos): la ventana de novedades solo la ve el superusuario.
+
+- **Ingreso de Notas: nuevo tab "Asistencias".** Área → Grado → Clase → Fecha, con los 4 tipos del catálogo (Llegó tarde · No se presentó · Trajo Excusa · Pidió permiso salida temprana), las 162 razones activas y un campo libre. Solo se registra a quien faltó: el tipo vacío significa "asistió". Vaciarlo borra la fila —única forma de deshacer una falta puesta por error— con confirmación, porque estas filas alimentan los recargos por no asistencia; queda en la bitácora con acción `delete`.
+- **Notas Mitad de Parcial ahora lee las notas en vivo.** Antes consultaba `tblEdcNotasInsert*`, una foto que regenera Access y que estaba congelada en el Parcial 2: las notas del Parcial 3 no aparecían. Como en `AdmonANASQL` solo hay permiso de lectura, no se puede regenerar esa tabla, así que el procedimiento (un `SELECT` puro) pasó a ser la fuente principal y la tabla quedó de respaldo. El caché bajó de 8 horas a 30 minutos.
+- **"Revisado" pasó de ~27 minutos a instantáneo.** Guardaba las 5,448 cajas de comentario una por una esperando cada respuesta. Ahora solo guarda las que cambiaron y en paralelo.
+- **Los comentarios ya no se bloquean al marcar Revisado**, que es justo cuando el coordinador encuentra qué corregir. Además se autoguardan al salir del campo, en las pantallas de coordinador y de maestro.
+- **Carrusel de notas: se puede escribir el número** del alumno para saltar directo, en lugar de avanzar de uno en uno.
+- **El envío del PDF va con copia a los coordinadores** del área correspondiente.
+- **Reportes del reloj: filtro de mes o año en cada pestaña** (compensatorio, permiso mensual, adeudados, compensatorio general, instructores, receso, bono y vacaciones). Vacaciones tenía el año fijo en el código y ahora acepta `?anio=`.
+- **Páginas de error propias** para 404, 500 y para cuando la aplicación no arranca (esta última la sirve Apache, sin depender de Django).
+
+> **Cambios fuera del repositorio** (servidor): `WSGIApplicationGroup %{GLOBAL}` en el vhost —sin él, un robot con otro `Host` creaba un segundo sub-intérprete y `lxml` reventaba con 500 intermitentes—, `ErrorDocument` apuntando a las páginas nuevas, y `DJANGO_DEBUG=false`.
 
 ### v7.4.0.001 — Base académica real, Tareas y PDFs del reloj
 
