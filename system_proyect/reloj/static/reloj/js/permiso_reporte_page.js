@@ -1,3 +1,6 @@
+/* <--- hecho por claude code (fix): las claves url_reloj_* del template
+   son camelCase (urlRecesoSet, urlBonoOverride, urlTardeReglas...); el JS las leía en
+   snake_case -> undefined -> POST a /reporte/undefined (404). Alineadas. */
 /* permiso_reporte_page.js — <--- hecho por claude code: extraído del template.
    Los datos de Django llegan por la isla JSON #permiso-reporte-data. */
 window._PAGE = JSON.parse(document.getElementById('permiso-reporte-data').textContent);
@@ -192,7 +195,7 @@ if (window._PAGE.esSuperusuario) {
     var err = document.getElementById('ra-err');
     btn.disabled = true;
     try {
-      var r = await fetch(window._PAGE.url_reloj_receso_ajuste_set, {
+      var r = await fetch(window._PAGE.urlRecesoSet, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '' },
         body: JSON.stringify({ emp_code: raEmp, fecha: raFecha, m2: m2, m3: m3 })
@@ -234,7 +237,7 @@ if (window._PAGE.esSuperusuario) {
   // Override del bono (superuser)
   document.querySelectorAll('.bono-override').forEach(function (sel) {
     sel.addEventListener('change', function () {
-      post(window._PAGE.url_reloj_bono_override_set, {
+      post(window._PAGE.urlBonoOverride, {
         emp_code: this.dataset.emp, nombre: this.dataset.nombre, mes: this.dataset.mes, valor: this.value
       }).then(function (d) {
         if (d.ok) { var p = new URLSearchParams(location.search); p.set('ptab', 'bono'); location.search = p.toString(); }
@@ -262,7 +265,7 @@ if (window._PAGE.esSuperusuario) {
     var body = { tipo: tipo };
     if (tipo === 'permiso') body.permiso_tipo = document.getElementById('bono-add-permiso').value;
     else { body.hora = document.getElementById('bono-add-hora').value; if (!body.hora) { alert('Indica la hora'); return; } }
-    post(window._PAGE.url_reloj_bono_regla_extra_add, body).then(function (d) {
+    post(window._PAGE.urlBonoReglaAdd, body).then(function (d) {
       if (d.ok) location.reload(); else alert(d.error || 'Error');
     });
   });
@@ -276,7 +279,7 @@ if (window._PAGE.esSuperusuario) {
   });
   var save = document.getElementById('btn-bono-reglas-save');
   if (save) save.addEventListener('click', function () {
-    post(window._PAGE.url_reloj_bono_reglas_save, {
+    post(window._PAGE.urlBonoReglas, {
       regla_otro_pagado: document.getElementById('bregla_otro').checked,
       regla_enfermedad: document.getElementById('bregla_enf').checked,
       regla_hora_activa: document.getElementById('bregla_hora').checked,
@@ -323,7 +326,7 @@ if (window._PAGE.esSuperusuario) {
       });
     });
     btn.disabled = true;
-    fetch(window._PAGE.url_reloj_set_tarde_reglas, {
+    fetch(window._PAGE.urlTardeReglas, {
       method: 'POST',
       headers: { 'X-CSRFToken': window._PAGE.csrf, 'Content-Type': 'application/json' },
       body: JSON.stringify({ reglas: out }),
