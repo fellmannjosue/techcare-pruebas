@@ -130,6 +130,15 @@ Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `manag
 - En CFP el eje es el **curso** (no el grado) y `SalidaBano.ingr_egr_id` guarda el **PersonaID**, no el IngrEgrID: son espacios de ID distintos, por eso **todo filtro debe incluir el área** (pasó en el historial).
 - Grupos separados por ámbito; `'ambos'` significa Colegio+Bachillerato y **nunca** incluye CFP. El área que manda el navegador se valida contra el ámbito (antes no se validaba).
 
+## Seguridad (auditorías ago-2026)
+- **`is_staff` NO es un rol de negocio.** Se usaba como "coordinador/administrador" en ~51 sitios; eso permitía a cualquier staff operar sobre TODAS las áreas. En conducta ya se corrigió: usar el grupo real por área (`_es_coord_area`, `_puede_gestionar_reporte` = autor o coord del área). El patrón `groups.filter(name__icontains='coordinador')` es BUG: no distingue área.
+- **El área se deriva del USUARIO, no del path.** Las vistas de conducta tomaban el área de la URL (`/conducta/.../bilingue/`) sin validar → fuga de datos de menores cross-área. Guardas: `_exigir_area_conducta`.
+- **Vistas nuevas: candado por GRUPO, no solo `@login_required`.** Inventario y Cámaras estaban abiertos a cualquier maestro por URL directa.
+- **Crear usuarios = solo admin.** `register_maestro` era público. Ahora `@login_required` + `_can_manage` + interruptor `REGISTRO_USUARIOS_ACTIVO` (constance) + lista blanca `accounts.CorreoInstitucional` validada en el servidor.
+- **2FA por correo** (`accounts/dosfa.py`): periódico por rol (superuser 15d, staff 30, usuario 60). APAGADO tras `DOSFA_ACTIVO`. Panel en `/accounts/seguridad/` (superusuario) con import/export CSV/JSON/XLSX de la lista blanca.
+- **`SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE=True`** (sitio HTTPS-only). `/admin/` restringido por IP en el vhost (no infalible: el gateway `192.168.10.1` cuenta como interno).
+- **Bitácora de acciones YA existe**: `django-simple-history` en ~85 modelos con usuario. No hace falta crear otra; `django_admin_log` solo cubre el admin.
+
 ## Gotchas
 - **Migraciones gitignoradas**: `system_proyect/.gitignore` excluye `*/migrations/*.py`. Viven solo en el servidor; un clon limpio del repo no las trae.
 - **Reloj · Control Compensatorio**: todos los tabs de `compensatorio_calculo_list` se rigen por el mismo permiso `calculo_comp` (`can_edit_extra` = `editar`). Los inputs del template deben ir con `{% if can_edit_extra %}`, no con `is_superuser`: el endpoint `compensatorio_mensual_cell` ya valida `calculo_comp:editar`, así que usar `is_superuser` en la plantilla dejaba la UI más restrictiva que el backend.

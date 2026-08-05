@@ -1,6 +1,15 @@
 {
-  "version": "7.4.0.002",
+  "version": "7.4.0.003",
   "entradas": [
+    {
+      "version": "7.4.0.003",
+      "fecha": "2026-08-05",
+      "commit": "13d55f1",
+      "cambios": [
+        "feat: auditoria de seguridad, panel de Seguridad, 2FA por correo y ajustes"
+      ],
+      "menor": true
+    },
     {
       "version": "7.4.0.002",
       "fecha": "2026-08-03",

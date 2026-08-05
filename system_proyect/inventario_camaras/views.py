@@ -5,6 +5,23 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied as _PermissionDenied
+from functools import wraps as _wraps
+
+
+# <--- hecho por claude code (seguridad): TODO el módulo de cámaras (incl. hub) tenía solo
+# @login_required, así que cualquier maestro entraba por URL. Cámaras es de TI: acceso con
+# el grupo 'inventario' o superusuario. is_staff YA NO basta.
+def _camaras_required(view):
+    @_wraps(view)
+    @login_required
+    def _w(request, *a, **k):
+        u = request.user
+        if u.is_superuser or u.groups.filter(name='inventario').exists():
+            return view(request, *a, **k)
+        raise _PermissionDenied('Acceso solo para el equipo de TI.')
+    return _w
+
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -91,7 +108,7 @@ def _entity_delete(request, pk, *, Model, redirect_name):
 # ════════════════════════════════════════════════════════════
 # HUB / Dashboard del módulo
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def hub(request):
     ctx = {
         'n_servidores':  Servidor.objects.count(),
@@ -110,14 +127,14 @@ def hub(request):
 # ════════════════════════════════════════════════════════════
 # SERVIDORES
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def servidores(request):
     return _entity_page(
         request, Model=Servidor, Form=ServidorForm,
         template='inventario_camaras/servidores.html', order=['server_id'],
     )
 
-@login_required
+@_camaras_required
 def servidor_editar(request, pk):
     return _entity_edit(
         request, pk, Model=Servidor, Form=ServidorForm,
@@ -128,7 +145,7 @@ def servidor_editar(request, pk):
         },
     )
 
-@login_required
+@_camaras_required
 def servidor_eliminar(request, pk):
     return _entity_delete(request, pk, Model=Servidor, redirect_name='inventario_camaras:servidores')
 
@@ -136,14 +153,14 @@ def servidor_eliminar(request, pk):
 # ════════════════════════════════════════════════════════════
 # NVRs
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def nvrs(request):
     return _entity_page(
         request, Model=NVR, Form=NVRForm,
         template='inventario_camaras/nvrs.html', order=['nvr_id'],
     )
 
-@login_required
+@_camaras_required
 def nvr_editar(request, pk):
     return _entity_edit(
         request, pk, Model=NVR, Form=NVRForm,
@@ -155,7 +172,7 @@ def nvr_editar(request, pk):
         },
     )
 
-@login_required
+@_camaras_required
 def nvr_eliminar(request, pk):
     return _entity_delete(request, pk, Model=NVR, redirect_name='inventario_camaras:nvrs')
 
@@ -163,14 +180,14 @@ def nvr_eliminar(request, pk):
 # ════════════════════════════════════════════════════════════
 # COMPONENTES
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def componentes(request):
     return _entity_page(
         request, Model=Componente, Form=ComponenteForm,
         template='inventario_camaras/componentes.html', order=['detalle', 'sub_detalle'],
     )
 
-@login_required
+@_camaras_required
 def componente_editar(request, pk):
     return _entity_edit(
         request, pk, Model=Componente, Form=ComponenteForm,
@@ -180,7 +197,7 @@ def componente_editar(request, pk):
         },
     )
 
-@login_required
+@_camaras_required
 def componente_eliminar(request, pk):
     return _entity_delete(request, pk, Model=Componente, redirect_name='inventario_camaras:componentes')
 
@@ -188,14 +205,14 @@ def componente_eliminar(request, pk):
 # ════════════════════════════════════════════════════════════
 # GABINETES
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def gabinetes(request):
     return _entity_page(
         request, Model=Gabinete, Form=GabineteForm,
         template='inventario_camaras/gabinetes.html', order=['gabinete_id'],
     )
 
-@login_required
+@_camaras_required
 def gabinete_editar(request, pk):
     return _entity_edit(
         request, pk, Model=Gabinete, Form=GabineteForm,
@@ -208,7 +225,7 @@ def gabinete_editar(request, pk):
         },
     )
 
-@login_required
+@_camaras_required
 def gabinete_eliminar(request, pk):
     return _entity_delete(request, pk, Model=Gabinete, redirect_name='inventario_camaras:gabinetes')
 
@@ -216,14 +233,14 @@ def gabinete_eliminar(request, pk):
 # ════════════════════════════════════════════════════════════
 # CÁMARAS
 # ════════════════════════════════════════════════════════════
-@login_required
+@_camaras_required
 def camaras(request):
     return _entity_page(
         request, Model=Camara, Form=CamaraForm,
         template='inventario_camaras/camaras.html', order=['camara_id'],
     )
 
-@login_required
+@_camaras_required
 def camara_editar(request, pk):
     return _entity_edit(
         request, pk, Model=Camara, Form=CamaraForm,
@@ -236,7 +253,7 @@ def camara_editar(request, pk):
         },
     )
 
-@login_required
+@_camaras_required
 def camara_eliminar(request, pk):
     return _entity_delete(request, pk, Model=Camara, redirect_name='inventario_camaras:camaras')
 
@@ -263,7 +280,7 @@ def _camaras_por_grupo_json():
     return json.dumps(data)
 
 
-@login_required
+@_camaras_required
 def mantenimiento_dashboard(request):
     if request.method == 'POST':
         form = MantenimientoCamaraForm(request.POST, request.FILES)
@@ -298,7 +315,7 @@ def mantenimiento_dashboard(request):
     })
 
 
-@login_required
+@_camaras_required
 def mantenimiento_editar(request, pk):
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
     if request.method == 'POST':
@@ -325,7 +342,7 @@ def mantenimiento_editar(request, pk):
     })
 
 
-@login_required
+@_camaras_required
 def mantenimiento_eliminar(request, pk):
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
     if request.method == 'POST':
@@ -365,7 +382,7 @@ def firmar_publico(request, token):
     })
 
 
-@login_required
+@_camaras_required
 def marcar_firma_solicitada(request, pk):
     """Marca que ya se mandó el link de firma al técnico (AJAX)."""
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
@@ -392,7 +409,7 @@ def _firma_img(b64, RLImage, cm):
     return RLImage(out, width=6 * cm, height=2.3 * cm)
 
 
-@login_required
+@_camaras_required
 def download_mantenimiento_pdf(request, pk):
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.units import cm as _cm
@@ -552,10 +569,8 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 
-@login_required
+@_camaras_required
 def app_spa(request):
-    if not (request.user.is_staff or request.user.is_superuser):
-        return redirect('menu')
     build = os.path.join(settings.BASE_DIR, 'inventario_camaras', 'static',
                          'inventario_camaras', 'app', 'index.html')
     try:

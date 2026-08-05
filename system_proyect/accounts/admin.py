@@ -16,3 +16,15 @@ class RegistroAccesoAdmin(ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+# <--- hecho por claude code (seguridad): gestión de la lista blanca de correos
+from .models import CorreoInstitucional
+
+
+@admin.register(CorreoInstitucional)
+class CorreoInstitucionalAdmin(ModelAdmin):
+    list_display = ('correo', 'nombre', 'activo', 'creado')
+    list_filter = ('activo',)
+    search_fields = ('correo', 'nombre')
+    list_editable = ('activo',)

@@ -39,7 +39,7 @@
             <select id="student-select" name="estudiante" class="form-select" required>
               <option value="">-- Selecciona un alumno --</option>
               {% for s in students %}
-                <option value="{{ s.id }}" data-grado="{{ s.grado }}"
+                <option value="{{ s.id }}" data-grado="{{ s.grado }}" data-email="{{ s.correo }}"
                   {% if form.instance.estudiante == s.label %}selected{% endif %}>{{ s.label }}</option>
               {% endfor %}
             </select>
@@ -63,10 +63,19 @@
           <div class="col-12">
             {{ form.tratamiento.label_tag }}{{ form.tratamiento }}
           </div>
+          {# <--- hecho por claude code: el correo se envía al Guardar (ya no hay botón aparte) #}
+          <div class="col-12">
+            <label class="form-label">Correo del padre / acudiente
+              <span class="text-muted fw-normal">(se llena solo al elegir al alumno · puedes corregirlo)</span>
+            </label>
+            <input type="email" name="email" id="email-padre" class="form-control"
+                   placeholder="correo@ejemplo.com">
+            <div class="form-text" id="email-aviso"></div>
+          </div>
           <div class="col-12 text-end">
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i>
-              {% if edit_id %}Actualizar{% else %}Guardar{% endif %}
+              {% if edit_id %}Actualizar{% else %}Guardar y enviar{% endif %}
             </button>
           </div>
         </form>
@@ -107,9 +116,7 @@
               <a href="?edit={{ r.pk }}" class="btn btn-sm btn-ghost-warning" title="Editar">
                 <i class="ti ti-pencil"></i>
               </a>
-              <a href="{% url 'enfermeria:enviar_correo' r.pk %}" class="btn btn-sm btn-ghost-secondary" title="Enviar correo">
-                <i class="ti ti-mail"></i>
-              </a>
+              {# <--- hecho por claude code: se quitó el botón de correo; el envío es al Guardar #}
             </td>
           </tr>
           {% endfor %}
@@ -121,5 +128,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'enfermeria/js/atencion_form.js' %}?v=20"></script>
+<script src="{% static 'enfermeria/js/atencion_form.js' %}?v=99"></script>
 {% endblock %}

@@ -463,8 +463,8 @@ CURSO_LABEL = {
     'Afinador de Motores':                'Mec. Automotriz 2° · Afinador de Motores',
     'Mecánico de Sistema de Transmisión': 'Mec. Automotriz 2° · Mecánico de Sist. Transmisión',
     'Electricista Automotriz':            'Mec. Automotriz 2° · Electricista Automotriz',
-    'Panadero':                           'Panadería · Panadero',
-    'Repostero':                          'Panadería · Repostería',
+    'Panadero':                           'Panadería / Repostería · Panadero',
+    'Repostero':                          'Panadería / Repostería · Repostería',
 }
 
 # Cursos con dos jornadas (Matutina/Vespertina): roster manual por grupo.

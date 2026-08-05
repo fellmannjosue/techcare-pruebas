@@ -34,7 +34,8 @@ class SoloStaff(permissions.BasePermission):
     """Mismo criterio que el resto del módulo: staff autenticado."""
     def has_permission(self, request, view):
         u = request.user
-        return bool(u and u.is_authenticated and (u.is_staff or u.is_superuser))
+        # <--- hecho por claude code (seguridad): grupo 'inventario', no is_staff
+        return bool(u and u.is_authenticated and (u.is_superuser or u.groups.filter(name='inventario').exists()))
 
 
 # ── Serializers ────────────────────────────────────────────────────────────

@@ -370,6 +370,36 @@ def _alumnos_de_la_clase(area_key, anio, grado, grupo, materia_id):
                  'identidad': (r[2] or '').strip()} for r in c.fetchall()]
 
 
+def _habitos_del_dia(area_key, materia_ids, fecha):
+    """{materia_id: {habito_id: {'rec_id':…, 'puntos':…, 'comentario':…}}}.
+
+    <--- hecho por claude code: trae los 5 hábitos del Record de una vez, porque en
+    la práctica se registran juntos el mismo día. Si un hábito tiene más de una fila
+    esa fecha (pasa en un tercio de los casos) se toma la última, que es la que el
+    legacy muestra.
+    """
+    if not materia_ids:
+        return {}
+    rama = RAMAS[AREAS[area_key]['rama']]
+    marcas = ','.join(['%s'] * len(materia_ids))
+    ids_h = ','.join(str(h) for h, _ in HABITOS_RECORD)
+    sql = f"""
+        SELECT {rama['pk_materia']}, EdcDescrHabitosID, {rama['pk_record']},
+               Puntos, ISNULL(Comentario, '')
+        FROM dbo.{rama['record']}
+        WHERE CAST(Fecha AS date) = %s AND EdcDescrHabitosID IN ({ids_h})
+          AND {rama['pk_materia']} IN ({marcas})
+        ORDER BY {rama['pk_materia']}, EdcDescrHabitosID, {rama['pk_record']}
+    """
+    por_alumno = {}
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute(sql, [fecha] + list(materia_ids))
+        for mat, hab, rec_id, puntos, coment in c.fetchall():
+            por_alumno.setdefault(mat, {})[hab] = {
+                'rec_id': rec_id, 'puntos': puntos, 'comentario': coment or ''}
+    return por_alumno
+
+
 def _registros_del_dia(area_key, materia_ids, fecha, habito):
     """{materia_id: [(rec_id, puntos, comentario), ...]} en orden de inserción.
 
@@ -444,8 +474,35 @@ def _ausencias_del_dia(area_key, materia_ids, fecha):
 
 
 # ── Pantallas ────────────────────────────────────────────────────────────────
+# <--- hecho por claude code: los 4 formularios pasan a ser pantallas propias, con
+# un panel de tarjetas al estilo del de Inventario. Antes eran tabs en una sola
+# página: cómodo para capturar, pero cada formulario necesita crecer con sus
+# reportes y filtros, y todo junto se volvía inmanejable.
+FORMULARIOS = [
+    ('notas',       'Notas',             'ti-list-numbers', '#4f46e5', 'Cuadros por clase y parcial'),
+    ('tareas',      'Tareas',            'ti-notebook',     '#0ea5e9', 'Puntos de 0 a 10 por fecha'),
+    ('asistencias', 'Asistencias',       'ti-calendar-x',   '#f97316', 'Faltas, tardanzas y permisos'),
+    ('habitos',     'Record de hábitos', 'ti-star',         '#14b8a6', 'Los 5 hábitos por fecha'),
+]
+
+
 @notas_required
-def index(request):
+def panel(request):
+    """Panel de entrada: una tarjeta por formulario."""
+    permitidas = areas_permitidas(request.user)
+    area_key = request.GET.get('area') or permitidas[0]
+    if area_key not in permitidas:
+        area_key = permitidas[0]
+    return render(request, 'ingresos_notas/panel.html', {
+        'formularios': FORMULARIOS,
+        'area_sel': area_key,
+        'area_label': AREAS[area_key]['label'],
+        'areas': [(k, AREAS[k]['label']) for k in permitidas],
+    })
+
+
+@notas_required
+def index(request, form='notas'):
     # <--- hecho por claude code: solo sus áreas; si pide otra, cae a la primera suya
     permitidas = areas_permitidas(request.user)
     area_key = request.GET.get('area') or permitidas[0]
@@ -463,6 +520,9 @@ def index(request):
         # <--- hecho por claude code: cambiar de área recarga la página; `tab` la
         # devuelve al formulario donde estaba y no siempre a Notas.
         'tab_sel': request.GET.get('tab', ''),
+        # <--- hecho por claude code: qué formulario se está mostrando
+        'form': form if form in {f[0] for f in FORMULARIOS} else 'notas',
+        'formularios': FORMULARIOS,
         'error': '',
     }
     try:
@@ -746,7 +806,134 @@ def api_tarea_guardar(request):
     EscrituraNota.objects.create(
         usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['record'],
         materia_id=materia_id, eval_id=rec_id, parcial=0,
-        columna=f'Tarea{tarea}@{fecha:%Y-%m-%d}·{campo}',
+        columna=f'Tarea{tarea}@{fecha:%Y-%m-%d}·{campo}'[:80],
+        valor_antes='' if antes is None else str(antes),
+        valor_nuevo='' if nuevo is None else str(nuevo),
+        accion=accion, alumno=alumno)
+
+    return JsonResponse({'ok': True, 'rec_id': rec_id, 'accion': accion})
+
+
+# ── APIs del tab Record de Hábitos ───────────────────────────────────────────
+@notas_required
+@require_GET
+def api_habitos(request):
+    """Alumnos de la clase con sus 5 hábitos de esa fecha."""
+    area = request.GET.get('area', '')
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+
+    fecha = _fecha_valida(request.GET.get('fecha'))
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+
+    try:
+        alumnos = _alumnos_de_la_clase(
+            area, _anio_actual(), request.GET.get('grado', ''),
+            request.GET.get('grupo', ''), request.GET.get('materia', ''))
+        registros = _habitos_del_dia(area, [a['materia_id'] for a in alumnos], fecha)
+        con_datos = 0
+        for a in alumnos:
+            r = registros.get(a['materia_id'], {})
+            a['puntos'] = {str(h): ('' if h not in r else r[h]['puntos'])
+                           for h, _ in HABITOS_RECORD}
+            # el comentario es el mismo para los hábitos de ese día (así lo usan)
+            a['comentario'] = next((v['comentario'] for v in r.values() if v['comentario']), '')
+            if r:
+                con_datos += 1
+        return JsonResponse({'ok': True, 'alumnos': alumnos,
+                             'habitos': [{'id': h, 'label': l} for h, l in HABITOS_RECORD],
+                             'puntos_max': PUNTOS_MAX, 'con_datos': con_datos})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+
+
+@notas_required
+@require_POST
+def api_habito_guardar(request):
+    """Guarda los puntos de UN hábito, o el comentario de todo el día del alumno."""
+    try:
+        body = json.loads(request.body or b'{}')
+        area       = body.get('area', '')
+        materia_id = int(body.get('materia_id'))
+        campo      = (body.get('campo') or 'puntos').strip()
+        crudo      = (body.get('valor') or '').strip()
+        alumno     = (body.get('alumno') or '')[:200]
+        habito     = int(body.get('habito')) if body.get('habito') else None
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+
+    fecha = _fecha_valida(body.get('fecha'))
+    if not _area_valida(request, area):
+        return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    if not fecha:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+    if campo not in ('puntos', 'comentario'):
+        return JsonResponse({'ok': False, 'error': 'Campo no permitido'}, status=400)
+    if campo == 'puntos' and habito not in {h for h, _ in HABITOS_RECORD}:
+        return JsonResponse({'ok': False, 'error': 'Hábito fuera del catálogo'}, status=400)
+
+    puntos = None
+    if campo == 'puntos':
+        if crudo == '':
+            return JsonResponse({'ok': False,
+                                 'error': 'Los puntos no pueden quedar vacíos'}, status=400)
+        try:
+            puntos = int(round(float(crudo)))
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número'}, status=400)
+        if not (0 <= puntos <= PUNTOS_MAX):
+            return JsonResponse({'ok': False,
+                                 'error': f'Los puntos van de 0 a {PUNTOS_MAX}'}, status=400)
+
+    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    usuario = (request.user.get_username() or '')[:50]
+    actuales = _habitos_del_dia(area, [materia_id], fecha).get(materia_id, {})
+
+    try:
+        with connections['padres_sqlserver'].cursor() as c:
+            if campo == 'comentario':
+                # <--- hecho por claude code: el comentario se aplica a los hábitos que
+                # el alumno ya tenga ese día (así lo usan: "III PARCIAL" en todos).
+                if not actuales:
+                    return JsonResponse(
+                        {'ok': False,
+                         'error': 'Pon primero los puntos y luego el comentario.'}, status=200)
+                ids = [v['rec_id'] for v in actuales.values()]
+                marcas = ','.join(['%s'] * len(ids))
+                c.execute(f"""UPDATE dbo.{rama['record']}
+                              SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
+                              WHERE {rama['pk_record']} IN ({marcas})""",
+                          [crudo or None, usuario] + ids)
+                antes = next((v['comentario'] for v in actuales.values() if v['comentario']), '')
+                rec_id, nuevo, accion = ids[0], crudo, 'update'
+            elif habito in actuales:
+                rec_id = actuales[habito]['rec_id']
+                antes, nuevo = actuales[habito]['puntos'], puntos
+                c.execute(f"""UPDATE dbo.{rama['record']}
+                              SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
+                              WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
+                accion = 'update'
+            else:
+                coment = next((v['comentario'] for v in actuales.values() if v['comentario']), None)
+                c.execute(f"""INSERT INTO dbo.{rama['record']}
+                              ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
+                               Comentario, Usuario, FchaReg)
+                              VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
+                          [materia_id, habito, fecha, puntos, coment, usuario])
+                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
+                r = c.fetchone()
+                antes, nuevo = None, puntos
+                rec_id, accion = (r[0] if r else None), 'insert'
+    except Exception as e:
+        return JsonResponse({'ok': False,
+                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+
+    etiqueta = dict(HABITOS_RECORD).get(habito, campo)
+    EscrituraNota.objects.create(
+        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['record'],
+        materia_id=materia_id, eval_id=rec_id, parcial=0,
+        columna=f'Habito:{etiqueta}@{fecha:%Y-%m-%d}'[:80],
         valor_antes='' if antes is None else str(antes),
         valor_nuevo='' if nuevo is None else str(nuevo),
         accion=accion, alumno=alumno)
@@ -877,7 +1064,7 @@ def api_ausencia_guardar(request):
     EscrituraNota.objects.create(
         usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['ausencias'],
         materia_id=materia_id, eval_id=aus_id, parcial=0,
-        columna=f'Ausencia@{fecha:%Y-%m-%d}',
+        columna=f'Ausencia@{fecha:%Y-%m-%d}'[:80],
         valor_antes=antes, valor_nuevo=nuevo, accion=accion, alumno=alumno)
 
     return JsonResponse({'ok': True, 'aus_id': aus_id, 'accion': accion})

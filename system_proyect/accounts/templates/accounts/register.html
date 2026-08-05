@@ -79,7 +79,7 @@
                            value="{{ form.email.value|default_if_none:'' }}"
                            placeholder="correo@ejemplo.com">
                     <button type="button" class="btn btn-outline-secondary" id="btnBuscarCorreo">
-                      <i class="ti ti-search me-1"></i> Olvidé mi correo
+                      <i class="ti ti-search me-1"></i> ¿Cuál es mi correo?
                     </button>
                   </div>
                   {% if form.email.errors %}
@@ -179,7 +179,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js" defer></script>
-  <script src="{% static 'accounts/js/registro.js' %}?v=20" defer></script>
+  <script src="{% static 'accounts/js/registro.js' %}?v=21" defer></script>
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}

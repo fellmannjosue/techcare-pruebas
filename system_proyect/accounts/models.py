@@ -113,3 +113,43 @@ class DestinatarioEmail(models.Model):
 
     def __str__(self):
         return f'Correos → {self.user.username}'
+
+
+# <--- hecho por claude code (seguridad): lista blanca de correos institucionales que
+# PUEDEN convertirse en cuenta. Antes la lista vivía solo en el JS del registro y el
+# servidor aceptaba cualquier @ana-hn.org; ahora se valida contra esta tabla. Editable
+# desde el admin, así se controla exactamente qué correos existen.
+class CorreoInstitucional(models.Model):
+    correo = models.EmailField('Correo institucional', unique=True)
+    nombre = models.CharField('Nombre (referencia)', max_length=120, blank=True, default='')
+    activo = models.BooleanField('Habilitado para registro', default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_correo_institucional'
+        ordering = ['correo']
+        verbose_name = 'Correo institucional permitido'
+        verbose_name_plural = 'Correos institucionales permitidos'
+
+    def __str__(self):
+        return self.correo
+
+
+# 2FA por correo: recuerda cuándo cada usuario verificó por última vez, para exigirlo
+# de forma periódica según su rol (superusuario 15 días, staff 30, usuario 60).
+class Verificacion2FA(models.Model):
+    usuario = models.OneToOneField(get_user_model(), on_delete=models.CASCADE,
+                                   related_name='verif_2fa')
+    ultima_verificacion = models.DateTimeField(null=True, blank=True)
+    # código pendiente (hash no hace falta: es de un solo uso y caduca en minutos)
+    codigo = models.CharField(max_length=6, blank=True, default='')
+    codigo_expira = models.DateTimeField(null=True, blank=True)
+    intentos = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'accounts_verificacion_2fa'
+        verbose_name = 'Verificación 2FA'
+        verbose_name_plural = 'Verificaciones 2FA'
+
+    def __str__(self):
+        return f'2FA {self.usuario.username}'

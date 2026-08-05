@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.4.0.002 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.4.0.003 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,27 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.4.0.003 — Auditoría de seguridad, panel de Seguridad y ajustes
+
+> Release **menor** (31 archivos): la ventana de novedades solo la ve el superusuario.
+
+**Seguridad (tres auditorías de caja negra + correcciones verificadas):**
+- **SQL Injection** en Notas de Parcial (parámetro `curso` sin sanear) → corregido con `int()`.
+- **Conducta cross-área**: un maestro/staff veía, creaba, editaba, borraba y descargaba reportes de menores de OTRA área → ahora se valida el área y el propietario en todas las vistas (crear, editar, eliminar, PDF, dashboard de coordinador). `is_staff` deja de contar como coordinador.
+- **Inventario** y **Cámaras** abiertos a cualquier maestro por URL → candado por grupo.
+- **Crear usuarios era público** y daba `is_staff` a coordinadores → ahora solo administradores, con interruptor ON/OFF y **lista blanca de correos institucionales** (validada en el servidor, no solo en el JS).
+- Cookies `Secure` + `SameSite`, HSTS, `/admin/` restringido a la red interna, `int(curso)` blindado.
+
+**Funciones nuevas:**
+- **Panel de Seguridad** (Configuración → Seguridad, superusuario): interruptores de registro y 2FA, y gestión de la lista blanca de correos con **importar/exportar CSV · JSON · XLSX**.
+- **2FA por correo periódico** (código de 6 dígitos): superusuario cada 15 días, staff 30, usuario 60. **Apagado por defecto** tras interruptor; se activa cuando el equipo lo decida.
+
+**Otros ajustes:**
+- **PDF de convocatoria a tutorías** salía sin estilos (WeasyPrint no cargaba el CSS) → corregido cargándolo del disco; aplica a las 3 vistas de PDF de tutorías.
+- **Enfermería**: el correo del padre se autollena al elegir al alumno y la ficha se envía en PDF **al Guardar** (se quitó el botón de envío aparte).
+- **Salidas al Baño (Colegio)**: un maestro ve **solo sus clases**; el coordinador ve todas. **CFP es caso aparte**: las instructoras siguen viendo todas.
+- **CFP**: la etiqueta del taller pasa a **"Panadería / Repostería"**.
 
 ### v7.4.0.002 — Asistencias, sincronización real de notas y filtros en los reportes
 

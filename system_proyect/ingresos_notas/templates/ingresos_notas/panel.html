@@ -1,0 +1,18 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: panel de entrada, mismo estilo que el de Inventario #}
+{% block title %}Ingresos de Notas{% endblock %}
+{% block page_pretitle %}Ingresos de Notas · {{ area_label }}{% endblock %}
+{% block page_title %}<i class="ti ti-list-numbers me-2 text-indigo"></i>Panel de Ingreso de Notas{% endblock %}
+
+{% block content %}
+<div class="tc-grid">
+  {% for clave, titulo, icono, color, subtitulo in formularios %}
+    {% if clave == 'notas' %}{% url 'ingresos_notas:index' as u %}
+    {% elif clave == 'tareas' %}{% url 'ingresos_notas:form_tareas' as u %}
+    {% elif clave == 'asistencias' %}{% url 'ingresos_notas:form_asistencias' as u %}
+    {% else %}{% url 'ingresos_notas:form_habitos' as u %}{% endif %}
+    {% include 'ui/tile.html' with href=u icon=icono color=color title=titulo subtitle=subtitulo %}
+  {% endfor %}
+</div>
+{% endblock %}

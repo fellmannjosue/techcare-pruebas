@@ -1,0 +1,142 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (seguridad): panel único de seguridad (superusuario) #}
+{% block title %}Seguridad{% endblock %}
+{% block page_pretitle %}Configuración{% endblock %}
+{% block page_title %}<i class="ti ti-shield-lock me-2 text-indigo"></i>Seguridad{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  {# ── Interruptores ── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Controles de acceso</h3></div>
+      <div class="card-body">
+
+        <div class="d-flex align-items-start justify-content-between py-2 border-bottom">
+          <div class="pe-3">
+            <div class="fw-semibold">Crear usuarios nuevos</div>
+            <div class="text-muted small">Apagado = nadie puede crear cuentas, ni un administrador.</div>
+          </div>
+          <label class="form-check form-switch mb-0">
+            <input class="form-check-input sw-toggle" type="checkbox" data-clave="REGISTRO_USUARIOS_ACTIVO"
+                   {% if registro_activo %}checked{% endif %} style="cursor:pointer;">
+          </label>
+        </div>
+
+        <div class="d-flex align-items-start justify-content-between py-2">
+          <div class="pe-3">
+            <div class="fw-semibold">Verificación en dos pasos (2FA) por correo</div>
+            <div class="text-muted small">
+              Pide un código al correo cada cierto tiempo (superusuario 15 días · staff 30 · usuario 60).
+              <strong>Antes de activarlo, confirma que el envío de correos funciona.</strong>
+            </div>
+          </div>
+          <label class="form-check form-switch mb-0">
+            <input class="form-check-input sw-toggle" type="checkbox" data-clave="DOSFA_ACTIVO"
+                   {% if dosfa_activo %}checked{% endif %} style="cursor:pointer;">
+          </label>
+        </div>
+
+        <div id="sw-estado" class="small mt-2"></div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Lista blanca de correos ── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Correos institucionales permitidos</h3>
+        <div class="card-actions text-muted small">Solo estos correos pueden convertirse en cuenta.</div>
+      </div>
+
+      {# <--- hecho por claude code: importar/exportar la lista (CSV · JSON · XLSX) #}
+      <div class="card-body border-bottom bg-light-subtle">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label mb-1 small fw-semibold">Descargar la lista</label>
+            <div class="btn-group d-flex" role="group">
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'seguridad_correos_export' 'csv' %}"><i class="ti ti-file-spreadsheet me-1"></i>CSV</a>
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'seguridad_correos_export' 'xlsx' %}"><i class="ti ti-file-type-xls me-1"></i>XLSX</a>
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'seguridad_correos_export' 'json' %}"><i class="ti ti-code me-1"></i>JSON</a>
+            </div>
+            <div class="form-text">Columnas: <code>correo</code>, <code>nombre</code>, <code>activo</code> (1/0).</div>
+          </div>
+          <div class="col-md-7">
+            <label class="form-label mb-1 small fw-semibold">Subir una lista corregida</label>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <input type="file" id="imp-archivo" class="form-control form-control-sm" style="max-width:280px;"
+                     accept=".csv,.json,.xlsx">
+              <label class="form-check form-switch mb-0 small" title="Los correos que no vengan en el archivo se eliminan">
+                <input class="form-check-input" type="checkbox" id="imp-reemplazar">
+                <span class="form-check-label">Reemplazar toda la lista</span>
+              </label>
+              <button class="btn btn-primary btn-sm" id="imp-subir"><i class="ti ti-upload me-1"></i>Subir</button>
+            </div>
+            <div class="form-text" id="imp-msg">Agrega y actualiza. Con "Reemplazar", los que falten en el archivo se borran.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body border-bottom">
+        <form id="frm-add" class="row g-2 align-items-end">
+          <div class="col-sm-5">
+            <label class="form-label mb-1 small fw-semibold">Correo (@ana-hn.org)</label>
+            <input type="email" id="add-correo" class="form-control form-control-sm" placeholder="nombre@ana-hn.org" required>
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label mb-1 small fw-semibold">Nombre (referencia, opcional)</label>
+            <input type="text" id="add-nombre" class="form-control form-control-sm" placeholder="Nombre Apellido">
+          </div>
+          <div class="col-sm-2">
+            <button type="submit" class="btn btn-primary btn-sm w-100"><i class="ti ti-plus me-1"></i>Agregar</button>
+          </div>
+        </form>
+        <div id="add-msg" class="small mt-2"></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter table-sm mb-0">
+          <thead><tr><th>Correo</th><th>Nombre</th><th class="text-center">Estado</th><th class="text-center">Cuenta</th><th></th></tr></thead>
+          <tbody id="tabla-correos">
+            {% for c in correos %}
+            <tr data-id="{{ c.id }}">
+              <td class="font-monospace">{{ c.correo }}</td>
+              <td>{{ c.nombre|default:"—" }}</td>
+              <td class="text-center">
+                <span class="badge {% if c.activo %}bg-green-lt text-green{% else %}bg-secondary-lt text-secondary{% endif %} c-estado">
+                  {% if c.activo %}Habilitado{% else %}Deshabilitado{% endif %}
+                </span>
+              </td>
+              <td class="text-center">
+                {% if c.ya_registrado %}<span class="badge bg-blue-lt text-blue">Ya tiene cuenta</span>
+                {% else %}<span class="text-muted small">disponible</span>{% endif %}
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-ghost-secondary c-toggle" title="Habilitar/Deshabilitar"><i class="ti ti-power"></i></button>
+                <button class="btn btn-sm btn-ghost-danger c-del" title="Quitar de la lista"><i class="ti ti-trash"></i></button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">La lista está vacía.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="seg-config" hidden
+     data-toggle="{% url 'seguridad_toggle' %}"
+     data-add="{% url 'seguridad_correo_add' %}"
+     data-ctoggle="{% url 'seguridad_correo_toggle' %}"
+     data-cdel="{% url 'seguridad_correo_del' %}"
+     data-import="{% url 'seguridad_correos_import' %}"
+     data-csrf="{{ csrf_token }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'accounts/js/panel_seguridad.js' %}?v=2"></script>
+{% endblock %}

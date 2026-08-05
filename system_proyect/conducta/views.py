@@ -746,6 +746,53 @@ def _maestro_dos_areas(user):
            user.groups.filter(name='maestros_colegio').exists()
 
 
+# <--- hecho por claude code (seguridad): el área salía del PATH, no del usuario, así que
+# un maestro de colegio abría /reporte/conductual/bilingue/ y veía (y podía reportar sobre)
+# a menores de otra área. Estos son los grupos que legítimamente acceden a cada área; el
+# superusuario y administración pasan siempre para no bloquear a nadie.
+_GRUPOS_AREA_CONDUCTA = {
+    'bilingue': {'maestros_bilingue', 'coordinador_bilingue', 'coord_progress_bl'},
+    'colegio':  {'maestros_colegio',  'coordinador_colegio'},
+}
+
+
+def _puede_area_conducta(user, area):
+    if user.is_superuser or user.is_staff or user.groups.filter(name='administracion').exists():
+        return True
+    return user.groups.filter(name__in=_GRUPOS_AREA_CONDUCTA.get(area, set())).exists()
+
+
+# <--- hecho por claude code (seguridad): COORDINADOR por área, para las acciones fuertes
+# (dashboard de coordinador, editar/eliminar/PDF de reportes ajenos, ZIP masivo). Antes se
+# usaba `is_staff` o `name__icontains='coordinador'`: lo primero convierte a cualquier staff
+# en coordinador; lo segundo NO distingue área (coordinador_colegio contiene "coordinador" y
+# pasaba para bilingüe). Aquí sí se separa por área. `is_staff` YA NO cuenta como coordinador.
+from accounts.panel_roles import _GRUPOS_COORD_BL as _COORD_BL, _GRUPOS_COORD_COL as _COORD_COL
+
+_GRUPOS_COORD_POR_AREA = {'bilingue': _COORD_BL, 'colegio': _COORD_COL}
+
+
+def _es_coord_area(user, area):
+    if user.is_superuser or user.groups.filter(name='administracion').exists():
+        return True
+    return user.groups.filter(name__in=_GRUPOS_COORD_POR_AREA.get(area, ())).exists()
+
+
+def _puede_gestionar_reporte(user, reporte):
+    """Editar / eliminar / descargar un reporte concreto: su AUTOR, o un coordinador de
+    ESE reporte (por su área). Cierra el acceso cross-área y por is_staff."""
+    if getattr(reporte, 'usuario_id', None) == user.id:
+        return True
+    return _es_coord_area(user, getattr(reporte, 'area', None))
+
+
+def _exigir_area_conducta(user, area):
+    """Corta con 403 si el usuario no tiene el área. Úsese al entrar a cada vista."""
+    from django.core.exceptions import PermissionDenied
+    if not _puede_area_conducta(user, area):
+        raise PermissionDenied('No tiene acceso al área solicitada.')
+
+
 @login_required
 def dashboard_maestro(request):
     user = request.user
@@ -766,6 +813,7 @@ def dashboard_maestro(request):
 @login_required
 def reporte_informativo_bilingue(request):
     area = 'bilingue'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
     students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%dT%H:%M")
@@ -777,7 +825,11 @@ def reporte_informativo_bilingue(request):
         comentario = request.POST.get('comentario', "")
         tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
-        alumno_label = alumno_obj['label'] if alumno_obj else ""
+        # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
+        if not alumno_obj:
+            messages.error(request, 'El alumno seleccionado no pertenece a esta área.')
+            return redirect(request.path)
+        alumno_label = alumno_obj['label']
         materia = docente = coord_bl = ""
         mdid = materia_docente_id or ''
         if mdid.startswith('carga:'):
@@ -820,6 +872,7 @@ def reporte_informativo_bilingue(request):
 @login_required
 def reporte_informativo_colegio(request):
     area = 'colegio'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
     students = obtener_alumnos_colegio()
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%dT%H:%M")
@@ -831,7 +884,11 @@ def reporte_informativo_colegio(request):
         comentario = request.POST.get('comentario', "")
         tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
-        alumno_label = alumno_obj['label'] if alumno_obj else ""
+        # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
+        if not alumno_obj:
+            messages.error(request, 'El alumno seleccionado no pertenece a esta área.')
+            return redirect(request.path)
+        alumno_label = alumno_obj['label']
         materia = docente = ""
         md_obj = None
         if materia_docente_id:
@@ -866,6 +923,7 @@ def reporte_informativo_colegio(request):
 @login_required
 def reporte_conductual_bilingue(request):
     area = 'bilingue'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
     students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%d")
@@ -887,7 +945,11 @@ def reporte_conductual_bilingue(request):
         ids_muygrave = request.POST.getlist('inciso_muygrave[]') if request.POST.get('chk_muygrave') else []
 
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
-        alumno_label = alumno_obj['label'] if alumno_obj else ""
+        # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
+        if not alumno_obj:
+            messages.error(request, 'El alumno seleccionado no pertenece a esta área.')
+            return redirect(request.path)
+        alumno_label = alumno_obj['label']
         materia = docente = coord_bl = ""
         mdid = materia_docente_id or ''
         if mdid.startswith('carga:'):
@@ -942,6 +1004,7 @@ def reporte_conductual_bilingue(request):
 @login_required
 def reporte_conductual_colegio(request):
     area = 'colegio'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
     students = obtener_alumnos_colegio()
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%d")
@@ -961,7 +1024,11 @@ def reporte_conductual_colegio(request):
         ids_muygrave = request.POST.getlist('inciso_muygrave[]') if request.POST.get('chk_muygrave') else []
 
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
-        alumno_label = alumno_obj['label'] if alumno_obj else ""
+        # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
+        if not alumno_obj:
+            messages.error(request, 'El alumno seleccionado no pertenece a esta área.')
+            return redirect(request.path)
+        alumno_label = alumno_obj['label']
         materia = docente = ""
         md_obj = None
         if materia_docente_id:
@@ -1244,6 +1311,9 @@ def reenviar_reportes_coordinadores(request):
 @login_required
 def editar_reporte_conductual(request, pk):
     reporte = get_object_or_404(ReporteConductual, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('No puede editar este reporte.')
 
     # Elige coordinadores según área
     if reporte.area == "bilingue":
@@ -1287,6 +1357,9 @@ def editar_reporte_conductual(request, pk):
 @login_required
 def editar_reporte_informativo(request, pk):
     reporte = get_object_or_404(ReporteInformativo, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('No puede editar este reporte.')
 
     # Elige coordinadores según área
     if reporte.area == "bilingue":
@@ -1317,10 +1390,9 @@ def editar_reporte_informativo(request, pk):
 def eliminar_reporte_conductual(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
-    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
-        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
-
     reporte = get_object_or_404(ReporteConductual, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     info = {
         'pk': reporte.pk,
         'alumno': reporte.alumno_nombre,
@@ -1344,10 +1416,9 @@ def eliminar_reporte_conductual(request, pk):
 def eliminar_reporte_informativo(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
-    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
-        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
-
     reporte = get_object_or_404(ReporteInformativo, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     info = {
         'pk': reporte.pk,
         'alumno': reporte.alumno_nombre,
@@ -1674,6 +1745,9 @@ def draw_paragraph(pdf, text, x, y, max_width, font="Helvetica", font_size=10, b
 def descargar_pdf_informativo(request, pk):
     from .models import ReporteInformativo
     reporte = get_object_or_404(ReporteInformativo, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('No puede descargar este reporte.')
     buf = io.BytesIO()
     w, h = letter
     pdf = canvas.Canvas(buf, pagesize=letter)
@@ -1779,6 +1853,9 @@ def descargar_pdf_informativo(request, pk):
 def descargar_pdf_conductual(request, pk):
     from .models import ReporteConductual
     reporte = get_object_or_404(ReporteConductual, pk=pk)
+    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('No puede descargar este reporte.')
     buf = io.BytesIO()
     w, h = letter
     pdf = canvas.Canvas(buf, pagesize=letter)
@@ -2596,6 +2673,10 @@ _REDIRECT_COORD_BL = {
 #--------------  DASHBOARD COORDINADOR -----------------
 @login_required
 def dashboard_coordinador(request, area):
+    _exigir_area_conducta(request.user, area)          # el área debe ser suya
+    if not _es_coord_area(request.user, area):         # <--- hecho por claude code (seguridad)
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('Solo un coordinador de esta área.')
     if request.user.groups.filter(name='solo_progress').exists():
         return redirect('progress_report_bilingue')
 
@@ -3491,6 +3572,21 @@ def _convocatoria_ctx(conv):
     }
 
 
+# <--- hecho por claude code (PDF): carga el CSS DEL DISCO en vez de dejar que WeasyPrint
+# lo pida por HTTP (esa petición al propio servidor no vuelve y el PDF salía sin estilos).
+def _pdf_con_css_del_disco(html, base_url):
+    import re as _re
+    from weasyprint import HTML as _WH, CSS as _WC
+    from django.contrib.staticfiles import finders as _finders
+    from django.conf import settings as _st
+    hojas = []
+    for href in _re.findall(r'<link[^>]+href="([^"]+\.css[^"]*)"', html):
+        ruta = _finders.find(href.split('?')[0].replace(_st.STATIC_URL, '', 1))
+        if ruta:
+            hojas.append(_WC(filename=ruta))
+    return _WH(string=html, base_url=base_url).write_pdf(stylesheets=hojas)
+
+
 @login_required
 def convocatoria_pdf(request, pk):
     """Genera la carta de convocatoria (WeasyPrint)."""
@@ -3507,7 +3603,7 @@ def convocatoria_pdf(request, pk):
             ctx['logo_path'] = 'file://' + _p
             break
     html = render_to_string('conducta/pdf/convocatoria_pdf.html', ctx, request=request)
-    pdf_bytes = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    pdf_bytes = _pdf_con_css_del_disco(html, request.build_absolute_uri('/'))
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     nombre = conv.alumno_nombre.replace(' ', '_')
     resp['Content-Disposition'] = f'inline; filename="convocatoria_{nombre}_P{conv.parcial}.pdf"'
@@ -3871,7 +3967,7 @@ def convocatoria_cartas_pdf(request):
             ctx['logo_path'] = 'file://' + p
             break
     html = render_to_string('conducta/pdf/convocatoria_cartas_pdf.html', ctx, request=request)
-    pdf = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    pdf = _pdf_con_css_del_disco(html, request.build_absolute_uri('/'))
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="cartas_tutoria_{gnum}-{sec}_P{parcial}.pdf"'
     resp['X-Frame-Options'] = 'SAMEORIGIN'
@@ -3905,7 +4001,7 @@ def convocatoria_tabla_pdf(request):
         'coordinador_firma': _firma_convocatoria(gnum, sec, parcial, anio)[0],
     }
     html = render_to_string('conducta/pdf/convocatoria_tabla_pdf.html', ctx, request=request)
-    pdf = _WHTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    pdf = _pdf_con_css_del_disco(html, request.build_absolute_uri('/'))
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="tabla_tutoria_{gnum}-{sec}_P{parcial}.pdf"'
     resp['X-Frame-Options'] = 'SAMEORIGIN'

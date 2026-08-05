@@ -30,6 +30,14 @@ class MaestroRegisterForm(forms.Form):
             raise forms.ValidationError('No se permiten correos de gmail, hotmail ni outlook.')
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError('Este correo ya está registrado.')
+        # <--- hecho por claude code (seguridad): el correo DEBE estar en la lista blanca
+        # institucional. Antes se aceptaba cualquier @ana-hn.org, así que se podía crear
+        # admin3@ana-hn.org o cualquier otro que no existiera de verdad.
+        from .models import CorreoInstitucional
+        if not CorreoInstitucional.objects.filter(correo=email, activo=True).exists():
+            raise forms.ValidationError(
+                'Este correo no está en la lista de correos institucionales autorizados. '
+                'Solicita a un administrador que lo agregue.')
         return email
 
     def clean(self):

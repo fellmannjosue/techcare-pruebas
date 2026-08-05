@@ -388,8 +388,13 @@ def index(request, ambito='colegio'):
     # Incluye registros del área exacta + los marcados como 'ambos'
     # <--- hecho por claude code: 'ambos' es Colegio+Bachillerato; en CFP no aplica.
     _areas_mc = [area] if area == 'cfp' else [area, 'ambos']
-    for mc in (MaestroClase.objects
-               .filter(area__in=_areas_mc)
+    _mc_qs = MaestroClase.objects.filter(area__in=_areas_mc)
+    # <--- hecho por claude code: SOLO en Colegio un maestro normal ve únicamente SUS
+    # clases; el coordinador ve todas. CFP es caso aparte: ahí las instructoras siguen
+    # viendo todas las clases (así lo pidió el usuario).
+    if not es_coord and area != 'cfp':
+        _mc_qs = _mc_qs.filter(maestro=request.user)
+    for mc in (_mc_qs
                .select_related('maestro')
                .order_by('grado', 'maestro__first_name', 'clase')):
         nombre  = mc.maestro.get_full_name() or mc.maestro.username

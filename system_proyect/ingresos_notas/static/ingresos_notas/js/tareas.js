@@ -123,7 +123,10 @@
 
   // El selector ofrece las tareas del día; si no hay ninguna, la primera a crear
   function llenarSelectorTareas(actual) {
-    var total = Math.max(nTareas, 1);
+    // <--- hecho por claude code: se incluye `actual`. Al pulsar "Nueva tarea" la
+    // rejilla pasaba a la Tarea 2 pero el desplegable seguía listando solo hasta la
+    // que ya existía en la base, así que se veía "Tarea 1" con la rejilla en la 2.
+    var total = Math.max(nTareas, actual || 1, 1);
     var h = '';
     for (var i = 1; i <= total; i++) {
       h += '<option value="' + i + '"' + (i === actual ? ' selected' : '') + '>Tarea ' + i +

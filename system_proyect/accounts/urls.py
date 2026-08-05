@@ -8,6 +8,16 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('maestro_logout/', views.maestro_logout, name='maestro_logout'),
     path('register/', views.register_maestro, name='register_maestro'),
+    path('register/correos-disponibles/', views.correos_disponibles_json, name='correos_disponibles_json'),  # <--- hecho por claude code
+    path('2fa/', views.verificar_2fa, name='verificar_2fa'),  # <--- hecho por claude code (seguridad)
+    # ── Panel de Seguridad (superusuario) ──
+    path('seguridad/',                 views.panel_seguridad,        name='panel_seguridad'),
+    path('seguridad/toggle/',          views.seguridad_toggle,       name='seguridad_toggle'),
+    path('seguridad/correo/add/',      views.seguridad_correo_add,   name='seguridad_correo_add'),
+    path('seguridad/correo/toggle/',   views.seguridad_correo_toggle,name='seguridad_correo_toggle'),
+    path('seguridad/correo/del/',      views.seguridad_correo_del,   name='seguridad_correo_del'),
+    path('seguridad/correos/export/<str:fmt>/', views.seguridad_correos_export, name='seguridad_correos_export'),
+    path('seguridad/correos/import/',           views.seguridad_correos_import, name='seguridad_correos_import'),
     path('reenviar-bienvenida/', views.reenviar_bienvenida, name='reenviar_bienvenida'),
     path('usuarios-lista/', views.usuarios_lista_json, name='usuarios_lista_json'),
     path('menu/', views.menu_view, name='menu'),

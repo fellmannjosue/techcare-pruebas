@@ -60,7 +60,7 @@
       <span class="nav-link-title">Ingresos de Notas</span><span class="nav-link-arrow"></span>
     </a>
     <ul class="navbar-nav collapse ps-4" id="sbIngNotas">
-      <li class="nav-item"><a class="nav-link" href="{% url 'ingresos_notas:index' %}"><span class="nav-link-icon"><i class="ti ti-list-numbers"></i></span><span class="nav-link-title">Ingresos de Notas</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'ingresos_notas:panel' %}"><span class="nav-link-icon"><i class="ti ti-list-numbers"></i></span><span class="nav-link-title">Ingresos de Notas</span></a></li>
     </ul>
   </li>
 
@@ -118,6 +118,8 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="sbConfig">
       <li class="nav-item"><a class="nav-link" href="{% url 'settings_correos' %}"><span class="nav-link-icon"><i class="ti ti-mail"></i></span><span class="nav-link-title">Correos</span></a></li>
+      {# <--- hecho por claude code (seguridad): panel de seguridad #}
+      <li class="nav-item"><a class="nav-link" href="{% url 'panel_seguridad' %}"><span class="nav-link-icon"><i class="ti ti-shield-lock"></i></span><span class="nav-link-title">Seguridad</span></a></li>
     </ul>
   </li>
 
@@ -642,7 +644,7 @@
   {# <--- hecho por claude code: Ingreso de Notas al sistema academico #}
   {% if nav_ingresos_notas %}
   <li class="nav-item">
-    <a class="nav-link" href="{% url 'ingresos_notas:index' %}">
+    <a class="nav-link" href="{% url 'ingresos_notas:panel' %}">
       <span class="nav-link-icon"><i class="ti ti-list-numbers text-indigo"></i></span>
       <span class="nav-link-title">Ingresos de Notas</span>
     </a>

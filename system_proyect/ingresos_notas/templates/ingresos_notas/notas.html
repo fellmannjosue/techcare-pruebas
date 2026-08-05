@@ -3,7 +3,16 @@
 {# <--- hecho por claude code: Ingreso de Notas — formulario 1 (Notas) #}
 {% block title %}Ingreso de Notas{% endblock %}
 {% block page_pretitle %}Ingresos de Notas · {{ area_label }}{% endblock %}
-{% block page_title %}<i class="ti ti-list-numbers me-2 text-indigo"></i>Ingreso de Notas{% endblock %}
+{% block page_title %}
+  {% for clave, titulo, icono, color, sub in formularios %}{% if clave == form %}<i class="ti {{ icono }} me-2" style="color:{{ color }}"></i>{{ titulo }}{% endif %}{% endfor %}
+{% endblock %}
+
+{% block page_actions %}
+  {# <--- hecho por claude code: cada formulario es su propia pantalla #}
+  <a href="{% url 'ingresos_notas:panel' %}" class="btn btn-ghost-secondary">
+    <i class="ti ti-arrow-left me-1"></i>Volver al panel
+  </a>
+{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'ingresos_notas/css/notas.css' %}?v=3">
@@ -14,17 +23,8 @@
 <div class="alert alert-warning"><i class="ti ti-alert-triangle me-2"></i>{{ error }}</div>
 {% endif %}
 
-{# ── Los tres formularios del programa ── #}
-<ul class="nav nav-tabs mb-3" role="tablist">
-  <li class="nav-item"><button class="nav-link {% if not tab_sel %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#f-notas" type="button"><i class="ti ti-list-numbers me-1"></i>Notas</button></li>
-  {# <--- hecho por claude code: Tareas va aparte del Record de hábitos: se registra a diario #}
-  <li class="nav-item"><button class="nav-link {% if tab_sel == 'tareas' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#f-tareas" type="button"><i class="ti ti-notebook me-1"></i>Tareas</button></li>
-  <li class="nav-item"><button class="nav-link {% if tab_sel == 'asistencias' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#f-asistencias" type="button"><i class="ti ti-calendar-x me-1"></i>Asistencias</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#f-habitos" type="button"><i class="ti ti-star me-1"></i>Record de hábitos</button></li>
-</ul>
-
-<div class="tab-content">
-<div class="tab-pane fade {% if not tab_sel %}show active{% endif %}" id="f-notas">
+{% if form == "notas" %}
+<div id="f-notas">
 
   {# ── Selectores ── #}
   <div class="card mb-3">
@@ -87,10 +87,12 @@
     </div>
   </div>
 
-</div>{# /f-notas #}
+</div>
+{% endif %}
 
-{# ── Tab Tareas ── #}
-<div class="tab-pane fade {% if tab_sel == 'tareas' %}show active{% endif %}" id="f-tareas">
+{# ── Tareas ── #}
+{% if form == "tareas" %}
+<div id="f-tareas">
 
   <div class="card mb-3">
     <div class="card-body py-3">
@@ -161,10 +163,12 @@
     </div>
   </div>
 
-</div>{# /f-tareas #}
+</div>
+{% endif %}
 
-{# ── Tab Asistencias ── #}
-<div class="tab-pane fade {% if tab_sel == 'asistencias' %}show active{% endif %}" id="f-asistencias">
+{# ── Asistencias ── #}
+{% if form == "asistencias" %}
+<div id="f-asistencias">
 
   <div class="card mb-3">
     <div class="card-body py-3">
@@ -223,15 +227,69 @@
   </div>
 
 </div>
+{% endif %}
 
-<div class="tab-pane fade" id="f-habitos">
-  <div class="card"><div class="card-body text-center text-muted py-5">
-    <i class="ti ti-star" style="font-size:2rem"></i>
-    <div class="mt-2">Record de hábitos — pendiente.</div>
-    <div class="small">6 hábitos por alumno, materia y fecha en <code>tblEdcRecordHabitos*</code>.</div>
-  </div></div>
+{# ── Record de hábitos ── #}
+{% if form == "habitos" %}
+<div id="f-habitos">
+
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Área</label>
+          <form method="get" id="frm-area-hab">
+            <input type="hidden" name="tab" value="habitos">
+            <select name="area" class="form-select" onchange="this.form.submit()">
+              {% for k, lbl in areas %}
+              <option value="{{ k }}" {% if area_sel == k %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Grado / Grupo</label>
+          <select class="form-select" id="hb-grado">
+            <option value="">— Seleccionar —</option>
+            {% for g in grados %}
+            <option value="{{ g.grado }}|{{ g.grupo }}">{{ g.label }} · grupo {{ g.grupo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Clase</label>
+          <select class="form-select" id="hb-clase" disabled>
+            <option value="">— Elige primero el grado —</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label mb-1 fw-semibold">Fecha</label>
+          <input type="date" class="form-control" id="hb-fecha" value="{{ hoy }}">
+        </div>
+      </div>
+      <div class="text-muted small mt-2">
+        {# <--- hecho por claude code: los 5 habitos se registran juntos el mismo dia #}
+        <i class="ti ti-info-circle me-1"></i>Puntos de 0 a 10 en cada hábito · se guardan
+        solos al salir de la casilla. El comentario aplica a los hábitos de ese día.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title" id="hb-titulo">Participantes</h3>
+      <div class="card-actions"><span id="hb-estado" class="small text-muted"></span></div>
+    </div>
+    <div id="hb-cont">
+      <div class="card-body text-center text-muted py-5">
+        <i class="ti ti-hand-click" style="font-size:2rem"></i>
+        <div class="mt-2">Elige grado y clase para registrar los hábitos.</div>
+      </div>
+    </div>
+  </div>
+
 </div>
-</div>{# /tab-content #}
+{% endif %}
 
 <div id="notas-config" hidden
      data-v0="{% url 'ingresos_notas:api_clases' %}"
@@ -242,11 +300,14 @@
      data-v5="{% url 'ingresos_notas:api_tareas' %}"
      data-v6="{% url 'ingresos_notas:api_tarea_guardar' %}"
      data-v7="{% url 'ingresos_notas:api_ausencias' %}"
-     data-v8="{% url 'ingresos_notas:api_ausencia_guardar' %}"></div>
+     data-v8="{% url 'ingresos_notas:api_ausencia_guardar' %}"
+     data-v9="{% url 'ingresos_notas:api_habitos' %}"
+     data-v10="{% url 'ingresos_notas:api_habito_guardar' %}"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'ingresos_notas/js/notas.js' %}?v=5"></script>
-<script src="{% static 'ingresos_notas/js/tareas.js' %}?v=1"></script>
+<script src="{% static 'ingresos_notas/js/tareas.js' %}?v=2"></script>
 <script src="{% static 'ingresos_notas/js/asistencias.js' %}?v=1"></script>
+<script src="{% static 'ingresos_notas/js/habitos.js' %}?v=1"></script>
 {% endblock %}

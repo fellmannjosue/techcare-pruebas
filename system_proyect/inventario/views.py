@@ -13,6 +13,24 @@ from django.db.models import F, Value, CharField
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from functools import wraps as _wraps
+
+
+# <--- hecho por claude code (seguridad): las vistas solo tenían @login_required, así que
+# CUALQUIER usuario autenticado (p. ej. un maestro) entraba a /inventario/ por URL directa
+# aunque el menú no se lo mostrara. Este candado usa el MISMO criterio que `nav_inventory`
+# del context processor: superusuario, permiso inventario.view_item, o grupo 'inventario'.
+def _inventario_required(view):
+    @_wraps(view)
+    @login_required
+    def _w(request, *args, **kwargs):
+        u = request.user
+        if u.is_superuser or u.has_perm('inventario.view_item') or u.groups.filter(name='inventario').exists():
+            return view(request, *args, **kwargs)
+        raise PermissionDenied('No tiene acceso al módulo de Inventario.')
+    return _w
+
 
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -104,7 +122,7 @@ def descargar_qr(request, tipo, pk):
 # DASHBOARD
 # ==============================================================
 
-@login_required
+@_inventario_required
 def dashboard(request):
     year = datetime.datetime.now().year
     return render(request, "inventario/dashboard.html", {"year": year})
@@ -113,7 +131,7 @@ def dashboard(request):
 # POR CATEGORÍA
 # ==============================================================
 
-@login_required
+@_inventario_required
 def inventario_por_categoria(request):
     year = datetime.datetime.now().year
 
@@ -186,7 +204,7 @@ def _siguiente_asset_id_computadora(prefijo_key='estandar'):
     return f"{prefix}{n+1:03d}"
 
 
-@login_required
+@_inventario_required
 def inventario_computadoras(request):
     if request.method == "POST":
         form = ComputadoraForm(request.POST)
@@ -234,7 +252,7 @@ def inventario_computadoras(request):
     })
 
 
-@login_required
+@_inventario_required
 def computadoras_list(request):
     year = datetime.datetime.now().year
     form = ComputadoraFilterForm(request.GET or None)
@@ -268,7 +286,7 @@ def _siguiente_asset_id_televisor():
     return f"{prefix}{n+1:03d}"
 
 
-@login_required
+@_inventario_required
 def inventario_televisores(request):
     if request.method == "POST":
         form = TelevisorForm(request.POST)
@@ -305,7 +323,7 @@ def _siguiente_asset_id_impresora():
     return f"{prefix}{n+1:03d}"
 
 
-@login_required
+@_inventario_required
 def inventario_impresoras(request):
     year = datetime.datetime.now().year
 
@@ -327,7 +345,7 @@ def inventario_impresoras(request):
     })
 
 
-@login_required
+@_inventario_required
 def inventario_routers(request):
     year = datetime.datetime.now().year
 
@@ -346,7 +364,7 @@ def inventario_routers(request):
     })
 
 
-@login_required
+@_inventario_required
 def inventario_datashows(request):
     year = datetime.datetime.now().year
 
@@ -365,7 +383,7 @@ def inventario_datashows(request):
     })
 
 
-@login_required
+@_inventario_required
 def inventario_monitores(request):
     import re as _re
     year = datetime.datetime.now().year
@@ -418,7 +436,7 @@ def inventario_monitores(request):
 # INVENTARIO REGISTROS (TABS CONSOLIDADOS)
 # ==============================================================
 
-@login_required
+@_inventario_required
 def inventario_registros(request):
     year = datetime.datetime.now().year
 
@@ -445,7 +463,7 @@ def inventario_registros(request):
 # Asignar / cambiar grupo de computadora(s)
 # ==============================================================
 
-@login_required
+@_inventario_required
 def asignar_grupo_computadora(request, pk):
     comp = get_object_or_404(Computadora, pk=pk)
     if request.method == 'POST':
@@ -456,7 +474,7 @@ def asignar_grupo_computadora(request, pk):
     return JsonResponse({'ok': True, 'grupo': comp.grupo})
 
 
-@login_required
+@_inventario_required
 def asignar_grupo_bulk(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -467,7 +485,7 @@ def asignar_grupo_bulk(request):
     return JsonResponse({'ok': True, 'grupo': grupo, 'count': updated})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_televisor(request, pk):
     from .models import Televisor
     tv = get_object_or_404(Televisor, pk=pk)
@@ -479,7 +497,7 @@ def asignar_categoria_televisor(request, pk):
     return JsonResponse({'ok': True, 'categoria': tv.category or ''})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_router(request, pk):
     from .models import Router
     rt = get_object_or_404(Router, pk=pk)
@@ -491,7 +509,7 @@ def asignar_categoria_router(request, pk):
     return JsonResponse({'ok': True, 'categoria': rt.category or ''})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_impresora(request, pk):
     from .models import Impresora
     obj = get_object_or_404(Impresora, pk=pk)
@@ -503,7 +521,7 @@ def asignar_categoria_impresora(request, pk):
     return JsonResponse({'ok': True, 'categoria': obj.category or ''})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_datashow(request, pk):
     from .models import DataShow
     obj = get_object_or_404(DataShow, pk=pk)
@@ -515,7 +533,7 @@ def asignar_categoria_datashow(request, pk):
     return JsonResponse({'ok': True, 'categoria': obj.category or ''})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_monitor(request, pk):
     from .models import Monitor
     obj = get_object_or_404(Monitor, pk=pk)
@@ -527,7 +545,7 @@ def asignar_categoria_monitor(request, pk):
     return JsonResponse({'ok': True, 'categoria': obj.category or ''})
 
 
-@login_required
+@_inventario_required
 def asignar_categoria_bulk(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
@@ -555,7 +573,7 @@ def asignar_categoria_bulk(request):
 # GET (Cargar formulario en el modal)
 # ==============================================================
 
-@login_required
+@_inventario_required
 def get_computadora(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
     form = ComputadoraForm(instance=obj)
@@ -568,7 +586,7 @@ def get_computadora(request, pk):
         "subtipos_otros": SubtipoGradoComputadora.objects.all(),
     })
 
-@login_required
+@_inventario_required
 def computadora_json(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
     return JsonResponse({
@@ -580,31 +598,31 @@ def computadora_json(request, pk):
         'grado':      obj.grado,
     })
 
-@login_required
+@_inventario_required
 def get_televisor(request, pk):
     obj = get_object_or_404(Televisor, pk=pk)
     form = TelevisorForm(instance=obj)
     return render(request, "inventario/edit_televisor.html", {"form": form, "obj": obj})
 
-@login_required
+@_inventario_required
 def get_impresora(request, pk):
     obj = get_object_or_404(Impresora, pk=pk)
     form = ImpresoraForm(instance=obj)
     return render(request, "inventario/edit_impresora.html", {"form": form, "obj": obj})
 
-@login_required
+@_inventario_required
 def get_router(request, pk):
     obj = get_object_or_404(Router, pk=pk)
     form = RouterForm(instance=obj)
     return render(request, "inventario/edit_router.html", {"form": form, "obj": obj})
 
-@login_required
+@_inventario_required
 def get_datashow(request, pk):
     obj = get_object_or_404(DataShow, pk=pk)
     form = DataShowForm(instance=obj)
     return render(request, "inventario/edit_datashow.html", {"form": form, "obj": obj})
 
-@login_required
+@_inventario_required
 def get_monitor(request, pk):
     obj  = get_object_or_404(Monitor, pk=pk)
     form = MonitorForm(instance=obj)
@@ -628,7 +646,7 @@ def get_monitor(request, pk):
 # UPDATE (Guardar cambios vía AJAX)
 # ==============================================================
 
-@login_required
+@_inventario_required
 def update_computadora(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
     form = ComputadoraForm(request.POST, instance=obj)
@@ -652,7 +670,7 @@ def update_computadora(request, pk):
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
-@login_required
+@_inventario_required
 def update_televisor(request, pk):
     obj = get_object_or_404(Televisor, pk=pk)
     form = TelevisorForm(request.POST, instance=obj)
@@ -662,7 +680,7 @@ def update_televisor(request, pk):
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
-@login_required
+@_inventario_required
 def update_impresora(request, pk):
     obj = get_object_or_404(Impresora, pk=pk)
     form = ImpresoraForm(request.POST, instance=obj)
@@ -672,7 +690,7 @@ def update_impresora(request, pk):
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
-@login_required
+@_inventario_required
 def update_router(request, pk):
     obj = get_object_or_404(Router, pk=pk)
     form = RouterForm(request.POST, instance=obj)
@@ -682,7 +700,7 @@ def update_router(request, pk):
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
-@login_required
+@_inventario_required
 def update_datashow(request, pk):
     obj = get_object_or_404(DataShow, pk=pk)
     form = DataShowForm(request.POST, instance=obj)
@@ -692,7 +710,7 @@ def update_datashow(request, pk):
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
-@login_required
+@_inventario_required
 def update_monitor(request, pk):
     obj = get_object_or_404(Monitor, pk=pk)
     form = MonitorForm(request.POST, instance=obj)
@@ -705,32 +723,32 @@ def update_monitor(request, pk):
 # DELETE (JSON)
 # ==============================================================
 
-@login_required
+@_inventario_required
 def eliminar_computadora(request, pk):
     get_object_or_404(Computadora, pk=pk).delete()
     return JsonResponse({"ok": True})
 
-@login_required
+@_inventario_required
 def eliminar_televisor(request, pk):
     get_object_or_404(Televisor, pk=pk).delete()
     return JsonResponse({"ok": True})
 
-@login_required
+@_inventario_required
 def eliminar_impresora(request, pk):
     get_object_or_404(Impresora, pk=pk).delete()
     return JsonResponse({"ok": True})
 
-@login_required
+@_inventario_required
 def eliminar_router(request, pk):
     get_object_or_404(Router, pk=pk).delete()
     return JsonResponse({"ok": True})
 
-@login_required
+@_inventario_required
 def eliminar_datashow(request, pk):
     get_object_or_404(DataShow, pk=pk).delete()
     return JsonResponse({"ok": True})
 
-@login_required
+@_inventario_required
 def eliminar_monitor(request, pk):
     get_object_or_404(Monitor, pk=pk).delete()
     return JsonResponse({"ok": True})
@@ -1067,7 +1085,7 @@ def download_model_pdf(request, tipo, pk):
 
 
 # ===================== EXPORTAR EXCEL =====================
-@login_required
+@_inventario_required
 def exportar_excel_inventario(request, categoria):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment

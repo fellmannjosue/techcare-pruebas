@@ -26,7 +26,11 @@ class EscrituraNota(models.Model):
     materia_id  = models.IntegerField('ID materia (legacy)', db_index=True)
     eval_id     = models.IntegerField('ID evaluación (legacy)', null=True, blank=True)
     parcial     = models.PositiveSmallIntegerField('Parcial')
-    columna     = models.CharField('Columna', max_length=30)
+    # <--- hecho por claude code: 80, no 30. Las etiquetas del Record de Hábitos
+    # ('Habito:Orden y Presentación@2026-08-03') pasaban de 30 y el INSERT de la
+    # bitácora reventaba DESPUÉS de haber escrito la nota en el legacy: 500 en
+    # pantalla, valor revertido en la rejilla y el dato sí guardado. Peor caso.
+    columna     = models.CharField('Columna', max_length=80)
     valor_antes = models.CharField('Valor anterior', max_length=30, blank=True, default='')
     valor_nuevo = models.CharField('Valor nuevo', max_length=30, blank=True, default='')
     accion      = models.CharField('Acción', max_length=10, choices=ACCIONES, default='update')

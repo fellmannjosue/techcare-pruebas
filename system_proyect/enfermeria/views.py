@@ -40,6 +40,34 @@ def enfermeria_dashboard(request):
     return render(request, 'enfermeria/dashboard.html')
 
 @login_required
+# <--- hecho por claude code: envía la ficha médica en PDF al correo indicado, con
+# copia fija a enfermeria@ana-hn.org y a los usuarios con el toggle de enfermería.
+# Devuelve (enviado: bool, error: str). No lanza excepciones: el guardado no debe
+# romperse por un fallo de correo.
+def _enviar_ficha_por_correo(request, atencion, email_destino):
+    try:
+        from accounts.models import DestinatarioEmail
+        _FIJO_ENF = 'enfermeria@ana-hn.org'
+        extras = list(DestinatarioEmail.objects.filter(enfermeria=True)
+                      .exclude(user__email='').values_list('user__email', flat=True))
+        cc_list = list({_FIJO_ENF} | set(extras) - {email_destino})
+
+        asunto = f'Ficha médica de {atencion.estudiante}'
+        cuerpo = (f'Estimado/a padre/madre de {atencion.estudiante},<br><br>'
+                  'Adjuntamos la ficha médica de la atención registrada.<br><br>Saludos.')
+        correo = EmailMessage(
+            subject=asunto, body=cuerpo,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email_destino], cc=cc_list)
+        correo.content_subtype = 'html'
+        pdf_resp = atencion_download_pdf(request, atencion.pk)
+        correo.attach(f'ficha_{atencion.pk}.pdf', pdf_resp.content, 'application/pdf')
+        correo.send(fail_silently=False)
+        return True, ''
+    except Exception as e:
+        return False, str(e)
+
+
 def atencion_form(request):
     delete_id = request.GET.get('delete')
     edit_id   = request.GET.get('edit')
@@ -62,7 +90,11 @@ def atencion_form(request):
     AS NombreCompl,
   da.Descripcion    AS AreaDesc,
   c.CrsoNumero,
-  c.GrupoNumero
+  c.GrupoNumero,
+  -- <--- hecho por claude code: primer correo del padre disponible, para autollenar
+  COALESCE(NULLIF(LTRIM(RTRIM(d.Email)),''),
+           NULLIF(LTRIM(RTRIM(d.Email2)),''),
+           NULLIF(LTRIM(RTRIM(d.Email3)),''), '') AS CorreoPadre
  FROM dbo.tblPrsDtosGen AS d
  JOIN dbo.tblPrsTipo           AS t  ON d.PersonaID = t.PersonaID
  JOIN dbo.tblEdcArea           AS a  ON t.IngrEgrID  = a.IngrEgrID
@@ -86,10 +118,11 @@ def atencion_form(request):
         filas = cursor.fetchall()
 
     students = [{
-        'id':    pid,
-        'label': nombre.strip(),
-        'grado': f"{area} {crso}-{grupo}"
-    } for pid, nombre, area, crso, grupo in filas]
+        'id':     pid,
+        'label':  nombre.strip(),
+        'grado':  f"{area} {crso}-{grupo}",
+        'correo': (correo or '').strip(),   # <--- hecho por claude code: autollenado
+    } for pid, nombre, area, crso, grupo, correo in filas]
 
     # 3) Si es POST, procesamos
     instancia = get_object_or_404(AtencionMedica, pk=edit_id) if edit_id else None
@@ -124,7 +157,18 @@ def atencion_form(request):
 
             obj.save()
             form.save_m2m()
-            request.session['mensaje_exito'] = 'Ficha guardada correctamente'
+
+            # <--- hecho por claude code: el correo se envía AL GUARDAR (antes era un
+            # botón aparte). Si se escribió un correo, se manda la ficha en PDF; si se
+            # deja vacío, solo se guarda. El guardado nunca falla por un problema de correo.
+            email_destino = (request.POST.get('email') or '').strip()
+            if email_destino:
+                enviado, err = _enviar_ficha_por_correo(request, obj, email_destino)
+                request.session['mensaje_exito'] = (
+                    f'Ficha guardada y enviada a {email_destino}.' if enviado
+                    else f'Ficha guardada, pero el correo no se envió: {err}')
+            else:
+                request.session['mensaje_exito'] = 'Ficha guardada correctamente.'
             return redirect('enfermeria:atencion_form')
     else:
         form = AtencionMedicaForm(instance=instancia)

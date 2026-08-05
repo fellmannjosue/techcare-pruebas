@@ -297,10 +297,326 @@ def aplicar_rol(request, rol):
 # =====================================================
 # 📝 REGISTRO DE MAESTROS / ADMIN / STAFF
 # =====================================================
+# <--- hecho por claude code (seguridad): la lista de correos institucionales para el
+# buscador "¿Cuál es mi correo?" ahora viene del SERVIDOR (lista blanca), no del JS fijo.
+# Solo devuelve los que están habilitados y AÚN no tienen cuenta.
+# <--- hecho por claude code (seguridad): PANEL DE SEGURIDAD (solo superusuario).
+# Interruptores de registro y 2FA + gestión de la lista blanca de correos, en una
+# sola pantalla del panel, en vez de tener que entrar al admin de Django.
+def _solo_superuser(user):
+    return user.is_authenticated and user.is_superuser
+
+
+@login_required
+def panel_seguridad(request):
+    from django.core.exceptions import PermissionDenied
+    from constance import config
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        raise PermissionDenied('Solo el superusuario.')
+    registrados = set(User.objects.values_list('email', flat=True))
+    correos = list(CorreoInstitucional.objects.all())
+    for c in correos:
+        c.ya_registrado = c.correo in registrados
+    return render(request, 'accounts/panel_seguridad.html', {
+        'registro_activo': config.REGISTRO_USUARIOS_ACTIVO,
+        'dosfa_activo':    config.DOSFA_ACTIVO,
+        'correos':         correos,
+    })
+
+
+@login_required
+@require_POST
+def seguridad_toggle(request):
+    from django.http import JsonResponse
+    from constance import config
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    clave = request.POST.get('clave')
+    valor = request.POST.get('valor') == 'true'
+    if clave not in ('REGISTRO_USUARIOS_ACTIVO', 'DOSFA_ACTIVO'):
+        return JsonResponse({'ok': False, 'error': 'Interruptor inválido'}, status=400)
+    setattr(config, clave, valor)
+    return JsonResponse({'ok': True, 'clave': clave, 'valor': valor})
+
+
+@login_required
+@require_POST
+def seguridad_correo_add(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    correo = (request.POST.get('correo') or '').strip().lower()
+    nombre = (request.POST.get('nombre') or '').strip()[:120]
+    if not correo.endswith('@ana-hn.org'):
+        return JsonResponse({'ok': False, 'error': 'Debe ser un correo @ana-hn.org'}, status=400)
+    obj, creado = CorreoInstitucional.objects.get_or_create(
+        correo=correo, defaults={'nombre': nombre, 'activo': True})
+    if not creado:
+        return JsonResponse({'ok': False, 'error': 'Ese correo ya está en la lista'}, status=200)
+    return JsonResponse({'ok': True, 'id': obj.id, 'correo': obj.correo, 'nombre': obj.nombre})
+
+
+@login_required
+@require_POST
+def seguridad_correo_toggle(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = CorreoInstitucional.objects.filter(pk=request.POST.get('id')).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'No existe'}, status=404)
+    obj.activo = not obj.activo
+    obj.save(update_fields=['activo'])
+    return JsonResponse({'ok': True, 'activo': obj.activo})
+
+
+# <--- hecho por claude code (seguridad): exportar la lista blanca (csv | json | xlsx).
+@login_required
+def seguridad_correos_export(request, fmt):
+    from django.http import HttpResponse, JsonResponse, Http404
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    filas = list(CorreoInstitucional.objects.order_by('correo')
+                 .values('correo', 'nombre', 'activo'))
+
+    if fmt == 'json':
+        resp = JsonResponse(filas, safe=False, json_dumps_params={'ensure_ascii': False, 'indent': 2})
+        resp['Content-Disposition'] = 'attachment; filename="correos_permitidos.json"'
+        return resp
+
+    if fmt == 'csv':
+        import csv, io
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(['correo', 'nombre', 'activo'])
+        for f in filas:
+            w.writerow([f['correo'], f['nombre'], '1' if f['activo'] else '0'])
+        # BOM para que Excel abra bien los acentos
+        resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = 'attachment; filename="correos_permitidos.csv"'
+        return resp
+
+    if fmt == 'xlsx':
+        import io
+        from openpyxl import Workbook
+        wb = Workbook(); ws = wb.active; ws.title = 'Correos'
+        ws.append(['correo', 'nombre', 'activo'])
+        for f in filas:
+            ws.append([f['correo'], f['nombre'], 1 if f['activo'] else 0])
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        resp = HttpResponse(buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        resp['Content-Disposition'] = 'attachment; filename="correos_permitidos.xlsx"'
+        return resp
+
+    raise Http404
+
+
+# Importar la lista blanca desde csv | json | xlsx.
+@login_required
+@require_POST
+def seguridad_correos_import(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    archivo = request.FILES.get('archivo')
+    reemplazar = request.POST.get('reemplazar') == 'true'
+    if not archivo:
+        return JsonResponse({'ok': False, 'error': 'No se recibió ningún archivo'}, status=400)
+
+    nombre = (archivo.name or '').lower()
+    registros = []   # cada uno: {'correo':..., 'nombre':..., 'activo':bool}
+
+    def _norm(correo, nombre_v, activo_v):
+        correo = (str(correo or '')).strip().lower()
+        nombre_v = (str(nombre_v or '')).strip()[:120]
+        av = str(activo_v).strip().lower()
+        activo = av not in ('0', 'false', 'no', 'deshabilitado', '')
+        return correo, nombre_v, activo
+
+    try:
+        if nombre.endswith('.json'):
+            import json as _json
+            data = _json.loads(archivo.read().decode('utf-8'))
+            for it in data:
+                c, n, a = _norm(it.get('correo'), it.get('nombre'), it.get('activo', True))
+                if c:
+                    registros.append((c, n, a))
+        elif nombre.endswith('.csv'):
+            import csv, io
+            texto = archivo.read().decode('utf-8-sig')
+            for row in csv.DictReader(io.StringIO(texto)):
+                # tolera cabeceras en mayúsculas/espacios
+                low = { (k or '').strip().lower(): v for k, v in row.items() }
+                c, n, a = _norm(low.get('correo'), low.get('nombre'), low.get('activo', '1'))
+                if c:
+                    registros.append((c, n, a))
+        elif nombre.endswith('.xlsx'):
+            from openpyxl import load_workbook
+            wb = load_workbook(archivo, read_only=True, data_only=True)
+            ws = wb.active
+            filas = list(ws.iter_rows(values_only=True))
+            if not filas:
+                return JsonResponse({'ok': False, 'error': 'El archivo está vacío'}, status=400)
+            cab = [str(x or '').strip().lower() for x in filas[0]]
+            def idx(nombre_col, defecto=None):
+                return cab.index(nombre_col) if nombre_col in cab else defecto
+            i_c, i_n, i_a = idx('correo', 0), idx('nombre', 1), idx('activo', 2)
+            for r in filas[1:]:
+                correo = r[i_c] if i_c is not None and i_c < len(r) else None
+                nom    = r[i_n] if i_n is not None and i_n < len(r) else ''
+                act    = r[i_a] if i_a is not None and i_a < len(r) else '1'
+                c, n, a = _norm(correo, nom, act)
+                if c:
+                    registros.append((c, n, a))
+        else:
+            return JsonResponse({'ok': False, 'error': 'Formato no soportado. Usa CSV, JSON o XLSX.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': f'No se pudo leer el archivo: {e}'}, status=200)
+
+    # Validación: todos deben ser @ana-hn.org
+    malos = [c for c, _, _ in registros if not c.endswith('@ana-hn.org')]
+    if malos:
+        return JsonResponse({'ok': False,
+            'error': f'Hay {len(malos)} correo(s) que no son @ana-hn.org (ej: {malos[0]}). Corrige el archivo.'}, status=200)
+    if not registros:
+        return JsonResponse({'ok': False, 'error': 'El archivo no tiene correos válidos.'}, status=200)
+
+    creados = actualizados = 0
+    vistos = set()
+    for correo, nom, activo in registros:
+        if correo in vistos:
+            continue
+        vistos.add(correo)
+        obj, creado = CorreoInstitucional.objects.update_or_create(
+            correo=correo, defaults={'nombre': nom, 'activo': activo})
+        creados += creado
+        actualizados += (0 if creado else 1)
+
+    eliminados = 0
+    if reemplazar:
+        # los que NO vengan en el archivo se quitan (modo "reemplazar toda la lista")
+        borrar = CorreoInstitucional.objects.exclude(correo__in=vistos)
+        eliminados = borrar.count()
+        borrar.delete()
+
+    return JsonResponse({'ok': True, 'creados': creados, 'actualizados': actualizados,
+                         'eliminados': eliminados, 'total': len(vistos)})
+
+
+@login_required
+@require_POST
+def seguridad_correo_del(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    n, _ = CorreoInstitucional.objects.filter(pk=request.POST.get('id')).delete()
+    return JsonResponse({'ok': bool(n)})
+
+
+# <--- hecho por claude code (seguridad): pantalla de verificación 2FA por correo.
+@login_required
+def verificar_2fa(request):
+    from datetime import timedelta
+    import random
+    from django.utils import timezone
+    from django.core.mail import send_mail
+    from django.conf import settings as _st
+    from .models import Verificacion2FA
+    from .dosfa import dosfa_activo, necesita_verificar, CODIGO_VIGENCIA_MIN, MAX_INTENTOS
+
+    # Si el 2FA está apagado o ya no le toca, no hay nada que verificar
+    if not dosfa_activo() or not necesita_verificar(request.user):
+        return redirect(request.session.pop('dosfa_next', None) or 'menu')
+
+    v, _ = Verificacion2FA.objects.get_or_create(usuario=request.user)
+    correo = request.user.email
+
+    def _enviar_codigo():
+        codigo = f'{random.randint(0, 999999):06d}'
+        v.codigo = codigo
+        v.codigo_expira = timezone.now() + timedelta(minutes=CODIGO_VIGENCIA_MIN)
+        v.intentos = 0
+        v.save(update_fields=['codigo', 'codigo_expira', 'intentos'])
+        try:
+            send_mail(
+                'Tu código de verificación — TechCare',
+                f'Tu código de verificación es: {codigo}\n\n'
+                f'Caduca en {CODIGO_VIGENCIA_MIN} minutos. Si no intentaste iniciar sesión, ignora este correo.',
+                _st.DEFAULT_FROM_EMAIL, [correo], fail_silently=False)
+            return True
+        except Exception as e:
+            print('[2FA] no se pudo enviar el código:', e)
+            return False
+
+    if request.method == 'POST':
+        if request.POST.get('reenviar'):
+            ok = _enviar_codigo()
+            messages.info(request, 'Te enviamos un código nuevo.' if ok
+                          else 'No se pudo enviar el correo. Intenta de nuevo.')
+            return render(request, 'accounts/verificar_2fa.html', {'correo': correo})
+
+        ingresado = (request.POST.get('codigo') or '').strip()
+        if v.intentos >= MAX_INTENTOS:
+            messages.error(request, 'Demasiados intentos. Pide un código nuevo.')
+        elif not v.codigo or not v.codigo_expira or timezone.now() > v.codigo_expira:
+            messages.error(request, 'El código caducó. Pide uno nuevo.')
+        elif ingresado == v.codigo:
+            v.ultima_verificacion = timezone.now()
+            v.codigo = ''
+            v.codigo_expira = None
+            v.intentos = 0
+            v.save(update_fields=['ultima_verificacion', 'codigo', 'codigo_expira', 'intentos'])
+            destino = request.session.pop('dosfa_next', None) or 'menu'
+            return redirect(destino)
+        else:
+            v.intentos += 1
+            v.save(update_fields=['intentos'])
+            messages.error(request, f'Código incorrecto. Intento {v.intentos} de {MAX_INTENTOS}.')
+        return render(request, 'accounts/verificar_2fa.html', {'correo': correo})
+
+    # GET: manda el código la primera vez que se abre
+    if not v.codigo or not v.codigo_expira or timezone.now() > v.codigo_expira:
+        _enviar_codigo()
+    return render(request, 'accounts/verificar_2fa.html', {'correo': correo})
+
+
+@login_required
+def correos_disponibles_json(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _can_manage(request.user):
+        return JsonResponse({'correos': []}, status=403)
+    registrados = set(User.objects.values_list('email', flat=True))
+    correos = [c.correo for c in CorreoInstitucional.objects.filter(activo=True)
+               if c.correo not in registrados]
+    return JsonResponse({'correos': sorted(correos)})
+
+
+@login_required
 def register_maestro(request):
     """
     Registro completo con envío de correo y asignación de grupos.
     """
+    # <--- hecho por claude code (seguridad): antes esta vista era PÚBLICA y creaba
+    # cuentas con is_staff=True para coordinadores. Ahora: solo un administrador
+    # (superusuario o staff con puede_ver_usuarios) y solo si el registro está activo.
+    from django.core.exceptions import PermissionDenied
+    from constance import config
+    if not _can_manage(request.user):
+        raise PermissionDenied('Solo un administrador puede crear usuarios.')
+    if not config.REGISTRO_USUARIOS_ACTIVO:
+        messages.warning(request, 'La creación de usuarios está desactivada por el administrador.')
+        return render(request, 'accounts/register.html',
+                      {'form': MaestroRegisterForm(), 'registro_desactivado': True})
+
     if request.method == 'POST':
         form = MaestroRegisterForm(request.POST)
 
@@ -674,7 +990,7 @@ GRUPOS_SUPER = [
     {'key': 'ingresos_notas', 'titulo': 'Ingresos de Notas', 'icon': 'ti-list-numbers', 'color': '#6366f1',
      'desc': 'Notas, asistencias y hábitos por área',
      'cards': [
-        {'t': 'Ingresos de Notas', 's': 'Notas, asistencias y hábitos por área', 'i': 'ti-list-numbers', 'c': '#6366f1', 'url': 'ingresos_notas:index'},
+        {'t': 'Ingresos de Notas', 's': 'Notas, asistencias y hábitos por área', 'i': 'ti-list-numbers', 'c': '#6366f1', 'url': 'ingresos_notas:panel'},
      ]},
     # <--- hecho por claude code: grupo propio para salidas (baño y, próximamente, permisos)
     {'key': 'salidas', 'titulo': 'Salidas', 'icon': 'ti-door-exit', 'color': '#DC143C',

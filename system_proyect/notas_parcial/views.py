@@ -185,7 +185,7 @@ def _leer_staging_directo(area, parcial, anio, curso=None):
         return [], []
     try:
         with connections[_db(area)].cursor() as cursor:
-            bach = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
+            bach = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and str(curso or '').isdigit()) else ''
             sql = (
                 f"SELECT {_COLS_STAGING} "
                 f"FROM {tabla} WITH (NOLOCK) "
@@ -236,10 +236,18 @@ def _llamar_sp(area, parcial, anio, curso=None):
     if not entry:
         return [], []
     sp, usa_curso = entry
+    # <--- hecho por claude code (seguridad): `curso` venía crudo de ?curso= dentro de
+    # @Curso='{curso}' → SQL injection contra la base académica real. `parcial` y `anio`
+    # ya iban por int(); `curso` es siempre numérico, así que se sanea igual. Si trae
+    # algo no numérico se ignora el @Curso en vez de inyectarlo.
+    try:
+        curso_num = int(curso) if (usa_curso and curso is not None and str(curso).strip() != '') else None
+    except (TypeError, ValueError):
+        curso_num = None
     try:
         with connections[_db(area)].cursor() as cursor:
-            if usa_curso and curso:
-                sql = f"EXEC {sp} @Curso='{curso}', @Parcial={int(parcial)}, @Año={int(anio)}"
+            if usa_curso and curso_num is not None:
+                sql = f"EXEC {sp} @Curso='{curso_num}', @Parcial={int(parcial)}, @Año={int(anio)}"
             else:
                 sql = f"EXEC {sp} @Parcial={int(parcial)}, @Año={int(anio)}"
             cursor.execute(sql)
@@ -406,7 +414,7 @@ def grados_secciones(request):
 
     try:
         with connections[_db(area)].cursor() as cursor:
-            bach_filtro = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and curso) else ''
+            bach_filtro = f" AND CrsoNumero LIKE '{int(curso)}%'" if (area == 'bachillerato' and str(curso or '').isdigit()) else ''
 
             # 1. Exacto: mismo parcial y año
             sql = f"SELECT DISTINCT CrsoNumero, GrupoNumero FROM {tabla} WHERE Parcial={int(parcial)} AND Año={int(anio)}{bach_filtro}"

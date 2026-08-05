@@ -133,12 +133,11 @@
               </button>
             </form>
 
-            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+            {# <--- hecho por claude code (seguridad): sin "Crear cuenta" en el login #}
+            {# crear usuarios es solo para administradores desde el panel, ya no autoservicio #}
+            <div class="d-flex justify-content-center align-items-center mt-4 pt-3 border-top">
               <a href="{% url 'password_reset' %}" class="text-muted small">
                 <i class="ti ti-key me-1"></i>Olvidé mi contraseña
-              </a>
-              <a href="{% url 'register_maestro' %}" class="btn btn-sm btn-outline-primary">
-                <i class="ti ti-user-plus me-1"></i>Crear cuenta
               </a>
             </div>
             {% endif %}

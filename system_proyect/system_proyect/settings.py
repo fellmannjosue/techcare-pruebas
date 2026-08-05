@@ -111,6 +111,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.MaintenanceModeMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
+    # <--- hecho por claude code (seguridad): 2FA periódico por correo. Inactivo mientras
+    # DOSFA_ACTIVO (constance) esté apagado; va al final, tras autenticación y sesión.
+    'accounts.dosfa.Dosfa2FAMiddleware',
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -297,10 +300,24 @@ SESSION_SAVE_EVERY_REQUEST = True
 # No cerrar la sesión al cerrar el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-# SESSION_COOKIE_SECURE=False porque el servidor usa HTTP internamente.
-# Si algún día el servidor queda solo en HTTPS puro, poner True.
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# <--- hecho por claude code (seguridad): el sitio SOLO se sirve por HTTPS (único vhost
+# *:437 con SSLEngine on; no hay vhost por HTTP). El navegador siempre conecta por https,
+# así que la cookie con flag Secure viaja bien. Antes iban sin él y podían filtrarse si
+# alguna vez se accedía por http plano.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True          # ya lo estaba de facto; se fija explícito
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# HSTS: el navegador recuerda usar HTTPS para servicios.ana-hn.org. Sin includeSubDomains
+# NI preload a propósito, para no afectar otros subdominios de ana-hn.org que puedan usar
+# HTTP. Empieza en 1 día (reversible); subir a 1 año cuando esté probado.
+SECURE_HSTS_SECONDS = 86400
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
 
 # Motor de sesiones: solo BD (más estable frente a reinicios de Apache)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -346,6 +363,21 @@ CONSTANCE_CONFIG = {
         'Bloqueo por formulario, en JSON. Ej: {"agendas":"lectura","tickets":"bloqueado"}. Vacío = todo normal.',
         str,
     ),
+    # <--- hecho por claude code (seguridad): crear usuarios ON/OFF. Apagado = nadie
+    # puede crear cuentas, ni siquiera un administrador desde la pantalla de registro.
+    'REGISTRO_USUARIOS_ACTIVO': (
+        True,
+        'Permitir crear usuarios nuevos (registro). Apagado = creación de cuentas bloqueada.',
+        bool,
+    ),
+    # 2FA por correo. APAGADO por defecto: se enciende cuando el equipo lo tenga claro.
+    # Al encender, se pide un código al correo según el rol (superusuario cada 15 días,
+    # staff cada 30, usuario cada 60).
+    'DOSFA_ACTIVO': (
+        False,
+        'Activar verificación en dos pasos (2FA) por correo. Apagado = no se pide a nadie.',
+        bool,
+    ),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     'Modo Mantenimiento': {
@@ -358,7 +390,12 @@ CONSTANCE_CONFIG_FIELDSETS = {
             'MAINTENANCE_MODULES',
         ),
         'collapse': False,
-    }
+    },
+    # <--- hecho por claude code (seguridad): interruptores de seguridad
+    'Seguridad': {
+        'fields': ('REGISTRO_USUARIOS_ACTIVO', 'DOSFA_ACTIVO'),
+        'collapse': False,
+    },
 }
 
 # ─────────────────────────────────────────────────────────────

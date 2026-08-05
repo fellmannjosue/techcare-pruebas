@@ -28,66 +28,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const inputBuscarCorreo = document.getElementById("inputBuscarCorreo");
   const emailInput = document.getElementById("id_email");
 
-  const correosDisponibles = [
-    "acanales@ana-hn.org",
-    "acarrillo@ana-hn.org",
-    "acruz@ana-hn.org",
-    "admin2@ana-hn.org",
-    "admin3@ana-hn.org",
-    "avalladares@ana-hn.org",
-    "bespino@ana-hn.org",
-    "cmatute@ana-hn.org",
-    "coordinacion_bl@ana-hn.org",
-    "coordinacion_col@ana-hn.org",
-    "cvalle@ana-hn.org",
-    "dfigueroa@ana-hn.org",
-    "dlopez@ana-hn.org",
-    "druiz@ana-hn.org",
-    "eestrada@ana-hn.org",
-    "efellmann@ana-hn.org",
-    "emedina@ana-hn.org",
-    "flicona@ana-hn.org",
-    "glorenzo@ana-hn.org",
-    "grivera@ana-hn.org",
-    "gsaravia@ana-hn.org",
-    "gvivas@ana-hn.org",
-    "ialcerro@ana-hn.org",
-    "jzelaya@ana-hn.org",
-    "jcantor@ana-hn.org",
-    "jchirinos@ana-hn.org",
-    "jfellmann@ana-hn.org",
-    "jrodriguez@ana-hn.org",
-    "jvivas@ana-hn.org",
-    "kescoto@ana-hn.org",
-    "kespinoza@ana-hn.org",
-    "kgarcia@ana-hn.org",
-    "lchavez@ana-hn.org",
-    "lflores@ana-hn.org",
-    "lhernandez@ana-hn.org",
-    "llopez@ana-hn.org",
-    "lvalladares@ana-hn.org",
-    "malvarado@ana-hn.org",
-    "mcarias@ana-hn.org",
-    "mcastro@ana-hn.org",
-    "mrodriguez@ana-hn.org",
-    "malvarado@ana-hn.org",
-    "nalvarenga@ana-hn.org",
-    "ngonzales@ana-hn.org",
-    "ogonzalez@ana-hn.org",
-    "pserrano@ana-hn.org",
-    "rdiaz@ana-hn.org",
-    "rflores@ana-hn.org",
-    "rlagos@ana-hn.org",
-    "rmercado@ana-hn.org",
-    "rsanchez@ana-hn.org",
-    "sbarrientos@ana-hn.org",
-    "smidence@ana-hn.org",
-    "spadillas@ana-hn.org",
-    "tzuniga@ana-hn.org",
-    "vfigueroa@ana-hn.org",
-    "yzavala@ana-hn.org",
-    "zraudales@ana-hn.org",
-  ];
+  // <--- hecho por claude code: la lista viene del servidor (lista blanca), ya no fija
+  let correosDisponibles = [];
+  fetch("/accounts/register/correos-disponibles/", {credentials: "same-origin"})
+    .then(function (r) { return r.json(); })
+    .then(function (d) { correosDisponibles = d.correos || []; })
+    .catch(function () { correosDisponibles = []; });
 
   function filtrarCorreos() {
     const filtro = inputBuscarCorreo.value.toLowerCase();
