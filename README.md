@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.4.0.003 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.4.0.004 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,15 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v7.4.0.004 — Autoguardado de Horas CFP, filtro de tabs en Inventario y ventana de receso más amplia
+
+> Release **menor** (7 archivos): la ventana de novedades solo la ve el superusuario.
+
+- **CFP · Notas del curso — pestaña Horas**: ahora **se guarda sola** (se quitó el botón "Guardar horas"); guarda al salir de una casilla o 1 s tras dejar de escribir, sin recargar, con indicador de estado. Aplica a todos los cursos. Además la tabla es **más ancha y menos apretada** (casillas y letra más grandes, ocupa el ancho disponible).
+- **Inventario · Computadoras**: los tabs **Todos / General / Lab BL / Lab COL / Lab CFP** volvieron a **filtrar** la tabla por prefijo del Asset ID (se había perdido el manejador en la extracción del JS).
+- **Reloj · Receso**: se amplió la ventana de detección automática del almuerzo (11:00–15:30) para que tome los recesos que empiezan tarde sin tener que marcarlos a mano.
+- **Cámaras**: se quitó el banner "Nueva vista interactiva" del inicio.
 
 ### v7.4.0.003 — Auditoría de seguridad, panel de Seguridad y ajustes
 

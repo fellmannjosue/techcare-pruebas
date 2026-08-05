@@ -1,6 +1,15 @@
 {
-  "version": "7.4.0.003",
+  "version": "7.4.0.004",
   "entradas": [
+    {
+      "version": "7.4.0.004",
+      "fecha": "2026-08-05",
+      "commit": "d7c7c7f",
+      "cambios": [
+        "feat: autoguardado Horas CFP, filtro de tabs en Inventario y ventana de receso más amplia"
+      ],
+      "menor": true
+    },
     {
       "version": "7.4.0.003",
       "fecha": "2026-08-05",

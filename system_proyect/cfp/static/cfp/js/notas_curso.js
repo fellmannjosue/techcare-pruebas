@@ -150,14 +150,32 @@ function recalcHoras() {
     document.querySelector(`.pct-part[data-persona="${per}"]`).textContent = pct + '%';
   });
 }
-function guardarHoras(btn) {
+// <--- hecho por claude code: autoguardado de la pestaña Horas (ya no hay botón).
+// Se guarda solo al salir de una casilla o tras 1 s sin escribir, sin recargar.
+function _estadoHoras(txt, clase) {
+  const el = document.getElementById('horas-estado');
+  if (el) { el.textContent = txt; el.className = 'small ms-2 ' + (clase || 'text-muted'); }
+}
+function autoguardarHoras() {
   const meta = {};
   document.querySelectorAll('.meta-input').forEach(el => meta[el.dataset.mes] = el.value || 0);
   const part = [];
   document.querySelectorAll('.hora-input').forEach(el => part.push(
     {persona:parseInt(el.dataset.persona), mes:parseInt(el.dataset.mes), horas:el.value || 0}));
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  _estadoHoras('Guardando…', 'text-muted');
   post(URL_HORAS_GUARDAR, {curso_pk:CURSO_PK, meta:meta, part:part})
-    .then(r => { if (r.ok) location.reload(); else { alert('Error'); btn.disabled = false; } })
-    .catch(() => { alert('Error de red'); btn.disabled = false; });
+    .then(r => _estadoHoras(r.ok ? '✓ Guardado' : 'No se pudo guardar', r.ok ? 'text-green' : 'text-danger'))
+    .catch(() => _estadoHoras('Sin conexión — no se guardó', 'text-danger'));
 }
+let _horasTimer = null;
+function _horasCambio() {
+  recalcHoras();
+  clearTimeout(_horasTimer);
+  _horasTimer = setTimeout(autoguardarHoras, 1000);   // 1 s tras dejar de escribir
+}
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.meta-input, .hora-input').forEach(function (el) {
+    el.addEventListener('input', _horasCambio);
+    el.addEventListener('change', function () { clearTimeout(_horasTimer); autoguardarHoras(); });
+  });
+});

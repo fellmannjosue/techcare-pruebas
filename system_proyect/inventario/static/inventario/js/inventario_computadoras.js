@@ -34,10 +34,30 @@ window._COMP_PAGE = {
    página se quedó sin ninguna lógica. Recuperado de c8d65db~1.
    ───────────────────────────────────────────────────────────────────── */
 
+// <--- hecho por claude code: filtro de los tabs (Todos/General/Lab BL/COL/CFP).
+// Cada tab lleva data-prefijo = prefijo del Asset ID (col. 1). Se perdió el
+// manejador en la extracción del JS; sin él los tabs no filtraban nada.
+// Usamos un filtro EXTERNO de DataTables (compara el Asset ID real de la fila),
+// más robusto que column().search() con regex. Solo aplica a esta tabla.
+var _prefijoComp = '';
+$.fn.dataTable.ext.search.push(function (settings, data) {
+  if (settings.nTable.id !== 'computadoras-table') return true;  // no tocar otras tablas
+  if (!_prefijoComp) return true;                                // "Todos"
+  var assetId = (data[1] || '').toUpperCase();                   // col. 1 = Asset ID
+  return assetId.indexOf(_prefijoComp) === 0;                    // empieza con el prefijo
+});
+
 $(function(){
-  $('#computadoras-table').DataTable({
+  var tablaComp = $('#computadoras-table').DataTable({
     pageLength: 10, scrollX: true, order: [[0,'desc']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
+  });
+
+  $('#tabs-prefijo').on('click', '.nav-link', function () {
+    $('#tabs-prefijo .nav-link').removeClass('active');
+    $(this).addClass('active');
+    _prefijoComp = String($(this).data('prefijo') || '').toUpperCase();
+    tablaComp.draw();
   });
 });
 

@@ -2462,7 +2462,7 @@ def _instructores_rows(anio, hoy, feriados=None):
 def _receso_compute(desde, hasta):
     """Tiempo de receso (almuerzo) de los empleados con horario 07:00–15:48,
     en el rango [desde, hasta]. Marcas de receso = primer PAR dentro de la
-    ventana de almuerzo (11:00–14:30); los ajustes manuales la reemplazan.
+    ventana de almuerzo (11:00–15:30); los ajustes manuales la reemplazan.
     Devuelve {'rows': [...], 'error': str|None}."""
     from datetime import time as _gt
     error = None
@@ -2501,7 +2501,11 @@ def _receso_compute(desde, hasta):
         hh, mm = map(int, h.split(':'))
         return hh * 60 + mm
 
-    _VENT_INI, _VENT_FIN = 11 * 60, 14 * 60 + 30
+    # <--- hecho por claude code: ventana de almuerzo 11:00–15:30. Antes cerraba a las
+    # 14:30 y dejaba fuera los regresos tardíos (Julieth Flores regresa ~15:16), que
+    # entonces había que ajustar a mano. El tope 15:30 NO llega a la salida del día
+    # (15:48): si la capturara, el par sería salida-almuerzo + salida-día = receso falso.
+    _VENT_INI, _VENT_FIN = 11 * 60, 15 * 60 + 30
     from .models import RecesoAjuste
     ajustes = {(a.emp_code, a.fecha): a for a in RecesoAjuste.objects.filter(
         fecha__gte=desde, fecha__lte=hasta)}

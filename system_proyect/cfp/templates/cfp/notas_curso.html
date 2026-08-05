@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'cfp/css/notas_curso.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'cfp/css/notas_curso.css' %}?v=3">
 {% endblock %}
 
 {% block content %}
@@ -172,7 +172,9 @@
           {% if es_director %}La fila <b>META</b> es la jornada (la defines tú); los participantes los llena el instructor.
           {% else %}La fila META la define el director.{% endif %}
         </span>
-        <button class="btn btn-sm btn-primary ms-auto" onclick="guardarHoras(this)"><i class="ti ti-device-floppy me-1"></i>Guardar horas</button>
+        {# <--- hecho por claude code: autoguardado, sin botón #}
+        <span class="small ms-auto text-muted"><i class="ti ti-device-floppy me-1"></i>Se guarda solo</span>
+        <span id="horas-estado" class="small ms-2 text-muted"></span>
       </div>
       <div class="nt-wrap">
         <table class="nt-table">
@@ -254,5 +256,5 @@
   "modulos": [{% for m in modulos %}{"id": {{ m.id }}, "codigo": "{{ m.codigo_auto|escapejs }}", "puntaje": {{ m.puntaje|unlocalize }}, "fini": "{{ m.fecha_inicio|date:'Y-m-d' }}", "ffin": "{{ m.fecha_fin|date:'Y-m-d' }}"}{% if not forloop.last %}, {% endif %}{% endfor %}]
 }
 </script>
-<script src="{% static 'cfp/js/notas_curso.js' %}?v=2"></script>
+<script src="{% static 'cfp/js/notas_curso.js' %}?v=3"></script>
 {% endblock %}
