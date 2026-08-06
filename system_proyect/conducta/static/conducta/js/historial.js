@@ -68,4 +68,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // <--- hecho por claude code: abrir la pestaña indicada en la URL (ej. #agendas),
+    // para que "Volver a Historial de Reportes" desde Editar Agenda caiga en Agendas.
+    var hash = window.location.hash;
+    if (hash && hash.length > 1) {
+        var trigger = document.querySelector('#reportTabs a[href="' + hash + '"]');
+        if (trigger && window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(trigger).show();
+        }
+    }
 });

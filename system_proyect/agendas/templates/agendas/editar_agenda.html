@@ -8,11 +8,18 @@
 {% endblock %}
 
 {% block page_actions %}
-  {% if es_coord %}
-  <a href="{% url 'agendas:descargar_pptx' agenda.pk %}" class="btn btn-success">
-    <i class="ti ti-file-powerpoint me-1"></i>Descargar PPTX
-  </a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    {% if es_coord %}
+    <a href="{% url 'agendas:descargar_pptx' agenda.pk %}" class="btn btn-success">
+      <i class="ti ti-file-powerpoint me-1"></i>Descargar PPTX
+    </a>
+    {% else %}
+    {# <--- hecho por claude code: volver al Historial de Reportes (tab Agendas) del maestro #}
+    <a href="{{ volver_url }}#agendas" class="btn btn-ghost-secondary">
+      <i class="ti ti-arrow-left me-1"></i>Volver a Historial de Reportes
+    </a>
+    {% endif %}
+  </div>
 {% endblock %}
 
 {% block content %}

@@ -1,0 +1,20 @@
+# TechCare · PRUEBAS — compose para levantar la app en local o de referencia para Coolify.
+# En Coolify normalmente basta el Dockerfile + variables de entorno del panel;
+# este compose sirve para probar en tu máquina: `docker compose up --build`.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: techcare-pruebas
+    env_file:
+      - system_proyect/.env
+    ports:
+      - "8001:8000"      # host 8001 → contenedor 8000 (no choca con Apache/Coolify)
+    volumes:
+      # Persistir subidas (agenda, enfermería, firmas de cámaras) entre redeploys
+      - techcare_media:/app/system_proyect/media
+    restart: unless-stopped
+
+volumes:
+  techcare_media:

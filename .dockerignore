@@ -1,0 +1,12 @@
+# No copiar al contexto de build
+.git
+venv/
+**/venv/
+**/__pycache__/
+*.pyc
+system_proyect/.env
+system_proyect/media/
+system_proyect/staticfiles/
+system_proyect/logs/
+*.sqlite3
+.DS_Store

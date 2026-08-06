@@ -116,6 +116,16 @@ MIDDLEWARE = [
     'accounts.dosfa.Dosfa2FAMiddleware',
 ]
 
+# <--- hecho por claude code (SOLO Docker/pruebas): en contenedor no hay Apache que sirva
+# los estáticos, así que WhiteNoise los sirve desde gunicorn. Gated por USE_WHITENOISE
+# para no cambiar el comportamiento del servidor actual (donde Apache los sirve).
+if os.getenv('USE_WHITENOISE', 'false') == 'true':
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+    }
+
 # ─────────────────────────────────────────────────────────────
 # django-simple-history
 # ─────────────────────────────────────────────────────────────
