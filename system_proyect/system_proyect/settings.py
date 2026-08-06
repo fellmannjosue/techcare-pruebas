@@ -176,50 +176,48 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST', '192.168.10.6'),
         'PORT': os.getenv('DB_PORT', '3306'),
     },
-
-    # Conexión al SQL Server remoto (Test2)
-    'padres_sqlserver': {
-    'ENGINE': 'mssql',
-    'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
-    'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
-    'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
-    'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-    'OPTIONS': {
-        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-    },
-},
-
-# <--- hecho por claude code: base ACADÉMICA REAL (AdmonANASQL), mismo servidor y
-# credenciales que Test2 — solo cambia el nombre de la base. Hoy `admin2` NO tiene
-# permisos ahí; hasta que se los den, `NOTAS_PARCIAL_DB` sigue apuntando a Test2.
-'academico_real': {
-    'ENGINE': 'mssql',
-    'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
-    'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
-    'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
-    'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-    'OPTIONS': {
-        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-    },
-},
-
-# Conexión al SQL Server remoto (zkbiotime)
-'zkbio_sqlserver': {
-    'ENGINE': 'mssql',
-    'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
-    'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
-    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
-    'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
-    'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
-    'OPTIONS': {
-        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-    },
 }
 
-
-}
+# <--- hecho por claude code: las 3 conexiones a SQL Server (Test2, AdmonANASQL,
+# zkbiotime) se activan SOLO si USE_SQLSERVER=true (por defecto true → producción
+# no cambia). En el entorno de pruebas se pone USE_SQLSERVER=false: no se conecta a
+# ningún SQL Server. Los módulos que dependen de él (Notas de Parcial, Ingreso de
+# Notas, reloj biométrico, consulta de padres/enfermería) no funcionarán ahí.
+if os.getenv('USE_SQLSERVER', 'true') == 'true':
+    DATABASES['padres_sqlserver'] = {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
+        'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+        'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+        'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+        'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+        'OPTIONS': {
+            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+        },
+    }
+    # base ACADÉMICA REAL (AdmonANASQL), mismo servidor/credenciales que Test2.
+    DATABASES['academico_real'] = {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
+        'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+        'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+        'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+        'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+        'OPTIONS': {
+            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+        },
+    }
+    DATABASES['zkbio_sqlserver'] = {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
+        'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
+        'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
+        'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
+        'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
+        'OPTIONS': {
+            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+        },
+    }
 
 # <--- hecho por claude code: qué base usa "Notas Mitad de Parcial". Se cambia con
 # la variable de entorno NOTAS_PARCIAL_DB=academico_real (sin tocar código) en
