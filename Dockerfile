@@ -36,9 +36,12 @@ ENV LANG=es_ES.UTF-8 LC_ALL=es_ES.UTF-8
 WORKDIR /app
 
 # ── Dependencias de Python (capa cacheable) ──
+# <--- hecho por claude code: se EXCLUYE mod_wsgi — es el módulo de Apache (necesita
+# apxs/headers de Apache para compilar) y aquí servimos con gunicorn, no con Apache.
 COPY system_proyect/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip \
-    && pip install -r /app/requirements.txt \
+    && grep -viE '^[[:space:]]*mod[_-]wsgi' /app/requirements.txt > /app/requirements.docker.txt \
+    && pip install -r /app/requirements.docker.txt \
     && pip install "gunicorn>=22" "whitenoise>=6.6"
 
 # ── Código ──
