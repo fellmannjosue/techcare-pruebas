@@ -35,6 +35,11 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://servicios.ana-hn.org:437',
     'https://192.168.10.6:437',
+    # <--- hecho por claude code: el contenedor de PRUEBAS (Coolify) se sirve por HTTP en :451
+    # y en local por :8001; sin estos orígenes todo POST (login incluido) muere con 403 CSRF.
+    'http://192.168.10.6:451',
+    'http://localhost:451',
+    'http://localhost:8001',
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -312,8 +317,11 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # *:437 con SSLEngine on; no hay vhost por HTTP). El navegador siempre conecta por https,
 # así que la cookie con flag Secure viaja bien. Antes iban sin él y podían filtrarse si
 # alguna vez se accedía por http plano.
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+# <--- hecho por claude code: en PRUEBAS se navega por HTTP → las cookies no pueden ser
+# "solo HTTPS" o el navegador nunca las envía (segunda causa del 403 CSRF del login).
+# Default false en este repo de pruebas; poner COOKIES_SECURE=true si se sirve con TLS.
+SESSION_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
+CSRF_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
 SESSION_COOKIE_HTTPONLY = True          # ya lo estaba de facto; se fija explícito
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'

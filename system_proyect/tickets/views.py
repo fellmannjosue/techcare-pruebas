@@ -14,7 +14,7 @@ import json
 from threading import Thread
 
 # IA pendiente para más adelante
-# from core.utils_ai import consultar_ia
+from core.utils_ai import consultar_ia  # <--- hecho por claude code: chat IA activo en pruebas
 
 # 🔔 Notificaciones globales
 from core.utils_notifications import crear_notificacion
@@ -552,10 +552,8 @@ def ticket_contact_technician(request, ticket_id):
 
 
 # ======================================================
-# IA pendiente para más adelante
-# CHAT IA
+# CHAT IA — <--- hecho por claude code: ACTIVADO en pruebas (03-sep-2026)
 # ======================================================
-"""
 @csrf_exempt
 @require_POST
 @login_required
@@ -614,4 +612,33 @@ def ticket_chat_ai_ajax(request, ticket_id):
 
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
-"""
+
+
+# ======================================================
+# <--- hecho por claude code: SANDBOX de IA (solo pruebas). No guarda NADA en la base
+# (este contenedor apunta a las mismas BD del servidor): pregunta → OpenAI → respuesta.
+# ======================================================
+@login_required
+def ia_sandbox(request):
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    return render(request, "tickets/ia_sandbox.html")
+
+
+@require_POST
+@login_required
+def ia_sandbox_ajax(request):
+    if not request.user.is_superuser:
+        return JsonResponse({"ok": False, "error": "Solo superusuario"}, status=403)
+    mensaje = (request.POST.get("mensaje") or "").strip()
+    if not mensaje:
+        return JsonResponse({"ok": False, "error": "Escribe un mensaje"}, status=400)
+    try:
+        respuesta = consultar_ia([
+            {"role": "system", "content": "Eres un asistente técnico amigable y útil de ANA-HN."},
+            {"role": "user", "content": mensaje},
+        ])
+        return JsonResponse({"ok": True, "respuesta": respuesta})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)

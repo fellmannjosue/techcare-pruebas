@@ -1,0 +1,24 @@
+{% load static %}
+{# <--- hecho por claude code: sandbox de IA (solo pruebas, no guarda nada en la BD) #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sandbox IA · TechCare Pruebas</title>
+  <link rel="stylesheet" href="{% static 'tickets/css/ia_sandbox.css' %}?v=1">
+</head>
+<body>
+  <main class="caja">
+    <h1>🧪 Sandbox de IA <span class="badge">techcare-pruebas</span></h1>
+    <p class="nota">Prueba directa a OpenAI ({{ request.user.username }}). <strong>No guarda nada</strong> en la base de datos.</p>
+    <div id="chat"></div>
+    <form id="form-ia" data-url="{% url 'ia_sandbox_ajax' %}">
+      {% csrf_token %}
+      <input type="text" id="mensaje" placeholder="Escribe tu pregunta…" autocomplete="off" autofocus>
+      <button type="submit" id="btn-enviar">Enviar</button>
+    </form>
+  </main>
+  <script src="{% static 'tickets/js/ia_sandbox.js' %}?v=1"></script>
+</body>
+</html>
