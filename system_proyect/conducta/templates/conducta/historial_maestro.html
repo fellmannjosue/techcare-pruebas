@@ -270,58 +270,68 @@
       {# TAB 4: PROGRESS (solo bilingue) #}
       {% if area == "bilingue" %}
       <div class="tab-pane fade" id="progress" role="tabpanel">
-        <div class="table-responsive">
-          <table class="table table-vcenter table-hover table-bordered">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Estudiante</th>
-                <th>Grado</th>
-                <th>Semana Inicio</th>
-                <th>Semana Fin</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Evidencias</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in reportes_progress %}
-              <tr>
-                <td>{{ r.id }}</td>
-                <td>{{ r.alumno_nombre }}</td>
-                <td>{{ r.grado|formato_grado }}</td>
-                <td>{{ r.semana_inicio }}</td>
-                <td>{{ r.semana_fin }}</td>
-                <td>{{ r.fecha|date:"d/m/Y H:i" }}</td>
-                <td>
-                  {% if r.estado == "aprobado" %}
-                  <span class="badge bg-success-lt text-success"><i class="ti ti-check me-1"></i>Aprobado</span>
-                  {% else %}
-                  <span class="badge bg-secondary-lt text-secondary">Enviado</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% for ev in r.evidenciareporte_set.all %}
-                  <img src="{{ ev.imagen.url }}" class="img-evidencia-hover me-1"
-                       width="40" height="40"
-                       title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
-                       style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
-                  {% empty %}
-                  <span class="text-muted">—</span>
-                  {% endfor %}
-                </td>
-                <td>
-                  <a href="{% url 'editar_progress_report' r.id %}" class="btn btn-sm btn-primary">
-                    <i class="ti ti-pencil me-1"></i> Editar
-                  </a>
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="9" class="text-center text-muted py-3">No hay progress reports.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        {# <--- hecho por claude code: buscador de alumno (¿ya existe su progress report?) #}
+        <div class="p-2 mb-2 border rounded bg-light-subtle">
+          <div class="input-group" style="max-width:460px;">
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" id="buscar-progress" class="form-control"
+                   placeholder="Buscar alumno — ¿ya tiene progress report?" autocomplete="off">
+            <button type="button" class="btn btn-ghost-secondary" id="buscar-progress-clear" title="Limpiar">
+              <i class="ti ti-x"></i>
+            </button>
+          </div>
+          <div id="buscar-progress-info" class="small mt-2 d-none"></div>
+        </div>
+        {# <--- hecho por claude code: agrupado por GRADO en acordeón (como Agendas por semana) #}
+        {% regroup reportes_progress by grado as por_grado %}
+        <div class="accordion" id="accProgGrado">
+          {% for grupo in por_grado %}
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#accPG{{ forloop.counter }}">
+                <i class="ti ti-school me-2 text-teal"></i>
+                <span class="fw-semibold">{{ grupo.grouper|formato_grado }}</span>
+                <span class="badge bg-teal-lt text-teal ms-auto me-2">{{ grupo.list|length }}</span>
+              </button>
+            </h2>
+            <div id="accPG{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accProgGrado">
+              <div class="accordion-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table mb-0">
+                    <thead><tr><th>ID</th><th>Estudiante</th><th>Semana</th><th>Fecha</th><th>Estado</th><th>Evidencias</th><th class="text-end">Acciones</th></tr></thead>
+                    <tbody>
+                      {% for r in grupo.list %}
+                      <tr data-alumno="{{ r.alumno_nombre }}">
+                        <td class="text-muted small">#{{ r.id }}</td>
+                        <td>{{ r.alumno_nombre }}</td>
+                        <td class="small">{{ r.semana_inicio|date:"d/m/Y" }} – {{ r.semana_fin|date:"d/m/Y" }}</td>
+                        <td class="small">{{ r.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                          {% if r.estado == "aprobado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-check me-1"></i>Aprobado</span>
+                          {% else %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>{% endif %}
+                        </td>
+                        <td>
+                          {% for ev in r.evidenciareporte_set.all %}
+                          <img src="{{ ev.imagen.url }}" class="img-evidencia-hover me-1" width="36" height="36"
+                               title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
+                               style="object-fit:cover;border-radius:4px;cursor:zoom-in;">
+                          {% empty %}<span class="text-muted">—</span>{% endfor %}
+                        </td>
+                        <td class="text-end">
+                          <a href="{% url 'editar_progress_report' r.id %}" class="btn btn-sm btn-primary"><i class="ti ti-pencil me-1"></i>Editar</a>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="text-center text-muted py-4">No hay progress reports.</div>
+          {% endfor %}
         </div>
       </div>
 
@@ -402,5 +412,5 @@
 
 {% block extra_js %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="{% static 'conducta/js/historial.js' %}?v=21"></script>
+  <script src="{% static 'conducta/js/historial.js' %}?v=22"></script>
 {% endblock %}

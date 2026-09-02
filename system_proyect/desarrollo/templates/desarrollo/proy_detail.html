@@ -1,0 +1,138 @@
+{% extends 'base_app.html' %}
+{% load static desarrollo_tags %}
+{# <--- hecho por claude code: detalle del proyecto (FASE 3) #}
+{% block title %}{{ proy.codigo }}{% endblock %}
+{% block page_pretitle %}Desarrollo · Proyecto{% endblock %}
+{% block page_title %}{{ proy.codigo }}{% endblock %}
+
+{% block page_actions %}
+  {% if puede_editar %}<a href="{% url 'desarrollo:proy_editar' proy.codigo %}" class="btn btn-primary"><i class="ti ti-edit me-1"></i>Editar</a>{% endif %}
+  <a href="{% url 'desarrollo:proy_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+{% include 'desarrollo/_messages.html' %}
+
+{# ── Encabezado ── #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <h2 class="m-0">{{ proy.nombre }}</h2>
+      <span class="badge bg-{{ proy.estado|estado_proy_color }}-lt">{{ proy.get_estado_display }}</span>
+      <span class="badge bg-{{ proy.prioridad|prioridad_color }}-lt">{{ proy.get_prioridad_display }}</span>
+      {% if proy.en_produccion %}<span class="badge bg-green-lt"><i class="ti ti-rocket"></i> En producción</span>{% endif %}
+    </div>
+    <div class="progress mb-1" style="height:8px;"><div class="progress-bar" style="width:{{ stats.avance }}%;"></div></div>
+    <div class="text-muted small">Avance promedio: {{ stats.avance }}% · {{ stats.total }} requerimiento{{ stats.total|pluralize }} ({{ stats.cerrados }} cerrados, {{ stats.abiertos }} abiertos)</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    {# ── Ficha técnica ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Ficha técnica</h3></div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5">Módulo</dt><dd class="col-7">{{ proy.modulo|default:"—" }}</dd>
+          <dt class="col-5">Área</dt><dd class="col-7">{{ proy.area|default:"—" }}{% if proy.subarea %} · {{ proy.subarea }}{% endif %}</dd>
+          <dt class="col-5">Responsable</dt><dd class="col-7">{% if proy.responsable %}{{ proy.responsable.get_full_name|default:proy.responsable.username }}{% else %}—{% endif %}</dd>
+          <dt class="col-5">Solicitado por</dt><dd class="col-7">{% if proy.solicitado_por %}{{ proy.solicitado_por.get_full_name|default:proy.solicitado_por.username }}{% else %}—{% endif %}</dd>
+          <dt class="col-5">Fecha inicio</dt><dd class="col-7">{{ proy.fecha_inicio|date:"d/m/Y"|default:"—" }}</dd>
+          <dt class="col-5">Implementación</dt><dd class="col-7">{{ proy.fecha_implementacion|date:"d/m/Y"|default:"—" }}</dd>
+          <dt class="col-5">Versión</dt><dd class="col-7">{{ proy.version_actual|default:proy.version_inicial|default:"—" }}</dd>
+          <dt class="col-5">Tecnología</dt><dd class="col-7">{{ proy.tecnologia_principal|default:"—" }}</dd>
+          <dt class="col-5">Base de datos</dt><dd class="col-7">{{ proy.base_datos|default:"—" }}</dd>
+          <dt class="col-5">App Django</dt><dd class="col-7">{{ proy.app_django|default:"—" }}</dd>
+          <dt class="col-5">Ruta</dt><dd class="col-7">{{ proy.ruta|default:"—" }}</dd>
+          <dt class="col-5">URL</dt><dd class="col-7">{% if proy.url %}<a href="{{ proy.url }}" target="_blank">{{ proy.url }}</a>{% else %}—{% endif %}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if proy.descripcion or proy.problema_que_resuelve or proy.proxima_mejora or proy.observaciones %}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Descripción</h3></div>
+      <div class="card-body small">
+        {% if proy.descripcion %}<p class="mb-2"><strong>Descripción:</strong><br>{{ proy.descripcion|linebreaksbr }}</p>{% endif %}
+        {% if proy.problema_que_resuelve %}<p class="mb-2"><strong>Problema que resuelve:</strong><br>{{ proy.problema_que_resuelve|linebreaksbr }}</p>{% endif %}
+        {% if proy.proxima_mejora %}<p class="mb-2"><strong>Próxima mejora:</strong> {{ proy.proxima_mejora }}</p>{% endif %}
+        {% if proy.observaciones %}<p class="mb-0"><strong>Observaciones:</strong><br>{{ proy.observaciones|linebreaksbr }}</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-7">
+    {# ── Requerimientos del proyecto ── #}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-clipboard-list me-1"></i>Requerimientos ({{ stats.total }})</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-vcenter table-hover card-table">
+            <thead><tr><th></th><th>Código</th><th>Título</th><th>Estado</th><th class="text-center">Avance</th></tr></thead>
+            <tbody>
+              {% for r in reqs %}
+              <tr style="cursor:pointer;" onclick="location.href='{% url 'desarrollo:req_detail' r.codigo %}'">
+                <td title="{{ r.semaforo|semaforo_texto }}">{{ r.semaforo|semaforo_emoji }}</td>
+                <td class="fw-semibold">{{ r.codigo }}</td>
+                <td>{{ r.titulo|truncatechars:48 }}</td>
+                <td><span class="badge bg-{{ r.estado|estado_color }}-lt">{{ r.get_estado_display }}</span></td>
+                <td style="min-width:90px;">
+                  <div class="progress" style="height:5px;"><div class="progress-bar" style="width:{{ r.porcentaje_avance }}%;"></div></div>
+                  <div class="text-muted small text-center">{{ r.porcentaje_avance }}%</div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-4">Este proyecto aún no tiene requerimientos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# ── Timeline agregado ── #}
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-timeline me-1"></i>Actividad reciente</h3></div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          {% for h in timeline %}
+          <li class="border-start border-primary ps-3 pb-2 mb-2">
+            <div class="small">
+              <span class="fw-semibold">{{ h.requerimiento.codigo }}</span>
+              {% if h.estado_anterior != h.estado_nuevo %} · <span class="badge bg-{{ h.estado_nuevo|estado_color }}-lt">{{ h.get_estado_nuevo_display|default:h.estado_nuevo }}</span>{% endif %}
+              {% if h.porcentaje_nuevo is not None %} · {{ h.porcentaje_nuevo }}%{% endif %}
+              {% if h.comentario %} · {{ h.comentario }}{% endif %}
+            </div>
+            <div class="text-muted" style="font-size:.72rem;">{% if h.usuario %}{{ h.usuario.get_full_name|default:h.usuario.username }}{% else %}sistema{% endif %} · {{ h.fecha|date:"d/m/Y H:i" }}</div>
+          </li>
+          {% empty %}<li class="text-muted small">Sin actividad todavía.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Prompt para Claude Code ── #}
+<div class="card mt-3">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title m-0"><i class="ti ti-robot me-1 text-purple"></i>Prompt para Claude Code</h3>
+    <div class="ms-auto">
+      <button type="button" class="btn btn-sm btn-primary" id="btnCopiarPrompt" data-target="promptClaude">
+        <i class="ti ti-copy me-1"></i>Copiar
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-2">Copia este texto y pégalo en Claude Code para que sepa qué construir (se arma solo con la ficha y los requerimientos del proyecto).</p>
+    <textarea id="promptClaude" class="form-control" rows="14" readonly style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;">{{ prompt_claude }}</textarea>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'desarrollo/js/desarrollo_prompt.js' %}?v=1"></script>
+{% endblock %}

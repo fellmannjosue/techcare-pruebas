@@ -1,0 +1,11 @@
+{# <--- hecho por claude code: alertas de mensajes #}
+{% if messages %}
+<div class="mb-3">
+  {% for m in messages %}
+  <div class="alert {% if m.tags == 'error' %}alert-danger{% elif m.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible py-2" role="alert">
+    {{ m }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

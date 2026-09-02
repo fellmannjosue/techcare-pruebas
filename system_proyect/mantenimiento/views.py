@@ -54,6 +54,38 @@ def _siguiente_record_id_impresora():
     return f"{prefix}{n+1:03d}"
 
 
+# <--- hecho por claude code: ID propio para Control de equipo (ANAMAESCTRL-001)
+def _siguiente_record_id_control():
+    prefix = 'ANAMAESCTRL-'
+    ultimo = (MaintenanceRecord.objects
+              .filter(record_id__startswith=prefix)
+              .order_by('-record_id').values_list('record_id', flat=True).first())
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
+# <--- hecho por claude code: ID propio para Inspección (ANAMAESINSP-001)
+def _siguiente_record_id_inspeccion():
+    prefix = 'ANAMAESINSP-'
+    ultimo = (MaintenanceRecord.objects
+              .filter(record_id__startswith=prefix)
+              .order_by('-record_id').values_list('record_id', flat=True).first())
+    if ultimo:
+        try:
+            n = int(ultimo[len(prefix):])
+        except ValueError:
+            n = 0
+    else:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
 def _resolver_post_tipo_falla(request):
     """Si se eligió 'Agregar nueva falla…' (tipo_falla='__nueva__'), crea el TipoFalla
     con el texto escrito y lo deja resuelto en una copia del POST."""
@@ -85,13 +117,22 @@ def maintenance_dashboard(request):
                     if not record.teacher_name:
                         record.teacher_name = imp.asignado_a or ''
             else:
-                record.record_id = _siguiente_record_id()
+                # <--- hecho por claude code: control de equipo lleva su propia numeración
+                record.record_id = (_siguiente_record_id_control() if record.tipo_equipo == 'control'
+                                    else _siguiente_record_id_inspeccion() if record.tipo_equipo == 'inspeccion'
+                                    else _siguiente_record_id())
                 comp = record.computadora
                 if comp:
-                    if not record.teacher_name:
+                    # <--- hecho por claude code: el CONTROL/INSPECCIÓN evalúa al portador ACTUAL del
+                    # equipo, así que maestro/grado se toman SIEMPRE del inventario (no del formulario).
+                    if record.tipo_equipo in ('control', 'inspeccion'):
                         record.teacher_name = comp.asignado_a or ''
-                    if not record.grade:
                         record.grade = comp.grado or ''
+                    else:
+                        if not record.teacher_name:
+                            record.teacher_name = comp.asignado_a or ''
+                        if not record.grade:
+                            record.grade = comp.grado or ''
             firma_data = request.POST.get('firma_data', '').strip()
             if firma_data:
                 record.firma = firma_data
@@ -122,7 +163,8 @@ def maintenance_dashboard(request):
 
     form = MaintenanceRecordForm()
 
-    records = MaintenanceRecord.objects.all().order_by('-date')
+    records = (MaintenanceRecord.objects.select_related('computadora', 'impresora', 'tipo_falla')
+               .prefetch_related('fotos').order_by('-date'))
 
     import json
     # Solo computadoras de general (excluye laboratorios)
@@ -150,9 +192,18 @@ def maintenance_dashboard(request):
         for i in imps_qs
     })
 
+    # <--- hecho por claude code: la tabla va en 3 pestañas por tipo de equipo
+    records_comp = [r for r in records if r.tipo_equipo == 'computadora']
+    records_imp  = [r for r in records if r.tipo_equipo == 'impresora']
+    records_ctrl = [r for r in records if r.tipo_equipo == 'control']
+    records_insp = [r for r in records if r.tipo_equipo == 'inspeccion']
     return render(request, 'mantenimiento/maintenance_dashboard.html', {
         'form':              form,
         'records':           records,
+        'records_comp':      records_comp,
+        'records_imp':       records_imp,
+        'records_ctrl':      records_ctrl,
+        'records_insp':      records_insp,
         'site_url':          SITE_URL,
         'total':             records.count(),
         'pendiente':         records.filter(status='Pendiente').count(),
@@ -167,6 +218,8 @@ def maintenance_dashboard(request):
         'tipos_falla':       TipoFalla.objects.all().order_by('nombre'),
         'next_record_id':    _siguiente_record_id(),
         'next_record_id_imp':_siguiente_record_id_impresora(),
+        'next_record_id_ctrl': _siguiente_record_id_control(),
+        'next_record_id_insp': _siguiente_record_id_inspeccion(),
     })
 
 
@@ -187,7 +240,9 @@ def download_maintenance_pdf(request, record_id):
         pagesize=letter,
         leftMargin=2*cm, rightMargin=2*cm,
         topMargin=2*cm, bottomMargin=2*cm,
-        title=f"Ficha de Mantenimiento - {record.record_id}",
+        title=(f"Ficha de Control de Equipo - {record.record_id}" if record.es_control
+               else f"Ficha de Inspección - {record.record_id}" if record.es_inspeccion
+               else f"Ficha de Mantenimiento - {record.record_id}"),
     )
 
     styles = getSampleStyleSheet()
@@ -213,12 +268,15 @@ def download_maintenance_pdf(request, record_id):
     header_data = [[
         RLImage(logo_path, width=2.5*cm, height=2.5*cm) if logo_path else "",
         [
-            Paragraph("Ficha de Mantenimiento de Equipo", st_title),
+            Paragraph("Ficha de Control de Equipo" if record.es_control
+                      else "Ficha de Inspección del Espacio de Trabajo" if record.es_inspeccion
+                      else "Ficha de Mantenimiento de Equipo", st_title),
             Paragraph("Asociación Nuevo Amanecer – Sistema TechCare", st_sub),
         ],
         Paragraph(f"<b>ID:</b> {record.record_id}<br/>"
                   f"<b>Fecha:</b> {record.date.strftime('%d/%m/%Y')}<br/>"
-                  f"<b>Estado:</b> {record.status}",
+                  + (f"<b>Estado del equipo:</b> {record.get_estado_equipo_display() or '—'}" if record.es_control
+                     else f"<b>Estado:</b> {record.status}"),
                   ParagraphStyle("hdr_r", fontSize=9, fontName="Helvetica",
                                  alignment=TA_LEFT)),
     ]]
@@ -292,11 +350,26 @@ def download_maintenance_pdf(request, record_id):
     story.append(Spacer(1, 0.4*cm))
 
     # ── Sección: Diagnóstico ──────────────────────────────────────
-    story.append(_st("Diagnóstico y Solución"))
+    story.append(_st("Evaluación del Equipo" if record.es_control
+                     else "Inspección del Espacio de Trabajo" if record.es_inspeccion
+                     else "Diagnóstico y Solución"))
     story.append(Spacer(1, 0.1*cm))
 
-    # <--- hecho por claude code: diagnóstico según tipo (computadora / impresora)
-    if record.tipo_equipo == 'impresora':
+    # <--- hecho por claude code: diagnóstico según tipo (computadora / impresora / control)
+    if record.es_inspeccion:
+        diag_data = [field_row(lbl, "Sí" if ok else "No") for lbl, ok in record.inspeccion_respuestas]
+    elif record.es_control:
+        fallas = record.get_eval_fallas_display() or "—"
+        if record.eval_fallas == 'si' and (record.eval_fallas_detalle or '').strip():
+            fallas += f" — {record.eval_fallas_detalle.strip()}"
+        diag_data = [
+            field_row("Estado del equipo:",                             record.get_estado_equipo_display() or "—"),
+            field_row("¿Qué tal ha trabajado su equipo de trabajo?",   record.get_eval_trabajo_display() or "—"),
+            field_row("¿Le ha presentado fallas su equipo de trabajo?", fallas),
+            field_row("Observaciones de la auditora:",                  record.obs_auditora or "—"),
+            field_row("Observaciones del técnico:",                     record.obs_tecnico or "—"),
+        ]
+    elif record.tipo_equipo == 'impresora':
         colores = [n for n, ok in (
             ("Negra", record.tinta_negra), ("Magenta", record.tinta_magenta),
             ("Amarillo", record.tinta_amarillo), ("Cyan", record.tinta_cyan)) if ok]
@@ -315,7 +388,8 @@ def download_maintenance_pdf(request, record_id):
             field_row("Solución aplicada:", record.solucion or "—"),
             field_row("Observaciones:",    record.observaciones or "—"),
         ]
-    diag_tbl = Table(diag_data, colWidths=[4*cm, 13.3*cm])
+    diag_tbl = Table(diag_data, colWidths=([6.5*cm, 10.8*cm] if record.es_control or record.es_inspeccion
+                                           else [4*cm, 13.3*cm]))
     diag_tbl.setStyle(TableStyle([
         ("FONTSIZE",    (0,0), (-1,-1), 9),
         ("ROWBACKGROUNDS",(0,0),(-1,-1), [colors.white, GRAY_LT]),
@@ -404,7 +478,33 @@ def download_maintenance_pdf(request, record_id):
                Paragraph("Firma del Maestro (Evidencia)", st_firma_lbl),
                Paragraph(sub_maestro, st_firma_sub)]
 
-    firmas_tbl = Table([[col_tec, col_mae]], colWidths=[8.65*cm, 8.65*cm])
+    if record.es_inspeccion:
+        # <--- hecho por claude code: en la inspección la firma es el NOMBRE del asignado (impreso)
+        st_fija_i = ParagraphStyle("ffi", fontSize=12, fontName="Helvetica-BoldOblique",
+                                   textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
+        col_asig = [Spacer(1, 1.2*cm), Paragraph(record.teacher_name or "—", st_fija_i), Spacer(1, 0.15*cm),
+                    HRFlowable(width="60%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
+                    Paragraph("Firma del Maestro (Asignado del equipo)", st_firma_lbl),
+                    Paragraph(record.grade or "", st_firma_sub)]
+        firmas_tbl = Table([[col_asig]], colWidths=[17.3*cm])
+    elif record.es_control:
+        # <--- hecho por claude code: en el control las firmas de técnico y auditora son FIJAS (impresas)
+        st_fija = ParagraphStyle("ffija", fontSize=11, fontName="Helvetica-BoldOblique",
+                                 textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
+        def _col_fija(nombre, cargo, titulo):
+            return [Spacer(1, 1.5*cm), Paragraph(nombre, st_fija), Spacer(1, 0.15*cm),
+                    HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
+                    Paragraph(titulo, st_firma_lbl), Paragraph(cargo, st_firma_sub)]
+        n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
+        n_a, c_a = MaintenanceRecord.FIRMA_AUDITORA_FIJA
+        col_mae_ctrl = [_firma_img(record.firma) or Spacer(1, 2.3*cm), Spacer(1, 0.1*cm),
+                        HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
+                        Paragraph("Firma del Maestro (Digital)", st_firma_lbl),
+                        Paragraph(sub_maestro, st_firma_sub)]
+        firmas_tbl = Table([[_col_fija(n_t, c_t, "Firma del Técnico"), _col_fija(n_a, c_a, "Firma de la Auditora"), col_mae_ctrl]],
+                           colWidths=[5.77*cm, 5.77*cm, 5.77*cm])
+    else:
+        firmas_tbl = Table([[col_tec, col_mae]], colWidths=[8.65*cm, 8.65*cm])
     firmas_tbl.setStyle(TableStyle([
         ("VALIGN", (0,0), (-1,-1), "BOTTOM"),
         ("ALIGN",  (0,0), (-1,-1), "CENTER"),
@@ -429,6 +529,150 @@ def download_maintenance_pdf(request, record_id):
 
 
 # ─────────────────────────────────────────────────────────────
+# <--- hecho por claude code: REPORTE CONSOLIDADO de Control de equipos (un solo PDF)
+# ─────────────────────────────────────────────────────────────
+@login_required
+def control_reporte_pdf(request):
+    """Un solo PDF con TODOS los controles de equipo: resumen por estado, tabla
+    consolidada y las firmas fijas (técnico y auditora) al pie."""
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                    TableStyle, HRFlowable, Image as RLImage)
+    from reportlab.lib.enums import TA_CENTER
+
+    registros = (MaintenanceRecord.objects.filter(tipo_equipo='control')
+                 .select_related('computadora').order_by('date', 'record_id'))
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(letter),
+                            leftMargin=1.2*cm, rightMargin=1.2*cm,
+                            topMargin=1.2*cm, bottomMargin=1.2*cm,
+                            title="Reporte de Control de Equipos")
+    TEAL = colors.HexColor("#0ca678"); GRAY_LT = colors.HexColor("#eeeeee")
+    st_title = ParagraphStyle("t", fontSize=15, fontName="Helvetica-Bold", textColor=TEAL, spaceAfter=5)
+    st_sub   = ParagraphStyle("s", fontSize=9, fontName="Helvetica", textColor=colors.gray)
+    st_cell  = ParagraphStyle("c", fontSize=7.5, fontName="Helvetica", leading=9)
+    st_cellb = ParagraphStyle("cb", fontSize=7.5, fontName="Helvetica-Bold", leading=9)
+    st_ctr   = ParagraphStyle("ct", fontSize=8, fontName="Helvetica-Oblique",
+                              textColor=colors.gray, alignment=TA_CENTER)
+
+    story = []
+    logo_path = finders.find('mantenimiento/img/ana.jpg')
+    from django.utils import timezone as _tz
+    head = Table([[RLImage(logo_path, width=1.9*cm, height=1.9*cm) if logo_path else "",
+                   [Paragraph("Reporte de Control de Equipos", st_title),
+                    Paragraph("Asociación Nuevo Amanecer – Sistema TechCare · "
+                              f"Generado el {_tz.now().strftime('%d/%m/%Y %H:%M')}", st_sub)]]],  # USE_TZ=False -> now() naive
+                 colWidths=[2.3*cm, 22.3*cm])
+    head.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
+    story.append(head); story.append(Spacer(1, 0.3*cm))
+
+    # Resumen por estado del equipo
+    conteo = {k: 0 for k, _ in MaintenanceRecord.ESTADO_EQUIPO_CHOICES}
+    for r in registros:
+        if r.estado_equipo in conteo:
+            conteo[r.estado_equipo] += 1
+    resumen = f"Total de controles: {len(registros)}   ·   " + "   ·   ".join(
+        f"{lbl}: {conteo[k]}" for k, lbl in MaintenanceRecord.ESTADO_EQUIPO_CHOICES)
+    story.append(Paragraph(resumen, ParagraphStyle("r", fontSize=9, fontName="Helvetica-Bold")))
+    story.append(Spacer(1, 0.25*cm))
+
+    if registros:
+        filas = [[Paragraph(x, st_cellb) for x in
+                  ["ID", "Equipo", "Maestro", "Grado", "Fecha", "Estado del equipo",
+                   "¿Cómo ha trabajado?", "¿Fallas?", "Obs. auditora", "Obs. técnico", "Firma maestro"]]]
+        for r in registros:
+            fallas = r.get_eval_fallas_display() or "—"
+            if r.eval_fallas == 'si' and (r.eval_fallas_detalle or '').strip():
+                fallas += f": {r.eval_fallas_detalle.strip()}"
+            filas.append([
+                Paragraph(r.record_id, st_cell),
+                Paragraph((r.computadora.asset_id if r.computadora else r.model) or "—", st_cell),
+                Paragraph(r.teacher_name or "—", st_cell),
+                Paragraph(r.grade or "—", st_cell),
+                Paragraph(r.date.strftime('%d/%m/%Y'), st_cell),
+                Paragraph(r.get_estado_equipo_display() or "—", st_cellb),
+                Paragraph(r.get_eval_trabajo_display() or "—", st_cell),
+                Paragraph(fallas, st_cell),
+                Paragraph(r.obs_auditora or "—", st_cell),
+                Paragraph(r.obs_tecnico or "—", st_cell),
+                Paragraph("Firmado" if r.firmado_maestro else "Pendiente", st_cell),
+            ])
+        tabla = Table(filas, colWidths=[2.5*cm, 2.6*cm, 2.6*cm, 2.0*cm, 1.7*cm, 2.1*cm,
+                                        2.0*cm, 3.4*cm, 3.0*cm, 3.0*cm, 1.7*cm], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0), TEAL),
+            ("TEXTCOLOR",    (0,0), (-1,0), colors.white),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, GRAY_LT]),
+            ("GRID",         (0,0), (-1,-1), 0.3, colors.HexColor("#cccccc")),
+            ("VALIGN",       (0,0), (-1,-1), "TOP"),
+            ("LEFTPADDING",  (0,0), (-1,-1), 4),
+            ("RIGHTPADDING", (0,0), (-1,-1), 4),
+            ("TOPPADDING",   (0,0), (-1,-1), 3),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 3),
+        ]))
+        story.append(tabla)
+    else:
+        story.append(Paragraph("No hay controles de equipo registrados.", st_ctr))
+
+    # Firmas fijas al pie
+    story.append(Spacer(1, 1.0*cm))
+    st_f  = ParagraphStyle("f", fontSize=11, fontName="Helvetica-BoldOblique",
+                           textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
+    st_fl = ParagraphStyle("fl", fontSize=8, fontName="Helvetica-Bold", alignment=TA_CENTER)
+    st_fs = ParagraphStyle("fs", fontSize=7, fontName="Helvetica-Oblique",
+                           textColor=colors.gray, alignment=TA_CENTER)
+    n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
+    n_a, c_a = MaintenanceRecord.FIRMA_AUDITORA_FIJA
+    linea = lambda: HRFlowable(width="70%", thickness=0.8, color=colors.gray, hAlign="CENTER")
+    col_t = [Paragraph(n_t, st_f), Spacer(1, 0.12*cm), linea(), Spacer(1, 0.08*cm),
+             Paragraph("Firma del Técnico", st_fl), Paragraph(c_t, st_fs)]
+    col_a = [Paragraph(n_a, st_f), Spacer(1, 0.12*cm), linea(), Spacer(1, 0.08*cm),
+             Paragraph("Firma de la Auditora", st_fl), Paragraph(c_a, st_fs)]
+    firmas = Table([[col_t, col_a]], colWidths=[12.3*cm, 12.3*cm])
+    firmas.setStyle(TableStyle([("ALIGN", (0,0), (-1,-1), "CENTER")]))
+    story.append(firmas)
+
+    doc.build(story)
+    buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type='application/pdf')
+    resp['Content-Disposition'] = 'inline; filename="controles_de_equipo.pdf"'
+    return resp
+
+
+# <--- hecho por claude code: TODAS las fichas de Control de equipo en un solo PDF
+# (mismo estilo que la ficha individual: reutiliza download_maintenance_pdf por registro
+# y une las páginas con pypdfium2 — cero duplicación del diseño).
+@login_required
+def control_fichas_pdf(request):
+    import pypdfium2 as pdfium
+    registros = (MaintenanceRecord.objects.filter(tipo_equipo='control')
+                 .order_by('date', 'record_id'))
+    if not registros:
+        return HttpResponse('No hay controles de equipo registrados.', content_type='text/plain')
+    destino = pdfium.PdfDocument.new()
+    abiertos = []
+    try:
+        for r in registros:
+            resp = download_maintenance_pdf(request, r.id)
+            src = pdfium.PdfDocument(resp.content)
+            abiertos.append(src)
+            destino.import_pages(src)
+        buf = BytesIO()
+        destino.save(buf)
+    finally:
+        for d in abiertos:
+            d.close()
+        destino.close()
+    buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type='application/pdf')
+    resp['Content-Disposition'] = 'inline; filename="fichas_control_de_equipo.pdf"'
+    return resp
+
+
+# ─────────────────────────────────────────────────────────────
 # Editar registro de mantenimiento
 # ─────────────────────────────────────────────────────────────
 @login_required
@@ -439,29 +683,32 @@ def editar_mantenimiento(request, pk):
     if request.method == 'POST':
         # <--- hecho por claude code: el modal de edición es de computadora; preservamos el
         # tipo de equipo y los campos específicos del registro para no borrarlos al guardar.
+        # <--- hecho por claude code: el modal de edición ya se adapta al tipo (computadora / impresora /
+        # control) y envía los campos propios de cada uno; solo se preserva el tipo del registro.
         post = _resolver_post_tipo_falla(request).copy()
         post['tipo_equipo'] = record.tipo_equipo
-        if record.tipo_equipo == 'impresora':
-            post['impresora']           = record.impresora_id or ''
-            post['area']                = record.area
-            post['tipo_mant_impresora'] = record.tipo_mant_impresora
-            post['estado_tinta']        = record.estado_tinta
-            post['tipo_tinta']          = record.tipo_tinta
-            for cb, val in (('tinta_negra', record.tinta_negra), ('tinta_magenta', record.tinta_magenta),
-                            ('tinta_amarillo', record.tinta_amarillo), ('tinta_cyan', record.tinta_cyan)):
-                if val:
-                    post[cb] = 'on'
-                else:
-                    post.pop(cb, None)
         form = MaintenanceRecordForm(post, request.FILES, instance=record)
         if form.is_valid():
             rec = form.save(commit=False)
-            comp = rec.computadora
-            if comp:
-                if not rec.teacher_name:
-                    rec.teacher_name = comp.asignado_a or ''
-                if not rec.grade:
-                    rec.grade = comp.grado or ''
+            if rec.tipo_equipo == 'impresora':
+                imp = rec.impresora
+                if imp:
+                    rec.model = imp.modelo or ''
+                    rec.serie = imp.serie or ''
+                    if not rec.teacher_name:
+                        rec.teacher_name = imp.asignado_a or ''
+            else:
+                comp = rec.computadora
+                if comp:
+                    if rec.tipo_equipo in ('control', 'inspeccion'):
+                        # <--- hecho por claude code: sincroniza con el portador actual del inventario
+                        rec.teacher_name = comp.asignado_a or ''
+                        rec.grade = comp.grado or ''
+                    else:
+                        if not rec.teacher_name:
+                            rec.teacher_name = comp.asignado_a or ''
+                        if not rec.grade:
+                            rec.grade = comp.grado or ''
             firma_data = request.POST.get('firma_data', '').strip()
             if firma_data:
                 rec.firma = firma_data
@@ -471,6 +718,12 @@ def editar_mantenimiento(request, pk):
             rec.save()
             for f in request.FILES.getlist('fotos'):
                 FotoMantenimiento.objects.create(registro=rec, imagen=f)
+            if rec.tipo_equipo == 'impresora' and rec.impresora_id and rec.tipo_mant_impresora == 'llenado_tinta':
+                imp = rec.impresora
+                if rec.estado_tinta:
+                    imp.nivel_tinta = rec.get_estado_tinta_display()
+                imp.ultima_vez_llenado = rec.date
+                imp.save(update_fields=['nivel_tinta', 'ultima_vez_llenado'])
             msg.success(request, f'Registro {rec.record_id} actualizado correctamente.')
         else:
             errores = '; '.join(
@@ -485,7 +738,19 @@ def editar_mantenimiento(request, pk):
     data = {
         'id':           record.pk,
         'record_id':    record.record_id,
+        'tipo_equipo':  record.tipo_equipo,   # <--- hecho por claude code: el modal de edición se adapta al tipo
+        'eval_trabajo': record.eval_trabajo, 'eval_fallas': record.eval_fallas,
+        'eval_fallas_detalle': record.eval_fallas_detalle, 'obs_auditora': record.obs_auditora,
+        'obs_tecnico':  record.obs_tecnico, 'estado_equipo': record.estado_equipo,
+        'insp_limpio': record.insp_limpio, 'insp_ordenado': record.insp_ordenado,
+        'insp_cables': record.insp_cables, 'insp_alimentos': record.insp_alimentos,
         'computadora':  record.computadora_id,
+        'impresora':    record.impresora_id, 'area': record.area,
+        'tipo_mant_impresora': record.tipo_mant_impresora, 'estado_tinta': record.estado_tinta,
+        'tipo_tinta':   record.tipo_tinta,
+        'tinta_negra':  record.tinta_negra, 'tinta_magenta': record.tinta_magenta,
+        'tinta_amarillo': record.tinta_amarillo, 'tinta_cyan': record.tinta_cyan,
+        'teacher_name': record.teacher_name, 'grade': record.grade,
         'model':        record.model,
         'serie':        record.serie,
         'tipo_falla':   record.tipo_falla_id,
@@ -566,7 +831,19 @@ def eliminar_mantenimiento(request, pk):
             if r.record_id != nuevo_id:
                 MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
         for i, r in enumerate(
-            MaintenanceRecord.objects.exclude(tipo_equipo='impresora').order_by('id'), start=1
+            MaintenanceRecord.objects.filter(tipo_equipo='control').order_by('id'), start=1
+        ):
+            nuevo_id = f"ANAMAESCTRL-{i:03d}"
+            if r.record_id != nuevo_id:
+                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
+        for i, r in enumerate(
+            MaintenanceRecord.objects.filter(tipo_equipo='inspeccion').order_by('id'), start=1
+        ):
+            nuevo_id = f"ANAMAESINSP-{i:03d}"
+            if r.record_id != nuevo_id:
+                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
+        for i, r in enumerate(
+            MaintenanceRecord.objects.exclude(tipo_equipo__in=['impresora', 'control', 'inspeccion']).order_by('id'), start=1
         ):
             nuevo_id = f"ANAMAESCOMP{i:03d}"
             if r.record_id != nuevo_id:

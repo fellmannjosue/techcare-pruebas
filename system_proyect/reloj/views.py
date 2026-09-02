@@ -1804,16 +1804,51 @@ def sabado_asignacion_bulk(request, pk):
 
 _HORA_CORTE = time(15, 48)  # a partir de aquí se cuenta como compensatorio
 
-# Empleados con cálculo especial: mañana (antes de inicio) + tarde (después de corte)
-_EMP_HORARIO_ESPECIAL = {
-    '75': {  # Nancy Alvarado
-        'manana_inicio_seg': 6 * 3600 + 40 * 60,  # 06:40 — inicio fijo mañana (llegar antes cuenta igual)
-        'manana_corte_seg':  7 * 3600,             # 07:00 — fin del bloque mañana
-        'manana_max_min':    20,                   # máx. 20 min mañana
-        'tarde_corte_seg':   15 * 3600 + 48 * 60, # 15:48 — inicio del bloque tarde
-        'tarde_max_min':     27,                   # máx. 27 min tarde
-    }
+# <--- hecho por claude code: reglas compensatorias con VIGENCIA POR FECHA.
+# Cada empleado tiene tramos {desde: date, ...}. Se elige el tramo más reciente con desde <= fecha.
+# Estándar asistentes: bloque mañana termina 07:00 (llegar antes cuenta igual) y bloque tarde desde 15:48.
+_CAMBIO_HORARIO = date(2026, 8, 24)   # cambio de horario compensatorio (lunes)
+_M_CORTE = 7 * 3600                   # 07:00 fin del bloque mañana
+_T_CORTE = 15 * 3600 + 48 * 60        # 15:48 inicio del bloque tarde
+
+
+def _esp(manana_max, tarde_max, desde):
+    """Tramo especial mañana+tarde. La mañana empieza en (07:00 − manana_max) para dar ese máximo."""
+    return {'desde': desde,
+            'manana_inicio_seg': _M_CORTE - manana_max * 60,
+            'manana_corte_seg':  _M_CORTE, 'manana_max_min': manana_max,
+            'tarde_corte_seg':   _T_CORTE, 'tarde_max_min':  tarde_max}
+
+
+_REGLAS_COMP = {
+    '75': [  # Nancy Alvarado: 20+27 hasta 23/08; 20+22 desde 24/08
+        _esp(20, 27, date(2000, 1, 1)),
+        _esp(20, 22, _CAMBIO_HORARIO),
+    ],
+    '30': [  # Diego Caceres: simple (solo tarde, tope 47) hasta 23/08; 15+17 desde 24/08
+        {'desde': date(2000, 1, 1), 'tope': 47},
+        _esp(15, 17, _CAMBIO_HORARIO),
+    ],
+    '55': [  # Ana Zuniga: simple (solo tarde, tope 47) hasta 23/08; 20+47 desde 24/08
+        {'desde': date(2000, 1, 1), 'tope': 47},
+        _esp(20, 47, _CAMBIO_HORARIO),
+    ],
+    '79': [  # Gabriela Garcia: solo tarde, tope 42 hasta 23/08; tope 47 desde 24/08
+        {'desde': date(2000, 1, 1), 'tope': 42},
+        {'desde': _CAMBIO_HORARIO,  'tope': 47},
+    ],
 }
+
+
+def _regla_vigente(ec, fecha=None):
+    """Tramo de regla compensatoria vigente para el empleado en esa fecha (o el más reciente si fecha=None)."""
+    tramos = _REGLAS_COMP.get(str(ec))
+    if not tramos:
+        return None
+    if fecha is None:
+        return tramos[-1]
+    aplic = [t for t in tramos if t['desde'] <= fecha]
+    return aplic[-1] if aplic else None
 
 def _t_to_seg(t_val) -> int:
     """Convierte un valor time/timedelta a segundos desde medianoche."""
@@ -1823,25 +1858,26 @@ def _t_to_seg(t_val) -> int:
         return t_val.seconds
     return t_val.hour * 3600 + t_val.minute * 60 + getattr(t_val, 'second', 0)
 
-def _comp_min_dia(ec: str, primera_seg: int, ultima_seg: int, tope: int):
-    """Retorna (total_comp_min, completo) para un empleado en un día."""
-    regla = _EMP_HORARIO_ESPECIAL.get(str(ec))
-    if regla:
-        # Truncar a minutos y aplicar inicio fijo: si llegó antes de 06:40 cuenta igual que 06:40
+def _comp_min_dia(ec: str, primera_seg: int, ultima_seg: int, tope: int, fecha=None):
+    """Retorna (total_comp_min, completo) para un empleado en un día, según la regla vigente ese día."""
+    regla = _regla_vigente(ec, fecha)
+    if regla and 'manana_max_min' in regla:
+        # Bloque mañana + tarde. Si llegó antes del inicio, cuenta igual que el inicio.
         primera_min = (primera_seg // 60) * 60
-        manana_inicio = regla.get('manana_inicio_seg', 0)
-        manana_start = max(primera_min, manana_inicio)
+        manana_start = max(primera_min, regla['manana_inicio_seg'])
         manana = max(0, min(regla['manana_corte_seg'] - manana_start, regla['manana_max_min'] * 60)) // 60
         tarde  = max(0, min(ultima_seg - regla['tarde_corte_seg'],    regla['tarde_max_min']  * 60)) // 60
         total  = manana + tarde
         completo = manana >= regla['manana_max_min'] and tarde >= regla['tarde_max_min']
         return total, completo
     else:
+        # Solo tarde. El tope viene de la regla (con vigencia) o, si no hay, del parámetro.
+        cap = regla['tope'] if (regla and 'tope' in regla) else tope
         diff = ultima_seg - (_HORA_CORTE.hour * 3600 + _HORA_CORTE.minute * 60)
         if diff <= 0:
             return 0, False
-        total = min(diff // 60, tope)
-        return total, total >= tope
+        total = min(diff // 60, cap)
+        return total, total >= cap
 
 @login_required
 @_reloj_ver_required('compensatorio')
@@ -1905,14 +1941,14 @@ def compensatorio_list(request):
                     primera_seg  = _t_to_seg(primera)
                     ultima_seg   = _t_to_seg(ultima)
                     tope_emp     = topes_emp.get(ec, 47)
-                    total_comp_min, completo = _comp_min_dia(ec, primera_seg, ultima_seg, tope_emp)
+                    total_comp_min, completo = _comp_min_dia(ec, primera_seg, ultima_seg, tope_emp, fecha)
                     tiene_comp   = total_comp_min > 0
                     horas_comp   = total_comp_min // 60
                     minutos_comp = total_comp_min % 60
                     ult_str = str(ultima)[:5] if hasattr(ultima, 'seconds') else ultima.strftime("%H:%M")
-                    # Desglose mañana/tarde para empleados con horario especial
-                    regla_esp = _EMP_HORARIO_ESPECIAL.get(ec)
-                    if regla_esp:
+                    # Desglose mañana/tarde para empleados con horario especial (según la fecha)
+                    regla_esp = _regla_vigente(ec, fecha)
+                    if regla_esp and 'manana_max_min' in regla_esp:
                         primera_min    = (primera_seg // 60) * 60
                         man_inicio     = regla_esp.get('manana_inicio_seg', 0)
                         man_start      = max(primera_min, man_inicio)
@@ -2342,7 +2378,7 @@ def _compensado_real_map(emp_codes, fi, ff, tope=47, inicio_map=None):
                     ini = inicio_map.get(ec)
                     if ini and _fecha and _fecha < ini:
                         continue
-                comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), tope)
+                comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), tope, _fecha)
                 if comp_min > 0:
                     out[ec] = out.get(ec, 0) + comp_min
     except Exception as ex:
@@ -2501,11 +2537,18 @@ def _receso_compute(desde, hasta):
         hh, mm = map(int, h.split(':'))
         return hh * 60 + mm
 
-    # <--- hecho por claude code: ventana de almuerzo 11:00–15:30. Antes cerraba a las
-    # 14:30 y dejaba fuera los regresos tardíos (Julieth Flores regresa ~15:16), que
-    # entonces había que ajustar a mano. El tope 15:30 NO llega a la salida del día
-    # (15:48): si la capturara, el par sería salida-almuerzo + salida-día = receso falso.
-    _VENT_INI, _VENT_FIN = 11 * 60, 15 * 60 + 30
+    # <--- hecho por claude code: ventana de almuerzo 11:00–16:00. Se amplió (antes 15:30,
+    # y aún antes 14:30) porque Julieth Flores almuerza tardísimo (regresa ~15:16–15:31) y
+    # había que ajustarlo a mano. Se toman las 2 PRIMERAS marcas de la ventana, así que en
+    # un día normal (con regreso de almuerzo) el par correcto gana aunque la salida del día
+    # (~15:48) también caiga en la ventana. Riesgo residual: un empleado que marca salida a
+    # almuerzo pero NO marca su regreso (solo 2 marcas: almuerzo-ida + salida-día) mostraría
+    # un receso falso largo; ese caso igual sale en los tabs de "No marcó".
+    _VENT_INI, _VENT_FIN = 11 * 60, 16 * 60
+    # <--- hecho por claude code: un receso real de almuerzo no dura horas. Si el par
+    # detectado supera este tope, el 2do mark es casi seguro la salida del día (el
+    # empleado no marcó su regreso) → NO se parea, para no inventar un receso falso.
+    _MAX_RECESO = 90  # minutos
     from .models import RecesoAjuste
     ajustes = {(a.emp_code, a.fecha): a for a in RecesoAjuste.objects.filter(
         fecha__gte=desde, fecha__lte=hasta)}
@@ -2526,6 +2569,9 @@ def _receso_compute(desde, hasta):
                 if len(ventana) >= 2:
                     m2, m3 = ventana[0], ventana[1]
                     mins = max(0, _rmin(m3) - _rmin(m2))
+                    # gap enorme = salida del día mal pareada → no contar como receso
+                    if mins > _MAX_RECESO:
+                        m3, mins = None, 0
                 else:
                     m2 = ventana[0] if ventana else None
                     m3, mins = None, 0
@@ -2590,7 +2636,7 @@ def compensatorio_calculo_list(request):
                     fi = fechas_inicio_map.get(ec)
                     if fi and fecha < fi:
                         continue
-                    comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), topes_map.get(ec, 47))
+                    comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), topes_map.get(ec, 47), fecha)
                     if comp_min > 0:
                         real_comp_map[ec] = real_comp_map.get(ec, 0) + comp_min
         except Exception as _ex:
@@ -2715,6 +2761,8 @@ def compensatorio_calculo_list(request):
             'tomado_es_override':   manual_tomado_map.get(r.pk, 0) > 0,
             # Saldo deuda = Total a compensar − (Compensado + T. extra)
             'saldo_fecha_hrs':      round(total_hrs - _min_to_h(comp_mas_te_min), 2),
+            # <--- hecho por claude code: excedente = horas de MÁS cuando ya no hay deuda (Comp+TE por encima del Total)
+            'excedente_hrs':        round(_min_to_h(comp_mas_te_min) - total_hrs, 2) if (_min_to_h(comp_mas_te_min) - total_hrs) > 0 else 0,
             # Fecha fin estimada según el Saldo deuda (días hábiles desde hoy)
             'fecha_fin_est':        _fecha_fin_por_saldo(hoy, total_min - comp_mas_te_min,
                                                          r.minutos_autorizados_dia, feriados),
@@ -3987,6 +4035,26 @@ def _rebaja_por_dia(minutos: int, reglas=None) -> float:
     return horas
 
 
+# <--- hecho por claude code: crea la fila mensual COPIANDO la jornada del mes anterior
+# (horas diarias, días laborables y comentario de horario). Antes cada mes nuevo volvía
+# al default 8.0 y había que reconfigurarlo a mano; y un permiso por horas registrado
+# con el divisor equivocado calculaba mal los días.
+def _mensual_get_or_create(emp_code, mes, nombre=''):
+    obj, created = ReportePermisoMensual.objects.get_or_create(
+        emp_code=emp_code, mes=mes,
+        defaults={'nombre_empleado': nombre or emp_code})
+    if created:
+        prev = (ReportePermisoMensual.objects
+                .filter(emp_code=emp_code, mes__lt=mes)
+                .order_by('-mes').first())
+        if prev:
+            obj.horas_diarias_laboradas = prev.horas_diarias_laboradas
+            obj.dias_laborables = prev.dias_laborables
+            obj.horario_comentario = prev.horario_comentario
+            obj.save(update_fields=['horas_diarias_laboradas', 'dias_laborables', 'horario_comentario'])
+    return obj
+
+
 @login_required
 @_reloj_ver_required('reporte')
 def permiso_reporte_list(request):
@@ -4284,6 +4352,10 @@ def permiso_reporte_list(request):
     _hora_activa = bcfg.regla_hora_activa or bool(_extra_horas)
     _base_cands = ([_lim_min] if bcfg.regla_hora_activa else []) + _extra_horas
     _base_lim = min(_base_cands) if _base_cands else None
+    # <--- hecho por claude code: tope DURO de entrada (07:00). Una marca >= a esta hora
+    # hace perder el bono de inmediato (sin tolerancia). Solo con la regla de hora activa
+    # y solo sobre el límite global (no toca horarios especiales ni vigilancia).
+    _hard_lim = (bcfg.hora_perdida_auto.hour * 60 + bcfg.hora_perdida_auto.minute) if bcfg.regla_hora_activa else None
 
     _lim_vig1 = bcfg.hora_vigilancia.hour * 60 + bcfg.hora_vigilancia.minute      # turno 19:00
     _lim_vig2 = bcfg.hora_vigilancia_2.hour * 60 + bcfg.hora_vigilancia_2.minute  # turno 00:00
@@ -4339,21 +4411,48 @@ def permiso_reporte_list(request):
                .values('emp_code').annotate(d=_SumMH('dias'))):
         _otro_real_map[str(_p['emp_code'])] = float(_p['d'] or 0)
 
+    # <--- hecho por claude code (pedido 01-sep-2026): un día CUBIERTO por un permiso
+    # registrado NO se evalúa por marcas (tarde / tope 07:00 / falta de marca): el permiso
+    # justifica la entrada de ese día. Que el bono se pierda o no lo deciden las reglas POR
+    # TIPO de permiso (Compensatorio y No Pagado están exentos; Vacaciones solo pierde si
+    # hay una regla extra activa para ese tipo).
+    from datetime import timedelta as _td_bono
+    _permiso_dia_map = {}
+    for _p in PermisoReporte.objects.filter(fecha__lte=mes_fin,
+                                            fecha__gte=mes_inicio - _td_bono(days=45)):
+        _fin_p = min(_p.fecha_fin or _p.fecha, mes_fin)
+        _d = max(_p.fecha, mes_inicio) if _fin_p >= mes_inicio else None
+        while _d is not None and _d <= _fin_p:
+            _permiso_dia_map.setdefault(str(_p.emp_code), set()).add(_d.strftime('%Y-%m-%d'))
+            _d += _td_bono(days=1)
+
+    def _fkey_bono(f):
+        return f.strftime('%Y-%m-%d') if hasattr(f, 'strftime') else str(f)
+
+    # <--- hecho por claude code: "permiso especial" por empleado (autorizado por Dirección):
+    # exime las reglas de MARCAS de entrada y/o salida. Las reglas por tipo de permiso siguen.
+    from .models import BonoExencionEmpleado
+    _exencion_map = {str(e.emp_code): e for e in BonoExencionEmpleado.objects.filter(activa=True)}
+
     bono_rows = []
     for row in rows:
         ec = row['emp_code']
+        _exc = _exencion_map.get(str(ec))
         es_mh = ec in maestro_hora_codes
         es_vig = 'vigilan' in (row['cargo'] or '').lower()
         r = row['r']
+        dias_perdida = []   # <--- hecho por claude code: entradas >= tope duro (07:00)
         if es_vig:
             # Vigilantes: turno nocturno; se usa la entrada de la noche (>=17:00)
             marcas = vigil_entrada_map.get(ec, [])
             marcas_fmt = [{'fecha': f, 'hora': hh} for f, hh in marcas]
             dias_tarde = []
-            if bcfg.regla_vigilancia:
+            if bcfg.regla_vigilancia and not (_exc and _exc.exento_entrada):
                 for f, hh in marcas:
                     m = _hm(hh)
                     if m is None:
+                        continue
+                    if _fkey_bono(f) in _permiso_dia_map.get(str(ec), ()):  # día con permiso
                         continue
                     # turno según hora: antes de 21:00 = 19:00 (lím 18:45); si no = 00:00 (lím 23:45)
                     limit_v = _lim_vig1 if m < _SPLIT_VIG else _lim_vig2
@@ -4365,22 +4464,28 @@ def permiso_reporte_list(request):
             # Días tardíos: entrada después de la hora límite del día.
             # Maestros por hora: solo se evalúan los días con horario especial definido.
             dias_tarde = []
-            if _hora_activa:
+            if _hora_activa and not (_exc and _exc.exento_entrada):
                 for f, hh in marcas:
                     m = _hm(hh)
                     if m is None:
                         continue
+                    if _fkey_bono(f) in _permiso_dia_map.get(str(ec), ()):  # día con permiso
+                        continue
                     wd = f.weekday()
                     if (ec, wd) in _horario_esp:
-                        limit_day = _horario_esp[(ec, wd)]
+                        limit_day = _horario_esp[(ec, wd)]; hard_day = None
                     elif es_mh:
-                        limit_day = None  # maestro por hora sin horario especial ese día
+                        limit_day = None; hard_day = None  # maestro por hora sin horario especial ese día
                     else:
-                        limit_day = _base_lim
-                    # La marca EXACTA a la hora límite (p. ej. 06:58) ya cuenta como
+                        limit_day = _base_lim; hard_day = _hard_lim
+                    # La marca EXACTA a la hora límite (p. ej. 06:59) ya cuenta como
                     # intento tarde. Se toleran `intentos_tarde`; al siguiente, pierde.
+                    # PERO una marca >= al tope duro (07:00) pierde de inmediato.
                     if limit_day is not None and m >= limit_day:
-                        dias_tarde.append({'fecha': f, 'hora': hh})
+                        if hard_day is not None and m >= hard_day:
+                            dias_perdida.append({'fecha': f, 'hora': hh})
+                        else:
+                            dias_tarde.append({'fecha': f, 'hora': hh})
         # Tipos de permiso que afectan el bono
         tipos = []
         otro = _otro_real_map.get(str(ec), 0.0)  # otro pagado SIN compensatorio
@@ -4397,11 +4502,18 @@ def permiso_reporte_list(request):
             if val > 0:
                 tipos.append(CAMPOS_PERMISO_MAP.get(pt, pt))
         # <--- hecho por claude code: falta de marca — pierde de inmediato, sin tolerancia
-        marcas_falta = marca_falta_map.get(ec, [])
+        marcas_falta = [x for x in marca_falta_map.get(ec, [])
+                        if x['fecha'] not in _permiso_dia_map.get(str(ec), ())
+                        and not (_exc and _exc.exento_entrada and x['falta'] == 'entrada')
+                        and not (_exc and _exc.exento_salida and x['falta'] == 'salida')]
         if marcas_falta:
             tipos.append('Falta de marca')
+        # <--- hecho por claude code: entrada >= tope duro (07:00) → pierde sin tolerancia
+        if dias_perdida:
+            tipos.append('Entrada ≥ ' + bcfg.hora_perdida_auto.strftime('%H:%M'))
         # dias_tarde solo se llena cuando la regla aplicable está activa.
         # Se toleran `intentos_tarde` entradas tardías; pierde a partir de la siguiente.
+        # Cualquier entrada >= tope duro (dias_perdida vía `tipos`) también pierde.
         pierde_auto = bool(tipos) or (len(dias_tarde) > _intentos_tarde)
         override = (r.bono_override if r else '') or ''
         if override == 'si':
@@ -4414,9 +4526,11 @@ def permiso_reporte_list(request):
             'emp_code': row['emp_code'], 'nombre': row['nombre'], 'nombre_sort': row['nombre_sort'],
             'cargo': row['cargo'], 'marcas': marcas_fmt, 'n_marcas': len(marcas_fmt),
             'dias_tarde': dias_tarde, 'n_tarde': len(dias_tarde), 'tipos': tipos,
+            'dias_perdida': dias_perdida, 'n_perdida': len(dias_perdida),
             # <--- hecho por claude code: días sin la marca de entrada o de salida
             'marcas_falta': marcas_falta, 'n_falta': len(marcas_falta),
             'pierde': pierde, 'pierde_auto': pierde_auto, 'override': override,
+            'exencion': (_exc.nota or 'Permiso especial') if _exc else '',
         })
 
     # Catálogo de tipos de permiso para el modal "agregar regla"
@@ -4458,6 +4572,7 @@ def permiso_reporte_list(request):
         'bono_reglas_extra': reglas_extra_ctx,
         'bono_tipos_permiso': bono_tipos_permiso,
         'bono_horarios_esp': list(BonoHorarioEmpleado.objects.filter(activa=True)),
+        'bono_exenciones':   list(BonoExencionEmpleado.objects.filter(activa=True)),
     }
     if _es_pdf(request):
         _sec = request.GET.get('sec')
@@ -4470,6 +4585,11 @@ def permiso_reporte_list(request):
         # sec=bono → lista de empleados que conservan el bono (solo nombres)
         if _sec == 'bono':
             ctx['bono_conservan'] = [b for b in bono_rows if not b['pierde']]
+            # <--- hecho por claude code: mes SIGUIENTE para el subtítulo del PDF.
+            # El bono se gana en el mes de la lista (mes seleccionado) y se paga al mes
+            # siguiente → "de {mes seleccionado} para {mes siguiente}". Auto según el mes.
+            from datetime import timedelta as _td
+            ctx['mes_siguiente'] = (mes_inicio + _td(days=32)).replace(day=1)
             return _reporte_pdf(request, 'reloj/pdf/bono_pdf.html', ctx,
                                 f'bono_asistencia_{mes_str}.pdf')
         # Reporte único agrupado: General (alfabético) → Maestros por hora → Vigilancia
@@ -4495,6 +4615,14 @@ def bono_reglas_save(request):
             cfg.hora_limite = time(int(hh), int(mm))
         except ValueError:
             return JsonResponse({'ok': False, 'error': 'Hora inválida'}, status=400)
+    # <--- hecho por claude code: tope duro (07:00) — entrada que pierde el bono auto.
+    hpa = (body.get('hora_perdida_auto') or '').strip()
+    if hpa:
+        try:
+            hh, mm = hpa.split(':')
+            cfg.hora_perdida_auto = time(int(hh), int(mm))
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'Hora de pérdida inválida'}, status=400)
     cfg.regla_otro_pagado = bool(body.get('regla_otro_pagado'))
     cfg.regla_enfermedad = bool(body.get('regla_enfermedad'))
     cfg.regla_hora_activa = bool(body.get('regla_hora_activa'))
@@ -4570,8 +4698,7 @@ def bono_override_set(request):
         y, m = map(int, mes_str.split('-')[:2]); mes = date(y, m, 1)
     except (ValueError, AttributeError):
         return JsonResponse({'ok': False, 'error': 'Mes inválido'}, status=400)
-    obj, _ = ReportePermisoMensual.objects.get_or_create(
-        emp_code=emp, mes=mes, defaults={'nombre_empleado': nombre})
+    obj = _mensual_get_or_create(emp, mes, nombre)
     obj.bono_override = valor
     obj.save(update_fields=['bono_override'])
     return JsonResponse({'ok': True})
@@ -4717,10 +4844,7 @@ def permiso_rebaja_toggle(request):
         mes = _d(year, month, 1)
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Mes inválido'})
-    obj, _ = ReportePermisoMensual.objects.get_or_create(
-        emp_code=emp_code, mes=mes,
-        defaults={'nombre_empleado': emp_code}
-    )
+    obj = _mensual_get_or_create(emp_code, mes)
     obj.rebaja_activa = activa
     obj.save(update_fields=['rebaja_activa'])
     return JsonResponse({'ok': True, 'activa': activa})
@@ -4774,10 +4898,7 @@ def permiso_reporte_set_campo(request):
     except Exception:
         pass
 
-    obj, _ = ReportePermisoMensual.objects.get_or_create(
-        emp_code=emp_code, mes=mes,
-        defaults={'nombre_empleado': nombre or emp_code}
-    )
+    obj = _mensual_get_or_create(emp_code, mes, nombre)
     if nombre and not obj.nombre_empleado:
         obj.nombre_empleado = nombre
 
@@ -4822,10 +4943,7 @@ def _sync_permiso_mensual(emp_code, fecha, tipo, nombre=''):
             fecha__month=fecha.month, tipo=tipo,
         ).aggregate(t=Sum('dias'))['t'] or 0
 
-    obj, _ = ReportePermisoMensual.objects.get_or_create(
-        emp_code=emp_code, mes=mes,
-        defaults={'nombre_empleado': nombre or emp_code}
-    )
+    obj = _mensual_get_or_create(emp_code, mes, nombre)
     setattr(obj, campo_mensual, total)
     obj.save()
 
@@ -4870,6 +4988,12 @@ def permiso_reporte_save(request):
             _cfg_emp = ReportePermisoMensual.objects.filter(
                 emp_code=emp_code, mes=_mes_1
             ).values_list('horas_diarias_laboradas', flat=True).first()
+            if _cfg_emp is None:
+                # <--- hecho por claude code: mes sin fila aún → usar la jornada más reciente
+                _cfg_emp = (ReportePermisoMensual.objects
+                            .filter(emp_code=emp_code, mes__lt=_mes_1)
+                            .order_by('-mes')
+                            .values_list('horas_diarias_laboradas', flat=True).first())
             _divisor = float(_cfg_emp or 8.0)
             dias = round(horas / _divisor, 4)
         else:
@@ -5706,10 +5830,7 @@ def permiso_reporte_set_horas_diarias(request):
     dias_str   = (request.POST.get('dias') or 'L,M,X,J,V').strip()
     comentario = (request.POST.get('comentario') or '').strip()[:200]
 
-    obj, _ = ReportePermisoMensual.objects.get_or_create(
-        emp_code=emp_code, mes=mes,
-        defaults={'nombre_empleado': emp_code},
-    )
+    obj = _mensual_get_or_create(emp_code, mes)
     from decimal import Decimal
     obj.horas_diarias_laboradas = Decimal(str(round(valor, 1)))
     obj.dias_laborables  = dias_str
@@ -5990,6 +6111,19 @@ def permiso_marcas_faltantes(request):
             feriados.add(d)
             d += _td(days=1)
 
+    # <--- hecho por claude code: días CUBIERTOS por un permiso registrado NO se reportan
+    # (igual que "Ausentes sin permiso"): al cargar el permiso la incidencia desaparece y a
+    # fin de mes solo quedan los que no marcaron SIN justificación.
+    con_permiso = set()
+    for p in PermisoReporte.objects.filter(fecha__lte=hasta,
+                                           fecha__gte=desde - _td(days=45)):
+        ec_p = str(p.emp_code).strip()
+        d = max(p.fecha, desde)
+        fin_p = min(p.fecha_fin or p.fecha, hasta)
+        while d <= fin_p:
+            con_permiso.add((ec_p, d))
+            d += _td(days=1)
+
     empleados = {}
     try:
         with connections['zkbio_sqlserver'].cursor() as cursor:
@@ -6037,6 +6171,8 @@ def permiso_marcas_faltantes(request):
         ec = (emp_code or '').strip()
         reg = empleados.get(ec)
         if reg is None or fecha in feriados:
+            continue
+        if (ec, fecha) in con_permiso:   # día justificado con permiso
             continue
         entrada, salida = _horario_del_dia(ec, fecha, cache_horario)
         if not entrada or not salida:            # ese día no trabaja o sin horario

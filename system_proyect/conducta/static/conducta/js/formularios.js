@@ -12,14 +12,14 @@ $(function () {
   // ===================================================
   // ============  PROGRESS REPORT - JS DINÁMICO  ======
   // ===================================================
-  // Materias según tipo de grado
+  // Materias según tipo de grado — <--- hecho por claude code: lista fija completa como Agendas
   const MATERIAS_PRIMARIA = [
-    "Math", "Phonics", "Spelling", "Reading", "Language",
-    "Science", "Español", "CCSS", "Asociadas"
+    "Math", "Language", "Spelling", "Phonics", "Reading", "Science",
+    "Español", "CCSS", "Penmanship", "Arte", "Biblia", "Computación", "Speaking", "P.E"
   ];
   const MATERIAS_COLEGIO = [
-    "Math", "Spelling", "Reading", "Language", "Science",
-    "Español", "CCSS", "Cívica", "Asociadas"
+    "Math", "Language", "Spelling", "Reading", "Science", "Español", "CCSS", "Cívica",
+    "Arte", "Biblia", "Computación", "Speaking", "P.E"
   ];
 
   // Devuelve si el grado es primaria
@@ -65,6 +65,15 @@ $(function () {
 
   // ========== Inicializar Progress Report ==========
   if ($('#id_alumno').length && $('#tabla-materias').length) {
+    // <--- hecho por claude code: evita el reporte DOBLE por doble-clic/doble-envío.
+    $('#progressForm').on('submit', function () {
+      var $f = $(this);
+      if ($f.data('enviado')) { return false; }   // ya se envió una vez
+      $f.data('enviado', true);
+      $f.find('button[type="submit"]').prop('disabled', true)
+        .html('<span class="spinner-border spinner-border-sm me-1"></span>Guardando…');
+    });
+
     // --- ACTIVAR SELECT2 EN ALUMNO ---
     $('#id_alumno').select2({
       placeholder: "-- Selecciona un estudiante --",

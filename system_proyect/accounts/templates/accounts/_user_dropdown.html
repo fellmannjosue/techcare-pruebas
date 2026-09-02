@@ -1,11 +1,7 @@
 {% load static %}
 {# Dropdown de usuario – incluido en el pie de todos los sidebars #}
-<div class="mt-auto pt-3 border-top border-secondary">
-
-  {# <--- hecho por claude code: campanita + tema, aquí para que existan en TODOS los módulos #}
-  {% include 'accounts/_notificaciones.html' %}
-
-<div class="dropup px-2 py-1">
+{# <--- hecho por claude code: user dropdown en el TOPBAR, junto a la campanita #}
+<div class="dropdown d-inline-block">
     <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle-no-caret"
        data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" id="userDropdown">
       {% if request.user.perfil.avatar %}
@@ -15,14 +11,14 @@
           {{ request.user.get_full_name|default:request.user.username|slice:":1"|upper }}
         </span>
       {% endif %}
-      <div class="flex-fill overflow-hidden">
-        <div class="text-white small fw-semibold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+      <div class="overflow-hidden d-none d-md-block" style="max-width:170px;">
+        <div class="small fw-semibold text-truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
         <div class="text-muted text-truncate" style="font-size:.72rem;">{{ request.user.email }}</div>
       </div>
-      <i class="ti ti-chevron-up text-muted"></i>
+      <i class="ti ti-chevron-down text-muted"></i>
     </a>
 
-    <ul class="dropdown-menu dropdown-menu-dark w-100 shadow" aria-labelledby="userDropdown">
+    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow" aria-labelledby="userDropdown" style="min-width:230px;">
       <li>
         <div class="dropdown-header d-flex align-items-center gap-2 py-2">
           {% if request.user.perfil.avatar %}
@@ -63,13 +59,22 @@
       {% endif %}
 
       <li><hr class="dropdown-divider border-secondary m-0"></li>
+      {# <--- hecho por claude code: modo oscuro como toggle (antes botón flotante) #}
+      <li>
+        <div class="dropdown-item-text d-flex align-items-center justify-content-between">
+          <span class="small"><i class="ti ti-moon me-2"></i>Modo oscuro</span>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="tc-theme-toggle" role="switch" style="cursor:pointer;">
+          </div>
+        </div>
+      </li>
+      <li><hr class="dropdown-divider border-secondary m-0"></li>
       <li>
         <a class="dropdown-item text-danger" href="{% url 'logout' %}">
           <i class="ti ti-logout me-2"></i>Cerrar sesión
         </a>
       </li>
     </ul>
-  </div>
 </div>
 
 {% if request.user.is_superuser %}

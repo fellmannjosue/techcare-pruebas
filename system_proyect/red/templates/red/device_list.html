@@ -1,0 +1,36 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code: lista de dispositivos #}
+{% block title %}Red · Dispositivos{% endblock %}
+{% block page_pretitle %}ANA Network Manager{% endblock %}
+{% block page_title %}Dispositivos{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+{% block page_actions %}<a href="{% url 'red:device_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo dispositivo</a>{% endblock %}
+
+{% block content %}
+{% include 'red/_messages.html' %}
+<form method="get" class="d-flex gap-2 mb-3">
+  <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar nombre, hostname, IP, MAC, serie…" style="max-width:360px;">
+  <button class="btn btn-primary"><i class="ti ti-search"></i></button>
+</form>
+<div class="card"><div class="table-responsive"><table class="table table-vcenter card-table">
+  <thead><tr><th>Nombre</th><th>Tipo</th><th>IP</th><th>Ubicación</th><th>VLAN</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+    {% for d in devs %}
+    <tr>
+      <td><a href="{% url 'red:device_detail' d.pk %}" class="fw-semibold">{{ d.nombre }}</a>{% if d.hostname %}<div class="text-muted small">{{ d.hostname }}</div>{% endif %}</td>
+      <td>{{ d.get_tipo_display }}</td>
+      <td class="text-muted">{{ d.ip|default:'—' }}</td>
+      <td class="text-muted">{{ d.ubicacion|default:'—' }}</td>
+      <td>{% if d.vlan %}VLAN {{ d.vlan.vlan_id }}{% else %}—{% endif %}</td>
+      <td>
+        {% if d.estado == 'activo' %}<span class="badge bg-green-lt text-green">Activo</span>
+        {% elif d.estado == 'por_confirmar' %}<span class="badge bg-secondary-lt text-secondary">Por confirmar</span>
+        {% elif d.estado == 'retirado' %}<span class="badge bg-red-lt text-red">Retirado</span>
+        {% else %}<span class="badge bg-yellow-lt text-yellow">{{ d.get_estado_display }}</span>{% endif %}
+      </td>
+      <td class="text-end"><a href="{% url 'red:device_editar' d.pk %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-edit"></i></a></td>
+    </tr>
+    {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Sin dispositivos.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

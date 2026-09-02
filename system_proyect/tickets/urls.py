@@ -10,6 +10,8 @@ urlpatterns = [
     path('dashboard/administracion/', views.dashboard_administracion, name='dashboard_administracion'),
     path('mis-tickets/', views.mis_tickets, name='mis_tickets'),
     path('technician_dashboard/', views.technician_dashboard, name='technician_dashboard'),
+    # <--- hecho por claude code: alerta cada 10 min de tickets sin atender
+    path('sin-atender/', views.tickets_sin_atender_ajax, name='tickets_sin_atender_ajax'),
     path('ticket/<int:ticket_id>/comentarios/', views.ticket_comments, name='ticket_comments'),
     path('ticket_comments/ajax/<int:ticket_id>/', views.ticket_comments_ajax, name='ticket_comments_ajax'),
     path('menu/', lambda request: redirect('/accounts/menu/'), name='tickets_menu'),
@@ -20,7 +22,8 @@ urlpatterns = [
     path('ticket_send_comment_ajax/<int:ticket_id>/', views.ticket_send_comment_ajax, name='ticket_send_comment_ajax'),
     path('ticket/<int:ticket_id>/reporte/', views.ticket_reporte_ajax, name='ticket_reporte_ajax'),
 
-    # 🚀 IA — <--- hecho por claude code: chat IA + sandbox ACTIVOS en pruebas
+    # 🚀 IA — Endpoint AJAX para chat IA
+    # <--- hecho por claude code: chat IA + sandbox ACTIVOS en pruebas
     path('ticket/<int:ticket_id>/chat_ai/', views.ticket_chat_ai_ajax, name='ticket_chat_ai_ajax'),
     path('ia/', views.ia_sandbox, name='ia_sandbox'),
     path('ia/preguntar/', views.ia_sandbox_ajax, name='ia_sandbox_ajax'),

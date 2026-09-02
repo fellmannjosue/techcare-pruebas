@@ -1,6 +1,90 @@
 {
-  "version": "7.4.0.004",
+  "version": "7.6.2",
   "entradas": [
+    {
+      "version": "7.6.2",
+      "fecha": "2026-08-26",
+      "commit": "e5a2c18",
+      "cambios": [
+        "feat(v7.6.2): seguridad de dependencias + Red: acceso por grupos, monitoreo, migración VLAN real, API REST"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.6.1",
+      "fecha": "2026-08-26",
+      "commit": "9cd5bbf",
+      "cambios": [
+        "feat(v7.6.1): Inventario — lectura SQL Server (Test2, Etapa 0-1), flujo guiado 3 pasos y racks"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.6.0",
+      "fecha": "2026-08-25",
+      "commit": "66347c1",
+      "cambios": [
+        "feat(v7.6.0): ANA Network Manager — nuevo módulo de red (Fases 1-5)",
+        "Create SECURITY.md for security policy and reporting"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.5.0",
+      "fecha": "2026-08-24",
+      "commit": "44c0f69",
+      "cambios": [
+        "feat(v7.5.0): panel principal nuevo, contabilidad por roles + regalías, tickets con SLA y horario compensatorio por fecha"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.4.2",
+      "fecha": "2026-08-19",
+      "commit": "71cb992",
+      "cambios": [
+        "feat(v7.4.2): dashboard coordinador (acordeón + WhatsApp), CFP notas, accesos, contabilidad y limpieza"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.4.1.007.001",
+      "fecha": "2026-08-12",
+      "commit": "70e09e0",
+      "cambios": [
+        "feat(desarrollo): nuevo módulo Gestión de Desarrollo (requerimientos + proyectos + roadmap Kanban + dashboard + export Excel)"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.4.1.007",
+      "fecha": "2026-08-11",
+      "commit": "a753e36",
+      "cambios": [
+        "feat: rediseño Dashboard Coordinador (lanzador de apps) + topbar (campana/usuario) y modo oscuro toggle"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.4.1.006",
+      "fecha": "2026-08-10",
+      "commit": "ef01805",
+      "cambios": [
+        "Se ha actualizado la función de edición de agendas.",
+        "A partir de ahora, el sistema cuenta con autoguardado automático, por lo que no será necesario guardar manualmente los cambios.",
+        "Cada vez que escriba o modifique información en la agenda, esta se guardará automáticamente, reduciendo el riesgo de pérdida de información."
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.4.0.005",
+      "fecha": "2026-08-06",
+      "commit": "870d7fc",
+      "cambios": [
+        "feat: botón 'Volver a Historial de Reportes' en Editar Agenda (maestro)"
+      ],
+      "menor": true
+    },
     {
       "version": "7.4.0.004",
       "fecha": "2026-08-05",

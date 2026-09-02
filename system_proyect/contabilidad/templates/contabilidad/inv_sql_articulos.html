@@ -1,0 +1,35 @@
+{% extends 'base_app.html' %}
+{% load contabilidad_extras %}
+{# <--- hecho por claude code: artículos + existencia + costo (leídos de SQL Server Test2) #}
+{% block title %}Artículos · SQL Server{% endblock %}
+{% block page_pretitle %}Contabilidad · Inventario institucional (Test2){% endblock %}
+{% block page_title %}Artículos (solo lectura){% endblock %}
+{% block back_button %}<a href="{% url 'contabilidad:inv_sql_estado' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Estado</a>{% endblock %}
+
+{% block content %}
+{% if not st.ok %}
+  <div class="alert alert-warning"><i class="ti ti-lock me-1"></i>{{ st.motivo }}</div>
+{% else %}
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="get" class="mb-3"><div class="input-icon">
+    <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Código o descripción del artículo…">
+  </div></form>
+
+  <div class="card"><div class="table-responsive"><table class="table table-vcenter card-table table-hover">
+    <thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Existencia</th><th class="text-end">Costo promedio</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="text-muted">{{ f.a.codigo }}</td>
+        <td>{{ f.a.descripcion }}</td>
+        <td class="text-end">{% if f.existencia is not None %}{{ f.existencia }}{% else %}—{% endif %}</td>
+        <td class="text-end">{% if f.a.costo_promedio_actual is not None %}{{ f.a.costo_promedio_actual|lps }}{% else %}—{% endif %}</td>
+        <td>{% if f.a.activo %}<span class="badge bg-green-lt text-green">activo</span>{% else %}<span class="badge bg-secondary-lt">inactivo</span>{% endif %}</td>
+        <td class="text-end"><a href="{% url 'contabilidad:inv_sql_kardex' f.a.articulo_id %}" class="btn btn-sm btn-ghost-primary"><i class="ti ti-list me-1"></i>Kardex</a></td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="text-muted text-center py-3">Sin artículos.</td></tr>{% endfor %}
+    </tbody>
+  </table></div></div>
+{% endif %}
+{% endblock %}

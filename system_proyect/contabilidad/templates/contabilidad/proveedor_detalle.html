@@ -1,0 +1,62 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: detalle de proveedor (FASE 2.1) #}
+{% block title %}{{ prov.nombre }}{% endblock %}
+{% block page_pretitle %}Contabilidad · Proveedor{% endblock %}
+{% block page_title %}{{ prov.nombre }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=3">{% endblock %}
+{% block page_actions %}
+  {% if puede_editar %}<a href="{% url 'contabilidad:proveedor_editar' prov.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-edit me-1"></i>Editar</a>{% endif %}
+  {% if request.user.is_superuser %}
+  <form method="post" action="{% url 'contabilidad:proveedor_eliminar' prov.pk %}" class="d-inline" onsubmit="return confirm('¿Eliminar este proveedor? Solo procede si no tiene compras registradas.');">
+    {% csrf_token %}<button class="btn btn-ghost-danger"><i class="ti ti-trash me-1"></i>Eliminar</button>
+  </form>
+  {% endif %}
+  <a href="{% url 'contabilidad:proveedor_lista' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Proveedores</a>
+{% endblock %}
+
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <span class="cont-chip-lg" style="background:{{ prov.color }};"></span>
+  <div>
+    <div class="h3 m-0">{{ prov.nombre }} {% if prov.activo %}<span class="badge bg-green-lt text-green">Activo</span>{% else %}<span class="badge bg-secondary-lt">Inactivo</span>{% endif %}</div>
+    <div class="text-muted small">{% if prov.nombre_comercial %}{{ prov.nombre_comercial }} · {% endif %}{{ prov.contacto|default:"" }} {% if prov.telefono %}· {{ prov.telefono }}{% endif %} {% if prov.correo %}· {{ prov.correo }}{% endif %}</div>
+  </div>
+</div>
+
+<div class="row row-cards g-3 mb-3">
+  {% include 'contabilidad/_kpi.html' with valor=resumen.compras etiqueta='Compras realizadas' icono='ti-shopping-cart' color='#206bc4' %}
+  {% include 'contabilidad/_kpi.html' with valor=resumen.unidades etiqueta='Unidades suministradas' icono='ti-stack-2' color='#2fb344' %}
+  {% include 'contabilidad/_kpi.html' with valor=resumen.productos etiqueta='Productos distintos' icono='ti-shirt' color='#ae3ec9' %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header"><h3 class="card-title">Productos suministrados</h3></div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-vcenter card-table mb-0">
+      <thead><tr><th>Producto</th><th class="text-end">Unidades</th><th class="text-end">Último costo</th><th>Última compra</th></tr></thead>
+      <tbody>
+        {% for r in productos %}
+        <tr><td>{{ r.producto }}</td><td class="text-end">{{ r.unidades }}</td><td class="text-end">{{ r.ultimo_costo|lps }}</td><td class="small">{{ r.ultima_fecha|date:"d/m/Y" }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aún sin compras confirmadas.</td></tr>{% endfor %}
+      </tbody>
+    </table></div></div>
+  </div></div>
+  <div class="col-lg-6"><div class="card h-100">
+    <div class="card-header"><h3 class="card-title">Historial de compras</h3></div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-vcenter table-hover card-table mb-0">
+      <thead><tr><th>Fecha</th><th>Compra</th><th>Estado</th><th class="text-end">Unid.</th><th class="text-end">Total</th></tr></thead>
+      <tbody>
+        {% for c in historial %}
+        <tr style="cursor:pointer;" onclick="location.href='{% url 'contabilidad:compra_detalle' c.pk %}'">
+          <td class="small">{{ c.fecha|date:"d/m/Y" }}</td><td class="fw-semibold">{{ c.codigo }}</td>
+          <td>{% if c.estado == 'confirmada' %}<span class="badge bg-green-lt text-green">Confirmada</span>{% elif c.estado == 'anulada' %}<span class="badge bg-red-lt text-red">Anulada</span>{% else %}<span class="badge bg-secondary-lt">Borrador</span>{% endif %}</td>
+          <td class="text-end">{{ c.total_unidades }}</td><td class="text-end">{{ c.total|lps }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Sin compras.</td></tr>{% endfor %}
+      </tbody>
+    </table></div></div>
+  </div></div>
+</div>
+{% endblock %}

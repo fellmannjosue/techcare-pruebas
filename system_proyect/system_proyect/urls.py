@@ -51,6 +51,10 @@ urlpatterns = [
     # ──────────────────────────────────────────────────────────────────────────
     path('conducta/', include('conducta.urls')),
     path('agendas/',  include(('agendas.urls', 'agendas'), namespace='agendas')),
+    # <--- hecho por claude code: Gestión de Desarrollo (requerimientos y proyectos)
+    path('desarrollo/', include(('desarrollo.urls', 'desarrollo'), namespace='desarrollo')),
+    path('contabilidad/', include(('contabilidad.urls', 'contabilidad'), namespace='contabilidad')),
+    path('red/', include(('red.urls', 'red'), namespace='red')),  # <--- hecho por claude code: ANA Network Manager
     # ──────────────────────────────────────────────────────────────────────────
     # 8) Módulo de reloj
     # ──────────────────────────────────────────────────────────────────────────
@@ -73,10 +77,9 @@ urlpatterns = [
     path('portal/', include('portal_super.urls')),
 
     # Apps en construcción (solo superuser)
-    path('atencion-padres/', include(('atencion_padres.urls', 'atencion_padres'), namespace='atencion_padres')),
+    # <--- hecho por claude code: 'atencion-padres' y 'camaras' eliminadas (no se usaban)
     path('salidas-bano/',    include(('salidas_bano.urls',    'salidas_bano'),    namespace='salidas_bano')),
     path('ingresos-notas/',  include(('ingresos_notas.urls',  'ingresos_notas'),  namespace='ingresos_notas')),  # <--- hecho por claude code
-    path('camaras/',         include(('camaras.urls',         'camaras'),         namespace='camaras')),
 ]
 
 # <--- hecho por claude code: sirve archivos de media (imágenes subidas por usuarios)

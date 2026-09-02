@@ -1,26 +1,19 @@
 {% load static %}
-{# <--- hecho por claude code: campanita compartida (antes duplicada a mano en solo 3 plantillas) #}
+{# <--- hecho por claude code: campanita en el TOPBAR, mismos IDs para notifications.js #}
 {% if request.user.is_authenticated %}
-<div class="px-2 pb-2">
-  <div class="dropup w-100">
-    <a href="#" id="notifDropdownToggle"
-       class="d-flex align-items-center gap-2 text-decoration-none px-2 py-2 rounded"
-       data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-       data-bs-boundary="viewport" data-bs-offset="0,10">
-      <span class="position-relative">
-        <i class="ti ti-bell fs-3 text-white"></i>
-        <span id="badgeNotificaciones"
-              class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill d-none"
-              style="font-size:.6rem;">0</span>
-      </span>
-      <span class="text-white small flex-fill">Notificaciones</span>
-    </a>
-    <div class="dropdown-menu shadow p-0 tc-notif-menu">
-      <div class="dropdown-header border-bottom fw-bold py-2 px-3">
-        <i class="ti ti-bell me-1"></i>Notificaciones recientes
-      </div>
-      <ul id="listaNotificaciones" class="list-unstyled mb-0"></ul>
+<div class="dropdown d-inline-block">
+  <a href="#" id="notifDropdownToggle" class="btn btn-ghost-secondary btn-icon position-relative"
+     data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Notificaciones">
+    <i class="ti ti-bell fs-2"></i>
+    <span id="badgeNotificaciones"
+          class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill d-none"
+          style="font-size:.6rem;">0</span>
+  </a>
+  <div class="dropdown-menu dropdown-menu-end shadow p-0 tc-notif-menu">
+    <div class="dropdown-header border-bottom fw-bold py-2 px-3">
+      <i class="ti ti-bell me-1"></i>Notificaciones recientes
     </div>
+    <ul id="listaNotificaciones" class="list-unstyled mb-0"></ul>
   </div>
 </div>
 <audio id="notifSound" src="{% static 'accounts/sound/notification.mp3' %}" preload="auto"></audio>

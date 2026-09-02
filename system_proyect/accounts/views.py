@@ -33,6 +33,24 @@ def _login_key(username):
     return (username or '').strip().lower()
 
 
+def _resolver_username(ident):
+    """<--- hecho por claude code: permite iniciar sesión con el USERNAME real o con el CORREO.
+    Ej.: el admin (username 'admin', correo jfellmann@ana-hn.org) entra por 'Acceso admin' con
+    'admin' o en modo normal con 'jfellmann' (el form arma jfellmann@ana-hn.org → resuelve a 'admin').
+    Se resuelve ANTES de todo para que el bloqueo y la exención de superusuario usen el username real."""
+    ident = (ident or '').strip()
+    if not ident:
+        return ident
+    # 1) coincide un username exacto → tal cual (prioridad al username)
+    if User.objects.filter(username__iexact=ident).exists():
+        return ident
+    # 2) coincide un correo único → devolver ese username real
+    qs = User.objects.filter(email__iexact=ident)
+    if qs.count() == 1:
+        return qs.first().username
+    return ident
+
+
 def _es_superusuario(username):
     """<--- hecho por claude code: el superusuario NUNCA se bloquea por intentos fallidos.
     Si se bloqueara, no quedaría nadie que pueda desbloquear a los demás."""
@@ -115,7 +133,9 @@ def login_view(request):
 
     year = datetime.datetime.now().year
     if request.method == 'POST':
-        username = request.POST['username']
+        # <--- hecho por claude code: resolver username real (por username o correo) antes de todo,
+        # para que el login normal por correo funcione y el superusuario quede exento del bloqueo.
+        username = _resolver_username(request.POST['username'])
         password = request.POST['password']
         is_maestro = request.POST.get('is_maestro') == 'on'
         key = _login_key(username)
@@ -168,6 +188,10 @@ def login_view(request):
                     return _welcome_redirect('panel_general')
                 if user.groups.filter(name='reloj').exists():
                     return _welcome_redirect('reloj_dashboard')
+                # <--- hecho por claude code: Enfermería → su dashboard (antes caía al
+                # dashboard_coordinador bilingüe y daba 403 aunque el login sí ocurría)
+                if user.groups.filter(name='enfermeria').exists():
+                    return _welcome_redirect('enfermeria:enfermeria_dashboard')
                 # Cualquier usuario del área Administración → solo tickets
                 if user.groups.filter(name='administracion').exists():
                     return _welcome_redirect('dashboard_administracion')
@@ -921,6 +945,8 @@ def menu_view(request):
         'show_cfp':         user.is_superuser or user.groups.filter(name__in=['director_cfp', 'instructores']).exists(),
         'show_enfermeria':  is_admin or is_group_enfermeria or is_coord_bilingue,
         'show_reloj':       is_admin or is_group_reloj,
+        # <--- hecho por claude code: Monitoreo (auditoría/actividad) para el grupo 'monitoreo'
+        'show_monitoreo':   is_admin or user.groups.filter(name='monitoreo').exists(),
 
         'show_coordinador_bilingue': is_admin or is_coord_bilingue,
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
@@ -928,8 +954,7 @@ def menu_view(request):
         'show_directorio':     is_admin or is_coord_bilingue or is_coord_colegio,
         'show_calculadoras':   is_admin,  # <--- hecho por claude code: Calculadoras solo superuser
 
-        # Apps en construcción — solo superuser
-        'show_atencion_padres': user.is_superuser,
+        # <--- hecho por claude code: 'atencion_padres' y 'camaras' eliminadas (no se usaban)
         'show_salidas_bano':    user.is_superuser or user.groups.filter(
                                     name__in=['control baño coord', 'control baños col']
                                 ).exists(),
@@ -937,7 +962,6 @@ def menu_view(request):
         'show_salidas_bano_cfp': user.is_superuser or user.groups.filter(
                                     name__in=['control baño coord cfp', 'control baños cfp']
                                 ).exists(),
-        'show_camaras':         user.is_superuser,
     }
 
     # <--- hecho por claude code: pasar show_welcome al contexto antes de limpiar la sesión
@@ -945,21 +969,21 @@ def menu_view(request):
     context['show_welcome'] = show_welcome
     context['welcome_name']  = request.user.get_full_name() or request.user.username
 
-    # Superusuario: si eligió el portal nuevo, va a la SPA; si no, panel clásico.
+    # Superusuario: Panel Principal (Django). <--- hecho por claude code: el redirect al
+    # prototipo SPA Next (/portal/app/) se retiró el 26-ago-2026; ese portal ya no existe.
     if user.is_superuser:
-        # <--- hecho por claude code: toggle Nueva/Clásica (perfil.prefer_new_ui)
-        try:
-            if user.perfil.prefer_new_ui:
-                return redirect('portal_super:app_spa')
-        except Exception:
-            pass
+        _col1, _col2 = _grupos_super_panel_columnas()
         return render(request, 'accounts/panel_super.html', {
-            'grupos': _grupos_super_con_hrefs(),  # <--- hecho por claude code: hrefs resueltos para el acordeón
+            # <--- hecho por claude code: panel en 2 columnas (los administrativos van al sidebar)
+            'grupos_col1': _col1,
+            'grupos_col2': _col2,
             'tickets_pendientes': tickets_pendientes,
             'reportes_bl': reportes_bl,
             'reportes_col': reportes_col,
             'show_welcome': show_welcome,
             'welcome_name': context['welcome_name'],
+            # <--- hecho por claude code: datos reales para las gráficas de actividad
+            **_datos_actividad_panel(),
         })
 
     return render(request, 'accounts/menu.html', context)
@@ -975,16 +999,40 @@ GRUPOS_SUPER = [
         {'t': 'Mantenimiento', 's': 'Reportes de mantenimiento', 'i': 'ti-tool', 'c': '#d63939', 'url': 'mantenimiento:maintenance_dashboard'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
      ]},
+    # <--- hecho por claude code: Gestión de Desarrollo en grupo propio (sacado de Soporte y TI)
+    {'key': 'desarrollo', 'titulo': 'Gestión de Desarrollo', 'icon': 'ti-clipboard-list', 'color': '#ae3ec9',
+     'desc': 'Requerimientos y proyectos',
+     'cards': [
+        {'t': 'Gestión de Desarrollo', 's': 'Requerimientos y proyectos', 'i': 'ti-clipboard-list', 'c': '#ae3ec9', 'url': 'desarrollo:dashboard'},
+     ]},
     {'key': 'academico', 'titulo': 'Académico', 'icon': 'ti-school', 'color': '#228B22',
-     'desc': 'Coordinación, agendas, enfermería y notas',
+     'desc': 'Coordinación, agendas, tutorías y período',
      'cards': [
         {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
         {'t': 'Coordinador Colegio', 's': 'Colegio', 'i': 'ti-user-cog', 'c': '#f08c00', 'url': 'dashboard_coordinador', 'args': {'area': 'colegio'}},
         {'t': 'Agendas', 's': 'Agendas semanales', 'i': 'ti-calendar-week', 'c': '#7048e8', 'url': 'agendas:form_agenda'},
-        {'t': 'Enfermería', 's': 'Panel de enfermería', 'i': 'ti-stethoscope', 'c': '#d63939', 'url': 'enfermeria:enfermeria_dashboard'},
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
+        # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
+        # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
+        {'t': 'Tutorías', 's': 'Convocatorias y cartas', 'i': 'ti-school', 'c': '#e8590c', 'url': 'convocatorias_coordinador'},
+        # <--- hecho por claude code: Período Escolar abre la pestaña de configuración de parciales (?app=periodo)
+        {'t': 'Período Escolar', 's': 'Parciales de conducta', 'i': 'ti-calendar-stats', 'c': '#2f9e44', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}, 'query': 'app=periodo'},
+     ]},
+    # <--- hecho por claude code: 3 grupos propios extraídos de Académico (columna 2 del panel)
+    {'key': 'notas_mitad_parcial', 'titulo': 'Notas Mitad de Parcial', 'icon': 'ti-file-certificate', 'color': '#206bc4',
+     'desc': 'Revisión y asignaciones',
+     'cards': [
         {'t': 'Notas Mitad de Parcial', 's': 'Revisión / Asignaciones', 'i': 'ti-file-certificate', 'c': '#206bc4', 'url': 'notas_parcial_index'},
-        {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado (todo en una hoja)', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
+     ]},
+    {'key': 'enfermeria', 'titulo': 'Enfermería', 'icon': 'ti-stethoscope', 'color': '#d63939',
+     'desc': 'Panel de enfermería',
+     'cards': [
+        {'t': 'Enfermería', 's': 'Panel de enfermería', 'i': 'ti-stethoscope', 'c': '#d63939', 'url': 'enfermeria:enfermeria_dashboard'},
+     ]},
+    {'key': 'ruteo', 'titulo': 'Ruteo', 'icon': 'ti-route', 'color': '#4263eb',
+     'desc': 'Ruteo de reportes Bilingüe',
+     'cards': [
+        {'t': 'Ruteo Reportes BL', 's': 'Grupos, coordinadores y alumnado', 'i': 'ti-route', 'c': '#4263eb', 'url': 'routing_bl_config'},
      ]},
     # <--- hecho por claude code: Ingresos de Notas en grupo propio (solo 2 usuarias)
     {'key': 'ingresos_notas', 'titulo': 'Ingresos de Notas', 'icon': 'ti-list-numbers', 'color': '#6366f1',
@@ -1041,6 +1089,21 @@ GRUPOS_SUPER = [
      'cards': [
         {'t': 'Correos', 's': 'Configuración de correos', 'i': 'ti-mail', 'c': '#d63939', 'url': 'settings_correos'},
      ]},
+    # <--- hecho por claude code: Programa de Contabilidad (TC-PRY-0002) en el Panel Principal
+    {'key': 'contabilidad', 'titulo': 'Contabilidad', 'icon': 'ti-report-money', 'color': '#12b886',
+     'desc': 'Programa contable e inventario',
+     'cards': [
+        {'t': 'Contabilidad', 's': 'Panel del programa', 'i': 'ti-report-money', 'c': '#12b886', 'url': 'contabilidad:dashboard'},
+        # <--- hecho por claude code: Proveedores/Compras/Uniformes ahora viven dentro del hub de Inventario
+        {'t': 'Inventario', 's': 'Uniformes, proveedores y compras', 'i': 'ti-package', 'c': '#206bc4', 'url': 'contabilidad:inventario_dashboard'},
+     ]},
+    # <--- hecho por claude code: ANA Network Manager (IPAM/red) — superadmin
+    {'key': 'red', 'titulo': 'Red (ANA Network Manager)', 'icon': 'ti-network', 'color': '#0ca678',
+     'desc': 'IPAM, VLAN, dispositivos y documentación de red',
+     'cards': [
+        # <--- hecho por claude code: todo el módulo se navega DESDE el Dashboard de Red
+        {'t': 'Dashboard de Red', 's': 'VLANs, IPAM, dispositivos, switches, enlaces y auditoría', 'i': 'ti-network', 'c': '#0ca678', 'url': 'red:dashboard'},
+     ]},
     {'key': 'construccion', 'titulo': 'Modo Mantenimiento', 'icon': 'ti-tool', 'color': '#FFD700',
      'desc': 'Bloquear el sistema temporalmente',
      'cards': [
@@ -1050,20 +1113,84 @@ GRUPOS_SUPER = [
 
 
 # <--- hecho por claude code: resuelve los href de cada tarjeta para el panel acordeón
-def _reverse_seguro(name, args=None):
+def _reverse_seguro(name, args=None, query=None):
     if not name:
         return ''
     try:
-        return reverse(name, kwargs=args) if args else reverse(name)
+        base = reverse(name, kwargs=args) if args else reverse(name)
+        return base + ('?' + query if query else '')  # <--- hecho por claude code: soporte de query (?app=…)
     except Exception:
         return ''
 
 
 def _grupos_super_con_hrefs():
     return [
-        {**g, 'cards': [{**c, 'href': _reverse_seguro(c.get('url'), c.get('args'))} for c in g['cards']]}
+        {**g, 'cards': [{**c, 'href': _reverse_seguro(c.get('url'), c.get('args'), c.get('query'))} for c in g['cards']]}
         for g in GRUPOS_SUPER
     ]
+
+
+# <--- hecho por claude code: estos módulos quedan SOLO en el sidebar (no en el Panel Principal)
+_PANEL_KEYS_SOLO_SIDEBAR = {'calculadoras', 'monitoreo', 'permisos', 'config', 'construccion'}
+
+
+def _grupos_super_panel():
+    """Grupos que se muestran en el Panel Principal (operativos; los administrativos van al sidebar)."""
+    return [g for g in _grupos_super_con_hrefs() if g['key'] not in _PANEL_KEYS_SOLO_SIDEBAR]
+
+
+# <--- hecho por claude code: distribución del Panel Principal en 2 columnas
+_PANEL_COL1 = ['soporte', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'red']
+_PANEL_COL2 = ['academico', 'notas_mitad_parcial', 'enfermeria', 'ruteo', 'ingresos_notas', 'salidas', 'cfp']
+
+
+def _grupos_super_panel_columnas():
+    """Devuelve (columna1, columna2) del Panel Principal según la distribución fijada."""
+    by_key = {g['key']: g for g in _grupos_super_con_hrefs()}
+    col1 = [by_key[k] for k in _PANEL_COL1 if k in by_key]
+    col2 = [by_key[k] for k in _PANEL_COL2 if k in by_key]
+    return col1, col2
+
+
+def _datos_actividad_panel():
+    """Datos reales de accesos (RegistroAcceso) para las gráficas del Panel Principal."""
+    import json
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+
+    today   = datetime.date.today()
+    hace_14 = today - datetime.timedelta(days=13)
+
+    # Accesos por día — últimos 14 días
+    por_dia = (
+        RegistroAcceso.objects
+        .filter(fecha_hora__date__gte=hace_14)
+        .annotate(dia=TruncDate('fecha_hora'))
+        .values('dia').annotate(total=Count('id')).order_by('dia')
+    )
+    dmap = {i['dia']: i['total'] for i in por_dia}
+    acc_labels, acc_data = [], []
+    for i in range(14):
+        d = hace_14 + datetime.timedelta(days=i)
+        acc_labels.append(d.strftime('%d/%m'))
+        acc_data.append(dmap.get(d, 0))
+
+    # Top 8 usuarios más activos — últimos 30 días
+    hace_30 = today - datetime.timedelta(days=29)
+    top = list(
+        RegistroAcceso.objects
+        .filter(fecha_hora__date__gte=hace_30)
+        .values('username').annotate(total=Count('id')).order_by('-total')[:8]
+    )
+
+    return {
+        'acc_labels_json': json.dumps(acc_labels),
+        'acc_data_json':   json.dumps(acc_data),
+        'top_labels_json': json.dumps([(t['username'] or '—') for t in top]),
+        'top_data_json':   json.dumps([t['total'] for t in top]),
+        'accesos_hoy':     RegistroAcceso.objects.filter(fecha_hora__date=today).count(),
+        'accesos_14d':     sum(acc_data),
+    }
 
 
 @login_required
@@ -1076,14 +1203,15 @@ def panel_grupo(request, grupo):
         from django.http import Http404
         raise Http404('Grupo no encontrado')
 
-    def _u(name, args=None):
+    def _u(name, args=None, query=None):
         if not name:
             return ''
         try:
-            return reverse(name, kwargs=args) if args else reverse(name)
+            base = reverse(name, kwargs=args) if args else reverse(name)
+            return base + ('?' + query if query else '')  # <--- hecho por claude code: soporte de query
         except Exception:
             return ''
-    cards = [{**c, 'href': _u(c.get('url'), c.get('args'))} for c in g['cards']]
+    cards = [{**c, 'href': _u(c.get('url'), c.get('args'), c.get('query'))} for c in g['cards']]
     return render(request, 'accounts/panel_grupo.html', {
         'titulo': g['titulo'], 'icon': g['icon'], 'desc': g.get('desc', ''),
         'cards': cards, 'wip': g.get('wip', False),
@@ -1502,15 +1630,140 @@ def settings_usuarios(request):
     return render(request, 'accounts/settings_usuarios.html', ctx)
 
 
+def _enviar_credenciales_correo(destinatario, nombre_completo, usuario_login, password):
+    """<--- hecho por claude code: correo de bienvenida con credenciales. Devuelve (ok, error)."""
+    texto_plano = (
+        f'Hola {nombre_completo},\n\n'
+        f'Se ha creado una cuenta para ti en el Sistema TechCare.\n\n'
+        f'Usuario    : {usuario_login}\n'
+        f'Contraseña : {password}\n\n'
+        f'Accede al sistema en:\n'
+        f'https://servicios.ana-hn.org:437\n\n'
+        f'Por seguridad, cambia tu contraseña en el primer inicio de sesión.'
+    )
+    html_bienvenida = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#1864ab,#228be6);padding:32px 40px;text-align:center;">
+          <p style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">TechCare</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Asociación Nuevo Amanecer</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 40px 24px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a2e;">¡Bienvenido/a, {nombre_completo}!</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#6c757d;">Tu cuenta en el Sistema TechCare ha sido creada exitosamente.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:24px;">
+            <tr>
+              <td style="padding:6px 0;">
+                <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Usuario</span><br>
+                <span style="font-size:15px;font-weight:600;color:#1a1a2e;">{usuario_login}</span>
+              </td>
+            </tr>
+            <tr><td style="border-top:1px solid #e9ecef;padding-top:12px;margin-top:12px;">
+              <span style="font-size:12px;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;">Contraseña</span><br>
+              <span style="font-size:15px;font-weight:600;color:#1a1a2e;font-family:monospace;">{password}</span>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="https://servicios.ana-hn.org:437"
+                 style="display:inline-block;background:#228be6;color:#ffffff;text-decoration:none;padding:13px 36px;border-radius:8px;font-size:15px;font-weight:600;">
+                Acceder al sistema
+              </a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#adb5bd;">
+            Por seguridad, cambia tu contraseña en el primer inicio de sesión.<br>
+            © {datetime.datetime.now().year} Soporte Técnico – Asociación Nuevo Amanecer
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>"""
+    try:
+        msg = EmailMultiAlternatives('Bienvenido al Sistema TechCare', texto_plano,
+                                     settings.DEFAULT_FROM_EMAIL, [destinatario])
+        msg.attach_alternative(html_bienvenida, "text/html")
+        msg.send(fail_silently=False)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+# <--- hecho por claude code: descripción legible de cada grupo (para el tooltip del formulario de usuario)
+_GRUPO_DESCRIPCIONES = {
+    'administracion': 'Panel de Administración: gestión de tickets/solicitudes (ve solo sus tickets).',
+    'Contabilidad': 'Módulo de Contabilidad: inventario contable (kardex, promedio ponderado, proveedores, compras).',
+    'contabilidad_cfp': 'Contabilidad del CFP (Centro de Formación Profesional).',
+    'control baño coord': 'Registro de Salidas al Baño — coordinación.',
+    'control baño coord cfp': 'Salidas al Baño — coordinación CFP.',
+    'control baños cfp': 'Salidas al Baño — CFP.',
+    'control baños col': 'Salidas al Baño — Colegio / Bachillerato.',
+    'coord_notas_parcial_bl': 'Coordinación de Notas Mitad de Parcial — Bilingüe (revisión / asignaciones).',
+    'coord_notas_parcial_col': 'Coordinación de Notas Mitad de Parcial — Colegio.',
+    'coord_progress_bl': 'Coordinación de Progress Reports — Bilingüe.',
+    'coord_revision': 'Revisión de reportes (coordinación).',
+    'coordinador_bilingue': 'Coordinador de reportes conductuales/académicos — Bilingüe (C1–C4).',
+    'coordinador_colegio': 'Coordinador de reportes — Colegio.',
+    'desarrollo_admin': 'Gestión de Desarrollo: administra requerimientos y proyectos (acceso total).',
+    'desarrollo_dev': 'Gestión de Desarrollo: desarrollador (ve y trabaja los requerimientos).',
+    'desarrollo_solicitante': 'Gestión de Desarrollo: crea requerimientos y ve su historial.',
+    'director_cfp': 'Director del CFP: define jornada/horas y ve todo el programa.',
+    'enfermeria': 'Panel de Enfermería: atenciones médicas y control de medicamentos.',
+    'Finanzas': 'Módulo de Finanzas.',
+    'ingreso notas': 'Ingreso de Notas al sistema académico (paraguas — ambas áreas).',
+    'ingreso notas bilingue': 'Ingreso de Notas — área Bilingüe.',
+    'ingreso notas colegio': 'Ingreso de Notas — área Colegio.',
+    'instructores': 'Instructores.',
+    'instructores_cfp': 'Instructores del CFP (llenan las notas de sus cursos).',
+    'inventario': 'Inventario de activos de TI (computadoras, TVs, impresoras, routers, etc.).',
+    'maestros_bilingue': 'Maestros — Bilingüe (crean reportes y agendas).',
+    'maestros_colegio': 'Maestros — Colegio.',
+    'maestros_notas_parcial_bl': 'Maestros de Notas Mitad de Parcial — Bilingüe.',
+    'maestros_notas_parcial_col': 'Maestros de Notas Mitad de Parcial — Colegio.',
+    'reloj': 'Control de asistencia (reloj): marcas, permisos y reportes.',
+    'monitoreo': 'Monitoreo: acceso a la Auditoría y Actividad del sistema (solo lectura).',
+}
+
+def _grupos_con_desc():
+    """Grupos ordenados, cada uno con su .descripcion (para los checkboxes + tooltip)."""
+    grupos = list(Group.objects.all().order_by('name'))
+    for g in grupos:
+        g.descripcion = _GRUPO_DESCRIPCIONES.get(g.name, 'Grupo de acceso del sistema.')
+    return grupos
+
+
 @login_required
 def settings_usuario_crear(request):
     if not _can_manage(request.user):
         return redirect('settings_perfil')
 
-    grupos = Group.objects.all().order_by('name')
+    # <--- hecho por claude code: el toggle "Crear usuarios nuevos" también gobierna
+    # este flujo (antes solo afectaba a register_maestro). Apagado = nadie crea, ni admin.
+    from constance import config
+    if not config.REGISTRO_USUARIOS_ACTIVO:
+        messages.warning(request, 'La creación de usuarios está desactivada. Actívala en Configuración → Seguridad.')
+        return redirect('settings_usuarios')
+
+    grupos = _grupos_con_desc()
 
     if request.method == 'POST':
         username   = request.POST.get('username', '').strip()
+        # <--- hecho por claude code: el login normal arma "{usuario}@ana-hn.org", así que
+        # el username SIEMPRE debe llevar el dominio institucional (evita que no puedan entrar).
+        if username and '@' not in username:
+            username = f'{username}@ana-hn.org'
         first_name = request.POST.get('first_name', '').strip()
         last_name  = request.POST.get('last_name', '').strip()
         email      = request.POST.get('email', '').strip()
@@ -1531,7 +1784,19 @@ def settings_usuario_crear(request):
             )
             if group_ids:
                 u.groups.set(Group.objects.filter(pk__in=group_ids))
-            messages.success(request, f'Usuario "{username}" creado correctamente.')
+            # <--- hecho por claude code: enviar credenciales por correo si se marcó y hay email
+            enviar = request.POST.get('enviar_correo') == 'on'
+            if enviar and email:
+                nombre = f"{first_name} {last_name}".strip() or username
+                ok, err = _enviar_credenciales_correo(email, nombre, username, password)
+                if ok:
+                    messages.success(request, f'Usuario "{username}" creado. Se envió el correo con las credenciales a {email}.')
+                else:
+                    messages.warning(request, f'Usuario "{username}" creado, pero NO se envió el correo: {err}')
+            elif enviar and not email:
+                messages.warning(request, f'Usuario "{username}" creado, pero no se envió correo: falta el email.')
+            else:
+                messages.success(request, f'Usuario "{username}" creado correctamente.')
             return redirect('settings_usuarios')
 
     ctx = _settings_ctx(request, 'usuarios')
@@ -1545,7 +1810,7 @@ def settings_usuario_editar(request, pk):
         return redirect('settings_perfil')
 
     u      = get_object_or_404(User, pk=pk)
-    grupos = Group.objects.all().order_by('name')
+    grupos = _grupos_con_desc()
 
     if request.method == 'POST':
         u.first_name = request.POST.get('first_name', '').strip()
@@ -1712,8 +1977,9 @@ def settings_grupo_usuarios(request, pk):
 # ── 5. Actividad (superuser) ──────────────────────────────────
 @login_required
 def settings_actividad(request):
-    if not request.user.is_superuser:
-        messages.error(request, 'Solo superusuarios pueden ver la actividad del sistema.')
+    # <--- hecho por claude code: además del superusuario, el grupo 'monitoreo' puede ver la actividad
+    if not (request.user.is_superuser or request.user.groups.filter(name='monitoreo').exists()):
+        messages.error(request, 'No tiene acceso a la actividad del sistema.')
         return redirect('settings_perfil')
 
     from core.models import Notificacion
@@ -1937,7 +2203,7 @@ def settings_reloj_permisos(request):
     if not request.user.is_superuser:
         return redirect('settings_perfil')
 
-    EMAILS_RELOJ = ['glorenzo@ana-hn.org', 'yzavala@ana-hn.org']
+    EMAILS_RELOJ = ['glorenzo@ana-hn.org', 'yzavala@ana-hn.org', 'ylagos@ana-hn.org']  # <--- hecho por claude code: + Yeny Lagos
     usuarios = list(
         User.objects.filter(email__in=EMAILS_RELOJ, is_active=True).order_by('first_name', 'last_name')
     )
@@ -2369,8 +2635,9 @@ def _build_audit_event(hr, with_table=False, model=None):
 def settings_auditoria(request):
     """Auditoría completa vía django-simple-history: quién creó/editó/eliminó
     cada registro, cuándo y qué cambió (valor anterior → nuevo). Solo superuser."""
-    if not request.user.is_superuser:
-        messages.error(request, 'Solo superusuarios pueden ver la auditoría del sistema.')
+    # <--- hecho por claude code: además del superusuario, el grupo 'monitoreo' puede ver la auditoría
+    if not (request.user.is_superuser or request.user.groups.filter(name='monitoreo').exists()):
+        messages.error(request, 'No tiene acceso a la auditoría del sistema.')
         return redirect('settings_perfil')
 
     from django.core.paginator import Paginator

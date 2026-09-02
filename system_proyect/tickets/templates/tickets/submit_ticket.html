@@ -50,6 +50,18 @@
                  value="{{ user_email }}" {% if user_email %}readonly{% endif %}>
         </div>
 
+        {# <--- hecho por claude code: el usuario elige la urgencia (define el SLA) #}
+        <div class="mb-3">
+          <label class="form-label fw-semibold required">Nivel de urgencia</label>
+          <select class="form-select" name="urgencia" required>
+            <option value="bajo">Bajo — se resuelve en 72 h laborales</option>
+            <option value="medio" selected>Medio — se resuelve en 24 h laborales</option>
+            <option value="alto">Alto — se resuelve en 8 h laborales</option>
+            <option value="urgente">Urgente — se resuelve en 2 h laborales</option>
+          </select>
+          <div class="form-hint">El horario laboral es L–V de 7:00 a 4:00 pm.</div>
+        </div>
+
         <div class="mb-3">
           <label class="form-label fw-semibold required">Descripción del Problema</label>
           <textarea class="form-control" name="description" rows="4" required

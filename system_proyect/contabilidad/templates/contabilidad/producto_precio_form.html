@@ -1,0 +1,100 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: form dedicado de precios — proveedor + venta, ISV 15% automático #}
+{% block title %}Precio · {{ prod.nombre }}{% endblock %}
+{% block page_pretitle %}Contabilidad · Inventario{% endblock %}
+{% block page_title %}Precio de venta{% endblock %}
+{% block back_button %}
+  <a href="{% url 'contabilidad:producto_kardex' prod.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-tag me-2 text-primary"></i>Precio del producto</h3></div>
+      <div class="card-body">
+        <form method="post" novalidate id="form-precio">
+          {% csrf_token %}
+
+          {# Producto (solo lectura) #}
+          <div class="mb-3">
+            <label class="form-label">Producto</label>
+            <input type="text" class="form-control bg-light" value="{{ prod.nombre }}{% if prod.talla %} · Talla {{ prod.talla }}{% endif %}" disabled>
+            <div class="form-hint">
+              <span class="badge bg-blue-lt text-blue">{{ prod.area.nombre }}</span>
+              <span class="badge bg-cyan-lt text-cyan">{{ prod.tipo.nombre }}</span>
+            </div>
+          </div>
+
+          {# Proveedor (select) #}
+          <div class="mb-3">
+            <label class="form-label required">Proveedor</label>
+            {{ form.proveedor }}
+            {% if form.proveedor.errors %}<div class="text-danger small">{{ form.proveedor.errors|striptags }}</div>{% endif %}
+            <div class="form-hint">El precio de abajo es el que puso ESTE proveedor. Cada proveedor puede tener su propio precio.</div>
+          </div>
+
+          {# Costo de venta (precio del proveedor) #}
+          <div class="mb-3">
+            <label class="form-label required">Costo de venta — precio al que el proveedor te lo trae (L)</label>
+            {{ form.precio_proveedor }}
+            {% if form.precio_proveedor.errors %}<div class="text-danger small">{{ form.precio_proveedor.errors|striptags }}</div>{% endif %}
+            <div class="form-hint">Costo del proveedor (referencia; no cambia el costo promedio del kardex).</div>
+          </div>
+
+          {# Precio de venta #}
+          <div class="mb-3">
+            <label class="form-label required">Precio de venta (L)</label>
+            {{ form.precio_venta }}
+            {% if form.precio_venta.errors %}<div class="text-danger small">{{ form.precio_venta.errors|striptags }}</div>{% endif %}
+          </div>
+
+          {# ISV 15% + precio final (automáticos) #}
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted small">Impuesto (ISV 15% incluido)</div>
+                <div class="h3 m-0" id="isv-out">L 0.00</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted small">Precio final (ISV incluido)</div>
+                <div class="h3 m-0 text-success" id="final-out">L 0.00</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar precio</button>
+            <a href="{% url 'contabilidad:producto_kardex' prod.pk %}" class="btn btn-ghost-secondary">Cancelar</a>
+          </div>
+        </form>
+
+        {# Precios por proveedor ya registrados #}
+        {% if precios %}
+        <hr>
+        <div class="text-muted small mb-2"><i class="ti ti-list me-1"></i>Precios por proveedor registrados</div>
+        <div class="table-responsive">
+          <table class="table table-sm table-vcenter mb-0">
+            <thead><tr><th>Proveedor</th><th class="text-end">Precio</th></tr></thead>
+            <tbody>
+              {% for pp in precios %}
+              <tr><td>{{ pp.proveedor.nombre }}</td><td class="text-end fw-semibold">{{ pp.precio|lps }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<div id="precios-prov" hidden data-precios="{{ precios_json }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'contabilidad/js/producto_precio.js' %}?v=3"></script>
+{% endblock %}

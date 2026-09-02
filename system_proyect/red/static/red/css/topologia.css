@@ -1,0 +1,3 @@
+/* <--- hecho por claude code: editor de topología */
+#cy { width: 100%; height: 600px; background: #f8f9fb; border-radius: 6px; }
+:root[data-theme="dark"] #cy, :root:not([data-theme="light"]) #cy { background: #1a2234; }

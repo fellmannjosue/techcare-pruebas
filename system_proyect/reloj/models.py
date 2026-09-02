@@ -759,6 +759,10 @@ class BonoConfig(models.Model):
     # <--- hecho por claude code: día laborable con UNA sola marca (le falta la entrada
     # o la salida) hace perder el bono de inmediato, sin tolerancia.
     regla_marca_faltante  = models.BooleanField("Regla: Falta de marca activa", default=True)
+    # <--- hecho por claude code: tope DURO de entrada. Una marca >= a esta hora hace
+    # perder el bono de inmediato (sin tolerancia), aunque sea la 1ra vez. Solo aplica
+    # al límite global (no a los horarios especiales de maestros por hora ni vigilancia).
+    hora_perdida_auto     = models.TimeField("Entrada que pierde el bono automáticamente", default=_t(7, 0))
 
     class Meta:
         db_table = "reloj_bono_config"
@@ -794,6 +798,28 @@ class BonoReglaExtra(models.Model):
 
     def __str__(self):
         return self.descripcion or f"{self.get_tipo_display()}"
+
+
+class BonoExencionEmpleado(models.Model):
+    """<--- hecho por claude code: "permiso especial" del bono — empleados autorizados
+    (por Dirección) a entrar tarde y/o salir temprano sin que las reglas de MARCAS del
+    bono los penalicen. Las reglas por tipo de permiso siguen aplicando normal."""
+    emp_code        = models.CharField("Código empleado", max_length=20, db_index=True, unique=True)
+    nombre          = models.CharField("Nombre", max_length=120, blank=True, default='')
+    exento_entrada  = models.BooleanField("Exento de reglas de ENTRADA (tarde / tope 07:00)", default=False)
+    exento_salida   = models.BooleanField("Exento de falta de marca de SALIDA (salida temprana)", default=False)
+    nota            = models.CharField("Motivo / permiso especial", max_length=200, blank=True, default='')
+    activa          = models.BooleanField("Activa", default=True)
+    creado_en       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_bono_exencion_empleado"
+        verbose_name = "Exención de bono (permiso especial)"
+        verbose_name_plural = "Exenciones de bono (permiso especial)"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.nombre or self.emp_code}"
 
 
 class BonoHorarioEmpleado(models.Model):

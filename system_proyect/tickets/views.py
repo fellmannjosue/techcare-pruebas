@@ -22,6 +22,20 @@ from core.utils_notifications import crear_notificacion
 PUBLIC_IMAGE_URL = ""
 
 
+def _es_gestor_tickets(user):
+    """<--- hecho por claude code: 'gestor/técnico de tickets' = superusuario, con permiso
+    tickets.view_ticket, o en un grupo de técnicos. NO se basa en is_staff: el grupo
+    'administracion' es is_staff pero NO gestiona tickets — solo debe ver los SUYOS, como
+    un usuario normal (antes veía todos por usar is_staff en la vista de chat)."""
+    return bool(
+        getattr(user, 'is_authenticated', False) and (
+            user.is_superuser
+            or user.has_perm('tickets.view_ticket')
+            or user.groups.filter(name__icontains='tecnico').exists()
+        )
+    )
+
+
 # ======================================================
 # HELPER: notificar nuevo ticket a técnicos y superusers
 # ======================================================
@@ -127,6 +141,7 @@ def submit_ticket(request):
                     grade=grade,
                     email=email,
                     description=description,
+                    urgencia=(data.get('urgencia') or 'medio'),  # <--- hecho por claude code
                     usuario=request.user if request.user.is_authenticated else None
                 )
 
@@ -217,6 +232,28 @@ def technician_dashboard(request):
     return render(request, 'tickets/technician_dashboard.html', {'tickets': tickets})
 
 
+# <--- hecho por claude code: tickets SIN ATENDER (Nuevo/Pendiente) para la alerta cada 10 min
+@login_required
+def tickets_sin_atender_ajax(request):
+    if not _es_gestor_tickets(request.user):
+        return JsonResponse({'ok': False, 'count': 0, 'tickets': []})
+    from django.utils import timezone
+    from .sla import minutos_laborales_entre
+    qs = Ticket.objects.filter(status__in=['Nuevo', 'Pendiente']).order_by('created_at')
+    data = []
+    ahora = timezone.now()
+    for t in qs:
+        data.append({
+            'id': t.id,
+            'ticket_id': t.ticket_id,
+            'name': t.name,
+            'urgencia': t.urgencia,
+            'espera_min': (minutos_laborales_entre(t.created_at, ahora) if t.created_at else 0),
+            'vencido': t.sla_estado == 'vencido',
+        })
+    return JsonResponse({'ok': True, 'count': len(data), 'tickets': data})
+
+
 # ======================================================
 # 🔥 COMENTARIOS DE TICKET (CHAT HUMANO)
 # ======================================================
@@ -296,7 +333,7 @@ def ticket_comments(request, ticket_id):
             comentario = form.save(commit=False)
             comentario.ticket = ticket
             comentario.usuario = request.user
-            comentario.tipo = "usuario" if not request.user.is_staff else "tecnico"
+            comentario.tipo = "usuario" if not _es_gestor_tickets(request.user) else "tecnico"
             comentario.save()
 
             # 🔔 Notificar según quién comenta
@@ -322,9 +359,9 @@ def ticket_comments(request, ticket_id):
         return redirect('ticket_comments', ticket_id=ticket.id)
 
     form = TicketCommentForm()
-    template = 'tickets/ticket_comments_tech.html' if request.user.is_staff else 'tickets/ticket_comments_user.html'
+    template = 'tickets/ticket_comments_tech.html' if _es_gestor_tickets(request.user) else 'tickets/ticket_comments_user.html'
 
-    if request.user.is_staff:
+    if _es_gestor_tickets(request.user):
         sidebar_tickets = Ticket.objects.all().order_by('-id')[:60]
     else:
         sidebar_tickets = Ticket.objects.filter(usuario=request.user).order_by('-id')
@@ -346,7 +383,7 @@ def ticket_comments_ajax(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
 
-    template = 'tickets/_comments_partial_tech.html' if request.user.is_staff else 'tickets/_comments_partial_user.html'
+    template = 'tickets/_comments_partial_tech.html' if _es_gestor_tickets(request.user) else 'tickets/_comments_partial_user.html'
     html = render_to_string(template, {"comentarios": comentarios, "request": request})
 
     return JsonResponse({'html': html})
@@ -378,7 +415,7 @@ def ticket_send_comment_ajax(request, ticket_id):
         usuario=request.user,
         mensaje=mensaje,
         archivo=archivo,
-        tipo="usuario" if not request.user.is_staff else "tecnico"
+        tipo="usuario" if not _es_gestor_tickets(request.user) else "tecnico"
     )
 
     # Notificaciones
@@ -465,7 +502,7 @@ def ticket_status_update_ajax(request, ticket_id):
 @login_required
 @require_POST
 def ticket_eliminar_ajax(request, ticket_id):
-    if not request.user.is_staff:
+    if not _es_gestor_tickets(request.user):
         return JsonResponse({"ok": False, "error": "Sin permiso"}, status=403)
     ticket = get_object_or_404(Ticket, id=ticket_id)
     ticket.delete()
@@ -552,7 +589,7 @@ def ticket_contact_technician(request, ticket_id):
 
 
 # ======================================================
-# CHAT IA — <--- hecho por claude code: ACTIVADO en pruebas (03-sep-2026)
+# CHAT IA — <--- hecho por claude code: ACTIVADO en pruebas
 # ======================================================
 @csrf_exempt
 @require_POST

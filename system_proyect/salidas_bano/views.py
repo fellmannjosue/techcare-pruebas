@@ -354,6 +354,14 @@ def index(request, ambito='colegio'):
         error = f'No hay período activo para {dict(areas).get(area, area)}. Configúralo en la pestaña Períodos.'
 
     todos = _alumnos_area(area)
+    # <--- hecho por claude code: en CFP un instructor ve SOLO sus cursos asignados
+    # (InstructorCurso). El coordinador de salidas, el director CFP y el superusuario
+    # siguen viendo todos los cursos. Antes las instructoras veían los 5 cursos.
+    if area == 'cfp' and not es_coord:
+        from cfp.views import _cursos_instructor
+        _mis_cursos = _cursos_instructor(request.user)   # None = ve todos (director/superuser)
+        if _mis_cursos is not None:
+            todos = [a for a in todos if a['grado'] in _mis_cursos]
     for a in todos:
         g = a['grado']
         if g not in alumnos_por_grado:

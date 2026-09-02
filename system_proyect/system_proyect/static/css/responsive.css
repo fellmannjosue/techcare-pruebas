@@ -75,3 +75,49 @@ img { max-width: 100%; }
   /* Grupos de botones a ancho completo apilados */
   .btn-list .btn { flex: 1 1 auto; }
 }
+
+/* ============================================================
+   HARDENING RESPONSIVE — refuerzo global (hecho por claude code)
+   Guardas universales para que NINGÚN elemento desborde en
+   celular/tablet, aplicadas a todo el proyecto vía base_app.html.
+   ============================================================ */
+
+/* La página nunca hace scroll horizontal (clip conserva position:sticky) */
+html, body { overflow-x: clip; }
+
+/* Multimedia y bloques de código nunca desbordan */
+img, svg, video, canvas, iframe, embed, object, table { max-width: 100%; }
+pre, code, kbd, samp {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Permite que columnas/tarjetas flex se encojan (evita desbordes por min-width:auto) */
+.page-wrapper, .page-body, .container, .container-fluid,
+.row, .col, [class*="col-"], .card, .card-body { min-width: 0; }
+
+@media (max-width: 991.98px) {
+  /* Toda tabla scrollea aunque no tenga wrapper .table-responsive */
+  .table-responsive { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Formularios, selects y Select2 nunca desbordan */
+  .form-control, .form-select, .input-group, .select2-container { max-width: 100% !important; }
+
+  /* Grupos de botones, toolbars y navs envuelven en vez de desbordar */
+  .btn-group, .btn-list, .card-actions, .nav:not(.navbar-nav) { flex-wrap: wrap; }
+
+  /* Grillas de tarjetas (lanzadores) a 1-2 columnas cómodas */
+  .row-cards { --tblr-gutter-x: .75rem; --tblr-gutter-y: .75rem; }
+}
+
+@media (max-width: 768px) {
+  /* Gutters de grilla más compactos para ganar ancho útil */
+  .row { --tblr-gutter-x: .75rem; }
+
+  /* Encabezado de página: título y acciones con separación al apilar */
+  .page-header .row { row-gap: .4rem; }
+
+  /* Definiciones (dl.row) legibles en columna estrecha */
+  dl.row > dt, dl.row > dd { overflow-wrap: anywhere; }
+}

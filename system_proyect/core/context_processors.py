@@ -110,6 +110,8 @@ def nav_context(request):
         nav_home_url = reverse('tickets_dashboard')
     elif grp('reloj'):
         nav_home_url = reverse('reloj_dashboard')
+    elif grp('enfermeria'):   # <--- hecho por claude code: inicio de enfermería = su dashboard
+        nav_home_url = reverse('enfermeria:enfermeria_dashboard')
     # 'administracion' va de último: solo es el inicio cuando el usuario NO tiene
     # otro rol con dashboard propio. Si tiene otro rol, su inicio es el de ese rol
     # y Tickets aparece solo en el sidebar (nav_tickets).
@@ -132,7 +134,10 @@ def nav_context(request):
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
         'nav_cfp':              is_admin or grp('director_cfp', 'instructores', 'contabilidad_cfp'),
-        'nav_maintenance':      is_admin or can('mantenimiento.view_reportemantenimiento'),
+        # <--- hecho por claude code: el permiso 'view_reportemantenimiento' no existe (el modelo
+        # es maintenancerecord) — con eso el menú jamás salía para no-admins. Se corrige y se
+        # acepta también el grupo 'mantenimiento' (Yeny Lagos, auditora de Control de equipo).
+        'nav_maintenance':      is_admin or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_coord_bl':         nav_coord_bl,
         'nav_coord_col':        nav_coord_col,
@@ -149,6 +154,13 @@ def nav_context(request):
         'nav_ingresos_notas':   is_admin or grp('ingreso notas', 'ingreso notas bilingue', 'ingreso notas colegio'),
         # <--- hecho por claude code: enlace a Ruteo BL para coordinadores C1/C2/C4 (si el toggle está activo)
         'nav_ruteo_bl':         _puede_ver_ruteo_bl(request),
+        # <--- hecho por claude code: Gestión de Desarrollo para admin/dev + staff solicitante
+        'nav_desarrollo':       is_admin or grp('desarrollo_admin', 'desarrollo_dev', 'desarrollo_solicitante'),
+        # <--- hecho por claude code: Contabilidad gated por permiso (no por is_staff)
+        'nav_contabilidad':     is_admin or request.user.has_perm('contabilidad.ver_contabilidad'),
+        # <--- hecho por claude code: Red (ANA Network Manager) por permiso; grupos `red` (lectura) y `red_admin`
+        'nav_red':              is_admin or request.user.has_perm('red.ver_red'),
+        'nav_red_admin':        is_admin or request.user.has_perm('red.administrar_red'),
     }
 
 

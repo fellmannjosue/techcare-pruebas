@@ -126,4 +126,37 @@ window._PAGE = { agendaId: CFG_EDITAR_AGENDA.j2, csrf: CFG_EDITAR_AGENDA.v0, sub
   window.eliminarImg = eliminarImg;
   window.addAsociada = addAsociada;
   window._asoRemove  = _asoRemove;
+
+  /* <--- hecho por claude code: AUTOGUARDADO de la agenda (ya no hay botón Guardar).
+     Guarda al salir de una casilla o ~1.2 s tras dejar de escribir, sin recargar. */
+  var form   = document.getElementById('formEditar');
+  var estado = document.getElementById('agenda-estado');
+  function setEstado(txt, cls) {
+    if (estado) { estado.textContent = txt; estado.className = 'small ms-2 ' + (cls || 'text-muted'); }
+  }
+  var saveTimer = null;
+  function autoguardar() {
+    if (!form) return;
+    var fd = new FormData(form);      // incluye csrfmiddlewaretoken y todas las celdas
+    fd.append('ajax', '1');
+    setEstado('Guardando…', 'text-muted');
+    fetch(form.action || window.location.href, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': CSRF },
+      body: fd
+    }).then(function (r) { return r.json(); })
+      .then(function (d) { setEstado(d.ok ? '✓ Guardado' : 'No se pudo guardar', d.ok ? 'text-green' : 'text-danger'); })
+      .catch(function () { setEstado('Sin conexión — no se guardó', 'text-danger'); });
+  }
+  if (form) {
+    form.addEventListener('input', function (e) {
+      if (e.target && e.target.tagName === 'TEXTAREA') {
+        clearTimeout(saveTimer); saveTimer = setTimeout(autoguardar, 1200);
+      }
+    });
+    form.addEventListener('change', function (e) {
+      if (e.target && e.target.tagName === 'TEXTAREA') { clearTimeout(saveTimer); autoguardar(); }
+    });
+  }
+  window._agendaAutoguardar = autoguardar;
 })();

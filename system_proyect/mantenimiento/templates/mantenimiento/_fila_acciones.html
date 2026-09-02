@@ -1,0 +1,22 @@
+{# <--- hecho por claude code: celda de acciones compartida por las 3 pestañas (computadoras / impresoras / control) #}
+<td class="text-nowrap">
+  {% if r.tipo_equipo == 'inspeccion' %}
+  {# <--- hecho por claude code: la inspección se firma con el nombre del asignado, sin link #}
+  {% elif r.tipo_equipo == 'control' and r.firmado_maestro or r.tipo_equipo != 'control' and r.status == 'Completado' %}
+  <span class="btn btn-sm btn-secondary disabled" style="opacity:.55"
+        title="{% if r.tipo_equipo == 'control' %}Control ya firmado por el maestro{% else %}Ficha completada — envío de firma bloqueado{% endif %}"><i class="ti ti-lock"></i></span>
+  {% else %}
+  <button class="btn btn-sm btn-firma-link text-white"
+          style="background:#25D366;border-color:#25D366;"
+          data-rid="{{ r.record_id }}"
+          data-link="{{ site_url }}{% url 'mantenimiento:firmar_publico' r.token_firma %}"
+          data-mark="{% url 'mantenimiento:marcar_firma_solicitada' r.id %}"
+          title="Enviar firma al maestro por WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>
+  {% endif %}
+  <a href="{% url 'mantenimiento:download_maintenance_pdf' r.id %}"
+     class="btn btn-sm btn-ghost-secondary" title="Descargar PDF"><i class="ti ti-file-type-pdf"></i></a>
+  <button class="btn btn-sm btn-ghost-primary btn-editar-mant"
+          data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+  <button class="btn btn-sm btn-ghost-danger btn-eliminar-mant"
+          data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+</td>

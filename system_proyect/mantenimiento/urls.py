@@ -12,6 +12,8 @@ urlpatterns = [
         name='maintenance_dashboard'
     ),
     path('download/<int:record_id>/',  views.download_maintenance_pdf, name='download_maintenance_pdf'),
+    path('control/reporte.pdf',        views.control_reporte_pdf,      name='control_reporte_pdf'),
+    path('control/fichas.pdf',         views.control_fichas_pdf,       name='control_fichas_pdf'),
     path('<int:pk>/editar/',           views.editar_mantenimiento,      name='editar_mantenimiento'),
     path('<int:pk>/eliminar/',         views.eliminar_mantenimiento,    name='eliminar_mantenimiento'),
     path('tipo-falla/crear/',          views.tipo_falla_crear,          name='tipo_falla_crear'),

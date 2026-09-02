@@ -21,6 +21,30 @@
     return el ? String(el.value).trim() : '';
   }
 
+  // ── sumar_horas ── <--- hecho por claude code: suma de varias filas HH:MM
+  function computeSumarHoras(card) {
+    var total = 0, usadas = 0;
+    card.querySelectorAll('.sh-fila').forEach(function (f) {
+      var h = parseInt(f.querySelector('.sh-h').value, 10) || 0;
+      var m = parseInt(f.querySelector('.sh-m').value, 10) || 0;
+      if (h === 0 && m === 0) return;
+      usadas++; total += h * 60 + m;
+    });
+    if (total <= 0) return { ok: false, error: 'Ingresa al menos una fila con horas o minutos.' };
+    var hh = Math.floor(total / 60), mm = total % 60;
+    var principal = '';
+    if (hh > 0 && mm > 0) principal = hh + (hh === 1 ? ' hora ' : ' horas ') + mm + (mm === 1 ? ' minuto' : ' minutos');
+    else if (hh > 0) principal = hh + (hh === 1 ? ' hora' : ' horas');
+    else principal = mm + (mm === 1 ? ' minuto' : ' minutos');
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return { ok: true, fields: {
+      principal: principal,
+      hhmm: pad(hh) + ':' + pad(mm),
+      decimal: (total / 60).toFixed(2) + ' h',
+      nota: usadas + (usadas === 1 ? ' línea sumada' : ' líneas sumadas') + ' · ' + total + ' minutos en total'
+    } };
+  }
+
   // ── entre_horas ──
   function computeEntreHoras(card) {
     var ini = strVal(card, '#inp-hora-inicio');
@@ -101,6 +125,7 @@
 
   function calcFor(card) {
     switch (card.getAttribute('data-calc')) {
+      case 'sumar_horas': return computeSumarHoras(card);
       case 'entre_horas': return computeEntreHoras(card);
       case 'horas_dias': return computeHorasDias(card);
       case 'minutos_horas': return computeMinutosHoras(card);
@@ -139,5 +164,31 @@
     if (!btn) return;
     var card = btn.closest('.calc-card');
     if (card) runCard(card);
+  });
+
+  // <--- hecho por claude code: filas dinámicas de "Sumar horas"
+  document.addEventListener('click', function (e) {
+    var add = e.target.closest('#sh-add');
+    if (add) {
+      var filas = document.getElementById('sh-filas');
+      var f = filas.querySelector('.sh-fila').cloneNode(true);
+      f.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      filas.appendChild(f);
+      return;
+    }
+    var quitar = e.target.closest('.sh-quitar');
+    if (quitar) {
+      var filas2 = document.getElementById('sh-filas');
+      if (filas2.querySelectorAll('.sh-fila').length > 1) quitar.closest('.sh-fila').remove();
+      else quitar.closest('.sh-fila').querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      return;
+    }
+    var borrar = e.target.closest('#sh-borrar');
+    if (borrar) {
+      var card = borrar.closest('.calc-card');
+      card.querySelectorAll('.sh-fila input').forEach(function (i) { i.value = ''; });
+      var res = card.querySelector('[data-result]'); if (res) res.classList.add('d-none');
+      var err = card.querySelector('[data-error]'); if (err) err.classList.add('d-none');
+    }
   });
 })();

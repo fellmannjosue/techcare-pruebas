@@ -35,18 +35,47 @@ const IMP_DATA = window._PAGE.impresorasJson || {};
 $(function () {
 
   // DataTable (envuelto en try-catch para que un error no detenga el resto del JS)
+  // <--- hecho por claude code: una DataTable por pestaña (computadoras / impresoras / control)
   try {
     $.fn.dataTable.ext.errMode = 'none';
-    $('#tablaMantenimiento').DataTable({
-      pageLength: 15, order: [[7, 'desc']],
-      language: {
-        lengthMenu:"Mostrar _MENU_ registros", zeroRecords:"Sin registros",
-        info:"Mostrando _START_ a _END_ de _TOTAL_", infoEmpty:"Sin registros",
-        infoFiltered:"(de _MAX_ totales)", search:"Buscar:",
-        paginate:{first:"«",last:"»",next:"›",previous:"‹"}
-      }
+    $('.tabla-mant').each(function(){
+      const col = parseInt(this.dataset.orderCol || '7', 10);
+      const dir = this.dataset.orderDir || 'desc';   // <--- hecho por claude code: control ordena por ID asc fijo
+      $(this).DataTable({
+        pageLength: 15, order: [[col, dir]],
+        language: {
+          lengthMenu:"Mostrar _MENU_ registros", zeroRecords:"Sin registros",
+          info:"Mostrando _START_ a _END_ de _TOTAL_", infoEmpty:"Sin registros",
+          infoFiltered:"(de _MAX_ totales)", search:"Buscar:",
+          paginate:{first:"«",last:"»",next:"›",previous:"‹"}
+        }
+      });
     });
+    // Al cambiar de pestaña: reajustar columnas (una tabla oculta se inicializa sin anchos) y recordar la pestaña
+    $('#tabs-registros a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e){
+      $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+      try { localStorage.setItem('mant_tab', e.target.getAttribute('href')); } catch(_) {}
+    });
+    try {
+      const ult = localStorage.getItem('mant_tab');
+      if (ult && document.querySelector('#tabs-registros a[href="' + ult + '"]')) {
+        new bootstrap.Tab(document.querySelector('#tabs-registros a[href="' + ult + '"]')).show();
+      }
+    } catch(_) {}
   } catch(e) { console.warn('DataTable init:', e); }
+
+  // <--- hecho por claude code: popovers de detalle (Modelo / Observaciones) creados al primer hover.
+  // Se inicializan perezosamente porque DataTables pagina y las filas no visibles no existen en el DOM al cargar.
+  $(document).on('mouseenter focusin', '.mant-pop', function(){
+    if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+    if (!bootstrap.Popover.getInstance(this)) {
+      bootstrap.Popover.getOrCreateInstance(this, { container: 'body', sanitize: false }).show();
+    }
+  });
+  // Al cambiar de página/orden/búsqueda se cierran los popovers abiertos
+  $('.tabla-mant').on('draw.dt', function(){
+    document.querySelectorAll('.mant-pop').forEach(function(el){ const i = bootstrap.Popover.getInstance(el); if (i) i.hide(); });
+  });
 
   // ── Tipo de Falla: opción "Agregar nueva" → muestra un campo de texto inline ──
   // Pares de [select, input de nueva falla]
@@ -79,6 +108,7 @@ $(function () {
     $('#mant-grado').val(data.grado || '');
     $('#hidden_teacher_name').val(data.asignado || '');
     $('#hidden_grade').val(data.grado || '');
+    $('#insp-firma-nombre').text(data.asignado || '—');   // <--- hecho por claude code: firma de la inspección
   }
 
   $('#id_computadora').on('change', function(){
@@ -94,14 +124,30 @@ $(function () {
   // <--- hecho por claude code: toggle Computadora / Impresora ──────────────
   function setEquipo(tipo) {
     $('#id_tipo_equipo').val(tipo);
-    $('.equipo-computadora').toggleClass('d-none', tipo !== 'computadora');
+    // <--- hecho por claude code: control e inspección reutilizan el bloque de computadora.
+    // Reset + aplicar: un elemento puede tener varias clases solo-* y los toggles
+    // independientes se pisaban entre sí.
+    const esCtrl = tipo === 'control', esInsp = tipo === 'inspeccion';
+    $('.equipo-computadora').toggleClass('d-none', !(tipo === 'computadora' || esCtrl || esInsp));
     $('.equipo-impresora').toggleClass('d-none', tipo !== 'impresora');
+    $('.equipo-control').toggleClass('d-none', !esCtrl);
+    $('.equipo-inspeccion').toggleClass('d-none', !esInsp);
+    $('.solo-computadora, .solo-control, .solo-inspeccion, .solo-no-control, .solo-no-inspeccion').removeClass('d-none');
+    if (tipo !== 'computadora') $('.solo-computadora').addClass('d-none');
+    if (!esCtrl) $('.solo-control').addClass('d-none');
+    if (!esInsp) $('.solo-inspeccion').addClass('d-none');
+    if (esCtrl) $('.solo-no-control').addClass('d-none');
+    if (esInsp) $('.solo-no-inspeccion').addClass('d-none');
     $('.mant-equipo-btn').each(function(){
       const activo = $(this).data('equipo') === tipo;
       $(this).toggleClass('btn-primary', activo).toggleClass('btn-outline-primary', !activo);
     });
   }
   $('.mant-equipo-btn').on('click', function(){ setEquipo($(this).data('equipo')); });
+
+  // <--- hecho por claude code: "¿Cuáles fallas?" solo si respondió Sí (nuevo y editar)
+  $(document).on('change', '#id_eval_fallas', function(){ $('#ctrl-fallas-detalle-wrap').toggleClass('d-none', this.value !== 'si'); });
+  $(document).on('change', '#edit-eval-fallas', function(){ $('#edit-ctrl-fallas-detalle-wrap').toggleClass('d-none', this.value !== 'si'); });
 
   // <--- hecho por claude code: auto-llenado al seleccionar impresora
   $('#id_impresora').on('change', function(){
@@ -343,6 +389,56 @@ $(function () {
       $('#edit-status').val(d.status);
       $('#edit-solucion').val(d.solucion);
       $('#edit-observaciones').val(d.observaciones);
+      // <--- hecho por claude code: el modal de edición se adapta al Control de equipo
+      const esCtrl = d.tipo_equipo === 'control';
+      const esInsp = d.tipo_equipo === 'inspeccion';
+      $('.edit-inspeccion').toggleClass('d-none', !esInsp);
+      $('#edit-insp-limpio').prop('checked', !!d.insp_limpio);
+      $('#edit-insp-ordenado').prop('checked', !!d.insp_ordenado);
+      $('#edit-insp-cables').prop('checked', !!d.insp_cables);
+      $('#edit-insp-alimentos').prop('checked', !!d.insp_alimentos);
+      if (esCtrl || esInsp) {
+        // <--- hecho por claude code: el control muestra al portador ACTUAL del inventario
+        const compAct = COMP_DATA[String(d.computadora)] || {};
+        $('#edit-asignado-display').val(compAct.asignado || d.teacher_name || '');
+        $('#edit-grado-display').val(compAct.grado || d.grade || '');
+        $('#edit-teacher-name').val(compAct.asignado || d.teacher_name || '');
+        $('#edit-grade').val(compAct.grado || d.grade || '');
+        $('#edit-insp-firma-nombre').text(compAct.asignado || d.teacher_name || '—');
+      }
+      const esImp  = d.tipo_equipo === 'impresora';
+      $('.edit-control').toggleClass('d-none', !esCtrl);
+      $('.edit-impresora').toggleClass('d-none', !esImp);
+      // <--- hecho por claude code: un campo puede tener AMBAS clases (p. ej. Tipo de Falla es
+      // edit-no-control Y edit-no-impresora); con toggles independientes el segundo "des-ocultaba"
+      // lo que el primero ocultó. Reset y luego ocultar lo que no aplica.
+      $('.edit-no-control, .edit-no-impresora, .edit-no-inspeccion').removeClass('d-none');
+      if (esCtrl) $('.edit-no-control').addClass('d-none');
+      if (esImp) $('.edit-no-impresora').addClass('d-none');
+      if (esInsp) $('.edit-no-inspeccion').addClass('d-none');
+      $('#edit-impresora').val(d.impresora ? String(d.impresora) : '');
+      if (esImp) {
+        const imp = IMP_DATA[String(d.impresora)] || {};
+        $('#edit-model').val(d.model || imp.modelo || '');
+        $('#edit-serie').val(d.serie || imp.serie || '');
+        $('#edit-asignado-display').val(d.teacher_name || imp.asignado || '');
+        $('#edit-teacher-name').val(d.teacher_name || imp.asignado || '');
+      }
+      $('#edit-area').val(d.area || '');
+      $('#edit-tipo-mant-imp').val(d.tipo_mant_impresora || '');
+      $('#edit-estado-tinta').val(d.estado_tinta || '');
+      $('#edit-tipo-tinta').val(d.tipo_tinta || '');
+      $('#edit-tinta-negra').prop('checked', !!d.tinta_negra);
+      $('#edit-tinta-magenta').prop('checked', !!d.tinta_magenta);
+      $('#edit-tinta-amarillo').prop('checked', !!d.tinta_amarillo);
+      $('#edit-tinta-cyan').prop('checked', !!d.tinta_cyan);
+      $('#edit-eval-trabajo').val(d.eval_trabajo || '');
+      $('#edit-eval-fallas').val(d.eval_fallas || '');
+      $('#edit-eval-fallas-detalle').val(d.eval_fallas_detalle || '');
+      $('#edit-ctrl-fallas-detalle-wrap').toggleClass('d-none', !(esCtrl && d.eval_fallas === 'si'));
+      $('#edit-obs-auditora').val(d.obs_auditora || '');
+      $('#edit-obs-tecnico').val(d.obs_tecnico || '');
+      $('#edit-estado-equipo').val(d.estado_equipo || '');
       // Firma del técnico: mostrar la actual (si existe) y limpiar el lienzo
       padEditTec.clear();
       if (d.firma_tecnico) {
@@ -365,6 +461,15 @@ $(function () {
     }).fail(() => Swal.fire('Error', 'No se pudo cargar el registro.', 'error'));
   });
 
+  // <--- hecho por claude code: auto-llenado al cambiar impresora en modal editar
+  $('#edit-impresora').on('change', function(){
+    const imp = IMP_DATA[this.value] || {};
+    $('#edit-model').val(imp.modelo || '');
+    $('#edit-serie').val(imp.serie || '');
+    $('#edit-asignado-display').val(imp.asignado || '');
+    $('#edit-teacher-name').val(imp.asignado || '');
+  });
+
   // Auto-fill al cambiar computadora en modal editar
   $('#edit-computadora').on('change', function(){
     const comp = COMP_DATA[this.value] || {};
@@ -375,6 +480,7 @@ $(function () {
     $('#edit-grado-display').val(comp.grado || '');
     $('#edit-teacher-name').val(comp.asignado || '');
     $('#edit-grade').val(comp.grado || '');
+    $('#edit-insp-firma-nombre').text(comp.asignado || '—');
   });
 
   // ── Eliminar registro ──

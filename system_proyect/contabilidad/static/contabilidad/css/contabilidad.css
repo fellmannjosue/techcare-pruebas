@@ -1,0 +1,15 @@
+/* contabilidad.css — <--- hecho por claude code: estilos del módulo Contabilidad */
+.cont-card { transition: box-shadow .15s ease, transform .15s ease; }
+.cont-card:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, .10); }
+
+/* Kardex (FASE 2): cabeceras de color por bloque Entradas/Salidas/Existencia */
+.kardex th.tbl-entrada { background: #e6f4ea; color: #1a7f37; }
+.kardex th.tbl-salida  { background: #fdeaea; color: #b42318; }
+.kardex th.tbl-saldo   { background: #fff4e5; color: #b25e09; }
+.kardex td.tbl-entrada-lt { background: #f4fbf6; }
+.kardex td.tbl-salida-lt  { background: #fef6f6; }
+.kardex td.tbl-saldo-lt   { background: #fffaf2; }
+
+/* FASE 2.1: chip de color del proveedor (identificación visual; el nombre siempre se muestra) */
+.cont-chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); vertical-align: middle; }
+.cont-chip-lg { display: inline-block; width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(0,0,0,.15); }

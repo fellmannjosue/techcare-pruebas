@@ -1,0 +1,34 @@
+{% extends 'base_app.html' %}
+{% load static desarrollo_tags %}
+{# <--- hecho por claude code: Mis Requerimientos (solicitados / asignados) (FASE 5) #}
+{% block title %}Mis Requerimientos{% endblock %}
+{% block page_pretitle %}Desarrollo{% endblock %}
+{% block page_title %}Mis Requerimientos{% endblock %}
+
+{% block page_actions %}
+  {% if not solo_solicitante %}<a href="{% url 'desarrollo:roadmap' %}" class="btn btn-ghost-secondary"><i class="ti ti-layout-kanban me-1"></i>Roadmap</a>{% endif %}
+  <a href="{% url 'desarrollo:req_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo Requerimiento</a>
+{% endblock %}
+
+{% block content %}
+{% include 'desarrollo/_messages.html' %}
+
+<div class="card">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+      <li class="nav-item"><a href="#tab-asignados" class="nav-link active" data-bs-toggle="tab"><i class="ti ti-briefcase me-1"></i>Asignados a mí <span class="badge bg-blue-lt ms-1">{{ asignados|length }}</span></a></li>
+      <li class="nav-item"><a href="#tab-solicitados" class="nav-link" data-bs-toggle="tab"><i class="ti ti-send me-1"></i>Solicitados por mí <span class="badge bg-secondary-lt ms-1">{{ solicitados|length }}</span></a></li>
+    </ul>
+  </div>
+  <div class="card-body p-0">
+    <div class="tab-content">
+      <div class="tab-pane active show" id="tab-asignados">
+        {% include 'desarrollo/_mis_tabla.html' with filas=asignados vacio='No tienes requerimientos asignados.' %}
+      </div>
+      <div class="tab-pane" id="tab-solicitados">
+        {% include 'desarrollo/_mis_tabla.html' with filas=solicitados vacio='No has solicitado requerimientos.' %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

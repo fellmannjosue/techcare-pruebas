@@ -235,18 +235,32 @@ body {
    ═══════════════════════════════════════════════════════════════ */
 html { height: 100%; }
 
+/* <--- hecho por claude code: el body NO debe ser flex-container.
+   Si lo es, al abrir un modal Bootstrap le pone overflow:hidden al body y el
+   navegador resetea el scroll al inicio (la página "salta" arriba). Dejamos el
+   body como bloque normal y movemos el sticky-footer al .wrapper. */
 body {
+  min-height: 100vh;
+}
+
+/* El wrapper (sidebar + contenido) ocupa el alto del viewport y arma la
+   columna del sticky-footer, en vez del body */
+body > .wrapper,
+body > .page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* El wrapper (sidebar + contenido) ocupa el alto disponible */
-body > .wrapper,
-body > .page {
-  flex: 1 0 auto;
-  display: flex;
-  flex-direction: column;
+/* <--- hecho por claude code: bloqueo de scroll al abrir un modal (lo maneja
+   tc_modal_scroll.js). Congela el fondo en su lugar para que la página NO salte
+   hacia arriba. El top negativo lo pone el JS con la posición exacta del scroll. */
+body.tc-modal-lock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* La columna de contenido crece para empujar el footer hacia abajo */

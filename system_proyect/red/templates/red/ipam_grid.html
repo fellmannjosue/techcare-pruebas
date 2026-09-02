@@ -1,0 +1,38 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: IPAM — grid de colores por VLAN #}
+{% block title %}IPAM · VLAN {{ v.vlan_id }}{% endblock %}
+{% block page_pretitle %}ANA Network Manager · IPAM{% endblock %}
+{% block page_title %}IPAM · VLAN {{ v.vlan_id }} · {{ v.nombre }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'red/css/ipam.css' %}?v=1">{% endblock %}
+{% block back_button %}<a href="{% url 'red:vlan_detail' v.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>VLAN</a>{% endblock %}
+{% block page_actions %}<a href="{% url 'red:ip_nueva' v.pk %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nueva IP</a>{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+  <form method="get" class="d-flex gap-2">
+    <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar IP, MAC, hostname…" style="min-width:220px;">
+    <button class="btn btn-sm btn-primary"><i class="ti ti-search"></i></button>
+  </form>
+  <div class="ms-auto small">
+    {% for k, val in leyenda.items %}<span class="me-2"><span class="ipam-dot" style="background:{{ val.0 }}"></span>{{ val.1 }}</span>{% endfor %}
+  </div>
+</div>
+
+<div class="alert {% if cap.estado == 'normal' %}alert-info{% elif cap.estado == 'advertencia' %}alert-warning{% else %}alert-danger{% endif %} py-2">
+  Rango asignable · <strong>{{ cap.capacidad }}</strong> capacidad · <strong>{{ cap.usadas }}</strong> usadas · <strong>{{ cap.libres }}</strong> libres ({{ cap.pct_libre }}% libre)
+</div>
+
+<div class="card"><div class="card-body">
+  <div class="ipam-grid">
+    {% for c in celdas %}
+    <a href="{% url 'red:ip_editar' v.pk c.obj.pk %}" class="ipam-cell" style="background:{{ c.color }}"
+       title="{{ c.obj.direccion }} · {{ c.obj.get_estado_display }}{% if c.obj.hostname %} · {{ c.obj.hostname }}{% endif %}{% if c.obj.dispositivo %} · {{ c.obj.dispositivo }}{% endif %}{% if c.obj.mac %} · {{ c.obj.mac }}{% endif %}">
+      <span class="ipam-oct">{{ c.obj.direccion|cut:'192.168.'|default:c.obj.direccion }}</span>
+    </a>
+    {% empty %}
+    <div class="text-muted py-4">No hay IP generadas para esta VLAN. Edita la VLAN (guarda) para generar el rango asignable.</div>
+    {% endfor %}
+  </div>
+</div></div>
+{% endblock %}

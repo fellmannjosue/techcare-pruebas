@@ -1,0 +1,65 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: informe de regalías de proveedores (APARTE del inventario, no se contabiliza) #}
+{% block title %}Regalías de Proveedores{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Regalías de Proveedores{% endblock %}
+{% block back_button %}
+  <a href="{% url 'contabilidad:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+{% block page_actions %}
+  {% if puede_registrar %}<a href="{% url 'contabilidad:regalia_nueva' %}" class="btn btn-primary"><i class="ti ti-gift me-1"></i>Registrar regalía</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+
+<div class="alert alert-info py-2 small">
+  <i class="ti ti-info-circle me-1"></i><strong>Informe aparte:</strong> las regalías son obsequios del proveedor;
+  <strong>no</strong> entran al inventario ni se contabilizan. Este registro es solo para llevar el control de cuántas dio cada proveedor.
+</div>
+
+{# ── Resumen por proveedor ── #}
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-gift me-2 text-pink"></i>Regalías por proveedor</h3>
+    <div class="card-actions text-muted small">Total: {{ total_unidades }} unidades</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead><tr><th></th><th>Proveedor</th><th class="text-end">Entregas</th><th class="text-end">Unidades regaladas</th></tr></thead>
+      <tbody>
+        {% for r in resumen %}
+        <tr>
+          <td><span class="cont-chip" style="background:{{ r.proveedor__color }};"></span></td>
+          <td class="fw-semibold">{{ r.proveedor__nombre }}</td>
+          <td class="text-end">{{ r.entregas }}</td>
+          <td class="text-end fw-bold">{{ r.unidades }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Sin regalías registradas todavía.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Detalle de regalías ── #}
+<div class="card">
+  <div class="card-header"><h3 class="card-title">Detalle</h3></div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead><tr><th>Fecha</th><th>Proveedor</th><th>Regalía</th><th class="text-end">Cantidad</th><th class="text-end">Valor est.</th><th>Registró</th></tr></thead>
+      <tbody>
+        {% for g in regalias %}
+        <tr>
+          <td class="text-muted text-nowrap">{{ g.fecha|date:"d/m/Y" }}</td>
+          <td>{{ g.proveedor.nombre }}</td>
+          <td>{{ g.descripcion }}{% if g.observaciones %}<div class="text-muted small">{{ g.observaciones }}</div>{% endif %}</td>
+          <td class="text-end fw-semibold">{{ g.cantidad }}</td>
+          <td class="text-end text-muted">{% if g.valor_estimado %}{{ g.valor_estimado|lps }}{% else %}—{% endif %}</td>
+          <td class="small text-muted">{{ g.creado_por.get_full_name|default:g.creado_por.username|default:"—" }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Sin regalías registradas.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

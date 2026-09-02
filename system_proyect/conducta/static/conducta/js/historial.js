@@ -69,6 +69,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // <--- hecho por claude code: buscador de alumno en Progress ("¿ya tiene reporte?")
+    (function () {
+        var input = document.getElementById('buscar-progress');
+        if (!input) return;
+        var info  = document.getElementById('buscar-progress-info');
+        var clear = document.getElementById('buscar-progress-clear');
+        var cont  = document.getElementById('accProgGrado');
+        if (!cont) return;
+
+        // quita acentos y pasa a minúsculas para comparar sin importar tildes
+        function norm(s) {
+            return (s || '').toString().toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+
+        var items = Array.prototype.slice.call(cont.querySelectorAll('.accordion-item'));
+
+        function filtrar() {
+            var q = norm(input.value);
+            var total = 0;
+            items.forEach(function (item) {
+                var filas = item.querySelectorAll('tbody tr[data-alumno]');
+                var visibles = 0;
+                filas.forEach(function (tr) {
+                    var match = !q || norm(tr.getAttribute('data-alumno')).indexOf(q) !== -1;
+                    tr.style.display = match ? '' : 'none';
+                    if (match) visibles++;
+                });
+                total += visibles;
+                // ocultar el grado completo si no tiene coincidencias
+                item.style.display = (q && visibles === 0) ? 'none' : '';
+                // al buscar, abrir los acordeones con coincidencias
+                var col = item.querySelector('.accordion-collapse');
+                if (col && window.bootstrap && bootstrap.Collapse) {
+                    var inst = bootstrap.Collapse.getOrCreateInstance(col, { toggle: false });
+                    if (q && visibles > 0) inst.show(); else if (q) inst.hide();
+                }
+            });
+
+            if (!q) { info.className = 'small mt-2 d-none'; info.textContent = ''; return; }
+            info.classList.remove('d-none');
+            if (total > 0) {
+                info.className = 'small mt-2 text-success';
+                info.innerHTML = '<i class="ti ti-check me-1"></i>' + total +
+                    ' progress report(s) encontrado(s) para «' + input.value.trim() + '».';
+            } else {
+                info.className = 'small mt-2 text-danger';
+                info.innerHTML = '<i class="ti ti-alert-circle me-1"></i>No existe progress report para «' +
+                    input.value.trim() + '». Aún puedes crearlo.';
+            }
+        }
+
+        input.addEventListener('input', filtrar);
+        if (clear) clear.addEventListener('click', function () { input.value = ''; filtrar(); input.focus(); });
+    })();
+
     // <--- hecho por claude code: abrir la pestaña indicada en la URL (ej. #agendas),
     // para que "Volver a Historial de Reportes" desde Editar Agenda caiga en Agendas.
     var hash = window.location.hash;

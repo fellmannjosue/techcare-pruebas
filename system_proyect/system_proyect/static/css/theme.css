@@ -190,4 +190,16 @@ a.tc-stat:hover { transform: translateY(-3px); box-shadow: var(--tc-shadow-hover
   max-width: min(380px, calc(100vw - 2rem));
   max-height: min(420px, calc(100vh - 8rem));
   overflow-y: auto;
+  /* <--- hecho por claude code: el menú vive dentro del sidebar (texto blanco); sin
+     esto el mensaje heredaba color blanco sobre fondo blanco = texto invisible. */
+  color: #1e293b;
+  background: #fff;
 }
+.tc-notif-menu #listaNotificaciones div:not([class]) { color: #1e293b; }
+
+/* <--- hecho por claude code: sidebar ESTÁTICO para staff/usuarios (no superuser).
+   Los submenús quedan siempre abiertos y su cabecera deja de ser un toggle. No toca
+   el botón hamburguesa móvil (.navbar-toggler). */
+.sidebar-static .navbar-nav.collapse { display: block !important; height: auto !important; }
+.sidebar-static .nav-link[data-bs-toggle="collapse"] { pointer-events: none; cursor: default; }
+.sidebar-static .nav-link-arrow { display: none !important; }

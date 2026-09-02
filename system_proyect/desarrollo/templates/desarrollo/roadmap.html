@@ -1,0 +1,70 @@
+{% extends 'base_app.html' %}
+{% load static desarrollo_tags %}
+{# <--- hecho por claude code: roadmap / tablero Kanban (FASE 5) #}
+{% block title %}Roadmap{% endblock %}
+{% block page_pretitle %}Desarrollo{% endblock %}
+{% block page_title %}Roadmap{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'desarrollo/css/desarrollo.css' %}?v=3">
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'desarrollo:req_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-clipboard-list me-1"></i>Requerimientos</a>
+  <a href="{% url 'desarrollo:mis_requerimientos' %}" class="btn btn-ghost-secondary"><i class="ti ti-user-check me-1"></i>Mis Requerimientos</a>
+  <a href="{% url 'desarrollo:req_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo</a>
+{% endblock %}
+
+{% block content %}
+{% include 'desarrollo/_messages.html' %}
+
+<form method="get" class="mb-3 d-flex align-items-end gap-2">
+  <div style="max-width:320px;">
+    <label class="form-label small mb-1">Filtrar por proyecto</label>
+    <select name="proyecto" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">Todos los proyectos</option>
+      {% for p in proyectos %}<option value="{{ p.id }}" {% if filtros.proyecto == p.id|stringformat:'s' %}selected{% endif %}>{{ p.codigo }} · {{ p.nombre }}</option>{% endfor %}
+    </select>
+  </div>
+  {% if filtros.proyecto %}<a href="{% url 'desarrollo:roadmap' %}" class="btn btn-sm btn-ghost-secondary">Limpiar</a>{% endif %}
+</form>
+
+{% if puede_mover %}<p class="text-muted small mb-2"><i class="ti ti-hand-move me-1"></i>Arrastra una tarjeta a otra columna para cambiar su estado.</p>{% endif %}
+
+{% csrf_token %}
+<div id="kanBoard" class="tc-kanban" data-mover-base="{% url 'desarrollo:req_mover' 'CODIGO' %}" data-puede-mover="{{ puede_mover|yesno:'1,0' }}">
+  {% for col in columnas %}
+  <div class="tc-kan-col" data-estado="{{ col.clave }}">
+    <div class="tc-kan-head">
+      <span class="badge bg-{{ col.clave|estado_color }}-lt">{{ col.label }}</span>
+      <span class="tc-kan-count text-muted small">{{ col.items|length }}</span>
+    </div>
+    <div class="tc-kan-body">
+      {% for r in col.items %}
+      <div class="tc-kan-card card" draggable="{% if puede_mover %}true{% else %}false{% endif %}"
+           data-codigo="{{ r.codigo }}"
+           data-url="{% url 'desarrollo:req_detail' r.codigo %}">
+        <div class="card-body p-2">
+          <div class="d-flex align-items-center mb-1">
+            <span class="me-1" title="{{ r.semaforo|semaforo_texto }}">{{ r.semaforo|semaforo_emoji }}</span>
+            <span class="fw-semibold small">{{ r.codigo }}</span>
+            <span class="badge bg-{{ r.prioridad|prioridad_color }}-lt ms-auto">{{ r.get_prioridad_display }}</span>
+          </div>
+          <div class="small mb-1 tc-kan-title">{{ r.titulo|truncatechars:64 }}</div>
+          <div class="d-flex align-items-center justify-content-between">
+            <span class="text-muted" style="font-size:.7rem;">{% if r.responsable %}{{ r.responsable.get_full_name|default:r.responsable.username }}{% else %}sin asignar{% endif %}</span>
+            <span class="text-muted" style="font-size:.7rem;">{{ r.porcentaje_avance }}%</span>
+          </div>
+          <div class="progress mt-1" style="height:4px;"><div class="progress-bar" style="width:{{ r.porcentaje_avance }}%;"></div></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'desarrollo/js/desarrollo_kanban.js' %}?v=1"></script>
+{% endblock %}

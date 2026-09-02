@@ -1,0 +1,52 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: Fase 4 — pruebas de conectividad (ping) #}
+{% block title %}Pruebas de red{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Fase 4{% endblock %}
+{% block page_title %}Pruebas de conectividad{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+{% block page_actions %}<button id="probar-todos" class="btn btn-primary"><i class="ti ti-player-play me-1"></i>Probar todos</button>{% endblock %}
+
+{% block content %}
+<div class="alert alert-info py-2 small"><i class="ti ti-info-circle me-1"></i>La prueba hace <strong>ping</strong> desde el servidor a cada IP. Un equipo puede aparecer "Caído" si bloquea ICMP aunque esté encendido.</div>
+
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title">Dispositivos ({{ dispositivos|length }})</h3></div>
+  <div class="table-responsive"><table class="table table-vcenter card-table">
+    <thead><tr><th>Nombre</th><th>IP</th><th>Estado</th><th>Latencia</th><th>Última prueba</th><th></th></tr></thead>
+    <tbody>
+      {% for d in dispositivos %}
+      <tr class="ping-row" data-url="{% url 'red:device_ping' d.pk %}">
+        <td>{{ d.nombre }}</td><td class="text-muted">{{ d.ip }}</td>
+        <td class="estado">{% include 'red/_ping_badge.html' with e=d.conectividad %}</td>
+        <td class="lat text-muted">{% if d.latencia_ms %}{{ d.latencia_ms }} ms{% else %}—{% endif %}</td>
+        <td class="prob text-muted small">{% if d.probado_en %}{{ d.probado_en|date:'d/m H:i' }}{% else %}—{% endif %}</td>
+        <td class="text-end"><button class="btn btn-sm btn-ghost-primary probar"><i class="ti ti-reload"></i></button></td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="text-muted text-center py-3">No hay dispositivos con IP.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3 class="card-title">Switches ({{ switches|length }})</h3></div>
+  <div class="table-responsive"><table class="table table-vcenter card-table">
+    <thead><tr><th>Nombre</th><th>IP admin</th><th>Estado</th><th>Latencia</th><th>Última prueba</th><th></th></tr></thead>
+    <tbody>
+      {% for s in switches %}
+      <tr class="ping-row" data-url="{% url 'red:switch_ping' s.pk %}">
+        <td>{{ s.nombre }}</td><td class="text-muted">{{ s.ip_admin }}</td>
+        <td class="estado">{% include 'red/_ping_badge.html' with e=s.conectividad %}</td>
+        <td class="lat text-muted">{% if s.latencia_ms %}{{ s.latencia_ms }} ms{% else %}—{% endif %}</td>
+        <td class="prob text-muted small">{% if s.probado_en %}{{ s.probado_en|date:'d/m H:i' }}{% else %}—{% endif %}</td>
+        <td class="text-end"><button class="btn btn-sm btn-ghost-primary probar"><i class="ti ti-reload"></i></button></td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="text-muted text-center py-3">No hay switches con IP administrativa.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div id="pruebas-cfg" hidden data-csrf="{{ csrf_token }}"></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'red/js/pruebas.js' %}?v=1"></script>{% endblock %}

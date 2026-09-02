@@ -1,0 +1,28 @@
+{# <--- hecho por claude code: stepper del registro guiado de inventario (5 pasos en orden) #}
+{% if guia %}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <span class="text-muted small me-1"><i class="ti ti-list-check me-1"></i>Registro guiado</span>
+
+      <a href="{% url 'contabilidad:proveedor_nuevo' %}?guia=1"
+         class="badge text-decoration-none {% if paso == 1 %}bg-primary text-white{% elif paso > 1 %}bg-green-lt text-green{% else %}bg-secondary-lt text-secondary{% endif %}">
+        {% if paso > 1 %}<i class="ti ti-check me-1"></i>{% endif %}1 · Proveedor</a>
+      <i class="ti ti-chevron-right text-muted"></i>
+
+      <a href="{% url 'contabilidad:producto_nuevo' %}?guia=1"
+         class="badge text-decoration-none {% if paso == 2 %}bg-primary text-white{% elif paso > 2 %}bg-green-lt text-green{% else %}bg-secondary-lt text-secondary{% endif %}">
+        {% if paso > 2 %}<i class="ti ti-check me-1"></i>{% endif %}2 · Producto</a>
+      <i class="ti ti-chevron-right text-muted"></i>
+
+      <a href="{% url 'contabilidad:compra_nueva' %}?guia=1"
+         class="badge text-decoration-none {% if paso == 3 %}bg-primary text-white{% elif paso > 3 %}bg-green-lt text-green{% else %}bg-secondary-lt text-secondary{% endif %}">
+        {% if paso > 3 %}<i class="ti ti-check me-1"></i>{% endif %}3 · Compra</a>
+
+      <a href="{% url 'contabilidad:inventario_dashboard' %}" class="ms-auto btn btn-sm btn-ghost-secondary">
+        <i class="ti ti-x me-1"></i>Salir del flujo</a>
+    </div>
+    <div class="text-muted mt-1" style="font-size:.75rem;">Paso {{ paso }} de 3 · al confirmar la compra entra el stock.</div>
+  </div>
+</div>
+{% endif %}

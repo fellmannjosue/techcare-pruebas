@@ -66,6 +66,28 @@
       <div class="text-muted small">Agendas</div>
     </a>
   </div>
+  {# <--- hecho por claude code: faltaban Tutorías, Período Escolar y Ruteo en el menú del coordinador #}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'convocatorias_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-school" style="font-size:2.2rem;color:#e8590c;"></i></div>
+      <div class="fw-semibold text-primary">Tutorías</div>
+      <div class="text-muted small">Convocatorias</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'dashboard_coordinador' area='bilingue' %}?app=periodo" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-stats" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">Período Escolar</div>
+      <div class="text-muted small">Parciales de conducta</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'routing_bl_config' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-route" style="font-size:2.2rem;color:#4263eb;"></i></div>
+      <div class="fw-semibold text-primary">Ruteo</div>
+      <div class="text-muted small">Grupos y coordinadores</div>
+    </a>
+  </div>
 </div>
 {% endif %}
 

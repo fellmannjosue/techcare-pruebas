@@ -17,7 +17,7 @@
   <!-- Responsive global -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6"> {# tema: tokens + claro/oscuro - claude code #}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=8"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
   <meta name="theme-color" content="#206bc4">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
@@ -47,8 +47,7 @@
 
       <div class="collapse navbar-collapse" id="navbar-menu">
         {% include 'accounts/_sidebar.html' %}
-
-        {% include 'accounts/_user_dropdown.html' %}
+        {# <--- hecho por claude code: el user dropdown se movió al topbar (junto a la campana) #}
       </div>
     </div>
   </aside>
@@ -65,6 +64,8 @@
             <h2 class="page-title">Panel Principal</h2>
           </div>
           <div class="col-auto ms-auto d-flex align-items-center gap-3">
+            {# <--- hecho por claude code: campanita en el topbar del menú (superuser) #}
+            {% include 'accounts/_notificaciones.html' %}
             {% if request.user.is_superuser %}
             <div class="d-flex align-items-center gap-2">
               <button class="btn btn-sm btn-ghost-secondary" id="mant-open-btn"
@@ -77,6 +78,8 @@
               </span>
             </div>
             {% endif %}
+            {# <--- hecho por claude code: usuario junto a la campana (antes al pie del sidebar) #}
+            {% include 'accounts/_user_dropdown.html' %}
           </div>
         </div>
       </div>
@@ -191,6 +194,21 @@
                   <div class="mb-2"><i class="ti ti-clock text-orange" style="font-size:2.5rem;"></i></div>
                   <div class="fw-bold">Reloj</div>
                   <div class="text-muted small mt-1">Control de asistencia</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {# <--- hecho por claude code: Monitoreo (auditoría/actividad) para el grupo 'monitoreo' #}
+          {% if show_monitoreo %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'settings_auditoria' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-chart-histogram text-pink" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Monitoreo</div>
+                  <div class="text-muted small mt-1">Auditoría y actividad del sistema</div>
                 </div>
               </div>
             </a>
@@ -365,23 +383,7 @@
           </div>
           {% endif %}
 
-          {# ── Apps en construcción — solo superuser ── #}
-          {% if show_atencion_padres %}
-          <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'atencion_padres:index' %}" class="text-decoration-none">
-              <div class="card card-link card-link-pop text-center py-3 border-2" style="border-style:dashed!important;border-color:#3b82f6!important;">
-                <div class="card-body">
-                  <div class="mb-2" style="position:relative;display:inline-block;">
-                    <i class="ti ti-users text-blue" style="font-size:2.5rem;"></i>
-                    <span class="badge bg-yellow text-white" style="position:absolute;top:-6px;right:-14px;font-size:.6rem;">WIP</span>
-                  </div>
-                  <div class="fw-bold">Atención a Padres</div>
-                  <div class="text-muted small mt-1">Citas y comunicados</div>
-                </div>
-              </div>
-            </a>
-          </div>
-          {% endif %}
+          {# <--- hecho por claude code: apps 'Atención a Padres' y 'Mapeo de Cámaras' eliminadas (no se usaban) #}
 
           {% if show_salidas_bano %}
           <div class="col-6 col-sm-4 col-lg-3">
@@ -416,22 +418,6 @@
           </div>
           {% endif %}
 
-          {% if show_camaras %}
-          <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'camaras:index' %}" class="text-decoration-none">
-              <div class="card card-link card-link-pop text-center py-3 border-2" style="border-style:dashed!important;border-color:#ef4444!important;">
-                <div class="card-body">
-                  <div class="mb-2" style="position:relative;display:inline-block;">
-                    <i class="ti ti-camera text-red" style="font-size:2.5rem;"></i>
-                    <span class="badge bg-yellow text-white" style="position:absolute;top:-6px;right:-14px;font-size:.6rem;">WIP</span>
-                  </div>
-                  <div class="fw-bold">Mapeo de Cámaras</div>
-                  <div class="text-muted small mt-1">Ubicación de cámaras</div>
-                </div>
-              </div>
-            </a>
-          </div>
-          {% endif %}
 
         </div>
         {# ===== /GRID ===== #}
@@ -674,7 +660,7 @@
 {% include "accounts/_welcome_overlay.html" %}
 
 {% if True %}
-<script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
+<script src="{% static 'portal_super/js/portal_theme.js' %}?v=2"></script>
 {% endif %}
 </body>
 </html>

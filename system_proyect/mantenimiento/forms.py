@@ -10,6 +10,9 @@ class MaintenanceRecordForm(forms.ModelForm):
                   'teacher_name', 'grade', 'area', 'tipo_falla',
                   'tipo_mant_impresora', 'estado_tinta',
                   'tinta_negra', 'tinta_magenta', 'tinta_amarillo', 'tinta_cyan', 'tipo_tinta',
+                  # <--- hecho por claude code: campos del Control de equipo
+                  'eval_trabajo', 'eval_fallas', 'eval_fallas_detalle', 'obs_auditora', 'obs_tecnico', 'estado_equipo',
+                  'insp_limpio', 'insp_ordenado', 'insp_cables', 'insp_alimentos',
                   'date', 'status', 'solucion', 'observaciones']
         widgets = {
             'tipo_equipo':  forms.HiddenInput(),
@@ -28,6 +31,16 @@ class MaintenanceRecordForm(forms.ModelForm):
             'tinta_magenta':  forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'tinta_amarillo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'tinta_cyan':     forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'eval_trabajo':        forms.Select(attrs={'class': 'form-select'}),
+            'eval_fallas':         forms.Select(attrs={'class': 'form-select'}),
+            'eval_fallas_detalle': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Describe las fallas que ha presentado…'}),
+            'obs_auditora':        forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'obs_tecnico':         forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'estado_equipo':       forms.Select(attrs={'class': 'form-select'}),
+            'insp_limpio':    forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'insp_ordenado':  forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'insp_cables':    forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'insp_alimentos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'date':         forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'status':       forms.Select(attrs={'class': 'form-select'}),
             'solucion':     forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -57,8 +70,14 @@ class MaintenanceRecordForm(forms.ModelForm):
         # la validación real se hace en clean() según tipo_equipo.
         for f in ('computadora', 'impresora', 'model', 'serie', 'teacher_name',
                   'grade', 'area', 'tipo_falla', 'tipo_mant_impresora',
-                  'estado_tinta', 'tipo_tinta'):
+                  'estado_tinta', 'tipo_tinta',
+                  'eval_trabajo', 'eval_fallas', 'eval_fallas_detalle', 'obs_auditora', 'obs_tecnico',
+                  'estado_equipo', 'status'):
             self.fields[f].required = False
+        self.fields['estado_equipo'].choices = [('', '— Seleccionar —')] + list(MaintenanceRecord.ESTADO_EQUIPO_CHOICES)
+        # Los selects de evaluación arrancan sin opción elegida
+        self.fields['eval_trabajo'].choices = [('', '— Seleccionar —')] + list(MaintenanceRecord.EVAL_TRABAJO_CHOICES)
+        self.fields['eval_fallas'].choices  = [('', '— Seleccionar —')] + list(MaintenanceRecord.EVAL_FALLAS_CHOICES)
 
         self.fields['teacher_name'].widget = forms.HiddenInput()
         self.fields['grade'].widget        = forms.HiddenInput()
@@ -74,9 +93,28 @@ class MaintenanceRecordForm(forms.ModelForm):
                 self.add_error('tipo_mant_impresora', 'Selecciona el tipo de mantenimiento.')
             if not cleaned.get('estado_tinta'):
                 self.add_error('estado_tinta', 'Indica el estado de la tinta.')
+        elif tipo == 'control':
+            # <--- hecho por claude code: el control se hace sobre la computadora del maestro
+            if not cleaned.get('computadora'):
+                self.add_error('computadora', 'Selecciona la computadora del maestro.')
+            if not cleaned.get('eval_trabajo'):
+                self.add_error('eval_trabajo', 'Responde cómo ha trabajado el equipo.')
+            if not cleaned.get('eval_fallas'):
+                self.add_error('eval_fallas', 'Indica si el equipo ha presentado fallas.')
+            if not cleaned.get('estado_equipo'):
+                self.add_error('estado_equipo', 'Indica el estado del equipo.')
+            # El control queda registrado como trámite completado (el "estado" real es el del equipo)
+            cleaned['status'] = 'Completado'
+        elif tipo == 'inspeccion':
+            # <--- hecho por claude code: la inspección es del equipo del maestro; queda completada al registrarse
+            if not cleaned.get('computadora'):
+                self.add_error('computadora', 'Selecciona la computadora del maestro.')
+            cleaned['status'] = 'Completado'
         else:
             if not cleaned.get('computadora'):
                 self.add_error('computadora', 'Selecciona una computadora.')
+            if not cleaned.get('status'):
+                self.add_error('status', 'Selecciona el estado.')
         return cleaned
 
 

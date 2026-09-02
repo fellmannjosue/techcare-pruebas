@@ -1,0 +1,35 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code (Nivel 2): lanzador de apps del Coordinador. Cada tarjeta
+   abre su app enfocada (?app=...); el dashboard ya no carga todo junto. #}
+{% block title %}Coordinador {{ area|title }} — Apps{% endblock %}
+{% block page_pretitle %}Coordinador{% endblock %}
+{% block page_title %}Coordinador ({{ area|title }}){% if coord_titulo %} · {{ coord_titulo }}{% endif %}{% endblock %}
+
+{% block page_actions %}
+  <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <p class="text-muted mb-0"><i class="ti ti-apps me-1"></i>Elige una app para abrirla.</p>
+</div>
+
+<div class="row row-cards">
+  {% for c in cards %}
+  <div class="col-sm-6 col-lg-3">
+    <a href="{{ c.href }}" class="text-decoration-none">
+      <div class="card card-link card-link-pop h-100" style="border-top:3px solid {{ c.c }};">
+        <div class="card-body text-center py-4">
+          <span class="d-inline-flex rounded p-3 mb-2" style="background:{{ c.c }}22;color:{{ c.c }};">
+            <i class="ti {{ c.i }} fs-1"></i>
+          </span>
+          <div class="fw-bold">{{ c.t }}</div>
+          <div class="text-muted small">{{ c.s }}</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

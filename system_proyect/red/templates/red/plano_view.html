@@ -1,0 +1,196 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: mapa de campus — plano con marcadores interactivos #}
+{% block title %}Mapa · {{ p.nombre }}{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Mapa de campus{% endblock %}
+{% block page_title %}{{ p.nombre }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'red/css/plano.css' %}?v=8">{% endblock %}
+{% block back_button %}<a href="{% url 'red:planos_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Planos</a>{% endblock %}
+{% block page_actions %}
+<a href="{% url 'red:topologia' %}?plano={{ p.pk }}" class="btn btn-ghost-secondary"><i class="ti ti-sitemap me-1"></i>Ver en topología</a>
+<a href="{% url 'red:plano_editar' p.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-edit me-1"></i>Editar plano</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-3">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Colocar marcador</h3></div>
+      <div class="card-body">
+        <div class="mb-2"><label class="form-label small">Etiqueta</label><input id="mk-label" class="form-control form-control-sm" placeholder="Ej. Gabinete 1"></div>
+        <div class="mb-2"><label class="form-label small">Tipo</label>
+          <select id="mk-tipo" class="form-select form-select-sm">
+            <option value="nota">Nota</option><option value="gabinete">Gabinete</option>
+            <option value="dispositivo">Dispositivo</option><option value="switch">Switch</option>
+          </select></div>
+        <div class="mb-2" id="mk-target-wrap" style="display:none;"><label class="form-label small">Vincular a</label>
+          <select id="mk-target" class="form-select form-select-sm"></select></div>
+        <div class="mb-2"><label class="form-label small">Color</label><input id="mk-color" type="color" value="#206bc4" class="form-control form-control-color form-control-sm"></div>
+        <div class="mb-2"><label class="form-label small">Forma</label>
+          <select id="mk-forma" class="form-select form-select-sm">
+            <option value="pin">Marcador</option><option value="router">Router</option>
+            <option value="switch">Switch</option><option value="servidor">Servidor</option>
+            <option value="ap">Access Point</option><option value="firewall">Firewall</option>
+            <option value="camara">Cámara</option><option value="pc">Computadora</option>
+            <option value="impresora">Impresora</option><option value="gabinete">Gabinete/Rack</option>
+            <option value="nube">Internet/Nube</option><option value="telefono">Teléfono IP</option>
+            <option value="reloj">Reloj marcador</option><option value="acceso">Reloj de acceso</option>
+          </select></div>
+        <div class="mb-2"><label class="form-label small">Tamaño</label>
+          <div class="d-flex align-items-center gap-2">
+            <input id="mk-tam" type="range" min="16" max="70" value="30" class="form-range flex-fill">
+            <input id="mk-tam-num" type="number" min="8" max="120" value="30" class="form-control form-control-sm" style="width:74px">
+            <span class="text-muted small">px</span></div></div>
+        <button id="mk-modo" class="btn btn-sm btn-primary w-100"><i class="ti ti-map-pin-plus me-1"></i>Activar colocación</button>
+        <button id="mk-modo-linea" class="btn btn-sm btn-outline-primary w-100 mt-2"><i class="ti ti-line me-1"></i>Dibujar líneas</button>
+        <div class="mb-2 mt-2"><label class="form-label small">Color de línea</label><input id="mk-linea-color" type="color" value="#495057" class="form-control form-control-color form-control-sm"></div>
+        <div class="form-hint mt-2">Con la colocación activa, <strong>haz clic sobre el plano</strong> para poner el marcador. Arrastra un marcador para moverlo; <strong>haz clic sobre él para editar</strong> (nombre, color, figura, tamaño, giro).<br>Con <strong>Dibujar líneas</strong> activo, haz clic en un marcador y luego en otro para unirlos; clic sobre una línea para borrarla.</div>
+      </div>
+    </div>
+
+    {# <--- hecho por claude code: edición múltiple (tamaño/giro a varios marcadores) #}
+    <div class="card mt-3">
+      <div class="card-header py-2"><h3 class="card-title fs-5">Edición múltiple</h3></div>
+      <div class="card-body">
+        <button id="ms-modo" class="btn btn-sm btn-outline-primary w-100"><i class="ti ti-select me-1"></i>Seleccionar varios</button>
+        <div id="ms-panel" class="mt-2" style="display:none;">
+          <div class="alert alert-info py-1 px-2 mb-2 small"><span id="ms-count">0</span> marcador(es) seleccionado(s)</div>
+          <div class="mb-2"><label class="form-label small">Tamaño</label>
+            <div class="d-flex align-items-center gap-2">
+              <input id="ms-tam" type="range" min="16" max="70" value="30" class="form-range flex-fill">
+              <input id="ms-tam-num" type="number" min="8" max="120" value="30" class="form-control form-control-sm" style="width:74px">
+              <span class="text-muted small">px</span></div></div>
+          <div class="mb-2"><label class="form-label small">Giro</label>
+            <div class="d-flex align-items-center gap-2">
+              <input id="ms-rot" type="range" min="0" max="360" value="0" class="form-range flex-fill">
+              <input id="ms-rot-num" type="number" min="0" max="360" value="0" class="form-control form-control-sm" style="width:74px">
+              <span class="text-muted small">°</span></div></div>
+          <div class="d-flex gap-2">
+            <button id="ms-aplicar" class="btn btn-sm btn-primary flex-fill"><i class="ti ti-check me-1"></i>Aplicar</button>
+            <button id="ms-limpiar" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-eraser me-1"></i>Limpiar</button>
+          </div>
+          <button id="ms-borrar" class="btn btn-sm btn-outline-danger w-100 mt-2"><i class="ti ti-trash me-1"></i>Eliminar seleccionados</button>
+          <div class="form-hint mt-2">Haz clic en <strong>marcadores y líneas</strong> para seleccionarlos. En marcadores, los deslizadores cambian tamaño/giro (pulsa <strong>Aplicar</strong>). <strong>Eliminar seleccionados</strong> borra marcadores y líneas elegidos.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-9">
+    <div class="card"><div class="card-body p-2">
+      {# <--- hecho por claude code: controles de zoom y orientación del plano #}
+      <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+        <div class="d-flex align-items-center gap-1">
+          <span class="small text-muted">Zoom</span>
+          <button class="btn btn-sm btn-ghost-secondary px-2" id="zoom-out"><i class="ti ti-minus"></i></button>
+          <input id="zoom-range" type="range" min="30" max="300" value="100" style="width:110px">
+          <button class="btn btn-sm btn-ghost-secondary px-2" id="zoom-in"><i class="ti ti-plus"></i></button>
+          <span id="zoom-val" class="small text-muted" style="width:38px">100%</span>
+        </div>
+        <div class="d-flex align-items-center gap-1">
+          <span class="small text-muted">Orientación</span>
+          <button class="btn btn-sm btn-ghost-secondary px-2" id="rot-left"><i class="ti ti-rotate-2"></i></button>
+          <input id="rot-range" type="range" min="0" max="360" value="0" style="width:110px">
+          <button class="btn btn-sm btn-ghost-secondary px-2" id="rot-right"><i class="ti ti-rotate-clockwise-2"></i></button>
+          <span id="rot-val" class="small text-muted" style="width:30px">0°</span>
+        </div>
+        <button class="btn btn-sm btn-ghost-secondary ms-auto" id="view-reset"><i class="ti ti-focus-centered me-1"></i>Restablecer</button>
+      </div>
+      <div class="plano-scroll">
+        <div id="plano-wrap" class="plano-wrap">
+          <img id="plano-img" src="{{ p.imagen.url }}" alt="{{ p.nombre }}">
+          <svg id="plano-lines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <div id="plano-lineui"></div>
+          <div id="plano-marks"></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+{# <--- hecho por claude code: panel flotante (NO modal) para editar sin tapar el plano #}
+<div id="mkEdit" class="mk-editpanel" hidden>
+  <div class="mk-editpanel__head"><h5 class="m-0">Editar marcador</h5><button type="button" class="btn-close" id="mke-close"></button></div>
+  <div class="mk-editpanel__body">
+    <div class="mb-2"><label class="form-label small">Nombre</label><input id="mke-label" class="form-control form-control-sm"></div>
+    <div class="mb-2"><label class="form-label small">Tipo</label>
+      <select id="mke-tipo" class="form-select form-select-sm">
+        <option value="nota">Nota</option><option value="gabinete">Gabinete</option>
+        <option value="dispositivo">Dispositivo</option><option value="switch">Switch</option></select></div>
+    <div class="mb-2" id="mke-target-wrap" style="display:none;"><label class="form-label small">Vincular a</label>
+      <select id="mke-target" class="form-select form-select-sm"></select></div>
+    <div class="row g-2 mb-2">
+      <div class="col-6"><label class="form-label small">Color</label><input id="mke-color" type="color" class="form-control form-control-color form-control-sm"></div>
+      <div class="col-6"><label class="form-label small">Forma</label>
+        <select id="mke-forma" class="form-select form-select-sm">
+          <option value="pin">Marcador</option><option value="router">Router</option>
+          <option value="switch">Switch</option><option value="servidor">Servidor</option>
+          <option value="ap">Access Point</option><option value="firewall">Firewall</option>
+          <option value="camara">Cámara</option><option value="pc">Computadora</option>
+          <option value="impresora">Impresora</option><option value="gabinete">Gabinete/Rack</option>
+          <option value="nube">Internet/Nube</option><option value="telefono">Teléfono IP</option>
+          <option value="reloj">Reloj marcador</option><option value="acceso">Reloj de acceso</option></select></div>
+    </div>
+    <div class="mb-2"><label class="form-label small">Tamaño</label>
+      <div class="d-flex align-items-center gap-2">
+        <input id="mke-tam" type="range" min="16" max="70" value="30" class="form-range flex-fill">
+        <input id="mke-tam-num" type="number" min="8" max="120" value="30" class="form-control form-control-sm" style="width:74px">
+        <span class="text-muted small">px</span></div></div>
+    <div class="mb-1"><label class="form-label small">Giro</label>
+      <div class="d-flex align-items-center gap-2">
+        <input id="mke-rot" type="range" min="0" max="360" value="0" class="form-range flex-fill">
+        <input id="mke-rot-num" type="number" min="0" max="360" value="0" class="form-control form-control-sm" style="width:74px">
+        <span class="text-muted small">°</span></div></div>
+  </div>
+  <div class="mk-editpanel__foot d-flex justify-content-between">
+    <button class="btn btn-sm btn-ghost-danger" id="mke-del"><i class="ti ti-trash me-1"></i>Eliminar</button>
+    <div>
+      <button class="btn btn-sm btn-ghost-secondary" id="mke-open" style="display:none;"><i class="ti ti-external-link me-1"></i>Abrir</button>
+      <button class="btn btn-sm btn-primary" id="mke-save"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+    </div>
+  </div>
+</div>
+
+{# <--- hecho por claude code: panel flotante para editar una línea (nombre, color, trazado) #}
+<div id="lnEdit" class="mk-editpanel" hidden>
+  <div class="mk-editpanel__head"><h5 class="m-0">Editar línea</h5><button type="button" class="btn-close" id="lne-close"></button></div>
+  <div class="mk-editpanel__body">
+    <div class="mb-2"><label class="form-label small">Nombre</label><input id="lne-label" class="form-control form-control-sm" placeholder="Ej. Enlace principal"></div>
+    <div class="row g-2 mb-2">
+      <div class="col-6"><label class="form-label small">Color</label><input id="lne-color" type="color" class="form-control form-control-color form-control-sm"></div>
+      <div class="col-6"><label class="form-label small">Trazado</label>
+        <select id="lne-estilo" class="form-select form-select-sm">
+          <option value="recta">Recta</option><option value="orto">Ortogonal (ángulos)</option></select></div>
+    </div>
+    <div class="mb-2" id="lne-eqo-wrap" style="display:none;"><label class="form-label small">Conecta (origen) al equipo</label>
+      <select id="lne-eqo" class="form-select form-select-sm"></select></div>
+    <div class="mb-2" id="lne-eqd-wrap" style="display:none;"><label class="form-label small">Conecta (destino) al equipo</label>
+      <select id="lne-eqd" class="form-select form-select-sm"></select></div>
+    <div class="form-hint">Arrastra el <strong>punto de referencia</strong> (círculo hueco) sobre la línea para curvar/acomodar el trazado. Si un extremo es un gabinete, puedes indicar a qué <strong>equipo</strong> (switch 1, 2…) conecta.</div>
+  </div>
+  <div class="mk-editpanel__foot d-flex justify-content-between">
+    <button class="btn btn-sm btn-ghost-danger" id="lne-del"><i class="ti ti-trash me-1"></i>Eliminar</button>
+    <button class="btn btn-sm btn-primary" id="lne-save"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+  </div>
+</div>
+
+<div id="plano-cfg" hidden
+     data-csrf="{{ csrf_token }}"
+     data-plano-id="{{ p.pk }}"
+     data-add="{% url 'red:marcador_add' p.pk %}"
+     data-move="{% url 'red:marcador_move' 0 %}"
+     data-del="{% url 'red:marcador_delete' 0 %}"
+     data-edit="{% url 'red:marcador_edit' 0 %}"
+     data-link="{% url 'red:marcador_link' 0 %}"
+     data-linea-add="{% url 'red:linea_add' p.pk %}"
+     data-linea-del="{% url 'red:linea_delete' 0 %}"
+     data-linea-edit="{% url 'red:linea_edit' 0 %}"
+     data-bulk="{% url 'red:marcadores_bulk' %}"
+     data-marcadores="{{ marcadores_json }}"
+     data-lineas="{{ lineas_json }}"
+     data-racks="{{ racks_json }}"
+     data-gabinetes="[{% for g in gabinetes %}{&quot;id&quot;:{{ g.id }},&quot;t&quot;:&quot;{{ g.nombre|escapejs }}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"
+     data-dispositivos="[{% for d in dispositivos %}{&quot;id&quot;:{{ d.id }},&quot;t&quot;:&quot;{{ d.nombre|escapejs }}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"
+     data-switches="[{% for s in switches %}{&quot;id&quot;:{{ s.id }},&quot;t&quot;:&quot;{{ s.nombre|escapejs }}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'red/js/plano_map.js' %}?v=11"></script>{% endblock %}

@@ -46,13 +46,20 @@
               <div class="col-6"><span class="text-muted small">Maestro</span><div class="fw-bold">{{ rec.teacher_name|default:"—" }}</div></div>
               <div class="col-6"><span class="text-muted small">Grado</span><div class="fw-bold">{{ rec.grade|default:"—" }}</div></div>
               <div class="col-6"><span class="text-muted small">Equipo</span><div class="fw-bold">{{ rec.model|default:"—" }}</div></div>
+              {# <--- hecho por claude code: el Control de equipo muestra la evaluación en vez de la falla #}
+              {% if rec.tipo_equipo == 'control' %}
+              <div class="col-6"><span class="text-muted small">Estado del equipo</span><div class="fw-bold">{{ rec.get_estado_equipo_display|default:"—" }}</div></div>
+              <div class="col-12"><span class="text-muted small">¿Qué tal ha trabajado su equipo?</span><div class="fw-bold">{{ rec.get_eval_trabajo_display|default:"—" }}</div></div>
+              <div class="col-12"><span class="text-muted small">¿Ha presentado fallas?</span><div class="fw-bold">{{ rec.get_eval_fallas_display|default:"—" }}{% if rec.eval_fallas == 'si' and rec.eval_fallas_detalle %} — {{ rec.eval_fallas_detalle }}{% endif %}</div></div>
+              {% else %}
               <div class="col-6"><span class="text-muted small">Tipo de falla</span><div class="fw-bold">{{ rec.tipo_falla|default:"—" }}</div></div>
               <div class="col-12"><span class="text-muted small">Solución aplicada</span><div class="fw-bold">{{ rec.solucion|default:"—" }}</div></div>
+              {% endif %}
             </div>
           </div>
         </div>
 
-        <p class="text-muted small">Firme como evidencia de conformidad con la reparación realizada.</p>
+        <p class="text-muted small">{% if rec.tipo_equipo == 'control' %}Firme como evidencia de conformidad con el control de equipo realizado.{% else %}Firme como evidencia de conformidad con la reparación realizada.{% endif %}</p>
         <form method="post" id="firmaForm">
           {% csrf_token %}
           <input type="hidden" name="firma_data" id="firma_data">

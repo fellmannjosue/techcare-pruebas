@@ -1,0 +1,65 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code: Fase 4 — planificador de migración de VLAN (solo análisis) #}
+{% block title %}Migración de VLAN{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Fase 4{% endblock %}
+{% block page_title %}Planificador de migración de VLAN{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+
+{% block content %}
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small mb-0">VLAN origen</label>
+    <select name="origen" class="form-select form-select-sm">
+      <option value="">—</option>
+      {% for v in vlans %}<option value="{{ v.id }}" {% if origen_id == v.id|stringformat:'s' %}selected{% endif %}>VLAN {{ v.vlan_id }} · {{ v.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto align-self-center pt-3"><i class="ti ti-arrow-right"></i></div>
+  <div class="col-auto"><label class="form-label small mb-0">VLAN destino</label>
+    <select name="destino" class="form-select form-select-sm">
+      <option value="">—</option>
+      {% for v in vlans %}<option value="{{ v.id }}" {% if destino_id == v.id|stringformat:'s' %}selected{% endif %}>VLAN {{ v.vlan_id }} · {{ v.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="ti ti-analyze me-1"></i>Analizar impacto</button></div>
+</form>
+
+{% if origen and destino %}
+<div class="alert {% if suficiente %}alert-success{% else %}alert-danger{% endif %} py-2">
+  {% if suficiente %}<i class="ti ti-check me-1"></i>La VLAN destino tiene <strong>{{ cap_destino.libres }}</strong> IP disponibles — suficiente para los <strong>{{ n_devs }}</strong> dispositivos.
+  {% else %}<i class="ti ti-alert-triangle me-1"></i><strong>Capacidad insuficiente:</strong> destino tiene {{ cap_destino.libres }} IP libres pero se moverían {{ n_devs }} dispositivos.{% endif %}
+</div>
+
+{# <--- hecho por claude code: el análisis se convierte en formulario de EJECUCIÓN (solo con permiso aprobar_migracion) #}
+<form method="post" action="{% url 'red:migracion_ejecutar' %}" id="form-migrar">{% csrf_token %}
+<input type="hidden" name="origen" value="{{ origen.pk }}"><input type="hidden" name="destino" value="{{ destino.pk }}">
+<div class="card">
+  <div class="card-header"><h3 class="card-title">Dispositivos que se moverían de VLAN {{ origen.vlan_id }} → VLAN {{ destino.vlan_id }} ({{ n_devs }})</h3></div>
+  <div class="table-responsive"><table class="table table-vcenter card-table">
+    <thead><tr>{% if puede_ejecutar %}<th class="w-1"><input type="checkbox" class="form-check-input" id="chk-todos" checked></th>{% endif %}<th>Dispositivo</th><th>Tipo</th><th>IP actual</th><th>Nueva subred</th></tr></thead>
+    <tbody>
+      {% for d in devs %}
+      <tr>{% if puede_ejecutar %}<td><input type="checkbox" class="form-check-input chk-dev" name="dispositivos" value="{{ d.pk }}" checked></td>{% endif %}
+        <td>{{ d.nombre }}</td><td class="text-muted">{{ d.get_tipo_display }}</td>
+        <td class="text-muted">{{ d.ip|default:'—' }}</td>
+        <td class="text-muted">{{ destino.subred|default:'(sin subred definida)' }} <span class="text-muted small">(se asigna la primera IP libre)</span></td></tr>
+      {% empty %}<tr><td colspan="5" class="text-muted text-center py-3">La VLAN origen no tiene dispositivos.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if puede_ejecutar and devs %}
+  <div class="card-footer">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6"><label class="form-label small mb-0">Motivo (obligatorio, queda en auditoría)</label>
+        <input type="text" name="motivo" class="form-control form-control-sm" minlength="5" required placeholder="Ej. Reorganización de VLAN de impresoras"></div>
+      <div class="col-md-3"><label class="form-check"><input type="checkbox" class="form-check-input" name="confirmar" value="SI" required>
+        <span class="form-check-label small">Entiendo que se <strong>reasignan IPs</strong> y puede haber corte en esos equipos</span></label></div>
+      <div class="col-md-3 text-end"><button type="submit" class="btn btn-sm btn-danger" {% if not suficiente %}disabled title="Sin IP suficientes en destino"{% endif %}><i class="ti ti-arrows-exchange me-1"></i>Ejecutar migración</button></div>
+    </div>
+    <div class="text-muted small mt-2"><i class="ti ti-shield-check me-1"></i>Se procesa <strong>equipo por equipo</strong>: la IP anterior se libera en el IPAM, se asigna la primera IP libre del destino y se actualiza el equipo. Si uno falla, se revierte solo ese y se continúa. Todo queda en Auditoría.</div>
+  </div>
+  {% else %}
+  <div class="card-footer text-muted small"><i class="ti ti-info-circle me-1"></i>Esta pantalla es de <strong>análisis</strong>. Para ejecutar la migración se requiere el permiso <em>Aprobar migraciones</em> (grupo <code>red_admin</code> o superusuario).</div>
+  {% endif %}
+</div>
+</form>
+{% elif origen_id and destino_id %}
+<div class="alert alert-warning py-2"><i class="ti ti-alert-triangle me-1"></i>Elige dos VLAN distintas.</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}{% load static %}<script src="{% static 'red/js/migracion.js' %}?v=1"></script>{% endblock %}

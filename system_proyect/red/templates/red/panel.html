@@ -1,0 +1,59 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: Fase 4 — panel avanzado de red (KPIs + gráficas) #}
+{% block title %}Panel avanzado · Red{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Fase 4{% endblock %}
+{% block page_title %}Panel avanzado de red{% endblock %}
+{% block extra_head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+
+{% block content %}
+{# ── KPIs ── #}
+<div class="row row-cards mb-1">
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-blue">{{ k_vlans }}</div><div class="text-muted small">VLANs</div></div></div></div>
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-purple">{{ k_dispositivos }}</div><div class="text-muted small">Dispositivos</div></div></div></div>
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-indigo">{{ k_switches }}</div><div class="text-muted small">Switches</div></div></div></div>
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-pink">{{ k_enlaces }}</div><div class="text-muted small">Enlaces</div></div></div></div>
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-teal">{{ k_planos }}</div><div class="text-muted small">Planos</div></div></div></div>
+  <div class="col-6 col-sm-4 col-xl-2"><div class="card card-sm"><div class="card-body text-center">
+    <div class="h1 m-0 text-green">{{ k_pct_uso }}%</div><div class="text-muted small">IPs en uso</div></div></div></div>
+</div>
+
+{# ── Barra de IPs ── #}
+<div class="card mb-3"><div class="card-body py-2">
+  <div class="d-flex justify-content-between small mb-1">
+    <span><strong>{{ k_ips_uso }}</strong> en uso · <strong>{{ k_ips_libres }}</strong> libres · <strong>{{ k_ips_reservadas }}</strong> reservadas</span>
+    <span class="text-muted">{{ k_ips_total }} IPs totales</span>
+  </div>
+  <div class="progress" style="height:10px;">
+    <div class="progress-bar bg-green" style="width: {{ k_pct_uso }}%"></div>
+  </div>
+</div></div>
+
+{# ── Gráficas ── #}
+<div class="row row-cards">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Dispositivos por tipo</h3></div>
+    <div class="card-body"><div style="position:relative;height:300px;"><canvas id="cDisp"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Dispositivos por edificio</h3></div>
+    <div class="card-body"><div style="position:relative;height:300px;"><canvas id="cEdif"></canvas></div></div></div></div>
+
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header"><h3 class="card-title">IPs por VLAN (usadas vs libres)</h3></div>
+    <div class="card-body"><div style="position:relative;height:320px;"><canvas id="cVlan"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Capacidad de VLANs</h3></div>
+    <div class="card-body"><div style="position:relative;height:320px;"><canvas id="cCap"></canvas></div></div></div></div>
+
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Enlaces por tipo</h3></div>
+    <div class="card-body"><div style="position:relative;height:300px;"><canvas id="cEnl"></canvas></div></div></div></div>
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header"><h3 class="card-title">Ocupación de puertos por switch</h3></div>
+    <div class="card-body"><div style="position:relative;height:300px;"><canvas id="cSw"></canvas></div></div></div></div>
+</div>
+
+<div id="panel-data" hidden data-graf="{{ graf_json }}"></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'red/js/panel.js' %}?v=1"></script>{% endblock %}

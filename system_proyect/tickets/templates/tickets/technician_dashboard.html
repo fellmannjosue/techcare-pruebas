@@ -28,7 +28,9 @@
             <th>Nombre</th>
             <th>Correo</th>
             <th>Descripción</th>
+            <th>Urgencia</th>
             <th>Estado</th>
+            <th>SLA</th>
             <th>Adjunto</th>
             <th style="width:80px;">Chat</th>
           </tr>
@@ -40,6 +42,13 @@
             <td>{{ ticket.name }}</td>
             <td>{{ ticket.email }}</td>
             <td style="max-width:220px;">{{ ticket.description|truncatechars:60 }}</td>
+            {# <--- hecho por claude code: badge de urgencia #}
+            <td>
+              {% if ticket.urgencia == "urgente" %}<span class="badge bg-red-lt text-red"><i class="ti ti-alert-triangle-filled me-1"></i>Urgente</span>
+              {% elif ticket.urgencia == "alto" %}<span class="badge bg-orange-lt text-orange">Alto</span>
+              {% elif ticket.urgencia == "bajo" %}<span class="badge bg-secondary-lt text-secondary">Bajo</span>
+              {% else %}<span class="badge bg-azure-lt text-azure">Medio</span>{% endif %}
+            </td>
             <td>
               {% if ticket.status == "Resuelto" %}
                 <span class="badge bg-success-lt text-success">{{ ticket.status }}</span>
@@ -48,6 +57,14 @@
               {% else %}
                 <span class="badge bg-warning-lt text-warning">{{ ticket.status }}</span>
               {% endif %}
+            </td>
+            {# <--- hecho por claude code: semáforo SLA #}
+            <td>
+              {% if ticket.sla_estado == "vencido" %}<span class="badge bg-red-lt text-red"><i class="ti ti-clock-x me-1"></i>Vencido</span>
+              {% elif ticket.sla_estado == "por_vencer" %}<span class="badge bg-yellow-lt text-yellow"><i class="ti ti-clock-exclamation me-1"></i>{{ ticket.sla_texto }}</span>
+              {% elif ticket.sla_estado == "a_tiempo" %}<span class="badge bg-green-lt text-green"><i class="ti ti-clock-check me-1"></i>{{ ticket.sla_texto }}</span>
+              {% elif ticket.sla_estado == "cumplido" %}<span class="badge bg-green-lt text-green">Cumplido</span>
+              {% else %}<span class="badge bg-red-lt text-red">Incumplido</span>{% endif %}
             </td>
             <td>
               {% if ticket.attachment %}
@@ -73,7 +90,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-center text-muted py-3">No hay tickets disponibles.</td></tr>
+          <tr><td colspan="9" class="text-center text-muted py-3">No hay tickets disponibles.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -159,4 +176,9 @@
 <div id="technician_dashboard-config" hidden
      data-v0="{{ csrf_token }}"></div>
 <script src="{% static 'tickets/js/technician_dashboard.js' %}?v=11"></script>
+{# <--- hecho por claude code: alerta cada 10 min de tickets sin atender #}
+<div id="tickets-alerta-cfg" hidden
+     data-url="{% url 'tickets_sin_atender_ajax' %}"
+     data-sonido="{% static 'accounts/sound/hey.mp3' %}"></div>
+<script src="{% static 'tickets/js/tickets_alerta.js' %}?v=1"></script>
 {% endblock %}

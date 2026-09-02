@@ -75,15 +75,17 @@
         {# Grupos #}
         <div class="col-md-6">
           <label class="form-label fw-semibold">Grupos</label>
-          <select class="form-select" name="groups" multiple size="5">
+          {# <--- hecho por claude code: checkboxes + tooltip con la descripción de cada grupo #}
+          <div class="border rounded p-2" style="max-height:230px;overflow-y:auto;">
             {% for g in grupos %}
-              <option value="{{ g.pk }}"
-                {% if edit_user and g in edit_user.groups.all %}selected{% endif %}>
-                {{ g.name }}
-              </option>
+              <label class="form-check mb-1" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ g.descripcion }}">
+                <input class="form-check-input" type="checkbox" name="groups" value="{{ g.pk }}"
+                       {% if edit_user and g in edit_user.groups.all %}checked{% endif %}>
+                <span class="form-check-label">{{ g.name }}</span>
+              </label>
             {% endfor %}
-          </select>
-          <div class="form-hint">Ctrl+clic para seleccionar varios.</div>
+          </div>
+          <div class="form-hint"><i class="ti ti-info-circle me-1"></i>Pasa el cursor sobre un grupo para ver qué permite. Marca los que quieras.</div>
         </div>
 
         {# Flags ── acceso y tipo #}
@@ -113,6 +115,19 @@
             {% endif %}
           </div>
         </div>
+
+        {% if modo == 'crear' %}
+        {# <--- hecho por claude code: enviar credenciales por correo al crear #}
+        <div class="col-12">
+          <label class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="enviar_correo" checked>
+            <span class="form-check-label">
+              <i class="ti ti-mail text-blue me-1"></i>Enviar credenciales por correo al usuario
+            </span>
+          </label>
+          <div class="text-muted small mt-1">Se envía usuario y contraseña al correo indicado arriba.</div>
+        </div>
+        {% endif %}
 
       </div>
 

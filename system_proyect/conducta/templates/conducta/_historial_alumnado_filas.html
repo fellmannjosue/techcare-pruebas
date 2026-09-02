@@ -1,0 +1,50 @@
+{# <--- hecho por claude code: filas de un grado del historial (carga perezosa) #}
+<div class="table-responsive">
+  <table class="table table-sm table-vcenter mb-0">
+    <thead><tr>
+      <th>#</th><th>Alumno</th><th>Tipo</th><th>Fecha</th><th>Docente</th><th>Estado</th><th>Evidencias</th><th>Acciones</th>
+    </tr></thead>
+    <tbody>
+      {% for r in reportes %}
+      <tr data-pk="{{ r.pk }}" data-tipo="{{ r.tipo_key }}">
+        <td class="text-muted small">#{{ r.pk }}</td>
+        <td>{{ r.alumno }}</td>
+        <td><span class="badge bg-{{ r.color }}-lt text-{{ r.color }}">{{ r.tipo }}</span></td>
+        <td>{{ r.fecha|date:"d/m/Y" }}</td>
+        <td>{{ r.docente|default:"—" }}</td>
+        <td>
+          {% if r.estado == "aprobado" %}<span class="badge bg-success-lt text-success">Aprobado</span>
+          {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
+          {% elif r.estado == "revisado" %}<span class="badge bg-blue-lt text-blue">Revisado</span>
+          {% else %}<span class="badge bg-secondary-lt text-secondary">{{ r.estado|default:"Enviado"|title }}</span>{% endif %}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-evidencia {% if r.num_evid >= 2 %}btn-danger disabled{% elif r.num_evid %}btn-success{% else %}btn-secondary{% endif %}"
+                  data-id="{{ r.pk }}" data-tipo="{{ r.tipo_key }}" data-num-evidencias="{{ r.num_evid }}"
+                  title="{% if r.num_evid >= 2 %}Máximo alcanzado (2){% else %}Subir evidencia{% endif %}">
+            <i class="ti ti-{% if r.num_evid %}photo{% else %}camera{% endif %}"></i>
+          </button>
+        </td>
+        <td>
+          <div class="d-flex align-items-center gap-1">
+            {% if can_edit_dash %}
+            <button class="btn btn-sm btn-primary btn-editar-inline"
+                    data-pk="{{ r.pk }}" data-tipo="{{ r.tipo_key }}" data-area="{{ area }}"
+                    title="Editar"><i class="ti ti-pencil"></i></button>
+            {% endif %}
+            <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+            {% if can_delete_dash %}
+            <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
+                    data-pk="{{ r.pk }}" data-tipo="{{ r.tipo_key }}"
+                    data-alumno="{{ r.alumno }}" data-materia="{{ r.materia }}" data-fecha="{{ r.fecha|date:'d/m/Y' }}"
+                    title="Eliminar"><i class="ti ti-trash"></i></button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="text-center text-muted py-3">Sin reportes.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,28 @@
+{% load desarrollo_tags %}
+{# <--- hecho por claude code: tabla reutilizable de Mis Requerimientos (FASE 5) #}
+<div class="table-responsive">
+  <table class="table table-vcenter table-hover card-table">
+    <thead><tr>
+      <th></th><th>Código</th><th>Título</th><th>Proyecto</th><th>Estado</th>
+      <th class="text-center">Avance</th><th>Fecha est.</th>
+    </tr></thead>
+    <tbody>
+      {% for r in filas %}
+      <tr style="cursor:pointer;" onclick="location.href='{% url 'desarrollo:req_detail' r.codigo %}'">
+        <td title="{{ r.semaforo|semaforo_texto }}">{{ r.semaforo|semaforo_emoji }}</td>
+        <td class="fw-semibold">{{ r.codigo }}</td>
+        <td>{{ r.titulo|truncatechars:56 }}</td>
+        <td class="small">{% if r.proyecto %}{{ r.proyecto.codigo }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td><span class="badge bg-{{ r.estado|estado_color }}-lt">{{ r.get_estado_display }}</span></td>
+        <td style="min-width:100px;">
+          <div class="progress" style="height:5px;"><div class="progress-bar" style="width:{{ r.porcentaje_avance }}%;"></div></div>
+          <div class="text-muted small text-center">{{ r.porcentaje_avance }}%</div>
+        </td>
+        <td class="small">{{ r.fecha_estimada|date:"d/m/Y"|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center text-muted py-4">{{ vacio }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

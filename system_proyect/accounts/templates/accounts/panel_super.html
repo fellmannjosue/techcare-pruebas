@@ -4,48 +4,100 @@
 {% block page_pretitle %}Bienvenido{% endblock %}
 {% block page_title %}Panel Principal{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-{# <--- hecho por claude code: panel del superusuario como acordeón (cada módulo despliega sus subdashboards) #}
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-  <p class="text-muted mb-0">Administración del sistema · Accesos por área.</p>
-</div>
+{# <--- hecho por claude code: panel del superusuario como dashboard (KPIs + gráficas + secciones) #}
+<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=6">
 
-<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=2">
+<div class="ps-dash">
 
-<div class="mb-2 dg-section-title" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:600;">
-  <i class="ti ti-layout-grid me-1"></i>Módulos
-</div>
+  <p class="text-muted mb-3">Administración del sistema · Accesos por área.</p>
 
-<div id="panelAccordion">
-  {% for g in grupos %}
-  <div class="pa-item" style="--tc-accent:{{ g.color }};">
-    <h2 class="m-0">
-      <button class="pa-btn collapsed" type="button" data-bs-toggle="collapse"
-              data-bs-target="#pa-{{ g.key }}" aria-expanded="false" aria-controls="pa-{{ g.key }}">
-        <span class="pa-ico"><i class="ti {{ g.icon }}"></i></span>
-        <span class="pa-txt">
-          <span class="pa-title">{{ g.titulo }}<span class="pa-count">{{ g.cards|length }}</span></span>
-          <span class="pa-desc">{{ g.desc }}</span>
+  {# ===== KPIs (datos reales de la vista) ===== #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <a href="{% url 'technician_dashboard' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#206bc4;">
+        <span class="ps-kpi-ico"><i class="ti ti-ticket"></i></span>
+        <span>
+          <span class="ps-kpi-num">{{ tickets_pendientes|default:0 }}</span>
+          <span class="ps-kpi-lbl">Tickets abiertos</span>
         </span>
-        <i class="ti ti-chevron-right pa-chev fs-2"></i>
-      </button>
-    </h2>
-    <div id="pa-{{ g.key }}" class="collapse" data-bs-parent="#panelAccordion">
-      <div class="pa-body">
-        <div class="row g-3">
-          {% for c in g.cards %}
-          <div class="col-6 col-md-3">
-            <a href="{{ c.href }}" class="card card-link dg-card text-center p-3 text-decoration-none h-100">
-              <div class="mb-2"><i class="ti {{ c.i }}" style="font-size:2.1rem;color:{{ c.c }};"></i></div>
-              <div class="fw-semibold text-primary">{{ c.t }}</div>
-              <div class="text-muted small">{{ c.s }}</div>
-            </a>
-          </div>
-          {% endfor %}
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#0ca678;">
+        <span class="ps-kpi-ico"><i class="ti ti-chalkboard"></i></span>
+        <span>
+          <span class="ps-kpi-num">{{ reportes_bl|default:0 }}</span>
+          <span class="ps-kpi-lbl">Reportes nuevos · Bilingüe</span>
+        </span>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="{% url 'dashboard_coordinador' area='colegio' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#f08c00;">
+        <span class="ps-kpi-ico"><i class="ti ti-user-check"></i></span>
+        <span>
+          <span class="ps-kpi-num">{{ reportes_col|default:0 }}</span>
+          <span class="ps-kpi-lbl">Reportes nuevos · Colegio</span>
+        </span>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="{% url 'settings_actividad' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#ae3ec9;">
+        <span class="ps-kpi-ico"><i class="ti ti-login"></i></span>
+        <span>
+          <span class="ps-kpi-num">{{ accesos_hoy|default:0 }}</span>
+          <span class="ps-kpi-lbl">Accesos hoy</span>
+        </span>
+      </a>
+    </div>
+  </div>
+
+  {# ===== Gráficas de actividad (datos reales de RegistroAcceso) ===== #}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-chart-line me-2 text-blue"></i>Actividad de accesos · últimos 14 días</h3>
+          <div class="card-actions text-muted small">{{ accesos_14d|default:0 }} accesos</div>
         </div>
+        <div class="card-body"><div class="ps-chart-wrap"><canvas id="psChartAccesos"></canvas></div></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-users me-2 text-purple"></i>Usuarios más activos · 30 días</h3>
+        </div>
+        <div class="card-body"><div class="ps-chart-wrap"><canvas id="psChartTop"></canvas></div></div>
       </div>
     </div>
   </div>
-  {% endfor %}
+
+  <div class="dg-section-title mb-3" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;">
+    <i class="ti ti-layout-grid me-1"></i>Módulos
+  </div>
+
+  {# ===== Secciones por área en 2 columnas ===== #}
+  <div class="row g-3 ps-cols">
+    <div class="col-lg-6">
+      {% for g in grupos_col1 %}{% include 'accounts/_ps_seccion.html' %}{% endfor %}
+    </div>
+    <div class="col-lg-6">
+      {% for g in grupos_col2 %}{% include 'accounts/_ps_seccion.html' %}{% endfor %}
+    </div>
+  </div>
+
 </div>
+
+{# <--- hecho por claude code: datos para las gráficas (leídos por panel_super.js) #}
+<div id="ps-chart-data" hidden
+     data-acc-labels="{{ acc_labels_json }}"
+     data-acc-data="{{ acc_data_json }}"
+     data-top-labels="{{ top_labels_json }}"
+     data-top-data="{{ top_data_json }}"></div>
+<script src="{% static 'accounts/js/panel_super.js' %}?v=1"></script>
 {% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code: lista de planos del campus #}
+{% block title %}Red · Planos{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Mapa de campus{% endblock %}
+{% block page_title %}Planos{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+{% block page_actions %}<a href="{% url 'red:plano_nuevo' %}" class="btn btn-primary"><i class="ti ti-upload me-1"></i>Subir plano</a>{% endblock %}
+
+{% block content %}
+{% include 'red/_messages.html' %}
+<div class="row row-cards g-3">
+  {% for p in planos %}
+  <div class="col-sm-6 col-lg-4">
+    <div class="card">
+      <a href="{% url 'red:plano_view' p.pk %}"><img src="{{ p.imagen.url }}" class="card-img-top" style="height:180px;object-fit:cover;background:#f1f3f5;" alt="{{ p.nombre }}"></a>
+      <div class="card-body">
+        <div class="fw-semibold">{{ p.nombre }}</div>
+        <div class="text-muted small">{{ p.edificio|default:'Campus / general' }} · {{ p.marcadores.count }} marcadores</div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <a href="{% url 'red:plano_view' p.pk %}" class="btn btn-sm btn-primary flex-fill"><i class="ti ti-map-pin me-1"></i>Abrir mapa</a>
+        <a href="{% url 'red:plano_editar' p.pk %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-edit"></i></a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12"><div class="card"><div class="card-body text-center text-muted py-5">
+    <i class="ti ti-map fs-1 d-block mb-2"></i>Sin planos. <a href="{% url 'red:plano_nuevo' %}">Sube el primero</a> (Admin baja/alta, CFP, Colegio, Bilingüe).
+  </div></div></div>
+  {% endfor %}
+</div>
+{% endblock %}

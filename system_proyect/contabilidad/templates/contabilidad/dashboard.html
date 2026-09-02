@@ -1,0 +1,68 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: dashboard del módulo Contabilidad (FASE 1) #}
+{% block title %}Programa de Contabilidad{% endblock %}
+{% block page_pretitle %}Administración{% endblock %}
+{% block page_title %}Programa de Contabilidad{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=1">
+{% endblock %}
+
+{% block content %}
+<p class="text-muted">Gestión contable y administrativa.</p>
+
+<div class="row row-cards g-3">
+  {% for s in submodulos %}
+  {% if s.visible %}
+  <div class="col-12 col-sm-6 col-lg-4">
+    {% if s.listo and s.url %}<a href="{% url s.url %}" class="text-decoration-none text-reset">{% endif %}
+    <div class="card h-100 cont-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <span class="rounded p-2 d-inline-flex" style="background:{{ s.color }}22;color:{{ s.color }};">
+          <i class="ti {{ s.icono }} fs-2"></i>
+        </span>
+        <div class="flex-fill">
+          <div class="fw-semibold">{{ s.nombre }}</div>
+          {% if s.listo %}
+          <span class="badge bg-green-lt text-green">Disponible</span>
+          {% else %}
+          <span class="badge bg-secondary-lt text-secondary">Próximamente</span>
+          {% endif %}
+        </div>
+        <i class="ti ti-chevron-right text-muted"></i>
+      </div>
+    </div>
+    {% if s.listo and s.url %}</a>{% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{# <--- hecho por claude code: Regalías de proveedores — informe APARTE del inventario (no se contabiliza) #}
+{% if ver_regalias %}
+<a href="{% url 'contabilidad:regalias_lista' %}" class="text-decoration-none text-reset">
+  <div class="card mt-3 cont-card">
+    <div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded p-2 d-inline-flex" style="background:#d6336c22;color:#d6336c;"><i class="ti ti-gift fs-2"></i></span>
+      <div class="flex-fill">
+        <div class="fw-semibold">Regalías de Proveedores</div>
+        <div class="text-muted small">Informe aparte — obsequios del proveedor (no entra al inventario ni se contabiliza)</div>
+      </div>
+      <i class="ti ti-chevron-right text-muted"></i>
+    </div>
+  </div>
+</a>
+{% endif %}
+
+<div class="card mt-3">
+  <div class="card-body text-center text-muted py-4">
+    <i class="ti ti-tools fs-1 d-block mb-2"></i>
+    Los submódulos se habilitan por fases. El primer componente funcional será <strong>Inventario</strong>.
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'contabilidad/js/contabilidad.js' %}?v=1"></script>
+{% endblock %}

@@ -133,7 +133,7 @@
 
 {# ══════════════════ TAB 2 — ADEUDADOS 2 ══════════════════ #}
 <div class="tab-pane fade" id="tab2">
-  <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i><strong>Saldo hasta la fecha</strong> = Compensado + Tiempo extra − Tiempo tomado · <strong>Saldo deuda</strong> = Total a compensar − (Compensado + T. extra). El "Tiempo tomado" sale del permiso compensatorio.</div>
+  <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i><strong>Saldo hasta la fecha</strong> = Compensado + Tiempo extra − Tiempo tomado · <strong>Saldo deuda</strong> = Total a compensar − (Compensado + T. extra); cuando llega a 0 y hay horas de más, se muestra el <strong>excedente</strong> (+ h de más). El "Tiempo tomado" sale del permiso compensatorio.</div>
   <div class="card"><div class="card-body p-0"><div class="table-responsive">
     <table id="tabla-calculo2" class="table table-vcenter table-hover card-table">
       <thead><tr>
@@ -186,7 +186,10 @@
           </td>
           {# Saldo deuda = Total a compensar − (Compensado + T. extra) #}
           <td class="text-center" data-total-hrs="{{ item.total_hrs|unlocalize }}">
-            {% if item.saldo_fecha_hrs <= 0 %}<span class="badge bg-green-lt text-green saldo-fecha-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>0 h</span>
+            {# <--- hecho por claude code: sin deuda → muestra el excedente (horas de más); con deuda → la deuda #}
+            {% if item.saldo_fecha_hrs <= 0 %}
+              {% if item.excedente_hrs > 0 %}<span class="badge bg-green-lt text-green saldo-fecha-{{ r.pk }}" title="Horas de más ya trabajadas por encima del total"><i class="ti ti-arrow-up-right me-1"></i>+{{ item.excedente_hrs }} h de más</span>
+              {% else %}<span class="badge bg-green-lt text-green saldo-fecha-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>0 h</span>{% endif %}
             {% else %}<span class="badge bg-red-lt text-red saldo-fecha-{{ r.pk }}">{{ item.saldo_fecha_hrs }} h</span>{% endif %}
           </td>
           {# Fecha fin estimada según Saldo deuda (Total − Comp+TE, días hábiles desde hoy) #}
@@ -385,6 +388,6 @@
 
 {% include 'reloj/_compensatorio_modales.html' %}
 
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=27"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=28"></script>
 
 {% endblock %}

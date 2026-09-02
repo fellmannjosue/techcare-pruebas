@@ -284,6 +284,8 @@ if (window._PAGE.esSuperusuario) {
       regla_enfermedad: document.getElementById('bregla_enf').checked,
       regla_hora_activa: document.getElementById('bregla_hora').checked,
       hora_limite: document.getElementById('bregla_hora_val').value,
+      // <--- hecho por claude code: tope duro (07:00) — pierde el bono automáticamente
+      hora_perdida_auto: (document.getElementById('bregla_perdida_val') || {}).value,
       regla_vigilancia: document.getElementById('bregla_vig').checked,
       hora_vigilancia: document.getElementById('bregla_vig_val').value,
       hora_vigilancia_2: document.getElementById('bregla_vig2_val').value,

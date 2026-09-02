@@ -415,6 +415,10 @@ def editar_agenda(request, pk):
         agenda.nota_general   = request.POST.get('nota_general', '').strip()[:200]
         agenda.modificado_por = request.user
         agenda.save()
+        # <--- hecho por claude code: autoguardado (AJAX) → responde JSON sin recargar.
+        # El envío normal del formulario sigue redirigiendo como antes.
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax'):
+            return JsonResponse({'ok': True})
         messages.success(request, "Agenda actualizada.")
         if es_coord:
             return redirect('agendas:dashboard_coordinador')
@@ -745,7 +749,7 @@ def descargar_pptx_agenda(request, pk):
         return HttpResponseForbidden()
     from pptx import Presentation
     from pptx.util import Inches, Pt, Emu
-    from pptx.enum.text import PP_ALIGN
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     from pptx.dml.color import RGBColor
     from pptx.oxml.ns import qn
     from lxml import etree
@@ -787,10 +791,10 @@ def descargar_pptx_agenda(request, pk):
         etree.SubElement(cl, qn('a:alpha'), val='40000')
 
     def _run(para, txt, size, bold=False, italic=False, underline=False,
-             shadow=False, color=None):
+             shadow=False, color=None, font='Book Antiqua'):
         run = para.add_run()
         run.text = txt
-        run.font.name      = 'Book Antiqua'
+        run.font.name      = font
         run.font.size      = Pt(size)
         run.font.bold      = bold
         run.font.italic    = italic
@@ -880,24 +884,30 @@ def descargar_pptx_agenda(request, pk):
     tb = slide.shapes.add_textbox(LEFT_X, Inches(0.1), LEFT_W, Inches(2.2))
     tb.fill.background(); tb.line.fill.background()
     tf = tb.text_frame; tf.clear(); tf.word_wrap = True
-    p  = tf.paragraphs[0]; p.alignment = PP_ALIGN.LEFT
-    _run(p, 'Agenda\nSemanal.', 30, bold=True, italic=True, shadow=True, color=CLR_DARK)
+    p  = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+    # <--- hecho por claude code: centrado, Book Antiqua, tamaño 20
+    _run(p, 'Agenda\nSemanal', 20, bold=True, italic=True, shadow=True, color=CLR_DARK, font='Book Antiqua')
 
     sem = f"{_fecha_es(agenda.semana_inicio)} al {_fecha_es(agenda.semana_fin)}"
     tb = slide.shapes.add_textbox(LEFT_X, Inches(2.5), LEFT_W, Inches(2.0))
     tb.fill.background(); tb.line.fill.background()
     tf = tb.text_frame; tf.clear(); tf.word_wrap = True
-    p  = tf.paragraphs[0]; p.alignment = PP_ALIGN.LEFT
-    _run(p, 'Semana:', 19, bold=True, italic=True, underline=True, shadow=True, color=CLR_DARK)
-    p2 = tf.add_paragraph(); p2.alignment = PP_ALIGN.LEFT
-    _run(p2, sem, 17, italic=True, shadow=True, color=CLR_DARK)
+    # <--- hecho por claude code: Semana centrado, Book Antiqua, tamaño 20
+    p  = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+    _run(p, 'Semana:', 20, bold=True, italic=True, underline=True, shadow=True, color=CLR_DARK, font='Book Antiqua')
+    p2 = tf.add_paragraph(); p2.alignment = PP_ALIGN.CENTER
+    _run(p2, sem, 20, italic=True, shadow=True, color=CLR_DARK, font='Book Antiqua')
 
     # Textbox transparente sobre la flecha roja de la plantilla
-    tb = slide.shapes.add_textbox(Inches(0.05), Inches(5.0), Inches(2.25), Inches(0.75))
+    # <--- hecho por claude code: posición/tamaño exactos de la flecha (medidos en PowerPoint)
+    tb = slide.shapes.add_textbox(Cm(-0.7), Cm(12.11), Cm(5.72), Cm(1.91))
     tb.fill.background(); tb.line.fill.background()
     tf = tb.text_frame; tf.clear(); tf.word_wrap = False
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE   # centrado vertical dentro de la flecha
+    for _m in ('margin_left', 'margin_right', 'margin_top', 'margin_bottom'):
+        setattr(tf, _m, 0)
     p  = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
-    _run(p, f'Grado: {agenda.grado.nombre}', 13, bold=True, italic=True, color=CLR_WHITE)
+    _run(p, f'Grado: {agenda.grado.nombre}', 20, bold=True, italic=True, color=CLR_WHITE, font='Book Antiqua')
 
     # ── Tabla ─────────────────────────────────────────────────────────────────
     num_rows = len(materias) + 1
@@ -919,7 +929,7 @@ def descargar_pptx_agenda(request, pk):
                               Inches(1.55), Inches(1.55), Inches(1.75)]):
         tbl.columns[_i].width = _w
 
-    def _cell(cell, txt, bold=False, align=PP_ALIGN.CENTER, header=False):
+    def _cell(cell, txt, bold=False, align=PP_ALIGN.CENTER, header=False, size=9):
         # Limpiar retornos de carro Windows (\r) que generan "_x000D_" en PPTX
         txt = (txt or '').replace('\r\n', '\n').replace('\r', '')
         cell.text = txt
@@ -928,12 +938,19 @@ def descargar_pptx_agenda(request, pk):
         cell.fill.fore_color.rgb = RGBColor(235, 238, 215) if header else RGBColor(255, 255, 255)
         tf   = cell.text_frame
         tf.word_wrap = True
-        para = tf.paragraphs[0]
-        para.font.name      = 'Arial'
-        para.font.size      = Pt(11)
-        para.font.bold      = bold
-        para.font.color.rgb = RGBColor(0, 0, 0)
-        para.alignment      = align
+        # <--- hecho por claude code: aplicar Century + tamaño a TODAS las líneas y runs
+        # (antes solo la 1ª línea → el resto quedaba en 18pt y se veía disparejo)
+        for para in tf.paragraphs:
+            para.alignment      = align
+            para.font.name      = 'Century Gothic'
+            para.font.size      = Pt(size)
+            para.font.bold      = bold
+            para.font.color.rgb = RGBColor(0, 0, 0)
+            for run in para.runs:
+                run.font.name      = 'Century Gothic'
+                run.font.size      = Pt(size)
+                run.font.bold      = bold
+                run.font.color.rgb = RGBColor(0, 0, 0)
         # Encoger texto para que quepa en la altura fija de 1.8 cm
         txBody = cell._tc.find(qn('a:txBody'))
         if txBody is not None:
@@ -943,14 +960,15 @@ def descargar_pptx_agenda(request, pk):
                     for _e in bodyPr.findall(_t): bodyPr.remove(_e)
                 bodyPr.set('anchor', 'ctr')     # centrado vertical
                 bodyPr.set('anchorCtr', '1')
-                etree.SubElement(bodyPr, qn('a:normAutofit'))
+                # <--- hecho por claude code: sin encoger — el texto queda al tamaño fijo (uniforme)
+                etree.SubElement(bodyPr, qn('a:noAutofit'))
 
     headers = ['Clase/Día', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Nota']
     for _i, _h in enumerate(headers):
-        _cell(tbl.cell(0, _i), _h, bold=True, header=True)
+        _cell(tbl.cell(0, _i), _h, bold=True, header=True, size=16)
 
     for _row, mat in enumerate(materias, start=1):
-        _cell(tbl.cell(_row, 0), mat.get('materia',   ''), bold=True)
+        _cell(tbl.cell(_row, 0), mat.get('materia',   ''), bold=True, size=16)  # <--- hecho por claude code: columna Clase/Día = 16
         _cell(tbl.cell(_row, 1), mat.get('lunes',     ''))
         _cell(tbl.cell(_row, 2), mat.get('martes',    ''))
         _cell(tbl.cell(_row, 3), mat.get('miercoles', ''))

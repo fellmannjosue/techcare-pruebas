@@ -21,3 +21,8 @@
 #btn-clear-firma, #btn-clear-firma-tec, #edit-btn-clear-firma-tec {
   position:absolute; top:6px; right:8px; font-size:.75rem;
 }
+
+/* <--- hecho por claude code: celdas con hover de detalle (Modelo / Observaciones) */
+.mant-pop { cursor: help; border-bottom: 1px dotted var(--ps-muted, #94a3b8); }
+.mant-pop .ti-info-circle { font-size: .8em; vertical-align: middle; }
+.popover .popover-body { font-size: .85rem; line-height: 1.45; max-width: 320px; }

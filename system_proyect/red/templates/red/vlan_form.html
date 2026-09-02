@@ -1,0 +1,63 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code: formulario de VLAN (uno por VLAN) #}
+{% block title %}{% if v %}Editar VLAN {{ v.vlan_id }}{% else %}Nueva VLAN{% endif %}{% endblock %}
+{% block page_pretitle %}ANA Network Manager · VLAN{% endblock %}
+{% block page_title %}{% if v %}Editar VLAN {{ v.vlan_id }}{% else %}Nueva VLAN{% endif %}{% endblock %}
+{% block back_button %}<a href="{% url 'red:vlan_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>VLANs</a>{% endblock %}
+
+{% block content %}
+{% if form.non_field_errors %}<div class="alert alert-danger"><ul class="mb-0">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% if solapes %}<div class="alert alert-warning"><i class="ti ti-alert-circle me-1"></i>Aviso: la subred se solapa con {% for s in solapes %}VLAN {{ s.vlan_id }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="card mb-3"><div class="card-header"><h3 class="card-title">Identificación</h3></div>
+    <div class="card-body"><div class="row g-3">
+      <div class="col-md-3"><label class="form-label required">VLAN ID</label>{{ form.vlan_id }}{% for e in form.vlan_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-md-6"><label class="form-label required">Nombre</label>{{ form.nombre }}</div>
+      <div class="col-md-3"><label class="form-label">Estado</label>{{ form.estado }}</div>
+      <div class="col-12"><label class="form-label">Descripción</label>{{ form.descripcion }}</div>
+    </div></div>
+  </div>
+
+  <div class="card mb-3"><div class="card-header"><h3 class="card-title">Direccionamiento</h3></div>
+    <div class="card-body"><div class="row g-3">
+      <div class="col-md-4"><label class="form-label required">Subred (CIDR)</label>{{ form.subred }}{% for e in form.subred.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-md-4"><label class="form-label">Gateway</label>{{ form.gateway }}</div>
+      <div class="col-md-4"><label class="form-label">Máscara</label>{{ form.mascara }}</div>
+      <div class="col-md-4"><label class="form-label">Tipo DHCP</label>{{ form.tipo_dhcp }}</div>
+      <div class="col-md-4"><label class="form-label">Servidor DHCP</label>{{ form.servidor_dhcp }}</div>
+      <div class="col-md-4"><label class="form-label">Política Meraki</label>{{ form.politica_meraki }}</div>
+      <div class="col-md-4"><label class="form-label">DNS principal</label>{{ form.dns_principal }}</div>
+      <div class="col-md-4"><label class="form-label">DNS secundario</label>{{ form.dns_secundario }}</div>
+      <div class="col-md-4"><label class="form-label">Color</label>{{ form.color }}</div>
+    </div></div>
+  </div>
+
+  <div class="card mb-3"><div class="card-header"><h3 class="card-title">Rangos y capacidad</h3>
+    <div class="card-actions text-muted small">La capacidad se calcula con el rango asignable, no las 254 completas.</div></div>
+    <div class="card-body"><div class="row g-3">
+      <div class="col-md-6"><label class="form-label">IP inicial asignable</label>{{ form.ip_inicial_asignable }}</div>
+      <div class="col-md-6"><label class="form-label">IP final asignable</label>{{ form.ip_final_asignable }}</div>
+      <div class="col-md-6"><label class="form-label">Inicio reservado</label>{{ form.ip_inicio_reservado }}</div>
+      <div class="col-md-6"><label class="form-label">Fin reservado</label>{{ form.ip_fin_reservado }}</div>
+      <div class="col-md-6"><label class="form-label">Inicio DHCP</label>{{ form.ip_inicio_dhcp }}</div>
+      <div class="col-md-6"><label class="form-label">Fin DHCP</label>{{ form.ip_fin_dhcp }}</div>
+      <div class="col-md-4"><label class="form-label">Límite de dispositivos</label>{{ form.limite_dispositivos }}</div>
+      <div class="col-md-4"><label class="form-label">% libre para alerta amarilla</label>{{ form.porcentaje_alerta }}</div>
+    </div></div>
+  </div>
+
+  <div class="card mb-3"><div class="card-body"><div class="row g-3">
+    <div class="col-md-4"><label class="form-check form-switch">{{ form.permite_internet }}<span class="form-check-label">Permite Internet</span></label></div>
+    <div class="col-md-4"><label class="form-check form-switch">{{ form.permite_comunicacion_interna }}<span class="form-check-label">Permite comunicación interna</span></label></div>
+    <div class="col-12"><label class="form-label">Observaciones</label>{{ form.observaciones }}</div>
+    {% if v %}<div class="col-12"><label class="form-label">Motivo del cambio (auditoría)</label><input type="text" name="motivo" class="form-control" placeholder="Ej: ampliación del rango asignable"></div>{% endif %}
+  </div></div></div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar VLAN</button>
+    <a href="{% url 'red:vlan_list' %}" class="btn btn-ghost-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

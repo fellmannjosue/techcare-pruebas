@@ -1,0 +1,21 @@
+{# <--- hecho por claude code: una sección (grupo) del Panel Principal — usada en ambas columnas #}
+<section class="ps-sec" style="--tc-accent:{{ g.color }};">
+  <div class="ps-sec-head">
+    <span class="ps-sec-ico"><i class="ti {{ g.icon }}"></i></span>
+    <div class="ps-sec-txt">
+      <div class="ps-sec-title">{{ g.titulo }}<span class="ps-sec-count">{{ g.cards|length }}</span></div>
+      <div class="ps-sec-desc">{{ g.desc }}</div>
+    </div>
+  </div>
+  <div class="ps-tiles">
+    {% for c in g.cards %}
+    <a href="{{ c.href }}" class="ps-tile" style="--tile-c:{{ c.c }};">
+      <span class="ps-tile-ico"><i class="ti {{ c.i }}"></i></span>
+      <span class="ps-tile-body">
+        <span class="ps-tile-title">{{ c.t }}</span>
+        <span class="ps-tile-sub">{{ c.s }}</span>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+</section>

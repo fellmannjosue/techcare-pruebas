@@ -35,6 +35,7 @@ def tiempo(request):
 
 # <--- hecho por claude code: una sola vista para las 4 calculadoras de tiempo como paginas individuales.
 TIEMPO_META = {
+    'sumar_horas': {'titulo': 'Sumar horas y minutos', 'icono': 'ti-sum'},
     'entre_horas': {'titulo': 'Entre dos horas', 'icono': 'ti-clock-bolt'},
     'horas_dias': {'titulo': 'Horas → Días', 'icono': 'ti-clock-hour-4'},
     'minutos_horas': {'titulo': 'Minutos → Horas', 'icono': 'ti-hourglass'},

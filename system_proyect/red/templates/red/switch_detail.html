@@ -1,0 +1,80 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: detalle de switch + mapa de puertos frontal #}
+{% block title %}{{ sw.nombre }}{% endblock %}
+{% block page_pretitle %}ANA Network Manager · Switch{% endblock %}
+{% block page_title %}{{ sw.nombre }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'red/css/portmap.css' %}?v=1">{% endblock %}
+{% block back_button %}<a href="{% url 'red:switch_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Switches</a>{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'red:port_nuevo' sw.pk %}" class="btn btn-ghost-primary"><i class="ti ti-plus me-1"></i>Puerto</a>
+  <a href="{% url 'red:switch_editar' sw.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-edit me-1"></i>Editar</a>
+{% endblock %}
+
+{% block content %}
+{% include 'red/_messages.html' %}
+{% if alertas %}
+<div class="alert alert-warning"><i class="ti ti-alert-triangle me-1"></i>
+  <ul class="mb-0">{% for a in alertas %}<li>{{ a }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-5"><div class="card h-100"><div class="card-header"><h3 class="card-title">Información</h3></div>
+    <div class="card-body"><dl class="row mb-0">
+      <dt class="col-5">Fabricante / Modelo</dt><dd class="col-7">{{ sw.fabricante|default:'—' }} {{ sw.modelo }}</dd>
+      <dt class="col-5">IP / MAC admin</dt><dd class="col-7">{{ sw.ip_admin|default:'—' }} {% if sw.mac_admin %}· {{ sw.mac_admin }}{% endif %}</dd>
+      <dt class="col-5">Ubicación / Gabinete</dt><dd class="col-7">{{ sw.ubicacion|default:'Por confirmar' }} {% if sw.gabinete %}· {{ sw.gabinete }}{% endif %}</dd>
+      <dt class="col-5">Administrable / PoE</dt><dd class="col-7">{{ sw.administrable|yesno:'Sí,No' }} / {{ sw.poe|yesno:'Sí,No' }}</dd>
+      <dt class="col-5">Puertos</dt><dd class="col-7">{{ sw.cantidad_puertos }}{% if sw.cantidad_puertos_sfp %} + {{ sw.cantidad_puertos_sfp }} SFP{% endif %}</dd>
+      <dt class="col-5">Firmware</dt><dd class="col-7">{{ sw.firmware|default:'—' }}</dd>
+      <dt class="col-5">Estado</dt><dd class="col-7">{{ sw.get_estado_display }}</dd>
+      {% if sw.observaciones %}<dt class="col-5">Observaciones</dt><dd class="col-7">{{ sw.observaciones }}</dd>{% endif %}
+    </dl></div></div>
+  </div>
+  <div class="col-lg-7"><div class="card h-100"><div class="card-header"><h3 class="card-title">Mapa de puertos</h3>
+    <div class="card-actions small text-muted">
+      <span class="pm-dot" style="background:#2fb344"></span>Activo
+      <span class="pm-dot ms-2" style="background:#206bc4"></span>Trunk
+      <span class="pm-dot ms-2" style="background:#d63939"></span>Bloqueado
+      <span class="pm-dot ms-2" style="background:#adb5bd"></span>Libre
+    </div></div>
+    <div class="card-body">
+      {% if mapa %}
+      <div class="portmap">
+        {% for m in mapa %}
+        <a href="{% url 'red:port_editar' sw.pk m.p.pk %}" class="pm-port" style="background:{{ m.color }}"
+           title="{{ m.p.nombre|default:m.p.numero }} · {{ m.p.get_estado_fisico_display }} · {{ m.p.get_modo_vlan_display }}{% if m.p.vlan_access %} · VLAN {{ m.p.vlan_access.vlan_id }}{% endif %}{% if m.p.vlans_tagged %} · tagged {{ m.p.vlans_tagged }}{% endif %}{% if m.p.dispositivo_conectado %} · {{ m.p.dispositivo_conectado }}{% endif %}">
+          <span class="pm-num">{{ m.p.nombre|default:m.p.numero }}</span>
+          {% if m.p.poe_habilitado %}<span class="pm-poe" title="PoE">⚡</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      <div class="text-muted small mt-2">Los puertos Access se colorean con el color de su VLAN. Clic en un puerto para editar. <em>(No se envía configuración real al switch en esta versión.)</em></div>
+      {% else %}
+      <div class="text-muted py-3">Sin puertos registrados. <a href="{% url 'red:port_nuevo' sw.pk %}">Agrega el primero</a>.</div>
+      {% endif %}
+    </div>
+  </div></div>
+</div>
+
+{# Tabla de puertos #}
+<div class="card"><div class="card-header"><h3 class="card-title">Puertos ({{ mapa|length }})</h3></div>
+  <div class="table-responsive"><table class="table table-vcenter card-table">
+    <thead><tr><th>Puerto</th><th>Tipo</th><th>Estado</th><th>Modo VLAN</th><th>VLAN</th><th>Conectado a</th><th></th></tr></thead>
+    <tbody>
+      {% for m in mapa %}
+      <tr>
+        <td class="fw-semibold">{{ m.p.nombre|default:m.p.numero }}</td>
+        <td>{{ m.p.get_tipo_display }}{% if m.p.poe_habilitado %} <span class="badge bg-yellow-lt text-yellow">PoE</span>{% endif %}</td>
+        <td>{{ m.p.get_estado_fisico_display }}</td>
+        <td>{{ m.p.get_modo_vlan_display }}</td>
+        <td>{% if m.p.modo_vlan == 'trunk' %}nativa {{ m.p.vlan_nativa.vlan_id|default:'—' }} · tagged {{ m.p.vlans_tagged|default:'—' }}{% elif m.p.vlan_access %}VLAN {{ m.p.vlan_access.vlan_id }}{% else %}—{% endif %}</td>
+        <td class="text-muted">{{ m.p.dispositivo_conectado|default:m.p.ubicacion_destino|default:'—' }}</td>
+        <td class="text-end"><a href="{% url 'red:port_editar' sw.pk m.p.pk %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-edit"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

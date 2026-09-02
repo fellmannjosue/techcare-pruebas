@@ -46,8 +46,8 @@ const CFG_CONDUCTA_DASHBOARD_COORDINADOR = (function(){
     var btn = document.getElementById('tab-historial-btn');
     var wrap = document.getElementById('historial-wrap');
     var cargado = false;
-    if (!btn || !wrap) return;
-    btn.addEventListener('shown.bs.tab', function () {
+    if (!wrap) return;
+    function cargarHistorial() {
       if (cargado) return;
       cargado = true;
       fetch(wrap.dataset.url, { credentials: 'same-origin' })
@@ -57,8 +57,27 @@ const CFG_CONDUCTA_DASHBOARD_COORDINADOR = (function(){
           wrap.innerHTML = '<div class="alert alert-danger m-3">No se pudo cargar el historial. Recarga la página.</div>';
           cargado = false;
         });
-    });
+    }
+    if (btn) btn.addEventListener('shown.bs.tab', cargarHistorial);
+    // <--- hecho por claude code: si entraste directo al app Historial (?app=historial) el tab
+    // YA está activo al cargar y 'shown.bs.tab' nunca se dispara → cargarlo de inmediato.
+    var pane = document.getElementById('tab-historial');
+    if (pane && pane.classList.contains('active')) { cargarHistorial(); }
   })();
+
+  // <--- hecho por claude code: carga perezosa de las filas de cada grado del historial.
+  document.addEventListener('shown.bs.collapse', function (e) {
+    var host = e.target && e.target.querySelector ? e.target.querySelector('[data-hist-url]') : null;
+    if (!host || host.getAttribute('data-loaded') === '1') return;
+    host.setAttribute('data-loaded', '1');
+    fetch(host.getAttribute('data-hist-url'), { credentials: 'same-origin' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { host.innerHTML = html; })
+      .catch(function () {
+        host.innerHTML = '<div class="alert alert-danger m-2">No se pudo cargar. Ciérralo y ábrelo de nuevo.</div>';
+        host.setAttribute('data-loaded', '0');
+      });
+  });
 
 window._PAGE = {
     csrf:           CFG_CONDUCTA_DASHBOARD_COORDINADOR.v0,
@@ -103,16 +122,35 @@ window._PAGE = {
       elBar.className='progress-bar bg-danger'; elBar.style.width='100%'; elText.textContent=msg||'Intenta de nuevo.';
     }
 
+    // <--- hecho por claude code: el botón abre el modal; la descarga corre en #btn-zip-confirm
     var btn = document.getElementById('btn-zip-download');
-    if (btn) btn.addEventListener('click', async function(){
+    // Marcar / desmarcar todo dentro del modal
+    document.getElementById('zip-check-all')?.addEventListener('click', function(){
+      document.querySelectorAll('#modalDescargarZip input[name="ztipo"]').forEach(function(c){ c.checked = true; });
+    });
+    document.getElementById('zip-uncheck-all')?.addEventListener('click', function(){
+      document.querySelectorAll('#modalDescargarZip input[name="ztipo"]').forEach(function(c){ c.checked = false; });
+    });
+
+    var btnZip = document.getElementById('btn-zip-confirm');
+    if (btnZip && btn) btnZip.addEventListener('click', async function(){
+      var tipos = Array.from(document.querySelectorAll('#modalDescargarZip input[name="ztipo"]:checked'))
+                       .map(function(c){ return c.value; });
+      var msg = document.getElementById('zip-tipos-msg');
+      if (!tipos.length) { if (msg) msg.classList.remove('d-none'); return; }
+      if (msg) msg.classList.add('d-none');
+      // Cerrar el modal
+      try { bootstrap.Modal.getInstance(document.getElementById('modalDescargarZip')).hide(); } catch(e){}
+
       var base = btn.dataset.url;
       var params = new URLSearchParams();
       var fd = document.getElementById('filtro-docente');
       var fc = document.getElementById('filtro-coord');
       if (fd && fd.value) params.set('docente', fd.value);
       if (fc && fc.value) params.set('coord', fc.value);
-      var url = base + (params.toString() ? ('?'+params.toString()) : '');
-      btn.disabled = true; tPrep();
+      params.set('tipos', tipos.join(','));
+      var url = base + '?' + params.toString();
+      btnZip.disabled = true; tPrep();
       try {
         var resp = await fetch(url, { credentials:'same-origin' });
         if (!resp.ok) throw new Error('El servidor respondió '+resp.status);
@@ -136,7 +174,7 @@ window._PAGE = {
       } catch (e) {
         tError(e.message);
       } finally {
-        btn.disabled = false;
+        btnZip.disabled = false;
       }
     });
 
@@ -385,9 +423,13 @@ window._PAGE = {
       document.getElementById('btnConfirmarReenvio')?.addEventListener('click', async function () {
         const fecha = document.getElementById('inputFechaReenvio').value;
         if (!fecha) { alert('Selecciona una fecha.'); return; }
+        // <--- hecho por claude code: tipos elegidos en el modal
+        const tipos = Array.from(document.querySelectorAll('#modalReenviarReportes input[name="rtipo"]:checked'))
+                           .map(function(c){ return c.value; });
+        if (!tipos.length) { alert('Selecciona al menos un tipo de reporte.'); return; }
         this.disabled = true;
         this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
-        const bodyData = new URLSearchParams({ fecha });
+        const bodyData = new URLSearchParams({ fecha, tipos: tipos.join(',') });
         const res = await fetch(window._PAGE.urlReenviar, {
           method: 'POST',
           headers: { 'X-CSRFToken': window._PAGE.csrf, 'Content-Type': 'application/x-www-form-urlencoded' },

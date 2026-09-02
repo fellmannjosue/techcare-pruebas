@@ -1,0 +1,82 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: hub de Inventario (Uniformes + Proveedores + Compras) #}
+{% block title %}Inventario · Contabilidad{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Inventario{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <p class="text-muted mb-0">Uniformes, proveedores y compras en un solo lugar.</p>
+  <a href="{% url 'contabilidad:dashboard' %}" class="btn btn-ghost-secondary btn-sm">
+    <i class="ti ti-arrow-left me-1"></i>Volver a Contabilidad
+  </a>
+</div>
+
+{# <--- hecho por claude code: entrada al flujo GUIADO de 5 pasos (Proveedor→Producto→Compra→Movimiento→Venta) #}
+{% if puede_guia %}
+<div class="card mb-4 border-primary">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <span class="rounded p-2 d-inline-flex" style="background:#206bc422;color:#206bc4;"><i class="ti ti-list-check fs-2"></i></span>
+    <div class="flex-fill">
+      {# <--- hecho por claude code: 3 pasos; la entrada al inventario la registra CONFIRMAR la compra #}
+      <div class="fw-semibold">Registro guiado (3 pasos)</div>
+      <div class="text-muted small">Desde cero, en orden: 1 Proveedor → 2 Producto → 3 Compra <span class="text-muted">(al confirmar la compra entra el stock)</span></div>
+    </div>
+    <a href="{% url 'contabilidad:proveedor_nuevo' %}?guia=1" class="btn btn-primary">
+      <i class="ti ti-player-play me-1"></i>Empezar
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ── KPIs (datos reales) — solo para quien ve inventario ── #}
+{% if ver_kpis %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-4">
+    <div class="card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded p-2 d-inline-flex" style="background:#206bc422;color:#206bc4;"><i class="ti ti-shirt fs-2"></i></span>
+      <div><div class="h1 mb-0">{{ total_productos }}</div><div class="text-muted small">Productos</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-4">
+    <div class="card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded p-2 d-inline-flex" style="background:#f7670722;color:#f76707;"><i class="ti ti-truck-delivery fs-2"></i></span>
+      <div><div class="h1 mb-0">{{ total_proveedores }}</div><div class="text-muted small">Proveedores</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-4">
+    <div class="card h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded p-2 d-inline-flex" style="background:#ae3ec922;color:#ae3ec9;"><i class="ti ti-shopping-cart fs-2"></i></span>
+      <div><div class="h1 mb-0">{{ total_compras }}</div><div class="text-muted small">Compras</div></div>
+    </div></div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Accesos ── #}
+<div class="row row-cards g-3">
+  {% for c in tarjetas %}
+  <div class="col-12 col-sm-6 col-lg-4">
+    <a href="{% url c.url %}" class="text-decoration-none text-reset">
+      <div class="card h-100 cont-card">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="rounded p-2 d-inline-flex" style="background:{{ c.c }}22;color:{{ c.c }};">
+            <i class="ti {{ c.i }} fs-2"></i>
+          </span>
+          <div class="flex-fill">
+            <div class="fw-semibold">{{ c.t }}</div>
+            <div class="text-muted small">{{ c.s }}</div>
+          </div>
+          <i class="ti ti-chevron-right text-muted"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

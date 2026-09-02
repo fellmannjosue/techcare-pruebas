@@ -4,11 +4,13 @@
 
 {% block title %}Dashboard Coordinador – {{ area|title }}{% endblock %}
 {% block page_pretitle %}Coordinador{% endblock %}
-{% block page_title %}Dashboard Coordinador ({{ area|title }}){% endblock %}
+{% block page_title %}Dashboard Coordinador ({{ area|title }}){% if coord_titulo %} · {{ coord_titulo }}{% endif %}{% endblock %}
 
 {% block extra_head %}
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="{% static 'conducta/css/coordinador.css' %}">
+  {# <--- hecho por claude code: RowGroup para agrupar reportes por alumno (acordeón) #}
+  <link href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{% static 'conducta/css/coordinador.css' %}?v=2">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 {% endblock %}
 
@@ -26,9 +28,11 @@
     <i class="ti ti-send me-1"></i>Reenviar reportes
   </button>
   {% endif %}
+  {# <--- hecho por claude code: ahora abre un modal para elegir qué reportes bajar #}
   <button type="button" id="btn-zip-download" class="btn btn-success me-2"
           data-url="{% url 'descargar_zip_reportes' %}"
-          title="Descargar todos los reportes en un ZIP">
+          data-bs-toggle="modal" data-bs-target="#modalDescargarZip"
+          title="Descargar reportes en un ZIP">
     <i class="ti ti-file-zip me-1"></i>Descargar todo (ZIP)
   </button>
   <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary">
@@ -128,10 +132,10 @@
         <label class="form-label small fw-semibold mb-1"><i class="ti ti-users-group me-1"></i>Filtrar por coordinador</label>
         <select id="filtro-coord" class="form-select form-select-sm">
           <option value="">— Todos —</option>
-          <option value="C1">C1 – Mr. Martinez</option>
-          <option value="C2">C2 – Mr. Ruiz</option>
-          <option value="C3">C3 – Isabel Alcerro</option>
-          <option value="C4">C4 – Josue Martinez</option>
+          {# <--- hecho por claude code: solo coordinadores de reportes (C1-C4); C5/C6/Prin no van #}
+          {% for cod, nom in coord_filtro_nombres.items %}
+          <option value="{{ cod }}">{{ cod }} – {{ nom }}</option>
+          {% endfor %}
         </select>
       </div>
       {% endif %}
@@ -146,7 +150,15 @@
 
 <div class="card">
   <div class="card-header">
-    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+    {# <--- hecho por claude code (Nivel 2): app enfocada → encabezado + barra de tabs oculta #}
+    {% if app_activo and app_def %}
+    <div class="d-flex align-items-center w-100">
+      {# <--- hecho por claude code: este botón ahora va al Menú Principal (antes al lanzador de apps) #}
+      <a href="{{ nav_home_url }}" class="btn btn-sm btn-ghost-secondary me-2"><i class="ti ti-arrow-left me-1"></i>Menú Principal</a>
+      <h3 class="card-title m-0"><i class="ti {{ app_def.i }} me-2" style="color:{{ app_def.c }};"></i>{{ app_def.t }}</h3>
+    </div>
+    {% endif %}
+    <ul class="nav nav-tabs card-header-tabs {% if app_activo %}d-none{% endif %}" data-bs-toggle="tabs">
       {% if not nav_progress_only %}
       <li class="nav-item">
         <a href="#tab-academicos" class="nav-link active" data-bs-toggle="tab">
@@ -212,7 +224,7 @@
     <div class="tab-content">
 
       {# ── TAB 1: Académicos ─────────────────────────────── #}
-      <div class="tab-pane {% if not nav_progress_only %}active show{% endif %}" id="tab-academicos">
+      <div class="tab-pane {% if app_activo == 'academicos' or not app_activo and not nav_progress_only %}active show{% endif %}" id="tab-academicos">
         <div class="table-responsive">
           <table id="tabla-academicos" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -228,7 +240,7 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-blue-lt text-blue fw-semibold">Informativo / Académico</span></td>
-                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
@@ -277,6 +289,13 @@
                             title="Editar"><i class="ti ti-pencil"></i></button>
                     {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {# <--- hecho por claude code: WhatsApp al padre/madre (mensaje editable por reporte) #}
+                    <button class="btn btn-sm btn-success btn-whatsapp"
+                            data-alumno-id="{{ r.alumno_id }}" data-alumno="{{ r.alumno_nombre }}"
+                            data-tipo-txt="Informativo / {% if r.tipo_reporte == 'academico' %}Académico{% else %}Conductual{% endif %}" data-reporte-url="{% reporte_png_url 'informativo' r.pk %}"
+                            data-fecha="{{ r.fecha|date:'d/m/Y' }}" data-docente="{{ r.docente }}"
+                            data-materia="{{ r.materia }}" data-grado="{{ r.grado|formato_grado }}"
+                            title="Enviar WhatsApp al padre/madre"><i class="ti ti-brand-whatsapp"></i></button>
                     {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -296,7 +315,7 @@
       </div>
 
       {# ── TAB 2: Conductuales ───────────────────────────── #}
-      <div class="tab-pane" id="tab-conductuales">
+      <div class="tab-pane {% if app_activo == 'conductuales' %}active show{% endif %}" id="tab-conductuales">
         <div class="table-responsive">
           <table id="tabla-conductuales" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -313,7 +332,7 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-orange-lt text-orange fw-semibold">Informativo / Conductual</span></td>
-                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
@@ -361,6 +380,13 @@
                             title="Editar"><i class="ti ti-pencil"></i></button>
                     {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {# <--- hecho por claude code: WhatsApp al padre/madre (mensaje editable por reporte) #}
+                    <button class="btn btn-sm btn-success btn-whatsapp"
+                            data-alumno-id="{{ r.alumno_id }}" data-alumno="{{ r.alumno_nombre }}"
+                            data-tipo-txt="Informativo / {% if r.tipo_reporte == 'academico' %}Académico{% else %}Conductual{% endif %}" data-reporte-url="{% reporte_png_url 'informativo' r.pk %}"
+                            data-fecha="{{ r.fecha|date:'d/m/Y' }}" data-docente="{{ r.docente }}"
+                            data-materia="{{ r.materia }}" data-grado="{{ r.grado|formato_grado }}"
+                            title="Enviar WhatsApp al padre/madre"><i class="ti ti-brand-whatsapp"></i></button>
                     {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="informativo"
@@ -381,7 +407,7 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-red-lt text-red fw-semibold">Conductual</span></td>
-                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.docente }}{% if r.materia %}<span class="text-muted small d-block">/ {{ r.materia }}</span>{% endif %}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td>
@@ -429,6 +455,12 @@
                             title="Editar"><i class="ti ti-pencil"></i></button>
                     {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {# <--- hecho por claude code: WhatsApp al padre/madre (mensaje editable por reporte) #}
+                    <button class="btn btn-sm btn-success btn-whatsapp"
+                            data-alumno-id="{{ r.alumno_id }}" data-alumno="{{ r.alumno_nombre }}"
+                            data-tipo-txt="Conductual" data-reporte-url="{% reporte_png_url 'conductual' r.pk %}" data-fecha="{{ r.fecha|date:'d/m/Y' }}"
+                            data-docente="{{ r.docente }}" data-materia="{{ r.motivo|default:'' }}" data-grado="{{ r.grado|formato_grado }}"
+                            title="Enviar WhatsApp al padre/madre"><i class="ti ti-brand-whatsapp"></i></button>
                     {% if can_delete_dash %}
                     <button class="btn btn-sm btn-ghost-danger btn-eliminar-reporte"
                             data-pk="{{ r.pk }}" data-tipo="conductual"
@@ -449,7 +481,14 @@
 
       {# ── TAB 3: Progress Reports ───────────────────────── #}
       {% if area == "bilingue" %}
-      <div class="tab-pane {% if nav_progress_only %}active show{% endif %}" id="tab-progress">
+      <div class="tab-pane {% if app_activo == 'progress' or not app_activo and nav_progress_only %}active show{% endif %}" id="tab-progress">
+        {# <--- hecho por claude code: sub-tabs Vista general / Por coordinador #}
+        <ul class="nav nav-pills mb-3" role="tablist">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#pg-general" role="tab"><i class="ti ti-list me-1"></i>Vista general</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pg-coord" role="tab"><i class="ti ti-users-group me-1"></i>Por coordinador</a></li>
+        </ul>
+        <div class="tab-content">
+        <div class="tab-pane active show" id="pg-general" role="tabpanel">
         <div class="table-responsive">
           <table id="tabla-progress" class="table table-vcenter table-hover card-table" style="width:100%;">
             <thead><tr>
@@ -465,7 +504,7 @@
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
                 <td><span class="badge bg-teal-lt text-teal fw-semibold">Progress Report</span></td>
-                <td data-order="{{ r.fecha|date:'Y-m-d H:i:s' }}">{{ r.fecha|date:"d/m/Y" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
                 <td>{{ r.grado|formato_grado }}</td>
                 <td>{{ r.usuario }}</td>
                 {% if request.user.is_superuser and area == 'bilingue' %}<td><span class="badge bg-blue-lt text-blue fw-bold">{{ coord_codigo|default:"—" }}</span></td>{% endif %}
@@ -510,11 +549,65 @@
             </tbody>
           </table>
         </div>
+        </div>{# /pg-general #}
+
+        {# ── Sub-tab: Por coordinador (acordeón, mapeo por grado) ── #}
+        <div class="tab-pane" id="pg-coord" role="tabpanel">
+          {% progress_por_coordinador reportes_progress request.user as grupos_coord %}
+          <div class="accordion" id="accProgCoord">
+            {% for g in grupos_coord %}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accPC{{ forloop.counter }}">
+                  <span class="badge me-2" style="background:{{ g.cod|coord_color }};color:#fff;">{{ g.cod }}</span>
+                  <span class="fw-semibold">{{ g.nombre }}</span>
+                  <span class="text-muted ms-2 small">· {{ g.rango }}</span>
+                  <span class="badge bg-teal-lt text-teal ms-auto me-2">{{ g.reportes|length }}</span>
+                </button>
+              </h2>
+              <div id="accPC{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#accProgCoord">
+                <div class="accordion-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-vcenter table-hover card-table mb-0">
+                      <thead><tr><th>#</th><th>Alumno</th><th>Grado</th><th>Maestro</th><th>Fecha</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+                      <tbody>
+                        {% for r in g.reportes %}
+                        <tr>
+                          <td><span class="text-muted small">#{{ r.pk }}</span></td>
+                          <td>{{ r.alumno_nombre }}</td>
+                          <td>{{ r.grado|formato_grado }}</td>
+                          <td class="text-muted">{{ r.usuario }}</td>
+                          <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                          <td>
+                            {% if r.estado == "enviado" %}<span class="badge bg-secondary-lt text-secondary">Enviado</span>
+                            {% elif r.estado == "revisando" %}<span class="badge bg-warning-lt text-warning">Revisando</span>
+                            {% elif r.estado == "revisado" %}<span class="badge bg-blue-lt text-blue">Revisado</span>
+                            {% elif r.estado == "aprobado" %}<span class="badge bg-success-lt text-success">Aprobado</span>
+                            {% else %}<span class="badge bg-secondary-lt">{{ r.estado|default:"—" }}</span>{% endif %}
+                          </td>
+                          <td class="text-end">
+                            {% if can_edit_dash %}<button class="btn btn-sm btn-primary btn-editar-inline" data-pk="{{ r.pk }}" data-tipo="progress" data-area="bilingue" title="Editar"><i class="ti ti-pencil"></i></button>{% endif %}
+                            <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-3">Sin progress reports para este coordinador.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>{# /pg-coord #}
+        </div>{# /tab-content #}
       </div>
       {% endif %}
 
       {# ── TAB: Historial de alumnado (carga perezosa) ───── #}
-      <div class="tab-pane" id="tab-historial">
+      <div class="tab-pane {% if app_activo == 'historial' %}active show{% endif %}" id="tab-historial">
         <div id="historial-wrap" data-url="{% url 'historial_alumnado' area=area %}">
           <div class="text-center text-muted py-5">
             <span class="spinner-border spinner-border-sm me-2"></span>El historial se carga al abrir este tab…
@@ -523,7 +616,7 @@
       </div>
 
       {# ── TAB: Período Escolar (catálogo propio de conducta) ── #}
-      <div class="tab-pane" id="tab-periodo">
+      <div class="tab-pane {% if app_activo == 'periodo' %}active show{% endif %}" id="tab-periodo">
         <div class="p-3">
           <div class="text-muted small mb-3"><i class="ti ti-info-circle me-1"></i>El período <strong>activo</strong> define qué reportes se muestran en los tabs. Catálogo propio de reportes (independiente de Salidas Baño).</div>
           <div class="row g-3">
@@ -538,7 +631,7 @@
                 <div class="row g-2 mb-2">
                   <div class="col-6"><label class="form-label small mb-1">Parcial</label>
                     <select name="parcial" id="per-parcial" class="form-select form-select-sm">
-                      <option value="1">Parcial 1</option><option value="2">Parcial 2</option><option value="3">Parcial 3</option>
+                      <option value="1">Parcial 1</option><option value="2">Parcial 2</option><option value="3">Parcial 3</option><option value="4">Parcial 4</option>
                     </select></div>
                   <div class="col-6"><label class="form-label small mb-1">Año</label>
                     <input type="number" name="anio" id="per-anio" class="form-control form-control-sm" value="{% now 'Y' %}"></div>
@@ -619,19 +712,69 @@
 
 {% block modals %}
 
+{# <--- hecho por claude code: modal para elegir qué reportes incluir en el ZIP #}
+<div class="modal modal-blur fade" id="modalDescargarZip" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-file-zip me-2 text-success"></i>Descargar reportes (ZIP)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Selecciona qué reportes quieres incluir en el ZIP.</p>
+        <div class="d-flex justify-content-between mb-2">
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="zip-check-all">Marcar todo</button>
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="zip-uncheck-all">Desmarcar todo</button>
+        </div>
+        <div class="zip-tipos">
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="ztipo" value="info_acad" checked>
+            <span class="form-check-label">Reporte informativo / <strong>académico</strong> (parcial actual)</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="ztipo" value="info_cond" checked>
+            <span class="form-check-label">Reporte informativo / <strong>conductual</strong> (parcial actual)</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="ztipo" value="cond" checked>
+            <span class="form-check-label">Reporte <strong>conductual</strong> (parcial actual)</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="ztipo" value="progress" checked>
+            <span class="form-check-label"><strong>Progress report</strong> (parcial actual)</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="ztipo" value="historial">
+            <span class="form-check-label"><strong>Historial de alumnado</strong> (parciales anteriores)</span></label>
+        </div>
+        <div id="zip-tipos-msg" class="text-danger small mt-2 d-none">Selecciona al menos un tipo de reporte.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btn-zip-confirm">
+          <i class="ti ti-download me-1"></i>Descargar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% if request.user.is_superuser %}
 {# Modal Reenviar Reportes a Coordinadores — solo superuser #}
 <div class="modal modal-blur fade" id="modalReenviarReportes" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="ti ti-send me-2 text-warning"></i>Reenviar reportes</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="text-muted small mb-3">Selecciona la fecha de los reportes que deseas reenviar a los coordinadores.</p>
+        <p class="text-muted small mb-3">Selecciona la fecha y qué reportes reenviar a los coordinadores.</p>
         <label class="form-label fw-bold">Fecha</label>
-        <input type="date" id="inputFechaReenvio" class="form-control">
+        <input type="date" id="inputFechaReenvio" class="form-control mb-3">
+        {# <--- hecho por claude code: mismos tipos que el ZIP (el historial no aplica al reenvío por fecha) #}
+        <label class="form-label fw-bold">Tipos de reporte</label>
+        <div class="zip-tipos">
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="rtipo" value="info_acad" checked>
+            <span class="form-check-label">Reporte informativo / académico</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="rtipo" value="info_cond" checked>
+            <span class="form-check-label">Reporte informativo / conductual</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="rtipo" value="cond" checked>
+            <span class="form-check-label">Reporte conductual</span></label>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="rtipo" value="progress" checked>
+            <span class="form-check-label">Progress report</span></label>
+        </div>
         <div id="reenvioMsg" class="d-none"></div>
       </div>
       <div class="modal-footer">
@@ -644,6 +787,39 @@
   </div>
 </div>
 {% endif %}
+
+{# <--- hecho por claude code: Modal WhatsApp — mensaje editable por reporte #}
+<div class="modal modal-blur fade" id="modalWhatsApp" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-brand-whatsapp me-2 text-success"></i>Enviar WhatsApp al padre/madre</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="wa-loading" class="text-center py-3 text-muted">
+          <span class="spinner-border spinner-border-sm me-2"></span>Buscando el número…
+        </div>
+        <div id="wa-body" class="d-none">
+          <div class="mb-2"><span class="text-muted small">Para:</span> <strong id="wa-alumno"></strong></div>
+          <label class="form-label small mb-1">Número del padre/madre</label>
+          <select id="wa-numero" class="form-select mb-3"></select>
+          <label class="form-label small mb-1">Mensaje (puedes editarlo)</label>
+          <textarea id="wa-mensaje" class="form-control" rows="5"></textarea>
+        </div>
+        <div id="wa-sin-numero" class="alert alert-warning d-none mb-0">
+          <i class="ti ti-alert-triangle me-1"></i>No se encontró un número de teléfono para este alumno en el sistema.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <a href="#" id="wa-enviar" class="btn btn-success" target="_blank" rel="noopener">
+          <i class="ti ti-brand-whatsapp me-1"></i>Abrir WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
 {# Modal Historial #}
 <div class="modal modal-blur fade" id="modalHistorial" tabindex="-1" aria-hidden="true">
@@ -913,8 +1089,10 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  {# <--- hecho por claude code: RowGroup (acordeón por alumno) #}
+  <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
   <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
-  <script src="{% static 'conducta/js/coordinador.js' %}?v=6"></script>
+  <script src="{% static 'conducta/js/coordinador.js' %}?v=14"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   {# ── Toast de descarga (progreso + peso) ── #}
   <div id="zip-toast" style="display:none;position:fixed;bottom:20px;right:20px;z-index:1080;min-width:300px;max-width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:.6rem;box-shadow:0 .75rem 1.5rem rgba(0,0,0,.18);padding:.9rem 1rem;">
@@ -947,5 +1125,5 @@
 </div>
 
 {# <--- hecho por claude code: script AL FINAL del bloque, tras todo el HTML que referencia (zip-toast, lightbox), para que no truene en null #}
-<script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=8"></script>
+<script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=14"></script>
 {% endblock %}

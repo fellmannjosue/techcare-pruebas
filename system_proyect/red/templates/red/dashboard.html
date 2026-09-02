@@ -1,0 +1,89 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: ANA Network Manager — dashboard #}
+{% block title %}Red · Dashboard{% endblock %}
+{% block page_pretitle %}ANA Network Manager{% endblock %}
+{% block page_title %}Dashboard de Red{% endblock %}
+{% block extra_head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'red:vlan_list' %}" class="btn btn-primary"><i class="ti ti-network me-1"></i>VLANs</a>
+{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code: navegación del módulo (todo se accede desde aquí) #}
+<div class="row g-2 mb-4">
+  {% for m in modulos %}
+  <div class="col-6 col-md-4 col-xl-2">
+    <a href="{{ m.url }}" class="card card-sm card-link h-100 text-decoration-none text-reset">
+      <div class="card-body text-center py-3">
+        <span class="rounded p-2 d-inline-flex mb-2" style="background:{{ m.c }}22;color:{{ m.c }};"><i class="ti {{ m.i }} fs-2"></i></span>
+        <div class="fw-semibold small">{{ m.t }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">VLANs</div><div class="h1 m-0">{{ total_vlans }}</div><div class="text-muted small">{{ vlans_produccion }} en producción</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">Dispositivos</div><div class="h1 m-0">{{ total_dispositivos }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">IP asignadas</div><div class="h1 m-0 text-blue">{{ ips_asignadas }}</div><div class="text-muted small">{{ ips_libres }} libres</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="text-muted small">IP en conflicto</div><div class="h1 m-0 {% if ips_conflicto %}text-red{% endif %}">{{ ips_conflicto }}</div></div></div></div>
+</div>
+
+{# Alertas de capacidad #}
+{% if alertas %}
+<div class="card mb-4 border-warning">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-alert-triangle me-2 text-orange"></i>Alertas de capacidad</h3></div>
+  <div class="list-group list-group-flush">
+    {% for v, c in alertas %}
+    <a href="{% url 'red:vlan_detail' v.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+      <span><strong>VLAN {{ v.vlan_id }}</strong> · {{ v.nombre }} <span class="text-muted small">({{ v.subred }})</span></span>
+      <span>
+        {% if c.estado == 'agotado' %}<span class="badge bg-red text-white">Agotado</span>
+        {% elif c.estado == 'critico' %}<span class="badge bg-red-lt text-red">Crítico · {{ c.libres }} libres ({{ c.pct_libre }}%)</span>
+        {% else %}<span class="badge bg-yellow-lt text-yellow">Advertencia · {{ c.libres }} libres ({{ c.pct_libre }}%)</span>{% endif %}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# Gráficas #}
+<div class="row g-3 mb-4">
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header"><h3 class="card-title">Ocupación por VLAN (%)</h3></div><div class="card-body"><div style="position:relative;height:300px;"><canvas id="chartVlan"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Dispositivos por tipo</h3></div><div class="card-body"><div style="position:relative;height:300px;"><canvas id="chartDisp"></canvas></div></div></div></div>
+</div>
+
+{# Capacidad por VLAN #}
+<div class="card">
+  <div class="card-header"><h3 class="card-title">Capacidad por VLAN</h3></div>
+  <div class="table-responsive"><table class="table table-vcenter card-table">
+    <thead><tr><th>VLAN</th><th>Subred</th><th class="text-end">Capacidad</th><th class="text-end">Usadas</th><th class="text-end">Libres</th><th style="width:180px;">Ocupación</th></tr></thead>
+    <tbody>
+      {% for v, c in caps %}
+      <tr>
+        <td><a href="{% url 'red:vlan_detail' v.pk %}">VLAN {{ v.vlan_id }} · {{ v.nombre }}</a></td>
+        <td class="text-muted">{{ v.subred }}</td>
+        <td class="text-end">{{ c.capacidad }}</td><td class="text-end">{{ c.usadas }}</td>
+        <td class="text-end fw-semibold">{{ c.libres }}</td>
+        <td>
+          <div class="progress" style="height:8px;">
+            <div class="progress-bar {% if c.estado == 'agotado' or c.estado == 'critico' %}bg-red{% elif c.estado == 'advertencia' %}bg-yellow{% else %}bg-green{% endif %}" style="width:{{ c.pct_ocupacion }}%"></div>
+          </div>
+          <div class="text-muted small mt-1">{{ c.pct_ocupacion }}% · {{ c.pct_libre }}% libre</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div id="red-charts" hidden
+     data-vlan-labels="{{ chart_vlan_labels }}" data-vlan-ocup="{{ chart_vlan_ocup }}"
+     data-disp-labels="{{ chart_disp_labels }}" data-disp-data="{{ chart_disp_data }}"></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'red/js/dashboard.js' %}?v=1"></script>{% endblock %}

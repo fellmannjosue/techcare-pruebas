@@ -106,3 +106,17 @@ h2 {
 #tabla-progress tbody tr:hover td {
   background: rgba(66, 153, 225, 0.06);
 }
+
+/* <--- hecho por claude code: encabezado de grupo plegable (acordeón por alumno) */
+tr.grupo-alumno { cursor: pointer; }
+tr.grupo-alumno td {
+  background: #eef2f7 !important;
+  font-weight: 700;
+  color: #182433;
+  padding: .5rem .8rem !important;
+  border-top: 2px solid #d7dee8 !important;
+}
+tr.grupo-alumno:hover td { background: #e2e8f0 !important; }
+tr.grupo-alumno .ga-chev { margin-right: .45rem; color: #4b6584; transition: transform .15s ease; }
+tr.grupo-alumno .ga-nombre { font-size: .95rem; letter-spacing: .01em; }
+tr.grupo-alumno.colapsado td { border-bottom: 1px solid #d7dee8 !important; }

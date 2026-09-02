@@ -1,0 +1,79 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: detalle de VLAN con capacidad + alertas + gráfico #}
+{% block title %}VLAN {{ v.vlan_id }}{% endblock %}
+{% block page_pretitle %}ANA Network Manager · VLAN{% endblock %}
+{% block page_title %}VLAN {{ v.vlan_id }} · {{ v.nombre }}{% endblock %}
+{% block extra_head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>{% endblock %}
+{% block back_button %}<a href="{% url 'red:vlan_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>VLANs</a>{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'red:ipam_grid' v.pk %}" class="btn btn-primary"><i class="ti ti-grid-dots me-1"></i>IPAM</a>
+  <a href="{% url 'red:vlan_editar' v.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-edit me-1"></i>Editar</a>
+{% endblock %}
+
+{% block content %}
+{# Alerta de capacidad #}
+{% if cap.estado != 'normal' %}
+<div class="alert {% if cap.estado == 'advertencia' %}alert-warning{% else %}alert-danger{% endif %} d-flex align-items-center">
+  <i class="ti ti-alert-triangle me-2 fs-2"></i>
+  <div>
+    {% if cap.estado == 'agotado' %}<strong>Capacidad agotada.</strong> No quedan IP disponibles en el rango.
+    {% elif cap.estado == 'critico' %}<strong>Capacidad crítica.</strong> Quedan {{ cap.libres }} IP ({{ cap.pct_libre }}% libre).
+    {% else %}<strong>Advertencia de capacidad.</strong> Quedan {{ cap.libres }} IP ({{ cap.pct_libre }}% libre).{% endif %}
+  </div>
+</div>
+{% endif %}
+{% if solapes %}
+<div class="alert alert-warning"><i class="ti ti-alert-circle me-1"></i>La subred se solapa con: {% for s in solapes %}VLAN {{ s.vlan_id }} ({{ s.subred }}){% if not forloop.last %}, {% endif %}{% endfor %}.</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-header"><h3 class="card-title">Configuración</h3></div>
+      <div class="card-body"><dl class="row mb-0">
+        <dt class="col-5">Subred</dt><dd class="col-7">{{ v.subred }}</dd>
+        <dt class="col-5">Gateway</dt><dd class="col-7">{{ v.gateway|default:'Por confirmar' }}</dd>
+        <dt class="col-5">Red / Broadcast</dt><dd class="col-7">{{ v.direccion_red }} / {{ v.broadcast }}</dd>
+        <dt class="col-5">Estado</dt><dd class="col-7">{{ v.get_estado_display }}</dd>
+        <dt class="col-5">DHCP</dt><dd class="col-7">{{ v.get_tipo_dhcp_display }} {% if v.servidor_dhcp %}· {{ v.servidor_dhcp }}{% endif %}</dd>
+        <dt class="col-5">DNS</dt><dd class="col-7">{{ v.dns_principal|default:'—' }} {% if v.dns_secundario %}· {{ v.dns_secundario }}{% endif %}</dd>
+        <dt class="col-5">Rango asignable</dt><dd class="col-7">{{ v.ip_inicial_asignable|default:'—' }} → {{ v.ip_final_asignable|default:'—' }}</dd>
+        <dt class="col-5">Reservado</dt><dd class="col-7">{{ v.ip_inicio_reservado|default:'—' }} → {{ v.ip_fin_reservado|default:'—' }}</dd>
+        <dt class="col-5">DHCP</dt><dd class="col-7">{{ v.ip_inicio_dhcp|default:'—' }} → {{ v.ip_fin_dhcp|default:'—' }}</dd>
+        <dt class="col-5">Límite dispositivos</dt><dd class="col-7">{{ v.limite_dispositivos|default:'—' }}</dd>
+        <dt class="col-5">Política Meraki</dt><dd class="col-7">{{ v.politica_meraki|default:'—' }}</dd>
+        <dt class="col-5">Internet / Interna</dt><dd class="col-7">{{ v.permite_internet|yesno:'Sí,No' }} / {{ v.permite_comunicacion_interna|yesno:'Sí,No' }}</dd>
+        {% if v.observaciones %}<dt class="col-5">Observaciones</dt><dd class="col-7">{{ v.observaciones }}</dd>{% endif %}
+      </dl></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header"><h3 class="card-title">Ocupación</h3></div>
+      <div class="card-body text-center">
+        <div style="position:relative;height:200px;"><canvas id="chartCap"></canvas></div>
+        <div class="row mt-3">
+          <div class="col"><div class="h2 m-0">{{ cap.capacidad }}</div><div class="text-muted small">Capacidad</div></div>
+          <div class="col"><div class="h2 m-0 text-blue">{{ cap.usadas }}</div><div class="text-muted small">Usadas</div></div>
+          <div class="col"><div class="h2 m-0 text-green">{{ cap.libres }}</div><div class="text-muted small">Libres</div></div>
+        </div>
+        <div class="progress mt-3" style="height:10px;"><div class="progress-bar {% if cap.estado == 'agotado' or cap.estado == 'critico' %}bg-red{% elif cap.estado == 'advertencia' %}bg-yellow{% else %}bg-green{% endif %}" style="width:{{ cap.pct_ocupacion }}%"></div></div>
+        <div class="text-muted small mt-1">{{ cap.pct_ocupacion }}% ocupado · {{ cap.pct_libre }}% libre</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cap-data" hidden data-labels="{{ chart_labels }}" data-data="{{ chart_data }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  var c=document.getElementById('cap-data'); if(!c||typeof Chart==='undefined')return;
+  var P=function(v){try{return JSON.parse(v||'[]')}catch(e){return[]}};
+  new Chart(document.getElementById('chartCap'),{type:'doughnut',
+    data:{labels:P(c.dataset.labels),datasets:[{data:P(c.dataset.data),backgroundColor:['#206bc4','#2fb344']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+})();
+</script>
+{% endblock %}

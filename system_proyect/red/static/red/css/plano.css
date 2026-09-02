@@ -1,0 +1,61 @@
+/* <--- hecho por claude code: mapa de campus (plano + marcadores) */
+/* contenedor con scroll: permite ver el plano ampliado/rotado */
+.plano-scroll { overflow: auto; max-height: 80vh; border-radius: 6px; }
+.plano-wrap { position: relative; display: inline-block; max-width: 100%; will-change: transform; }
+/* cursor de "agarre" para panear cuando no hay un modo activo */
+.plano-wrap:not(.colocando):not(.modo-linea):not(.modo-select) { cursor: grab; }
+.plano-wrap.paneando { cursor: grabbing; }
+.plano-wrap img { display: block; max-width: 100%; height: auto; border-radius: 6px; }
+.plano-wrap.colocando { cursor: crosshair; }
+/* capa SVG de líneas (viewBox 0-100): entre la imagen y los marcadores, sin capturar clics */
+#plano-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+/* vector-effect mantiene el grosor del trazo uniforme aunque el viewBox se estire */
+.pl-line { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.pl-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* en modo línea o selección, la línea es clicable */
+.plano-wrap.modo-linea .pl-hit, .plano-wrap.modo-select .pl-hit { pointer-events: stroke; cursor: pointer; }
+.pl-line.pl-sel { filter: drop-shadow(0 0 2px #f59f00); stroke-width: 3.5; }
+.pl-line.pl-msel { stroke-dasharray: 5 3; stroke-width: 3.5; }
+.plano-wrap.modo-linea .mk { cursor: crosshair; }
+.plano-wrap.modo-select .mk { cursor: pointer; }
+.mk.sel .mk-badge { outline: 3px solid #f59f00; outline-offset: 2px; }
+/* seleccionados para edición múltiple */
+.mk.msel .mk-badge { outline: 3px dashed #4263eb; outline-offset: 2px; }
+/* capa HTML para etiquetas y tiradores de las líneas */
+#plano-lineui { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.pl-lbl { position: absolute; transform: translate(-50%, -50%); font-size: .62rem; font-weight: 700;
+  background: rgba(255,255,255,.92); color: #111; padding: 0 4px; border-radius: 3px; white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,.25); pointer-events: none; }
+.pl-handle { position: absolute; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 50%;
+  background: #fff; border: 2px solid #f59f00; box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: move; pointer-events: auto; z-index: 3; }
+/* panel flotante de edición: NO es un modal, deja el plano totalmente visible */
+.mk-editpanel {
+  position: fixed; top: 76px; left: 16px; width: 330px; max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 100px); overflow-y: auto; z-index: 1080;
+  background: var(--ps-surface, #fff); color: var(--ps-text, #182433);
+  border: 1px solid var(--ps-border, rgba(0,0,0,.12)); border-radius: 16px;
+  box-shadow: 0 12px 44px rgba(0,0,0,.28);
+}
+.mk-editpanel[hidden] { display: none; }
+.mk-editpanel__head { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--ps-border, rgba(0,0,0,.1)); }
+.mk-editpanel__body { padding: 14px 16px; }
+.mk-editpanel__foot { padding: 12px 16px; border-top: 1px solid var(--ps-border, rgba(0,0,0,.1)); gap: 8px; }
+/* la capa deja pasar los clics a la imagen; solo los marcadores los capturan */
+#plano-marks { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.mk {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none;
+}
+.mk:active { cursor: grabbing; }
+/* figura de red: ícono dentro de un badge circular del color elegido */
+.mk-badge {
+  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: #fff; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); transition: transform .1s;
+}
+.mk-badge .ti { font-size: 17px; line-height: 1; }
+.mk:hover .mk-badge { transform: scale(1.12); }
+.mk-lbl {
+  margin-top: 3px; font-size: .68rem; font-weight: 700; background: rgba(255,255,255,.9); color: #111;
+  padding: 0 4px; border-radius: 3px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}

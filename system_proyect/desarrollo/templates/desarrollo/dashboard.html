@@ -1,0 +1,141 @@
+{% extends 'base_app.html' %}
+{% load static desarrollo_tags %}
+{# <--- hecho por claude code: dashboard de Gestión de Desarrollo (FASE 4: KPIs + gráficos + semáforos + actividad) #}
+{% block title %}Gestión de Desarrollo{% endblock %}
+{% block page_pretitle %}Desarrollo{% endblock %}
+{% block page_title %}Gestión de Desarrollo{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'desarrollo/css/desarrollo.css' %}?v=2">
+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'desarrollo:req_list' %}" class="btn btn-outline-primary"><i class="ti ti-clipboard-list me-1"></i>Requerimientos</a>
+  <a href="{% url 'desarrollo:proy_list' %}" class="btn btn-outline-primary"><i class="ti ti-folders me-1"></i>Proyectos</a>
+  <a href="{% url 'desarrollo:roadmap' %}" class="btn btn-outline-primary"><i class="ti ti-layout-kanban me-1"></i>Roadmap</a>
+  <a href="{% url 'desarrollo:req_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo Requerimiento</a>
+{% endblock %}
+
+{% block content %}
+<p class="text-muted">Proyectos, requerimientos y evolución de TechCare.</p>
+
+{# ── KPIs ── #}
+<div class="row row-cards g-3 mb-3">
+  {% include 'desarrollo/_kpi.html' with valor=kpis.total   etiqueta='Requerimientos' icono='ti-list-check' color='#206bc4' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.recibidos etiqueta='Recibidos'    icono='ti-inbox'      color='#6c757d' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.evaluacion etiqueta='En evaluación' icono='ti-search'   color='#f59f00' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.aprobados etiqueta='Aprobados'    icono='ti-checks'     color='#2fb344' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.desarrollo etiqueta='En desarrollo' icono='ti-code'     color='#4263eb' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.pruebas   etiqueta='En pruebas'   icono='ti-flask'      color='#ae3ec9' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.produccion etiqueta='Producción'  icono='ti-rocket'     color='#0ca678' %}
+  {% include 'desarrollo/_kpi.html' with valor=kpis.proyectos etiqueta='Proyectos'    icono='ti-folders'    color='#d6336c' %}
+</div>
+
+{# ── Panel de semáforos ── #}
+<div class="row row-cards g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card"><div class="card-body d-flex align-items-center">
+      <span class="fs-1 me-3">🔴</span><div><div class="h1 m-0">{{ semaforos.rojo }}</div><div class="text-muted small">Atrasados</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card"><div class="card-body d-flex align-items-center">
+      <span class="fs-1 me-3">🟡</span><div><div class="h1 m-0">{{ semaforos.amarillo }}</div><div class="text-muted small">Próximos a vencer</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card"><div class="card-body d-flex align-items-center">
+      <span class="fs-1 me-3">🟢</span><div><div class="h1 m-0">{{ semaforos.verde }}</div><div class="text-muted small">En tiempo</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card"><div class="card-body d-flex align-items-center">
+      <span class="fs-1 me-3">⚪</span><div><div class="h1 m-0">{{ semaforos.gris }}</div><div class="text-muted small">Sin fecha</div></div>
+    </div></div>
+  </div>
+</div>
+
+{# ── Gráficos ── #}
+<div class="row row-cards g-3 mb-3">
+  <div class="col-md-6 col-xl-3">
+    <div class="card h-100"><div class="card-header"><h3 class="card-title">Por estado</h3></div>
+      <div class="card-body"><div class="tc-chart-box"><canvas id="chEstado"></canvas></div></div></div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card h-100"><div class="card-header"><h3 class="card-title">Semáforo</h3></div>
+      <div class="card-body"><div class="tc-chart-box"><canvas id="chSemaforo"></canvas></div></div></div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card h-100"><div class="card-header"><h3 class="card-title">Por prioridad</h3></div>
+      <div class="card-body"><div class="tc-chart-box"><canvas id="chPrioridad"></canvas></div></div></div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card h-100"><div class="card-header"><h3 class="card-title">Por tipo</h3></div>
+      <div class="card-body"><div class="tc-chart-box"><canvas id="chTipo"></canvas></div></div></div>
+  </div>
+  <div class="col-12">
+    <div class="card"><div class="card-header"><h3 class="card-title">Requerimientos por área</h3></div>
+      <div class="card-body"><div class="tc-chart-box" style="height:240px;"><canvas id="chArea"></canvas></div></div></div>
+  </div>
+</div>
+
+{# ── Próximos a vencer + Actividad reciente ── #}
+<div class="row row-cards g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-alarm me-1 text-red"></i>Próximos a vencer / atrasados</h3></div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-vcenter table-hover card-table">
+          <thead><tr><th></th><th>Código</th><th>Título</th><th>Estado</th><th>Fecha est.</th></tr></thead>
+          <tbody>
+            {% for r in por_vencer %}
+            <tr style="cursor:pointer;" onclick="location.href='{% url 'desarrollo:req_detail' r.codigo %}'">
+              <td title="{{ r.semaforo|semaforo_texto }}">{{ r.semaforo|semaforo_emoji }}</td>
+              <td class="fw-semibold">{{ r.codigo }}</td>
+              <td>{{ r.titulo|truncatechars:40 }}</td>
+              <td><span class="badge bg-{{ r.estado|estado_color }}-lt">{{ r.get_estado_display }}</span></td>
+              <td class="small">{{ r.fecha_estimada|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Nada urgente. 🎉</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-timeline me-1"></i>Actividad reciente</h3></div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          {% for h in actividad %}
+          <li class="border-start border-primary ps-3 pb-2 mb-2">
+            <div class="small">
+              <a href="{% url 'desarrollo:req_detail' h.requerimiento.codigo %}" class="fw-semibold">{{ h.requerimiento.codigo }}</a>
+              {% if h.estado_anterior != h.estado_nuevo %} · <span class="badge bg-{{ h.estado_nuevo|estado_color }}-lt">{{ h.get_estado_nuevo_display|default:h.estado_nuevo }}</span>{% endif %}
+              {% if h.porcentaje_nuevo is not None %} · {{ h.porcentaje_nuevo }}%{% endif %}
+              {% if h.comentario %} · {{ h.comentario }}{% endif %}
+            </div>
+            <div class="text-muted" style="font-size:.72rem;">{% if h.usuario %}{{ h.usuario.get_full_name|default:h.usuario.username }}{% else %}sistema{% endif %} · {{ h.fecha|date:"d/m/Y H:i" }}</div>
+          </li>
+          {% empty %}<li class="text-muted small">Sin actividad todavía.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Datos para los gráficos (se leen desde el JS externo) #}
+{{ g_estado|json_script:"cd-estado" }}
+{{ g_semaforo|json_script:"cd-semaforo" }}
+{{ g_prioridad|json_script:"cd-prioridad" }}
+{{ g_tipo|json_script:"cd-tipo" }}
+{{ g_area|json_script:"cd-area" }}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'desarrollo/js/desarrollo_dashboard.js' %}?v=1"></script>
+{% endblock %}

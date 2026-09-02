@@ -1,0 +1,26 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code: auditoría de red (usuario, IP, antes/después, motivo) #}
+{% block title %}Red · Auditoría{% endblock %}
+{% block page_pretitle %}ANA Network Manager{% endblock %}
+{% block page_title %}Auditoría de Red{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+
+{% block content %}
+<p class="text-muted">Últimos 300 cambios registrados (usuario, IP, módulo, registro, valores y motivo).</p>
+<div class="card"><div class="table-responsive"><table class="table table-vcenter card-table">
+  <thead><tr><th>Fecha</th><th>Usuario</th><th>IP</th><th>Módulo</th><th>Acción</th><th>Registro</th><th>Motivo</th></tr></thead>
+  <tbody>
+    {% for l in logs %}
+    <tr>
+      <td class="text-muted text-nowrap">{{ l.fecha|date:"d/m/Y H:i" }}</td>
+      <td>{{ l.usuario.get_full_name|default:l.usuario.username|default:"—" }}</td>
+      <td class="text-muted">{{ l.ip_usuario|default:"—" }}</td>
+      <td><span class="badge bg-blue-lt text-blue">{{ l.modulo }}</span></td>
+      <td>{{ l.accion }}</td>
+      <td>{{ l.registro }}</td>
+      <td class="text-muted small">{{ l.motivo|default:"—" }}</td>
+    </tr>
+    {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Sin registros de auditoría todavía.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

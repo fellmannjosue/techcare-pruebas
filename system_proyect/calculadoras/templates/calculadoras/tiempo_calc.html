@@ -13,7 +13,29 @@
     </div>
     <div class="card-body">
 
-      {% if calc == 'entre_horas' %}
+      {% if calc == 'sumar_horas' %}
+        {# <--- hecho por claude code: sumar varias horas y minutos (filas dinámicas) #}
+        <div class="d-flex fw-semibold text-muted small mb-1" style="gap:.5rem;">
+          <div class="flex-fill text-center">Horas</div>
+          <div style="width:12px;"></div>
+          <div class="flex-fill text-center">Minutos</div>
+          <div style="width:34px;"></div>
+        </div>
+        <div id="sh-filas" class="d-grid" style="gap:.5rem;">
+          {% for i in '123' %}
+          <div class="d-flex align-items-center sh-fila" style="gap:.5rem;">
+            <input type="number" class="form-control text-center sh-h" min="0" placeholder="00">
+            <span class="fw-bold">:</span>
+            <input type="number" class="form-control text-center sh-m" min="0" max="59" placeholder="00">
+            <button type="button" class="btn btn-sm btn-ghost-danger px-2 sh-quitar" title="Quitar fila" tabindex="-1"><i class="ti ti-x"></i></button>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="sh-add"><i class="ti ti-plus me-1"></i>Añadir más líneas</button>
+          <button type="button" class="btn btn-sm btn-ghost-secondary" id="sh-borrar"><i class="ti ti-eraser me-1"></i>Borrar todo</button>
+        </div>
+      {% elif calc == 'entre_horas' %}
         <div class="row g-3">
           <div class="col-6">
             <label class="form-label fw-semibold">Hora inicio</label>
@@ -52,7 +74,25 @@
 
       {# resultado #}
       <div class="calc-result mt-3 d-none" data-result>
-        {% if calc == 'entre_horas' %}
+        {% if calc == 'sumar_horas' %}
+          <div class="big" data-field="principal">—</div>
+          <div class="lbl mb-3">tiempo total</div>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="calc-chip">
+                <div class="v" data-field="hhmm">—</div>
+                <div class="lbl">total HH:MM</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="calc-chip">
+                <div class="v" data-field="decimal">—</div>
+                <div class="lbl">horas decimales</div>
+              </div>
+            </div>
+          </div>
+          <div class="lbl mt-2" data-field="nota"></div>
+        {% elif calc == 'entre_horas' %}
           <div class="big" data-field="principal">—</div>
           <div class="lbl mb-3">diferencia de tiempo</div>
           <div class="row g-2">
@@ -108,5 +148,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'calculadoras/js/calc_engine.js' %}?v=1"></script>
+<script src="{% static 'calculadoras/js/calc_engine.js' %}?v=3"></script>
 {% endblock %}

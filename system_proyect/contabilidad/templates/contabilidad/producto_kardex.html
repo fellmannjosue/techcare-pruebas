@@ -1,0 +1,135 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: kardex de un producto — tabla estilo Excel (FASE 2) #}
+{% block title %}{{ prod.nombre }} · Kardex{% endblock %}
+{% block page_pretitle %}Contabilidad · Inventario{% endblock %}
+{% block page_title %}{{ prod.nombre }}{% if prod.talla %} · Talla {{ prod.talla }}{% endif %}{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=3">{% endblock %}
+
+{% block page_actions %}
+  {% if puede_admin %}
+  <a href="{% url 'contabilidad:movimiento_nuevo' %}?producto={{ prod.pk }}" class="btn btn-primary"><i class="ti ti-arrows-exchange me-1"></i>Registrar movimiento</a>
+  <a href="{% url 'contabilidad:producto_editar' prod.pk %}" class="btn btn-ghost-secondary"><i class="ti ti-edit me-1"></i>Editar</a>
+  {% endif %}
+  {% if request.user.is_superuser %}
+  <form method="post" action="{% url 'contabilidad:producto_eliminar' prod.pk %}" class="d-inline" onsubmit="return confirm('¿Eliminar este producto y TODO su kardex (movimientos)? Esta acción no se puede deshacer. Si el producto está en compras, no se podrá borrar.');">
+    {% csrf_token %}<button class="btn btn-ghost-danger"><i class="ti ti-trash me-1"></i>Eliminar</button>
+  </form>
+  {% endif %}
+  <a href="{% url 'contabilidad:inventario_lista' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Inventario</a>
+{% endblock %}
+
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+
+<div class="row row-cards g-3 mb-3">
+  <div class="col-12 col-md-4"><div class="card"><div class="card-body">
+    <div class="text-muted small">Existencia actual</div>
+    <div class="h1 m-0 {% if prod.bajo_stock %}text-danger{% endif %}">{{ prod.existencia_actual }} <span class="fs-4 text-muted">{{ prod.unidad|lower }}</span></div>
+  </div></div></div>
+  <div class="col-6 col-md-4"><div class="card"><div class="card-body">
+    <div class="text-muted small">Costo promedio</div><div class="h2 m-0">{{ prod.costo_promedio|lps }}</div>
+  </div></div></div>
+  <div class="col-6 col-md-4"><div class="card"><div class="card-body">
+    <div class="text-muted small">Valor del inventario</div><div class="h2 m-0">{{ prod.valor_total|lps }}</div>
+  </div></div></div>
+</div>
+
+{# <--- hecho por claude code: registrar/ver precio de venta con ISV 15% fijo #}
+{% if puede_admin or prod.precio_venta %}
+<div class="card mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-4">
+  <div>
+    <div class="text-muted small">Precio de venta</div>
+    <div class="h2 m-0">{% if prod.precio_venta %}{{ prod.precio_venta|lps }}{% else %}<span class="text-muted fs-4">Sin registrar</span>{% endif %}</div>
+  </div>
+  {% if prod.precio_venta %}
+  <div><div class="text-muted small">ISV 15% (incluido)</div><div class="h3 m-0">{{ prod.isv_venta|lps }}</div></div>
+  <div><div class="text-muted small">Precio final (ISV incluido)</div><div class="h3 m-0 text-success">{{ prod.precio_venta_final|lps }}</div></div>
+  {% endif %}
+  {% if puede_admin %}
+  <a href="{% url 'contabilidad:producto_precio' prod.pk %}" class="btn btn-outline-primary ms-auto">
+    <i class="ti ti-tag me-1"></i>{% if prod.precio_venta %}Editar precio{% else %}Registrar precio de venta{% endif %}
+  </a>
+  {% endif %}
+</div></div>
+{% endif %}
+
+<div class="text-muted small mb-2">
+  <span class="badge bg-blue-lt text-blue">{{ prod.area.nombre }}</span>
+  <span class="badge bg-cyan-lt text-cyan">{{ prod.tipo.nombre }}</span>
+  {% if prod.codigo %}<span class="ms-2">Código: {{ prod.codigo }}</span>{% endif %}
+  · Valuación: <strong>promedio ponderado</strong>
+</div>
+
+{# ── FASE 2.1: indicadores + proveedores ── #}
+<div class="row g-3 mb-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Indicadores</h3></div>
+    <div class="card-body"><dl class="row mb-0 small">
+      <dt class="col-6">Unidades compradas</dt><dd class="col-6 text-end">{{ ind.compradas }}</dd>
+      <dt class="col-6">Unidades vendidas</dt><dd class="col-6 text-end">{{ ind.vendidas }}</dd>
+      {% if prod.precio_venta %}<dt class="col-6">Precio de venta</dt><dd class="col-6 text-end">{{ prod.precio_venta|lps }}</dd>{% endif %}
+      {% if ver_ingresos %}<dt class="col-6">Ingresos</dt><dd class="col-6 text-end">{{ ind.ingresos|lps }}</dd>{% endif %}
+      {% if ver_costos %}<dt class="col-6">Costo de ventas</dt><dd class="col-6 text-end">{{ ind.costo_ventas|lps }}</dd>{% endif %}
+      {% if ver_ingresos and ver_costos %}<dt class="col-6 fw-bold">Margen</dt><dd class="col-6 text-end fw-bold {% if ind.margen < 0 %}text-danger{% else %}text-success{% endif %}">{{ ind.margen|lps }}</dd>{% endif %}
+    </dl>
+    <div class="text-muted mt-2" style="font-size:.72rem;">Costo de ventas por <strong>promedio ponderado</strong> (mismo método del inventario).</div>
+    </div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Proveedores que lo han suministrado</h3></div>
+    <div class="card-body p-0"><div class="table-responsive"><table class="table table-vcenter card-table mb-0">
+      <thead><tr><th></th><th>Proveedor</th><th class="text-end">Unid.</th><th class="text-end">Últ. costo</th><th>Últ. compra</th></tr></thead>
+      <tbody>
+        {% for r in proveedores %}
+        <tr style="cursor:pointer;" onclick="location.href='{% url 'contabilidad:proveedor_detalle' r.prov.pk %}'">
+          <td><span class="cont-chip" style="background:{{ r.prov.color }};"></span></td>
+          <td>{{ r.prov.nombre }}</td><td class="text-end">{{ r.unidades }}</td>
+          <td class="text-end">{{ r.ultimo_costo|lps }}</td><td class="small">{{ r.ultima_fecha|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Sin compras a proveedores todavía.</td></tr>{% endfor %}
+      </tbody>
+    </table></div></div></div></div>
+</div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-sm table-bordered card-table kardex mb-0 text-nowrap">
+    <thead class="text-center align-middle">
+      <tr>
+        <th rowspan="2">Fecha</th><th rowspan="2">Concepto</th>
+        <th colspan="3" class="tbl-entrada">Entradas</th>
+        <th colspan="4" class="tbl-salida">Salidas</th>
+        <th colspan="3" class="tbl-saldo">Existencia</th>
+      </tr>
+      <tr>
+        <th class="tbl-entrada">Unid.</th><th class="tbl-entrada">C. Unit.</th><th class="tbl-entrada">Importe</th>
+        <th class="tbl-salida">Unid.</th><th class="tbl-salida">C. Unit.</th><th class="tbl-salida">Importe</th><th class="tbl-salida">Proveedor</th>
+        <th class="tbl-saldo">Unid.</th><th class="tbl-saldo">C. Prom.</th><th class="tbl-saldo">Valor</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.m.fecha|date:"d/m/Y" }}</td>
+        <td>{{ f.m.concepto }}{% if f.m.motivo %} <span class="text-muted small">· {{ f.m.motivo }}</span>{% endif %}</td>
+        {% if f.es_entrada %}
+        <td class="text-end tbl-entrada-lt">{{ f.m.cantidad }}</td>
+        <td class="text-end tbl-entrada-lt">{{ f.m.costo_unitario|lps }}</td>
+        <td class="text-end tbl-entrada-lt">{{ f.m.importe|lps }}</td>
+        <td></td><td></td><td></td><td></td>
+        {% else %}
+        <td></td><td></td><td></td>
+        <td class="text-end tbl-salida-lt">{{ f.m.cantidad }}</td>
+        <td class="text-end tbl-salida-lt">{{ f.m.costo_unitario|lps }}</td>
+        <td class="text-end tbl-salida-lt">{{ f.m.importe|lps }}</td>
+        <td class="tbl-salida-lt small">{{ f.proveedor }}</td>
+        {% endif %}
+        <td class="text-end fw-semibold tbl-saldo-lt">{{ f.m.existencia_despues }}</td>
+        <td class="text-end tbl-saldo-lt">{{ f.m.costo_promedio_despues|lps }}</td>
+        <td class="text-end tbl-saldo-lt">{{ f.valor_saldo|lps }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="12" class="text-center text-muted py-4">Sin movimientos. {% if puede_admin %}Registra el saldo inicial o una entrada.{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div></div>
+{% endblock %}

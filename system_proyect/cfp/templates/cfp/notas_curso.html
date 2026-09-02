@@ -99,14 +99,14 @@
                 {% for v in c.t %}
                 <td class="{% if forloop.first %}nt-mod-sep{% endif %}">
                   <input class="nt-input" type="number" step="0.01" min="0" max="100"
-                    value="{{ v|unlocalize }}" data-modulo="{{ c.modulo_id }}" data-persona="{{ f.persona_id }}"
+                    value="{{ v|floatformat:'-2' }}" data-modulo="{{ c.modulo_id }}" data-persona="{{ f.persona_id }}"
                     data-kind="t" data-idx="{{ forloop.counter0 }}" oninput="onNotaInput(this)">
                 </td>
                 {% endfor %}
                 {% for v in c.p %}
                 <td {% if forloop.first %}style="border-left:1px dashed #cbd5e1;"{% endif %}>
                   <input class="nt-input" type="number" step="0.01" min="0" max="100"
-                    value="{{ v|unlocalize }}" data-modulo="{{ c.modulo_id }}" data-persona="{{ f.persona_id }}"
+                    value="{{ v|floatformat:'-2' }}" data-modulo="{{ c.modulo_id }}" data-persona="{{ f.persona_id }}"
                     data-kind="p" data-idx="{{ forloop.counter0 }}" oninput="onNotaInput(this)">
                 </td>
                 {% endfor %}

@@ -1,0 +1,77 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: listado de inventario de uniformes (FASE 2) #}
+{% block title %}Inventario de Uniformes{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Inventario de Uniformes{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=3">{% endblock %}
+
+{% block page_actions %}
+  {# <--- hecho por claude code: Proveedores y Compras viven aquí dentro (un solo lugar); Reporte queda en el hub #}
+  {% if ver_proveedores %}<a href="{% url 'contabilidad:proveedor_lista' %}" class="btn btn-ghost-secondary"><i class="ti ti-truck me-1"></i>Proveedores</a>{% endif %}
+  {% if ver_compras %}<a href="{% url 'contabilidad:compra_lista' %}" class="btn btn-ghost-secondary"><i class="ti ti-shopping-cart me-1"></i>Compras</a>{% endif %}
+  {% if puede_admin %}
+  <a href="{% url 'contabilidad:movimiento_nuevo' %}" class="btn btn-outline-primary"><i class="ti ti-arrows-exchange me-1"></i>Movimiento</a>
+  <a href="{% url 'contabilidad:producto_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo producto</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+
+<div class="row row-cards g-3 mb-3">
+  {% include 'contabilidad/_kpi.html' with valor=total_prod etiqueta='Productos' icono='ti-shirt' color='#2fb344' %}
+  {% include 'contabilidad/_kpi.html' with valor=total_unid etiqueta='En existencia' icono='ti-stack-2' color='#206bc4' %}
+  {% include 'contabilidad/_kpi.html' with valor=total_valor|lps etiqueta='Valor inventario' icono='ti-report-money' color='#d6336c' %}
+  {% include 'contabilidad/_kpi.html' with valor=ind.proveedores etiqueta='Proveedores' icono='ti-truck' color='#0ca678' %}
+  {% include 'contabilidad/_kpi.html' with valor=ind.compras etiqueta='Compras' icono='ti-shopping-cart' color='#4263eb' %}
+  {% include 'contabilidad/_kpi.html' with valor=ind.compradas etiqueta='Unid. compradas' icono='ti-arrow-down-circle' color='#7048e8' %}
+  {% include 'contabilidad/_kpi.html' with valor=ind.vendidas etiqueta='Unid. vendidas' icono='ti-arrow-up-circle' color='#f59f00' %}
+  {% if ver_ingresos %}{% include 'contabilidad/_kpi.html' with valor=ind.ingresos|lps etiqueta='Ingresos (ventas)' icono='ti-cash' color='#d6336c' %}{% endif %}
+</div>
+
+<form method="get" class="card mb-3"><div class="card-body py-2">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-4"><label class="form-label small mb-1">Buscar</label>
+      <input type="text" name="q" value="{{ filtros.q }}" class="form-control form-control-sm" placeholder="Producto, código, talla, color…"></div>
+    <div class="col-6 col-md-3"><label class="form-label small mb-1">Área</label>
+      <select name="area" class="form-select form-select-sm"><option value="">Todas</option>
+        {% for a in areas %}<option value="{{ a.id }}" {% if filtros.area == a.id|stringformat:'s' %}selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-3"><label class="form-label small mb-1">Tipo</label>
+      <select name="tipo" class="form-select form-select-sm"><option value="">Todos</option>
+        {% for t in tipos %}<option value="{{ t.id }}" {% if filtros.tipo == t.id|stringformat:'s' %}selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select></div>
+    <div class="col-auto">
+      <label class="form-check form-switch small"><input type="checkbox" class="form-check-input" name="estado" value="bajo" {% if filtros.estado == 'bajo' %}checked{% endif %}> <span class="form-check-label">Solo stock bajo</span></label>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>
+      <a href="{% url 'contabilidad:inventario_lista' %}" class="btn btn-sm btn-ghost-secondary">Limpiar</a>
+    </div>
+  </div>
+</div></form>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-vcenter table-hover card-table">
+    <thead><tr>
+      <th>Producto</th><th>Área</th><th>Tipo</th><th>Talla</th>
+      <th class="text-end">Existencia</th><th class="text-end">Costo prom.</th><th class="text-end">Valor</th>
+    </tr></thead>
+    <tbody>
+      {% for p in productos %}
+      <tr style="cursor:pointer;" onclick="location.href='{% url 'contabilidad:producto_kardex' p.pk %}'">
+        <td class="fw-semibold">{{ p.nombre }}{% if p.color %} <span class="text-muted small">· {{ p.color }}</span>{% endif %}</td>
+        <td>{{ p.area.nombre }}</td>
+        <td>{{ p.tipo.nombre }}</td>
+        <td>{{ p.talla|default:"—" }}</td>
+        <td class="text-end {% if p.bajo_stock %}text-danger fw-bold{% endif %}">{{ p.existencia_actual }}{% if p.bajo_stock %} <i class="ti ti-alert-triangle" title="Stock bajo"></i>{% endif %}</td>
+        <td class="text-end">{{ p.costo_promedio|lps }}</td>
+        <td class="text-end">{{ p.valor_total|lps }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center text-muted py-4">Sin productos. {% if puede_admin %}Crea el primero.{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div></div>
+{% endblock %}

@@ -4,15 +4,18 @@ from .models import Ticket, TicketComment
 class TicketForm(forms.ModelForm):
     class Meta:
         model = Ticket
-        fields = ['name', 'grade', 'email', 'description', 'comments', 'attachment']
+        # <--- hecho por claude code: la urgencia la elige el usuario al crear el ticket
+        fields = ['name', 'grade', 'email', 'urgencia', 'description', 'comments', 'attachment']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'grade': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'urgencia': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
+        labels = {'urgencia': 'Nivel de urgencia'}
 
 class TicketCommentForm(forms.ModelForm):
     class Meta:

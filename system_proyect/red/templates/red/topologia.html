@@ -1,0 +1,69 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: editor de topología (Cytoscape.js) #}
+{% block title %}Red · Topología{% endblock %}
+{% block page_pretitle %}ANA Network Manager{% endblock %}
+{% block page_title %}Topología de red{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+{# <--- hecho por claude code: plugins para exportar SVG (cytoscape-svg) y PDF (jsPDF) #}
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-svg@0.4.0/cytoscape-svg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="{% static 'red/css/topologia.css' %}?v=1">
+{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+
+{% block content %}
+{# Filtros y vista #}
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small mb-0">Edificio</label>
+    <select name="edificio" class="form-select form-select-sm"><option value="">Todos</option>
+      {% for e in edificios %}<option value="{{ e.id }}" {% if f_edif == e.id|stringformat:'s' %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">VLAN</label>
+    <select name="vlan" class="form-select form-select-sm"><option value="">Todas</option>
+      {% for v in vlans %}<option value="{{ v.id }}" {% if f_vlan == v.id|stringformat:'s' %}selected{% endif %}>VLAN {{ v.vlan_id }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Tipo</label>
+    <select name="tipo" class="form-select form-select-sm"><option value="">Todos</option>
+      {% for k, lbl in tipos %}<option value="{{ k }}" {% if f_tipo == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Colorear por</label>
+    <select name="colorby" class="form-select form-select-sm"><option value="tipo" {% if colorby == 'tipo' %}selected{% endif %}>Tipo</option><option value="vlan" {% if colorby == 'vlan' %}selected{% endif %}>VLAN</option></select></div>
+  {# <--- hecho por claude code: ver el diagrama de un plano (marcadores + líneas) en la topología #}
+  <div class="col-auto"><label class="form-label small mb-0">Diagrama de plano</label>
+    <select class="form-select form-select-sm" onchange="if(this.value){location.href='?plano='+this.value}else{location.href='{% url 'red:topologia' %}'}">
+      <option value="">— Dispositivos (red) —</option>
+      {% for pl in planos %}<option value="{{ pl.id }}" {% if plano_sel and plano_sel.id == pl.id %}selected{% endif %}>{{ pl.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Aplicar</button></div>
+  <div class="col-auto ms-auto">
+    <button type="button" class="btn btn-sm btn-ghost-secondary" id="btn-fit"><i class="ti ti-focus-2 me-1"></i>Centrar</button>
+    <button type="button" class="btn btn-sm btn-ghost-secondary" id="btn-png"><i class="ti ti-photo me-1"></i>PNG</button>
+    {# <--- hecho por claude code: export vectorial (SVG) y documento (PDF) de la topología #}
+    <button type="button" class="btn btn-sm btn-ghost-secondary" id="btn-svg"><i class="ti ti-vector me-1"></i>SVG</button>
+    <button type="button" class="btn btn-sm btn-ghost-secondary" id="btn-pdf"><i class="ti ti-file-type-pdf me-1"></i>PDF</button>
+    <button type="button" class="btn btn-sm btn-ghost-secondary" data-bs-toggle="modal" data-bs-target="#mmModal"><i class="ti ti-code me-1"></i>Mermaid</button>
+  </div>
+</form>
+
+{% if sueltos or hay_ciclo %}
+<div class="alert alert-warning py-2">
+  {% if hay_ciclo %}<div><i class="ti ti-alert-triangle me-1"></i>Se detectaron posibles <strong>bucles/ciclos</strong> en la topología.</div>{% endif %}
+  {% if sueltos %}<div><i class="ti ti-plug-off me-1"></i><strong>Nodos sin conexión:</strong> {{ sueltos|join:', ' }}</div>{% endif %}
+</div>
+{% endif %}
+
+<div class="card"><div class="card-body p-0">
+  <div id="cy"></div>
+  <div class="p-2 small text-muted border-top">Arrastra los nodos para acomodarlos (se guarda la posición). Clic en un enlace para ver su VLAN. Línea gris=RJ45, azul=fibra, punteada=radio, gruesa=trunk.</div>
+</div></div>
+
+{# Modal Mermaid #}
+<div class="modal fade" id="mmModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Topología en Mermaid (solo lectura)</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><textarea class="form-control" rows="14" readonly>{{ mermaid }}</textarea>
+    <div class="text-muted small mt-2">Copia este código y pégalo en cualquier visor Mermaid.</div></div>
+</div></div></div>
+
+<div id="topo-cfg" hidden data-csrf="{{ csrf_token }}" data-pos="{% url 'red:nodo_pos' 0 %}"
+     data-nodes="{{ nodes_json }}" data-edges="{{ edges_json }}"></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'red/js/topologia.js' %}?v=3"></script>{% endblock %}

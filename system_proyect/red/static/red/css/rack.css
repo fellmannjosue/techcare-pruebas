@@ -1,0 +1,61 @@
+/* <--- hecho por claude code: elevación de rack (tipo draw.io) */
+.rack-wrap { display: flex; gap: 6px; align-items: flex-start; }
+.rack-ruler { width: 26px; flex: 0 0 26px; padding-top: 3px; }
+.rack-ruler .ru {
+  font-size: .58rem; color: #adb5bd; text-align: right; padding-right: 4px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: flex-end;
+}
+
+/* cuerpo del rack con rieles y filas de U */
+.rack-body {
+  position: relative; flex: 1 1 auto; max-width: 520px; box-sizing: border-box;
+  border: 3px solid #454b54; border-radius: 8px; padding: 3px 10px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.05) 0 1px, transparent 1px 26px),
+    linear-gradient(90deg, #d0d4da 0 8px, #f4f5f7 8px calc(100% - 8px), #d0d4da calc(100% - 8px) 100%);
+}
+/* "agujeros" de los rieles (decorativo) */
+.rack-body::before, .rack-body::after {
+  content: ''; position: absolute; top: 3px; bottom: 3px; width: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(0deg, #9aa0a8 0 3px, transparent 3px 13px);
+}
+.rack-body::before { left: 2px; } .rack-body::after { right: 2px; }
+
+/* equipo montado */
+.ri {
+  position: absolute; left: 10px; right: 10px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 6px; padding: 0 8px;
+  background: linear-gradient(#fbfcfd, #e9ecef); border: 1px solid #ced4da; border-left: 4px solid #495057;
+  border-radius: 4px; font-size: .72rem; font-weight: 600; color: #212529; cursor: grab; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18); z-index: 1;
+}
+.ri:hover { box-shadow: 0 2px 8px rgba(0,0,0,.28); z-index: 2; }
+.ri:active { cursor: grabbing; }
+.ri .ti { font-size: 15px; color: #495057; flex: 0 0 auto; }
+.ri-name { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ri-u { font-size: .58rem; color: #868e96; font-weight: 700; flex: 0 0 auto; }
+
+/* acentos por tipo (fondo suave) */
+.ri-switch    { background: linear-gradient(#eef4ff, #dbe7ff); }
+.ri-firewall  { background: linear-gradient(#fff0e6, #ffe0cc); }
+.ri-servidor  { background: linear-gradient(#eef7ef, #dcefdd); }
+.ri-patch     { background: linear-gradient(#f3f0fb, #e6dff7); }
+.ri-nvr       { background: linear-gradient(#f6edfa, #ecdcf5); }
+.ri-mediaconv { background: linear-gradient(#e8f7f5, #d5efeb); }
+.ri-bandeja   { background: repeating-linear-gradient(90deg, #eceff3 0 10px, #e2e6ec 10px 20px); border-style: dashed; }
+.ri-blank     { background: repeating-linear-gradient(45deg, #f1f3f5 0 6px, #e9ecef 6px 12px); color: #adb5bd; }
+
+/* modo oscuro */
+html.dark .rack-body {
+  border-color: #23262d;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 26px),
+    linear-gradient(90deg, #23262d 0 8px, #1a1d23 8px calc(100% - 8px), #23262d calc(100% - 8px) 100%);
+}
+html.dark .ri { background: linear-gradient(#2a2f3a, #232833); border-color: #3a4150; color: #e8ebf2; }
+html.dark .ri .ti { color: #c7cfe0; }
+html.dark .ri-switch   { background: linear-gradient(#22314f, #1c2942); }
+html.dark .ri-firewall { background: linear-gradient(#3a2a1e, #2e2016); }
+html.dark .ri-servidor { background: linear-gradient(#213024, #1a271c); }
+html.dark .ri-patch    { background: linear-gradient(#2b2540, #221d33); }
+html.dark .rack-ruler .ru { color: #6b7480; }

@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css"/>
-  <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=4">
   <!-- Responsive global (carga después de CSS de módulo para ganar especificidad) -->
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
@@ -107,71 +107,171 @@
           </div>
         </div>
 
-        {# TABLA #}
+        {# TABLA — hecho por claude code: 3 pestañas (Computadoras / Impresoras / Control de equipos) #}
         <div class="card">
-          <div class="card-header"><h3 class="card-title"><i class="ti ti-table me-2 text-muted"></i>Registros</h3></div>
+          <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="tabs-registros" role="tablist">
+              <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-comp" role="tab"><i class="ti ti-device-desktop me-1"></i>Computadoras <span class="badge bg-blue-lt text-blue ms-1">{{ records_comp|length }}</span></a></li>
+              <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-imp" role="tab"><i class="ti ti-printer me-1"></i>Impresoras <span class="badge bg-orange-lt text-orange ms-1">{{ records_imp|length }}</span></a></li>
+              <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ctrl" role="tab"><i class="ti ti-clipboard-check me-1"></i>Control de equipos <span class="badge bg-teal-lt text-teal ms-1">{{ records_ctrl|length }}</span></a></li>
+              <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-insp" role="tab"><i class="ti ti-zoom-check me-1"></i>Inspecciones <span class="badge bg-orange-lt text-orange ms-1">{{ records_insp|length }}</span></a></li>
+            </ul>
+          </div>
           <div class="card-body p-0">
-            <div class="table-responsive">
-              <table id="tablaMantenimiento" class="table table-vcenter table-hover card-table">
-                <thead><tr>
-                  <th>ID</th><th>Equipo</th><th>Modelo</th><th>Serie</th>
-                  <th>Maestro</th><th>Grado</th><th>Tipo Falla</th>
-                  <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>Acciones</th>
-                </tr></thead>
-                <tbody>
-                  {% for r in records %}
-                  <tr>
-                    {# <--- hecho por claude code: filas conscientes del tipo de equipo (computadora / impresora) #}
-                    <td>
-                      <span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span>
-                      {% if r.tipo_equipo == 'impresora' %}<span class="badge bg-orange-lt text-orange ms-1" title="Impresora"><i class="ti ti-printer"></i></span>{% endif %}
-                    </td>
-                    <td class="fw-semibold">{% if r.tipo_equipo == 'impresora' %}{% if r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}{% else %}{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}{% endif %}</td>
-                    <td>{{ r.model|default:"—" }}</td>
-                    <td class="text-muted font-monospace small">{{ r.serie|default:"—" }}</td>
-                    <td>{% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:"—" }}{% else %}—{% endif %}</td>
-                    <td>{% if r.tipo_equipo == 'impresora' %}<span class="text-muted small">Tinta: {{ r.get_estado_tinta_display|default:"—" }}</span>{% elif r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:"—" }}{% else %}—{% endif %}</td>
-                    <td>{% if r.tipo_equipo == 'impresora' %}{{ r.get_tipo_mant_impresora_display|default:"—" }}{% else %}{{ r.tipo_falla|default:"—" }}{% endif %}</td>
-                    <td>{{ r.date|date:"d/m/Y" }}</td>
-                    <td>
-                      {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
-                      {% elif r.status == "En Proceso" %}<span class="badge bg-cyan-lt text-cyan"><i class="ti ti-settings me-1"></i>En Proceso</span>
-                      {% else %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-clock me-1"></i>Pendiente</span>{% endif %}
-                    </td>
-                    <td><span class="text-truncate d-inline-block" style="max-width:140px;" title="{{ r.solucion }}">{{ r.solucion|default:"—"|truncatechars:45 }}</span></td>
-                    <td>
-                      {% with cnt=r.fotos.count %}
-                      {% if cnt %}<span class="badge bg-azure-lt text-azure"><i class="ti ti-photo me-1"></i>{{ cnt }}</span>
-                      {% else %}<span class="text-muted">—</span>{% endif %}
-                      {% endwith %}
-                    </td>
-                    <td class="text-nowrap">
-                      {% if r.status == 'Completado' %}
-                      <span class="btn btn-sm btn-secondary disabled" style="opacity:.55"
-                            title="Ficha completada — envío de firma bloqueado"><i class="ti ti-lock"></i></span>
-                      {% else %}
-                      <button class="btn btn-sm btn-firma-link text-white"
-                              style="background:#25D366;border-color:#25D366;"
-                              data-rid="{{ r.record_id }}"
-                              data-link="{{ site_url }}{% url 'mantenimiento:firmar_publico' r.token_firma %}"
-                              data-mark="{% url 'mantenimiento:marcar_firma_solicitada' r.id %}"
-                              title="Enviar firma al maestro por WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>
-                      {% endif %}
-                      <a href="{% url 'mantenimiento:download_maintenance_pdf' r.id %}"
-                         class="btn btn-sm btn-ghost-secondary" title="Descargar PDF"><i class="ti ti-file-type-pdf"></i></a>
-                      <button class="btn btn-sm btn-ghost-primary btn-editar-mant"
-                              data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
-                      <button class="btn btn-sm btn-ghost-danger btn-eliminar-mant"
-                              data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
-                    </td>
-                  </tr>
-                  {% empty %}
-                  <tr><td colspan="12" class="text-center text-muted py-5">
-                    <i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay fichas registradas aún.
-                  </td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+            <div class="tab-content">
+
+              {# ── Pestaña 1: COMPUTADORAS ── #}
+              <div class="tab-pane active show" id="tab-comp" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="4">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Tipo Falla</th>
+                      <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_comp %}
+                      <tr>
+                        <td><span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        {# <--- hecho por claude code: Modelo con hover (serie · maestro · grado) para compactar la tabla #}
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—' }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:'—' }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td>{{ r.tipo_falla|default:"—" }}</td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>
+                          {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
+                          {% elif r.status == "En Proceso" %}<span class="badge bg-cyan-lt text-cyan"><i class="ti ti-settings me-1"></i>En Proceso</span>
+                          {% else %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-clock me-1"></i>Pendiente</span>{% endif %}
+                        </td>
+                        <td><span class="text-truncate d-inline-block" style="max-width:140px;" title="{{ r.solucion }}">{{ r.solucion|default:"—"|truncatechars:45 }}</span></td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay fichas de computadoras aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {# ── Pestaña 2: IMPRESORAS ── #}
+              <div class="tab-pane" id="tab-imp" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="5">
+                    <thead><tr>
+                      <th>ID</th><th>Impresora</th><th>Modelo</th><th>Tinta</th><th>Mantenimiento</th>
+                      <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_imp %}
+                      <tr>
+                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        {# <--- hecho por claude code: Modelo con hover (modelo · serie · persona/área) #}
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle de la impresora"
+                              data-bs-content="<div><b>Modelo:</b> {{ r.model|default:'—' }}</div><div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Persona:</b> {{ r.teacher_name|default:'—' }}</div>{% if r.area %}<div><b>Área:</b> {{ r.area }}</div>{% endif %}">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td>{{ r.get_estado_tinta_display|default:"—" }}{% if r.tipo_tinta %}<span class="text-muted small"> · {{ r.tipo_tinta }}</span>{% endif %}</td>
+                        <td>{{ r.get_tipo_mant_impresora_display|default:"—" }}</td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>
+                          {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
+                          {% elif r.status == "En Proceso" %}<span class="badge bg-cyan-lt text-cyan"><i class="ti ti-settings me-1"></i>En Proceso</span>
+                          {% else %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-clock me-1"></i>Pendiente</span>{% endif %}
+                        </td>
+                        <td><span class="text-truncate d-inline-block" style="max-width:140px;" title="{{ r.solucion }}">{{ r.solucion|default:"—"|truncatechars:45 }}</span></td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay fichas de impresoras aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {# ── Pestaña 3: CONTROL DE EQUIPOS ── #}
+              <div class="tab-pane" id="tab-ctrl" role="tabpanel">
+                {# <--- hecho por claude code: reporte consolidado de todos los controles en un solo PDF #}
+                <div class="d-flex justify-content-end gap-2 p-2 pb-0">
+                  <a href="{% url 'mantenimiento:control_reporte_pdf' %}" target="_blank" class="btn btn-sm btn-teal">
+                    <i class="ti ti-table me-1"></i>Reporte PDF (resumen)
+                  </a>
+                  {# <--- hecho por claude code: todas las fichas individuales unidas en un solo PDF #}
+                  <a href="{% url 'mantenimiento:control_fichas_pdf' %}" target="_blank" class="btn btn-sm btn-orange">
+                    <i class="ti ti-files me-1"></i>Fichas PDF (todas)
+                  </a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Evaluación</th>
+                      <th>Fecha</th><th>Estado del equipo</th><th>Observaciones</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_ctrl %}
+                      <tr>
+                        <td><span class="badge bg-teal-lt text-teal">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—' }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:'—' }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td><div>Trabajó: <strong>{{ r.get_eval_trabajo_display|default:"—" }}</strong></div><div class="small {% if r.eval_fallas == 'si' %}text-danger{% else %}text-muted{% endif %}">Fallas: {{ r.get_eval_fallas_display|default:"—" }}</div></td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>
+                          {% if r.estado_equipo == 'bueno' %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Buen estado</span>
+                          {% elif r.estado_equipo == 'regular' %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-alert-circle me-1"></i>Regular</span>
+                          {% elif r.estado_equipo == 'malo' %}<span class="badge bg-danger-lt text-danger"><i class="ti ti-alert-triangle me-1"></i>Mal estado</span>
+                          {% elif r.estado_equipo == 'fuera' %}<span class="badge bg-dark-lt text-dark"><i class="ti ti-power me-1"></i>Fuera de servicio</span>
+                          {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        {# <--- hecho por claude code: hover con observaciones de la auditora y del técnico #}
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="left" data-bs-title="Observaciones"
+                              data-bs-content="<div class='mb-1'><b><i class='ti ti-user-check me-1'></i>Auditora:</b><br>{{ r.obs_auditora|default:'—' }}</div><div><b><i class='ti ti-tool me-1'></i>Técnico:</b><br>{{ r.obs_tecnico|default:'—' }}</div>">{% if r.obs_auditora or r.obs_tecnico %}<i class="ti ti-message-2 me-1"></i>Ver{% else %}—{% endif %} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay controles de equipo aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {# ── Pestaña 4: INSPECCIONES (hecho por claude code) ── #}
+              <div class="tab-pane" id="tab-insp" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Inspección</th>
+                      <th>Fecha</th><th>Firma (asignado)</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_insp %}
+                      <tr>
+                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {{ r.teacher_name|default:'—' }}</div><div><b>Grado:</b> {{ r.grade|default:'—' }}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td>
+                          {% for lbl, ok in r.inspeccion_respuestas %}
+                          <span class="badge {% if ok %}bg-success-lt text-success{% else %}bg-danger-lt text-danger{% endif %} me-1" title="{{ lbl }}">{% if ok %}✓{% else %}✗{% endif %} {{ forloop.counter }}</span>
+                          {% endfor %}
+                        </td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td class="fst-italic">{{ r.teacher_name|default:"—" }}</td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="8" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay inspecciones aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -206,15 +306,27 @@
           <div class="btn-group w-100 mb-3" role="group" id="equipo-toggle">
             <button type="button" class="btn btn-primary mant-equipo-btn" data-equipo="computadora"><i class="ti ti-device-desktop me-1"></i>Computadora</button>
             <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="impresora"><i class="ti ti-printer me-1"></i>Impresora</button>
+            {# <--- hecho por claude code: Control de equipo (evaluación periódica del equipo del maestro) #}
+            <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="control"><i class="ti ti-clipboard-check me-1"></i>Control de equipo</button>
+            {# <--- hecho por claude code: Inspección del espacio de trabajo (checklist Sí/No) #}
+            <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="inspeccion"><i class="ti ti-zoom-check me-1"></i>Inspección</button>
           </div>
 
           {# ───────── Bloque COMPUTADORA ───────── #}
           <div class="row g-3 equipo-computadora">
 
             {# ID auto #}
-            <div class="col-md-4">
+            <div class="col-md-4 solo-computadora">
               <label class="form-label fw-semibold">ID Registro</label>
               <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id }}" readonly>
+            </div>
+            <div class="col-md-4 solo-control d-none">
+              <label class="form-label fw-semibold">ID Registro</label>
+              <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id_ctrl }}" readonly>
+            </div>
+            <div class="col-md-4 solo-inspeccion d-none">
+              <label class="form-label fw-semibold">ID Registro</label>
+              <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id_insp }}" readonly>
             </div>
 
             {# Computadora dropdown #}
@@ -260,7 +372,7 @@
             </div>
 
             {# Tipo de Falla (solo computadora) #}
-            <div class="col-md-4">
+            <div class="col-md-4 solo-computadora">
               <label class="form-label fw-semibold">Tipo de Falla</label>
               {{ form.tipo_falla }}
               <input type="text" name="tipo_falla_nueva" id="id_tipo_falla_nueva"
@@ -317,25 +429,76 @@
             </div>
           </div>{# /equipo-impresora #}
 
+          {# ───────── Bloque CONTROL DE EQUIPO (hecho por claude code) ───────── #}
+          <div class="row g-3 mt-1 equipo-control d-none">
+            <div class="col-12"><div class="hr-text text-teal"><i class="ti ti-clipboard-check me-1"></i>Evaluación del equipo</div></div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">1. ¿Qué tal ha trabajado su equipo de trabajo?</label>
+              {{ form.eval_trabajo }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">2. ¿Le ha presentado fallas su equipo de trabajo?</label>
+              {{ form.eval_fallas }}
+            </div>
+            <div class="col-12 d-none" id="ctrl-fallas-detalle-wrap">
+              <label class="form-label fw-semibold">¿Cuáles fallas?</label>
+              {{ form.eval_fallas_detalle }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold"><i class="ti ti-user-check me-1 text-purple"></i>Observaciones de la auditora</label>
+              {{ form.obs_auditora }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Observaciones del técnico</label>
+              {{ form.obs_tecnico }}
+            </div>
+          </div>{# /equipo-control #}
+
+          {# ───────── Bloque INSPECCIÓN (hecho por claude code) ───────── #}
+          <div class="row g-3 mt-1 equipo-inspeccion d-none">
+            <div class="col-12"><div class="hr-text text-orange"><i class="ti ti-zoom-check me-1"></i>Inspección del espacio de trabajo</div></div>
+            <div class="col-12">
+              <label class="form-check"><span class="me-2">{{ form.insp_limpio }}</span><span class="form-check-label">1. ¿Mantiene limpio el espacio de trabajo?</span></label>
+              <label class="form-check"><span class="me-2">{{ form.insp_ordenado }}</span><span class="form-check-label">2. ¿Tiene ordenado el espacio de trabajo?</span></label>
+              <label class="form-check"><span class="me-2">{{ form.insp_cables }}</span><span class="form-check-label">3. ¿Los cables del equipo están ordenados y en buen estado?</span></label>
+              <label class="form-check"><span class="me-2">{{ form.insp_alimentos }}</span><span class="form-check-label">4. ¿El equipo está libre de comida y bebidas cerca?</span></label>
+              <div class="form-hint">Marcado = Sí · sin marcar = No</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro</label>
+              <div class="card card-sm bg-light"><div class="card-body py-2">
+                <div class="text-muted small">Se usa el nombre del asignado del equipo</div>
+                <div class="fw-bold fst-italic fs-3" id="insp-firma-nombre">—</div>
+              </div></div>
+              <p class="text-muted small mt-1">Se imprime como firma en la ficha.</p>
+            </div>
+          </div>{# /equipo-inspeccion #}
+
           {# ───────── Campos compartidos ───────── #}
           <div class="row g-3 mt-1">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Fecha</label>
               {{ form.date }}
             </div>
-            <div class="col-md-6">
+            <div class="col-md-6 solo-no-control solo-no-inspeccion">
               <label class="form-label fw-semibold">Estado</label>
               {{ form.status }}
             </div>
+            {# <--- hecho por claude code: en el control el estado es la CONDICIÓN del equipo #}
+            <div class="col-md-6 solo-control d-none">
+              <label class="form-label fw-semibold">Estado del equipo</label>
+              {{ form.estado_equipo }}
+              <div class="form-hint">Buen estado · Regular (seguimiento) · Mal estado (reparar) · Fuera de servicio (reemplazo)</div>
+            </div>
 
             {# Solución #}
-            <div class="col-12">
+            <div class="col-12 solo-no-control solo-no-inspeccion">
               <label class="form-label fw-semibold">Solución Aplicada</label>
               {{ form.solucion }}
             </div>
 
             {# Observaciones #}
-            <div class="col-12">
+            <div class="col-12 solo-no-control solo-no-inspeccion">
               <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
               {{ form.observaciones }}
             </div>
@@ -351,8 +514,22 @@
               <div id="fotos-preview"></div>
             </div>
 
+            {# <--- hecho por claude code: en Control de equipo las firmas de técnico y auditora son FIJAS #}
+            <div class="col-md-6 solo-control d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-azure"></i>Firmas fijas</label>
+              <div class="card card-sm bg-light mb-2"><div class="card-body py-2">
+                <div class="text-muted small">Firma del técnico</div>
+                <div class="fw-bold fst-italic">Josué Fellmann</div><div class="text-muted small">Soporte Técnico</div>
+              </div></div>
+              <div class="card card-sm bg-light"><div class="card-body py-2">
+                <div class="text-muted small">Firma de la auditora</div>
+                <div class="fw-bold fst-italic">Yeny Lagos</div><div class="text-muted small">Auditora</div>
+              </div></div>
+              <p class="text-muted small mt-1">Se imprimen automáticamente en la ficha.</p>
+            </div>
+
             {# Firma del técnico (soporte) #}
-            <div class="col-md-6">
+            <div class="col-md-6 solo-no-control solo-no-inspeccion">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
               <div id="signature-pad-wrap-tec">
                 <canvas id="signature-canvas-tec"></canvas>
@@ -364,7 +541,7 @@
             </div>
 
             {# Firma del maestro (evidencia) #}
-            <div class="col-md-6">
+            <div class="col-md-6 solo-no-inspeccion">
               <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro (evidencia)</label>
               <div id="signature-pad-wrap">
                 <canvas id="signature-canvas"></canvas>
@@ -412,12 +589,22 @@
         <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
           <div class="row g-3">
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-no-impresora">
               <label class="form-label fw-semibold">Computadora</label>
               <select name="computadora" id="edit-computadora" class="form-select">
                 <option value="">— Seleccionar computadora —</option>
                 {% for c in computadoras %}
                 <option value="{{ c.id }}">{{ c.asset_id }} – {{ c.modelo }}{% if c.asignado_a %} · {{ c.asignado_a }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {# <--- hecho por claude code: el modal de edición se adapta a IMPRESORA (antes mostraba el de computadora) #}
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Impresora</label>
+              <select name="impresora" id="edit-impresora" class="form-select">
+                <option value="">— Seleccionar impresora —</option>
+                {% for i in impresoras %}
+                <option value="{{ i.id }}">{{ i.asset_id }} – {{ i.modelo }}{% if i.asignado_a %} · {{ i.asignado_a }}{% endif %}</option>
                 {% endfor %}
               </select>
             </div>
@@ -437,17 +624,54 @@
               <input type="text" id="edit-asignado-display" class="form-control bg-light text-muted" readonly>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-no-impresora">
               <label class="form-label fw-semibold">Área</label>
               <input type="text" id="edit-area-display" class="form-control bg-light text-muted" readonly>
             </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Área <span class="text-muted fw-normal small">(manual)</span></label>
+              <input type="text" name="area" id="edit-area" class="form-control" maxlength="100">
+            </div>
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-no-impresora">
               <label class="form-label fw-semibold">Grado</label>
               <input type="text" id="edit-grado-display" class="form-control bg-light text-muted" readonly>
             </div>
 
-            <div class="col-md-4">
+            {# Campos propios de impresora #}
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Tipo de mantenimiento</label>
+              <select name="tipo_mant_impresora" id="edit-tipo-mant-imp" class="form-select">
+                <option value="">---------</option>
+                <option value="llenado_tinta">Llenado de tinta</option>
+                <option value="actualizacion_sistema">Actualización de sistema</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Estado de la tinta</label>
+              <select name="estado_tinta" id="edit-estado-tinta" class="form-select">
+                <option value="">---------</option>
+                <option value="vacio">Vacío</option><option value="media">Media</option>
+                <option value="llena">Llena</option><option value="full">Full</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Tipo de tinta</label>
+              <select name="tipo_tinta" id="edit-tipo-tinta" class="form-select">
+                <option value="">---------</option><option value="544">544</option><option value="504">504</option>
+              </select>
+            </div>
+            <div class="col-12 edit-impresora d-none">
+              <label class="form-label fw-semibold">Colores rellenados</label>
+              <div class="d-flex flex-wrap gap-4 mt-1">
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_negra" id="edit-tinta-negra"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#111"></i>Negra</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_magenta" id="edit-tinta-magenta"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#e64980"></i>Magenta</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_amarillo" id="edit-tinta-amarillo"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#f1c40f"></i>Amarillo</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_cyan" id="edit-tinta-cyan"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#15aabf"></i>Cyan</span></label>
+              </div>
+            </div>
+
+            <div class="col-md-4 edit-no-control edit-no-impresora edit-no-inspeccion">
               <label class="form-label fw-semibold">Tipo de Falla</label>
               <select name="tipo_falla" id="edit-tipo-falla" class="form-select">
                 {% for tf in tipos_falla %}
@@ -463,7 +687,15 @@
               <input type="date" name="date" id="edit-date" class="form-control">
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-control d-none">
+              <label class="form-label fw-semibold">Estado del equipo</label>
+              <select name="estado_equipo" id="edit-estado-equipo" class="form-select">
+                <option value="">— Seleccionar —</option>
+                <option value="bueno">Buen estado</option><option value="regular">Regular</option>
+                <option value="malo">Mal estado</option><option value="fuera">Fuera de servicio</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-no-control edit-no-inspeccion">
               <label class="form-label fw-semibold">Estado</label>
               <select name="status" id="edit-status" class="form-select">
                 <option value="Pendiente">Pendiente</option>
@@ -472,14 +704,43 @@
               </select>
             </div>
 
-            <div class="col-12">
+            <div class="col-12 edit-no-control edit-no-inspeccion">
               <label class="form-label fw-semibold">Solución Aplicada</label>
               <textarea name="solucion" id="edit-solucion" class="form-control" rows="3"></textarea>
             </div>
 
-            <div class="col-12">
+            <div class="col-12 edit-no-control edit-no-inspeccion">
               <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
               <textarea name="observaciones" id="edit-observaciones" class="form-control" rows="2"></textarea>
+            </div>
+
+            {# <--- hecho por claude code: campos del Control de equipo en el modal de edición #}
+            <div class="col-12 edit-control d-none"><div class="hr-text text-teal"><i class="ti ti-clipboard-check me-1"></i>Evaluación del equipo</div></div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold">1. ¿Qué tal ha trabajado su equipo de trabajo?</label>
+              <select name="eval_trabajo" id="edit-eval-trabajo" class="form-select">
+                <option value="">— Seleccionar —</option>
+                <option value="excelente">Excelente</option><option value="bien">Bien</option>
+                <option value="regular">Regular</option><option value="mal">Mal</option>
+              </select>
+            </div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold">2. ¿Le ha presentado fallas su equipo de trabajo?</label>
+              <select name="eval_fallas" id="edit-eval-fallas" class="form-select">
+                <option value="">— Seleccionar —</option><option value="no">No</option><option value="si">Sí</option>
+              </select>
+            </div>
+            <div class="col-12 edit-control d-none" id="edit-ctrl-fallas-detalle-wrap">
+              <label class="form-label fw-semibold">¿Cuáles fallas?</label>
+              <textarea name="eval_fallas_detalle" id="edit-eval-fallas-detalle" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user-check me-1 text-purple"></i>Observaciones de la auditora</label>
+              <textarea name="obs_auditora" id="edit-obs-auditora" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Observaciones del técnico</label>
+              <textarea name="obs_tecnico" id="edit-obs-tecnico" class="form-control" rows="2"></textarea>
             </div>
 
             {# Fotos de evidencia (hecho por claude code: adjuntar imágenes al editar) #}
@@ -494,8 +755,24 @@
               <div id="edit-fotos-preview"></div>
             </div>
 
+            {# <--- hecho por claude code: checklist de la Inspección en el modal de edición #}
+            <div class="col-12 edit-inspeccion d-none"><div class="hr-text text-orange"><i class="ti ti-zoom-check me-1"></i>Inspección del espacio de trabajo</div></div>
+            <div class="col-md-7 edit-inspeccion d-none">
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_limpio" id="edit-insp-limpio"><span class="form-check-label">1. ¿Mantiene limpio el espacio de trabajo?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_ordenado" id="edit-insp-ordenado"><span class="form-check-label">2. ¿Tiene ordenado el espacio de trabajo?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_cables" id="edit-insp-cables"><span class="form-check-label">3. ¿Los cables del equipo están ordenados y en buen estado?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_alimentos" id="edit-insp-alimentos"><span class="form-check-label">4. ¿El equipo está libre de comida y bebidas cerca?</span></label>
+            </div>
+            <div class="col-md-5 edit-inspeccion d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro</label>
+              <div class="card card-sm bg-light"><div class="card-body py-2">
+                <div class="text-muted small">Nombre del asignado del equipo</div>
+                <div class="fw-bold fst-italic fs-3" id="edit-insp-firma-nombre">—</div>
+              </div></div>
+            </div>
+
             {# Firma del técnico (manual, para firmar registros existentes) #}
-            <div class="col-md-6">
+            <div class="col-md-6 edit-no-control edit-no-inspeccion">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
               <div id="edit-firma-tec-actual" class="mb-2" style="display:none">
                 <span class="text-muted small d-block mb-1">Firma actual:</span>
@@ -511,7 +788,7 @@
             </div>
 
             {# Firma del maestro (segunda opción: firmar en persona, además del link WhatsApp) #}
-            <div class="col-md-6">
+            <div class="col-md-6 edit-no-inspeccion">
               <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro (evidencia)</label>
               <div id="edit-firma-mae-actual" class="mb-2" style="display:none">
                 <span class="text-muted small d-block mb-1">Firma actual:</span>
@@ -552,7 +829,7 @@
      data-v1="{% url "mantenimiento:tipo_falla_crear" %}"
      data-v2="{{ computadoras_json }}"
      data-v3="{{ impresoras_json }}"></div>
-<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=9"></script>
+<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=18"></script>
 
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}

@@ -35,8 +35,7 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://servicios.ana-hn.org:437',
     'https://192.168.10.6:437',
-    # <--- hecho por claude code: el contenedor de PRUEBAS (Coolify) se sirve por HTTP en :451
-    # y en local por :8001; sin estos orígenes todo POST (login incluido) muere con 403 CSRF.
+    # <--- hecho por claude code (PRUEBAS): el contenedor Coolify sirve por HTTP en :451
     'http://192.168.10.6:451',
     'http://localhost:451',
     'http://localhost:8001',
@@ -88,6 +87,7 @@ INSTALLED_APPS = [
     'agendas',
     'core.apps.CoreConfig',
     'rest_framework',   # <--- hecho por claude code: API del frontend de cámaras
+    'rest_framework.authtoken',  # <--- hecho por claude code: tokens para la API REST de Red (scripts/integraciones)
     'reloj',
     'calculadoras',
     'cfp',
@@ -96,10 +96,12 @@ INSTALLED_APPS = [
     'portal_super',   # <--- hecho por claude code: portal nuevo del superusuario (SPA + API)
 
     # Apps en construcción
-    'atencion_padres',
+    # <--- hecho por claude code: 'atencion_padres' y 'camaras' eliminadas (no se usaban)
     'salidas_bano',
     'ingresos_notas',  # <--- hecho por claude code: ingreso de notas al sistema academico
-    'camaras',
+    'desarrollo',  # <--- hecho por claude code: Gestión de Desarrollo (requerimientos/proyectos)
+    'contabilidad',  # <--- hecho por claude code: Programa de Contabilidad (TC-PRY-0002)
+    'red',  # <--- hecho por claude code: ANA Network Manager (IPAM/documentación de red) — Fase 1
 ]
 
 
@@ -121,9 +123,8 @@ MIDDLEWARE = [
     'accounts.dosfa.Dosfa2FAMiddleware',
 ]
 
-# <--- hecho por claude code (SOLO Docker/pruebas): en contenedor no hay Apache que sirva
-# los estáticos, así que WhiteNoise los sirve desde gunicorn. Gated por USE_WHITENOISE
-# para no cambiar el comportamiento del servidor actual (donde Apache los sirve).
+# <--- hecho por claude code (PRUEBAS): en el contenedor no hay Apache para estáticos;
+# WhiteNoise los sirve desde gunicorn. Gated por USE_WHITENOISE (default false).
 if os.getenv('USE_WHITENOISE', 'false') == 'true':
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
     STORAGES = {
@@ -181,13 +182,13 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST', '192.168.10.6'),
         'PORT': os.getenv('DB_PORT', '3306'),
     },
+
 }
 
-# <--- hecho por claude code: las 3 conexiones a SQL Server (Test2, AdmonANASQL,
-# zkbiotime) se activan SOLO si USE_SQLSERVER=true (por defecto true → producción
-# no cambia). En el entorno de pruebas se pone USE_SQLSERVER=false: no se conecta a
-# ningún SQL Server. Los módulos que dependen de él (Notas de Parcial, Ingreso de
-# Notas, reloj biométrico, consulta de padres/enfermería) no funcionarán ahí.
+# <--- hecho por claude code (PRUEBAS): las conexiones a SQL Server (Test2, AdmonANASQL,
+# zkbiotime) se activan SOLO si USE_SQLSERVER=true (default true). En el contenedor de
+# pruebas se pone USE_SQLSERVER=false y los módulos que dependen de ellas (Notas de
+# Parcial, Ingreso de Notas, reloj biométrico, enfermería-padres) no consultan nada.
 if os.getenv('USE_SQLSERVER', 'true') == 'true':
     DATABASES['padres_sqlserver'] = {
         'ENGINE': 'mssql',
@@ -196,11 +197,8 @@ if os.getenv('USE_SQLSERVER', 'true') == 'true':
         'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
         'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
         'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-        'OPTIONS': {
-            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-        },
+        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
     }
-    # base ACADÉMICA REAL (AdmonANASQL), mismo servidor/credenciales que Test2.
     DATABASES['academico_real'] = {
         'ENGINE': 'mssql',
         'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
@@ -208,9 +206,7 @@ if os.getenv('USE_SQLSERVER', 'true') == 'true':
         'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
         'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
         'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-        'OPTIONS': {
-            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-        },
+        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
     }
     DATABASES['zkbio_sqlserver'] = {
         'ENGINE': 'mssql',
@@ -219,10 +215,48 @@ if os.getenv('USE_SQLSERVER', 'true') == 'true':
         'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
         'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
         'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
-        'OPTIONS': {
-            'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
-        },
+        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
     }
+
+
+# <--- hecho por claude code: alias INDEPENDIENTE para el Inventario institucional en
+# SQL Server (base Test2). Es SOLO LECTURA; su capa de acceso vive en
+# contabilidad/sqlserver_inventory. Usa variables propias INV_TEST2_DB_* (por ahora sus
+# valores pueden corresponder a admin2: si no están definidas, caen a las MSSQL_TEST2_*
+# ya existentes). NO reutiliza el alias padres_sqlserver.
+# - extra_params fija el APP name que identifica la app/ambiente en la auditoría SQL.
+# - Encrypt/TrustServerCertificate SOLO si el DBA define la política (sin valores asumidos).
+_inv_extra_params = 'APP=ANA-Inventario-Python-Test2'
+if os.getenv('INV_TEST2_ENCRYPT'):
+    _inv_extra_params += ';Encrypt=' + os.getenv('INV_TEST2_ENCRYPT')
+if os.getenv('INV_TEST2_TRUST_CERT'):
+    _inv_extra_params += ';TrustServerCertificate=' + os.getenv('INV_TEST2_TRUST_CERT')
+
+DATABASES['inventario_test2'] = {
+    'ENGINE': 'mssql',
+    'NAME': os.getenv('INV_TEST2_DB_NAME') or os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
+    'USER': os.getenv('INV_TEST2_DB_USER') or os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+    'PASSWORD': os.getenv('INV_TEST2_DB_PASSWORD') or os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+    'HOST': os.getenv('INV_TEST2_DB_HOST') or os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+    'PORT': os.getenv('INV_TEST2_DB_PORT') or os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+    'OPTIONS': {
+        'driver': os.getenv('INV_TEST2_ODBC_DRIVER') or os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+        'extra_params': _inv_extra_params,
+    },
+}
+
+# <--- hecho por claude code (PRUEBAS): el alias del inventario también respeta USE_SQLSERVER
+if os.getenv('USE_SQLSERVER', 'true') != 'true':
+    DATABASES.pop('inventario_test2', None)
+
+# <--- hecho por claude code: router que BLINDA el alias inventario_test2 contra migraciones
+# (jamás se crean/alteran objetos Django ni institucionales dbo.tblInv* en Test2).
+DATABASE_ROUTERS = ['contabilidad.db_router.InventarioTest2Router']
+
+# <--- hecho por claude code: la tarjeta "Inventario institucional (SQL Server)" del hub de
+# Inventario NO se muestra hasta autorización explícita. Se enciende con
+# INV_TEST2_MOSTRAR_TARJETA=1 en el .env (por defecto apagada).
+INVENTARIO_SQL_TARJETA = os.getenv('INV_TEST2_MOSTRAR_TARJETA', '0') == '1'
 
 # <--- hecho por claude code: qué base usa "Notas Mitad de Parcial". Se cambia con
 # la variable de entorno NOTAS_PARCIAL_DB=academico_real (sin tocar código) en
@@ -317,9 +351,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # *:437 con SSLEngine on; no hay vhost por HTTP). El navegador siempre conecta por https,
 # así que la cookie con flag Secure viaja bien. Antes iban sin él y podían filtrarse si
 # alguna vez se accedía por http plano.
-# <--- hecho por claude code: en PRUEBAS se navega por HTTP → las cookies no pueden ser
-# "solo HTTPS" o el navegador nunca las envía (segunda causa del 403 CSRF del login).
-# Default false en este repo de pruebas; poner COOKIES_SECURE=true si se sirve con TLS.
+# <--- hecho por claude code (PRUEBAS): por HTTP las cookies no pueden ser solo-HTTPS
 SESSION_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
 CSRF_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
 SESSION_COOKIE_HTTPONLY = True          # ya lo estaba de facto; se fija explícito
@@ -417,7 +449,12 @@ CONSTANCE_CONFIG_FIELDSETS = {
 # ─────────────────────────────────────────────────────────────
 # 13. CORREO ELECTRÓNICO (SMTP)
 # ─────────────────────────────────────────────────────────────
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# <--- hecho por claude code (PRUEBAS): con datos copiados de producción, un envío real
+# le llegaría a usuarios REALES. Default: consola. Poner EMAILS_REALES=true para SMTP.
+if os.getenv('EMAILS_REALES', 'false') == 'true':
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
@@ -484,16 +521,10 @@ ADMIN_SITE_URL = '/accounts/login/'
 # 16. INTEGRACIÓN OPENAI / IA
 # ─────────────────────────────────────────────────────────────
 
-# Clave secreta de la API de OpenAI (GPT-4o, GPT-3.5, etc.)
+# <--- hecho por claude code (PRUEBAS): aquí la IA SÍ está activa (chat de tickets + sandbox /tickets/ia/)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-
-# Opcional: Puedes definir el modelo por defecto a usar
 OPENAI_MODEL_DEFAULT = os.getenv('OPENAI_MODEL_DEFAULT', 'gpt-4o')
-
-# Seguridad: Recomendado usar límite de tokens por respuesta
 OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '500'))
-
-# Opcional: Configura el timeout para las llamadas a la API (segundos)
 OPENAI_TIMEOUT = int(os.getenv('OPENAI_TIMEOUT', '20'))
 
 

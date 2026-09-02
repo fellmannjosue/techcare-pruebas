@@ -1,0 +1,142 @@
+{% extends 'base_app.html' %}
+{% load static desarrollo_tags %}
+{# <--- hecho por claude code: detalle del requerimiento (FASE 2) #}
+{% block title %}{{ req.codigo }}{% endblock %}
+{% block page_pretitle %}Desarrollo{% endblock %}
+{% block page_title %}{{ req.codigo }}{% endblock %}
+
+{% block page_actions %}
+  {% if puede_editar %}<a href="{% url 'desarrollo:req_editar' req.codigo %}" class="btn btn-primary"><i class="ti ti-edit me-1"></i>Editar / Seguimiento</a>{% endif %}
+  {% if puede_proyecto and not req.proyecto %}<a href="{% url 'desarrollo:req_convertir' req.codigo %}" class="btn btn-outline-primary"><i class="ti ti-rocket me-1"></i>Convertir en proyecto</a>{% endif %}
+  <a href="{% url 'desarrollo:req_list' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+{% endblock %}
+
+{% block content %}
+{% include 'desarrollo/_messages.html' %}
+
+{# ── Encabezado ── #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <h2 class="m-0">{{ req.titulo }}</h2>
+      <span class="badge bg-{{ req.estado|estado_color }}-lt">{{ req.get_estado_display }}</span>
+      <span class="badge bg-{{ req.prioridad|prioridad_color }}-lt">{{ req.get_prioridad_display }}</span>
+      <span title="{{ req.semaforo|semaforo_texto }}">{{ req.semaforo|semaforo_emoji }} {{ req.semaforo|semaforo_texto }}</span>
+    </div>
+    <div class="progress mb-1" style="height:8px;"><div class="progress-bar" style="width:{{ req.porcentaje_avance }}%;"></div></div>
+    <div class="text-muted small">Avance: {{ req.porcentaje_avance }}%{% if req.proyecto %} · Proyecto <a href="{% url 'desarrollo:proy_detail' req.proyecto.codigo %}">{{ req.proyecto.codigo }} · {{ req.proyecto.nombre }}</a>{% endif %}</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    {# ── Información ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Información</h3></div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-4">Solicitante</dt><dd class="col-8">{% if req.solicitante_cat %}{{ req.solicitante_cat.nombre }}{% elif req.solicitante %}{{ req.solicitante.get_full_name|default:req.solicitante.username }}{% else %}—{% endif %}</dd>
+          <dt class="col-4">Registrado por</dt><dd class="col-8">{% if req.solicitante %}{{ req.solicitante.get_full_name|default:req.solicitante.username }}{% else %}—{% endif %}</dd>
+          <dt class="col-4">Área</dt><dd class="col-8">{{ req.area|default:"—" }}</dd>
+          <dt class="col-4">Módulo</dt><dd class="col-8">{{ req.modulo|default:"—" }}</dd>
+          <dt class="col-4">Tipo</dt><dd class="col-8">{{ req.get_tipo_display }}</dd>
+          <dt class="col-4">Impacto</dt><dd class="col-8">{{ req.get_impacto_display }}</dd>
+          <dt class="col-4">Urgencia</dt><dd class="col-8">{{ req.get_urgencia_display }}</dd>
+          <dt class="col-4">Clasificación</dt><dd class="col-8">{{ req.get_clasificacion_display }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {# ── Descripción ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Descripción</h3></div>
+      <div class="card-body">
+        <p class="mb-2"><strong>Descripción:</strong><br>{{ req.descripcion|default:"—"|linebreaksbr }}</p>
+        <p class="mb-2"><strong>Problema actual:</strong><br>{{ req.problema_actual|default:"—"|linebreaksbr }}</p>
+        <p class="mb-0"><strong>Resultado esperado:</strong><br>{{ req.resultado_esperado|default:"—"|linebreaksbr }}</p>
+      </div>
+    </div>
+
+    {# ── Desarrollo ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Desarrollo</h3></div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-4">Responsable</dt><dd class="col-8">{% if req.responsable %}{{ req.responsable.get_full_name|default:req.responsable.username }}{% else %}<span class="text-muted">— sin asignar —</span>{% endif %}</dd>
+          <dt class="col-4">Fecha inicio</dt><dd class="col-8">{{ req.fecha_inicio|date:"d/m/Y"|default:"—" }}</dd>
+          <dt class="col-4">Fecha estimada</dt><dd class="col-8">{{ req.fecha_estimada|date:"d/m/Y"|default:"—" }}</dd>
+          <dt class="col-4">Fecha finalización</dt><dd class="col-8">{{ req.fecha_finalizacion|date:"d/m/Y"|default:"—" }}</dd>
+          <dt class="col-4">Versión implementada</dt><dd class="col-8">{{ req.version_implementada|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {# ── Bitácora ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-message-2 me-1"></i>Bitácora</h3></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'desarrollo:req_comentar' req.codigo %}" class="mb-3">
+          {% csrf_token %}
+          {{ comentario_form.comentario }}
+          <button class="btn btn-sm btn-primary mt-2"><i class="ti ti-send me-1"></i>Agregar nota</button>
+        </form>
+        <ul class="list-unstyled mb-0">
+          {% for c in comentarios %}
+          <li class="border-start ps-3 pb-2 mb-2">
+            <div class="small">{{ c.comentario|linebreaksbr }}</div>
+            <div class="text-muted" style="font-size:.72rem;">{{ c.usuario.get_full_name|default:c.usuario.username }} · {{ c.fecha|date:"d/m/Y H:i" }}</div>
+          </li>
+          {% empty %}<li class="text-muted small">Sin notas todavía.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    {# ── Historial ── #}
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-history me-1"></i>Historial</h3></div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          {% for h in historial %}
+          <li class="border-start border-primary ps-3 pb-2 mb-2">
+            <div class="small">
+              {% if h.estado_anterior != h.estado_nuevo %}<span class="badge bg-{{ h.estado_nuevo|estado_color }}-lt">{{ h.get_estado_nuevo_display|default:h.estado_nuevo }}</span>{% endif %}
+              {% if h.porcentaje_nuevo is not None %} · {{ h.porcentaje_nuevo }}%{% endif %}
+              {% if h.comentario %} · {{ h.comentario }}{% endif %}
+            </div>
+            <div class="text-muted" style="font-size:.72rem;">{% if h.usuario %}{{ h.usuario.get_full_name|default:h.usuario.username }}{% else %}sistema{% endif %} · {{ h.fecha|date:"d/m/Y H:i" }}</div>
+          </li>
+          {% empty %}<li class="text-muted small">Sin movimientos.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    {# ── Adjuntos ── #}
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-paperclip me-1"></i>Adjuntos</h3></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'desarrollo:req_adjuntar' req.codigo %}" enctype="multipart/form-data" class="mb-3">
+          {% csrf_token %}
+          {{ adjunto_form.archivo }}
+          <div class="mt-2">{{ adjunto_form.descripcion }}</div>
+          <button class="btn btn-sm btn-outline-primary mt-2"><i class="ti ti-upload me-1"></i>Adjuntar</button>
+          <div class="text-muted" style="font-size:.72rem;">PDF, imágenes, Word, Excel, texto · máx 10 MB</div>
+        </form>
+        <ul class="list-unstyled mb-0">
+          {% for a in adjuntos %}
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <i class="ti ti-file text-muted"></i>
+            <a href="{{ a.archivo.url }}" target="_blank" class="small flex-fill text-truncate">{{ a.nombre_original|default:a.archivo.name }}</a>
+            <form method="post" action="{% url 'desarrollo:adjunto_eliminar' a.pk %}" onsubmit="return confirm('¿Eliminar adjunto?');" class="m-0">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-ghost-danger p-1" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </form>
+          </li>
+          {% empty %}<li class="text-muted small">Sin adjuntos.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

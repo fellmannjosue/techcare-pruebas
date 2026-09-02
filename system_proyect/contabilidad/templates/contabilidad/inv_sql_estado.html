@@ -1,0 +1,62 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code: estado/guard del Inventario institucional (SQL Server, Test2) — SOLO LECTURA #}
+{% block title %}Inventario institucional · SQL Server{% endblock %}
+{% block page_pretitle %}Contabilidad · Inventario institucional (Test2){% endblock %}
+{% block page_title %}Conexión SQL Server (solo lectura){% endblock %}
+{% block back_button %}<a href="{% url 'contabilidad:inventario_dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Inventario</a>{% endblock %}
+{% block page_actions %}
+  {% if st.ok %}
+  <a href="{% url 'contabilidad:inv_sql_articulos' %}" class="btn btn-primary"><i class="ti ti-package me-1"></i>Artículos</a>
+  <a href="{% url 'contabilidad:inv_sql_proveedores' %}" class="btn btn-ghost-secondary"><i class="ti ti-truck me-1"></i>Proveedores</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+{# Estado del guard #}
+<div class="card mb-3">
+  <div class="card-status-start {% if st.ok %}bg-green{% elif st.configurado %}bg-red{% else %}bg-yellow{% endif %}"></div>
+  <div class="card-body">
+    <div class="d-flex align-items-center mb-2">
+      {% if st.ok %}<span class="badge bg-green-lt text-green me-2"><i class="ti ti-circle-check me-1"></i>Conexión válida</span>
+      {% elif st.configurado %}<span class="badge bg-red-lt text-red me-2"><i class="ti ti-alert-triangle me-1"></i>Bloqueado</span>
+      {% else %}<span class="badge bg-yellow-lt text-yellow me-2"><i class="ti ti-plug-off me-1"></i>No configurado</span>{% endif %}
+      <span class="text-muted">{{ st.motivo }}</span>
+    </div>
+    <div class="row g-2 small">
+      <div class="col-md-4"><span class="text-muted">Base:</span> <strong>{{ st.base|default:'—' }}</strong> <span class="text-muted">(requerida: {{ st.db_esperada }})</span></div>
+      <div class="col-md-4"><span class="text-muted">Usuario SQL:</span> <strong>{{ st.usuario_sql|default:'—' }}</strong></div>
+      <div class="col-md-4"><span class="text-muted">Rol {{ st.rol }}:</span>
+        {% if st.es_desarrollo == 1 %}<strong class="text-green">sí (1)</strong>
+        {% elif st.es_desarrollo == 0 %}<strong class="text-red">no (0)</strong>
+        {% else %}<strong>—</strong>{% endif %}</div>
+      <div class="col-md-4"><span class="text-muted">Driver:</span> {{ st.driver|default:'—' }}</div>
+      <div class="col-md-8"><span class="text-muted">App:</span> {{ st.app_name }}</div>
+    </div>
+  </div>
+</div>
+
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+{% if st.ok %}
+<div class="row g-3">
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Categorías ({{ categorias|length }})</h3></div>
+    <div class="list-group list-group-flush">
+      {% for c in categorias %}<div class="list-group-item d-flex justify-content-between"><span>{{ c.nombre }}</span><span class="text-muted small">{{ c.codigo }}</span></div>
+      {% empty %}<div class="list-group-item text-muted">Sin categorías.</div>{% endfor %}
+    </div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Unidades ({{ unidades|length }})</h3></div>
+    <div class="list-group list-group-flush">
+      {% for u in unidades %}<div class="list-group-item d-flex justify-content-between"><span>{{ u.nombre }}</span><span class="text-muted small">{{ u.codigo }} · {{ u.decimales_cantidad }} dec</span></div>
+      {% empty %}<div class="list-group-item text-muted">Sin unidades.</div>{% endfor %}
+    </div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header"><h3 class="card-title">Almacenes ({{ almacenes|length }})</h3></div>
+    <div class="list-group list-group-flush">
+      {% for a in almacenes %}<div class="list-group-item d-flex justify-content-between"><span>{{ a.nombre }}{% if a.es_predeterminado %} <span class="badge bg-blue-lt text-blue ms-1">predet.</span>{% endif %}</span><span class="text-muted small">{{ a.codigo }}</span></div>
+      {% empty %}<div class="list-group-item text-muted">Sin almacenes.</div>{% endfor %}
+    </div></div></div>
+</div>
+{% elif st.configurado %}
+<div class="alert alert-warning"><i class="ti ti-lock me-1"></i>Las consultas al Inventario (<code>tblInv*</code>) están detenidas hasta que el usuario SQL sea miembro de <strong>{{ st.rol }}</strong>. No se modifican permisos desde la aplicación.</div>
+{% endif %}
+{% endblock %}

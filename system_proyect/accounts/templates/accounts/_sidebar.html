@@ -1,6 +1,6 @@
 {% load static %}
 {# Sidebar unificado – incluido en todos los base templates #}
-<ul class="navbar-nav pt-lg-3">
+<ul class="navbar-nav pt-lg-3 flex-fill"> {# <--- hecho por claude code: ocupa todo el alto para poder anclar el pie al fondo #}
 
   {# ── Panel Principal ─────────────────────────────────── #}
   <li class="nav-item">
@@ -11,69 +11,7 @@
   </li>
 
   {% if request.user.is_superuser %}
-  {# ══ Sidebar agrupado (solo superusuario) — mismos 6 grupos del panel ══ #}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbSoporte" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-headset text-blue"></i></span>
-      <span class="nav-link-title">Soporte y TI</span><span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="sbSoporte">
-      <li class="nav-item"><a class="nav-link" href="{% url 'technician_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-ticket"></i></span><span class="nav-link-title">Sistema de Tickets</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'inventario:dashboard' %}"><span class="nav-link-icon"><i class="ti ti-package"></i></span><span class="nav-link-title">Inventario</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-tool"></i></span><span class="nav-link-title">Mantenimiento</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'inventario_camaras:hub' %}"><span class="nav-link-icon"><i class="ti ti-camera"></i></span><span class="nav-link-title">Inventario y Mant. Cámaras</span></a></li>
-    </ul>
-  </li>
-
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbAcademico" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-school text-green"></i></span>
-      <span class="nav-link-title">Académico</span><span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="sbAcademico">
-      <li class="nav-item"><a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}"><span class="nav-link-icon"><i class="ti ti-chalkboard text-cyan"></i></span><span class="nav-link-title">Coordinador BL</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'dashboard_coordinador' area='colegio' %}"><span class="nav-link-icon"><i class="ti ti-user-cog text-orange"></i></span><span class="nav-link-title">Coordinador Colegio</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'agendas:form_agenda' %}"><span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span><span class="nav-link-title">Agendas</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span><span class="nav-link-title">Enfermería</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'directorio_telefonos' %}"><span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span><span class="nav-link-title">Directorio</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'notas_parcial_index' %}"><span class="nav-link-icon"><i class="ti ti-file-certificate text-blue"></i></span><span class="nav-link-title">Notas Mitad de Parcial</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-teal"></i></span><span class="nav-link-title">Salidas Baño · Colegio</span></a></li>
-      {# <--- hecho por claude code: Salidas Baño de CFP (participantes por curso) #}
-      <li class="nav-item"><a class="nav-link" href="{% url 'salidas_bano:index_cfp' %}"><span class="nav-link-icon"><i class="ti ti-door-exit text-orange"></i></span><span class="nav-link-title">Salidas Baño · CFP</span></a></li>
-    </ul>
-  </li>
-
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbReloj" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-clock text-orange"></i></span>
-      <span class="nav-link-title">Reloj</span><span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="sbReloj">
-      <li class="nav-item"><a class="nav-link" href="{% url 'reloj_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-clock"></i></span><span class="nav-link-title">Reloj</span></a></li>
-    </ul>
-  </li>
-
-  {# <--- hecho por claude code: Ingresos de Notas en su propio grupo #}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbIngNotas" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-list-numbers text-indigo"></i></span>
-      <span class="nav-link-title">Ingresos de Notas</span><span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="sbIngNotas">
-      <li class="nav-item"><a class="nav-link" href="{% url 'ingresos_notas:panel' %}"><span class="nav-link-icon"><i class="ti ti-list-numbers"></i></span><span class="nav-link-title">Ingresos de Notas</span></a></li>
-    </ul>
-  </li>
-
-  {# <--- hecho por claude code: Sponsors en su propio grupo (separado de Reloj) #}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#sbSponsors" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-heart-handshake text-pink"></i></span>
-      <span class="nav-link-title">Sponsors</span><span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="sbSponsors">
-      <li class="nav-item"><a class="nav-link" href="{% url 'sponsors:sponsors_dashboard' %}"><span class="nav-link-icon"><i class="ti ti-heart-handshake text-pink"></i></span><span class="nav-link-title">Sponsors</span></a></li>
-    </ul>
-  </li>
+  {# <--- hecho por claude code: sidebar del superusuario = solo módulos administrativos (los operativos están en el Panel Principal) #}
 
   {# <--- hecho por claude code: Calculadoras en su propio grupo (separado de Reloj y Sponsors) #}
   <li class="nav-item">
@@ -117,6 +55,8 @@
       <span class="nav-link-title">Configuración</span><span class="nav-link-arrow"></span>
     </a>
     <ul class="navbar-nav collapse ps-4" id="sbConfig">
+      {# <--- hecho por claude code: gestor de usuarios (crear/editar/asignar grupos) accesible desde el sidebar #}
+      <li class="nav-item"><a class="nav-link" href="{% url 'settings_usuarios' %}"><span class="nav-link-icon"><i class="ti ti-users"></i></span><span class="nav-link-title">Usuarios</span></a></li>
       <li class="nav-item"><a class="nav-link" href="{% url 'settings_correos' %}"><span class="nav-link-icon"><i class="ti ti-mail"></i></span><span class="nav-link-title">Correos</span></a></li>
       {# <--- hecho por claude code (seguridad): panel de seguridad #}
       <li class="nav-item"><a class="nav-link" href="{% url 'panel_seguridad' %}"><span class="nav-link-icon"><i class="ti ti-shield-lock"></i></span><span class="nav-link-title">Seguridad</span></a></li>
@@ -130,6 +70,7 @@
       <span class="nav-link-title">Modo Mantenimiento</span>
     </a>
   </li>
+
   {% else %}
 
   {# ── Tickets ──────────────────────────────────────────── #}
@@ -164,6 +105,36 @@
       </li>
       {% endif %}
     </ul>
+  </li>
+  {% endif %}
+
+  {# ── Gestión de Desarrollo (grupos desarrollo_admin/desarrollo_dev) ───────────────────────── #}
+  {% if nav_desarrollo %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'desarrollo:dashboard' %}">
+      <span class="nav-link-icon"><i class="ti ti-clipboard-list"></i></span>
+      <span class="nav-link-title">Gestión de Desarrollo</span>
+    </a>
+  </li>
+  {% endif %}
+
+  {# ── Contabilidad (permiso contabilidad.ver_contabilidad) ───────────────────────── #}
+  {% if nav_contabilidad %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'contabilidad:dashboard' %}">
+      <span class="nav-link-icon"><i class="ti ti-report-money text-teal"></i></span>
+      <span class="nav-link-title">Contabilidad</span>
+    </a>
+  </li>
+  {% endif %}
+
+  {# <--- hecho por claude code: Red (ANA Network Manager) para grupos red / red_admin (no superuser) #}
+  {% if nav_red and not request.user.is_superuser %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'red:dashboard' %}">
+      <span class="nav-link-icon"><i class="ti ti-network text-teal"></i></span>
+      <span class="nav-link-title">Red{% if not nav_red_admin %} <span class="badge bg-secondary-lt ms-1">lectura</span>{% endif %}</span>
+    </a>
   </li>
   {% endif %}
 
@@ -461,6 +432,25 @@
             <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
               <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
               <span class="nav-link-title">Agendas BL</span>
+            </a>
+          </li>
+          {# <--- hecho por claude code: consistencia con el Panel General (Tutorías, Período, Ruteo) #}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'convocatorias_coordinador' %}">
+              <span class="nav-link-icon"><i class="ti ti-school text-orange"></i></span>
+              <span class="nav-link-title">Tutorías</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}?app=periodo">
+              <span class="nav-link-icon"><i class="ti ti-calendar-stats text-green"></i></span>
+              <span class="nav-link-title">Período Escolar</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'routing_bl_config' %}">
+              <span class="nav-link-icon"><i class="ti ti-route text-blue"></i></span>
+              <span class="nav-link-title">Ruteo</span>
             </a>
           </li>
         </ul>

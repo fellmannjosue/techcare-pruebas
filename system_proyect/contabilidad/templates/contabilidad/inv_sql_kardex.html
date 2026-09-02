@@ -1,0 +1,61 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code: Kardex institucional (movimiento + detalle) leído de SQL Server Test2 #}
+{% block title %}Kardex · SQL Server{% endblock %}
+{% block page_pretitle %}Contabilidad · Inventario institucional (Test2){% endblock %}
+{% block page_title %}Kardex{% if articulo %} · {{ articulo.descripcion }}{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contabilidad.css' %}?v=3">{% endblock %}
+{% block back_button %}<a href="{% url 'contabilidad:inv_sql_articulos' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Artículos</a>{% endblock %}
+
+{% block content %}
+{% if not st.ok %}
+  <div class="alert alert-warning"><i class="ti ti-lock me-1"></i>{{ st.motivo }}</div>
+{% else %}
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+  {% if articulo %}
+  <div class="row g-2 mb-3">
+    {% include 'contabilidad/_kpi.html' with valor=articulo.codigo etiqueta='Código' icono='ti-barcode' color='#206bc4' %}
+    {% include 'contabilidad/_kpi.html' with valor=articulo.costo_promedio_actual etiqueta='Costo promedio' icono='ti-coin' color='#2fb344' %}
+  </div>
+  {% endif %}
+
+  {# Existencia por almacén #}
+  <div class="card mb-3"><div class="card-header"><h3 class="card-title">Existencia por almacén</h3></div>
+    <div class="table-responsive"><table class="table table-vcenter card-table">
+      <thead><tr><th>Almacén</th><th class="text-end">Cantidad actual</th><th class="text-end">Costo promedio</th></tr></thead>
+      <tbody>
+        {% for e in existencias %}
+        <tr><td>{{ e.codigo_almacen }}</td><td class="text-end">{{ e.cantidad_actual }}</td><td class="text-end">{{ e.costo_promedio_actual|lps }}</td></tr>
+        {% empty %}<tr><td colspan="3" class="text-muted text-center py-2">Sin existencia registrada.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  {# Movimientos (Kardex) #}
+  <div class="card"><div class="card-header"><h3 class="card-title">Movimientos ({{ movimientos|length }})</h3></div>
+    <div class="table-responsive"><table class="table table-vcenter card-table table-sm">
+      <thead><tr>
+        <th>Fecha aplic.</th><th>Tipo</th><th>Estado</th><th class="text-end">Cambio</th>
+        <th class="text-end">Cant.</th><th class="text-end">Existencia después</th>
+        <th class="text-end">Costo unit.</th><th class="text-end">Costo prom. después</th><th>Origen</th>
+      </tr></thead>
+      <tbody>
+        {% for m in movimientos %}
+        <tr>
+          <td class="text-muted">{{ m.fecha_aplicacion|date:'d/m/Y H:i' }}</td>
+          <td>{{ m.tipo_movimiento }}</td>
+          <td><span class="badge bg-blue-lt text-blue">{{ m.estado }}</span></td>
+          <td class="text-end {% if m.cambio_cantidad and m.cambio_cantidad < 0 %}text-red{% else %}text-green{% endif %}">{{ m.cambio_cantidad }}</td>
+          <td class="text-end">{{ m.cantidad }}</td>
+          <td class="text-end">{{ m.existencia_despues }}</td>
+          <td class="text-end">{{ m.costo_unitario|lps }}</td>
+          <td class="text-end">{{ m.costo_promedio_despues|lps }}</td>
+          <td class="text-muted small">{{ m.origen_sistema }}{% if m.origen_clave %} · {{ m.origen_clave }}{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="9" class="text-muted text-center py-3">Sin movimientos.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from core.utils_notifications import crear_notificacion
 from django.template.loader import render_to_string
 from django.contrib import messages
-from django.db import connections
+from django.db import connections, transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.conf import settings
@@ -63,6 +63,11 @@ def _q_for_coord(codigo):
 _GRADO_TOKEN = {1: '1ero', 2: '2do', 3: '3ero', 4: '4to', 5: '5to',
                 6: '6to', 7: '7mo', 8: '8vo', 9: '9no'}
 _GRADOS_COORD = {'C1': [1, 2, 3], 'C2': [4, 5, 6, 7, 8, 9]}
+
+# <--- hecho por claude code: mapeo de grados SOLO para PROGRESS REPORT (distinto al académico).
+# Por persona: Lorena(C5)→1°, Johannys(C6)→2°, Catherine(C1)→3°, Isabel(C3)→4°,
+# Josué(C4)→5°/6°, David(C2)→7°/8°/9°. Cubre 1-9 sin solapes.
+_PROGRESS_GRADOS_COORD = {'C5': [1], 'C6': [2], 'C1': [3], 'C3': [4], 'C4': [5, 6], 'C2': [7, 8, 9]}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -327,6 +332,18 @@ def _q_grado_academico(codigo):
     """Q por GRADO del reporte. Grados 1-3 solo Primaria (excluye Preescolar, que también usa 1ero/2do/3ero)."""
     q = Q(pk__in=[])
     for n in _GRADOS_COORD.get(codigo, []):
+        cond = Q(grado__icontains=_GRADO_TOKEN[n] + '-')
+        if n <= 3:
+            cond &= Q(grado__istartswith='PrimariaBL')
+        q |= cond
+    return q
+
+
+def _q_grado_progress(codigo):
+    """<--- hecho por claude code: Q por GRADO para PROGRESS REPORT, con el mapeo específico
+    de progress (_PROGRESS_GRADOS_COORD), distinto al académico. Grados 1-3 solo Primaria."""
+    q = Q(pk__in=[])
+    for n in _PROGRESS_GRADOS_COORD.get(codigo, []):
         cond = Q(grado__icontains=_GRADO_TOKEN[n] + '-')
         if n <= 3:
             cond &= Q(grado__istartswith='PrimariaBL')
@@ -1074,13 +1091,15 @@ def reporte_conductual_colegio(request):
 #-------------- PROGRESS REPORT -----------------
 @login_required
 def progress_report_bilingue(request):
+    # <--- hecho por claude code: lista fija completa como Agendas (asociadas incluidas,
+    # ya no hay "Agregar fila Asociada"). Las vacías se ocultan en el PowerPoint/PDF.
     MATERIAS_PRIMARIA = [
-        "Math", "Phonics", "Reading", "Language",
-        "Science", "Español", "CCSS", "Asociadas"
+        "Math", "Language", "Spelling", "Phonics", "Reading", "Science",
+        "Español", "CCSS", "Penmanship", "Arte", "Biblia", "Computación", "Speaking", "P.E",
     ]
     MATERIAS_COLEGIO = [
-        "Math", "Spelling", "Reading", "Language", "Science",
-        "Español", "CCSS", "Cívica", "Asociadas"
+        "Math", "Language", "Spelling", "Reading", "Science", "Español", "CCSS", "Cívica",
+        "Arte", "Biblia", "Computación", "Speaking", "P.E",
     ]
 
     students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
@@ -1107,27 +1126,14 @@ def progress_report_bilingue(request):
             usuario_actual = request.user.get_full_name() or request.user.username
             materias_list = []
             for materia in materias:
-                if materia == "Asociadas":
-                    asignaciones = request.POST.getlist('asignacion_Asociadas[]')
-                    comentarios = request.POST.getlist('comentario_Asociadas[]')
-                    # Máximo 5 asociadas
-                    for idx, asignacion in enumerate(asignaciones[:5]):
-                        comentario = comentarios[idx] if idx < len(comentarios) else ""
-                        materias_list.append({
-                            'materia': 'Asociadas',
-                            'asignacion': asignacion,
-                            'comentario': comentario,
-                            'docente': usuario_actual if (asignacion.strip() or comentario.strip()) else '',
-                        })
-                else:
-                    asignacion = request.POST.get(f"asignacion_{materia}", "")
-                    comentario = request.POST.get(f"comentario_{materia}", "")
-                    materias_list.append({
-                        'materia': materia,
-                        'asignacion': asignacion,
-                        'comentario': comentario,
-                        'docente': usuario_actual if (asignacion.strip() or comentario.strip()) else '',
-                    })
+                asignacion = request.POST.get(f"asignacion_{materia}", "")
+                comentario = request.POST.get(f"comentario_{materia}", "")
+                materias_list.append({
+                    'materia': materia,
+                    'asignacion': asignacion,
+                    'comentario': comentario,
+                    'docente': usuario_actual if (asignacion.strip() or comentario.strip()) else '',
+                })
             # --- DATOS GENERALES ---
             semana_inicio = form.cleaned_data.get('semana_inicio')
             semana_fin = form.cleaned_data.get('semana_fin')
@@ -1136,6 +1142,33 @@ def progress_report_bilingue(request):
             alumno_obj = next((s for s in students if s['id'] == alumno_id), None)
             alumno_label = alumno_obj['label'] if alumno_obj else ""
             grado = form.cleaned_data.get('grado')
+
+            # --- NO DUPLICAR (misma lógica que Agendas) ---
+            # <--- hecho por claude code: si el alumno ya tiene progress report en esa
+            # semana (fechas traslapadas o el mismo lunes), se bloquea con error y se
+            # invita a editarlo desde el Historial. No se crea un duplicado.
+            from django.db.models import Q as _Q
+            from datetime import timedelta as _td
+            lunes_new   = semana_inicio - _td(days=semana_inicio.weekday())
+            domingo_new = lunes_new + _td(days=6)
+            existe = ProgressReport.objects.filter(alumno_id=alumno_id).filter(
+                _Q(semana_inicio__lte=semana_fin, semana_fin__gte=semana_inicio)
+                | _Q(semana_inicio__gte=lunes_new, semana_inicio__lte=domingo_new)
+            ).exists()
+            if existe:
+                messages.error(
+                    request,
+                    f"Ya existe un progress report para {alumno_label} en esa semana. "
+                    "No se permite duplicar; búscalo en tu Historial para editarlo."
+                )
+                return render(request, 'conducta/form_progress.html', {
+                    'form': form,
+                    'materias': materias,
+                    'students': students,
+                    'students_agrupados': obtener_alumnos_bilingue_agrupados(),
+                    'grado': grado,
+                    'volver_progress_url': _volver_progress_url(request.user),  # <--- hecho por claude code
+                })
 
             # --- CREAR REPORTE ---
             ProgressReport.objects.create(
@@ -1162,6 +1195,7 @@ def progress_report_bilingue(request):
         'students': students,
         'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
         'grado': grado,
+        'volver_progress_url': _volver_progress_url(request.user),  # <--- hecho por claude code
     })
 
 
@@ -1199,7 +1233,7 @@ def historial_maestro_bilingue(request):
     reportes_informativo = ReporteInformativo.objects.filter(usuario=usuario, area='bilingue').order_by('-fecha')
     reportes_conductual = ReporteConductual.objects.filter(usuario=usuario, area='bilingue').order_by('-fecha')
 
-    reportes_progress = ProgressReport.objects.all().order_by('-fecha')
+    reportes_progress = ProgressReport.objects.all().order_by('grado', '-fecha')  # <--- por grado para el acordeón
 
     # Tutorías solicitadas por este docente (marcas de la tabla por grado)
     from .models import ConvocatoriaMarca, GRADO_TUTORIA_LABEL
@@ -1287,16 +1321,30 @@ def reenviar_reportes_coordinadores(request):
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
 
+    # <--- hecho por claude code: el modal manda ?tipos= para reenviar solo lo elegido.
+    #   Sin el parámetro se reenvía todo (compat). 'historial' no aplica aquí (el reenvío es por fecha).
+    _tipos_raw = request.POST.get('tipos')
+    _sel = None if _tipos_raw is None else set(t for t in _tipos_raw.split(',') if t)
+    def _quiere(t):
+        return _sel is None or t in _sel
+
     enviados = 0
     for r in ReporteInformativo.objects.filter(fecha__date=fecha):
+        tipo = 'info_acad' if r.tipo_reporte == 'academico' else 'info_cond'
+        if not _quiere(tipo):
+            continue
         _notificar_coordinadores("Reporte Informativo", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area,
                                  subtipo=f"informativo_{r.tipo_reporte}")
         enviados += 1
     for r in ReporteConductual.objects.filter(fecha=fecha):
+        if not _quiere('cond'):
+            continue
         _notificar_coordinadores("Reporte Conductual", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area,
                                  subtipo='conductual')
         enviados += 1
     for r in ProgressReport.objects.filter(semana_inicio__lte=fecha, semana_fin__gte=fecha):
+        if not _quiere('progress'):
+            continue
         _notificar_coordinadores("Progress Report", r.usuario, r.alumno_nombre, r.grado, "", "bilingue",
                                  subtipo='progress')
         enviados += 1
@@ -1708,6 +1756,7 @@ def editar_progress_report(request, pk):
         'es_coordinador': es_coord,
         'usuario_actual': usuario_actual,
         'coordinadores':  COORDINADORES_BL,
+        'volver_progress_url': _volver_progress_url(request.user),  # <--- hecho por claude code
     })
 
 # -----------  DESCARGA EN PDF  -----------
@@ -1739,6 +1788,122 @@ def draw_paragraph(pdf, text, x, y, max_width, font="Helvetica", font_size=10, b
         pdf.drawString(x, y, l)
         y -= leading
     return y
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# <--- hecho por claude code: PNG del reporte para el link de WhatsApp (público con token)
+# ══════════════════════════════════════════════════════════════════════════
+_REPORTE_PNG_SALT = 'reporte-png-v1'
+
+def _logo_reader_reporte():
+    from reportlab.lib.utils import ImageReader
+    p = os.path.join(settings.STATIC_ROOT, 'conducta/img/ana-transformed.png')
+    try:
+        return ImageReader(p) if os.path.exists(p) else None
+    except Exception:
+        return None
+
+def _pdf_informativo_bytes(r):
+    """PDF del reporte informativo (reutilizable — misma maqueta que el ZIP)."""
+    buf = io.BytesIO(); w, h = letter
+    pdf = canvas.Canvas(buf, pagesize=letter)
+    logo = _logo_reader_reporte()
+    if logo:
+        pdf.drawImage(logo, x=(w-35*mm)/2, y=h-40*mm, width=35*mm, height=35*mm, mask='auto')
+    y = h - 52*mm
+    pdf.setFont('Helvetica-Bold', 16)
+    pdf.drawCentredString(w/2, y, 'Nuevo Amanecer School' if r.area == 'bilingue' else 'C.E.M.N.G Nuevo Amanecer')
+    y -= 14*mm; pdf.setFont('Helvetica', 13)
+    pdf.drawCentredString(w/2, y, 'Reporte informativo'); y -= 14*mm
+    def lv(x, yy, lbl, val, ls=11, vs=10):
+        pdf.setFont('Helvetica-Bold', ls); pdf.drawString(x, yy, lbl)
+        aw = pdf.stringWidth(lbl, 'Helvetica-Bold', ls)
+        pdf.setFont('Helvetica', vs); pdf.drawString(x+aw+2, yy, val)
+    lv(32*mm, y, 'Nombre:', r.alumno_nombre)
+    lv(118*mm, y, 'Grado:', r.grado); y -= 8*mm
+    lv(32*mm, y, 'Docente:', r.docente or '')
+    lv(100*mm, y, 'Fecha:', r.fecha.strftime('%d/%m/%Y') if r.fecha else ''); y -= 12*mm
+    pdf.setFont('Helvetica-Bold', 11); pdf.drawString(32*mm, y, 'Comentario del Docente:'); y -= 8*mm
+    y = draw_paragraph(pdf, r.comentario or '-', x=38*mm, y=y, max_width=w-65*mm, font='Helvetica', font_size=10, italic=True, leading=12)
+    y -= 10*mm
+    if getattr(r, 'comentario_coordinador', None):
+        pdf.setFont('Helvetica-Bold', 11); pdf.drawString(32*mm, y, 'Comentario del Coordinador:'); y -= 8*mm
+        y = draw_paragraph(pdf, r.comentario_coordinador, x=38*mm, y=y, max_width=w-65*mm, font='Helvetica', font_size=10, italic=True, leading=12)
+        y -= 8*mm
+    y_f = min(y-15*mm, 28*mm); lf = 58*mm
+    pdf.setStrokeColor(colors.black); pdf.setLineWidth(0.7)
+    for xc, lbl, nom in [(15*mm,'Firma:',r.docente or ''), (78*mm,'Firma:',getattr(r,'coordinador_firma','')), (141*mm,'Firma Pariente:','')]:
+        pdf.setFont('Helvetica-Bold',10); pdf.drawString(xc, y_f+5*mm, lbl)
+        aw = pdf.stringWidth(lbl,'Helvetica-Bold',10)
+        pdf.setFont('Helvetica',10); pdf.drawString(xc+aw+2, y_f+5*mm, nom or '')
+        pdf.line(xc, y_f, xc+lf, y_f)
+    pdf.save(); buf.seek(0); return buf
+
+def _pdf_conductual_bytes(r):
+    """PDF del reporte conductual (reutilizable — misma maqueta que el ZIP)."""
+    buf = io.BytesIO(); w, h = letter
+    pdf = canvas.Canvas(buf, pagesize=letter)
+    logo = _logo_reader_reporte()
+    if logo:
+        pdf.drawImage(logo, x=(w-22*mm)/2, y=h-28*mm, width=22*mm, height=22*mm, mask='auto')
+    y = h - 33*mm; pdf.setFont('Helvetica-Bold', 16)
+    pdf.drawCentredString(w/2, y, 'Nuevo Amanecer School' if getattr(r,'area',None)=='bilingue' else 'C.E.M.N.G Nuevo Amanecer')
+    y -= 9*mm; pdf.setFont('Helvetica',13)
+    pdf.drawCentredString(w/2, y, 'Reporte conductual'); y -= 10*mm
+    def lv(x, yy, lbl, val, s=11):
+        pdf.setFont('Helvetica-Bold',s); pdf.drawString(x,yy,lbl)
+        aw=pdf.stringWidth(lbl,'Helvetica-Bold',s)
+        pdf.setFont('Helvetica',s); pdf.drawString(x+aw+2,yy,val)
+    lv(32*mm,y,'Nombre:',r.alumno_nombre); y-=7*mm
+    lv(32*mm,y,'Grado:',r.grado)
+    lv(118*mm,y,'Fecha:',r.fecha.strftime('%d/%m/%Y') if r.fecha else ''); y-=7*mm
+    lv(32*mm,y,'Docente:',r.docente or ''); y-=9*mm
+    mw = w-65*mm
+    for tipo, lbl in [('incisos_leve','Leve'),('incisos_grave','Grave'),('incisos_muygrave','Muy Grave')]:
+        incs = getattr(r,tipo).all()
+        pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*mm,y,f'Incisos {lbl}:'); y-=6*mm
+        if incs:
+            for i in incs:
+                y=draw_paragraph(pdf,i.descripcion,x=38*mm,y=y,max_width=mw,font='Helvetica',font_size=10,bold=True,italic=True,leading=12)
+        else:
+            pdf.setFont('Helvetica-Oblique',10); pdf.drawString(38*mm,y,'-'); y-=6*mm
+        y-=4*mm
+    pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*mm,y,'Comentario del Docente:'); y-=6*mm
+    y=draw_paragraph(pdf,r.comentario or '-',x=38*mm,y=y,max_width=mw,font='Helvetica',font_size=10,italic=True,leading=12); y-=7*mm
+    if getattr(r,'comentario_coordinador',None):
+        pdf.setFont('Helvetica-Bold',11); pdf.drawString(32*mm,y,'Comentario del Coordinador:'); y-=6*mm
+        y=draw_paragraph(pdf,r.comentario_coordinador,x=38*mm,y=y,max_width=mw,font='Helvetica',font_size=10,italic=True,leading=12); y-=6*mm
+    y_f=min(y-15*mm,28*mm); lf=58*mm
+    pdf.setStrokeColor(colors.black); pdf.setLineWidth(0.7)
+    for xc,lbl,nom in [(15*mm,'Firma:',r.docente or ''), (78*mm,'Firma:',getattr(r,'coordinador_firma','') or ''), (141*mm,'Firma Pariente:','')]:
+        pdf.setFont('Helvetica-Bold',10); pdf.drawString(xc,y_f+5*mm,lbl)
+        aw=pdf.stringWidth(lbl,'Helvetica-Bold',10)
+        pdf.setFont('Helvetica',10); pdf.drawString(xc+aw+2,y_f+5*mm,nom)
+        pdf.line(xc,y_f,xc+lf,y_f)
+    pdf.save(); buf.seek(0); return buf
+
+def reporte_png(request, token):
+    """<--- hecho por claude code: sirve el reporte como PNG (link de WhatsApp). Público con token firmado."""
+    from django.core import signing
+    from django.http import Http404
+    try:
+        data = signing.loads(token, salt=_REPORTE_PNG_SALT)
+    except signing.BadSignature:
+        raise Http404('token inválido')
+    tipo, pk = data.get('t'), data.get('pk')
+    from .models import ReporteInformativo, ReporteConductual
+    if tipo == 'informativo':
+        pdf = _pdf_informativo_bytes(get_object_or_404(ReporteInformativo, pk=pk))
+    elif tipo == 'conductual':
+        pdf = _pdf_conductual_bytes(get_object_or_404(ReporteConductual, pk=pk))
+    else:
+        raise Http404('tipo inválido')
+    from pdf2image import convert_from_bytes
+    imgs = convert_from_bytes(pdf.getvalue(), dpi=110, first_page=1, last_page=1)
+    out = io.BytesIO(); imgs[0].save(out, format='PNG'); out.seek(0)
+    resp = HttpResponse(out.getvalue(), content_type='image/png')
+    resp['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 
 @login_required
@@ -2068,7 +2233,9 @@ def descargar_pdf_progress(request, pk):
 
     # ── datos ─────────────────────────────────────────────────────────────────
     reporte  = get_object_or_404(ProgressReport, pk=pk)
-    materias = reporte.materias_json or []
+    # <--- hecho por claude code: solo materias con contenido (las vacías no salen en el PPTX)
+    materias = [m for m in (reporte.materias_json or [])
+                if (m.get('asignacion') or '').strip() or (m.get('comentario') or '').strip()]
     fondo_path = '/home/admin2/techcare_project/system_proyect/conducta/static/conducta/img/plantilla.jpg'
 
     # ── slide widescreen 13.33" × 7.5" ───────────────────────────────────────
@@ -2145,7 +2312,8 @@ def descargar_pdf_progress(request, pk):
     tbl.columns[2].width = Inches(4.8)
 
     def _cell_style(cell, texto, bold=False, align=PP_ALIGN.CENTER):
-        cell.text = texto
+        # <--- hecho por claude code: normalizar saltos de línea (evita _x000D_ en el PPTX)
+        cell.text = str(texto or '').replace('_x000D_', '').replace('\r\n', '\n').replace('\r', '\n')
         _set_borders(cell)         # bordes ANTES del fill (orden correcto en OOXML)
         cell.fill.solid()
         cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
@@ -2373,8 +2541,9 @@ def descargar_zip_reportes(request):
         _run(p,'Name:',28,bold=True,italic=True,underline=True,shadow=True)
         p2=tf.add_paragraph(); p2.alignment=PPTXAlign.LEFT
         _run(p2,r.alumno_nombre,20,italic=True)
-        # tabla
-        mats=r.materias_json or []
+        # tabla — <--- hecho por claude code: solo materias con contenido (ocultar vacías)
+        mats=[m for m in (r.materias_json or [])
+              if (m.get('asignacion') or '').strip() or (m.get('comentario') or '').strip()]
         tbl=slide.shapes.add_table(len(mats)+1,3,TX,PPTXInches(0.95),TW,PPTXInches(6.55)).table
         tblPr=tbl._tbl.find(pptx_qn('a:tblPr'))
         if tblPr is None: tblPr=pptx_etree.SubElement(tbl._tbl,pptx_qn('a:tblPr'))
@@ -2383,7 +2552,8 @@ def descargar_zip_reportes(request):
         pptx_etree.SubElement(tblPr,pptx_qn('a:tableStyleId')).text='{2D5ABB26-0587-4C30-8999-92F81FD0307C}'
         tbl.columns[0].width=PPTXInches(2.0); tbl.columns[1].width=PPTXInches(1.7); tbl.columns[2].width=PPTXInches(4.8)
         def _cs(cell,txt,bold=False,align=PPTXAlign.CENTER):
-            cell.text=txt; _borders(cell)
+            # <--- hecho por claude code: normalizar saltos de línea (evita _x000D_ en el PPTX)
+            cell.text=str(txt or '').replace('_x000D_','').replace('\r\n','\n').replace('\r','\n'); _borders(cell)
             cell.fill.solid(); cell.fill.fore_color.rgb=PPTXColor(255,255,255)
             p=cell.text_frame.paragraphs[0]; p.font.name='Arial'
             p.font.size=PPTXPt(18); p.font.bold=bold
@@ -2406,12 +2576,12 @@ def descargar_zip_reportes(request):
         _q = _q_for_coord('C1')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
-        qs_prog = ProgressReport.objects.none()
+        qs_prog = ProgressReport.objects.all()   # <--- el override por grado (abajo) lo ajusta a los grados de C1
     elif email == 'druiz@ana-hn.org':
         _q = _q_for_coord('C2')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
-        qs_prog = ProgressReport.objects.none()
+        qs_prog = ProgressReport.objects.all()   # <--- el override por grado (abajo) lo ajusta a los grados de C2
     elif email == 'ialcerro@ana-hn.org':
         _q = _q_for_coord('C3')
         qs_info = (
@@ -2419,7 +2589,7 @@ def descargar_zip_reportes(request):
             ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
         ).distinct().order_by('-fecha')
         qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(_q)
-        qs_prog = ProgressReport.objects.none()
+        qs_prog = ProgressReport.objects.all()   # <--- el override por grado (abajo) lo ajusta a los grados de C3
     elif email == 'jmartinez@ana-hn.org':
         _q = _q_for_coord('C4')
         qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q)
@@ -2438,6 +2608,15 @@ def descargar_zip_reportes(request):
         qs_cond = ReporteConductual.objects.filter(area='bilingue')
         qs_prog = ProgressReport.objects.all()
 
+    # ── PROGRESS por grado del coordinador (mapeo específico de progress) ──
+    # <--- hecho por claude code: cada coordinador baja SOLO el progress de sus grados
+    # (C5→1°, C6→2°, C1→3°, C3→4°, C4→5°/6°, C2→7°/8°/9°). Superuser/coordi_bl → sin filtro (todo).
+    if not request.user.is_superuser:
+        _cfg_zip = _coord_de_usuario(request.user)
+        _cod_zip = _cfg_zip.codigo if _cfg_zip else None
+        if _cod_zip in _PROGRESS_GRADOS_COORD:
+            qs_prog = ProgressReport.objects.filter(_q_grado_progress(_cod_zip))
+
     # ── filtros opcionales (docente para todos · coordinador solo superuser) ──
     f_docente = (request.GET.get('docente') or '').strip()
     if f_docente:
@@ -2449,36 +2628,84 @@ def descargar_zip_reportes(request):
         qs_info = qs_info.filter(_qc)
         qs_cond = qs_cond.filter(_qc)
 
+    # ── selección de tipos desde el modal (compat: sin 'tipos' = todo) ──
+    # <--- hecho por claude code: el modal "Descargar todo (ZIP)" manda ?tipos=
+    #   info_acad,info_cond,cond,progress,historial. Sin el parámetro se baja todo.
+    _tipos_raw = request.GET.get('tipos')
+    _sel = None if _tipos_raw is None else set(t for t in _tipos_raw.split(',') if t)
+    def _quiere(t):
+        return _sel is None or t in _sel
+    _quiere_hist = _quiere('historial')
+    _per = {a: _periodo_activo(a) for a in ('bilingue', 'colegio')}
+    def _es_activo(fecha, area):
+        p = _per.get(area)
+        if not (p and fecha):
+            return False
+        if hasattr(fecha, 'date'):   # datetime → date
+            fecha = fecha.date()
+        return p.fecha_inicio <= fecha <= p.fecha_fin
+    def _prog_activo(r):
+        p = _per.get('bilingue')
+        return bool(p and r.semana_fin >= p.fecha_inicio and r.semana_inicio <= p.fecha_fin)
+
     # ── construir ZIP ─────────────────────────────────────────────────────────
     mem = io.BytesIO()
     fecha = timezone.now().strftime('%Y%m%d_%H%M')
     with zipfile.ZipFile(mem, 'w', zipfile.ZIP_DEFLATED) as zf:
         for r in qs_info.order_by('area', 'alumno_nombre'):
+            tipo = 'info_acad' if r.tipo_reporte == 'academico' else 'info_cond'
+            if _es_activo(r.fecha, r.area):
+                if not _quiere(tipo):
+                    continue
+                sub = 'Informativos'
+            else:
+                if not _quiere_hist:
+                    continue
+                sub = 'Historial/Informativos'
             try:
                 nombre = r.alumno_nombre.replace(' ', '_')
                 grado  = r.grado.replace(' ', '_').replace('/', '-')
                 fname  = f'informativo_{nombre}_{grado}.pdf'
-                zf.writestr(f'Informativos/{r.area.capitalize()}/{fname}',
+                # <--- hecho por claude code: organizar por carpeta de GRADO
+                zf.writestr(f'{sub}/{r.area.capitalize()}/{grado}/{fname}',
                             _pdf_informativo(r).getvalue())
             except Exception:
                 pass
         for r in qs_cond.prefetch_related(
                 'incisos_leve', 'incisos_grave', 'incisos_muygrave'
         ).order_by('area', 'alumno_nombre'):
+            if _es_activo(r.fecha, r.area):
+                if not _quiere('cond'):
+                    continue
+                sub = 'Conductuales'
+            else:
+                if not _quiere_hist:
+                    continue
+                sub = 'Historial/Conductuales'
             try:
                 nombre = r.alumno_nombre.replace(' ', '_')
                 grado  = r.grado.replace(' ', '_').replace('/', '-')
                 fname  = f'conductual_{nombre}_{grado}.pdf'
-                zf.writestr(f'Conductuales/{r.area.capitalize()}/{fname}',
+                # <--- hecho por claude code: organizar por carpeta de GRADO
+                zf.writestr(f'{sub}/{r.area.capitalize()}/{grado}/{fname}',
                             _pdf_conductual(r).getvalue())
             except Exception:
                 pass
         for r in qs_prog.order_by('alumno_nombre'):
+            if _prog_activo(r):
+                if not _quiere('progress'):
+                    continue
+                sub = 'ProgressReports'
+            else:
+                if not _quiere_hist:
+                    continue
+                sub = 'Historial/ProgressReports'
             try:
                 nombre = r.alumno_nombre.replace(' ', '_')
                 grado  = r.grado.replace(' ', '_').replace('/', '-')
                 fname  = f'progress_{nombre}_{grado}.pptx'
-                zf.writestr(f'ProgressReports/{fname}',
+                # <--- hecho por claude code: organizar por carpeta de GRADO
+                zf.writestr(f'{sub}/{grado}/{fname}',
                             _pptx_progress(r).getvalue())
             except Exception:
                 pass
@@ -2670,7 +2897,86 @@ _REDIRECT_COORD_BL = {
     'coordinacion_bl@ana-hn.org': 'dashboard_coordi_bl',
 }
 
+
+def _volver_progress_url(user):
+    """<--- hecho por claude code: 'dashboard de Progress' correcto según el rol, para que
+    el botón Volver de crear/editar progress regrese ahí (no al lanzador de apps ni al menú).
+    Coordinador C1-C4 → su dashboard con la app de Progress abierta; coordi_bl → su dashboard;
+    superuser → dashboard bilingüe app=progress; maestro → su Historial en la pestaña Progress."""
+    from django.urls import reverse
+    email = getattr(user, 'email', '') or ''
+    destino = _REDIRECT_COORD_BL.get(email)
+    if destino == 'dashboard_coordi_bl':
+        return reverse('dashboard_coordi_bl')
+    if destino:  # dashboard_c1..c4
+        return reverse(destino) + '?app=progress'
+    if user.is_superuser:
+        return reverse('dashboard_coordinador', args=['bilingue']) + '?app=progress'
+    return reverse('historial_maestro_bilingue') + '#progress'
+
 #--------------  DASHBOARD COORDINADOR -----------------
+# <--- hecho por claude code (Nivel 2): definición de las apps del lanzador de coordinador.
+_COORD_APP_DEFS = {
+    'academicos':   {'t': 'Reportes Académicos',   's': 'Informativos por materia',  'i': 'ti-book',           'c': '#0891b2', 'tab': 'tab-academicos'},
+    'conductuales': {'t': 'Reportes Conductuales', 's': 'Incidencias de conducta',   'i': 'ti-alert-triangle', 'c': '#f59f00', 'tab': 'tab-conductuales'},
+    'progress':     {'t': 'Progress Reports',      's': 'Reportes de progreso',      'i': 'ti-chart-line',     'c': '#206bc4', 'tab': 'tab-progress'},
+    'historial':    {'t': 'Historial de alumnado', 's': 'Parciales anteriores',      'i': 'ti-archive',        'c': '#7048e8', 'tab': 'tab-historial'},
+    # <--- 'periodo' NO va en el grid del lanzador; se abre como app propia vía ?app=periodo
+    'periodo':      {'t': 'Período Escolar',       's': 'Parciales de conducta',     'i': 'ti-calendar-stats', 'c': '#2f9e44', 'tab': 'tab-periodo'},
+}
+
+
+def _coord_de_usuario(user):
+    """<--- hecho por claude code: ConfiguracionCoordinador del usuario (o None)."""
+    from .models import ConfiguracionCoordinador
+    return ConfiguracionCoordinador.objects.filter(usuario=user, activo=True).first()
+
+
+def _coord_etiqueta(cfg):
+    """<--- hecho por claude code: identidad del coordinador para el título.
+    Ej.: 'Coordi 1 · Catherine Varela', 'Principal · Angela Cruz'. Vacío si no aplica."""
+    if not cfg:
+        return ''
+    cod = (cfg.codigo or '').strip()
+    if cod.lower() == 'prin':
+        etq = 'Principal'
+    elif cod[:1].upper() == 'C' and cod[1:].isdigit():
+        etq = 'Coordi ' + cod[1:]
+    else:
+        etq = cod
+    return f"{etq} · {cfg.nombre}" if etq else cfg.nombre
+
+
+def _coord_etiqueta_cod(codigo, area='bilingue'):
+    """<--- hecho por claude code: etiqueta de identidad a partir del código (C1..C6/Prin)."""
+    from .models import ConfiguracionCoordinador
+    return _coord_etiqueta(ConfiguracionCoordinador.objects.filter(
+        area=area, codigo=codigo, activo=True).first())
+
+
+def _coord_apps_launcher(request, area, url_name, url_args=None, coord_codigo=None, coord_titulo=''):
+    """<--- hecho por claude code (Nivel 2): sin ?app= devuelve el LANZADOR de apps (grid);
+    con ?app= devuelve None para que la vista siga y renderice la app enfocada. Se usa
+    tanto en dashboard_coordinador (superuser) como en dashboard_c1..c4 (coordinadores).
+    coord_codigo=None → ve todo (superuser). Reportes Conductuales SOLO para C3."""
+    from django.urls import reverse
+    if (request.GET.get('app') or '').strip():
+        return None
+    base_url = reverse(url_name, args=url_args or [])
+    keys = ['academicos']
+    # <--- hecho por claude code: conductuales para superuser (None) y C3 en Bilingüe;
+    # en Colegio TODOS los coordinadores ven conductuales + informativos.
+    if coord_codigo is None or coord_codigo == 'C3' or area == 'colegio':
+        keys.append('conductuales')
+    if area == 'bilingue':
+        keys.append('progress')
+    keys.append('historial')
+    cards = [{**_COORD_APP_DEFS[k], 'href': f"{base_url}?app={k}"} for k in keys]
+    return render(request, 'conducta/dashboard_coord_apps.html', {
+        'area': area, 'cards': cards, 'coord_titulo': coord_titulo, 'nav_home_url': '/',
+    })
+
+
 @login_required
 def dashboard_coordinador(request, area):
     _exigir_area_conducta(request.user, area)          # el área debe ser suya
@@ -2680,10 +2986,28 @@ def dashboard_coordinador(request, area):
     if request.user.groups.filter(name='solo_progress').exists():
         return redirect('progress_report_bilingue')
 
+    # <--- hecho por claude code (Nivel 2): "Coordinador BL/Colegio" es un LANZADOR de apps.
+    # Sin ?app= muestra el grid; con ?app=X entra a esa app enfocada. Los coordinadores con
+    # redirección especial (email en _REDIRECT_COORD_BL / coordi_bl) siguen su flujo propio.
+    app = (request.GET.get('app') or '').strip()
+    _tiene_redir = (area == 'bilingue' and
+                    (_REDIRECT_COORD_BL.get(request.user.email) or request.user.email == _EMAIL_COORDI_BL))
+    _cfg = _coord_de_usuario(request.user)
+    coord_titulo = _coord_etiqueta(_cfg)     # identidad (vacío para superuser)
+    if not _tiene_redir:
+        _lanz = _coord_apps_launcher(request, area, 'dashboard_coordinador', url_args=[area],
+                                     coord_codigo=(_cfg.codigo if _cfg else None),
+                                     coord_titulo=coord_titulo)
+        if _lanz:
+            return _lanz
+
     if area == 'bilingue':
         destino = _REDIRECT_COORD_BL.get(request.user.email)
         if destino:
-            return redirect(destino)
+            # <--- hecho por claude code: conservar ?app= al redirigir al dashboard del coord
+            from django.urls import reverse as _rev2
+            _qs = request.META.get('QUERY_STRING', '')
+            return redirect(f"{_rev2(destino)}?{_qs}" if _qs else destino)
 
         # coordi_bl: solo ve Progress Reports
         if request.user.email == _EMAIL_COORDI_BL:
@@ -2721,6 +3045,15 @@ def dashboard_coordinador(request, area):
         cfg.codigo: cfg.nombre
         for cfg in ConfiguracionCoordinador.objects.filter(area='bilingue', activo=True)
     }
+    # <--- hecho por claude code: el filtro "por coordinador" solo lista a quienes SÍ
+    # coordinan reportes conductuales/académicos (grupo coordinador_bilingue = C1-C4).
+    # C5/C6/Prin (coord_progress_bl/coord_revision) no reciben esos reportes → no van aquí.
+    coord_filtro_nombres = {
+        cfg.codigo: cfg.nombre
+        for cfg in ConfiguracionCoordinador.objects.filter(
+            area='bilingue', activo=True,
+            usuario__groups__name='coordinador_bilingue').order_by('codigo')
+    }
 
     # ── Permisos editar/eliminar para coordinadores (CoordPermiso) ────────────
     u = request.user
@@ -2744,11 +3077,15 @@ def dashboard_coordinador(request, area):
         'strikes':              strikes,
         'today':                timezone.now().strftime('%Y-%m-%d'),
         'coord_nombres':        coord_nombres,
+        'coord_filtro_nombres': coord_filtro_nombres,   # <--- hecho por claude code
         'can_edit_dash':        can_edit_dash,
         'can_delete_dash':      can_delete_dash,
         'docentes_filtro':      _docentes_filtro(area),
         'periodo_activo':       _periodo_activo(area),
         'periodos_escolares':   _periodos_escolares(area),
+        'app_activo':           app,              # <--- hecho por claude code (Nivel 2)
+        'app_def':              _COORD_APP_DEFS.get(app),
+        'coord_titulo':         coord_titulo,     # <--- hecho por claude code (identidad)
     }
     return render(request, 'conducta/dashboard_coordinador.html', contexto)
 
@@ -2822,6 +3159,11 @@ def _coord_dash_perms(user):
 
 
 def dashboard_c1(request):
+    coord_titulo = _coord_etiqueta_cod('C1')
+    _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c1', coord_codigo='C1', coord_titulo=coord_titulo)
+    if _l:
+        return _l
+    app = (request.GET.get('app') or '').strip()
     q = _q_for_coord('C1')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_academico_for_coord('C1'))
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
@@ -2839,6 +3181,8 @@ def dashboard_c1(request):
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C1',
+        'app_activo': app, 'app_def': _COORD_APP_DEFS.get(app),
+        'coord_titulo': coord_titulo,
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
         'docentes_filtro': _docentes_filtro(),
@@ -2848,6 +3192,11 @@ def dashboard_c1(request):
 
 @login_required
 def dashboard_c2(request):
+    coord_titulo = _coord_etiqueta_cod('C2')
+    _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c2', coord_codigo='C2', coord_titulo=coord_titulo)
+    if _l:
+        return _l
+    app = (request.GET.get('app') or '').strip()
     q = _q_for_coord('C2')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(_q_academico_for_coord('C2'))
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
@@ -2860,6 +3209,8 @@ def dashboard_c2(request):
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C2',
+        'app_activo': app, 'app_def': _COORD_APP_DEFS.get(app),
+        'coord_titulo': coord_titulo,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
         'docentes_filtro': _docentes_filtro(),
         'periodo_activo': _periodo_activo('bilingue'),
@@ -2868,6 +3219,11 @@ def dashboard_c2(request):
 
 @login_required
 def dashboard_c3(request):
+    coord_titulo = _coord_etiqueta_cod('C3')
+    _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c3', coord_codigo='C3', coord_titulo=coord_titulo)
+    if _l:
+        return _l
+    app = (request.GET.get('app') or '').strip()
     q = _q_for_coord('C3')
     qs_info = (
         ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='conductual') |
@@ -2883,6 +3239,8 @@ def dashboard_c3(request):
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C3',
+        'app_activo': app, 'app_def': _COORD_APP_DEFS.get(app),
+        'coord_titulo': coord_titulo,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
         'docentes_filtro': _docentes_filtro(),
         'periodo_activo': _periodo_activo('bilingue'),
@@ -2891,6 +3249,11 @@ def dashboard_c3(request):
 
 @login_required
 def dashboard_c4(request):
+    coord_titulo = _coord_etiqueta_cod('C4')
+    _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c4', coord_codigo='C4', coord_titulo=coord_titulo)
+    if _l:
+        return _l
+    app = (request.GET.get('app') or '').strip()
     q = _q_for_coord('C4')
     qs_info = ReporteInformativo.objects.filter(area='bilingue', tipo_reporte='academico').filter(q)
     qs_cond = ReporteConductual.objects.filter(area='bilingue').filter(q)
@@ -2903,6 +3266,8 @@ def dashboard_c4(request):
         'reportes_conductual': qs_cond, 'reportes_progress': qs_prog,
         'strikes': strikes, 'today': timezone.now().strftime('%Y-%m-%d'),
         'coord_codigo': 'C4',
+        'app_activo': app, 'app_def': _COORD_APP_DEFS.get(app),
+        'coord_titulo': coord_titulo,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
         'docentes_filtro': _docentes_filtro(),
         'periodo_activo': _periodo_activo('bilingue'),
@@ -2967,60 +3332,99 @@ def periodo_conducta_delete(request, pk):
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
-@login_required
-def historial_alumnado(request, area):
-    """Historial de reportes agrupado por parcial → grado (carga perezosa AJAX).
-    Regla: el reporte cae en el parcial cuyo rango cubre su fecha; sin match → Parcial 2."""
-    if area not in ('bilingue', 'colegio'):
-        from django.http import Http404
-        raise Http404
-    periodos = _periodos_escolares(area)
-
+def _parcial_de_factory(periodos):
     def _parcial_de(f):
         for p in periodos:
             if p.fecha_inicio <= f <= p.fecha_fin:
                 return p.parcial
         return 2  # acumulado sin período definido → Parcial 2
+    return _parcial_de
 
-    reportes = []
-    qs_info = ReporteInformativo.objects.filter(area=area).annotate(
-        num_evid=Count('evidenciareporte'))
-    for r in qs_info:
-        reportes.append({'pk': r.pk, 'tipo': 'Informativo / ' + ('Conductual' if r.tipo_reporte == 'conductual' else 'Académico'),
-                         'tipo_key': 'informativo', 'color': 'blue',
-                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
-                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
-                         'num_evid': r.num_evid, 'parcial': _parcial_de(r.fecha.date())})
-    qs_cond = ReporteConductual.objects.filter(area=area).annotate(
-        num_evid=Count('evidenciareporte'))
-    for r in qs_cond:
-        reportes.append({'pk': r.pk, 'tipo': 'Conductual', 'tipo_key': 'conductual', 'color': 'orange',
-                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
-                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
-                         'num_evid': r.num_evid, 'parcial': _parcial_de(r.fecha.date())})
+
+@login_required
+def historial_alumnado(request, area):
+    """Historial: SOLO estructura parcial → grado con conteos (carga perezosa AJAX).
+    Las filas de cada grado se cargan al expandirlo (historial_alumnado_grado)."""
+    if area not in ('bilingue', 'colegio'):
+        from django.http import Http404
+        raise Http404
+    _parcial_de = _parcial_de_factory(_periodos_escolares(area))
+
+    # <--- hecho por claude code: solo (parcial, grado) para contar; sin construir filas.
+    pares = []  # (parcial, grado)
+    for grado, fecha in ReporteInformativo.objects.filter(area=area).values_list('grado', 'fecha'):
+        pares.append((_parcial_de(fecha.date()), grado or '—'))
+    for grado, fecha in ReporteConductual.objects.filter(area=area).values_list('grado', 'fecha'):
+        pares.append((_parcial_de(fecha.date()), grado or '—'))
     if area == 'bilingue':
-        for r in ProgressReport.objects.annotate(num_evid=Count('evidenciareporte')):
-            reportes.append({'pk': r.pk, 'tipo': 'Progress', 'tipo_key': 'progress', 'color': 'teal',
-                             'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id, 'grado': r.grado or '—',
-                             'docente': '', 'materia': '', 'fecha': r.semana_inicio, 'estado': r.estado,
-                             'num_evid': r.num_evid, 'parcial': _parcial_de(r.semana_inicio)})
+        for grado, semana in ProgressReport.objects.values_list('grado', 'semana_inicio'):
+            pares.append((_parcial_de(semana), grado or '—'))
 
-    # Estructura: parciales 1..3 → grados → reportes
     parciales = []
     for n in (1, 2, 3):
-        del_parcial = [r for r in reportes if r['parcial'] == n]
         grados = {}
-        for r in del_parcial:
-            grados.setdefault(r['grado'], []).append(r)
-        grados_list = [
-            {'nombre': g, 'reportes': sorted(rs, key=lambda x: str(x['fecha']), reverse=True), 'total': len(rs)}
-            for g, rs in sorted(grados.items(), key=lambda kv: kv[0])
-        ]
-        parciales.append({'num': n, 'total': len(del_parcial), 'grados': grados_list})
+        for parcial, grado in pares:
+            if parcial == n:
+                grados[grado] = grados.get(grado, 0) + 1
+        grados_list = [{'nombre': g, 'total': t} for g, t in sorted(grados.items())]
+        parciales.append({'num': n, 'total': sum(grados.values()), 'grados': grados_list})
 
-    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
     return render(request, 'conducta/_historial_alumnado.html', {
-        'parciales': parciales, 'area': area, 'total': len(reportes),
+        'parciales': parciales, 'area': area, 'total': len(pares),
+    })
+
+
+@login_required
+def historial_alumnado_grado(request, area):
+    """Filas de un grado+parcial del historial (carga perezosa al expandir el acordeón)."""
+    if area not in ('bilingue', 'colegio'):
+        from django.http import Http404
+        raise Http404
+    try:
+        parcial = int(request.GET.get('parcial') or 0)
+    except ValueError:
+        parcial = 0
+    grado = request.GET.get('grado') or '—'
+    _parcial_de = _parcial_de_factory(_periodos_escolares(area))
+
+    # Filtro por grado ('—' = grado vacío/None)
+    if grado == '—':
+        gfilter = Q(grado='') | Q(grado__isnull=True)
+    else:
+        gfilter = Q(grado=grado)
+
+    reportes = []
+    for r in (ReporteInformativo.objects.filter(area=area).filter(gfilter)
+              .annotate(num_evid=Count('evidenciareporte'))):
+        if _parcial_de(r.fecha.date()) != parcial:
+            continue
+        reportes.append({'pk': r.pk, 'tipo': 'Informativo / ' + ('Conductual' if r.tipo_reporte == 'conductual' else 'Académico'),
+                         'tipo_key': 'informativo', 'color': 'blue',
+                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id,
+                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
+                         'num_evid': r.num_evid})
+    for r in (ReporteConductual.objects.filter(area=area).filter(gfilter)
+              .annotate(num_evid=Count('evidenciareporte'))):
+        if _parcial_de(r.fecha.date()) != parcial:
+            continue
+        reportes.append({'pk': r.pk, 'tipo': 'Conductual', 'tipo_key': 'conductual', 'color': 'orange',
+                         'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id,
+                         'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
+                         'num_evid': r.num_evid})
+    if area == 'bilingue':
+        for r in (ProgressReport.objects.filter(gfilter)
+                  .annotate(num_evid=Count('evidenciareporte'))):
+            if _parcial_de(r.semana_inicio) != parcial:
+                continue
+            reportes.append({'pk': r.pk, 'tipo': 'Progress', 'tipo_key': 'progress', 'color': 'teal',
+                             'alumno': r.alumno_nombre, 'alumno_id': r.alumno_id,
+                             'docente': '', 'materia': '', 'fecha': r.semana_inicio, 'estado': r.estado,
+                             'num_evid': r.num_evid})
+
+    reportes.sort(key=lambda x: str(x['fecha']), reverse=True)
+    can_edit_dash, can_delete_dash = _coord_dash_perms(request.user)
+    return render(request, 'conducta/_historial_alumnado_filas.html', {
+        'reportes': reportes, 'area': area,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
     })
 
@@ -3254,6 +3658,60 @@ def eliminar_evidencia(request, pk):
 
 
 # ================= DIRECTORIO DE TELÉFONOS =================
+def _moviles_alumno(campo1, campo2):
+    """<--- hecho por claude code: extrae móviles (8 dígitos, excluye fijos '2…') de Tel1/Tel2
+    y arma el link de WhatsApp. Misma lógica que el Directorio de Teléfonos."""
+    import re as _re
+    def _extraer(texto):
+        out = []
+        patron = r'(?:504[-\s]?)?(\d{4})[-\s./]?(\d{4})\s*([a-zA-ZÀ-ɏ]*)'
+        for m in _re.finditer(patron, texto or ''):
+            num = m.group(1) + m.group(2)
+            label = m.group(3).strip().lower()
+            if len(num) == 8 and not num.startswith('2'):
+                out.append((num, label))
+        return out
+    vistos, res = set(), []
+    for num, label in _extraer(campo1) + _extraer(campo2):
+        if num not in vistos:
+            vistos.add(num)
+            res.append({
+                'num':   f'{num[:4]}-{num[4:]}',
+                'wa':    f'https://wa.me/504{num}',
+                'e164':  f'504{num}',
+                'label': label,
+            })
+    return res
+
+
+@login_required
+def telefonos_alumno(request, alumno_id):
+    """<--- hecho por claude code: números (WhatsApp) del padre/madre de un alumno, por
+    PersonaID (= alumno_id del reporte) desde padres_sqlserver. Solo coord/admin/enfermería."""
+    u = request.user
+    permitido = (
+        u.is_superuser or u.is_staff or
+        u.groups.filter(name__in=[
+            'coordinador_bilingue', 'coordinadores_colegio',
+            'coordinador_colegio', 'coordinadores', 'enfermeria',
+        ]).exists()
+    )
+    if not permitido:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+
+    sql = "SELECT ISNULL(Tel1,''), ISNULL(Tel2,'') FROM dbo.tblPrsDtosGen WHERE PersonaID = %s"
+    numeros = []
+    try:
+        with connections['padres_sqlserver'].cursor() as cursor:
+            cursor.execute(sql, [alumno_id])
+            row = cursor.fetchone()
+            if row:
+                numeros = _moviles_alumno(row[0], row[1])
+    except Exception:
+        numeros = []
+    return JsonResponse({'ok': True, 'numeros': numeros})
+
+
 @login_required
 def directorio_telefonos(request):
     user = request.user
