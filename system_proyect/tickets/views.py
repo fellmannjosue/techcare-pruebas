@@ -591,6 +591,40 @@ def ticket_contact_technician(request, ticket_id):
 # ======================================================
 # CHAT IA — <--- hecho por claude code: ACTIVADO en pruebas
 # ======================================================
+def _pide_tecnico(texto):
+    """<--- hecho por claude code: detecta que el usuario quiere atención HUMANA.
+    Normaliza tildes para que "técnico" y "tecnico" cuenten igual."""
+    import unicodedata
+    t = unicodedata.normalize('NFKD', (texto or '').lower())
+    t = ''.join(ch for ch in t if not unicodedata.combining(ch))
+    if 'tecnico' in t and any(v in t for v in (
+            'hablar', 'quiero', 'necesito', 'llama', 'contactar', 'comunicar',
+            'atienda', 'pasame', 'con un', 'con el')):
+        return True
+    return any(f in t for f in ('hablar con una persona', 'hablar con alguien',
+                                'atencion humana', 'una persona real', 'un humano'))
+
+
+def _escalar_a_tecnico(ticket, solicitante):
+    """<--- hecho por claude code: notifica a técnicos y superusers, deja el ticket
+    pendiente de atención humana y APAGA la IA de este ticket (ia_bloqueada)."""
+    User = get_user_model()
+    msg = f"🔔 {ticket.name} pide hablar con un TÉCNICO en el ticket #{ticket.ticket_id} — {ticket.grade}"
+    tecnicos = User.objects.filter(groups__name__icontains="tecnico")
+    for tech in tecnicos:
+        crear_notificacion(usuario=tech, mensaje=msg, modulo="tickets", tipo="alerta", enviar_correo=False)
+    ids = set(tecnicos.values_list('id', flat=True))
+    for su in User.objects.filter(is_superuser=True):
+        if su.id not in ids:
+            crear_notificacion(usuario=su, mensaje=msg, modulo="tickets", tipo="alerta", enviar_correo=False)
+    ticket.ia_bloqueada = True
+    campos = ['ia_bloqueada']
+    if (ticket.status or '').lower() in ('completado', 'cerrado', 'resuelto'):
+        ticket.status = 'Pendiente'   # el ticket se REABRE para el técnico
+        campos.append('status')
+    ticket.save(update_fields=campos)
+
+
 @csrf_exempt
 @require_POST
 @login_required
@@ -615,19 +649,32 @@ def ticket_chat_ai_ajax(request, ticket_id):
             tipo="usuario"
         )
 
-        mensajes_ia = [
-            {"role": "system", "content": "Eres un asistente técnico amigable y útil de ANA-HN."},
-            {"role": "user", "content": mensaje_usuario}
-        ]
+        # <--- hecho por claude code: "hablar con técnico" → notifica, reabre si hacía
+        # falta, y la IA TERMINA en este ticket (el guard de arriba bloquea lo siguiente).
+        if _pide_tecnico(mensaje_usuario):
+            _escalar_a_tecnico(ticket, request.user)
+            comentario_ai = TicketComment.objects.create(
+                ticket=ticket, usuario=None, tipo="sistema",
+                mensaje=("🔔 Un técnico ha sido notificado y continuará la atención en este "
+                         "ticket. El asistente de IA finaliza aquí — gracias por tu paciencia."))
+        else:
+            mensajes_ia = [
+                {"role": "system", "content": (
+                    "Eres un asistente técnico amigable y útil de ANA-HN. Responde en español, "
+                    "breve y claro. Si el problema requiere intervención física o no puedes "
+                    "resolverlo, sugiérele al usuario escribir 'hablar con técnico' para que "
+                    "lo atienda una persona.")},
+                {"role": "user", "content": mensaje_usuario}
+            ]
 
-        respuesta_ia = consultar_ia(mensajes_ia)
+            respuesta_ia = consultar_ia(mensajes_ia)
 
-        comentario_ai = TicketComment.objects.create(
-            ticket=ticket,
-            usuario=None,
-            mensaje=respuesta_ia,
-            tipo="ia"
-        )
+            comentario_ai = TicketComment.objects.create(
+                ticket=ticket,
+                usuario=None,
+                mensaje=respuesta_ia or "No pude generar respuesta. Escribe 'hablar con técnico' para atención humana.",
+                tipo="ia"
+            )
 
         return JsonResponse({
             "ok": True,
@@ -642,8 +689,9 @@ def ticket_chat_ai_ajax(request, ticket_id):
                 "id": comentario_ai.id,
                 "mensaje": comentario_ai.mensaje,
                 "fecha": comentario_ai.fecha.strftime("%d/%m/%Y %H:%M"),
-                "autor": "IA TechCare",
-                "tipo": "ia",
+                "autor": "Sistema" if comentario_ai.tipo == "sistema" else "IA TechCare",
+                "tipo": comentario_ai.tipo,
+                "ia_finalizada": ticket.ia_bloqueada,
             }
         })
 
