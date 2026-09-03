@@ -5,6 +5,7 @@
   const input = document.getElementById('mensaje');
   const btn = document.getElementById('btn-enviar');
   const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+  const historial = [];   // <--- hecho por claude code: memoria del chat (se envía al servidor)
 
   function burbuja(texto, clase) {
     const d = document.createElement('div');
@@ -23,11 +24,22 @@
     fetch(form.dataset.url, {
       method: 'POST',
       headers: { 'X-CSRFToken': csrf },
-      body: new URLSearchParams({ mensaje: msg }),
+      body: new URLSearchParams({ mensaje: msg, historial: JSON.stringify(historial) }),
     })
       .then(r => r.json())
-      .then(d => burbuja(d.ok ? d.respuesta : ('Error: ' + (d.error || 'desconocido')), d.ok ? 'ia' : 'error'))
+      .then(d => {
+        burbuja(d.ok ? d.respuesta : ('Error: ' + (d.error || 'desconocido')), d.ok ? 'ia' : 'error');
+        if (d.ok) {
+          historial.push({ role: 'user', content: msg });
+          historial.push({ role: 'assistant', content: d.respuesta });
+        }
+        // <--- hecho por claude code: se creó un ticket real → el chat termina aquí
+        if (d.escalado) {
+          input.disabled = true; btn.disabled = true;
+          input.placeholder = 'Chat finalizado — ticket ' + d.ticket_id + ' creado';
+        }
+      })
       .catch(err => burbuja('Error de red: ' + err, 'error'))
-      .finally(() => { btn.disabled = false; btn.textContent = 'Enviar'; input.focus(); });
+      .finally(() => { if (!input.disabled) { btn.disabled = false; btn.textContent = 'Enviar'; input.focus(); } else { btn.textContent = 'Enviar'; } });
   });
 })();

@@ -719,11 +719,46 @@ def ia_sandbox_ajax(request):
     mensaje = (request.POST.get("mensaje") or "").strip()
     if not mensaje:
         return JsonResponse({"ok": False, "error": "Escribe un mensaje"}, status=400)
+
+    # <--- hecho por claude code: el front manda el historial → la IA tiene MEMORIA de la
+    # conversación, y si el usuario pide un técnico se crea un TICKET REAL con la transcripción.
+    import json as _json
     try:
-        respuesta = consultar_ia([
-            {"role": "system", "content": "Eres un asistente técnico amigable y útil de ANA-HN."},
-            {"role": "user", "content": mensaje},
-        ])
-        return JsonResponse({"ok": True, "respuesta": respuesta})
+        historial = _json.loads(request.POST.get("historial") or "[]")[-12:]
+        historial = [{"role": h["role"], "content": str(h["content"])[:2000]}
+                     for h in historial if h.get("role") in ("user", "assistant")]
+    except Exception:
+        historial = []
+
+    if _pide_tecnico(mensaje):
+        transcripcion = "\n".join(
+            f"{'Usuario' if h['role'] == 'user' else 'IA'}: {h['content']}" for h in historial)
+        u = request.user
+        ticket = Ticket.objects.create(
+            usuario=u,
+            name=(u.get_full_name() or u.username),
+            grade="Chat IA",
+            email=(u.email or ""),
+            description=("Solicitud de atención con un TÉCNICO desde el chat de IA.\n\n"
+                         f"Último mensaje: {mensaje}\n\n— Transcripción del chat —\n"
+                         + (transcripcion or "(sin historial)")),
+            urgencia="medio",
+            ia_bloqueada=True,   # nace escalado: la IA ya terminó aquí
+        )
+        _notificar_nuevo_ticket(ticket, u)
+        return JsonResponse({"ok": True, "escalado": True, "ticket_id": ticket.ticket_id,
+                             "respuesta": (f"🔔 Listo: creé el ticket {ticket.ticket_id} con el resumen "
+                                           "de esta conversación y ya notifiqué a un técnico. Te "
+                                           "atenderán pronto — puedes darle seguimiento en «Mis "
+                                           "tickets». El asistente de IA finaliza aquí.")})
+
+    try:
+        mensajes = [{"role": "system", "content": (
+            "Eres un asistente técnico amigable y útil de ANA-HN. Responde en español, breve y "
+            "claro. Si no puedes resolver el problema, sugiérele al usuario escribir "
+            "'hablar con técnico' para crear un ticket y que lo atienda una persona.")}]
+        mensajes += historial + [{"role": "user", "content": mensaje}]
+        respuesta = consultar_ia(mensajes)
+        return JsonResponse({"ok": True, "respuesta": respuesta or "No pude generar respuesta."})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)

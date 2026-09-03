@@ -11,7 +11,7 @@
 <body>
   <main class="caja">
     <h1>🧪 Sandbox de IA <span class="badge">techcare-pruebas</span></h1>
-    <p class="nota">Prueba directa a OpenAI ({{ request.user.username }}). <strong>No guarda nada</strong> en la base de datos.</p>
+    <p class="nota">Prueba directa a OpenAI ({{ request.user.username }}). <strong>No guarda nada</strong> — salvo que pidas <em>hablar con técnico</em>: ahí se crea un <strong>ticket real</strong> con la conversación.</p>
     <div id="chat"></div>
     <form id="form-ia" data-url="{% url 'ia_sandbox_ajax' %}">
       {% csrf_token %}
@@ -19,6 +19,6 @@
       <button type="submit" id="btn-enviar">Enviar</button>
     </form>
   </main>
-  <script src="{% static 'tickets/js/ia_sandbox.js' %}?v=1"></script>
+  <script src="{% static 'tickets/js/ia_sandbox.js' %}?v=2"></script>
 </body>
 </html>
