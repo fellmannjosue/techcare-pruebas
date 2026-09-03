@@ -26,6 +26,5 @@ urlpatterns = [
     # <--- hecho por claude code: chat IA + sandbox ACTIVOS en pruebas
     path('ticket/<int:ticket_id>/chat_ai/', views.ticket_chat_ai_ajax, name='ticket_chat_ai_ajax'),
     path('ia/', views.ia_sandbox, name='ia_sandbox'),
-    path('ia/ticket/<int:ticket_id>/', views.ticket_chat_ia, name='ticket_chat_ia'),
     path('ia/preguntar/', views.ia_sandbox_ajax, name='ia_sandbox_ajax'),
 ]

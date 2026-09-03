@@ -152,3 +152,8 @@
   .chat-attach-actions .btn-icon { width: 34px; height: 34px; }
   .chat-bubble { max-width: 92%; font-size: .85rem; }
 }
+
+/* <--- hecho por claude code: burbuja del asistente IA */
+.bubble-ia { background:#eef2ff; border:1px solid #c7d2fe; color:#312e81; border-top-left-radius:4px; }
+.av-ia { background:#eef2ff; border:1px solid #c7d2fe; display:flex; align-items:center; justify-content:center; }
+.meta-ia { color:#6366f1; font-weight:600; }

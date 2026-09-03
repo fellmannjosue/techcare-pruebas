@@ -47,6 +47,22 @@
   </div>
 </div>
 
+{% elif c.tipo == 'ia' %}
+{# <--- hecho por claude code: mensaje del asistente IA (izquierda, acento violeta) #}
+<div class="chat-item">
+  <div class="d-flex align-items-end gap-2">
+    <div class="chat-avatar av-ia" title="Asistente IA">🤖</div>
+    <div>
+      <div class="chat-item-meta">
+        <span class="meta-name meta-ia">Asistente IA</span>
+        <span>·</span>
+        <span>{{ c.fecha|date:"d/m/Y H:i" }}</span>
+      </div>
+      <div class="chat-bubble bubble-ia">{% if c.mensaje %}{{ c.mensaje|linebreaksbr }}{% endif %}</div>
+    </div>
+  </div>
+</div>
+
 {% else %}
 {# ── Otro participante (izquierda) ── #}
 {% with initials=c.usuario.username|slice:":2"|upper %}
