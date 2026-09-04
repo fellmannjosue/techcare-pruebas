@@ -2630,6 +2630,21 @@ def _periodo_comp_anual(anio):
         return default
 
 
+def _dias_de_feriado(desc, horas):
+    """<--- hecho por claude code: días reales de un feriado ANA a partir de sus horas.
+    Cada feriado tiene su propia jornada (Semana Santa 8.4 h/día → 21h=2.5 días;
+    Trimestral 8 h/día → 44h=5.5; el resto 8.8 h/día → Morazánico 17.6h=2, Cierre 70.4h=8)."""
+    import unicodedata
+    d = ''.join(c for c in unicodedata.normalize('NFD', (desc or '').strip().lower())
+                if unicodedata.category(c) != 'Mn')
+    h = float(horas or 0)
+    if 'santa' in d:
+        return round(h / 8.4, 2)
+    if 'trimestral' in d or 'trismetral' in d:
+        return round(h / 8, 2)
+    return round(h / _JORNADA_COMP_H, 2)
+
+
 def _dias_habiles_periodo(fi, ff, feriados):
     """Días hábiles (lun-vie, excluyendo feriados ANA) entre fi y ff (inclusive)."""
     from datetime import timedelta as _td
@@ -2698,8 +2713,11 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         # Periodo efectivo del empleado (si ingresó después del inicio del periodo)
         emp_fi = ingreso if (ingreso and ingreso > fi) else fi
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
-        # Días que necesita = 47 min × días hábiles ÷ (8.8h×60)
-        dias_necesita = round(MINUTOS_POR_DIA_COMP * dias_hab / (_JORNADA_COMP_H * 60), 2)
+        # <--- hecho por claude code: "Días que necesita" = suma de los DÍAS NO LABORABLES ANA
+        # del empleado (feriados de cierre), calculados desde sus entradas (Semana Santa 2.5,
+        # Trimestral 5.5, Morazánico 2, Cierre 8 → 18). Ya no es la fórmula de 47 min.
+        dias_necesita = round(sum(_dias_de_feriado(x.descripcion, x.horas)
+                                  for x in cc.dias_no_laborables.all()), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
         # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
