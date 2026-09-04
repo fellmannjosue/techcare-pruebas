@@ -3026,6 +3026,16 @@ def compensatorio_calculo_list(request):
         periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 26)
         periodo_dias_habiles = _dias_habiles_periodo(periodo_inicio, periodo_fin, feriados)
 
+    # <--- hecho por claude code: llevar "Horas que debe compensar" y "Tiempo diario" al tab 2
+    # (que itera registros_data). Se unen por pk del CompensatorioCalculo.
+    _redis_by_pk = {r['pk']: r for r in redis_rows}
+    for _it in registros_data:
+        _rd = _redis_by_pk.get(_it['r'].pk)
+        _it['debe_compensar_horas'] = _rd['horas_totales'] if _rd else 0
+        _it['debe_compensar_dias']  = _rd['debe_compensar'] if _rd else 0
+        _it['min_diario']   = _rd['min_diario'] if _rd else 0
+        _it['hhmm_diario']  = _rd['hhmm_diario'] if _rd else '—'
+
     ctx = {
         "gilma": gilma,
         "registros_data": registros_data,
