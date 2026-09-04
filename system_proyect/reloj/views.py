@@ -2599,6 +2599,20 @@ def _receso_compute(desde, hasta):
 _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → horas
 
 
+def _ensure_model_table(model):
+    """<--- hecho por claude code: en PRUEBAS las migraciones están gitignored y la BD es un
+    clon, así que las tablas nuevas no se crean con `migrate`. Este helper crea la tabla del
+    modelo si aún no existe (idempotente, barato). Así los guardados no fallan con 500."""
+    from django.db import connection
+    try:
+        if model._meta.db_table in connection.introspection.table_names():
+            return
+        with connection.schema_editor() as se:
+            se.create_model(model)
+    except Exception as _ex:
+        print(f"[compensatorio] _ensure_model_table({model.__name__}): {_ex}")
+
+
 def _periodo_comp_anual(anio):
     """(fecha_inicio, fecha_fin) del periodo del año escolar `anio`. Si no existe,
     se crea con el default 1-feb → 26-nov (editable después). Si la tabla aún no
@@ -3046,8 +3060,12 @@ def compensatorio_periodo_save(request):
         return JsonResponse({'ok': False, 'error': 'Fechas inválidas'})
     if fi > ff:
         return JsonResponse({'ok': False, 'error': 'El inicio debe ser anterior al fin'})
-    CompensatorioPeriodoAnual.objects.update_or_create(
-        anio=anio, defaults={'fecha_inicio': fi, 'fecha_fin': ff})
+    try:
+        _ensure_model_table(CompensatorioPeriodoAnual)   # <--- hecho por claude code
+        CompensatorioPeriodoAnual.objects.update_or_create(
+            anio=anio, defaults={'fecha_inicio': fi, 'fecha_fin': ff})
+    except Exception as _ex:
+        return JsonResponse({'ok': False, 'error': f'No se pudo guardar: {_ex}'}, status=200)
     return JsonResponse({'ok': True, 'anio': anio,
                          'fecha_inicio': fi.isoformat(), 'fecha_fin': ff.isoformat()})
 
@@ -3068,15 +3086,21 @@ def compensatorio_vac_acumulada_save(request):
     if not emp_code:
         return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
     raw = body.get('acumulada')
-    if raw in (None, ''):
-        CompensatorioVacacionManual.objects.filter(emp_code=emp_code).delete()
-        return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': False})
+    val = None
+    if raw not in (None, ''):
+        try:
+            val = round(float(raw), 2)
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'Valor inválido'})
     try:
-        val = round(float(raw), 2)
-    except (ValueError, TypeError):
-        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
-    CompensatorioVacacionManual.objects.update_or_create(
-        emp_code=emp_code, defaults={'acumulada': val})
+        _ensure_model_table(CompensatorioVacacionManual)   # crea la tabla si falta
+        if val is None:
+            CompensatorioVacacionManual.objects.filter(emp_code=emp_code).delete()
+            return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': False})
+        CompensatorioVacacionManual.objects.update_or_create(
+            emp_code=emp_code, defaults={'acumulada': val})
+    except Exception as _ex:
+        return JsonResponse({'ok': False, 'error': f'No se pudo guardar: {_ex}'}, status=200)
     return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': True, 'acumulada': val})
 
 
