@@ -465,6 +465,24 @@ class DiaNoLaborableANA(models.Model):
         return f"{self.calculo.nombre_empleado} – {self.descripcion}"
 
 
+# <--- hecho por claude code: rediseño tabs 1-2 (pruebas). Periodo del año escolar sobre el que
+# se reparte el tiempo compensatorio diario (p.ej. 1-feb → 26-nov de 2026). CAMBIA año a año.
+class CompensatorioPeriodoAnual(models.Model):
+    """Rango de fechas (por año) sobre el que se distribuye el tiempo compensatorio diario."""
+    anio         = models.PositiveIntegerField("Año", unique=True, db_index=True)
+    fecha_inicio = models.DateField("Inicio del periodo")
+    fecha_fin    = models.DateField("Fin del periodo")
+
+    class Meta:
+        db_table  = "reloj_compensatorio_periodo_anual"
+        verbose_name = "Periodo compensatorio anual"
+        verbose_name_plural = "Periodos compensatorios anuales"
+        ordering  = ["-anio"]
+
+    def __str__(self):
+        return f"{self.anio}: {self.fecha_inicio} → {self.fecha_fin}"
+
+
 # ── Compensatorio: matriz mensual (Horas Trabajadas / Horas Tomadas) ──────────
 # <--- hecho por claude code: tabs 3 y 4 comparten lista de empleados (manual,
 # desde ZKBio). Cada empleado tiene valores por mes/año, editables.

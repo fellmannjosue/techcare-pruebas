@@ -2589,6 +2589,117 @@ def _receso_compute(desde, hasta):
     return {'rows': rows, 'error': error}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# <--- hecho por claude code: REDISEÑO tabs 1-2 (Cálculo Compensatorio, pruebas)
+# Objetivo: calcular cuánto tiempo compensatorio debe hacer el empleado DIARIO,
+# repartiendo los "días que debe compensar" sobre los días hábiles del periodo
+# del año escolar (p.ej. 1-feb → 26-nov, configurable por año). Reusa el módulo
+# de Vacaciones para derecho/acumulada/saldo.
+# ══════════════════════════════════════════════════════════════════════════════
+_JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → horas
+
+
+def _periodo_comp_anual(anio):
+    """(fecha_inicio, fecha_fin) del periodo del año escolar `anio`. Si no existe,
+    se crea con el default 1-feb → 26-nov (editable después). Si la tabla aún no
+    existe (migración sin aplicar) o hay error, cae al default sin romper la página."""
+    default = (date(anio, 2, 1), date(anio, 11, 26))
+    try:
+        from .models import CompensatorioPeriodoAnual
+        obj, _ = CompensatorioPeriodoAnual.objects.get_or_create(
+            anio=anio,
+            defaults={'fecha_inicio': default[0], 'fecha_fin': default[1]},
+        )
+        return obj.fecha_inicio, obj.fecha_fin
+    except Exception as _ex:
+        print(f"[compensatorio] periodo anual fallback: {_ex}")
+        return default
+
+
+def _dias_habiles_periodo(fi, ff, feriados):
+    """Días hábiles (lun-vie, excluyendo feriados ANA) entre fi y ff (inclusive)."""
+    from datetime import timedelta as _td
+    if not fi or not ff or fi > ff:
+        return 0
+    n, d = 0, fi
+    while d <= ff:
+        if d.weekday() < 5 and d not in feriados:
+            n += 1
+        d += _td(days=1)
+    return n
+
+
+def _compensatorio_rediseno_rows(anio, feriados, hoy):
+    """Filas del rediseño de tabs 1-2: por empleado del Control Compensatorio,
+    con datos de Vacaciones (derecho/acumulada/saldo) y el tiempo compensatorio DIARIO.
+
+    Fórmula (confirmada con el usuario):
+      · Días que necesita = 47 min/día × días hábiles del periodo ÷ (8.8 h × 60)
+      · Total días que necesita = Días que necesita + permisos extras (3 días)
+      · DÍAS QUE DEBE COMPENSAR = Total − Saldo para gastar (vacaciones)
+      · Tiempo diario = DÍAS QUE DEBE COMPENSAR × 8.8 h ÷ días hábiles → min/día
+    Los días hábiles se cuentan de max(inicio-periodo, fecha-ingreso) a fin-periodo.
+    """
+    from django.db.models import Sum as _Sum
+    from .models import VacacionConfig, PermisoReporte
+    fi, ff = _periodo_comp_anual(anio)
+    dias_hab_full = _dias_habiles_periodo(fi, ff, feriados)
+
+    calculos = list(CompensatorioCalculo.objects.all())
+    vac_cfgs = {str(v.emp_code): v for v in VacacionConfig.objects.all()}
+    # días de vacación usados en el año (PermisoReporte tipo vacaciones_dias)
+    vac_fi, vac_ff = date(anio, 2, 1), date(anio, 11, 30)
+    usados_map = {
+        str(p['emp_code']): float(p['d'] or 0)
+        for p in PermisoReporte.objects.filter(
+            tipo='vacaciones_dias', fecha__gte=vac_fi, fecha__lte=vac_ff,
+        ).values('emp_code').annotate(d=_Sum('dias'))
+    }
+
+    rows = []
+    for cc in calculos:
+        ec = str(cc.emp_code)
+        vc = vac_cfgs.get(ec)
+        ingreso = vc.fecha_inicio_labores if vc else None
+        es_doc  = bool(vc and vc.es_docente)
+        dias_fijos = vc.dias_fijos if vc else None
+        # Vacaciones (reusa la lógica del módulo)
+        derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
+        usados  = usados_map.get(ec, 0) + float(vc.dias_usados_manual or 0 if vc else 0)
+        es_esp  = dias_fijos is not None
+        saldo   = _dias_disponibles_calc(es_doc, derecho, usados, hoy, es_esp)
+        _prop, acum_bruto = _vac_accrual(es_doc, ingreso, hoy, dias_fijos, derecho)
+        acumulada = round(acum_bruto - usados, 2)
+        # Periodo efectivo del empleado (si ingresó después del inicio del periodo)
+        emp_fi = ingreso if (ingreso and ingreso > fi) else fi
+        dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
+        # Días que necesita = 47 min × días hábiles ÷ (8.8h×60)
+        dias_necesita = round(MINUTOS_POR_DIA_COMP * dias_hab / (_JORNADA_COMP_H * 60), 2)
+        permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
+        total_necesita = round(dias_necesita + permisos_dias, 2)
+        debe_compensar = round(total_necesita - float(saldo), 2)
+        # Tiempo compensatorio diario
+        if dias_hab > 0 and debe_compensar > 0:
+            min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
+        else:
+            min_diario = 0.0
+        h_di = int(min_diario // 60)
+        m_di = int(round(min_diario - h_di * 60))
+        rows.append({
+            'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
+            'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
+            'saldo': round(float(saldo), 2),
+            'dias_necesita': dias_necesita, 'permisos_dias': permisos_dias,
+            'total_necesita': total_necesita, 'debe_compensar': debe_compensar,
+            'dias_hab': dias_hab,
+            'horas_totales': round(debe_compensar * _JORNADA_COMP_H, 2),
+            'min_diario': min_diario,
+            'hhmm_diario': f"{h_di}h {m_di:02d}m" if min_diario > 0 else "—",
+        })
+    rows.sort(key=lambda x: (_especial_rank(x['nombre']), x['nombre'].lower()))
+    return rows, fi, ff, dias_hab_full
+
+
 @login_required
 def compensatorio_calculo_list(request):
     # Requiere permiso de visualización del Control Compensatorio
@@ -2860,9 +2971,24 @@ def compensatorio_calculo_list(request):
     }
 
     cfg = RelojConfigGlobal.get()
+    # <--- hecho por claude code: rediseño tabs 1-2 (tiempo compensatorio diario)
+    try:
+        redis_rows, periodo_inicio, periodo_fin, periodo_dias_habiles = _compensatorio_rediseno_rows(
+            anio_sel, feriados, hoy)
+    except Exception as _ex:
+        print(f"[compensatorio] rediseño rows fallback: {_ex}")
+        redis_rows = []
+        periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 26)
+        periodo_dias_habiles = _dias_habiles_periodo(periodo_inicio, periodo_fin, feriados)
+
     ctx = {
         "gilma": gilma,
         "registros_data": registros_data,
+        # rediseño tabs 1-2
+        "redis_rows":            redis_rows,
+        "periodo_inicio":        periodo_inicio,
+        "periodo_fin":           periodo_fin,
+        "periodo_dias_habiles":  periodo_dias_habiles,
         "feriados_count": Feriado.objects.count(),
         "minutos_dia": MINUTOS_POR_DIA_COMP,
         "can_edit":              can_edit,
@@ -2888,6 +3014,31 @@ def compensatorio_calculo_list(request):
         return _reporte_pdf(request, 'reloj/pdf/calculo_pdf.html', ctx,
                             f'{sec}_{anio_sel}.pdf')
     return render(request, "reloj/compensatorio_calculo_list.html", ctx)
+
+
+@login_required
+@require_POST
+def compensatorio_periodo_save(request):
+    """AJAX: guarda el rango (fecha_inicio/fecha_fin) del periodo compensatorio de un año."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    from .models import CompensatorioPeriodoAnual
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        body = {}
+    try:
+        anio = int(body.get('anio'))
+        fi = datetime.strptime((body.get('fecha_inicio') or '').strip(), '%Y-%m-%d').date()
+        ff = datetime.strptime((body.get('fecha_fin') or '').strip(), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Fechas inválidas'})
+    if fi > ff:
+        return JsonResponse({'ok': False, 'error': 'El inicio debe ser anterior al fin'})
+    CompensatorioPeriodoAnual.objects.update_or_create(
+        anio=anio, defaults={'fecha_inicio': fi, 'fecha_fin': ff})
+    return JsonResponse({'ok': True, 'anio': anio,
+                         'fecha_inicio': fi.isoformat(), 'fecha_fin': ff.isoformat()})
 
 
 @login_required

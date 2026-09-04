@@ -837,3 +837,29 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
 })();
 
 })();
+
+/* <--- hecho por claude code: rediseño tabs 1-2 — guardar el rango del periodo compensatorio */
+(function () {
+  var btn = document.getElementById('btn-periodo-save');
+  if (!btn) return;
+  var cfgEl = document.getElementById('compensatorio_calculo_list-config');
+  var CSRF = cfgEl ? cfgEl.dataset.v0 : '';
+  btn.addEventListener('click', async function () {
+    var fi = document.getElementById('periodo-fi').value;
+    var ff = document.getElementById('periodo-ff').value;
+    var msg = document.getElementById('periodo-msg');
+    var anio = this.dataset.anio;
+    if (!fi || !ff) { msg.innerHTML = '<span class="text-danger">Completa ambas fechas.</span>'; return; }
+    btn.disabled = true;
+    try {
+      var res = await fetch('/reloj/compensatorio-calculo/periodo/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ anio: anio, fecha_inicio: fi, fecha_fin: ff }),
+      });
+      var d = await res.json();
+      if (d.ok) { msg.innerHTML = '<span class="text-success"><i class="ti ti-check me-1"></i>Periodo guardado. Recargando…</span>'; setTimeout(function () { location.reload(); }, 500); }
+      else { msg.innerHTML = '<span class="text-danger">' + (d.error || 'Error') + '</span>'; btn.disabled = false; }
+    } catch (e) { msg.innerHTML = '<span class="text-danger">Error de red.</span>'; btn.disabled = false; }
+  });
+})();
