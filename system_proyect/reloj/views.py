@@ -2702,8 +2702,8 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         dias_necesita = round(MINUTOS_POR_DIA_COMP * dias_hab / (_JORNADA_COMP_H * 60), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
-        # <--- hecho por claude code (fórmula del usuario): Debe compensar = Saldo − Total
-        debe_compensar = round(float(saldo) - total_necesita, 2)
+        # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
+        debe_compensar = round(total_necesita - float(saldo), 2)
         # Tiempo compensatorio diario
         if dias_hab > 0 and debe_compensar > 0:
             min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
