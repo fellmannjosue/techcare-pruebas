@@ -483,6 +483,22 @@ class CompensatorioPeriodoAnual(models.Model):
         return f"{self.anio}: {self.fecha_inicio} → {self.fecha_fin}"
 
 
+# <--- hecho por claude code: override manual de "Vacación acumulada" por empleado (rediseño tabs 1-2).
+# Si existe, reemplaza el valor calculado desde el módulo de Vacaciones.
+class CompensatorioVacacionManual(models.Model):
+    emp_code  = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
+    acumulada = models.DecimalField("Vacación acumulada (manual)", max_digits=7, decimal_places=2)
+
+    class Meta:
+        db_table  = "reloj_compensatorio_vacacion_manual"
+        verbose_name = "Vacación acumulada manual"
+        verbose_name_plural = "Vacaciones acumuladas manuales"
+        ordering  = ["emp_code"]
+
+    def __str__(self):
+        return f"{self.emp_code}: {self.acumulada}"
+
+
 # ── Compensatorio: matriz mensual (Horas Trabajadas / Horas Tomadas) ──────────
 # <--- hecho por claude code: tabs 3 y 4 comparten lista de empleados (manual,
 # desde ZKBio). Cada empleado tiene valores por mes/año, editables.

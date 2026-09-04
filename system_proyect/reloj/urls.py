@@ -77,6 +77,8 @@ urlpatterns = [
     path('compensatorio-calculo/', views.compensatorio_calculo_list, name='reloj_compensatorio_calculo_list'),
     # <--- hecho por claude code: guardar el rango del periodo (rediseño tabs 1-2)
     path('compensatorio-calculo/periodo/', views.compensatorio_periodo_save, name='reloj_compensatorio_periodo_save'),
+    # <--- hecho por claude code: override manual de "Vacación acumulada"
+    path('compensatorio-calculo/vac-acumulada/', views.compensatorio_vac_acumulada_save, name='reloj_compensatorio_vac_acumulada_save'),
     path('compensatorio-calculo/nuevo/', views.compensatorio_calculo_new, name='reloj_compensatorio_calculo_new'),
     path('compensatorio-calculo/<int:pk>/editar/', views.compensatorio_calculo_edit, name='reloj_compensatorio_calculo_edit'),
     path('compensatorio-calculo/<int:pk>/eliminar/', views.compensatorio_calculo_delete, name='reloj_compensatorio_calculo_delete'),

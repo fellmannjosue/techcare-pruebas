@@ -863,3 +863,30 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
     } catch (e) { msg.innerHTML = '<span class="text-danger">Error de red.</span>'; btn.disabled = false; }
   });
 })();
+
+/* <--- hecho por claude code: rediseño tabs 1-2 — editar "Vacación acumulada" (override manual) */
+(function () {
+  var cfgEl = document.getElementById('compensatorio_calculo_list-config');
+  var CSRF = cfgEl ? cfgEl.dataset.v0 : '';
+  document.querySelectorAll('.btn-edit-acum').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var emp = this.dataset.emp;
+      var nombre = this.dataset.nombre || '';
+      var actual = this.dataset.valor || '';
+      var val = window.prompt('Vacación acumulada de ' + nombre + '\n(deja vacío para volver al valor calculado):', actual);
+      if (val === null) return;                 // canceló
+      val = val.trim().replace(',', '.');
+      if (val !== '' && isNaN(parseFloat(val))) { alert('Número inválido.'); return; }
+      try {
+        var res = await fetch('/reloj/compensatorio-calculo/vac-acumulada/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({ emp_code: emp, acumulada: val }),
+        });
+        var d = await res.json();
+        if (d.ok) { location.reload(); }
+        else { alert(d.error || 'Error'); }
+      } catch (e) { alert('Error de conexión.'); }
+    });
+  });
+})();

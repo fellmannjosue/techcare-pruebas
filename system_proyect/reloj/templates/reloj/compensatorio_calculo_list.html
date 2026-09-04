@@ -43,8 +43,7 @@
 <div class="tab-content">
 
 {# ══════════════════ TAB 1 — CONTROL ADEUDADOS (rediseño) ══════════════════ #}
-{# <--- hecho por claude code: replica la hoja de vacaciones/compensatorio. Datos de vacaciones
-   reusados del módulo de Vacaciones; "Días que debe compensar" = Total − Saldo. #}
+{# <--- hecho por claude code: replica la hoja de vacaciones/compensatorio (datos reusados del módulo de Vacaciones) #}
 <div class="tab-pane fade show active" id="tab1">
   <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>
     <strong>Días que debe compensar</strong> = Total días que necesita − Saldo para gastar (vacaciones).
@@ -68,7 +67,12 @@
           <td><div class="fw-semibold">{{ r.nombre }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
           <td class="text-center">{{ r.derecho }}</td>
-          <td class="text-center {% if r.acumulada < 0 %}text-danger fw-semibold{% endif %}">{{ r.acumulada }}</td>
+          {# <--- hecho por claude code: Vacación acumulada editable (override manual) #}
+          <td class="text-center">
+            <span class="acum-val {% if r.acumulada < 0 %}text-danger fw-semibold{% endif %}">{{ r.acumulada }}</span>
+            {% if r.acumulada_es_manual %}<span class="badge bg-blue-lt text-blue ms-1" title="Valor editado manualmente">m</span>{% endif %}
+            {% if can_edit %}<button class="btn btn-sm btn-ghost-secondary btn-edit-acum px-1 py-0 ms-1" data-emp="{{ r.emp_code }}" data-nombre="{{ r.nombre }}" data-valor="{{ r.acumulada|unlocalize }}" title="Editar vacación acumulada"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>{% endif %}
+          </td>
           <td class="text-center fw-semibold">{{ r.saldo }}</td>
           <td class="text-center">{{ r.dias_necesita }}</td>
           <td class="text-center">{% if r.permisos_dias > 0 %}{{ r.permisos_dias }}{% else %}<span class="text-danger">0.00</span>{% endif %}</td>
@@ -84,8 +88,7 @@
 </div>
 
 {# ══════════════════ TAB 2 — ADEUDADOS 2: TIEMPO COMPENSATORIO DIARIO (rediseño) ══════════════════ #}
-{# <--- hecho por claude code: reparte los "días que debe compensar" sobre los días hábiles del
-   periodo del año escolar (config. por año) → cuánto debe compensar el empleado por día. #}
+{# <--- hecho por claude code: reparte los días que debe compensar sobre los días hábiles del periodo (config. por año) #}
 <div class="tab-pane fade" id="tab2">
   <div class="card mb-3"><div class="card-body py-2">
     <div class="row g-2 align-items-end">
@@ -319,6 +322,6 @@
 
 {% include 'reloj/_compensatorio_modales.html' %}
 
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=29"></script>
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=30"></script>
 
 {% endblock %}

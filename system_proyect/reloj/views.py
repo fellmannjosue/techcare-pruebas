@@ -2641,12 +2641,18 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
     Los días hábiles se cuentan de max(inicio-periodo, fecha-ingreso) a fin-periodo.
     """
     from django.db.models import Sum as _Sum
-    from .models import VacacionConfig, PermisoReporte
+    from .models import VacacionConfig, PermisoReporte, CompensatorioVacacionManual
     fi, ff = _periodo_comp_anual(anio)
     dias_hab_full = _dias_habiles_periodo(fi, ff, feriados)
 
     calculos = list(CompensatorioCalculo.objects.all())
     vac_cfgs = {str(v.emp_code): v for v in VacacionConfig.objects.all()}
+    # <--- hecho por claude code: overrides manuales de "Vacación acumulada"
+    try:
+        acum_manual = {str(m.emp_code): float(m.acumulada)
+                       for m in CompensatorioVacacionManual.objects.all()}
+    except Exception:
+        acum_manual = {}   # tabla aún no creada → sin overrides
     # días de vacación usados en el año (PermisoReporte tipo vacaciones_dias)
     vac_fi, vac_ff = date(anio, 2, 1), date(anio, 11, 30)
     usados_map = {
@@ -2670,6 +2676,10 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         saldo   = _dias_disponibles_calc(es_doc, derecho, usados, hoy, es_esp)
         _prop, acum_bruto = _vac_accrual(es_doc, ingreso, hoy, dias_fijos, derecho)
         acumulada = round(acum_bruto - usados, 2)
+        # <--- hecho por claude code: si hay override manual, manda ese valor
+        acumulada_es_manual = ec in acum_manual
+        if acumulada_es_manual:
+            acumulada = round(acum_manual[ec], 2)
         # Periodo efectivo del empleado (si ingresó después del inicio del periodo)
         emp_fi = ingreso if (ingreso and ingreso > fi) else fi
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
@@ -2688,6 +2698,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
             'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
+            'acumulada_es_manual': acumulada_es_manual,
             'saldo': round(float(saldo), 2),
             'dias_necesita': dias_necesita, 'permisos_dias': permisos_dias,
             'total_necesita': total_necesita, 'debe_compensar': debe_compensar,
@@ -3039,6 +3050,34 @@ def compensatorio_periodo_save(request):
         anio=anio, defaults={'fecha_inicio': fi, 'fecha_fin': ff})
     return JsonResponse({'ok': True, 'anio': anio,
                          'fecha_inicio': fi.isoformat(), 'fecha_fin': ff.isoformat()})
+
+
+@login_required
+@require_POST
+def compensatorio_vac_acumulada_save(request):
+    """AJAX: guarda (o quita) el override manual de "Vacación acumulada" de un empleado.
+    Enviar `acumulada` vacío/None quita el override y vuelve al valor calculado."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    from .models import CompensatorioVacacionManual
+    try:
+        body = json.loads(request.body or b'{}')
+    except Exception:
+        body = {}
+    emp_code = (body.get('emp_code') or '').strip()
+    if not emp_code:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
+    raw = body.get('acumulada')
+    if raw in (None, ''):
+        CompensatorioVacacionManual.objects.filter(emp_code=emp_code).delete()
+        return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': False})
+    try:
+        val = round(float(raw), 2)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'})
+    CompensatorioVacacionManual.objects.update_or_create(
+        emp_code=emp_code, defaults={'acumulada': val})
+    return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': True, 'acumulada': val})
 
 
 @login_required
