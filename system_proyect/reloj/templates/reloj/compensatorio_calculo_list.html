@@ -46,8 +46,10 @@
 {# <--- hecho por claude code: replica la hoja de vacaciones/compensatorio (datos reusados del módulo de Vacaciones) #}
 <div class="tab-pane fade show active" id="tab1">
   <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>
-    <strong>Días que debe compensar</strong> = Total días que necesita − Saldo para gastar (vacaciones).
-    Los datos de vacaciones se toman del módulo de <strong>Vacaciones</strong>.</div>
+    <strong>Saldo para gastar</strong> = Derecho a días − Vacación acumulada &nbsp;·&nbsp;
+    <strong>Total días que necesita</strong> = Días que necesita + 3 días de permiso &nbsp;·&nbsp;
+    <strong>Días que debe compensar</strong> = Saldo para gastar − Total días que necesita.
+    La <strong>Vacación acumulada</strong> viene del módulo de Vacaciones y es editable (lápiz).</div>
   <div class="card"><div class="card-body p-0"><div class="table-responsive">
     <table class="table table-vcenter table-hover card-table">
       <thead><tr>

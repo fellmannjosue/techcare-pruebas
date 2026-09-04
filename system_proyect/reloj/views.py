@@ -2687,13 +2687,14 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
         usados  = usados_map.get(ec, 0) + float(vc.dias_usados_manual or 0 if vc else 0)
         es_esp  = dias_fijos is not None
-        saldo   = _dias_disponibles_calc(es_doc, derecho, usados, hoy, es_esp)
+        # Vacación acumulada: del módulo de Vacaciones, o el override manual si existe
         _prop, acum_bruto = _vac_accrual(es_doc, ingreso, hoy, dias_fijos, derecho)
         acumulada = round(acum_bruto - usados, 2)
-        # <--- hecho por claude code: si hay override manual, manda ese valor
         acumulada_es_manual = ec in acum_manual
         if acumulada_es_manual:
             acumulada = round(acum_manual[ec], 2)
+        # <--- hecho por claude code (fórmula del usuario): Saldo para gastar = Derecho − Acumulada
+        saldo = round(float(derecho) - acumulada, 2)
         # Periodo efectivo del empleado (si ingresó después del inicio del periodo)
         emp_fi = ingreso if (ingreso and ingreso > fi) else fi
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
@@ -2701,7 +2702,8 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         dias_necesita = round(MINUTOS_POR_DIA_COMP * dias_hab / (_JORNADA_COMP_H * 60), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
-        debe_compensar = round(total_necesita - float(saldo), 2)
+        # <--- hecho por claude code (fórmula del usuario): Debe compensar = Saldo − Total
+        debe_compensar = round(float(saldo) - total_necesita, 2)
         # Tiempo compensatorio diario
         if dias_hab > 0 and debe_compensar > 0:
             min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
