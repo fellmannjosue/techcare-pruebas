@@ -63,6 +63,7 @@
         <th class="text-center">+ permisos extras (3 días)</th>
         <th class="text-center">Total días que necesita</th>
         <th class="text-center table-warning">Días que debe compensar</th>
+        <th class="text-center table-warning">Horas que debe compensar</th>
       </tr></thead>
       <tbody>
         {% for r in redis_rows %}
@@ -81,9 +82,11 @@
           <td class="text-center">{% if r.permisos_dias > 0 %}{{ r.permisos_dias }}{% else %}<span class="text-danger">0.00</span>{% endif %}</td>
           <td class="text-center fw-semibold">{{ r.total_necesita }}</td>
           <td class="text-center fw-bold table-warning {% if r.debe_compensar < 0 %}text-danger{% endif %}">{{ r.debe_compensar }}</td>
+          {# <--- hecho por claude code: "Días que debe compensar" convertido a horas (× 8.8) #}
+          <td class="text-center fw-bold table-warning font-monospace {% if r.horas_totales < 0 %}text-danger{% endif %}">{{ r.horas_totales }} h</td>
         </tr>
         {% empty %}
-        <tr><td colspan="9" class="text-center text-muted py-4"><i class="ti ti-calculator-off me-2"></i>Sin registros.</td></tr>
+        <tr><td colspan="10" class="text-center text-muted py-4"><i class="ti ti-calculator-off me-2"></i>Sin registros.</td></tr>
         {% endfor %}
       </tbody>
     </table>
