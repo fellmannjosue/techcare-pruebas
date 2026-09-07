@@ -2722,11 +2722,17 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         total_necesita = round(dias_necesita + permisos_dias, 2)
         # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
         debe_compensar = round(total_necesita - float(saldo), 2)
-        # Tiempo compensatorio diario
-        if dias_hab > 0 and debe_compensar > 0:
-            min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
+        horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
+        # <--- hecho por claude code (pedido del usuario): el "Tiempo diario" es lo que debe
+        # compensar CADA DÍA según su HORARIO configurado. Asistente 7:00–15:48 (8.8h) y objetivo
+        # hasta las 16:35 → 47 min/día. Ese valor es `minutos_autorizados_dia` (ya guardado).
+        # Y "días para saldar" = deuda ÷ ese ritmo diario (cuántos días quedándose hasta las 16:35).
+        import math as _mdd
+        min_diario = float(cc.minutos_autorizados_dia or 0)
+        if min_diario > 0 and horas_totales > 0:
+            dias_para_saldar = _mdd.ceil(horas_totales * 60 / min_diario)
         else:
-            min_diario = 0.0
+            dias_para_saldar = 0
         h_di = int(min_diario // 60)
         m_di = int(round(min_diario - h_di * 60))
         rows.append({
@@ -2737,9 +2743,11 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             'dias_necesita': dias_necesita, 'permisos_dias': permisos_dias,
             'total_necesita': total_necesita, 'debe_compensar': debe_compensar,
             'dias_hab': dias_hab,
-            'horas_totales': round(debe_compensar * _JORNADA_COMP_H, 2),
+            'horas_totales': horas_totales,
             'min_diario': min_diario,
             'hhmm_diario': f"{h_di}h {m_di:02d}m" if min_diario > 0 else "—",
+            'dias_para_saldar': dias_para_saldar,
+            'min_dia_autorizado': int(min_diario),
         })
     rows.sort(key=lambda x: (_especial_rank(x['nombre']), x['nombre'].lower()))
     return rows, fi, ff, dias_hab_full
@@ -3035,6 +3043,7 @@ def compensatorio_calculo_list(request):
         _it['debe_compensar_dias']  = _rd['debe_compensar'] if _rd else 0
         _it['min_diario']   = _rd['min_diario'] if _rd else 0
         _it['hhmm_diario']  = _rd['hhmm_diario'] if _rd else '—'
+        _it['dias_para_saldar'] = _rd['dias_para_saldar'] if _rd else 0
 
     ctx = {
         "gilma": gilma,
