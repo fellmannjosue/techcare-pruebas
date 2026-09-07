@@ -2658,40 +2658,6 @@ def _dias_habiles_periodo(fi, ff, feriados):
     return n
 
 
-# <--- hecho por claude code (pedido del usuario): matrícula = todos salen a las 16:00 → 12 min/día
-# (16:00 − 15:48). Dos tramos: 27-nov→18-dic y 4-ene→25-ene (del año siguiente).
-_MATRICULA_MIN_DIA = 12
-
-def _matricula_tramos(anio):
-    return [(date(anio, 11, 27), date(anio, 12, 18)),
-            (date(anio + 1, 1, 4), date(anio + 1, 1, 25))]
-
-
-def _saldo_deuda_timeline(saldo_min, min_dia_normal, hoy, periodo_fin, anio, feriados):
-    """Recorre los días hábiles acumulando compensación para saldar el SALDO DEUDA:
-    · ventana normal (hoy → periodo_fin, p.ej. 26-nov): `min_dia_normal` por día (47 asistente)
-    · matrícula (2 tramos): 12 min por día (todos salen a las 16:00)
-    Devuelve (total_disponible_min, fecha_saldo | None) — fecha en que lo acumulado cubre la deuda."""
-    from datetime import timedelta as _td
-    tramos = [(hoy, periodo_fin, float(min_dia_normal or 0))]
-    for (mi, mf) in _matricula_tramos(anio):
-        tramos.append((mi, mf, float(_MATRICULA_MIN_DIA)))
-    acumulado = total = 0.0
-    fecha_saldo = None
-    for (ini, fin, rate) in tramos:
-        if rate <= 0 or not ini or not fin:
-            continue
-        d = max(ini, hoy)
-        while d <= fin:
-            if d.weekday() < 5 and d not in feriados:
-                total += rate
-                acumulado += rate
-                if fecha_saldo is None and saldo_min > 0 and acumulado >= saldo_min:
-                    fecha_saldo = d
-            d += _td(days=1)
-    return round(total, 1), fecha_saldo
-
-
 def _compensatorio_rediseno_rows(anio, feriados, hoy):
     """Filas del rediseño de tabs 1-2: por empleado del Control Compensatorio,
     con datos de Vacaciones (derecho/acumulada/saldo) y el tiempo compensatorio DIARIO.
@@ -2757,16 +2723,11 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
         debe_compensar = round(total_necesita - float(saldo), 2)
         horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
-        # <--- hecho por claude code (pedido del usuario): el "Tiempo diario" es lo que debe
-        # compensar CADA DÍA según su HORARIO configurado. Asistente 7:00–15:48 (8.8h) y objetivo
-        # hasta las 16:35 → 47 min/día. Ese valor es `minutos_autorizados_dia` (ya guardado).
-        # Y "días para saldar" = deuda ÷ ese ritmo diario (cuántos días quedándose hasta las 16:35).
-        import math as _mdd
-        min_diario = float(cc.minutos_autorizados_dia or 0)
-        if min_diario > 0 and horas_totales > 0:
-            dias_para_saldar = _mdd.ceil(horas_totales * 60 / min_diario)
+        # Tiempo compensatorio diario = deuda repartida en los días hábiles del periodo
+        if dias_hab > 0 and debe_compensar > 0:
+            min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
         else:
-            dias_para_saldar = 0
+            min_diario = 0.0
         h_di = int(min_diario // 60)
         m_di = int(round(min_diario - h_di * 60))
         rows.append({
@@ -2780,8 +2741,6 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             'horas_totales': horas_totales,
             'min_diario': min_diario,
             'hhmm_diario': f"{h_di}h {m_di:02d}m" if min_diario > 0 else "—",
-            'dias_para_saldar': dias_para_saldar,
-            'min_dia_autorizado': int(min_diario),
         })
     rows.sort(key=lambda x: (_especial_rank(x['nombre']), x['nombre'].lower()))
     return rows, fi, ff, dias_hab_full
@@ -3071,28 +3030,11 @@ def compensatorio_calculo_list(request):
     # <--- hecho por claude code: llevar "Horas que debe compensar" y "Tiempo diario" al tab 2
     # (que itera registros_data). Se unen por pk del CompensatorioCalculo.
     _redis_by_pk = {r['pk']: r for r in redis_rows}
-    # <--- hecho por claude code (pedido del usuario): min/día para saldar el SALDO DEUDA
-    # repartido en los días hábiles que quedan del periodo (desde hoy hasta el fin, p.ej. 26-nov).
-    _ini_deuda = max(hoy, periodo_inicio)
-    _dias_hab_deuda = _dias_habiles_periodo(_ini_deuda, periodo_fin, feriados)
     for _it in registros_data:
         _rd = _redis_by_pk.get(_it['r'].pk)
         _it['debe_compensar_horas'] = _rd['horas_totales'] if _rd else 0
-        _it['debe_compensar_dias']  = _rd['debe_compensar'] if _rd else 0
-        _it['min_diario']   = _rd['min_diario'] if _rd else 0
-        _it['hhmm_diario']  = _rd['hhmm_diario'] if _rd else '—'
-        _it['dias_para_saldar'] = _rd['dias_para_saldar'] if _rd else 0
-        # <--- hecho por claude code (bolsa total): compensación disponible (normal 47/día hasta
-        # 26-nov + matrícula 12/día) y fecha estimada en que salda su saldo deuda.
-        _sd_min = (_it.get('saldo_fecha_hrs', 0) or 0) * 60
-        _min_normal = _it['r'].minutos_autorizados_dia
-        _disp_min, _fsaldo = _saldo_deuda_timeline(
-            _sd_min, _min_normal, hoy, periodo_fin, anio_sel, feriados)
-        _it['comp_disponible_hrs'] = round(_disp_min / 60, 2)
-        _it['fecha_saldo'] = _fsaldo
-        _it['alcanza'] = (_disp_min >= _sd_min) if _sd_min > 0 else True
-    ctx_dias_hab_deuda = _dias_hab_deuda
-    ctx_ini_deuda = _ini_deuda
+        _it['min_diario']  = _rd['min_diario'] if _rd else 0
+        _it['hhmm_diario'] = _rd['hhmm_diario'] if _rd else '—'
 
     ctx = {
         "gilma": gilma,
@@ -3102,8 +3044,6 @@ def compensatorio_calculo_list(request):
         "periodo_inicio":        periodo_inicio,
         "periodo_fin":           periodo_fin,
         "periodo_dias_habiles":  periodo_dias_habiles,
-        "dias_hab_deuda":        ctx_dias_hab_deuda,
-        "ini_deuda":             ctx_ini_deuda,
         "feriados_count": Feriado.objects.count(),
         "minutos_dia": MINUTOS_POR_DIA_COMP,
         "can_edit":              can_edit,

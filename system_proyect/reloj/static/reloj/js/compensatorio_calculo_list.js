@@ -30,6 +30,8 @@ const CFG_COMPENSATORIO_CALCULO_LIST = (function(){
     j11: j(d.v11),
     v12: d.v12,
     j12: j(d.v12),
+    v13: d.v13,
+    j13: j(d.v13),
   };
 })();
 
@@ -67,6 +69,7 @@ window._PAGE = {
   canEditExtra:   CFG_COMPENSATORIO_CALCULO_LIST.j9,
   canDeleteExtra: CFG_COMPENSATORIO_CALCULO_LIST.j10,
   isSuperuser:    CFG_COMPENSATORIO_CALCULO_LIST.j11,
+  puedeTomado:    CFG_COMPENSATORIO_CALCULO_LIST.j13,  // <--- hecho por claude code: grupo reloj gestiona tomado manual
   anio:         CFG_COMPENSATORIO_CALCULO_LIST.j12,
   urlTeGet:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/',
   urlTeAdd:     '/reloj/compensatorio-calculo/{pk}/tiempo-extra/add/',
@@ -77,6 +80,7 @@ window._PAGE = {
   urlGetTomado: '/reloj/compensatorio-calculo/{pk}/tomado/',
   urlTomManualAdd: '/reloj/compensatorio-calculo/{pk}/tomado-manual/add/',
   urlTomManualDel: '/reloj/compensatorio-tomado-manual/{pk}/delete/',
+  urlTomManualEdit: '/reloj/compensatorio-tomado-manual/{pk}/edit/',
   urlMensualAdd:    CFG_COMPENSATORIO_CALCULO_LIST.v2,
   urlMensualCell:   CFG_COMPENSATORIO_CALCULO_LIST.v3,
   urlMensualComentario: CFG_COMPENSATORIO_CALCULO_LIST.v4,
@@ -240,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function () {
     empty.style.display = 'none';
     manual.forEach(m => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-tomm-del" data-pk="${m.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.puedeTomado ? `<td class="text-center text-nowrap"><button class="btn btn-sm btn-ghost-primary btn-tomm-edit" data-pk="${m.pk}" data-fecha="${m.fecha_iso}" data-horas="${m.horas}" data-razon="${(m.razon_raw || '').replace(/"/g, '&quot;')}" title="Editar"><i class="ti ti-pencil"></i></button><button class="btn btn-sm btn-ghost-danger btn-tomm-del" data-pk="${m.pk}" title="Eliminar"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
@@ -302,9 +306,24 @@ document.addEventListener('DOMContentLoaded', function () {
         renderReceso(d.receso || []);
         document.getElementById('tom-total-permiso').textContent = d.total_permiso;
         document.getElementById('tom-total-tomado').textContent = d.total_tomado;
+        // <--- hecho por claude code: empleado especial → detalle = FERIADOS ANA, sin manual.
+        // El receso (minutos de más) SÍ se muestra y suma al tomado también en este caso.
+        const soloFer = !!d.solo_feriados;
+        const tit = document.getElementById('tom-detalle-titulo');
+        if (tit) tit.innerHTML = soloFer
+          ? '<i class="ti ti-beach me-1 text-pink"></i>Feriados ANA (días no laborables)'
+          : '<i class="ti ti-list me-1 text-pink"></i>Detalle (permiso compensatorio)';
+        const mw = document.getElementById('tom-manual-wrap'); if (mw) mw.style.display = soloFer ? 'none' : '';
       }
     });
   });
+  // <--- hecho por claude code: editar llena el formulario y el botón pasa a "Guardar cambios"
+  function tommModoEdicion(pk) {
+    const btn = document.getElementById('btn-tomm-add');
+    if (!btn) return;
+    if (pk) { btn.dataset.editPk = pk; btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Guardar cambios'; btn.classList.add('btn-orange'); }
+    else { delete btn.dataset.editPk; btn.innerHTML = '<i class="ti ti-plus me-1"></i>Agregar'; btn.classList.remove('btn-orange'); }
+  }
   document.getElementById('btn-tomm-add')?.addEventListener('click', async function () {
     const fecha = document.getElementById('tomm-fecha').value;
     const horas = parseFloat(document.getElementById('tomm-horas').value);
@@ -313,14 +332,27 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona una fecha.'; err.classList.remove('d-none'); return; }
     if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Ingresa horas válidas.'; err.classList.remove('d-none'); return; }
     err.classList.add('d-none'); this.disabled = true;
-    const d = await jpost(window._PAGE.urlTomManualAdd.replace('{pk}', tomPk), { fecha, horas, razon });
+    const editPk = this.dataset.editPk;
+    const url = editPk ? window._PAGE.urlTomManualEdit.replace('{pk}', editPk)
+                       : window._PAGE.urlTomManualAdd.replace('{pk}', tomPk);
+    const d = await jpost(url, { fecha, horas, razon });
     this.disabled = false;
     if (d.ok) {
       document.getElementById('tomm-horas').value = ''; document.getElementById('tomm-razon').value = '';
+      tommModoEdicion(null);
       renderTomManual(d.manual); refreshTomCells(d);
     } else { err.querySelector('.alert').textContent = d.error || 'Error'; err.classList.remove('d-none'); }
   });
   document.getElementById('tomm-tbody')?.addEventListener('click', async function (e) {
+    const ed = e.target.closest('.btn-tomm-edit');
+    if (ed) {
+      document.getElementById('tomm-fecha').value = ed.dataset.fecha || '';
+      document.getElementById('tomm-horas').value = ed.dataset.horas || '';
+      document.getElementById('tomm-razon').value = ed.dataset.razon || '';
+      tommModoEdicion(ed.dataset.pk);
+      document.getElementById('tomm-horas').focus();
+      return;
+    }
     const btn = e.target.closest('.btn-tomm-del'); if (!btn) return;
     btn.disabled = true;
     const d = await jpost(window._PAGE.urlTomManualDel.replace('{pk}', btn.dataset.pk));
@@ -401,12 +433,19 @@ document.addEventListener('DOMContentLoaded', function () {
     empty.style.display = 'none';
     dias.forEach(d => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-muted small">${d.descripcion || '—'}</td><td class="text-center fw-semibold text-orange">${d.horas} h</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${d.id}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      // <--- hecho por claude code: estado según si el feriado ya pasó (fecha)
+      const estado = d.pendiente
+        ? '<span class="badge bg-orange-lt text-orange"><i class="ti ti-clock me-1"></i>Pendiente</span>'
+        : '<span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>Aplicado</span>';
+      // <--- hecho por claude code: columna Días (valor propio de cada entrada)
+      const diasCel = (d.dias != null) ? `${d.dias}` : '<span class="text-muted">—</span>';
+      tr.innerHTML = `<td class="text-muted small font-monospace">${d.fecha || '—'}</td><td class="text-muted small">${d.descripcion || '—'}</td><td class="text-center fw-semibold text-orange">${d.horas} h</td><td class="text-center fw-semibold text-azure">${diasCel}</td><td class="text-center">${estado}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${d.id}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
-  function updateDNLTotals(totalHrs) {
-    const dias = totalHrs > 0 ? +(totalHrs / 8).toFixed(2) : 0;
+  function updateDNLTotals(totalHrs, totalDias) {
+    // <--- hecho por claude code: los días son la SUMA del campo `dias` de cada entrada (no horas/8)
+    const dias = (totalDias != null) ? totalDias : (totalHrs > 0 ? +(totalHrs / 8.8).toFixed(2) : 0);
     document.getElementById('dnl-total-hrs').textContent = totalHrs;
     document.getElementById('dnl-total-dias').textContent = dias;
     const badge = document.querySelector(`.dias-no-lab-badge-${dnlPk}`);
@@ -414,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   async function reloadDNL() {
     const d = await (await fetch(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/`)).json();
-    if (d.ok) { renderDNL(d.dias); updateDNLTotals(d.total_hrs); }
+    if (d.ok) { renderDNL(d.dias); updateDNLTotals(d.total_hrs, d.total_dias); }
   }
   document.querySelectorAll('.btn-dias-no-lab').forEach(btn => {
     btn.addEventListener('click', async function () {
@@ -422,6 +461,8 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('dnl-nombre').textContent = this.dataset.nombre;
       if (document.getElementById('dnl-horas')) document.getElementById('dnl-horas').value = '8.8';
       if (document.getElementById('dnl-desc')) document.getElementById('dnl-desc').value = '';
+      if (document.getElementById('dnl-fecha')) document.getElementById('dnl-fecha').value = '';
+      if (document.getElementById('dnl-dias')) document.getElementById('dnl-dias').value = '';
       if (!modalDNL) modalDNL = new bootstrap.Modal(document.getElementById('modalDiasNoLab'));
       modalDNL.show(); reloadDNL();
     });
@@ -429,12 +470,15 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('btn-dnl-add')?.addEventListener('click', async function () {
     const horas = parseFloat(document.getElementById('dnl-horas').value);
     const desc = document.getElementById('dnl-desc').value;
+    const fecha = document.getElementById('dnl-fecha').value;  // <--- hecho por claude code
+    const diasRaw = document.getElementById('dnl-dias').value;  // <--- hecho por claude code
     const err = document.getElementById('dnl-add-error');
     if (!horas || horas <= 0) { err.querySelector('.alert').textContent = 'Horas inválidas.'; err.classList.remove('d-none'); return; }
+    if (!fecha) { err.querySelector('.alert').textContent = 'Selecciona la fecha del feriado.'; err.classList.remove('d-none'); return; }
     err.classList.add('d-none'); this.disabled = true;
-    await jpost(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/add/`, { horas, descripcion: desc });
+    await jpost(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/add/`, { horas, descripcion: desc, fecha, dias: diasRaw });
     this.disabled = false;
-    document.getElementById('dnl-horas').value = '8.8'; document.getElementById('dnl-desc').value = '';
+    document.getElementById('dnl-horas').value = '8.8'; document.getElementById('dnl-desc').value = ''; document.getElementById('dnl-fecha').value = ''; document.getElementById('dnl-dias').value = '';
     reloadDNL();
   });
   document.getElementById('dnl-tbody')?.addEventListener('click', async function (e) {
@@ -838,54 +882,73 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
 
 })();
 
-/* <--- hecho por claude code: rediseño tabs 1-2 — guardar el rango del periodo compensatorio */
-(function () {
-  var btn = document.getElementById('btn-periodo-save');
-  if (!btn) return;
-  var cfgEl = document.getElementById('compensatorio_calculo_list-config');
-  var CSRF = cfgEl ? cfgEl.dataset.v0 : '';
-  btn.addEventListener('click', async function () {
-    var fi = document.getElementById('periodo-fi').value;
-    var ff = document.getElementById('periodo-ff').value;
-    var msg = document.getElementById('periodo-msg');
-    var anio = this.dataset.anio;
-    if (!fi || !ff) { msg.innerHTML = '<span class="text-danger">Completa ambas fechas.</span>'; return; }
-    btn.disabled = true;
-    try {
-      var res = await fetch('/reloj/compensatorio-calculo/periodo/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-        body: JSON.stringify({ anio: anio, fecha_inicio: fi, fecha_fin: ff }),
-      });
-      var d = await res.json();
-      if (d.ok) { msg.innerHTML = '<span class="text-success"><i class="ti ti-check me-1"></i>Periodo guardado. Recargando…</span>'; setTimeout(function () { location.reload(); }, 500); }
-      else { msg.innerHTML = '<span class="text-danger">' + (d.error || 'Error') + '</span>'; btn.disabled = false; }
-    } catch (e) { msg.innerHTML = '<span class="text-danger">Error de red.</span>'; btn.disabled = false; }
-  });
-})();
-
-/* <--- hecho por claude code: rediseño tabs 1-2 — editar "Vacación acumulada" (override manual) */
+/* <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario" */
 (function () {
   var cfgEl = document.getElementById('compensatorio_calculo_list-config');
   var CSRF = cfgEl ? cfgEl.dataset.v0 : '';
+  // Guardar periodo
+  var btnP = document.getElementById('btn-periodo-save');
+  if (btnP) {
+    btnP.addEventListener('click', async function () {
+      var fi = document.getElementById('periodo-fi').value;
+      var ff = document.getElementById('periodo-ff').value;
+      var msg = document.getElementById('periodo-msg');
+      var anio = this.dataset.anio;
+      if (!fi || !ff) { msg.innerHTML = '<span class="text-danger">Completa ambas fechas.</span>'; return; }
+      btnP.disabled = true;
+      try {
+        var res = await fetch('/reloj/compensatorio-calculo/periodo/', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({ anio: anio, fecha_inicio: fi, fecha_fin: ff }),
+        });
+        var d = await res.json();
+        if (d.ok) { msg.innerHTML = '<span class="text-success"><i class="ti ti-check me-1"></i>Guardado. Recargando…</span>'; setTimeout(function () { location.reload(); }, 500); }
+        else { msg.innerHTML = '<span class="text-danger">' + (d.error || 'Error') + '</span>'; btnP.disabled = false; }
+      } catch (e) { msg.innerHTML = '<span class="text-danger">Error de red.</span>'; btnP.disabled = false; }
+    });
+  }
+  // Editar "Vacación acumulada" (override manual)
   document.querySelectorAll('.btn-edit-acum').forEach(function (btn) {
     btn.addEventListener('click', async function () {
-      var emp = this.dataset.emp;
-      var nombre = this.dataset.nombre || '';
-      var actual = this.dataset.valor || '';
+      var emp = this.dataset.emp, nombre = this.dataset.nombre || '', actual = this.dataset.valor || '';
       var val = window.prompt('Vacación acumulada de ' + nombre + '\n(deja vacío para volver al valor calculado):', actual);
-      if (val === null) return;                 // canceló
+      if (val === null) return;
       val = val.trim().replace(',', '.');
       if (val !== '' && isNaN(parseFloat(val))) { alert('Número inválido.'); return; }
       try {
         var res = await fetch('/reloj/compensatorio-calculo/vac-acumulada/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
           body: JSON.stringify({ emp_code: emp, acumulada: val }),
         });
         var d = await res.json();
-        if (d.ok) { location.reload(); }
-        else { alert(d.error || 'Error'); }
+        if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); }
+      } catch (e) { alert('Error de conexión.'); }
+    });
+  });
+})();
+
+/* <--- hecho por claude code: editar "+ permisos extras (3 días)" en tab "Compensatorio por vacaciones" */
+(function () {
+  var cfgEl = document.getElementById('compensatorio_calculo_list-config');
+  var CSRF = cfgEl ? cfgEl.dataset.v0 : '';
+  var JORNADA = 8.8;
+  document.querySelectorAll('.btn-edit-permiso').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var pk = this.dataset.pk, nombre = this.dataset.nombre || '', actual = this.dataset.valor || '';
+      var val = window.prompt('Permisos extras (en DÍAS) de ' + nombre + '\n(ej. 3; deja 0 para quitar):', actual);
+      if (val === null) return;
+      val = val.trim().replace(',', '.');
+      var dias = parseFloat(val);
+      if (val !== '' && isNaN(dias)) { alert('Número inválido.'); return; }
+      if (val === '') dias = 0;
+      var horas = Math.round(dias * JORNADA * 100) / 100;   // días → horas
+      try {
+        var res = await fetch('/reloj/compensatorio-calculo/' + pk + '/set-permisos-extras/', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+          body: JSON.stringify({ horas: horas }),
+        });
+        var d = await res.json();
+        if (d.ok) { location.reload(); } else { alert(d.error || 'Error'); }
       } catch (e) { alert('Error de conexión.'); }
     });
   });
