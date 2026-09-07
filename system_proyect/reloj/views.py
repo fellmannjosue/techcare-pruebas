@@ -3037,6 +3037,10 @@ def compensatorio_calculo_list(request):
     # <--- hecho por claude code: llevar "Horas que debe compensar" y "Tiempo diario" al tab 2
     # (que itera registros_data). Se unen por pk del CompensatorioCalculo.
     _redis_by_pk = {r['pk']: r for r in redis_rows}
+    # <--- hecho por claude code (pedido del usuario): min/día para saldar el SALDO DEUDA
+    # repartido en los días hábiles que quedan del periodo (desde hoy hasta el fin, p.ej. 26-nov).
+    _ini_deuda = max(hoy, periodo_inicio)
+    _dias_hab_deuda = _dias_habiles_periodo(_ini_deuda, periodo_fin, feriados)
     for _it in registros_data:
         _rd = _redis_by_pk.get(_it['r'].pk)
         _it['debe_compensar_horas'] = _rd['horas_totales'] if _rd else 0
@@ -3044,6 +3048,14 @@ def compensatorio_calculo_list(request):
         _it['min_diario']   = _rd['min_diario'] if _rd else 0
         _it['hhmm_diario']  = _rd['hhmm_diario'] if _rd else '—'
         _it['dias_para_saldar'] = _rd['dias_para_saldar'] if _rd else 0
+        # min/día para saldar el saldo deuda en los días hábiles restantes
+        _sd = _it.get('saldo_fecha_hrs', 0) or 0
+        if _dias_hab_deuda > 0 and _sd > 0:
+            _it['min_dia_deuda'] = round(_sd * 60 / _dias_hab_deuda, 1)
+        else:
+            _it['min_dia_deuda'] = 0.0
+    ctx_dias_hab_deuda = _dias_hab_deuda
+    ctx_ini_deuda = _ini_deuda
 
     ctx = {
         "gilma": gilma,
@@ -3053,6 +3065,8 @@ def compensatorio_calculo_list(request):
         "periodo_inicio":        periodo_inicio,
         "periodo_fin":           periodo_fin,
         "periodo_dias_habiles":  periodo_dias_habiles,
+        "dias_hab_deuda":        ctx_dias_hab_deuda,
+        "ini_deuda":             ctx_ini_deuda,
         "feriados_count": Feriado.objects.count(),
         "minutos_dia": MINUTOS_POR_DIA_COMP,
         "can_edit":              can_edit,

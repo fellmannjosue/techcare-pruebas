@@ -130,6 +130,7 @@
         <th class="text-center">Tiempo tomado</th>
         <th class="text-center">Saldo hasta la fecha</th>
         <th class="text-center">Saldo deuda</th>
+        <th class="text-center table-warning">Min/día para saldar deuda<br><span class="text-muted" style="font-weight:400;font-size:.72rem;">(hasta {{ periodo_fin|date:"d/m" }} · {{ dias_hab_deuda }} días háb.)</span></th>
         <th class="text-center">Fecha fin estimada</th>
       </tr></thead>
       <tbody>
@@ -181,13 +182,18 @@
               {% else %}<span class="badge bg-green-lt text-green saldo-fecha-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>0 h</span>{% endif %}
             {% else %}<span class="badge bg-red-lt text-red saldo-fecha-{{ r.pk }}">{{ item.saldo_fecha_hrs }} h</span>{% endif %}
           </td>
+          {# <--- hecho por claude code: min/día para saldar el saldo deuda en los días hábiles restantes #}
+          <td class="text-center table-warning">
+            {% if item.min_dia_deuda > 0 %}<span class="fw-bold fs-5 text-orange">{{ item.min_dia_deuda|floatformat:0 }} min</span><div class="text-muted small">por día</div>
+            {% else %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>0</span>{% endif %}
+          </td>
           <td class="text-center">
             {% if item.fecha_fin_est %}<span class="badge bg-green-lt text-green fecha-fin-badge-{{ r.pk }}"><i class="ti ti-calendar-check me-1"></i>{{ item.fecha_fin_est|date:"d/m/Y" }}</span>
             {% else %}<span class="badge bg-green-lt text-green fecha-fin-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>{% endif %}
           </td>
         </tr>
         {% endwith %}{% empty %}
-        <tr><td colspan="11" class="text-center text-muted py-4">Sin registros.</td></tr>
+        <tr><td colspan="12" class="text-center text-muted py-4">Sin registros.</td></tr>
         {% endfor %}
       </tbody>
     </table>
