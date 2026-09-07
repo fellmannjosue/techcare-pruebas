@@ -114,9 +114,9 @@
     <div id="periodo-msg" class="small mt-2"></div>
   </div></div>
   <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>
-    <strong>Tiempo diario</strong> = lo que debe compensar CADA DÍA según su horario (asistente 7:00–15:48; objetivo hasta las <strong>16:35</strong> = 47 min/día). &nbsp;·&nbsp;
-    <strong>Días para saldar</strong> = Horas que debe compensar ÷ tiempo diario (cuántos días quedándose hasta las 16:35). &nbsp;·&nbsp;
-    <strong>Saldo hasta la fecha</strong> = Compensado + Tiempo extra − Tiempo tomado.</div>
+    <strong>Tiempo diario</strong> = lo que compensa CADA DÍA según su horario (7:00–15:48; objetivo 16:35 = 47 min/día). &nbsp;·&nbsp;
+    <strong>Compensación disponible</strong> = lo que puede acumular de hoy al 25-ene: 47 min/día hasta {{ periodo_fin|date:"d/m" }} + <strong>matrícula</strong> (27-nov→18-dic y 4-ene→25-ene) a 12 min/día (salen 16:00). &nbsp;·&nbsp;
+    <strong>Fecha estimada de saldo</strong> = cuándo esa compensación cubre el Saldo deuda.</div>
   <div class="card"><div class="card-body p-0"><div class="table-responsive">
     <table id="tabla-calculo2" class="table table-vcenter table-hover card-table">
       <thead><tr>
@@ -130,8 +130,8 @@
         <th class="text-center">Tiempo tomado</th>
         <th class="text-center">Saldo hasta la fecha</th>
         <th class="text-center">Saldo deuda</th>
-        <th class="text-center table-warning">Min/día para saldar deuda<br><span class="text-muted" style="font-weight:400;font-size:.72rem;">(hasta {{ periodo_fin|date:"d/m" }} · {{ dias_hab_deuda }} días háb.)</span></th>
-        <th class="text-center">Fecha fin estimada</th>
+        <th class="text-center table-warning">Compensación disponible<br><span class="text-muted" style="font-weight:400;font-size:.72rem;">(47 min/día hasta {{ periodo_fin|date:"d/m" }} + matrícula 12 min/día)</span></th>
+        <th class="text-center table-warning">Fecha estimada de saldo</th>
       </tr></thead>
       <tbody>
         {% for item in registros_data %}{% with r=item.r %}
@@ -182,14 +182,15 @@
               {% else %}<span class="badge bg-green-lt text-green saldo-fecha-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>0 h</span>{% endif %}
             {% else %}<span class="badge bg-red-lt text-red saldo-fecha-{{ r.pk }}">{{ item.saldo_fecha_hrs }} h</span>{% endif %}
           </td>
-          {# <--- hecho por claude code: min/día para saldar el saldo deuda en los días hábiles restantes #}
+          {# <--- hecho por claude code: compensación disponible (bolsa total: normal + matrícula) #}
           <td class="text-center table-warning">
-            {% if item.min_dia_deuda > 0 %}<span class="fw-bold fs-5 text-orange">{{ item.min_dia_deuda|floatformat:0 }} min</span><div class="text-muted small">por día</div>
-            {% else %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>0</span>{% endif %}
+            <span class="fw-bold font-monospace">{{ item.comp_disponible_hrs }} h</span>
           </td>
+          {# <--- hecho por claude code: fecha estimada en que salda su deuda (o "no alcanza") #}
           <td class="text-center">
-            {% if item.fecha_fin_est %}<span class="badge bg-green-lt text-green fecha-fin-badge-{{ r.pk }}"><i class="ti ti-calendar-check me-1"></i>{{ item.fecha_fin_est|date:"d/m/Y" }}</span>
-            {% else %}<span class="badge bg-green-lt text-green fecha-fin-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>{% endif %}
+            {% if item.saldo_fecha_hrs <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
+            {% elif item.fecha_saldo %}<span class="badge bg-green-lt text-green"><i class="ti ti-calendar-check me-1"></i>{{ item.fecha_saldo|date:"d/m/Y" }}</span>
+            {% else %}<span class="badge bg-red-lt text-red"><i class="ti ti-alert-triangle me-1"></i>No alcanza</span>{% endif %}
           </td>
         </tr>
         {% endwith %}{% empty %}
