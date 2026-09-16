@@ -2606,10 +2606,17 @@ _MIN_COMP_DIA = 47
 _MIN_MATRICULA_DIA = 12
 
 
-def _matricula_tramos(anio, fin_periodo):
-    from datetime import timedelta as _tdm
-    return [(fin_periodo + _tdm(days=1), date(anio, 12, 18)),
-            (date(anio + 1, 1, 4), date(anio + 1, 2, 1))]
+# <--- hecho por claude code (16-sep-2026): tramos de MATRÍCULA por año (todos salen a las 4:00 pm = 12 min).
+# 2026: 30-nov → 18-dic (el 30-nov ya cuenta como matrícula, así que los 47 min corren hasta el 27-nov).
+# 2027 "cambia la situación" (palabras del usuario): agregar aquí sus tramos cuando se definan;
+# un año sin entrada = sin matrícula.
+_MATRICULA_POR_ANIO = {
+    2026: [((11, 30), (12, 18))],
+}
+
+
+def _matricula_tramos(anio, fin_periodo=None):
+    return [(date(anio, *a), date(anio, *b)) for a, b in _MATRICULA_POR_ANIO.get(anio, [])]
 
 
 def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
@@ -2621,6 +2628,10 @@ def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
     import math as _m
     fecha, alcanza, en_mat, acum = None, min_necesarios <= 0, False, 0.0
     dias_hab = dias_mat = 0
+    tramos = _matricula_tramos(anio, ff)
+    if tramos and tramos[0][0] <= ff:          # la matrícula arranca dentro del periodo: los 47 min paran antes
+        from datetime import timedelta as _tdc
+        ff = tramos[0][0] - _tdc(days=1)
     d = inicio
     while d <= ff:
         if d.weekday() < 5 and d not in feriados:
@@ -2630,7 +2641,7 @@ def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
                 if acum >= min_necesarios:
                     fecha, alcanza = d, True
         d += _tdr(days=1)
-    for m_fi, m_ff in _matricula_tramos(anio, ff):
+    for m_fi, m_ff in tramos:
         d = max(m_fi, inicio)
         while d <= m_ff:
             if d.weekday() < 5 and d not in feriados:
