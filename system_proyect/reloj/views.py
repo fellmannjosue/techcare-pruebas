@@ -2612,6 +2612,41 @@ def _matricula_tramos(anio, fin_periodo):
             (date(anio + 1, 1, 4), date(anio + 1, 2, 1))]
 
 
+def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
+    """<--- hecho por claude code (16-sep-2026): recorre los días hábiles desde `inicio` sumando
+    47 min/día hasta `ff` y luego 12 min/día en los tramos de matrícula, hasta cubrir
+    `min_necesarios`. Devuelve fecha en que termina, si alcanza, si cae en matrícula y el
+    máximo compensable (min) desde `inicio`."""
+    from datetime import timedelta as _tdr
+    import math as _m
+    fecha, alcanza, en_mat, acum = None, min_necesarios <= 0, False, 0.0
+    dias_hab = dias_mat = 0
+    d = inicio
+    while d <= ff:
+        if d.weekday() < 5 and d not in feriados:
+            dias_hab += 1
+            if not alcanza:
+                acum += _MIN_COMP_DIA
+                if acum >= min_necesarios:
+                    fecha, alcanza = d, True
+        d += _tdr(days=1)
+    for m_fi, m_ff in _matricula_tramos(anio, ff):
+        d = max(m_fi, inicio)
+        while d <= m_ff:
+            if d.weekday() < 5 and d not in feriados:
+                dias_mat += 1
+                if not alcanza:
+                    acum += _MIN_MATRICULA_DIA
+                    if acum >= min_necesarios:
+                        fecha, alcanza, en_mat = d, True, True
+            d += _tdr(days=1)
+    disponible = dias_hab * _MIN_COMP_DIA + dias_mat * _MIN_MATRICULA_DIA
+    return {'fecha': fecha, 'alcanza': alcanza, 'en_matricula': en_mat,
+            'dias_hab': dias_hab, 'dias_mat': dias_mat, 'disponible_min': disponible,
+            'dias_47': int(_m.ceil(min_necesarios / _MIN_COMP_DIA)) if min_necesarios > 0 else 0,
+            'faltan_h': round(max(0.0, min_necesarios - disponible) / 60, 2) if not alcanza else 0.0}
+
+
 def _ensure_model_table(model):
     """<--- hecho por claude code: en PRUEBAS las migraciones están gitignored y la BD es un
     clon, así que las tablas nuevas no se crean con `migrate`. Este helper crea la tabla del
@@ -2740,37 +2775,13 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         # Lo que se calcula es cuántos días de 47 min necesita y en qué fecha termina, recorriendo
         # los días hábiles del periodo (L-V sin feriados) desde max(inicio, ingreso). Si se pasa del
         # fin del periodo, no alcanza y se informa cuánto falta.
-        import math as _math
-        from datetime import timedelta as _td2
         min_diario = float(_MIN_COMP_DIA) if debe_compensar > 0 else 0.0
         h_di = int(min_diario // 60)
         m_di = int(round(min_diario - h_di * 60))
         min_necesarios = max(0.0, horas_totales * 60)
-        dias_necesarios = int(_math.ceil(min_necesarios / _MIN_COMP_DIA)) if min_necesarios > 0 else 0
-        fecha_termina, alcanza, en_matricula, acumulado, d = None, True, False, 0.0, emp_fi
-        if dias_necesarios > 0:
-            alcanza = False
-            while d <= ff:
-                if d.weekday() < 5 and d not in feriados:
-                    acumulado += _MIN_COMP_DIA
-                    if acumulado >= min_necesarios:
-                        fecha_termina, alcanza = d, True
-                        break
-                d += _td2(days=1)
-        # Matrícula: si no alcanzó en el periodo, sigue a 12 min/día en los tramos de matrícula
-        dias_mat = 0
-        for m_fi, m_ff in _matricula_tramos(anio, ff):
-            d = max(m_fi, emp_fi)
-            while d <= m_ff:
-                if d.weekday() < 5 and d not in feriados:
-                    dias_mat += 1
-                    if dias_necesarios > 0 and not alcanza:
-                        acumulado += _MIN_MATRICULA_DIA
-                        if acumulado >= min_necesarios:
-                            fecha_termina, alcanza, en_matricula = d, True, True
-                d += _td2(days=1)
-        disponible_min = dias_hab * _MIN_COMP_DIA + dias_mat * _MIN_MATRICULA_DIA   # máximo compensable (periodo + matrícula)
-        faltan_h = round(max(0.0, min_necesarios - disponible_min) / 60, 2) if not alcanza else 0.0
+        rec = _recorrer_compensatorio(emp_fi, ff, anio, feriados, min_necesarios)
+        dias_necesarios, fecha_termina, alcanza = rec['dias_47'], rec['fecha'], rec['alcanza']
+        en_matricula, dias_mat, disponible_min, faltan_h = rec['en_matricula'], rec['dias_mat'], rec['disponible_min'], rec['faltan_h']
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
             'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
@@ -2788,6 +2799,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             'alcanza': alcanza,
             'en_matricula': en_matricula,
             'dias_matricula': dias_mat,
+            'emp_fi': emp_fi, 'ff': ff,
             'faltan_h': faltan_h,
             'disponible_h': round(disponible_min / 60, 2),
         })
@@ -3089,6 +3101,25 @@ def compensatorio_calculo_list(request):
         _it['fecha_termina']   = _rd['fecha_termina'] if _rd else None
         _it['alcanza']         = _rd['alcanza'] if _rd else True
         _it['en_matricula']    = _rd['en_matricula'] if _rd else False
+        # <--- hecho por claude code (16-sep-2026): lo que el empleado YA hizo (compensado + tiempo
+        # extra, según las marcas) se descuenta de la deuda; la fecha en que termina se calcula
+        # desde HOY con lo que le falta, a 47 min/día (y 12 en matrícula).
+        _hecho_h = float(_it.get('comp_mas_te_hrs') or 0)
+        _pend_h = round(max(0.0, (_rd['horas_totales'] if _rd else 0) - _hecho_h), 2)
+        _it['hecho_h'] = round(_hecho_h, 2)
+        _it['pendiente_h'] = _pend_h
+        if _rd:
+            _ini = max(hoy, _rd['emp_fi'])
+            _rr = _recorrer_compensatorio(_ini, _rd['ff'], anio_sel, feriados, _pend_h * 60)
+            _it['dias_pend'] = _rr['dias_47']
+            _it['fecha_termina_real'] = _rr['fecha']
+            _it['alcanza_real'] = _rr['alcanza']
+            _it['en_matricula_real'] = _rr['en_matricula']
+            _it['faltan_real_h'] = _rr['faltan_h']
+            _it['disponible_real_h'] = round(_rr['disponible_min'] / 60, 2)
+        else:
+            _it['dias_pend'] = 0; _it['fecha_termina_real'] = None; _it['alcanza_real'] = True
+            _it['en_matricula_real'] = False; _it['faltan_real_h'] = 0; _it['disponible_real_h'] = 0
         _it['faltan_h']        = _rd['faltan_h'] if _rd else 0
         _it['disponible_h']    = _rd['disponible_h'] if _rd else 0
 
