@@ -435,13 +435,16 @@
     <div id="periodo-msg" class="small mt-2"></div>
   </div></div>
   <div class="alert alert-info py-2 px-3 small mb-3"><i class="ti ti-info-circle me-1"></i>
-    <strong>Tiempo diario</strong> = Horas que debe compensar ÷ días hábiles del periodo ({{ periodo_inicio|date:"d/m/Y" }} al {{ periodo_fin|date:"d/m/Y" }}). El resto de columnas es el seguimiento real (marcas ZKBio).</div>
+    <strong>Tiempo diario</strong> = <strong>47 min fijos</strong> (horario asistente 7:00–15:48, se queda hasta 16:35) que todos hacen para cubrir los 18 días de cierre. Con eso se calcula cuántos días de 47 min necesita cada uno y <strong>en qué fecha termina</strong>, contando solo días hábiles del periodo ({{ periodo_inicio|date:"d/m/Y" }} al {{ periodo_fin|date:"d/m/Y" }}); si no alcanza dentro del periodo se indica cuánto falta. El resto de columnas es el seguimiento real (marcas ZKBio).</div>
   <div class="card"><div class="card-body p-0"><div class="table-responsive">
     <table class="table table-vcenter table-hover card-table">
       <thead><tr>
         <th>Empleado</th>
         <th class="text-center table-warning">Horas que debe compensar</th>
         <th class="text-center table-warning">Tiempo diario</th>
+        {# <--- hecho por claude code (16-sep-2026): 47 min fijos → días necesarios y fecha en que termina #}
+        <th class="text-center table-warning">Días de 47 min</th>
+        <th class="text-center table-warning">Termina el</th>
         <th class="text-center">Compensado hasta hoy</th>
         <th class="text-center">Tiempo extra</th>
         <th class="text-center">Compensado + T. extra</th>
@@ -455,7 +458,13 @@
         <tr>
           <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center fw-bold table-warning font-monospace {% if item.debe_compensar_horas < 0 %}text-danger{% endif %}">{{ item.debe_compensar_horas }} h</td>
-          <td class="text-center table-warning">{% if item.min_diario > 0 %}<span class="fw-bold fs-5 text-orange">{{ item.min_diario }} min</span><div class="text-muted small">{{ item.hhmm_diario }}/día</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-center table-warning">{% if item.min_diario > 0 %}<span class="fw-bold fs-5 text-orange">{{ item.min_diario|floatformat:0 }} min</span><div class="text-muted small">7:00–15:48 → 16:35</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-center table-warning">{% if item.dias_necesarios > 0 %}<span class="fw-bold font-monospace">{{ item.dias_necesarios }}</span><div class="text-muted small">días háb.</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-center table-warning">
+            {% if item.dias_necesarios == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
+            {% elif item.alcanza %}<span class="badge bg-green-lt text-green"><i class="ti ti-calendar-check me-1"></i>{{ item.fecha_termina|date:"d/m/Y" }}</span>
+            {% else %}<span class="badge bg-red-lt text-red" title="Con 47 min/día no alcanza dentro del periodo"><i class="ti ti-alert-triangle me-1"></i>No alcanza · faltan {{ item.faltan_h }} h</span><div class="text-muted small">máx. {{ item.disponible_h }} h en el periodo</div>{% endif %}
+          </td>
           {# <--- hecho por claude code: seguimiento interactivo igual que "Adeudados 2" (mismos botones/modales) #}
           <td class="text-center">
             {% if item.minutos_compensados >= item.total_min and item.total_min > 0 %}

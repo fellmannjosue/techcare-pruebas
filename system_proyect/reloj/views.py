@@ -2597,6 +2597,9 @@ def _receso_compute(desde, hasta):
 # de Vacaciones para derecho/acumulada/saldo.
 # ══════════════════════════════════════════════════════════════════════════════
 _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → horas
+# <--- hecho por claude code (16-sep-2026): compensatorio DIARIO FIJO del horario asistente
+# (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS deben hacer para cubrir los 18 días de cierre.
+_MIN_COMP_DIA = 47
 
 
 def _ensure_model_table(model):
@@ -2617,7 +2620,7 @@ def _periodo_comp_anual(anio):
     """(fecha_inicio, fecha_fin) del periodo del año escolar `anio`. Si no existe,
     se crea con el default 1-feb → 26-nov (editable después). Si la tabla aún no
     existe (migración sin aplicar) o hay error, cae al default sin romper la página."""
-    default = (date(anio, 2, 1), date(anio, 11, 26))
+    default = (date(anio, 2, 1), date(anio, 11, 30))   # <--- hecho por claude code (16-sep-2026): periodo 1-feb → 30-nov
     try:
         from .models import CompensatorioPeriodoAnual
         obj, _ = CompensatorioPeriodoAnual.objects.get_or_create(
@@ -2723,13 +2726,29 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
         debe_compensar = round(total_necesita - float(saldo), 2)
         horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
-        # Tiempo compensatorio diario = deuda repartida en los días hábiles del periodo
-        if dias_hab > 0 and debe_compensar > 0:
-            min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
-        else:
-            min_diario = 0.0
+        # <--- hecho por claude code (16-sep-2026): el tiempo diario es FIJO (47 min, horario asistente).
+        # Lo que se calcula es cuántos días de 47 min necesita y en qué fecha termina, recorriendo
+        # los días hábiles del periodo (L-V sin feriados) desde max(inicio, ingreso). Si se pasa del
+        # fin del periodo, no alcanza y se informa cuánto falta.
+        import math as _math
+        from datetime import timedelta as _td2
+        min_diario = float(_MIN_COMP_DIA) if debe_compensar > 0 else 0.0
         h_di = int(min_diario // 60)
         m_di = int(round(min_diario - h_di * 60))
+        min_necesarios = max(0.0, horas_totales * 60)
+        dias_necesarios = int(_math.ceil(min_necesarios / _MIN_COMP_DIA)) if min_necesarios > 0 else 0
+        fecha_termina, alcanza, acumulado, d = None, True, 0.0, emp_fi
+        if dias_necesarios > 0:
+            alcanza = False
+            while d <= ff:
+                if d.weekday() < 5 and d not in feriados:
+                    acumulado += _MIN_COMP_DIA
+                    if acumulado >= min_necesarios:
+                        fecha_termina, alcanza = d, True
+                        break
+                d += _td2(days=1)
+        disponible_min = dias_hab * _MIN_COMP_DIA          # lo máximo que se puede compensar en el periodo
+        faltan_h = round(max(0.0, min_necesarios - disponible_min) / 60, 2) if not alcanza else 0.0
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
             'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
@@ -2741,6 +2760,12 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             'horas_totales': horas_totales,
             'min_diario': min_diario,
             'hhmm_diario': f"{h_di}h {m_di:02d}m" if min_diario > 0 else "—",
+            # 47 min fijos: días necesarios y fecha en que termina (dentro del periodo)
+            'dias_necesarios': dias_necesarios,
+            'fecha_termina': fecha_termina,
+            'alcanza': alcanza,
+            'faltan_h': faltan_h,
+            'disponible_h': round(disponible_min / 60, 2),
         })
     rows.sort(key=lambda x: (_especial_rank(x['nombre']), x['nombre'].lower()))
     return rows, fi, ff, dias_hab_full
@@ -3024,7 +3049,7 @@ def compensatorio_calculo_list(request):
     except Exception as _ex:
         print(f"[compensatorio] rediseño rows fallback: {_ex}")
         redis_rows = []
-        periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 26)
+        periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 30)
         periodo_dias_habiles = _dias_habiles_periodo(periodo_inicio, periodo_fin, feriados)
 
     # <--- hecho por claude code: llevar "Horas que debe compensar" y "Tiempo diario" al tab 2
@@ -3035,6 +3060,12 @@ def compensatorio_calculo_list(request):
         _it['debe_compensar_horas'] = _rd['horas_totales'] if _rd else 0
         _it['min_diario']  = _rd['min_diario'] if _rd else 0
         _it['hhmm_diario'] = _rd['hhmm_diario'] if _rd else '—'
+        # <--- hecho por claude code (16-sep-2026): 47 min fijos → días necesarios y fecha en que termina
+        _it['dias_necesarios'] = _rd['dias_necesarios'] if _rd else 0
+        _it['fecha_termina']   = _rd['fecha_termina'] if _rd else None
+        _it['alcanza']         = _rd['alcanza'] if _rd else True
+        _it['faltan_h']        = _rd['faltan_h'] if _rd else 0
+        _it['disponible_h']    = _rd['disponible_h'] if _rd else 0
 
     ctx = {
         "gilma": gilma,
