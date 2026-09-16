@@ -2600,6 +2600,16 @@ _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → hor
 # <--- hecho por claude code (16-sep-2026): compensatorio DIARIO FIJO del horario asistente
 # (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS deben hacer para cubrir los 18 días de cierre.
 _MIN_COMP_DIA = 47
+# <--- hecho por claude code (16-sep-2026): periodo de MATRÍCULA (todos salen a las 4:00 pm → 12 min/día):
+# del fin del periodo de trabajo al 18-dic y del 4-ene al 1-feb del año siguiente. Se toma desde el día
+# siguiente al fin del periodo para no contar dos veces el 30-nov.
+_MIN_MATRICULA_DIA = 12
+
+
+def _matricula_tramos(anio, fin_periodo):
+    from datetime import timedelta as _tdm
+    return [(fin_periodo + _tdm(days=1), date(anio, 12, 18)),
+            (date(anio + 1, 1, 4), date(anio + 1, 2, 1))]
 
 
 def _ensure_model_table(model):
@@ -2737,7 +2747,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         m_di = int(round(min_diario - h_di * 60))
         min_necesarios = max(0.0, horas_totales * 60)
         dias_necesarios = int(_math.ceil(min_necesarios / _MIN_COMP_DIA)) if min_necesarios > 0 else 0
-        fecha_termina, alcanza, acumulado, d = None, True, 0.0, emp_fi
+        fecha_termina, alcanza, en_matricula, acumulado, d = None, True, False, 0.0, emp_fi
         if dias_necesarios > 0:
             alcanza = False
             while d <= ff:
@@ -2747,7 +2757,19 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
                         fecha_termina, alcanza = d, True
                         break
                 d += _td2(days=1)
-        disponible_min = dias_hab * _MIN_COMP_DIA          # lo máximo que se puede compensar en el periodo
+        # Matrícula: si no alcanzó en el periodo, sigue a 12 min/día en los tramos de matrícula
+        dias_mat = 0
+        for m_fi, m_ff in _matricula_tramos(anio, ff):
+            d = max(m_fi, emp_fi)
+            while d <= m_ff:
+                if d.weekday() < 5 and d not in feriados:
+                    dias_mat += 1
+                    if dias_necesarios > 0 and not alcanza:
+                        acumulado += _MIN_MATRICULA_DIA
+                        if acumulado >= min_necesarios:
+                            fecha_termina, alcanza, en_matricula = d, True, True
+                d += _td2(days=1)
+        disponible_min = dias_hab * _MIN_COMP_DIA + dias_mat * _MIN_MATRICULA_DIA   # máximo compensable (periodo + matrícula)
         faltan_h = round(max(0.0, min_necesarios - disponible_min) / 60, 2) if not alcanza else 0.0
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
@@ -2764,6 +2786,8 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             'dias_necesarios': dias_necesarios,
             'fecha_termina': fecha_termina,
             'alcanza': alcanza,
+            'en_matricula': en_matricula,
+            'dias_matricula': dias_mat,
             'faltan_h': faltan_h,
             'disponible_h': round(disponible_min / 60, 2),
         })
@@ -3064,6 +3088,7 @@ def compensatorio_calculo_list(request):
         _it['dias_necesarios'] = _rd['dias_necesarios'] if _rd else 0
         _it['fecha_termina']   = _rd['fecha_termina'] if _rd else None
         _it['alcanza']         = _rd['alcanza'] if _rd else True
+        _it['en_matricula']    = _rd['en_matricula'] if _rd else False
         _it['faltan_h']        = _rd['faltan_h'] if _rd else 0
         _it['disponible_h']    = _rd['disponible_h'] if _rd else 0
 
