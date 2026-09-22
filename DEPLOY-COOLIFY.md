@@ -29,6 +29,11 @@ cp .env.example system_proyect/.env    # y rellena los valores
 docker compose up --build
 # App en http://localhost:8001
 ```
+`docker-compose.override.yml` se carga solo en local: monta `system_proyect/` como volumen y
+corre `runserver` con autoreload, así **los cambios de código se ven al instante sin
+`--build`** (solo se reconstruye si cambia `requirements.txt` o el `Dockerfile`).
+Migraciones: `RUN_MIGRATIONS=1 docker compose up` (solo contra `sponsors2_pruebas`).
+Coolify ignora el override (usa solo el `Dockerfile`).
 
 ## Qué trae la imagen
 - Python 3.13 · gunicorn · WhiteNoise (sirve los estáticos sin Apache)

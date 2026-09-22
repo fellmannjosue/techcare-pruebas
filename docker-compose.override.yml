@@ -1,0 +1,19 @@
+# TechCare · PRUEBAS — override de DESARROLLO LOCAL (docker compose lo carga solo).
+# <--- hecho por claude code: en local no se reconstruye la imagen en cada cambio:
+# el código se monta como volumen y Django corre con runserver (autoreload), así
+# un cambio en .py/.html/.js/.css se ve al instante con solo refrescar el navegador.
+# Coolify NO lee este archivo (usa el Dockerfile), así que no afecta al despliegue.
+services:
+  web:
+    volumes:
+      - ./system_proyect:/app/system_proyect
+      - techcare_media:/app/system_proyect/media
+    environment:
+      DJANGO_DEBUG: "true"
+      EMAILS_REALES: "false"
+      USE_WHITENOISE: "true"
+    entrypoint: []
+    command: >
+      sh -c "python manage.py check &&
+             if [ \"$${RUN_MIGRATIONS:-0}\" = 1 ]; then python manage.py migrate --noinput; fi &&
+             python manage.py runserver 0.0.0.0:8000"
