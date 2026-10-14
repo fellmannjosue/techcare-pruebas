@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'inventario',
     'mantenimiento',
     'servicio_tecnico',
+    'moodle_upload',   # <--- hecho por claude code (14-oct-2026): SOLO pruebas — publicar imágenes en Moodle
     'mantenimiento_mecanico',   # <--- hecho por claude code (01-oct-2026): control de combustibles y aceites   # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico (Inventario + Mantenimiento)
     'sponsors',
     'enfermeria',

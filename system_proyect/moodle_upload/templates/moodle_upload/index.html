@@ -1,0 +1,87 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (14-oct-2026): Subir a Moodle — prueba de publicación de imágenes (solo pruebas, solo superusuario) #}
+{% block title %}Subir a Moodle{% endblock %}
+{% block page_pretitle %}Pruebas · Moodle{% endblock %}
+{% block page_title %}<i class="ti ti-cloud-upload me-2"></i>Subir a Moodle{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=1">{% endblock %}
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}
+
+{% block content %}
+<div class="mu-estado {% if estado.ok %}mu-estado--ok{% elif estado %}mu-estado--err{% else %}mu-estado--sin{% endif %}">
+  <i class="ti {% if estado.ok %}ti-plug-connected{% elif estado %}ti-plug-x{% else %}ti-plug{% endif %}"></i>
+  <span>{% if estado %}{{ estado.texto }}{% else %}Sin conexión configurada: guarda la dirección y el token abajo.{% endif %}</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form method="post" action="{% url 'moodle_upload:publicar' %}" enctype="multipart/form-data" class="card">
+      {% csrf_token %}
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-photo-up me-2 text-blue"></i>Publicar imagen en un curso</h3></div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label required">Curso de Moodle</label>
+          <select name="curso" class="form-select" required {% if not cursos %}disabled{% endif %}>
+            <option value="">{% if cursos %}— Elige el curso —{% else %}(conecta Moodle para ver los cursos){% endif %}</option>
+            {% for c in cursos %}<option value="{{ c.id }}">{{ c.nombre }}{% if c.corto and c.corto != c.nombre %} · {{ c.corto }}{% endif %} (id {{ c.id }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label required">Imagen de la agenda (PNG o JPG, máx. {{ max_mb }} MB)</label>
+          <input type="file" name="imagen" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="form-control" required>
+        </div>
+        <div class="mb-1">
+          <label class="form-label">Texto alternativo</label>
+          <input type="text" name="alt" class="form-control" maxlength="200" placeholder="Agenda semanal">
+        </div>
+        <div class="form-hint">Se coloca en la sección <b>General</b> del curso. Si el curso ya tiene una agenda de TechCare, se <b>reemplaza</b> (no se duplica).</div>
+      </div>
+      <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary" {% if not cursos %}disabled{% endif %}><i class="ti ti-send me-1"></i>Publicar en Moodle</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <form method="post" action="{% url 'moodle_upload:conexion' %}" class="card">
+      {% csrf_token %}
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-settings me-2 text-orange"></i>Conexión</h3></div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Dirección de Moodle</label>
+          <input type="url" name="url" class="form-control" value="{{ con.url }}" required>
+        </div>
+        <div class="mb-1">
+          <label class="form-label">Token del servicio web</label>
+          <input type="password" name="token" class="form-control" autocomplete="off" placeholder="{% if tiene_token %}•••••••• (guardado; déjalo vacío para conservarlo){% else %}Pega el token{% endif %}">
+        </div>
+        <div class="form-hint">El token se guarda cifrado. Servicio de Moodle: «TechCare Agendas».</div>
+      </div>
+      <div class="card-footer text-end"><button type="submit" class="btn"><i class="ti ti-device-floppy me-1"></i>Guardar conexión</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-history me-2"></i>Historial de publicaciones</h3></div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm">
+      <thead><tr><th>Fecha</th><th>Curso</th><th>Archivo</th><th>Resultado</th><th>Usuario</th><th>Detalle</th></tr></thead>
+      <tbody>
+      {% for p in historial %}
+        <tr>
+          <td class="text-nowrap">{{ p.fecha|date:"d/m/Y H:i:s" }}</td>
+          <td>{{ p.curso_nombre|default:p.curso_id }}</td>
+          <td>{{ p.archivo }} <span class="text-muted small">({{ p.tamano_kb }} KB)</span></td>
+          <td>{% if p.ok %}<span class="badge bg-green-lt text-green">{% if p.creada %}Creada{% else %}Reemplazada{% endif %}</span>{% else %}<span class="badge bg-red-lt text-red">Error</span>{% endif %}</td>
+          <td class="small">{% if p.usuario %}{{ p.usuario.get_full_name|default:p.usuario.username }}{% endif %}</td>
+          <td class="small mu-detalle">{% if p.ok and p.mensaje %}<a href="{{ p.mensaje }}" target="_blank" rel="noopener">Abrir curso</a>{% else %}{{ p.mensaje }}{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">Todavía no hay publicaciones.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

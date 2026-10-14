@@ -35,6 +35,7 @@ urlpatterns = [
     path('inventario/',    include('inventario.urls')),
     path('mantenimiento/', include(('mantenimiento.urls', 'mantenimiento'), namespace='mantenimiento')),
     path('servicio-tecnico/', include(('servicio_tecnico.urls', 'servicio_tecnico'), namespace='servicio_tecnico')),
+    path('moodle-upload/', include(('moodle_upload.urls', 'moodle_upload'), namespace='moodle_upload')),   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
     path('mantenimiento-mecanico/', include(('mantenimiento_mecanico.urls', 'mantenimiento_mecanico'), namespace='mantenimiento_mecanico')),   # <--- hecho por claude code (01-oct-2026)   # <--- hecho por claude code (28-sep-2026)
     path('mantenimiento-vehiculos/', include(('mantenimiento_mecanico.urls_vehiculos', 'vehiculos'), namespace='vehiculos')),   # <--- hecho por claude code (12-oct-2026): ventana aparte
 
