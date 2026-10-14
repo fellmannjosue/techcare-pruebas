@@ -1,6 +1,15 @@
 {
-  "version": "7.8.0.001",
+  "version": "7.8.1",
   "entradas": [
+    {
+      "version": "7.8.1",
+      "fecha": "2026-10-14",
+      "commit": "427efdf",
+      "cambios": [
+        "feat(v7.8.1): Inventario General con área, categoría y firma de la auditora, maestro guía en el PDF de notas, historial de Salidas al baño, directorio de Enfermería y login renovado"
+      ],
+      "menor": true
+    },
     {
       "version": "7.8.0.001",
       "fecha": "2026-10-12",
