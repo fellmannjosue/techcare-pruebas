@@ -3,6 +3,6 @@
 defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'local_techcareagenda';
 $plugin->version   = 2026101401;
-$plugin->requires  = 2022112800;   // Moodle 4.1+
+$plugin->requires  = 2023042400;   // Moodle 4.2+ (usa core_external\external_api)
 $plugin->maturity  = MATURITY_ALPHA;
 $plugin->release   = '0.1 (pruebas)';
