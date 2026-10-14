@@ -455,6 +455,8 @@ def index(request, ambito='colegio'):
         'editar_periodo_id': request.GET.get('editar_periodo', ''),
         'editar_mc_id':      request.GET.get('editar_mc', ''),
     }
+    # <--- hecho por claude code (13-oct-2026): pestaña Historial (todas las salidas con filtros)
+    ctx.update(_historial_datos(request, ambito, areas))
     return render(request, 'salidas_bano/index.html', ctx)
 
 
@@ -1070,3 +1072,127 @@ def maestros_clases_view(request):
         'nav_home_url':  '/',
         'es_coordinador': True,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Historial general (pestaña "Historial") — hecho por claude code (13-oct-2026)
+# Coordinación y superusuario ven todas las salidas del ámbito; el maestro, las que registró él.
+# Siempre filtrado por ÁREA del ámbito (en CFP el ID es PersonaID: espacios distintos).
+# ══════════════════════════════════════════════════════════════════════════════
+_HIST_LIMITE = 500
+_SEMAFOROS = [('verde', 'Verde'), ('amarillo', 'Amarillo'), ('rojo', 'Rojo'), ('negro', 'Negro')]
+
+
+def _historial_qs(request, ambito, areas):
+    """(queryset filtrado, filtros elegidos). Filtros por GET con prefijo h_."""
+    from django.db.models import Q
+    claves = [a for a, _ in areas]
+    G = request.GET
+    f = {k: (G.get('h_' + k) or '').strip() for k in ('periodo', 'desde', 'hasta', 'area', 'grado', 'semaforo', 'q', 'maestro', 'pendiente')}
+    qs = SalidaBano.objects.filter(area__in=claves).select_related('maestro', 'periodo')
+    if not _es_coordinador_sb(request.user, ambito):
+        qs = qs.filter(maestro=request.user)
+        f['maestro'] = ''
+    if f['periodo'].isdigit():
+        qs = qs.filter(periodo_id=int(f['periodo']))
+    for campo, k in (('fecha__gte', 'desde'), ('fecha__lte', 'hasta')):
+        try:
+            qs = qs.filter(**{campo: datetime.strptime(f[k], '%Y-%m-%d').date()})
+        except ValueError:
+            f[k] = ''
+    if f['area'] in claves:
+        qs = qs.filter(area=f['area'])
+    else:
+        f['area'] = ''
+    if f['grado']:   # valor "area|grado": en Colegio y Bachillerato los grados se llaman igual
+        _a, _, _g = f['grado'].partition('|')
+        qs = qs.filter(area=_a, grado=_g) if _g else qs.filter(grado=_a)
+    if f['semaforo'] in dict(_SEMAFOROS):
+        qs = qs.filter(semaforo=f['semaforo'])
+    if f['q']:
+        qs = qs.filter(Q(alumno__icontains=f['q']) | Q(clase__icontains=f['q']) | Q(comentario__icontains=f['q']))
+    if f['maestro'].isdigit():
+        qs = qs.filter(maestro_id=int(f['maestro']))
+    if f['pendiente'] == '1':
+        qs = qs.filter(hora_regreso__isnull=True)
+    return qs.order_by('-fecha', '-hora_salida', '-id'), f
+
+
+def _grado_label(area, grado):
+    return _display_grados(area).get(grado, grado) if grado else ''
+
+
+def _historial_datos(request, ambito, areas):
+    from django.db.models import Count
+    qs, f = _historial_qs(request, ambito, areas)
+    claves = [a for a, _ in areas]
+    total = qs.count()
+    filas = list(qs[:_HIST_LIMITE])
+    for s in filas:
+        s.grado_label = _grado_label(s.area, s.grado)
+    por_sem = dict(qs.values_list('semaforo').annotate(n=Count('id')).values_list('semaforo', 'n'))
+    duraciones = [d for d in (s.duracion_minutos for s in filas) if d is not None]
+    top = list(qs.values('ingr_egr_id', 'area', 'alumno', 'grado', 'grupo').annotate(n=Count('id')).order_by('-n', 'alumno')[:10])
+    for t in top:
+        t['grado_label'] = _grado_label(t['area'], t['grado'])
+    base = SalidaBano.objects.filter(area__in=claves)
+    if not _es_coordinador_sb(request.user, ambito):
+        base = base.filter(maestro=request.user)
+    grados = sorted({(a, g) for a, g in base.values_list('area', 'grado').distinct() if g})
+    maestros = []
+    if _es_coordinador_sb(request.user, ambito):
+        ids = base.exclude(maestro__isnull=True).values_list('maestro_id', flat=True).distinct()
+        maestros = [(u.id, u.get_full_name() or u.username) for u in get_user_model().objects.filter(id__in=ids).order_by('first_name', 'last_name')]
+    filtros_activos = any(f.values())
+    return {
+        'h_f':          f,
+        'h_filas':      filas,
+        'h_total':      total,
+        'h_limite':     _HIST_LIMITE,
+        'h_recortado':  total > _HIST_LIMITE,
+        'h_alumnos':    qs.values('area', 'ingr_egr_id').distinct().count(),
+        'h_sin_regreso': qs.filter(hora_regreso__isnull=True).count(),
+        'h_promedio':   round(sum(duraciones) / len(duraciones)) if duraciones else None,
+        'h_semaforos':  [(k, l, por_sem.get(k, 0)) for k, l in _SEMAFOROS],
+        'h_top':        top,
+        'h_periodos':   PeriodoEscolar.objects.filter(area__in=claves + ([] if ambito == 'cfp' else ['ambos'])).order_by('-anio', '-parcial'),
+        'h_grados':     [(f'{a}|{g}', _grado_label(a, g) + (f' · {dict(areas).get(a, a)}' if len(areas) > 1 else '')) for a, g in grados],
+        'h_maestros':   maestros,
+        'h_semaforo_choices': _SEMAFOROS,
+        'h_filtrado':   filtros_activos,
+        'h_query':      request.GET.urlencode(),
+    }
+
+
+@login_required
+@require_GET
+def historial_exportar(request, ambito='colegio'):
+    """Excel del historial con los mismos filtros de la pestaña."""
+    if not _puede_acceder(request.user, ambito):
+        return HttpResponseForbidden()
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from django.http import HttpResponse
+    cfg = AMBITOS.get(ambito, AMBITOS['colegio'])
+    qs, f = _historial_qs(request, ambito, cfg['areas'])
+    wb = Workbook(); ws = wb.active; ws.title = 'Historial'
+    ws.append([f'Historial de salidas al baño · {cfg["label"]}'])
+    ws['A1'].font = Font(bold=True, size=13)
+    ws.append([f'Generado {datetime.now():%d/%m/%Y %H:%M} por {request.user.get_full_name() or request.user.username}'])
+    ws.append([])
+    enc = ['Fecha', 'Salida', 'Regreso', 'Minutos', 'Alumno', cfg['label_grado'], cfg['label_grupo'], 'Área', 'Clase', 'Semáforo', 'Registró', 'Comentario']
+    ws.append(enc)
+    for c in ws[4]:
+        c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='0F766E'); c.alignment = Alignment(horizontal='center')
+    for s in qs:
+        ws.append([s.fecha, s.hora_salida.strftime('%H:%M') if s.hora_salida else '', s.hora_regreso.strftime('%H:%M') if s.hora_regreso else '',
+                   s.duracion_minutos, s.alumno, _grado_label(s.area, s.grado), s.grupo, s.get_area_display(), s.clase,
+                   s.get_semaforo_display(), (s.maestro.get_full_name() or s.maestro.username) if s.maestro else '', s.comentario])
+        ws.cell(row=ws.max_row, column=1).number_format = 'DD/MM/YYYY'
+    for col, ancho in zip('ABCDEFGHIJKL', (12, 8, 8, 9, 34, 12, 10, 13, 22, 11, 24, 40)):
+        ws.column_dimensions[col].width = ancho
+    ws.freeze_panes = 'A5'
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="salidas_bano_{ambito}_{date.today():%Y%m%d}.xlsx"'
+    wb.save(resp)
+    return resp

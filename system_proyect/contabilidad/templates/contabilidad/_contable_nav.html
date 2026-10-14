@@ -1,0 +1,10 @@
+{# <--- hecho por claude code (23-sep-2026): barra de navegación del núcleo contable (compartida) #}
+<div class="mb-3 d-flex flex-wrap gap-2">
+  <a href="{% url 'contabilidad:dashboard' %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Contabilidad</a>
+  <a href="{% url 'contabilidad:cuentas_lista' %}" class="btn btn-sm {% if nav_c == 'cuentas' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-list-numbers me-1"></i>Catálogo</a>
+  <a href="{% url 'contabilidad:asientos_lista' %}" class="btn btn-sm {% if nav_c == 'partidas' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-book me-1"></i>Partidas</a>
+  <a href="{% url 'contabilidad:mayor' %}" class="btn btn-sm {% if nav_c == 'mayor' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-report me-1"></i>Mayor</a>
+  {% if p_reportes %}<a href="{% url 'contabilidad:reportes' %}" class="btn btn-sm {% if nav_c == 'reportes' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-chart-bar me-1"></i>Reportes</a>{% endif %}
+  <a href="{% url 'contabilidad:periodos_lista' %}" class="btn btn-sm {% if nav_c == 'periodos' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-calendar me-1"></i>Períodos</a>
+  <a href="{% url 'contabilidad:centros_lista' %}" class="btn btn-sm {% if nav_c == 'centros' %}btn-primary{% else %}btn-outline-primary{% endif %}"><i class="ti ti-sitemap me-1"></i>Centros de costo</a>
+</div>

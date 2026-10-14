@@ -3,6 +3,7 @@ from datetime import date
 from functools import wraps
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse  # <--- hecho por claude code (09-sep-2026)
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.conf import settings
@@ -240,7 +241,7 @@ def _informe_ctx(ej, inf):
             pct, desc = EGRESO_GRUPO_PCT[g]
             nota = f'↳ {pct:.0%} {desc} — L {montos.get(g, 0):,.2f}'
             if g == 'personal':
-                nota += ' dividido en 3'
+                nota += ' dividido en 3 (+ gastos y viáticos)'
         grupos.append({'key': g, 'label': lbl, 'filas': filas, 'subtotal': inf.grupo_subtotal(g),
                        'nota': nota})
 
@@ -356,6 +357,7 @@ def _planilla_ctx(ej, inf):
         'total_admin': ej.dist_admin,
         'capturado':   inf.admin_capturado,
         'a_repartir':  inf.admin_a_repartir,
+        'total_repartido': inf.total_repartido,   # <--- hecho por claude code (09-sep): suma de montos manuales
         'n_personas':  len(reparto),
         'lugar_fecha_str': _lugar_fecha(inf),
         'taller_label': TALLER_LABEL.get(ej.taller, ej.taller),
@@ -374,6 +376,7 @@ def planilla_form(request, pk):
         nombres = request.POST.getlist('nombre')
         dnis    = request.POST.getlist('dni')
         cargos  = request.POST.getlist('cargo')
+        montos  = request.POST.getlist('monto')   # <--- hecho por claude code (09-sep): monto manual por persona
         ej.planilla.all().delete()
         nuevas = []
         for i, nombre in enumerate(nombres):
@@ -384,13 +387,15 @@ def planilla_form(request, pk):
                 ejecucion=ej, nombre=nombre,
                 dni=(dnis[i] if i < len(dnis) else '').strip(),
                 cargo=(cargos[i] if i < len(cargos) else '').strip(),
-                orden=i))
+                orden=i,
+                monto=round(float(_to_dec(montos[i] if i < len(montos) else '') or 0), 2)))
         GastoAdministrativo.objects.bulk_create(nuevas)
         inf.sincronizar_cargos()                # el informe refleja la planilla
         # <--- hecho por claude code: autoguardado — mismo POST, respuesta JSON
         if request.GET.get('ajax') == '1':
             return JsonResponse({'ok': True,
                                  'a_repartir': inf.admin_a_repartir,
+                                 'total_repartido': inf.total_repartido,
                                  'personas': len(nuevas)})
         messages.success(request, 'Planilla guardada.')
         return redirect(request.path)
@@ -400,7 +405,26 @@ def planilla_form(request, pk):
     ctx['conocidos'] = list(GastoAdministrativo.objects
                             .exclude(nombre='')
                             .values('nombre', 'dni', 'cargo').distinct()[:200])
+    # <--- hecho por claude code (09-sep-2026): al elegir el cargo se carga la persona del catálogo
+    from .models import PersonaCargoPlanilla
+    ctx['personas_cargo_json'] = json.dumps(PersonaCargoPlanilla.mapa(), ensure_ascii=False)
+    ctx['url_admin_cargos'] = (reverse('admin:cfp_personacargoplanilla_changelist')
+                               if request.user.is_staff else '')
     return render(request, 'cfp/planilla_form.html', ctx)
+
+
+@cfp_required
+def planilla_personas_cargo(request):
+    """<--- hecho por claude code (09-sep-2026): catálogo cargo→persona EN VIVO (JSON).
+
+    La planilla lo consulta al elegir el cargo y al agregar persona, así no hace falta
+    recargar la pantalla después de registrar a alguien en el admin.
+    """
+    from .models import PersonaCargoPlanilla
+    return JsonResponse(PersonaCargoPlanilla.mapa())
+
+
+PLANILLA_PDF_FILAS = 17   # <--- hecho por claude code (09-sep-2026): líneas del detalle en hoja legal
 
 
 @cfp_required
@@ -413,6 +437,11 @@ def planilla_pdf(request, pk):
     ctx = _planilla_ctx(ej, inf)
     logo = finders.find('cfp/img/logo_ana.png')
     ctx['logo_url'] = f'file://{logo}' if logo else ''
+    # <--- hecho por claude code (09-sep-2026): hoja LEGAL — el detalle lleva líneas numeradas en
+    # blanco hasta completar la hoja (se llenan a mano); con más personas que líneas, filas compactas.
+    n_pers = len(ctx['reparto'])
+    ctx['filas_vacias'] = range(max(0, PLANILLA_PDF_FILAS - n_pers))
+    ctx['compacta'] = n_pers > PLANILLA_PDF_FILAS
     html  = render(request, 'cfp/planilla_pdf.html', ctx).content.decode('utf-8')
     hoja  = finders.find('cfp/css/planilla_pdf.css')
     pdf = HTML(string=html).write_pdf(stylesheets=[CSS(filename=hoja)] if hoja else [])

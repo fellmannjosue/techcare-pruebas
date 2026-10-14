@@ -122,3 +122,14 @@ $(function(){
     idEliminar = null;
   });
 })();
+
+
+// <--- hecho por claude code: popovers de la columna Descripción (hover). Perezoso porque
+// DataTables pagina y las filas ocultas no existen al cargar.
+document.addEventListener('mouseenter', function(e){
+  const el = e.target.closest && e.target.closest('.td-desc');
+  if (!el || typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+  if (!bootstrap.Popover.getInstance(el)) {
+    bootstrap.Popover.getOrCreateInstance(el, { container: 'body', sanitize: false }).show();
+  }
+}, true);

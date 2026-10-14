@@ -1,0 +1,14 @@
+{% load l10n %}
+{# <--- hecho por claude code (12-oct-2026): tarjeta de un insumo en el sub-dashboard (saldo en vivo) #}
+<a href="{% url 'mantenimiento_mecanico:pagina' t.i.clave %}" class="mmh-tile{% if t.r.bajo %} mmh-tile--bajo{% endif %}" style="--mm:{{ t.i.color }}">
+  <div class="mmh-tile-head">
+    <span class="mmh-tile-ico"><i class="ti {{ t.i.icono }}"></i></span>
+    <span class="mmh-tile-n"><b>{{ t.i.nombre }}</b><small>{{ t.i.get_presentacion_display }}{% if t.i.capacidad_envase %} · {{ t.i.capacidad_envase|floatformat:0 }} gal{% endif %}</small></span>
+    {% if t.r.bajo %}<span class="badge bg-red text-white">Saldo bajo</span>{% endif %}
+  </div>
+  <div class="mmh-tile-saldo">{{ t.r.saldo|floatformat:1 }} <small>gal</small></div>
+  {% if t.r.pct is not None %}<div class="mm-bar"><i style="width:{{ t.r.pct|unlocalize }}%"></i></div><div class="mmh-tile-sub">{{ t.r.pct }} % del tanque</div>
+  {% elif t.r.barriles is not None %}<div class="mmh-tile-sub">≈ {{ t.r.barriles|floatformat:2 }} barriles</div>
+  {% else %}<div class="mmh-tile-sub">Sin tope de envase</div>{% endif %}
+  <div class="mmh-tile-foot">Entregado este mes: <b>{{ t.mes|floatformat:1 }} gal</b></div>
+</a>

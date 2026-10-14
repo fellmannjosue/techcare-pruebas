@@ -1,0 +1,42 @@
+{% extends 'mantenimiento_mecanico/base_mm.html' %}
+{% load l10n %}
+{% load static %}
+{# <--- hecho por claude code (12-oct-2026): flota de vehículos y máquinas (datos de Access en Test2) #}
+{% block title %}Mantenimiento de vehículos{% endblock %}
+{% block page_pretitle %}Flota de vehículos y máquinas{% endblock %}
+{% block page_title %}<i class="ti ti-car me-2"></i>Mantenimiento de vehículos{% endblock %}
+{% block page_actions %}
+{% if puede_registrar %}<a href="{% url 'vehiculos:nuevo' %}" class="btn btn-sm btn-primary"><i class="ti ti-plus me-1"></i>Registrar vehículo</a>{% endif %}
+<a href="{% url 'vehiculos:hojas' %}" target="_blank" class="btn btn-sm"><i class="ti ti-printer me-1"></i>Imprimir hojas de la flota</a>
+{% if todos %}<a href="?" class="btn btn-sm"><i class="ti ti-eye-off me-1"></i>Solo en uso</a>{% else %}<a href="?todos=1" class="btn btn-sm"><i class="ti ti-eye me-1"></i>Ver fuera de uso</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="mm-kpis mv-kpis">
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#206bc4"><i class="ti ti-car"></i></div><div><div class="mm-kpi-lbl">{% if todos %}Unidades{% else %}Unidades en uso{% endif %}</div><div class="mm-kpi-num">{{ kpi_total }}</div></div></div>
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#d63939"><i class="ti ti-alert-triangle"></i></div><div><div class="mm-kpi-lbl">Mantenimiento vencido</div><div class="mm-kpi-num">{{ kpi_vencidos }}</div></div></div>
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#f59f00"><i class="ti ti-clock"></i></div><div><div class="mm-kpi-lbl">Por llegar (≤ 10 %)</div><div class="mm-kpi-num">{{ kpi_pronto }}</div></div></div>
+</div>
+
+<div class="mv-grid">
+{% for v in vehs %}
+  <a href="{% url 'vehiculos:detalle' v.id %}" class="mv-card mv-card--{{ v.semaforo }}{% if v.NoEnUso %} mv-card--off{% endif %}">
+    <div class="mv-card-head">
+      <span class="mv-card-ico"><i class="ti {% if v.categoria == 'tractor' %}ti-tractor{% elif v.categoria == 'motor' %}ti-engine{% else %}ti-bus{% endif %}"></i></span>
+      <div class="mv-card-tit"><b>{{ v.nombre }}</b><small>{% if v.Placa %}Placa {{ v.Placa }} · {% endif %}{{ v.Anio|default:"" }}{% if v.NoEnUso %} · fuera de uso{% endif %}</small></div>
+      <span class="badge mv-est mv-est--{{ v.semaforo }}">{% if v.semaforo == 'vencido' %}Vencido{% elif v.semaforo == 'pronto' %}Pronto{% elif v.semaforo == 'ok' %}Al día{% else %}Sin dato{% endif %}</span>
+    </div>
+    <div class="mv-card-nums">
+      <div><small>Estado actual</small><b>{% if v.estado_actual is not None %}{{ v.estado_actual|unlocalize }}{% else %}—{% endif %}</b><span>{{ v.unidad }}</span></div>
+      <div><small>Próximo mant.</small><b>{% if v.proximo is not None %}{{ v.proximo|unlocalize }}{% else %}—{% endif %}</b><span>{{ v.unidad }}</span></div>
+      <div><small>Falta</small><b class="mv-falta">{% if v.falta is not None %}{{ v.falta|unlocalize }}{% else %}—{% endif %}</b><span>{{ v.unidad }}</span></div>
+    </div>
+    <div class="mv-bar"><i style="width:{{ v.pct }}%"></i></div>
+    <div class="mv-card-foot">{% if v.base_es_lectura %}Sin mantenimientos aún · base: lectura del {{ v.FechaBase|date:"d/m/Y" }}{% else %}Último mantenimiento: {{ v.FechaUltMant|date:"d/m/Y"|default:"—" }}{% endif %} · cada {{ v.intervalo|unlocalize|default:"—" }} {{ v.unidad }}</div>
+  </a>
+{% empty %}
+  <div class="text-muted">No hay unidades.</div>
+{% endfor %}
+</div>
+{% endblock %}

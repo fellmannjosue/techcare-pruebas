@@ -1,5 +1,24 @@
-/* <--- hecho por claude code: gráficas de actividad del Panel Principal (Chart.js, datos reales) */
+/* <--- hecho por claude code: Panel Principal del superusuario — gráficas de actividad (Chart.js,
+   datos reales por data-*) y pestañas de filtro de la cuadrícula de módulos (Horizon, 30-sep-2026). */
 (function () {
+  'use strict';
+
+  /* ── Pestañas de filtro (Todos / Soporte / Académico / Administración) ── */
+  var tabs = document.getElementById('ps-tabs');
+  var grid = document.getElementById('ps-grid');
+  if (tabs && grid) {
+    tabs.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-cat]');
+      if (!b) return;
+      var cat = b.getAttribute('data-cat');
+      Array.prototype.forEach.call(tabs.querySelectorAll('button'), function (x) { x.classList.toggle('on', x === b); });
+      Array.prototype.forEach.call(grid.querySelectorAll('.ps-mod'), function (m) {
+        m.classList.toggle('ps-hide', !!cat && m.getAttribute('data-cat') !== cat);
+      });
+    });
+  }
+
+  /* ── Gráficas ── */
   var cfg = document.getElementById('ps-chart-data');
   if (!cfg || typeof Chart === 'undefined') return;
 
@@ -10,69 +29,40 @@
   var topLabels = parse(cfg.dataset.topLabels);
   var topData   = parse(cfg.dataset.topData);
 
-  // Tema claro/oscuro: color de texto y grillas legibles en ambos
   var dark = document.documentElement.classList.contains('dark');
-  Chart.defaults.color       = dark ? '#c7ccd6' : '#64748b';
-  Chart.defaults.font.family = "Inter, system-ui, sans-serif";
-  var grid = dark ? 'rgba(148,163,184,0.15)' : 'rgba(148,163,184,0.22)';
+  Chart.defaults.color       = dark ? '#98a2b3' : '#667085';
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  var gridColor = dark ? '#1f2937' : '#e4e7ef';
 
-  // ── Accesos por día (área) ──
   var elAcc = document.getElementById('psChartAccesos');
   if (elAcc) {
     var ctx = elAcc.getContext('2d');
     var grad = ctx.createLinearGradient(0, 0, 0, 240);
-    grad.addColorStop(0, 'rgba(32,107,196,0.28)');
-    grad.addColorStop(1, 'rgba(32,107,196,0.02)');
+    grad.addColorStop(0, 'rgba(37,99,235,0.28)');
+    grad.addColorStop(1, 'rgba(37,99,235,0.02)');
     new Chart(elAcc, {
       type: 'line',
-      data: {
-        labels: accLabels,
-        datasets: [{
-          label: 'Accesos',
-          data: accData,
-          borderColor: '#206bc4',
-          backgroundColor: grad,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-        }]
-      },
+      data: { labels: accLabels, datasets: [{
+        label: 'Accesos', data: accData, borderColor: '#2563eb', backgroundColor: grad,
+        fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#2563eb', borderWidth: 2
+      }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: grid } },
-          x: { grid: { display: false } }
-        }
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } }, x: { grid: { display: false } } }
       }
     });
   }
 
-  // ── Top usuarios (barra horizontal) ──
   var elTop = document.getElementById('psChartTop');
   if (elTop) {
     new Chart(elTop, {
       type: 'bar',
-      data: {
-        labels: topLabels,
-        datasets: [{
-          label: 'Accesos',
-          data: topData,
-          backgroundColor: 'rgba(174,62,201,0.75)',
-          borderRadius: 5,
-          maxBarThickness: 18,
-        }]
-      },
+      data: { labels: topLabels, datasets: [{ label: 'Accesos', data: topData, backgroundColor: '#7c3aed', borderRadius: 6, maxBarThickness: 16 }] },
       options: {
-        indexAxis: 'y',
-        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: {
-          x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: grid } },
-          y: { grid: { display: false } }
-        }
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } }, y: { grid: { display: false } } }
       }
     });
   }

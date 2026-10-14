@@ -1,0 +1,35 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (28-sep-2026): página individual de fichas · Computadoras (antes pestaña del dashboard) #}
+{% block ficha %}
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="4">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Tipo Falla</th>
+                      <th>Fecha</th><th>Estado</th><th>Solución</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_comp %}
+                      <tr>
+                        <td><span class="badge bg-blue-lt text-blue">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        {# <--- hecho por claude code: Modelo con hover (serie · maestro · grado) para compactar la tabla #}
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—' }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:'—' }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td>{{ r.tipo_falla|default:"—" }}</td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>
+                          {% if r.status == "Completado" %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Completado</span>
+                          {% elif r.status == "En Proceso" %}<span class="badge bg-cyan-lt text-cyan"><i class="ti ti-settings me-1"></i>En Proceso</span>
+                          {% else %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-clock me-1"></i>Pendiente</span>{% endif %}
+                        </td>
+                        <td><span class="text-truncate d-inline-block" style="max-width:140px;" title="{{ r.solucion }}">{{ r.solucion|default:"—"|truncatechars:45 }}</span></td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay fichas de computadoras aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (28-sep-2026): página individual de fichas · Control de equipos (antes pestaña del dashboard) #}
+{% block ficha %}
+                {# <--- hecho por claude code: reporte consolidado de todos los controles en un solo PDF #}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:control_reporte_pdf' %}" target="_blank" class="btn btn-sm btn-teal">
+                    <i class="ti ti-table me-1"></i>Reporte PDF (resumen)
+                  </a>
+                  {# <--- hecho por claude code: todas las fichas individuales unidas en un solo PDF #}
+                  <a href="{% url 'mantenimiento:control_fichas_pdf' %}" target="_blank" class="btn btn-sm btn-orange">
+                    <i class="ti ti-files me-1"></i>Fichas PDF (todas)
+                  </a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Evaluación</th>
+                      <th>Fecha</th><th>Estado del equipo</th><th>Observaciones</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_ctrl %}
+                      <tr>
+                        <td><span class="badge bg-teal-lt text-teal">{{ r.record_id }}</span>{% with ce=r.casos_especiales.all|first %}{% if ce %}<br><span class="badge bg-pink-lt text-pink mt-1" title="Recogida por caso especial {{ ce.record_id }}"><i class="ti ti-alert-octagon me-1"></i>{{ ce.record_id }}</span>{% endif %}{% endwith %}</td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—' }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:'—' }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td><div>Trabajó: <strong>{{ r.get_eval_trabajo_display|default:"—" }}</strong></div><div class="small {% if r.eval_fallas == 'si' %}text-danger{% else %}text-muted{% endif %}">Fallas: {{ r.get_eval_fallas_display|default:"—" }}</div></td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>
+                          {% if r.estado_equipo == 'bueno' %}<span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>Buen estado</span>
+                          {% elif r.estado_equipo == 'regular' %}<span class="badge bg-warning-lt text-warning"><i class="ti ti-alert-circle me-1"></i>Regular</span>
+                          {% elif r.estado_equipo == 'malo' %}<span class="badge bg-danger-lt text-danger"><i class="ti ti-alert-triangle me-1"></i>Mal estado</span>
+                          {% elif r.estado_equipo == 'fuera' %}<span class="badge bg-dark-lt text-dark"><i class="ti ti-power me-1"></i>Fuera de servicio</span>
+                          {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        {# <--- hecho por claude code: hover con observaciones de la auditora y del técnico #}
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="left" data-bs-title="Observaciones"
+                              data-bs-content="<div class='mb-1'><b><i class='ti ti-user-check me-1'></i>Auditora:</b><br>{{ r.obs_auditora|default:'—' }}</div><div><b><i class='ti ti-tool me-1'></i>Técnico:</b><br>{{ r.obs_tecnico|default:'—' }}</div>">{% if r.obs_auditora or r.obs_tecnico %}<i class="ti ti-message-2 me-1"></i>Ver{% else %}—{% endif %} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="10" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay controles de equipo aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

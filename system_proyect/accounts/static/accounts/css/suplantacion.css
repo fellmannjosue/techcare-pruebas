@@ -1,0 +1,11 @@
+/* <--- hecho por claude code (12-oct-2026): aviso fijo de "Iniciar sesión como" — siempre visible para no olvidar en qué cuenta se está */
+.tc-suplanta { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 10000; display: flex; align-items: center; gap: 10px;
+  max-width: calc(100vw - 32px); padding: 8px 8px 8px 14px; border-radius: 999px; background: #b45309; color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.28); font-size: .86rem; font-weight: 600; }
+.tc-suplanta > i { font-size: 1.15rem; flex: none; }
+.tc-suplanta-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-suplanta form { margin: 0; flex: none; }
+.tc-suplanta-btn { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 6px 12px;
+  background: #fff; color: #92400e; font-weight: 800; font-size: .82rem; cursor: pointer; }
+.tc-suplanta-btn:hover { background: #fef3c7; }
+@media (max-width: 600px) { .tc-suplanta { bottom: 8px; border-radius: 16px; } .tc-suplanta-txt { white-space: normal; } }

@@ -153,3 +153,24 @@ class Verificacion2FA(models.Model):
 
     def __str__(self):
         return f'2FA {self.usuario.username}'
+
+
+class Suplantacion(models.Model):
+    """<--- hecho por claude code (12-oct-2026): "Iniciar sesión como" (como el *Log in as* de Moodle), SOLO superusuario.
+    Bitácora de cada vez que un superusuario entra a la cuenta de otro usuario: quién, a quién, desde dónde y cuánto duró."""
+    superusuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='suplantaciones_hechas')
+    usuario      = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='suplantaciones_recibidas')
+    super_username = models.CharField(max_length=150)
+    username     = models.CharField(max_length=150)
+    ip           = models.GenericIPAddressField(null=True, blank=True)
+    inicio       = models.DateTimeField(auto_now_add=True)
+    fin          = models.DateTimeField(null=True, blank=True)
+    cierre       = models.CharField(max_length=20, blank=True)   # volver / logout
+
+    class Meta:
+        ordering = ['-inicio']
+        verbose_name = 'Inicio de sesión como otro usuario'
+        verbose_name_plural = 'Inicios de sesión como otro usuario'
+
+    def __str__(self):
+        return f'{self.super_username} → {self.username} ({self.inicio:%d/%m/%Y %H:%M})'

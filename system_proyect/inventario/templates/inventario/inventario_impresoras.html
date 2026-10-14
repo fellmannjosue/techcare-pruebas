@@ -59,7 +59,7 @@
                 <td>{{ imp.id }}</td>
                 <td>{{ imp.asset_id }}</td>
                 <td>{{ imp.nombre }}</td>
-                <td>{{ imp.modelo }}</td>
+                <td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ imp.serie|default:'—' }}</div><div><b>Asignado:</b> {{ imp.asignado_a|default:'—' }}</div><div><b>Tinta:</b> {{ imp.nivel_tinta|default:'—' }}</div><div><b>Últ. llenado:</b> {{ imp.ultima_vez_llenado|date:'d/m/Y'|default:'—' }}</div><div><b>Impresiones:</b> {{ imp.cantidad_impresiones|default:'—' }}</div><div><b>Color:</b> {{ imp.a_color|yesno:'Sí,No' }}</div><div><b>Observaciones:</b> {{ imp.observaciones|default:'—' }}</div>">{{ imp.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ imp.serie }}</td>
                 <td>{{ imp.asignado_a }}</td>
                 <td>{{ imp.nivel_tinta }}</td>
@@ -101,6 +101,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'inventario/js/inventario_impresoras.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/inventario_impresoras.js' %}?v=21"></script>
 <script src="{% static 'inventario/js/impresoras_edit.js' %}?v=20"></script>
 {% endblock %}

@@ -132,6 +132,21 @@
   </div>
   {% endif %}
 
+  {# <--- hecho por claude code (16-sep-2026): botón Pruebas — compensatorio 47 min/día + matrícula, fecha desde hoy #}
+  {% if puede.pruebas_comp %}
+  <div class="col-6 col-sm-4 col-lg-3">
+    <a href="{% url 'reloj_compensatorio_pruebas' %}" class="text-decoration-none">
+      <div class="card card-link card-link-pop text-center py-3">
+        <div class="card-body">
+          <div class="mb-2"><i class="ti ti-flask text-teal" style="font-size:2.5rem;"></i></div>
+          <div class="fw-bold">Pruebas</div>
+          <div class="text-muted small mt-1">Compensatorio 47 min/día · fecha en que termina</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
   {% if puede.vacaciones %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'reloj_vacaciones_list' %}" class="text-decoration-none">

@@ -54,7 +54,8 @@ class Dosfa2FAMiddleware:
 
     def __call__(self, request):
         u = getattr(request, 'user', None)
-        if (u and u.is_authenticated and dosfa_activo()
+        # <--- hecho por claude code (12-oct-2026): con "Iniciar sesión como" no se le manda código al usuario suplantado
+        if (u and u.is_authenticated and dosfa_activo() and not request.session.get('tc_suplantador_id')
                 and not any(request.path.startswith(p) for p in _EXENTAS)
                 and necesita_verificar(u)):
             request.session['dosfa_next'] = request.get_full_path()

@@ -587,7 +587,7 @@ def dashboard(request):
     Los cards se muestran según el permiso de visualización por módulo."""
     mods = ['reporte', 'plantilla', 'asignacion', 'compensatorio',
             'feriado', 'sabado', 'calculo_comp', 'vacaciones', 'reportes_pdf',
-            'vigilancia']
+            'vigilancia', 'pruebas_comp']   # <--- hecho por claude code (16-sep-2026): botón Pruebas
     puede = {m: _reloj_can_ver(request.user, m) for m in mods}
     return render(request, 'reloj/dashboard.html', {'puede': puede})
 
@@ -2321,6 +2321,30 @@ def _permiso_horas_val(horas, dias):
     return round(float(dias or 0) * _HORAS_POR_DIA_COMP, 2)
 
 
+# <--- hecho por claude code (pedido del usuario): para el personal ADMINISTRATIVO el
+# "Tiempo tomado" NO se toma de los permisos manuales, sino de las entradas manuales
+# "Días no laborables ANA" (modelo DiaNoLaborableANA) que el usuario registra a mano con las
+# horas exactas de cada feriado de cierre (Semana Santa 21h, Trimestral 44h, Morazánico 17.6h,
+# Cierre de Diciembre 70.4h, etc.), y SOLO las que ya pasaron (según su fecha).
+# La regla aplica a TODO empleado del cálculo compensatorio que tenga días no laborables
+# registrados (todos los de CompensatorioCalculo son administrativos; los instructores usan
+# otro modelo). Si no tiene ninguno registrado, se conserva el cálculo anterior.
+def _usa_dnl_como_tomado(dias):
+    """True si el empleado usa los "Días no laborables ANA" como Tiempo tomado
+    (tiene al menos una entrada registrada)."""
+    return bool(dias)
+
+
+def _dnl_tomado(dias, hoy=None):
+    """(entries_pasadas, total_horas) de las entradas "Días no laborables ANA" (DiaNoLaborableANA)
+    que YA ocurrieron (fecha <= hoy). Las de fecha futura NO se reflejan aún en Tiempo tomado.
+    Una entrada sin fecha se cuenta (compatibilidad con registros viejos)."""
+    hoy = hoy or date.today()
+    pasadas = [d for d in dias if (d.fecha is None or d.fecha <= hoy)]
+    total = round(sum(float(d.horas) for d in pasadas), 2)
+    return pasadas, total
+
+
 def _permiso_comp_horas(emp_codes, anio=None):
     """Σ horas de permiso compensatorio por emp_code. Si anio, filtra ese año.
     Convierte días → horas (×8) cuando el permiso se registró en días."""
@@ -2590,20 +2614,18 @@ def _receso_compute(desde, hasta):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# <--- hecho por claude code: REDISEÑO tabs 1-2 (Cálculo Compensatorio, pruebas)
-# Objetivo: calcular cuánto tiempo compensatorio debe hacer el empleado DIARIO,
-# repartiendo los "días que debe compensar" sobre los días hábiles del periodo
-# del año escolar (p.ej. 1-feb → 26-nov, configurable por año). Reusa el módulo
-# de Vacaciones para derecho/acumulada/saldo.
+# <--- hecho por claude code: tabs "Compensatorio por vacaciones" y "Tiempo diario".
+# Reparte los "días que debe compensar" (derivados de vacaciones + días no laborables ANA)
+# sobre los días hábiles del periodo del año escolar (1-feb → 26-nov, configurable por año).
 # ══════════════════════════════════════════════════════════════════════════════
 _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → horas
-# <--- hecho por claude code (16-sep-2026): compensatorio DIARIO FIJO del horario asistente
-# (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS deben hacer para cubrir los 18 días de cierre.
+# <--- hecho por claude code (16-sep-2026): botón "Pruebas" del Reloj — compensatorio DIARIO FIJO del
+# horario asistente (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS hacen para cubrir los 18
+# días de cierre, en el periodo 1-feb → 30-nov; en MATRÍCULA (día siguiente al fin → 18-dic y
+# 4-ene → 1-feb) todos salen a las 4:00 pm = 12 min/día. Probado antes en techcare-pruebas.
 _MIN_COMP_DIA = 47
-# <--- hecho por claude code (16-sep-2026): periodo de MATRÍCULA (todos salen a las 4:00 pm → 12 min/día):
-# del fin del periodo de trabajo al 18-dic y del 4-ene al 1-feb del año siguiente. Se toma desde el día
-# siguiente al fin del periodo para no contar dos veces el 30-nov.
 _MIN_MATRICULA_DIA = 12
+_FIN_PERIODO_PRUEBAS = (11, 30)   # (mes, día) del fin del periodo de trabajo para el botón Pruebas
 
 
 # <--- hecho por claude code (16-sep-2026): tramos de MATRÍCULA por año (todos salen a las 4:00 pm = 12 min).
@@ -2619,11 +2641,25 @@ def _matricula_tramos(anio, fin_periodo=None):
     return [(date(anio, *a), date(anio, *b)) for a, b in _MATRICULA_POR_ANIO.get(anio, [])]
 
 
+def _permiso_dias_tomado(cc):
+    """<--- hecho por claude code (16-sep-2026): horas de permiso compensatorio que salen de los
+    3 DÍAS DE PERMISO del empleado: las entradas de PermisoReporte (compensatorio_dias) cuya fecha
+    NO coincide con un feriado ANA registrado (las que coinciden, p. ej. 13/07 = 44 h trimestral,
+    son feriado). Solo tiene sentido para quien tiene permisos extras. Devuelve (horas, fechas)."""
+    fechas_dnl = {d.fecha for d in cc.dias_no_laborables.all() if d.fecha}
+    total, fechas = 0.0, []
+    for p in PermisoReporte.objects.filter(emp_code=cc.emp_code, tipo='compensatorio_dias').order_by('fecha'):
+        if p.fecha in fechas_dnl:
+            continue
+        total += float(_permiso_horas_val(p.horas, p.dias) or 0)
+        fechas.append(p.fecha)
+    return round(total, 2), fechas
+
+
 def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
-    """<--- hecho por claude code (16-sep-2026): recorre los días hábiles desde `inicio` sumando
-    47 min/día hasta `ff` y luego 12 min/día en los tramos de matrícula, hasta cubrir
-    `min_necesarios`. Devuelve fecha en que termina, si alcanza, si cae en matrícula y el
-    máximo compensable (min) desde `inicio`."""
+    """Recorre los días hábiles desde `inicio` sumando 47 min/día hasta `ff` y luego 12 min/día
+    en los tramos de matrícula, hasta cubrir `min_necesarios`. Devuelve fecha en que termina,
+    si alcanza, si cae en matrícula, días de 47 min y el máximo compensable desde `inicio`."""
     from datetime import timedelta as _tdr
     import math as _m
     fecha, alcanza, en_mat, acum = None, min_necesarios <= 0, False, 0.0
@@ -2659,9 +2695,7 @@ def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
 
 
 def _ensure_model_table(model):
-    """<--- hecho por claude code: en PRUEBAS las migraciones están gitignored y la BD es un
-    clon, así que las tablas nuevas no se crean con `migrate`. Este helper crea la tabla del
-    modelo si aún no existe (idempotente, barato). Así los guardados no fallan con 500."""
+    """Crea la tabla del modelo si aún no existe (respaldo idempotente)."""
     from django.db import connection
     try:
         if model._meta.db_table in connection.introspection.table_names():
@@ -2673,16 +2707,12 @@ def _ensure_model_table(model):
 
 
 def _periodo_comp_anual(anio):
-    """(fecha_inicio, fecha_fin) del periodo del año escolar `anio`. Si no existe,
-    se crea con el default 1-feb → 26-nov (editable después). Si la tabla aún no
-    existe (migración sin aplicar) o hay error, cae al default sin romper la página."""
-    default = (date(anio, 2, 1), date(anio, 11, 30))   # <--- hecho por claude code (16-sep-2026): periodo 1-feb → 30-nov
+    """(fecha_inicio, fecha_fin) del periodo del año escolar. Default 1-feb → 26-nov."""
+    default = (date(anio, 2, 1), date(anio, 11, 26))
     try:
         from .models import CompensatorioPeriodoAnual
         obj, _ = CompensatorioPeriodoAnual.objects.get_or_create(
-            anio=anio,
-            defaults={'fecha_inicio': default[0], 'fecha_fin': default[1]},
-        )
+            anio=anio, defaults={'fecha_inicio': default[0], 'fecha_fin': default[1]})
         return obj.fecha_inicio, obj.fecha_fin
     except Exception as _ex:
         print(f"[compensatorio] periodo anual fallback: {_ex}")
@@ -2690,9 +2720,7 @@ def _periodo_comp_anual(anio):
 
 
 def _dias_de_feriado(desc, horas):
-    """<--- hecho por claude code: días reales de un feriado ANA a partir de sus horas.
-    Cada feriado tiene su propia jornada (Semana Santa 8.4 h/día → 21h=2.5 días;
-    Trimestral 8 h/día → 44h=5.5; el resto 8.8 h/día → Morazánico 17.6h=2, Cierre 70.4h=8)."""
+    """Días reales de un feriado ANA a partir de sus horas (respaldo si no hay campo `dias`)."""
     import unicodedata
     d = ''.join(c for c in unicodedata.normalize('NFD', (desc or '').strip().lower())
                 if unicodedata.category(c) != 'Mn')
@@ -2705,7 +2733,7 @@ def _dias_de_feriado(desc, horas):
 
 
 def _dias_habiles_periodo(fi, ff, feriados):
-    """Días hábiles (lun-vie, excluyendo feriados ANA) entre fi y ff (inclusive)."""
+    """Días hábiles (L-V, excluyendo feriados ANA) entre fi y ff (inclusive)."""
     from datetime import timedelta as _td
     if not fi or not ff or fi > ff:
         return 0
@@ -2718,37 +2746,23 @@ def _dias_habiles_periodo(fi, ff, feriados):
 
 
 def _compensatorio_rediseno_rows(anio, feriados, hoy):
-    """Filas del rediseño de tabs 1-2: por empleado del Control Compensatorio,
-    con datos de Vacaciones (derecho/acumulada/saldo) y el tiempo compensatorio DIARIO.
-
-    Fórmula (confirmada con el usuario):
-      · Días que necesita = 47 min/día × días hábiles del periodo ÷ (8.8 h × 60)
-      · Total días que necesita = Días que necesita + permisos extras (3 días)
-      · DÍAS QUE DEBE COMPENSAR = Total − Saldo para gastar (vacaciones)
-      · Tiempo diario = DÍAS QUE DEBE COMPENSAR × 8.8 h ÷ días hábiles → min/día
-    Los días hábiles se cuentan de max(inicio-periodo, fecha-ingreso) a fin-periodo.
+    """Filas de los tabs "Compensatorio por vacaciones" / "Tiempo diario".
+    · Saldo para gastar = Derecho a días − Vacación acumulada
+    · Total días que necesita = Días que necesita (días no laborables ANA) + permisos (3 días)
+    · Días que debe compensar = Total − Saldo
+    · Tiempo diario = Días que debe compensar × 8.8 h ÷ días hábiles → min/día
     """
-    from django.db.models import Sum as _Sum
-    from .models import VacacionConfig, PermisoReporte, CompensatorioVacacionManual
+    from .models import VacacionConfig, CompensatorioVacacionManual
     fi, ff = _periodo_comp_anual(anio)
     dias_hab_full = _dias_habiles_periodo(fi, ff, feriados)
 
     calculos = list(CompensatorioCalculo.objects.all())
     vac_cfgs = {str(v.emp_code): v for v in VacacionConfig.objects.all()}
-    # <--- hecho por claude code: overrides manuales de "Vacación acumulada"
     try:
         acum_manual = {str(m.emp_code): float(m.acumulada)
                        for m in CompensatorioVacacionManual.objects.all()}
     except Exception:
-        acum_manual = {}   # tabla aún no creada → sin overrides
-    # días de vacación usados en el año (PermisoReporte tipo vacaciones_dias)
-    vac_fi, vac_ff = date(anio, 2, 1), date(anio, 11, 30)
-    usados_map = {
-        str(p['emp_code']): float(p['d'] or 0)
-        for p in PermisoReporte.objects.filter(
-            tipo='vacaciones_dias', fecha__gte=vac_fi, fecha__lte=vac_ff,
-        ).values('emp_code').annotate(d=_Sum('dias'))
-    }
+        acum_manual = {}
 
     rows = []
     for cc in calculos:
@@ -2757,71 +2771,63 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         ingreso = vc.fecha_inicio_labores if vc else None
         es_doc  = bool(vc and vc.es_docente)
         dias_fijos = vc.dias_fijos if vc else None
-        # Vacaciones (reusa la lógica del módulo)
         derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
-        usados  = usados_map.get(ec, 0) + float(vc.dias_usados_manual or 0 if vc else 0)
-        es_esp  = dias_fijos is not None
-        # Vacación acumulada: del módulo de Vacaciones, o el override manual si existe
+        # días usados (vacaciones) del año, para la acumulada calculada
+        from django.db.models import Sum as _Sum
+        usados = float(PermisoReporte.objects.filter(
+            tipo='vacaciones_dias', emp_code=ec,
+            fecha__gte=date(anio, 2, 1), fecha__lte=date(anio, 11, 30),
+        ).aggregate(t=_Sum('dias'))['t'] or 0) + float(vc.dias_usados_manual or 0 if vc else 0)
+        # Vacación acumulada: del módulo o el override manual
         _prop, acum_bruto = _vac_accrual(es_doc, ingreso, hoy, dias_fijos, derecho)
         acumulada = round(acum_bruto - usados, 2)
         acumulada_es_manual = ec in acum_manual
         if acumulada_es_manual:
             acumulada = round(acum_manual[ec], 2)
-        # <--- hecho por claude code (fórmula del usuario): Saldo para gastar = Derecho − Acumulada
+        # Saldo para gastar = Derecho − Acumulada
         saldo = round(float(derecho) - acumulada, 2)
-        # Periodo efectivo del empleado (si ingresó después del inicio del periodo)
+        # Periodo efectivo del empleado y días hábiles
         emp_fi = ingreso if (ingreso and ingreso > fi) else fi
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
-        # <--- hecho por claude code: "Días que necesita" = suma de los DÍAS NO LABORABLES ANA
-        # del empleado (feriados de cierre), calculados desde sus entradas (Semana Santa 2.5,
-        # Trimestral 5.5, Morazánico 2, Cierre 8 → 18). Ya no es la fórmula de 47 min.
-        dias_necesita = round(sum(_dias_de_feriado(x.descripcion, x.horas)
-                                  for x in cc.dias_no_laborables.all()), 2)
+        # Días que necesita = suma de los días no laborables ANA (usa el campo `dias`, o los deriva)
+        dias_necesita = round(sum(
+            (float(x.dias) if getattr(x, 'dias', None) is not None
+             else _dias_de_feriado(x.descripcion, x.horas))
+            for x in cc.dias_no_laborables.all()), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
-        # <--- hecho por claude code (fórmula del usuario): Debe compensar = Total − Saldo
+        # Días que debe compensar = Total − Saldo
         debe_compensar = round(total_necesita - float(saldo), 2)
         horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
-        # <--- hecho por claude code (16-sep-2026): el tiempo diario es FIJO (47 min, horario asistente).
-        # Lo que se calcula es cuántos días de 47 min necesita y en qué fecha termina, recorriendo
-        # los días hábiles del periodo (L-V sin feriados) desde max(inicio, ingreso). Si se pasa del
-        # fin del periodo, no alcanza y se informa cuánto falta.
-        min_diario = float(_MIN_COMP_DIA) if debe_compensar > 0 else 0.0
+        if dias_hab > 0 and debe_compensar > 0:
+            min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
+        else:
+            min_diario = 0.0
         h_di = int(min_diario // 60)
         m_di = int(round(min_diario - h_di * 60))
-        min_necesarios = max(0.0, horas_totales * 60)
-        rec = _recorrer_compensatorio(emp_fi, ff, anio, feriados, min_necesarios)
-        dias_necesarios, fecha_termina, alcanza = rec['dias_47'], rec['fecha'], rec['alcanza']
-        en_matricula, dias_mat, disponible_min, faltan_h = rec['en_matricula'], rec['dias_mat'], rec['disponible_min'], rec['faltan_h']
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
             'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
-            'acumulada_es_manual': acumulada_es_manual,
-            'saldo': round(float(saldo), 2),
+            'acumulada_es_manual': acumulada_es_manual, 'saldo': saldo,
             'dias_necesita': dias_necesita, 'permisos_dias': permisos_dias,
             'total_necesita': total_necesita, 'debe_compensar': debe_compensar,
-            'dias_hab': dias_hab,
-            'horas_totales': horas_totales,
+            'dias_hab': dias_hab, 'horas_totales': horas_totales,
             'min_diario': min_diario,
             'hhmm_diario': f"{h_di}h {m_di:02d}m" if min_diario > 0 else "—",
-            # 47 min fijos: días necesarios y fecha en que termina (dentro del periodo)
-            'dias_necesarios': dias_necesarios,
-            'fecha_termina': fecha_termina,
-            'alcanza': alcanza,
-            'en_matricula': en_matricula,
-            'dias_matricula': dias_mat,
-            'emp_fi': emp_fi, 'ff': ff,
-            'faltan_h': faltan_h,
-            'disponible_h': round(disponible_min / 60, 2),
         })
     rows.sort(key=lambda x: (_especial_rank(x['nombre']), x['nombre'].lower()))
     return rows, fi, ff, dias_hab_full
 
 
 @login_required
-def compensatorio_calculo_list(request):
+def compensatorio_calculo_list(request, modo_pruebas=False):
+    # <--- hecho por claude code (16-sep-2026): modo_pruebas=True → botón "Pruebas" del Reloj
+    # (mismos datos, permiso propio `pruebas_comp`, plantilla aparte de solo lectura).
+    if modo_pruebas and not _reloj_can_ver(request.user, 'pruebas_comp'):
+        messages.error(request, 'No tiene permiso para ver Pruebas del compensatorio.')
+        return redirect('reloj_dashboard')
     # Requiere permiso de visualización del Control Compensatorio
-    if not _reloj_can_ver(request.user, 'calculo_comp'):
+    if not modo_pruebas and not _reloj_can_ver(request.user, 'calculo_comp'):
         messages.error(request, 'No tiene permiso para ver el Control Compensatorio.')
         return redirect('reloj_dashboard')
     from datetime import timedelta as _td
@@ -2927,16 +2933,20 @@ def compensatorio_calculo_list(request):
 
         # ── Total = Horas adeudadas (directo) + Permisos extras ──
         dias_nl        = dias_no_lab_map.get(r.pk, [])
-        hrs_no_lab     = round(sum(d.total_horas for d in dias_nl), 2)
+        hrs_no_lab     = round(sum(d.total_horas for d in dias_nl), 2)   # total registrado (todas)
+        # <--- hecho por claude code: para el Tiempo tomado solo cuentan las que YA pasaron
+        hrs_no_lab_tomado = _dnl_tomado(dias_nl, hoy)[1]
 
-        factor         = round(float(r.factor_horas_dia or 8.0), 1)  # solo fallback
+        factor         = round(float(r.factor_horas_dia or 8.8), 1)  # solo fallback
         # Horas adeudadas: valor directo si existe; si no, días × 8 (compatibilidad)
         if r.horas_adeudadas_manual is not None:
             horas_adeudadas = round(float(r.horas_adeudadas_manual), 2)
         else:
             horas_adeudadas = round(float(r.dias_adeudados) * factor, 2)
         permisos_extras = round(float(r.permisos_extras_horas or 0), 2)
-        total_hrs      = round(horas_adeudadas + permisos_extras, 2)
+        # <--- hecho por claude code (30-sep-2026): regla del usuario — los 3 días de permiso NO entran al Total a
+        # compensar de "Control adeudados" / "Adeudados 2"; viven SOLO en el tab "4 · Con 3 días de permiso".
+        total_hrs      = round(horas_adeudadas, 2)
         total_min      = round(total_hrs * 60)
 
         # min/día == 0 → sin acumulación diaria (solo tiempo extra) → 0 días hábiles
@@ -2945,8 +2955,9 @@ def compensatorio_calculo_list(request):
         # Tiempo extra autorizado (suma de TiempoExtraDia del empleado) — informativo
         tiempo_extra_min = te_sum_map.get(ec, 0)
 
-        # Tiempo TOMADO = permiso compensatorio + entradas manuales
-        # Tiempo tomado = permiso compensatorio + manual + receso extra (min de más ÷ 60)
+        # <--- hecho por claude code (pedido del usuario): Tiempo tomado = permiso compensatorio
+        # + tomado manual + receso, en TODOS los casos (se revirtió el tomado por días no
+        # laborables ANA; esos días ahora son solo "Días que necesita" en el tab por vacaciones).
         tomado_hrs = round(permiso_comp_map.get(ec, 0) + manual_tomado_map.get(r.pk, 0)
                            + receso_extra_map.get(ec, 0), 2)
         tomado_min = round(tomado_hrs * 60)
@@ -2957,9 +2968,14 @@ def compensatorio_calculo_list(request):
         saldo_min       = max(0, neto_min - tomado_min)
         es_especial = any(k in r.nombre_empleado.lower() for k in _ESPECIALES_COMP)
 
-        # Conversión a días para mostrar en tabla
-        dias_no_lab_display  = round(hrs_no_lab / 8, 2) if hrs_no_lab else 0
+        # <--- hecho por claude code: días reales = suma del campo `dias` de cada entrada
+        # (cada feriado tiene su propio conteo, NO se deriva de las horas). Si alguna entrada
+        # no tiene `dias` capturado, se estima con horas/8.8 como respaldo.
+        dias_no_lab_display  = round(sum(
+            (float(d.dias) if d.dias is not None else round(float(d.horas) / 8.8, 2))
+            for d in dias_nl), 2) if dias_nl else 0
         permisos_extras_dias = round(permisos_extras / factor, 2) if factor else 0
+
 
         registros_data.append({
             'r':                r,
@@ -3089,55 +3105,119 @@ def compensatorio_calculo_list(request):
     }
 
     cfg = RelojConfigGlobal.get()
-    # <--- hecho por claude code: rediseño tabs 1-2 (tiempo compensatorio diario)
+    # <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario"
     try:
         redis_rows, periodo_inicio, periodo_fin, periodo_dias_habiles = _compensatorio_rediseno_rows(
             anio_sel, feriados, hoy)
     except Exception as _ex:
         print(f"[compensatorio] rediseño rows fallback: {_ex}")
         redis_rows = []
-        periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 30)
+        periodo_inicio, periodo_fin = date(anio_sel, 2, 1), date(anio_sel, 11, 26)
         periodo_dias_habiles = _dias_habiles_periodo(periodo_inicio, periodo_fin, feriados)
-
-    # <--- hecho por claude code: llevar "Horas que debe compensar" y "Tiempo diario" al tab 2
-    # (que itera registros_data). Se unen por pk del CompensatorioCalculo.
     _redis_by_pk = {r['pk']: r for r in redis_rows}
     for _it in registros_data:
         _rd = _redis_by_pk.get(_it['r'].pk)
         _it['debe_compensar_horas'] = _rd['horas_totales'] if _rd else 0
         _it['min_diario']  = _rd['min_diario'] if _rd else 0
         _it['hhmm_diario'] = _rd['hhmm_diario'] if _rd else '—'
-        # <--- hecho por claude code (16-sep-2026): 47 min fijos → días necesarios y fecha en que termina
-        _it['dias_necesarios'] = _rd['dias_necesarios'] if _rd else 0
-        _it['fecha_termina']   = _rd['fecha_termina'] if _rd else None
-        _it['alcanza']         = _rd['alcanza'] if _rd else True
-        _it['en_matricula']    = _rd['en_matricula'] if _rd else False
-        # <--- hecho por claude code (16-sep-2026): lo que el empleado YA hizo (compensado + tiempo
-        # extra, según las marcas) se descuenta de la deuda; la fecha en que termina se calcula
-        # desde HOY con lo que le falta, a 47 min/día (y 12 en matrícula).
-        _hecho_h = float(_it.get('comp_mas_te_hrs') or 0)
-        _pend_h = round(max(0.0, (_rd['horas_totales'] if _rd else 0) - _hecho_h), 2)
-        _it['hecho_h'] = round(_hecho_h, 2)
-        _it['pendiente_h'] = _pend_h
-        if _rd:
-            _ini = max(hoy, _rd['emp_fi'])
-            _rr = _recorrer_compensatorio(_ini, _rd['ff'], anio_sel, feriados, _pend_h * 60)
-            _it['dias_pend'] = _rr['dias_47']
-            _it['fecha_termina_real'] = _rr['fecha']
-            _it['alcanza_real'] = _rr['alcanza']
-            _it['en_matricula_real'] = _rr['en_matricula']
-            _it['faltan_real_h'] = _rr['faltan_h']
-            _it['disponible_real_h'] = round(_rr['disponible_min'] / 60, 2)
-        else:
-            _it['dias_pend'] = 0; _it['fecha_termina_real'] = None; _it['alcanza_real'] = True
-            _it['en_matricula_real'] = False; _it['faltan_real_h'] = 0; _it['disponible_real_h'] = 0
-        _it['faltan_h']        = _rd['faltan_h'] if _rd else 0
-        _it['disponible_h']    = _rd['disponible_h'] if _rd else 0
+
+    # <--- hecho por claude code (16-sep-2026): botón "Pruebas" — 47 min fijos, matrícula 12 min,
+    # se descuenta lo ya hecho (compensado + tiempo extra) y la fecha se calcula desde HOY.
+    _ff_p = date(anio_sel, *_FIN_PERIODO_PRUEBAS)
+    _rec0 = _recorrer_compensatorio(periodo_inicio, _ff_p, anio_sel, feriados, 0)
+    _dh_p, _mat_p = _rec0['dias_hab'], _rec0['dias_mat']   # días a 47 min (hasta antes de matrícula) y días de matrícula
+    # <--- hecho por claude code (16-sep-2026): en Pruebas los 3 días de permiso NO entran en los
+    # tabs 1-3 (deuda = días que necesita − saldo); van aparte en el tab 4.
+    import math as _mp
+    from .models import CompensatorioPermisoTomadoManual
+    try:
+        _perm_tom_over = {m.emp_code: m.horas for m in CompensatorioPermisoTomadoManual.objects.all()}
+    except Exception:
+        _perm_tom_over = {}
+    # <--- hecho por claude code (16-sep-2026): "Saldo para gastar" editable en Pruebas (override)
+    from .models import CompensatorioSaldoManual
+    try:
+        _saldo_over = {m.emp_code: float(m.saldo) for m in CompensatorioSaldoManual.objects.all()}
+    except Exception:
+        _saldo_over = {}
+    p_rows = []
+    for _rd0 in redis_rows:
+        _saldo_m = _saldo_over.get(str(_rd0['emp_code']))
+        _saldo = round(_saldo_m, 2) if _saldo_m is not None else float(_rd0['saldo'])
+        _debe_d = round(float(_rd0['dias_necesita']) - _saldo, 2)
+        p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
+                       'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _JORNADA_COMP_H, 2)})
+    _p_by_pk = {x['pk']: x for x in p_rows}
+    for _it in registros_data:
+        _rd = _p_by_pk.get(_it['r'].pk)
+        _tot = float(_rd['p_debe_h']) if _rd else 0.0
+        _ing = _rd['ingreso'] if _rd else None
+        _emp_fi = _ing if (_ing and _ing > periodo_inicio) else periodo_inicio
+        _hecho = float(_it.get('comp_mas_te_hrs') or 0)
+        _pend = round(max(0.0, _tot - _hecho), 2)
+        _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
+        _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
+        _perm_d = float(_rd['permisos_dias']) if _rd else 0.0
+        _perm_h = round(_perm_d * _JORNADA_COMP_H, 2)
+        # horas ya tomadas de los 3 días (solo quien tiene permisos extras); salen del "tomado" de tabs 1-3
+        _perm_tom_h, _perm_tom_f = _permiso_dias_tomado(_it['r']) if _perm_d > 0 else (0.0, [])
+        _perm_tom_manual = _perm_tom_over.get(str(_it['r'].emp_code)) if _perm_d > 0 else None
+        _perm_tom_auto_h = _perm_tom_h
+        if _perm_tom_manual is not None:          # override (tab 4, lápiz)
+            _perm_tom_h = round(float(_perm_tom_manual), 2)
+        _tom_base = float(_it.get('tomado_hrs') or 0)
+        _p_tomado_h = round(max(0.0, _tom_base - _perm_tom_h), 2)   # también si el tomado es manual (el total incluye esas horas)
+        _it.update({
+            'p_permisos_dias': _perm_d,                       # tab 4 (aparte): días de permiso extra
+            'p_permisos_h': _perm_h,
+            # <--- hecho por claude code (16-sep-2026): regla del usuario — lo hecho por encima de lo que
+            # debe son HORAS HECHAS para los 3 días de permiso; "le restan por tomar" = hechas − tomado.
+            'p_horas_hechas_h': round(max(0.0, _hecho - max(_tot, 0.0)), 2) if _perm_d > 0 else 0.0,
+            'p_perm_tomado_h': _perm_tom_h,                  # tab 4: horas ya tomadas de los 3 días
+            'p_perm_tomado_manual': _perm_tom_manual is not None,
+            'p_perm_tomado_auto_h': _perm_tom_auto_h,
+            'p_perm_restan_h': round(max(0.0, _hecho - max(_tot, 0.0)) - _perm_tom_h, 2) if _perm_d > 0 else 0.0,   # hechas − tomado (puede ser negativo)
+            'p_perm_tomado_fechas': _perm_tom_f,
+            'p_tomado_h': _p_tomado_h,                        # tab 2: tiempo tomado SIN las horas de permiso
+            'p_permisos_dias47': int(_mp.ceil(_perm_h * 60 / _MIN_COMP_DIA)) if _perm_h > 0 else 0,
+            'p_debe_dias': _rd['p_debe_dias'] if _rd else 0,   # tabs 1-3: sin los permisos
+            'p_debe_h': round(_tot, 2),
+            'p_saldo_deuda': round(_tot - _hecho, 2),        # tab 2: deuda propia de Pruebas (sin permisos)
+            'p_de_mas': round(max(0.0, _hecho - _tot), 2),
+            # tab 4: las horas de más (hecho − debe) son las que cubren los 3 días de permiso
+            'p_perm_cubierto_h': round(min(max(0.0, _hecho - _tot), _perm_h), 2) if _perm_d > 0 else 0.0,
+            'p_perm_faltan_cubrir_h': round(max(0.0, _perm_h - max(0.0, _hecho - _tot)), 2) if _perm_d > 0 else 0.0,
+            'p_perm_sobran_h': round(max(0.0, max(0.0, _hecho - _tot) - _perm_h), 2) if _perm_d > 0 else 0.0,
+            'p_min_diario': _MIN_COMP_DIA,
+            'p_hecho_h': round(min(_hecho, _tot), 2) if _tot > 0 else round(_hecho, 2),   # tab 3: topado en lo que debe
+            'p_hecho_real_h': round(_hecho, 2), 'p_pendiente_h': _pend,
+            'p_dias_total': _teo['dias_47'], 'p_dias_pend': _real['dias_47'],
+            'p_fecha': _real['fecha'], 'p_alcanza': _real['alcanza'],
+            'p_en_matricula': _real['en_matricula'], 'p_faltan_h': _real['faltan_h'],
+            'p_disponible_h': round(_real['disponible_min'] / 60, 2),
+        })
+    _con_permisos = [x for x in registros_data if x.get('p_permisos_dias', 0) > 0]
+    # <--- hecho por claude code (16-sep-2026): los 4 tabs (Vacaciones · Tiempo hecho y deuda · Cierre ·
+    # Con 3 días de permiso) viven en el parcial _compensatorio_pruebas_tabs.html y se usan en AMBAS
+    # pantallas: Cálculo Compensatorio (reemplazan a "Compensatorio por vacaciones" y "Tiempo diario") y Pruebas.
+    _ctx_p = {
+        'p_rows': p_rows, 'con_permisos': _con_permisos,
+        'p_periodo_inicio': periodo_inicio, 'p_periodo_fin': _ff_p, 'p_dias_hab': _dh_p,
+        'p_dias_matricula': _mat_p, 'min_dia': _MIN_COMP_DIA, 'min_matricula': _MIN_MATRICULA_DIA,
+        'p_max_h': round((_dh_p * _MIN_COMP_DIA + _mat_p * _MIN_MATRICULA_DIA) / 60, 1),
+        'puede_tomado': _puede_tomado_manual(request.user), 'hoy': hoy,
+    }
+    if modo_pruebas:
+        return render(request, 'reloj/compensatorio_pruebas.html', {
+            **_ctx_p, 'registros_data': registros_data, 'anio_sel': anio_sel,
+            'can_edit': can_edit, 'can_edit_extra': can_edit_extra, 'can_delete_extra': can_delete_extra,
+        })
 
     ctx = {
+        **_ctx_p,   # <--- hecho por claude code (16-sep-2026): 4 tabs nuevos
         "gilma": gilma,
         "registros_data": registros_data,
-        # rediseño tabs 1-2
+        # tabs "Compensatorio por vacaciones" / "Tiempo diario"
         "redis_rows":            redis_rows,
         "periodo_inicio":        periodo_inicio,
         "periodo_fin":           periodo_fin,
@@ -3158,6 +3238,8 @@ def compensatorio_calculo_list(request):
         "instructor_rows": instructor_rows,
         "can_edit_extra":   can_edit_extra,
         "can_delete_extra": can_delete_extra,
+        # <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo reloj
+        "puede_tomado":     _puede_tomado_manual(request.user),
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')
@@ -3170,9 +3252,73 @@ def compensatorio_calculo_list(request):
 
 
 @login_required
+def compensatorio_saldo_manual_save(request):
+    """<--- hecho por claude code (16-sep-2026): fija a mano "Saldo para gastar" (tab 1 de Pruebas).
+    saldo vacío = volver al cálculo (Derecho − Acumulada)."""
+    from .models import CompensatorioSaldoManual
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    emp = str(d.get('emp_code') or '').strip()
+    if not emp:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'}, status=400)
+    raw = str(d.get('saldo') if d.get('saldo') is not None else '').strip().replace(',', '.')
+    if raw == '':
+        CompensatorioSaldoManual.objects.filter(emp_code=emp).delete()
+        return JsonResponse({'ok': True, 'manual': False})
+    try:
+        val = round(float(raw), 2)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'}, status=400)
+    CompensatorioSaldoManual.objects.update_or_create(emp_code=emp, defaults={'saldo': val})
+    return JsonResponse({'ok': True, 'manual': True, 'saldo': val})
+
+
+@login_required
+def compensatorio_permiso_tomado_save(request):
+    """<--- hecho por claude code (16-sep-2026): fija a mano "Tomado de los 3 días" (tab 4 de Pruebas).
+    horas vacío = volver al cálculo automático."""
+    from .models import CompensatorioPermisoTomadoManual
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    emp = str(d.get('emp_code') or '').strip()
+    if not emp:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'}, status=400)
+    raw = str(d.get('horas') if d.get('horas') is not None else '').strip().replace(',', '.')
+    if raw == '':
+        CompensatorioPermisoTomadoManual.objects.filter(emp_code=emp).delete()
+        return JsonResponse({'ok': True, 'manual': False})
+    try:
+        val = round(float(raw), 2)
+        if val < 0:
+            raise ValueError
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Valor inválido'}, status=400)
+    CompensatorioPermisoTomadoManual.objects.update_or_create(emp_code=emp, defaults={'horas': val})
+    return JsonResponse({'ok': True, 'manual': True, 'horas': val})
+
+
+@login_required
+def compensatorio_pruebas(request):
+    """<--- hecho por claude code (16-sep-2026): botón "Pruebas" del panel de Reloj."""
+    return compensatorio_calculo_list(request, modo_pruebas=True)
+
+
+@login_required
 @require_POST
 def compensatorio_periodo_save(request):
-    """AJAX: guarda el rango (fecha_inicio/fecha_fin) del periodo compensatorio de un año."""
+    """AJAX: guarda el rango del periodo compensatorio de un año."""
     if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     from .models import CompensatorioPeriodoAnual
@@ -3189,7 +3335,7 @@ def compensatorio_periodo_save(request):
     if fi > ff:
         return JsonResponse({'ok': False, 'error': 'El inicio debe ser anterior al fin'})
     try:
-        _ensure_model_table(CompensatorioPeriodoAnual)   # <--- hecho por claude code
+        _ensure_model_table(CompensatorioPeriodoAnual)
         CompensatorioPeriodoAnual.objects.update_or_create(
             anio=anio, defaults={'fecha_inicio': fi, 'fecha_fin': ff})
     except Exception as _ex:
@@ -3201,8 +3347,7 @@ def compensatorio_periodo_save(request):
 @login_required
 @require_POST
 def compensatorio_vac_acumulada_save(request):
-    """AJAX: guarda (o quita) el override manual de "Vacación acumulada" de un empleado.
-    Enviar `acumulada` vacío/None quita el override y vuelve al valor calculado."""
+    """AJAX: guarda (o quita) el override manual de 'Vacación acumulada' de un empleado."""
     if not _reloj_can(request.user, 'calculo_comp', 'editar'):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     from .models import CompensatorioVacacionManual
@@ -3221,7 +3366,7 @@ def compensatorio_vac_acumulada_save(request):
         except (ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'Valor inválido'})
     try:
-        _ensure_model_table(CompensatorioVacacionManual)   # crea la tabla si falta
+        _ensure_model_table(CompensatorioVacacionManual)
         if val is None:
             CompensatorioVacacionManual.objects.filter(emp_code=emp_code).delete()
             return JsonResponse({'ok': True, 'emp_code': emp_code, 'manual': False})
@@ -3644,7 +3789,7 @@ def compensatorio_set_factor(request, pk):
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
     try:
         body = json.loads(request.body or b'{}')
-        valor = round(float(body.get('factor', 8.0)), 1)
+        valor = round(float(body.get('factor', 8.8)), 1)
         if valor <= 0:
             raise ValueError
     except (ValueError, TypeError):
@@ -3654,7 +3799,7 @@ def compensatorio_set_factor(request, pk):
 
     horas_adeudadas = round(float(obj.dias_adeudados) * valor, 2)
     permisos_extras = round(float(obj.permisos_extras_horas or 0), 2)
-    total_hrs       = round(horas_adeudadas + permisos_extras, 2)
+    total_hrs       = round(horas_adeudadas, 2)   # <--- hecho por claude code (30-sep-2026): sin los 3 días (van en el tab 4)
     total_min       = round(total_hrs * 60)
     min_dia         = obj.minutos_autorizados_dia
     dias_hab        = _dias_hab_necesarios(total_min, min_dia)
@@ -3687,12 +3832,24 @@ def compensatorio_set_factor(request, pk):
 def compensatorio_dias_no_lab_get(request, pk):
     """AJAX GET: devuelve lista de días no laborables ANA de un CompensatorioCalculo."""
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    hoy = date.today()
     dias = [
-        {'id': d.pk, 'descripcion': d.descripcion, 'horas': float(d.horas)}
+        # <--- hecho por claude code: fecha + flag "pendiente" (feriado aún no ocurrido) + días reales
+        {'id': d.pk, 'descripcion': d.descripcion, 'horas': float(d.horas),
+         'dias': float(d.dias) if d.dias is not None else None,
+         'fecha': d.fecha.strftime('%d/%m/%Y') if d.fecha else '',
+         'fecha_iso': d.fecha.isoformat() if d.fecha else '',
+         'pendiente': bool(d.fecha and d.fecha > hoy)}
         for d in obj.dias_no_laborables.all()
     ]
-    total_hrs = round(sum(d['horas'] for d in dias), 2)
-    return JsonResponse({'ok': True, 'dias': dias, 'total_hrs': total_hrs})
+    total_hrs  = round(sum(d['horas'] for d in dias), 2)
+    # <--- hecho por claude code: total de días = suma del campo `dias` (respaldo horas/8.8)
+    total_dias = round(sum((d['dias'] if d['dias'] is not None else round(d['horas'] / 8.8, 2))
+                           for d in dias), 2)
+    # total que YA se refleja en Tiempo tomado (solo las que pasaron)
+    total_tomado = _dnl_tomado(list(obj.dias_no_laborables.all()), hoy)[1]
+    return JsonResponse({'ok': True, 'dias': dias, 'total_hrs': total_hrs,
+                         'total_dias': total_dias, 'total_tomado': total_tomado})
 
 
 @login_required
@@ -3714,7 +3871,26 @@ def compensatorio_dias_no_lab_add(request, pk):
             raise ValueError
     except (ValueError, TypeError):
         return JsonResponse({'ok': False, 'error': 'Valor de horas inválido'})
-    dia = DiaNoLaborableANA.objects.create(calculo=obj, descripcion=descripcion, horas=horas)
+    # <--- hecho por claude code: fecha del feriado (para saber si ya pasó)
+    fecha_str = (body.get('fecha') or '').strip()
+    fecha_val = None
+    if fecha_str:
+        try:
+            fecha_val = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'Fecha inválida'})
+    # <--- hecho por claude code: días reales del feriado (opcional; si no, se estima con horas/8.8)
+    dias_val = None
+    dias_raw = body.get('dias')
+    if dias_raw not in (None, ''):
+        try:
+            dias_val = round(float(dias_raw), 2)
+            if dias_val < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'Días inválidos'})
+    dia = DiaNoLaborableANA.objects.create(calculo=obj, descripcion=descripcion,
+                                           horas=horas, fecha=fecha_val, dias=dias_val)
     dias = list(obj.dias_no_laborables.all())
     total_hrs = round(sum(float(d.horas) for d in dias), 2)
     return JsonResponse({
@@ -3756,7 +3932,7 @@ def compensatorio_set_permisos_extras(request, pk):
     except (ValueError, TypeError):
         return JsonResponse({'ok': False, 'error': 'Valor inválido'})
 
-    factor = round(float(obj.factor_horas_dia or 8.0), 1)
+    factor = round(float(obj.factor_horas_dia or 8.8), 1)
     obj.permisos_extras_horas = horas_val if horas_val > 0 else None
     obj.save(update_fields=['permisos_extras_horas'])
 
@@ -3770,13 +3946,13 @@ def compensatorio_set_permisos_extras(request, pk):
 # <--- hecho por claude code
 def _recalc_calculo(obj, feriados=None):
     from datetime import timedelta as _td
-    factor = float(obj.factor_horas_dia or 8.0)
+    factor = float(obj.factor_horas_dia or 8.8)
     if obj.horas_adeudadas_manual is not None:
         horas_adeudadas = round(float(obj.horas_adeudadas_manual), 2)
     else:
         horas_adeudadas = round(float(obj.dias_adeudados) * factor, 2)
     permisos  = round(float(obj.permisos_extras_horas or 0), 2)
-    total_hrs = round(horas_adeudadas + permisos, 2)
+    total_hrs = round(horas_adeudadas, 2)   # <--- hecho por claude code (30-sep-2026): sin los 3 días (van en el tab 4)
     total_min = round(total_hrs * 60)
     min_dia   = obj.minutos_autorizados_dia
     dias_hab  = _dias_hab_necesarios(total_min, min_dia)
@@ -3799,7 +3975,9 @@ def _recalc_calculo(obj, feriados=None):
     from django.db.models import Sum as _SumTM2
     manual_h = obj.tomados_manual.aggregate(t=_SumTM2('horas'))['t'] or 0
     permiso_h = _permiso_comp_horas([str(obj.emp_code)]).get(str(obj.emp_code), 0)
-    tomado_hrs = round(float(permiso_h) + float(manual_h), 2)
+    # <--- hecho por claude code (pedido del usuario): tomado = permiso + manual + receso (siempre)
+    _receso_hrs = _receso_tomado_emp(obj)[2]
+    tomado_hrs = round(float(permiso_h) + float(manual_h) + _receso_hrs, 2)
     tomado_min = round(tomado_hrs * 60)
 
     # Neto = Compensado + Tiempo extra ; Saldo = Neto − Tiempo tomado
@@ -3816,33 +3994,25 @@ def _recalc_calculo(obj, feriados=None):
     }
 
 
+# <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo `reloj` (no solo superuser)
+def _puede_tomado_manual(user):
+    return user.is_superuser or user.groups.filter(name='reloj').exists()
+
+
 def _tomado_manual_payload(obj):
     manual = [
-        {'pk': t.pk, 'fecha': t.fecha.strftime('%d/%m/%Y'),
-         'horas': round(float(t.horas), 2), 'razon': t.razon or '—'}
+        {'pk': t.pk, 'fecha': t.fecha.strftime('%d/%m/%Y'), 'fecha_iso': t.fecha.isoformat(),
+         'horas': round(float(t.horas), 2), 'razon': t.razon or '—', 'razon_raw': t.razon or ''}
         for t in obj.tomados_manual.all()
     ]
     total_manual = round(sum(m['horas'] for m in manual), 2)
     return manual, total_manual
 
 
-@login_required
-def compensatorio_calculo_get_tomado(request, pk):
-    """AJAX GET: detalle del permiso compensatorio + tomado manual de un empleado."""
-    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
-    qs = PermisoReporte.objects.filter(
-        emp_code=obj.emp_code, tipo__in=_TIPOS_PERMISO_COMP
-    ).order_by('fecha')
-    entries = [
-        {'fecha': p.fecha.strftime('%d/%m/%Y'),
-         'horas': _permiso_horas_val(p.horas, p.dias),
-         'razon': p.razon or '—'}
-        for p in qs
-    ]
-    total_permiso = round(sum(e['horas'] for e in entries), 2)
-    manual, total_manual = _tomado_manual_payload(obj)
-    # Receso: minutos de más (sobre los 30) por MES → se cuentan como tiempo tomado extra
-    # <--- hecho por claude code: solo se cuentan a partir de _RECESO_TOMADO_DESDE (junio 2026)
+# <--- hecho por claude code: receso (minutos de más sobre los 30) por MES de un empleado.
+# Cuenta como tiempo tomado extra. Se usa tanto en la rama normal como en la de días no laborables.
+def _receso_tomado_emp(obj):
+    """(receso_list, receso_min, receso_hrs) del empleado. Solo desde _RECESO_TOMADO_DESDE."""
     receso_por_mes = {}
     _hoy = date.today()
     _desde = max(obj.fecha_inicio, _RECESO_TOMADO_DESDE)
@@ -3864,6 +4034,33 @@ def compensatorio_calculo_get_tomado(request, pk):
               for mk, v in sorted(receso_por_mes.items())]
     receso_min = sum(receso_por_mes.values())
     receso_hrs = round(receso_min / 60, 2)
+    return receso, receso_min, receso_hrs
+
+
+@login_required
+def compensatorio_calculo_get_tomado(request, pk):
+    """AJAX GET: detalle del permiso compensatorio + tomado manual de un empleado."""
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    # <--- hecho por claude code (pedido del usuario): el detalle SIEMPRE es permiso compensatorio
+    # + tomado manual + receso (se quitó la rama de días no laborables ANA como tomado).
+    qs = PermisoReporte.objects.filter(
+        emp_code=obj.emp_code, tipo__in=_TIPOS_PERMISO_COMP
+    ).order_by('fecha')
+    entries = [
+        {'fecha': p.fecha.strftime('%d/%m/%Y'),
+         'horas': _permiso_horas_val(p.horas, p.dias),
+         'razon': p.razon or '—'}
+        for p in qs
+    ]
+    # <--- hecho por claude code (16-sep-2026): desde la pantalla Pruebas (?pruebas=1) las horas de permiso
+    # tomadas de los 3 DÍAS (fechas que no son feriado ANA) no se muestran aquí: van en su tab 4.
+    if request.GET.get('pruebas') == '1' and float(obj.permisos_extras_horas or 0) > 0:
+        _f_dnl = {d.fecha.strftime('%d/%m/%Y') for d in obj.dias_no_laborables.all() if d.fecha}
+        entries = [e for e in entries if e['fecha'] in _f_dnl]
+    total_permiso = round(sum(e['horas'] for e in entries), 2)
+    manual, total_manual = _tomado_manual_payload(obj)
+    # <--- hecho por claude code: receso (minutos de más) como tiempo tomado extra
+    receso, receso_min, receso_hrs = _receso_tomado_emp(obj)
     return JsonResponse({
         'ok': True, 'entries': entries, 'total_permiso': total_permiso,
         'manual': manual, 'total_manual': total_manual,
@@ -3876,8 +4073,8 @@ def compensatorio_calculo_get_tomado(request, pk):
 @require_POST
 def compensatorio_tomado_manual_add(request, pk):
     """AJAX: agrega una entrada de tiempo tomado manual y recalcula."""
-    if not request.user.is_superuser:
-        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
     body = json.loads(request.body or b'{}')
     try:
@@ -3899,8 +4096,8 @@ def compensatorio_tomado_manual_add(request, pk):
 @require_POST
 def compensatorio_tomado_manual_del(request, tm_pk):
     """AJAX: elimina una entrada de tiempo tomado manual y recalcula."""
-    if not request.user.is_superuser:
-        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
     tm = get_object_or_404(CompensatorioTomadoManual, pk=tm_pk)
     obj = tm.calculo
     tm.delete()
@@ -3929,6 +4126,30 @@ def compensatorio_set_horas_adeudadas(request, pk):
     data = _recalc_calculo(obj)
     data['ok'] = True
     return JsonResponse(data)
+
+
+@login_required
+@require_POST
+def compensatorio_tomado_manual_edit(request, tm_pk):
+    """<--- hecho por claude code: EDITA una entrada de tiempo tomado manual (grupo reloj) y recalcula."""
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
+    t = get_object_or_404(CompensatorioTomadoManual, pk=tm_pk)
+    body = json.loads(request.body or b'{}')
+    try:
+        t.fecha = date.fromisoformat((body.get('fecha') or '').strip())
+        t.horas = round(float(body.get('horas') or 0), 2)
+        t.razon = (body.get('razon') or '').strip()[:300]
+        if t.horas <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    t.save(update_fields=['fecha', 'horas', 'razon'])
+    obj = t.calculo
+    manual, total_manual = _tomado_manual_payload(obj)
+    rc = _recalc_calculo(obj)
+    return JsonResponse({'ok': True, 'manual': manual, 'total_manual': total_manual,
+                         'tomado_hrs': rc['tomado_hrs'], 'neto_hrs': rc['neto_hrs'], 'saldo_min': rc['saldo_min']})
 
 
 @login_required
@@ -4277,6 +4498,7 @@ def compensatorio_instructor_tomado_del(request, tm_pk):
     permiso, manual, total_manual = _inst_tomado_payload(inst, anio)
     return JsonResponse({'ok': True, 'permiso': permiso, 'manual': manual,
                          'total_manual': total_manual, 'total_tomado': round(permiso + total_manual, 2)})
+
 
 
 @login_required
@@ -4899,6 +5121,7 @@ def permiso_reporte_list(request):
         'mf_desde':        mes_inicio.isoformat(),
         'mf_hasta':        min(mes_fin, hoy).isoformat() if mes_fin >= mes_inicio else hoy.isoformat(),
         'campos_permiso':  CAMPOS_PERMISO,
+        'puede_bono_override': _puede_bono_override(request.user),   # <--- hecho por claude code (01-oct-2026)
         # <--- hecho por claude code: para el modal de permiso en el tab de ausentes
         'razones': list(RazonPermiso.objects.filter(activo=True).values_list('texto', flat=True)),
         'error_sql':       error_sql,
@@ -5022,12 +5245,20 @@ def bono_regla_extra_delete(request, pk):
     return JsonResponse({'ok': True})
 
 
+def _puede_bono_override(user):
+    """<--- hecho por claude code (01-oct-2026): superusuario o permiso Reloj "Bono – Ajuste manual"."""
+    if user.is_superuser:
+        return True
+    perm = getattr(user, 'reloj_permiso', None)
+    return bool(perm and perm.bono_ajuste_ver)
+
+
 @login_required
 @require_POST
 def bono_override_set(request):
-    """Override manual del superusuario sobre el bono de un empleado/mes."""
-    if not request.user.is_superuser:
-        return JsonResponse({'ok': False, 'error': 'Solo superusuario'}, status=403)
+    """Override manual sobre el bono de un empleado/mes (superusuario o permiso bono_ajuste_ver)."""
+    if not _puede_bono_override(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para el ajuste manual del bono'}, status=403)
     from .models import ReportePermisoMensual
     body = json.loads(request.body or b'{}')
     emp = (body.get('emp_code') or '').strip()

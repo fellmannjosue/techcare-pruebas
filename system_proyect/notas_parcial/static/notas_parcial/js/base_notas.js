@@ -19,8 +19,9 @@ window._PAGE.anioActual = parseInt(CFG_BASE_NOTAS.v0);
    <--- hecho por claude code: al abrir un parcial nuevo solo hay que subir
    PARCIAL_MAX. Arriba de ese número sale el modal "no hemos llegado a ese
    parcial todavía"; abajo de PARCIAL_MIN sale el de "eso ya pasó".
-   Julio 2026: se habilitó el 3º, así que el aviso queda solo para el 4º. */
-var PARCIAL_MAX = 3;   // último parcial habilitado
+   Julio 2026: se habilitó el 3º. Septiembre 2026: se habilitó el 4º (ya no
+   queda ninguno bloqueado hacia adelante). */
+var PARCIAL_MAX = 4;   // último parcial habilitado
 var PARCIAL_MIN = 2;   // primer parcial que aún se puede consultar
 
 (function(){

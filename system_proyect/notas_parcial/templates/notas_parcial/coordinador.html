@@ -74,6 +74,27 @@
           </button>
         </div>
       </form>
+      {# <--- hecho por claude code (30-sep-2026): vuelve a leer el sistema académico (limpia el caché de 10 min). BL: solo druiz/cvarela; Colegio: todos los coordinadores #}
+      {% if puede_refrescar and parcial and area %}
+      <form method="post" action="{% url 'notas_parcial_refrescar' %}" class="mt-2 d-flex align-items-center gap-2 flex-wrap">{% csrf_token %}
+        <input type="hidden" name="parcial" value="{{ parcial }}"><input type="hidden" name="anio" value="{{ anio }}"><input type="hidden" name="area" value="{{ area }}">
+        <input type="hidden" name="curso" value="{{ curso }}"><input type="hidden" name="grado" value="{{ grado }}"><input type="hidden" name="seccion" value="{{ seccion }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="ti ti-refresh me-1"></i>Actualizar datos del sistema académico</button>
+        <span class="text-muted small">Trae las notas en vivo (tarda unos segundos). Sin esto, los cambios hechos en Access se ven en máximo 10 min.</span>
+      </form>
+      {% endif %}
+      {# <--- hecho por claude code (12-oct-2026): Cerrar parcial = corta la escritura y lo quita de Mis Reportes de los maestros #}
+      {% if not ocultar_asignaciones and parcial and area and cierre_parcial %}
+      <div class="cierre-parcial-bar mt-2 d-flex align-items-center gap-2 flex-wrap">
+        {% if cierre_parcial.parcial_cerrado %}
+        <span class="badge bg-red-lt text-red"><i class="ti ti-lock me-1"></i>Parcial {{ parcial }} cerrado{% if cierre_parcial.parcial_cerrado_en %} el {{ cierre_parcial.parcial_cerrado_en }}{% endif %}{% if cierre_parcial.parcial_cerrado_por %} por {{ cierre_parcial.parcial_cerrado_por }}{% endif %}</span>
+        <button type="button" class="btn btn-sm btn-outline-success" id="btn-reabrir-parcial"><i class="ti ti-lock-open me-1"></i>Reabrir Parcial {{ parcial }}</button>
+        {% else %}
+        <button type="button" class="btn btn-sm btn-danger" id="btn-cerrar-parcial"><i class="ti ti-lock me-1"></i>Cerrar Parcial {{ parcial }}</button>
+        <span class="text-muted small">Al cerrar el periodo: los maestros ya no escriben y este parcial desaparece de su "Mis Reportes".</span>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 
@@ -254,6 +275,16 @@
         {% endif %}
         <button type="button" class="btn btn-sm btn-primary btn-asignar"><i class="ti ti-plus me-1"></i>Agregar</button>
         <span class="asig-msg ms-1 small"></span>
+        {% if not ocultar_asignaciones %}{# <--- hecho por claude code (13-oct-2026): maestro guía de este grado-sección (firma del PDF) #}
+        <span class="guia-ctrl ms-auto" data-grado="{{ grupo.list.0.grado }}" data-seccion="{{ grupo.list.0.grupo }}"><button type="button" class="btn btn-sm btn-outline-secondary btn-guia"><i class="ti ti-user-star me-1"></i><span class="lbl">Maestro guía</span></button></span>
+        {% endif %}
+        {% if not ocultar_asignaciones %}{# <--- hecho por claude code (12-oct-2026): revocar permisos / fecha de cierre de este grado-sección #}
+        <span class="cierre-ctrl ms-1 d-inline-flex align-items-center gap-1 flex-wrap" data-grado="{{ grupo.list.0.grado }}" data-seccion="{{ grupo.list.0.grupo }}">
+          <span class="badge cierre-badge"></span>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-cierre-revocar"><i class="ti ti-lock me-1"></i><span class="lbl">Revocar permisos</span></button>
+          <button type="button" class="btn btn-sm btn-outline-warning btn-cierre-fecha"><i class="ti ti-calendar-time me-1"></i>Fecha de cierre</button>
+        </span>
+        {% endif %}
       </div>
 
       <div class="card-header bg-blue-lt">
@@ -481,4 +512,56 @@
      data-v11="{{ solo_carrusel|yesno:"true,false" }}"
      data-v12="{% url "notas_parcial_marcar_revisado" %}"></div>
 <script src="{% static 'notas_parcial/js/coordinador.js' %}?v=113"></script>
+
+{% if not ocultar_asignaciones and area and parcial %}
+{# <--- hecho por claude code (12-oct-2026): cierre de escritura de los maestros asignados #}
+<div class="modal fade" id="modalCierreNotas" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-calendar-time me-2 text-orange"></i>Fecha y hora de cierre · <span id="cierre-grupo-lbl"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Al llegar esta fecha y hora, los maestros asignados ya no podrán escribir ni marcar Finalizado. Coordinación sí puede seguir editando.</p>
+        <label class="form-label">Cierra el</label>
+        <input type="datetime-local" class="form-control" id="cierre-fecha-inp">
+        <label class="form-check mt-3"><input type="checkbox" class="form-check-input" id="cierre-todo-parcial"><span class="form-check-label">Aplicar a <b>todos los grados y secciones</b> de este parcial</span></label>
+        <div class="small text-danger mt-2 d-none" id="cierre-err"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger me-auto" id="cierre-quitar"><i class="ti ti-calendar-off me-1"></i>Quitar fecha</button>
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="cierre-guardar"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{# <--- hecho por claude code (13-oct-2026): maestro guía #}
+<div class="modal fade" id="modalMaestroGuia" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-user-star me-2 text-blue"></i>Maestro guía · <span id="guia-grupo-lbl"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <label class="form-label">Nombre del maestro guía</label>
+        <input type="text" class="form-control" id="guia-nombre-inp" list="guia-maestros" maxlength="120" autocomplete="off" placeholder="Escribe o elige de la lista">
+        <datalist id="guia-maestros">{% for n in maestros_lista %}<option value="{{ n }}">{% endfor %}</datalist>
+        <div class="form-hint">Sale en el PDF bajo "Firma del Maestro Guía". Vale para todo el año {{ anio }}.</div>
+        <div class="small text-danger mt-2 d-none" id="guia-err"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger me-auto" id="guia-quitar"><i class="ti ti-user-x me-1"></i>Quitar</button>
+        <button type="button" class="btn" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="guia-guardar"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{{ guias|json_script:"guias-notas" }}
+<div id="guia-notas-config" hidden data-url="{% url 'notas_parcial_maestro_guia' %}" data-csrf="{{ csrf_token }}" data-area="{{ area }}" data-anio="{{ anio }}"></div>
+<script src="{% static 'notas_parcial/js/maestro_guia.js' %}?v=1"></script>
+{{ cierres|json_script:"cierres-notas" }}
+{{ cierre_parcial|json_script:"cierre-parcial-notas" }}
+<div id="cierre-notas-config" hidden data-url="{% url 'notas_parcial_cierre' %}" data-csrf="{{ csrf_token }}"
+     data-area="{{ area }}" data-parcial="{{ parcial }}" data-anio="{{ anio }}"></div>
+<link rel="stylesheet" href="{% static 'notas_parcial/css/cierre_notas.css' %}?v=1">
+<script src="{% static 'notas_parcial/js/cierre_notas.js' %}?v=2"></script>
+{% endif %}
 {% endblock %}

@@ -143,10 +143,36 @@ class MaintenanceModeMiddleware:
     # <--- hecho por claude code: sigue el flujo normal, pero aplicando el bloqueo por
     # formulario y, si el módulo está en "solo lectura", dejando la página no editable.
     def _continuar(self, request, config):
+        # <--- hecho por claude code (10-sep-2026): programas ocultos (Configuración → Seguridad)
+        bloqueo = self._chequear_programa_oculto(request, config)
+        if bloqueo is not None:
+            return bloqueo
         bloqueo = self._chequear_modulos(request, config)
         if bloqueo is not None:
             return bloqueo
         return self._aplicar_solo_lectura(request, config, self.get_response(request))
+
+    # <--- hecho por claude code (10-sep-2026): un programa oculto no se puede abrir ni por URL.
+    # Aplica a TODO usuario autenticado que no sea superusuario (el anónimo llega al login igual).
+    def _chequear_programa_oculto(self, request, config):
+        user = getattr(request, 'user', None)
+        if not (user and user.is_authenticated) or user.is_superuser:
+            return None
+        from core.programas import programa_oculto_de_ruta
+        prog = programa_oculto_de_ruta(request.path_info, config)
+        if not prog:
+            return None
+        try:
+            inicio = reverse('menu')
+        except NoReverseMatch:
+            inicio = '/'
+        return render(request, 'core/formulario_bloqueado.html', {
+            'mod_label':   prog['label'],
+            'mod_key':     prog['key'],
+            'desactivado': True,
+            'solo_lectura': False,
+            'inicio_url':  inicio,
+        }, status=503)
 
     def _aplicar_solo_lectura(self, request, config, response):
         """En modo 'lectura' la página se ve pero NO se puede escribir: deshabilita los
@@ -246,3 +272,31 @@ class MaintenanceModeMiddleware:
             'maint_end_time': getattr(config, 'MAINTENANCE_END_TIME', ''),
             'inicio_url':     inicio,
         }, status=503)
+
+
+# <--- hecho por claude code (28-sep-2026): cierre de sesión por INACTIVIDAD del lado del servidor.
+# El JS (idle_logout.js) solo actúa con una pestaña abierta; si el usuario cerraba el navegador la
+# sesión seguía viva (cookie de 1 año). Ahora cada petición autenticada renueva la caducidad a
+# SESION_INACTIVIDAD_MIN minutos (deslizante): sin peticiones en ese tiempo, la sesión caduca sola.
+class SesionInactividadMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    @staticmethod
+    def minutos():
+        try:
+            from constance import config
+            m = int(config.SESION_INACTIVIDAD_MIN)
+            return m if m > 0 else 240
+        except Exception:
+            return 240
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated and hasattr(request, 'session'):
+            try:
+                request.session.set_expiry(self.minutos() * 60)
+            except Exception:
+                pass
+        return response

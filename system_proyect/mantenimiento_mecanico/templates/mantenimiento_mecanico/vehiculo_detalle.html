@@ -1,0 +1,128 @@
+{% extends 'mantenimiento_mecanico/base_mm.html' %}
+{% load l10n %}
+{% load static %}
+{# <--- hecho por claude code (12-oct-2026): un vehículo — 1) registrar km, 2) cuándo toca, 3) hoja de tareas (formato de Access) #}
+{% block title %}{{ v.nombre }} · Mantenimiento de vehículos{% endblock %}
+{% block page_pretitle %}Mantenimiento de vehículos · flota{% endblock %}
+{% block page_title %}<i class="ti {% if v.categoria == 'tractor' %}ti-tractor{% elif v.categoria == 'motor' %}ti-engine{% else %}ti-bus{% endif %} me-2"></i>{{ v.nombre }}{% endblock %}
+{% block back_button %}<a href="{% url 'vehiculos:flota' %}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Flota</a>{% endblock %}
+{% block page_actions %}
+{% if puede_editar_veh %}<a href="{% url 'vehiculos:editar' v.id %}" class="btn btn-sm"><i class="ti ti-pencil me-1"></i>Editar datos</a>{% endif %}
+<a href="{% url 'vehiculos:hoja' v.id %}" target="_blank" class="btn btn-sm"><i class="ti ti-printer me-1"></i>Hoja para imprimir</a>
+<a href="{% url 'vehiculos:historial_xlsx' v.id %}" class="btn btn-sm"><i class="ti ti-file-spreadsheet me-1"></i>Historial Excel</a>
+{% if puede_km %}<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#mvModalLectura"><i class="ti ti-gauge me-1"></i>Registrar {{ v.unidad }}</button>
+{% endif %}{% if not puede_km and not puede_mant %}<span class="badge bg-white text-primary"><i class="ti ti-eye me-1"></i>Auditoría · solo lectura y comentarios</span>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{# ── Paso 1 y 2: estado y cuándo toca ── #}
+<div class="mv-estado mv-estado--{{ v.semaforo }}">
+  <div class="mv-estado-item"><small>Estado actual</small><b>{% if v.estado_actual is not None %}{{ v.estado_actual|unlocalize }}{% else %}—{% endif %} <span>{{ v.unidad }}</span></b><em>{% if v.FechaLectura %}lectura del {{ v.FechaLectura|date:"d/m/Y" }}{% endif %}</em></div>
+  <div class="mv-estado-flecha"><i class="ti ti-arrow-right"></i></div>
+  <div class="mv-estado-item"><small>{% if v.base_es_lectura %}Base (arranque limpio){% else %}Último mantenimiento{% endif %}</small><b>{% if v.KmBase is not None %}{{ v.KmBase|unlocalize }}{% else %}—{% endif %} <span>{{ v.unidad }}</span></b><em>{% if v.base_es_lectura %}lectura del {{ v.FechaBase|date:"d/m/Y" }} · aún sin mantenimientos{% else %}{{ v.FechaBase|date:"d/m/Y"|default:"" }}{% endif %}</em></div>
+  <div class="mv-estado-flecha"><i class="ti ti-plus"></i></div>
+  <div class="mv-estado-item"><small>Intervalo</small><b>{{ v.intervalo|unlocalize|default:"—" }} <span>{{ v.unidad }}</span></b><em>&nbsp;</em></div>
+  <div class="mv-estado-flecha"><i class="ti ti-equal"></i></div>
+  <div class="mv-estado-item mv-estado-item--prox"><small>Próximo mantenimiento</small><b>{% if v.proximo is not None %}{{ v.proximo|unlocalize }}{% else %}—{% endif %} <span>{{ v.unidad }}</span></b><em>{% if v.falta is not None %}{% if v.falta > 0 %}faltan {{ v.falta|unlocalize }} {{ v.unidad }}{% else %}pasado por {{ v.excedido|unlocalize }} {{ v.unidad }}{% endif %}{% endif %}</em></div>
+  <div class="mv-bar mv-bar--big"><i style="width:{{ v.pct }}%"></i></div>
+</div>
+
+{# ── Paso 3: hoja de tareas (formato de Access) ── #}
+<form method="post" action="{% url 'vehiculos:mant_crear' v.id %}" class="card mb-3" id="mv-form-mant">
+  {% csrf_token %}
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-checklist me-2 text-blue"></i>Tareas de mantenimiento <span class="badge bg-blue-lt text-blue ms-2">{{ n_toca }} tocan esta vez</span></h3>
+    {% if puede_mant %}<div class="card-actions btn-list"><button type="button" class="btn btn-sm btn-outline-primary" id="mv-marcar-toca"><i class="ti ti-checks me-1"></i>Marcar las que tocan</button><button type="button" class="btn btn-sm btn-ghost-secondary" id="mv-desmarcar"><i class="ti ti-square me-1"></i>Desmarcar</button></div>{% endif %}
+  </div>
+  {% if puede_mant %}
+  <div class="card-body border-bottom mv-reg">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3"><label class="form-label">{{ v.unidad|upper }} del mantenimiento</label><div class="input-group"><input type="number" min="0" name="valor" class="form-control" value="{{ v.estado_actual|default_if_none:''|unlocalize }}" required id="mv-valor" data-intervalo="{{ v.intervalo|unlocalize }}"><span class="input-group-text">{{ v.unidad }}</span></div></div>
+      <div class="col-md-3"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" required></div>
+      <div class="col-md-3"><label class="form-label">Realizado por</label><select name="persona" class="form-select" required>{% for p in personas %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><div class="mv-prox-calc">Próximo: <b id="mv-prox">—</b> {{ v.unidad }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table mv-tareas">
+      <thead><tr><th class="w-1">#</th><th>Tarea</th><th class="text-center">Intervalo</th><th class="text-center">Última vez</th><th class="text-center">Nunca hecho</th><th class="text-center">Toca esta vez</th><th class="text-center">Hecho</th></tr></thead>
+      <tbody>
+      {% for t in tareas %}
+        <tr class="{% if t.toca %}mv-toca{% endif %}">
+          <td class="text-muted">{{ t.n }}</td>
+          <td>{{ t.Tarea }}</td>
+          <td class="text-center"><span class="badge bg-secondary-lt text-secondary">{{ t.Intervalo }}</span></td>
+          <td class="text-center small">{{ t.ultima_fecha|date:"d/m/Y"|default:"—" }}</td>
+          <td class="text-center">{% if t.nunca %}<i class="ti ti-x text-red fw-bold"></i>{% endif %}</td>
+          <td class="text-center">{% if t.toca %}<span class="badge mv-est mv-est--pronto"><i class="ti ti-tool me-1"></i>Toca</span>{% else %}<span class="small text-muted">en {{ t.faltan }}</span>{% endif %}</td>
+          <td class="text-center">{% if puede_mant %}<input type="checkbox" class="form-check-input mv-hecho" name="hecho" value="{{ t.id }}" data-toca="{% if t.toca %}1{% else %}0{% endif %}">{% else %}<span class="mv-box"></span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if puede_mant %}
+  <div class="card-footer d-flex align-items-center gap-3 flex-wrap">
+    <span class="small text-muted"><i class="ti ti-info-circle me-1"></i>Hago constar que las tareas marcadas como HECHO están hechas según el manual de procedimientos de mantenimiento de máquinas y vehículos.</span>
+    <button type="submit" class="btn btn-primary ms-auto"><i class="ti ti-device-floppy me-1"></i>Registrar mantenimiento (<span id="mv-n-hechas">0</span>)</button>
+  </div>
+  {% endif %}
+</form>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-history me-2 text-orange"></i>Historial de mantenimientos</h3></div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table table-sm">
+          <thead><tr><th>Fecha</th><th class="text-end">{{ v.unidad }}</th><th>Realizado por</th><th class="text-center">Hechas</th><th>Registró</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody>
+          {% for h in hist %}
+            <tr id="mant-{{ h.id }}">
+              <td class="text-nowrap">{{ h.Fecha|date:"d/m/Y" }}</td>
+              <td class="text-end">{{ h.KmReal_Horas|unlocalize }}</td>
+              <td>{{ h.persona|default:"—" }}</td>
+              <td class="text-center"><span class="badge bg-green-lt text-green">{{ h.hechas|default:0 }}/{{ h.tareas }}</span></td>
+              <td class="small text-muted">{{ h.Usuario|default:"—" }}</td>
+              <td class="text-end text-nowrap">
+                <a href="{% url 'vehiculos:mant_pdf' h.id %}" target="_blank" class="btn btn-sm btn-ghost-danger btn-icon" title="Ficha PDF"><i class="ti ti-file-type-pdf"></i></a>
+                {% if puede_comentar or h.comentarios %}<button type="button" class="btn btn-sm btn-ghost-info mv-coment" data-id="{{ h.id }}" data-fecha="{{ h.Fecha|date:'d/m/Y' }}" data-url="{% url 'vehiculos:mant_comentario' h.id %}" title="Comentarios de auditoría"><i class="ti ti-message-2"></i>{% if h.comentarios %}<span class="badge bg-info text-white ms-1">{{ h.comentarios|length }}</span>{% endif %}</button>{% endif %}
+              </td>
+            </tr>
+          {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Sin mantenimientos.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-gauge me-2 text-blue"></i>Lecturas de {{ v.unidad }}</h3></div>
+      <ul class="list-group list-group-flush">
+        {% for l in lecturas %}<li class="list-group-item d-flex justify-content-between"><span>{{ l.Fecha|date:"d/m/Y" }} <small class="text-muted">· {{ l.Usuario|default:"" }}</small></span><b>{{ l.EstadoKm_Horas|unlocalize }}</b></li>{% empty %}<li class="list-group-item text-muted">Sin lecturas.</li>{% endfor %}
+      </ul>
+    </div>
+    {# <--- hecho por claude code (12-oct-2026): cargas de diésel del vehículo (se registran en la página Diésel) #}
+    <div class="card mt-3">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-gas-station me-2 text-blue"></i>Cargas de diésel</h3>
+        {% if puede_diesel %}<div class="card-actions"><a href="{% url 'mantenimiento_mecanico:pagina' 'diesel' %}" class="btn btn-sm btn-ghost-primary">Ir a Diésel</a></div>{% endif %}</div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table table-sm">
+          <thead><tr><th>Fecha</th><th class="text-end">Galones</th><th class="text-end">Estado km</th><th>Comentario</th></tr></thead>
+          <tbody>
+          {% for c in cargas_diesel %}<tr><td class="text-nowrap">{{ c.fecha|date:"d/m/Y" }}</td><td class="text-end">{{ c.galones|unlocalize }}</td><td class="text-end">{{ c.kilometraje|unlocalize|default:"—" }}</td><td class="small mm-obs">{{ c.observaciones|default:"" }}</td></tr>
+          {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Sin cargas de diésel.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'mantenimiento_mecanico/_modales_vehiculo.html' %}
+{{ comentarios_json|json_script:"mv-comentarios" }}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'mantenimiento_mecanico/js/vehiculos.js' %}?v=10"></script>{% endblock %}

@@ -3,6 +3,7 @@
 # ==============================================================
 
 import datetime
+import json   # <--- hecho por claude code (13-oct-2026): alta de categorías por JSON
 import io
 import qrcode
 from PIL import Image
@@ -44,6 +45,7 @@ from .models import (
     ModeloMonitor,
     ModeloTelevisor, GradoTelevisor, AreaTelevisor,
     ModeloComputadora, SerieComputadora, AsignadoAComputadora,
+    ItemGeneral, CategoriaGeneral, AREAS_GENERAL,   # <--- hecho por claude code (13-oct-2026)
     AreaComputadora, GradoComputadora, SubtipoGradoComputadora, EdificioComputadora,
 )
 
@@ -124,8 +126,9 @@ def descargar_qr(request, tipo, pk):
 
 @_inventario_required
 def dashboard(request):
-    year = datetime.datetime.now().year
-    return render(request, "inventario/dashboard.html", {"year": year})
+    # <--- hecho por claude code (28-sep-2026): el Panel de Inventario (8 tiles) se retiró; lo reemplaza el hub
+    # Control y Servicio Técnico. La URL se conserva como redirección para enlaces guardados.
+    return redirect('servicio_tecnico:hub')
 
 # ==============================================================
 # POR CATEGORÍA
@@ -1109,7 +1112,8 @@ def exportar_excel_inventario(request, categoria):
     if categoria == 'computadoras':
         ws.title = "Computadoras"
         estilizar_cabecera(ws, ["Asset ID", "Modelo", "Serie", "IP", "Asignado a", "Área", "Grado", "Grupo", "Fecha Instalación", "Observaciones"])
-        for c in Computadora.objects.all().order_by('asset_id'):
+        # <--- hecho por claude code (17-sep-2026): respeta el filtro activo (General / Lab BL / …) con ?prefijo=
+        for c in _comp_por_prefijo(request).order_by('asset_id'):
             ws.append([c.asset_id, c.modelo, c.serie, c.ip, c.asignado_a, c.area, c.grado,
                         c.grupo or '', str(c.fecha_instalado) if c.fecha_instalado else '', c.observaciones or ''])
 
@@ -1166,3 +1170,320 @@ def exportar_excel_inventario(request, categoria):
     )
     response['Content-Disposition'] = f'attachment; filename="inventario_{categoria}.xlsx"'
     return response
+
+
+# ===================== EXPORTAR PDF =====================
+# <--- hecho por claude code (17-sep-2026): PDF de cada pestaña de "Registros de inventario".
+_PREFIJOS_EXPORT = {'IDANACOMP': 'General', 'IDANALABBL': 'Lab BL', 'IDANALABCOL': 'Lab COL', 'IDCFPLAB': 'Lab CFP'}
+
+
+def _comp_por_prefijo(request):
+    """Computadoras filtradas por el prefijo de Asset ID que viene en ?prefijo= (solo valores conocidos)."""
+    pref = (request.GET.get('prefijo') or '').strip()
+    qs = Computadora.objects.all()
+    return qs.filter(asset_id__startswith=pref) if pref in _PREFIJOS_EXPORT else qs
+
+
+def _inventario_export_datos(request, categoria):
+    """(título, encabezados, filas) de una pestaña; None si la categoría no existe."""
+    sn = lambda b: 'Sí' if b else 'No'
+    f = lambda d: d.strftime('%d/%m/%Y') if d else ''
+    if categoria == 'computadoras':
+        pref = (request.GET.get('prefijo') or '').strip()
+        titulo = 'Computadoras' + (f' — {_PREFIJOS_EXPORT[pref]}' if pref in _PREFIJOS_EXPORT else '')
+        cols = ["Asset ID", "Modelo", "Serie", "IP", "Asignado a", "Área", "Grado", "Grupo", "Categoría", "Fecha inst.", "Observaciones"]
+        filas = [[c.asset_id, c.modelo, c.serie, c.ip, c.asignado_a, c.area, c.grado, c.grupo or '', c.category or '',
+                  f(c.fecha_instalado), c.observaciones or ''] for c in _comp_por_prefijo(request).order_by('asset_id')]
+    elif categoria == 'impresoras':
+        titulo, cols = 'Impresoras', ["Asset ID", "Nombre", "Modelo", "Serie", "Asignado a", "Nivel tinta", "Últ. llenado", "Impresiones", "A color", "Observaciones"]
+        filas = [[i.asset_id, i.nombre, i.modelo, i.serie, i.asignado_a, i.nivel_tinta, f(i.ultima_vez_llenado),
+                  i.cantidad_impresiones, sn(i.a_color), i.observaciones or ''] for i in Impresora.objects.order_by('asset_id')]
+    elif categoria == 'televisores':
+        titulo, cols = 'Televisores', ["Asset ID", "Modelo", "Serie", "IP", "Grado", "Área", "Observaciones"]
+        filas = [[t.asset_id, t.modelo, t.serie, t.ip, t.grado, t.area, t.observaciones or ''] for t in Televisor.objects.order_by('asset_id')]
+    elif categoria == 'routers':
+        titulo, cols = 'Routers', ["Asset ID", "Modelo", "Serie", "Nombre router", "IP asignada", "IP uso", "Ubicado", "Observaciones"]
+        filas = [[r.asset_id, r.modelo, r.serie, r.nombre_router, r.ip_asignada, r.ip_uso, r.ubicado, r.observaciones or ''] for r in Router.objects.order_by('asset_id')]
+    elif categoria == 'datashows':
+        titulo, cols = 'DataShows', ["Asset ID", "Nombre", "Modelo", "Serie", "Estado", "Cable corriente", "HDMI", "VGA", "Extensión", "Observaciones"]
+        filas = [[d.asset_id, d.nombre, d.modelo, d.serie, d.estado, sn(d.cable_corriente), sn(d.hdmi), sn(d.vga), sn(d.extension),
+                  d.observaciones or ''] for d in DataShow.objects.order_by('asset_id')]
+    elif categoria == 'monitores':
+        titulo, cols = 'Monitores', ["Asset ID", "Modelo", "Serie", "Tipo ubicación", "Laboratorio", "Asignado a", "Observaciones"]
+        filas = [[m.asset_id, m.modelo, m.serie, m.get_ubicacion_tipo_display() if m.ubicacion_tipo else '', m.laboratorio or '',
+                  m.asignado_a or '', m.observaciones or ''] for m in Monitor.objects.order_by('asset_id')]
+    else:
+        return None
+    return titulo, cols, [[('' if v is None else str(v)) for v in fila] for fila in filas]
+
+
+@_inventario_required
+def exportar_pdf_inventario(request, categoria):
+    """PDF apaisado con la tabla completa de la pestaña (en Computadoras respeta ?prefijo=)."""
+    datos = _inventario_export_datos(request, categoria)
+    if datos is None:
+        return HttpResponse("Categoría no válida", status=400)
+    titulo, cols, filas = datos
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from xml.sax.saxutils import escape as _esc
+    AZUL = colors.HexColor("#1F4E79"); GRIS = colors.HexColor("#eeeeee")
+    st_t = ParagraphStyle("t", fontSize=15, leading=18, fontName="Helvetica-Bold", textColor=AZUL, spaceAfter=3)
+    st_s = ParagraphStyle("s", fontSize=9, fontName="Helvetica", textColor=colors.gray)
+    st_c = ParagraphStyle("c", fontSize=7, fontName="Helvetica", leading=8.5)
+    st_h = ParagraphStyle("h", fontSize=7.5, fontName="Helvetica-Bold", leading=9, textColor=colors.white)
+    # Anchos proporcionales al contenido (acotados), ajustados al ancho útil de carta apaisada (25.5 cm)
+    pesos = []
+    for k, col in enumerate(cols):
+        largo = max([len(col)] + [len(f[k]) for f in filas[:400]])
+        pesos.append(min(max(largo, 6), 34))
+    anchos = [25.5 * cm * w / sum(pesos) for w in pesos]
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(letter), leftMargin=1.2*cm, rightMargin=1.2*cm,
+                            topMargin=1.2*cm, bottomMargin=1.2*cm, title=f"Inventario — {titulo}")
+    story = [Paragraph(f"Inventario — {_esc(titulo)}", st_t),
+             Paragraph(f"Asociación Nuevo Amanecer – Sistema TechCare · Generado el {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {len(filas)} registros", st_s),
+             Spacer(1, 0.3*cm)]
+    data = [[Paragraph(_esc(c), st_h) for c in cols]] + [[Paragraph(_esc(v), st_c) for v in f] for f in filas]
+    tabla = Table(data, colWidths=anchos, repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), AZUL),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, GRIS]),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cccccc")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    story.append(tabla)
+    doc.build(story)
+    buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type='application/pdf')
+    nombre = titulo.lower().replace(' — ', '_').replace(' ', '_')
+    resp['Content-Disposition'] = f'inline; filename="inventario_{nombre}.pdf"'
+    return resp
+
+
+# ==============================================================
+# INVENTARIO GENERAL — hecho por claude code (13-oct-2026)
+# Código automático ANAGEN-0001, descripción, ubicación, estado, foto, comentario y firma de la auditora.
+# Registra/edita: quien tiene Inventario. Comenta: solo la auditora (grupo `mantenimiento`) o el superusuario.
+# ==============================================================
+from django.db import transaction as _tx
+from django.contrib import messages as _msg
+from django.views.decorators.http import require_POST as _require_POST
+from .forms import ItemGeneralForm
+
+FIRMA_AUDITORA_INV = ('Yeny Lagos', 'Auditora')   # misma firma fija que Mantenimiento
+
+
+def _es_auditora_inv(u):
+    return u.is_superuser or u.groups.filter(name='mantenimiento').exists()
+
+
+def _siguiente_codigo_general():
+    """Correlativo ANAGEN-0001 con bloqueo para no repetir en guardados simultáneos."""
+    with _tx.atomic():
+        ult = (ItemGeneral.objects.select_for_update().filter(codigo__startswith=ItemGeneral.PREFIJO)
+               .order_by('-codigo').values_list('codigo', flat=True).first())
+        try:
+            n = int(ult[len(ItemGeneral.PREFIJO):]) if ult else 0
+        except ValueError:
+            n = ItemGeneral.objects.count()
+        return f"{ItemGeneral.PREFIJO}{n + 1:04d}"
+
+
+def _reducir_foto(f):
+    """Las fotos del celular pesan 3-5 MB: se guardan a máx. 1600 px en JPEG."""
+    try:
+        from PIL import Image, ImageOps
+        from io import BytesIO
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        im = ImageOps.exif_transpose(Image.open(f)).convert('RGB')
+        im.thumbnail((1600, 1600))
+        buf = BytesIO(); im.save(buf, 'JPEG', quality=82, optimize=True); buf.seek(0)
+        nombre = (f.name.rsplit('.', 1)[0] or 'foto') + '.jpg'
+        return InMemoryUploadedFile(buf, 'foto', nombre, 'image/jpeg', buf.getbuffer().nbytes, None)
+    except Exception:
+        return f
+
+
+@_inventario_required
+def inventario_general(request):
+    edit = ItemGeneral.objects.filter(pk=request.GET.get('editar')).first() if request.GET.get('editar', '').isdigit() else None
+    if request.method == 'POST':
+        edit = ItemGeneral.objects.filter(pk=request.POST.get('edit_id')).first() if request.POST.get('edit_id', '').isdigit() else None
+        form = ItemGeneralForm(request.POST, request.FILES, instance=edit)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            if 'foto' in request.FILES:
+                obj.foto = _reducir_foto(request.FILES['foto'])
+            if not obj.pk:
+                obj.codigo = _siguiente_codigo_general()
+                obj.creado_por = request.user
+            obj.modificado_por = request.user
+            obj.save()
+            _msg.success(request, f'{obj.codigo} {"actualizado" if edit else "registrado"}.')
+            return redirect('inventario:inventario_general')
+    else:
+        form = ItemGeneralForm(instance=edit)
+    items, f_area, f_cat = _items_general_filtrados(request)
+    por_estado = {k: 0 for k, _ in ItemGeneral.ESTADOS}
+    for e in items.values_list('estado', flat=True):
+        por_estado[e] = por_estado.get(e, 0) + 1
+    return render(request, 'inventario/inventario_general.html', {
+        'form': form, 'edit': edit, 'items': items,
+        'next_codigo': None if edit else _siguiente_codigo_general(),
+        'ubicaciones': sorted(set(ItemGeneral.objects.values_list('ubicacion', flat=True))),
+        'kpi_estados': [(k, l, por_estado.get(k, 0)) for k, l in ItemGeneral.ESTADOS],
+        'es_auditora': _es_auditora_inv(request.user),
+        'auditora': FIRMA_AUDITORA_INV,
+        # <--- área y categoría (filtro + select agregable)
+        'areas': AREAS_GENERAL,
+        'categorias': CategoriaGeneral.objects.all(),
+        'f_area': f_area, 'f_cat': f_cat,
+        'filtro_qs': request.GET.urlencode(),
+        'cat_sel': (form['categoria'].value() or '') if form is not None else '',
+    })
+
+
+def _items_general_filtrados(request):
+    """Filtro por ÁREA y luego por SU categoría (?f_area=&f_cat=). Lo usan la página, el PDF y el Excel."""
+    f_area = request.GET.get('f_area', '') if request.GET.get('f_area', '') in dict(AREAS_GENERAL) else ''
+    f_cat = request.GET.get('f_cat', '') if request.GET.get('f_cat', '').isdigit() else ''
+    qs = ItemGeneral.objects.select_related('creado_por', 'categoria').order_by('-id')
+    if f_area:
+        qs = qs.filter(area=f_area)
+    if f_cat:
+        qs = qs.filter(categoria_id=int(f_cat))
+    return qs, f_area, f_cat
+
+
+@_inventario_required
+@_require_POST
+def categoria_general_add(request):
+    """Agrega una categoría al área (desde el botón + del formulario). JSON."""
+    try:
+        data = json.loads(request.body or b'{}')
+    except ValueError:
+        data = {}
+    area = data.get('area', '')
+    nombre = ' '.join((data.get('nombre') or '').split())[:80]
+    if area not in dict(AREAS_GENERAL):
+        return JsonResponse({'ok': False, 'error': 'Elige primero el área.'}, status=400)
+    if len(nombre) < 2:
+        return JsonResponse({'ok': False, 'error': 'Escribe el nombre de la categoría.'}, status=400)
+    cat = CategoriaGeneral.objects.filter(area=area, nombre__iexact=nombre).first() or \
+          CategoriaGeneral.objects.create(area=area, nombre=nombre[:1].upper() + nombre[1:])
+    return JsonResponse({'ok': True, 'id': cat.id, 'nombre': cat.nombre, 'area': cat.area})
+
+
+@_inventario_required
+@_require_POST
+def item_general_comentario(request, pk):
+    if not _es_auditora_inv(request.user):
+        raise PermissionDenied('Solo la auditora deja comentarios.')
+    obj = get_object_or_404(ItemGeneral, pk=pk)
+    obj.comentario_auditora = (request.POST.get('comentario') or '').strip()[:2000]
+    obj.modificado_por = request.user
+    obj.save(update_fields=['comentario_auditora', 'modificado_por', 'fecha_modificado'])
+    _msg.success(request, f'Comentario de auditoría guardado en {obj.codigo}.')
+    return redirect('inventario:inventario_general')
+
+
+@_inventario_required
+@_require_POST
+def item_general_eliminar(request, pk):
+    obj = get_object_or_404(ItemGeneral, pk=pk)
+    cod = obj.codigo
+    if obj.foto:
+        obj.foto.delete(save=False)
+    obj.delete()
+    _msg.success(request, f'{cod} eliminado.')
+    return redirect('inventario:inventario_general')
+
+
+def _pdf_item_general(pdf, it, w, h):
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import simpleSplit
+    from django.contrib.staticfiles import finders
+    logo = finders.find('mantenimiento_mecanico/logo_ana.png') or finders.find('inventario/img/ana-transformed.png')   # logo de 256 px: el original hacía PDFs de 2.7 MB
+    if logo:
+        pdf.drawImage(logo, 15 * mm, h - 32 * mm, width=20 * mm, height=20 * mm, mask='auto', preserveAspectRatio=True)
+    pdf.setFont('Helvetica-Bold', 13); pdf.drawCentredString(w / 2, h - 18 * mm, 'Asociación Nuevo Amanecer')
+    pdf.setFont('Helvetica', 10);       pdf.drawCentredString(w / 2, h - 24 * mm, 'Inventario General · Ficha de artículo')
+    pdf.setFont('Helvetica-Bold', 14);  pdf.drawRightString(w - 15 * mm, h - 18 * mm, it.codigo)
+    pdf.setLineWidth(0.6); pdf.line(15 * mm, h - 36 * mm, w - 15 * mm, h - 36 * mm)
+    y = h - 46 * mm
+    filas = [('Área', it.get_area_display()), ('Categoría', it.categoria.nombre if it.categoria_id else '—'),
+             ('Descripción', it.descripcion), ('Ubicación', it.ubicacion), ('Estado', it.get_estado_display()),
+             ('Registrado', f"{it.fecha_creado:%d/%m/%Y} por {(it.creado_por.get_full_name() or it.creado_por.username) if it.creado_por else '—'}")]
+    for etq, val in filas:
+        pdf.setFont('Helvetica-Bold', 10); pdf.drawString(15 * mm, y, etq + ':')
+        pdf.setFont('Helvetica', 10)
+        for i, ln in enumerate(simpleSplit(str(val), 'Helvetica', 10, 95 * mm) or ['']):
+            pdf.drawString(45 * mm, y - i * 5 * mm, ln)
+        y -= max(1, len(simpleSplit(str(val), 'Helvetica', 10, 95 * mm))) * 5 * mm + 3 * mm
+    # foto a la derecha
+    if it.foto:
+        try:
+            pdf.drawImage(it.foto.path, w - 75 * mm, h - 110 * mm, width=60 * mm, height=65 * mm, preserveAspectRatio=True, anchor='c')
+            pdf.rect(w - 75 * mm, h - 110 * mm, 60 * mm, 65 * mm)
+        except Exception:
+            pass
+    y = min(y, h - 120 * mm)
+    pdf.setFont('Helvetica-Bold', 10); pdf.drawString(15 * mm, y, 'Comentario de la auditora:')
+    y -= 6 * mm; pdf.setFont('Helvetica', 10)
+    for ln in (simpleSplit(it.comentario_auditora, 'Helvetica', 10, w - 30 * mm) or ['—'])[:14]:
+        pdf.drawString(15 * mm, y, ln); y -= 5 * mm
+    # firmas: quien registró y la auditora (fija)
+    yf = 45 * mm
+    pdf.line(20 * mm, yf, 90 * mm, yf); pdf.line(w - 90 * mm, yf, w - 20 * mm, yf)
+    pdf.setFont('Helvetica-Bold', 9)
+    pdf.drawCentredString(55 * mm, yf - 5 * mm, (it.creado_por.get_full_name() or it.creado_por.username) if it.creado_por else '')
+    pdf.drawCentredString(w - 55 * mm, yf - 5 * mm, FIRMA_AUDITORA_INV[0])
+    pdf.setFont('Helvetica', 9)
+    pdf.drawCentredString(55 * mm, yf - 10 * mm, 'Responsable de inventario')
+    pdf.drawCentredString(w - 55 * mm, yf - 10 * mm, FIRMA_AUDITORA_INV[1])
+    pdf.setFont('Helvetica', 7)
+    pdf.drawString(15 * mm, 12 * mm, f'Generado el {datetime.datetime.now():%d/%m/%Y %H:%M}')
+
+
+@_inventario_required
+def item_general_pdf(request, pk=None):
+    """Ficha PDF de un artículo (pk) o de todos los filtrados (sin pk) — una página por artículo."""
+    from reportlab.lib.pagesizes import letter as _letter
+    items = [get_object_or_404(ItemGeneral, pk=pk)] if pk else list(_items_general_filtrados(request)[0].order_by('codigo'))
+    resp = HttpResponse(content_type='application/pdf')
+    nombre = items[0].codigo if pk else 'inventario_general'
+    resp['Content-Disposition'] = f'inline; filename="{nombre}.pdf"'
+    pdf = canvas.Canvas(resp, pagesize=_letter)
+    w, h = _letter
+    for i, it in enumerate(items):
+        _pdf_item_general(pdf, it, w, h)
+        if i < len(items) - 1:
+            pdf.showPage()
+    if not items:
+        pdf.drawString(72, h - 72, 'Sin artículos.')
+    pdf.save()
+    return resp
+
+
+@_inventario_required
+def item_general_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook(); ws = wb.active; ws.title = 'Inventario general'
+    ws.append(['Código', 'Área', 'Categoría', 'Descripción', 'Ubicación', 'Estado', 'Comentario de la auditora', 'Registrado por', 'Fecha'])
+    for c in ws[1]:
+        c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='206BC4')
+    for it in _items_general_filtrados(request)[0].order_by('codigo'):
+        ws.append([it.codigo, it.get_area_display(), it.categoria.nombre if it.categoria_id else '', it.descripcion, it.ubicacion, it.get_estado_display(), it.comentario_auditora,
+                   (it.creado_por.get_full_name() or it.creado_por.username) if it.creado_por else '', it.fecha_creado.date()])
+        ws.cell(row=ws.max_row, column=9).number_format = 'DD/MM/YYYY'
+    for col, an in zip('ABCDEFGHI', (13, 16, 20, 40, 24, 14, 45, 24, 12)):
+        ws.column_dimensions[col].width = an
+    ws.freeze_panes = 'A2'
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="inventario_general_{datetime.date.today():%Y%m%d}.xlsx"'
+    wb.save(resp)
+    return resp

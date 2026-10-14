@@ -1,0 +1,10 @@
+{# <--- hecho por claude code (01-oct-2026): cabecera común de los PDF de Mantenimiento Mecánico #}
+<div class="cab">
+  {% if logo %}<img src="{{ logo }}" class="logo" alt="">{% endif %}
+  <div class="cab-txt">
+    <div class="org">Asociación Nuevo Amanecer</div>
+    <div class="mod">{{ modulo|default:"Mantenimiento Mecánico · Control de combustibles y aceites" }}</div>
+    <div class="tit">{{ titulo }}</div>
+  </div>
+  <div class="cab-der">{{ derecha|safe }}</div>
+</div>

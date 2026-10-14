@@ -127,6 +127,11 @@ def requerimiento_nuevo(request):
                 comentario='Requerimiento creado')
             services.notificar_evento(req, 'nuevo')
             messages.success(request, f'Requerimiento {req.codigo} registrado.')
+            # <--- hecho por claude code (29-sep-2026): casilla "Abrir ticket" → ticket enlazado, sin SLA
+            if request.POST.get('abrir_ticket'):
+                from .tickets_link import abrir_ticket
+                tk, _ = abrir_ticket(req, request.user)
+                messages.success(request, f'Ticket {tk.ticket_id} abierto y enlazado al requerimiento.')
             return redirect('desarrollo:req_detail', codigo=req.codigo)
     else:
         form = RequerimientoNuevoForm()
@@ -222,7 +227,7 @@ def requerimiento_list(request):
 @login_required
 def requerimiento_detail(request, codigo):
     req = get_object_or_404(
-        RequerimientoDesarrollo.objects.select_related('proyecto', 'solicitante', 'responsable'),
+        RequerimientoDesarrollo.objects.select_related('proyecto', 'solicitante', 'responsable', 'ticket'),
         codigo=codigo)
     if not puede_ver_requerimiento(request.user, req):
         raise PermissionDenied('No tienes permiso para ver este requerimiento.')
@@ -240,6 +245,42 @@ def requerimiento_detail(request, codigo):
     })
 
 
+# ────────────────────────────── Vínculo con Tickets ──────────────────────────────
+# <--- hecho por claude code (29-sep-2026)
+@login_required
+@require_POST
+def requerimiento_abrir_ticket(request, codigo):
+    """Abre el ticket de un requerimiento que aún no lo tiene (sirve también para los ya existentes)."""
+    req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
+    if not (es_dev_desarrollo(request.user) or req.responsable_id == request.user.id or req.solicitante_id == request.user.id):
+        raise PermissionDenied('No tienes permiso para abrir el ticket de este requerimiento.')
+    from .tickets_link import abrir_ticket
+    tk, creado = abrir_ticket(req, request.user)
+    if creado:
+        messages.success(request, f'Ticket {tk.ticket_id} abierto y enlazado.')
+    else:
+        messages.info(request, f'Este requerimiento ya tiene el ticket {tk.ticket_id}.')
+    return redirect('desarrollo:req_detail', codigo=req.codigo)
+
+
+@login_required
+@require_POST
+def ticket_convertir(request, ticket_id):
+    """Convierte un ticket existente en requerimiento de desarrollo (quedan enlazados)."""
+    if not es_dev_desarrollo(request.user):
+        raise PermissionDenied('Solo el equipo de desarrollo puede convertir un ticket en requerimiento.')
+    from tickets.models import Ticket
+    from .tickets_link import convertir_ticket_en_requerimiento
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+    req, creado = convertir_ticket_en_requerimiento(ticket, request.user)
+    if creado:
+        services.notificar_evento(req, 'nuevo')
+        messages.success(request, f'Ticket {ticket.ticket_id} convertido en el requerimiento {req.codigo}. Completa los datos del requerimiento.')
+    else:
+        messages.info(request, f'Ese ticket ya está enlazado al requerimiento {req.codigo}.')
+    return redirect('desarrollo:req_detail', codigo=req.codigo)
+
+
 # ────────────────────────────── Edición / seguimiento ──────────────────────────────
 @login_required
 def requerimiento_editar(request, codigo):
@@ -248,14 +289,22 @@ def requerimiento_editar(request, codigo):
         raise PermissionDenied('No puedes editar este requerimiento.')
 
     if request.method == 'POST':
+        # <--- hecho por claude code (29-sep-2026): BUG — form.is_valid() de un ModelForm ya escribe estado/responsable/
+        # avance en `req` (la instancia), así que registrar_cambio no veía diferencia: no creaba historial ni sincronizaba
+        # el ticket. Se guardan los valores ORIGINALES y se restauran antes de registrar el cambio.
+        original = (req.estado, req.responsable, req.porcentaje_avance)
         form = RequerimientoEditForm(request.POST, instance=req)
         if form.is_valid():
             cd = form.cleaned_data
+            req.estado, req.responsable, req.porcentaje_avance = original
             # Campos NO rastreados en historial: se asignan directo.
             req.prioridad = cd['prioridad']; req.impacto = cd['impacto']; req.urgencia = cd['urgencia']
             req.proyecto = cd['proyecto']
             req.fecha_inicio = cd['fecha_inicio']; req.fecha_estimada = cd['fecha_estimada']
             req.fecha_finalizacion = cd['fecha_finalizacion']
+            # Al pasar a Producción sin fecha de finalización, se pone la de hoy (el requerimiento terminó)
+            if cd['estado'] == EstadoReq.PRODUCCION and not req.fecha_finalizacion:
+                req.fecha_finalizacion = timezone.now().date()
             req.version_implementada = cd['version_implementada']; req.observaciones = cd['observaciones']
             # Estado/responsable/avance → registrar_cambio crea el historial y guarda.
             services.registrar_cambio(

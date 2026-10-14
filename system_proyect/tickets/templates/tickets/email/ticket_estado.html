@@ -1,0 +1,34 @@
+{# <--- hecho por claude code: correo de cambio de estado del ticket #}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 0;"><tr><td align="center">
+  <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+    <tr><td style="background:linear-gradient(135deg,{{ color_ini }},{{ color_fin }});padding:28px 40px;text-align:center;">
+      <p style="margin:0 0 2px;font-size:26px;font-weight:700;color:#fff;letter-spacing:-.5px;">TechCare</p>
+      <p style="margin:0;font-size:12px;color:rgba(255,255,255,.75);">Soporte Técnico – Asociación Nuevo Amanecer</p>
+    </td></tr>
+    <tr><td style="padding:28px 40px 8px;text-align:center;">
+      <span style="display:inline-block;background:#f1f3f5;color:#495057;font-size:13px;font-weight:700;padding:6px 18px;border-radius:20px;letter-spacing:.5px;">TICKET #{{ ticket.ticket_id }}</span>
+    </td></tr>
+    <tr><td style="padding:8px 40px 4px;text-align:center;">
+      <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a2e;">{{ titulo }}</p>
+      <p style="margin:8px 0 0;font-size:14px;color:#495057;line-height:1.6;">{{ mensaje }}</p>
+    </td></tr>
+    {% if info_requerida %}
+    <tr><td style="padding:16px 40px 4px;">
+      <table width="100%" style="background:#fff4e6;border-left:4px solid #f76707;border-radius:8px;"><tr><td style="padding:14px 18px;">
+        <p style="margin:0 0 4px;font-size:12px;color:#e8590c;text-transform:uppercase;letter-spacing:.4px;font-weight:700;">Información / acción requerida</p>
+        <p style="margin:0;font-size:14px;color:#1a1a2e;">{{ info_requerida }}</p>
+      </td></tr></table>
+    </td></tr>
+    {% endif %}
+    <tr><td style="padding:20px 40px 28px;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#868e96;">Responde a este ticket desde el sistema TechCare para continuar la atención.</p>
+    </td></tr>
+    <tr><td style="background:#f8f9fa;padding:16px 40px;border-top:1px solid #e9ecef;text-align:center;">
+      <p style="margin:0;font-size:11px;color:#adb5bd;">Este es un correo automático, por favor no responda.</p>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>

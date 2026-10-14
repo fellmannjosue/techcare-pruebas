@@ -2,7 +2,8 @@
 from django.urls import path
 
 from . import views
-from . import views_inventario_sql as views_sql  # <--- hecho por claude code: lecturas SQL Server (Test2)
+from . import views_inventario_sql as views_sql
+from . import views_contable as views_c  # <--- hecho por claude code: núcleo contable (FASE 3)  # <--- hecho por claude code: lecturas SQL Server (Test2)
 
 app_name = 'contabilidad'
 
@@ -50,4 +51,30 @@ urlpatterns = [
     path('inventario/sql/articulos/', views_sql.inv_sql_articulos, name='inv_sql_articulos'),
     path('inventario/sql/articulos/<int:articulo_id>/kardex/', views_sql.inv_sql_kardex, name='inv_sql_kardex'),
     path('inventario/sql/proveedores/', views_sql.inv_sql_proveedores, name='inv_sql_proveedores'),
+
+    # ═══ FASE 3 · Núcleo contable (catálogo, partidas, mayor, reportes, períodos, centros de costo) ═══
+    # <--- hecho por claude code (23-sep-2026)
+    path('cuentas/', views_c.cuentas_lista, name='cuentas_lista'),
+    path('cuentas/nueva/', views_c.cuenta_form, name='cuenta_nueva'),
+    path('cuentas/<int:pk>/editar/', views_c.cuenta_form, name='cuenta_editar'),
+    path('cuentas/cargar-base/', views_c.cuentas_cargar_base, name='cuentas_cargar_base'),
+    path('cuentas/json/', views_c.cuentas_json, name='cuentas_json'),
+    path('centros/', views_c.centros_lista, name='centros_lista'),
+    path('centros/nuevo/', views_c.centro_form, name='centro_nuevo'),
+    path('centros/<int:pk>/editar/', views_c.centro_form, name='centro_editar'),
+    path('periodos/', views_c.periodos_lista, name='periodos_lista'),
+    path('periodos/<int:pk>/toggle/', views_c.periodo_toggle, name='periodo_toggle'),
+    path('partidas/', views_c.asientos_lista, name='asientos_lista'),
+    path('partidas/nueva/', views_c.asiento_form, name='asiento_nuevo'),
+    path('partidas/<int:pk>/', views_c.asiento_detalle, name='asiento_detalle'),
+    path('partidas/<int:pk>/editar/', views_c.asiento_form, name='asiento_editar'),
+    path('partidas/<int:pk>/contabilizar/', views_c.asiento_contabilizar, name='asiento_contabilizar'),
+    path('partidas/<int:pk>/anular/', views_c.asiento_anular, name='asiento_anular'),
+    path('partidas/<int:pk>/eliminar/', views_c.asiento_eliminar, name='asiento_eliminar'),
+    path('mayor/', views_c.mayor, name='mayor'),
+    path('reportes/', views_c.reportes, name='reportes'),
+    path('reportes/balanza/', views_c.balanza, name='balanza'),
+    path('reportes/balance-general/', views_c.balance_general, name='balance_general'),
+    path('reportes/estado-resultados/', views_c.estado_resultados, name='estado_resultados'),
+    path('reportes/libro-diario/', views_c.libro_diario, name='libro_diario'),
 ]

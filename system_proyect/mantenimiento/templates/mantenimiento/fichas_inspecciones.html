@@ -1,0 +1,38 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (28-sep-2026): página individual de fichas · Inspecciones (antes pestaña del dashboard) #}
+{% block ficha %}
+                {# <--- hecho por claude code (17-sep-2026): reporte de la pestaña en PDF y Excel #}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'inspeccion' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+                  <a href="{% url 'mantenimiento:reporte_tipo_excel' 'inspeccion' %}" class="btn btn-sm btn-green"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Inspección</th>
+                      <th>Fecha</th><th>Firma (asignado)</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_insp %}
+                      <tr>
+                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {{ r.teacher_name|default:'—' }}</div><div><b>Grado:</b> {{ r.grade|default:'—' }}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                        <td>
+                          {% for lbl, ok in r.inspeccion_respuestas %}
+                          <span class="badge {% if ok %}bg-success-lt text-success{% else %}bg-danger-lt text-danger{% endif %} me-1" title="{{ lbl }}">{% if ok %}✓{% else %}✗{% endif %} {{ forloop.counter }}</span>
+                          {% endfor %}
+                        </td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td class="fst-italic">{{ r.teacher_name|default:"—" }}</td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="8" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay inspecciones aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

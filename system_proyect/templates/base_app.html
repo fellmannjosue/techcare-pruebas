@@ -24,23 +24,27 @@
   {% block vendor_head %}{% endblock %}   {# CSS/libs propios del módulo (Select2, CSS de módulo) #}
   {% block head_js %}{% endblock %}       {# JS del módulo que debe cargar temprano #}
 
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=7">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=8">
   {# Sistema de diseño del portal (identidad visual única de TODO el sistema) #}
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) para todo el sistema #}
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=3">
 
   <link rel="manifest" href="/static/accounts/manifest.json">
   <meta name="theme-color" content="#0e1424">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="antialiased">
+<body class="antialiased {% block body_class %}{% endblock %}">
 <div class="wrapper">
+
+  {% include '_rail.html' %}
 
   {# ── Sidebar (unificado, por permisos) ──────────────────────────────── #}
   {# <--- hecho por claude code: sidebar estático (submenús siempre abiertos) para staff/usuarios; el superuser lo deja colapsable porque el suyo es muy largo #}
-  <aside class="navbar navbar-vertical navbar-expand-lg {% if not request.user.is_superuser %}sidebar-static{% endif %}" data-bs-theme="dark">
+  <aside class="navbar navbar-vertical navbar-expand-lg"{% if not request.user.is_superuser %} data-acordeon="1"{% endif %} data-bs-theme="dark">{# <--- hecho por claude code (12-oct-2026): sin sidebar-static (dejaba todo abierto); acordeón para todos menos el superusuario (tc_shell.js) #}
     <div class="container-fluid">
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#tc-sidebar">
         <span class="navbar-toggler-icon"></span>
@@ -48,10 +52,12 @@
       <div class="navbar-brand">
         <a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="34" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
+          <span class="tc-brand-txt"><b>TechCare</b><small>{% if request.user.is_superuser %}Panel del superusuario{% else %}Asociación Nuevo Amanecer{% endif %}</small></span>
         </a>
       </div>
       <div class="collapse navbar-collapse" id="tc-sidebar">
+        {# <--- hecho por claude code (30-sep-2026): buscador del menú (filtra los enlaces, tc_shell.js) #}
+        <label class="tc-side-search"><i class="ti ti-search"></i><input type="search" id="tc-side-q" placeholder="Buscar en el menú…" autocomplete="off"></label>
         {% include 'accounts/_sidebar.html' %}
         {# <--- hecho por claude code: dropdown de usuario de vuelta al PIE del sidebar (solo superusuario) #}
         {% if request.user.is_superuser %}
@@ -59,13 +65,14 @@
           {% include 'accounts/_user_dropdown.html' %}
         </div>
         {% endif %}
+        <div class="tc-side-foot"><span class="tc-dot"></span>Sistema en línea{% if app_version %} · v{{ app_version }}{% endif %}</div>
       </div>
     </div>
   </aside>
 
   {# ── Área principal ─────────────────────────────────────────────────── #}
   <div class="page-wrapper">
-    <div class="page-header d-print-none">
+    <div class="page-header d-print-none tc-hero">
       <div class="container-fluid">
         <div class="row g-2 align-items-center">
           <div class="col">
@@ -117,6 +124,9 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
+<script src="{% static 'js/tc_shell.js' %}?v=3"></script>
+<script src="{% static 'js/tc_responsive.js' %}?v=1"></script>
+<script src="{% static 'js/tc_camara.js' %}?v=1"></script>
 {# <--- hecho por claude code: evita el salto de scroll al abrir cualquier modal #}
 <script src="{% static 'js/tc_modal_scroll.js' %}?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

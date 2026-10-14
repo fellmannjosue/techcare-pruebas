@@ -1,0 +1,8 @@
+{# <--- hecho por claude code (23-sep-2026): filtros comunes de reportes (rango + centro + Excel). Vars: desde, hasta, centro, solo_hasta #}
+<form method="get" class="card mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+  {% if not solo_hasta %}<div class="col-md-2"><label class="form-label small mb-1">Desde</label><input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>{% endif %}
+  <div class="col-md-2"><label class="form-label small mb-1">{% if solo_hasta %}Al{% else %}Hasta{% endif %}</label><input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-md-3"><label class="form-label small mb-1">Centro de costo</label><select name="centro" class="form-select form-select-sm"><option value="">Todos</option>{% for c in centros %}<option value="{{ c.pk }}" {% if centro and centro.pk == c.pk %}selected{% endif %}>{{ c.codigo }} · {{ c.nombre }}</option>{% endfor %}</select></div>
+  {% if con_detalle %}<div class="col-auto"><label class="form-check mb-1"><input type="checkbox" name="detalle" value="1" class="form-check-input" {% if detalle %}checked{% endif %}><span class="form-check-label small">Solo cuentas de detalle</span></label></div>{% endif %}
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Ver</button> <button class="btn btn-sm btn-outline-success" name="xlsx" value="1"><i class="ti ti-file-spreadsheet me-1"></i>Excel</button></div>
+</div></div></form>

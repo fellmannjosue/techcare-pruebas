@@ -1,0 +1,4 @@
+/* <--- hecho por claude code (17-sep-2026): detalle del equipo al pasar el mouse por la celda Modelo */
+.inv-pop { cursor: help; border-bottom: 1px dotted var(--ps-muted, #94a3b8); }
+.inv-pop .ti-info-circle { font-size: .8em; vertical-align: middle; }
+.popover .popover-body { font-size: .85rem; line-height: 1.45; max-width: 340px; }

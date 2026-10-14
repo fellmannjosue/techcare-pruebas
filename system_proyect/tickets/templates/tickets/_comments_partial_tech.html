@@ -2,14 +2,21 @@
 {% for c in comentarios %}
 
 {% if c.tipo == 'sistema' %}
-{# ── Mensaje de sistema (centrado, separador) ── #}
-<div class="d-flex align-items-center gap-2 my-3 px-1">
-  <div style="flex:1;border-top:1px solid #e9ecef;"></div>
-  <span class="text-muted px-2" style="font-size:.75rem;white-space:nowrap;">
-    <i class="ti ti-info-circle me-1"></i>{{ c.mensaje }}
-  </span>
-  <div style="flex:1;border-top:1px solid #e9ecef;"></div>
+{# <--- hecho por claude code (30-sep-2026): mensaje de sistema como BURBUJA (naranja si pausa, verde si cierre/reanudación, gris si informativo) #}
+{% with sp=c.sistema_partes %}
+<div class="chat-item">
+  <div class="d-flex align-items-end gap-2">
+    <div class="chat-avatar av-sistema av-sistema--{{ sp.clase }}" title="Mensaje del sistema"><i class="ti {% if sp.clase == 'pausa' %}ti-player-pause{% elif sp.clase == 'ok' %}ti-check{% else %}ti-settings{% endif %}"></i></div>
+    <div>
+      <div class="chat-item-meta"><span class="meta-name">Sistema</span><span>·</span><span>{{ c.fecha|date:"d/m/Y H:i" }}</span></div>
+      <div class="chat-bubble bubble-sistema bubble-sistema--{{ sp.clase }}">
+        <div class="fw-semibold">{{ sp.titulo }}</div>
+        {% for l in sp.lineas %}<div class="small mt-1">{{ l }}</div>{% endfor %}
+      </div>
+    </div>
+  </div>
 </div>
+{% endwith %}
 
 {% elif c.usuario and c.usuario.pk == request.user.pk %}
 {# ── Mensaje mío (derecha) ── #}

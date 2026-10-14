@@ -1,0 +1,69 @@
+/* pdf.css — <--- hecho por claude code (01-oct-2026): PDFs de Mantenimiento Mecánico (WeasyPrint, CSS cargado del disco) */
+@page { size: letter; margin: 14mm 14mm 16mm; }
+body.tabla { }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #111; }
+.cab { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 12px; }
+.cab .logo { width: 52px; height: 52px; object-fit: contain; }
+.cab-txt { flex: 1; }
+.cab .org { font-size: 9pt; color: #555; letter-spacing: .04em; text-transform: uppercase; }
+.cab .mod { font-size: 9pt; color: #1e3a8a; font-weight: bold; }
+.cab .tit { font-size: 15pt; font-weight: bold; margin-top: 2px; }
+.cab-der { text-align: right; font-size: 10pt; color: #333; }
+.cab-der b { font-size: 13pt; color: #1e3a8a; }
+table.datos { width: 100%; border-collapse: collapse; margin-top: 6px; }
+table.datos th, table.datos td { border: 1px solid #cbd5e1; padding: 8px 9px; vertical-align: top; text-align: left; }
+table.datos th { width: 18%; background: #eef2ff; font-size: 8.5pt; text-transform: uppercase; color: #334155; letter-spacing: .03em; }
+table.datos td.big { font-size: 15pt; font-weight: bold; color: #1e3a8a; }
+table.datos td.obs { min-height: 60px; height: 60px; }
+.resumen-linea { font-size: 9.5pt; color: #333; margin-bottom: 8px; }
+table.lista { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+table.lista th, table.lista td { border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: top; }
+table.lista th { background: #1e3a8a; color: #fff; font-weight: bold; text-align: left; }
+table.lista td.num, table.lista th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.lista td.obs { max-width: 220px; }
+table.lista tfoot td { font-weight: bold; background: #eef2ff; }
+table.lista td.vacio { text-align: center; color: #777; padding: 12px; }
+table.chica { width: 60%; }
+h3 { font-size: 11pt; margin: 14px 0 6px; color: #1e3a8a; }
+.bajo { color: #b91c1c; font-weight: bold; }
+.firmas { display: flex; justify-content: space-around; gap: 40px; margin-top: 46px; }
+.firma { width: 40%; text-align: center; }
+.firma .linea { border-top: 1px solid #111; margin-bottom: 4px; }
+.firma .nom { font-weight: bold; }
+.firma .cargo { font-size: 8.5pt; color: #555; }
+.pie { position: fixed; bottom: 0; left: 0; right: 0; font-size: 7.5pt; color: #777; text-align: center; }
+
+/* <--- hecho por claude code (12-oct-2026): reportes de vehículos en carta horizontal (página con nombre) */
+@page apaisada { size: letter landscape; margin: 12mm 12mm 14mm; }
+body.horizontal { page: apaisada; }
+/* <--- hecho por claude code (12-oct-2026): hojas de mantenimiento de vehículos (formato de Access) */
+@page apaisada { @bottom-left { content: "Generado por TechCare"; font-size: 7.5pt; color: #777; } @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7.5pt; color: #777; } }
+.hoja-veh { page-break-after: always; }
+.hoja-veh:last-child { page-break-after: auto; }
+table.hv-cab { width: 100%; border-collapse: collapse; margin: 4px 0 8px; background: #eef2ff; border: 1px solid #c7d2fe; }
+table.hv-cab td { padding: 6px 8px; font-size: 11pt; font-weight: bold; vertical-align: top; }
+table.hv-cab td small { display: block; font-size: 7.5pt; font-weight: normal; color: #475569; text-transform: uppercase; letter-spacing: .03em; }
+table.hv-cab td.hv-nombre { font-size: 13pt; color: #1e3a8a; width: 32%; }
+table.hv-cab td.hv-nombre small { text-transform: none; font-size: 8pt; }
+table.hv-cab td.hv-falta { color: #1e3a8a; }
+table.hv-tareas td { padding: 3px 6px; font-size: 8.5pt; }
+table.lista th.c, table.lista td.c { text-align: center; }
+table.hv-tareas tr.toca td { background: #fff7ed; }
+.caja { display: inline-block; width: 13px; height: 13px; border: 1.3px solid #111; }
+.hv-pie { display: flex; gap: 24px; align-items: flex-end; margin-top: 14px; }
+.hv-const { flex: 1.2; font-size: 7.5pt; font-style: italic; color: #333; }
+.hv-firmas { flex: 1; display: flex; flex-direction: column; gap: 16px; font-size: 9pt; }
+.hv-firmas div { display: flex; gap: 6px; align-items: flex-end; }
+.hv-firmas span { flex: 1; border-bottom: 1px solid #111; height: 14px; }
+/* <--- hecho por claude code (12-oct-2026): compacto para que cada hoja de vehículo quepa en UNA página (como en Access) */
+@page apaisada { margin: 9mm 11mm 11mm; }
+body.hojas-veh .cab { padding-bottom: 4px; margin-bottom: 5px; }
+body.hojas-veh .cab .logo { width: 34px; height: 34px; }
+body.hojas-veh .cab .tit { font-size: 12.5pt; }
+body.hojas-veh table.hv-cab td { padding: 3px 7px; font-size: 10pt; }
+body.hojas-veh table.hv-cab td.hv-nombre { font-size: 11.5pt; }
+table.hv-tareas th { padding: 2px 5px; font-size: 7.6pt; }
+table.hv-tareas td { padding: 1.2px 5px; font-size: 7.8pt; line-height: 1.15; }
+table.hv-tareas .caja { width: 10px; height: 10px; }
+body.hojas-veh .hv-pie { margin-top: 8px; }
+body.hojas-veh .hv-firmas { gap: 12px; }

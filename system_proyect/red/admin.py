@@ -45,3 +45,13 @@ from .models import Plano, Marcador, LineaPlano, RackItem  # noqa: E402
 
 for m in (Campus, Edificio, Ubicacion, Gabinete, NetworkInterface, RedAuditLog, NetworkLink, Plano, Marcador, LineaPlano, RackItem):
     admin.site.register(m)
+
+
+# <--- hecho por claude code (16-sep-2026): lista de IPs actuales
+from .models import IPActual
+
+@admin.register(IPActual)
+class IPActualAdmin(SimpleHistoryAdmin):
+    list_display = ('ip', 'categoria', 'vlan', 'descripcion', 'tiene_usuario', 'usuario')
+    list_filter = ('categoria', 'vlan', 'tiene_usuario')
+    search_fields = ('ip', 'descripcion', 'usuario')

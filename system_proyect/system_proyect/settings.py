@@ -80,6 +80,8 @@ INSTALLED_APPS = [
     'tickets',
     'inventario',
     'mantenimiento',
+    'servicio_tecnico',
+    'mantenimiento_mecanico',   # <--- hecho por claude code (01-oct-2026): control de combustibles y aceites   # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico (Inventario + Mantenimiento)
     'sponsors',
     'enfermeria',
 
@@ -114,6 +116,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.SesionInactividadMiddleware',   # <--- hecho por claude code (28-sep-2026): caducidad deslizante por inactividad
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.MaintenanceModeMiddleware',
@@ -121,6 +124,7 @@ MIDDLEWARE = [
     # <--- hecho por claude code (seguridad): 2FA periódico por correo. Inactivo mientras
     # DOSFA_ACTIVO (constance) esté apagado; va al final, tras autenticación y sesión.
     'accounts.dosfa.Dosfa2FAMiddleware',
+    'accounts.suplantar.SuplantacionMiddleware',   # <--- hecho por claude code (12-oct-2026): "Iniciar sesión como" (solo superusuario)
 ]
 
 # <--- hecho por claude code (PRUEBAS): en el contenedor no hay Apache para estáticos;
@@ -162,7 +166,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.current_year',
                 'core.context_processors.nav_context',
-                'core.context_processors.version_context',   # <--- hecho por claude code: versión + novedades
+                'core.context_processors.version_context',
+                'accounts.suplantar.context',   # <--- hecho por claude code (12-oct-2026): aviso "Estás usando la cuenta de…"   # <--- hecho por claude code: versión + novedades
             ],
         },
     },
@@ -338,8 +343,9 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/menu/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# Sesión sin expiración por tiempo (dura hasta que el usuario cierre manualmente)
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # 1 año — no expira en la práctica
+# <--- hecho por claude code (28-sep-2026): tope de la cookie; la caducidad REAL la pone SesionInactividadMiddleware
+# (constance SESION_INACTIVIDAD_MIN, deslizante en cada petición). Antes era 1 año y la sesión nunca caducaba.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 días como máximo absoluto
 
 # Renovar la sesión con cada request
 SESSION_SAVE_EVERY_REQUEST = True
@@ -418,6 +424,14 @@ CONSTANCE_CONFIG = {
         'Permitir crear usuarios nuevos (registro). Apagado = creación de cuentas bloqueada.',
         bool,
     ),
+    # <--- hecho por claude code (28-sep-2026): cierre de sesión por INACTIVIDAD. Lo usan el JS (aviso + cierre con la
+    # pestaña abierta) y el middleware SesionInactividadMiddleware (la sesión del servidor caduca si no hay peticiones
+    # en ese tiempo, p. ej. con la pestaña cerrada). Antes la sesión duraba 1 año y solo cerraba el JS.
+    'SESION_INACTIVIDAD_MIN': (
+        240,
+        'Minutos sin actividad para cerrar la sesión automáticamente (aplica a todos los usuarios).',
+        int,
+    ),
     # 2FA por correo. APAGADO por defecto: se enciende cuando el equipo lo tenga claro.
     # Al encender, se pide un código al correo según el rol (superusuario cada 15 días,
     # staff cada 30, usuario cada 60).
@@ -425,6 +439,13 @@ CONSTANCE_CONFIG = {
         False,
         'Activar verificación en dos pasos (2FA) por correo. Apagado = no se pide a nadie.',
         bool,
+    ),
+    # <--- hecho por claude code (10-sep-2026): programas ocultos a TODOS los usuarios
+    # (lista JSON de claves de core/programas.py). Se maneja desde Configuración → Seguridad.
+    'PROGRAMAS_OCULTOS': (
+        '',
+        'Programas desactivados/ocultos para todos los usuarios, en JSON. Ej: ["sponsors","reloj"]. Vacío = todos visibles.',
+        str,
     ),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
@@ -441,7 +462,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
     },
     # <--- hecho por claude code (seguridad): interruptores de seguridad
     'Seguridad': {
-        'fields': ('REGISTRO_USUARIOS_ACTIVO', 'DOSFA_ACTIVO'),
+        'fields': ('REGISTRO_USUARIOS_ACTIVO', 'SESION_INACTIVIDAD_MIN', 'DOSFA_ACTIVO', 'PROGRAMAS_OCULTOS'),
         'collapse': False,
     },
 }

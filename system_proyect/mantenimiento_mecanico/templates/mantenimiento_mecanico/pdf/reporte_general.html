@@ -1,0 +1,18 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Reporte general</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="tabla">
+{% with titulo="Reporte general de combustibles y aceites" %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' with derecha="Del <b>"|add:desde|date:"d/m/Y"|add:"</b> al <b>"|add:hasta|date:"d/m/Y"|add:"</b>" %}{% endwith %}
+<table class="lista">
+  <thead><tr><th>Insumo</th><th>Presentación</th><th class="num">Entradas (gal)</th><th class="num">Entregas (gal)</th><th class="num">Saldo actual</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for x in filas %}<tr><td><b>{{ x.insumo.nombre }}</b></td><td>{{ x.insumo.get_presentacion_display }}{% if x.insumo.capacidad_envase %} · {{ x.insumo.capacidad_envase|floatformat:0 }} gal{% endif %}</td><td class="num">{{ x.entradas|floatformat:2 }} <small>({{ x.n_entradas }})</small></td><td class="num">{{ x.entregas|floatformat:2 }} <small>({{ x.n_entregas }})</small></td><td class="num"><b>{{ x.resumen.saldo|floatformat:2 }}</b>{% if x.resumen.pct is not None %} <small>{{ x.resumen.pct }} %</small>{% elif x.resumen.barriles is not None %} <small>≈ {{ x.resumen.barriles }} bar.</small>{% endif %}</td><td>{% if x.resumen.bajo %}<span class="bajo">SALDO BAJO</span>{% else %}OK{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+<h3>Consumo por maquinaria en el rango</h3>
+<table class="lista chica"><thead><tr><th>Insumo</th><th>Maquinaria</th><th class="num">Entregas</th><th class="num">Galones</th></tr></thead><tbody>
+{% for x in filas %}{% for m in x.por_maquinaria %}<tr><td>{{ x.insumo.nombre }}</td><td>{{ m.maquinaria__nombre|default:"— sin maquinaria —" }}</td><td class="num">{{ m.n }}</td><td class="num">{{ m.gal|floatformat:2 }}</td></tr>{% endfor %}{% empty %}<tr><td colspan="4" class="vacio">Sin datos.</td></tr>{% endfor %}
+</tbody></table>
+<div class="firmas"><div class="firma"><div class="linea"></div><div class="nom">{{ generado_por }}</div><div class="cargo">Responsable</div></div><div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div></div>
+<div class="pie">Generado el {{ ahora|date:"d/m/Y H:i" }} por {{ generado_por }} · TechCare</div>
+</body></html>

@@ -1,0 +1,214 @@
+/* horizon.css — <--- hecho por claude code (30-sep-2026)
+   Diseño "Horizon Split" para TODO el sistema: riel de íconos (72 px) + panel contextual
+   (el sidebar de siempre, restilizado) + cabecera con degradado azul→violeta. Se carga
+   DESPUÉS de portal.css y solo ajusta el shell; los módulos no cambian su HTML. */
+
+:root {
+  --tc-rail-w: 72px;
+  --tc-side-w: 248px;
+  --tc-rail: #0b1220;
+  --tc-rail-fg: #98a2b3;
+  --tc-p1: #2563eb;
+  --tc-p2: #7c3aed;
+  --tc-hero: linear-gradient(115deg, #1e3a8a 0%, #2563eb 40%, #7c3aed 80%, #db2777 120%);
+  --tc-hero-fg: #ffffff;
+  /* La marca del portal pasa a la paleta Horizon */
+  --ps-marca:   #2563eb;
+  --ps-marca-2: #4f46e5;
+  --ps-bg:      #eef1f7;
+}
+html.dark {
+  --tc-rail: #06090f;
+  --tc-rail-fg: #8a94a8;
+  --tc-hero: linear-gradient(115deg, #172554 0%, #1e3a8a 40%, #4c1d95 85%, #831843 120%);
+  --ps-bg: #0b0f17;
+}
+
+/* ── Riel de íconos ──────────────────────────────────────────────────── */
+.tc-rail {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--tc-rail-w);
+  background: var(--tc-rail); color: var(--tc-rail-fg); z-index: 1031;
+  display: none; flex-direction: column; align-items: center;
+  padding: 14px 0 12px; gap: 4px;
+}
+@media (min-width: 992px) { .tc-rail { display: flex; } }
+.tc-rail-logo {
+  width: 42px; height: 42px; border-radius: 14px; background: #fff; flex: none;
+  display: grid; place-items: center; margin-bottom: 10px;
+  box-shadow: 0 8px 20px rgba(37,99,235,.45);
+}
+.tc-rail-logo img { width: 30px; height: 30px; object-fit: contain; }
+.tc-rail-nav {
+  flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+}
+.tc-rail-nav::-webkit-scrollbar { display: none; }
+.tc-rail-item, .tc-rail-foot a {
+  width: 46px; height: 46px; border-radius: 14px; flex: none;
+  display: grid; place-items: center; font-size: 21px; line-height: 1;
+  color: var(--tc-rail-fg); text-decoration: none; position: relative;
+  transition: background .15s, color .15s, transform .15s;
+}
+.tc-rail-item:hover, .tc-rail-foot a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.tc-rail-item.on {
+  background: linear-gradient(135deg, var(--tc-p1), var(--tc-p2)); color: #fff;
+  box-shadow: 0 6px 18px rgba(124,58,237,.45);
+}
+.tc-rail-item .tc-rail-dot {
+  position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
+  background: #f04438; border: 2px solid var(--tc-rail);
+}
+.tc-rail-foot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 6px; }
+.tc-rail-av {
+  width: 38px !important; height: 38px !important; border-radius: 12px !important; overflow: hidden;
+  background: linear-gradient(135deg, #06b6d4, #12b76a); color: #fff !important;
+  font-weight: 800; font-size: 14px !important; margin-top: 4px;
+}
+.tc-rail-av img { width: 100%; height: 100%; object-fit: cover; }
+/* Tooltip flotante del riel (lo posiciona tc_shell.js) */
+.tc-rail-tip {
+  position: fixed; z-index: 1090; transform: translateY(-50%); pointer-events: none;
+  background: #0b1220; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 5px 10px; border-radius: 8px; white-space: nowrap; opacity: 0; transition: opacity .12s;
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+}
+.tc-rail-tip.show { opacity: 1; }
+
+/* ── Panel contextual (el sidebar de Tabler, desplazado a la derecha del riel) ── */
+@media (min-width: 992px) {
+  .navbar-vertical.navbar-expand-lg {
+    left: var(--tc-rail-w) !important;
+    width: var(--tc-side-w) !important;
+  }
+  .navbar-vertical.navbar-expand-lg ~ .page-wrapper,
+  .navbar-vertical.navbar-expand-lg ~ .navbar {
+    margin-left: calc(var(--tc-rail-w) + var(--tc-side-w)) !important;
+    padding-left: 0 !important;
+  }
+}
+.navbar-vertical { box-shadow: none !important; }
+.navbar-vertical .navbar-brand { padding: 18px 16px 10px !important; margin: 0 !important; }
+.navbar-vertical .navbar-brand img { height: 32px !important; }
+.navbar-vertical .navbar-brand .tc-brand-txt { display: flex; flex-direction: column; line-height: 1.15; }
+.navbar-vertical .navbar-brand .tc-brand-txt b { font-size: 16px; font-weight: 800; letter-spacing: -.01em; color: var(--ps-text); }
+.navbar-vertical .navbar-brand .tc-brand-txt small { font-size: 11px; font-weight: 600; color: var(--ps-muted); }
+
+.tc-side-search {
+  margin: 6px 12px 4px; display: flex; align-items: center; gap: 8px;
+  padding: 7px 11px; border-radius: 12px; background: var(--ps-surface-2);
+  border: 1px solid var(--ps-border); color: var(--ps-muted);
+}
+.tc-side-search i { font-size: 16px; }
+.tc-side-search input {
+  border: 0; background: transparent; outline: 0; width: 100%; min-width: 0;
+  font: 600 13px Inter, system-ui, sans-serif; color: var(--ps-text);
+}
+.tc-side-search input::placeholder { color: var(--ps-muted); font-weight: 500; }
+.tc-side-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.navbar-vertical.tc-filtering .collapse { display: block !important; }
+.navbar-vertical .tc-hide { display: none !important; }
+
+/* Ítem activo del panel: acento suave + texto azul (como el mockup) */
+.navbar-vertical .nav-link.active,
+.navbar-vertical .nav-item.active > .nav-link,
+.navbar-vertical .navbar-nav .navbar-nav .nav-link.active {
+  background: linear-gradient(90deg, rgba(37,99,235,.14), rgba(124,58,237,.08)) !important;
+  color: var(--tc-p1) !important; box-shadow: none !important;
+}
+.navbar-vertical .nav-link.active .nav-link-icon,
+.navbar-vertical .nav-link.active .nav-link-icon i,
+.navbar-vertical .nav-link.active .nav-link-title { color: var(--tc-p1) !important; }
+html.dark .navbar-vertical .nav-link.active,
+html.dark .navbar-vertical .nav-link.active .nav-link-icon i,
+html.dark .navbar-vertical .nav-link.active .nav-link-title { color: #93c5fd !important; }
+.navbar-vertical .nav-link .nav-link-icon i { font-size: 18px; }
+
+.tc-side-foot {
+  margin-top: auto; padding: 10px 16px; border-top: 1px solid var(--ps-border);
+  font-size: 12px; font-weight: 600; color: var(--ps-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.tc-side-foot .tc-dot { width: 8px; height: 8px; border-radius: 50%; background: #12b76a; box-shadow: 0 0 8px #12b76a; flex: none; }
+/* El dropdown de usuario del superusuario (al pie) pierde el borde doble */
+.navbar-vertical .mt-auto.border-top + .tc-side-foot { margin-top: 0; }
+
+/* ── Cabecera degradada (hero) ───────────────────────────────────────── */
+/* <--- hecho por claude code (01-oct-2026): el degradado, el brillo y los puntos van como CAPAS de fondo del mismo
+   elemento (sin ::before/::after ni overflow:hidden): con overflow:hidden los dropdowns de la campana y del usuario
+   salían recortados a la altura de la cabecera. */
+.page-header.tc-hero {
+  background: radial-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0 / 22px 22px,
+              radial-gradient(circle at 96% -45%, rgba(255,255,255,.38), transparent 42%),
+              var(--tc-hero) !important;
+  color: var(--tc-hero-fg);
+  padding: 1.35rem 0 1.5rem !important; margin: 0 0 1.25rem !important; border: 0 !important;
+  position: relative; overflow: visible;
+}
+.page-header.tc-hero > .container-fluid, .page-header.tc-hero > .container-xl { position: relative; }
+.tc-hero .dropdown-menu { z-index: 1060; }
+.tc-hero .page-title { color: #fff !important; font-weight: 800 !important; font-size: 1.5rem; letter-spacing: -.02em; }
+.tc-hero .page-title .badge { vertical-align: middle; }
+.tc-hero .page-pretitle, .tc-hero .breadcrumb-item, .tc-hero .breadcrumb-item a, .tc-hero .breadcrumb-item::before,
+.tc-hero .text-muted, .tc-hero .text-secondary, .tc-hero .page-subtitle { color: rgba(255,255,255,.8) !important; }
+.tc-hero .breadcrumb-item.active { color: #fff !important; }
+.tc-hero .breadcrumb { margin-bottom: .2rem; }
+.tc-hero h1, .tc-hero h2, .tc-hero h3, .tc-hero h4, .tc-hero p, .tc-hero label, .tc-hero .form-label { color: #fff; }
+/* Botones dentro de la cabecera: píldoras de cristal (el primario en blanco) */
+.tc-hero .btn, .tc-hero .btn-ghost-secondary, .tc-hero .btn-outline-secondary, .tc-hero .btn-outline-primary, .tc-hero .btn-secondary, .tc-hero .btn-light, .tc-hero .btn-white {
+  background: rgba(255,255,255,.16) !important; border: 1px solid rgba(255,255,255,.32) !important; color: #fff !important;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: none !important; font-weight: 700;
+}
+.tc-hero .btn:hover { background: rgba(255,255,255,.28) !important; color: #fff !important; }
+.tc-hero .btn-primary, .tc-hero .btn-success, .tc-hero .btn-info { background: #fff !important; color: var(--tc-p1) !important; border-color: #fff !important; }
+.tc-hero .btn-primary:hover, .tc-hero .btn-success:hover, .tc-hero .btn-info:hover { background: #eef2ff !important; color: var(--tc-p2) !important; }
+.tc-hero .btn-danger, .tc-hero .btn-outline-danger { background: rgba(240,68,56,.85) !important; border-color: rgba(255,255,255,.35) !important; color: #fff !important; }
+.tc-hero .btn i, .tc-hero .btn .ti { color: inherit !important; }
+.tc-hero .form-control, .tc-hero .form-select {
+  background: rgba(255,255,255,.16) !important; border-color: rgba(255,255,255,.32) !important; color: #fff !important;
+}
+.tc-hero .form-control::placeholder { color: rgba(255,255,255,.7) !important; }
+.tc-hero .form-select option { color: #111; }
+.tc-hero .input-group-text { background: rgba(255,255,255,.16) !important; border-color: rgba(255,255,255,.32) !important; color: #fff !important; }
+.tc-hero .badge.bg-secondary-lt, .tc-hero .badge[class*="-lt"] { background: rgba(255,255,255,.18) !important; color: #fff !important; }
+/* Lo que se abre DESDE la cabecera vuelve al tema normal */
+.tc-hero .dropdown-menu, .tc-hero .dropdown-menu .text-muted { color: var(--ps-text) !important; }
+.tc-hero .dropdown-menu .text-muted { color: var(--ps-muted) !important; }
+.tc-hero .dropdown-menu .btn { background: var(--ps-surface-2) !important; border-color: var(--ps-border) !important; color: var(--ps-text) !important; backdrop-filter: none; }
+.tc-hero .dropdown-menu .btn-primary { background: linear-gradient(135deg, var(--ps-marca-2), var(--ps-marca)) !important; color: #fff !important; }
+.tc-hero .dropdown-menu-dark .text-muted { color: #94a3b8 !important; }
+.tc-hero .dropdown-item { color: var(--ps-text) !important; }
+.tc-hero .dropdown-menu-dark .dropdown-item { color: #e2e8f0 !important; }
+.tc-hero #notifDropdownToggle { background: rgba(255,255,255,.16) !important; border: 1px solid rgba(255,255,255,.32) !important; color: #fff !important; }
+/* <--- hecho por claude code (01-oct-2026): el toggle de usuario como píldora de cristal, sin el anillo negro de foco del navegador */
+.tc-hero #userDropdown {
+  padding: 4px 10px 4px 6px; border-radius: 12px; color: #fff !important;
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.32);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.tc-hero #userDropdown:hover { background: rgba(255,255,255,.28); }
+.tc-hero #userDropdown:focus, .tc-hero #userDropdown:focus-visible, .tc-hero #userDropdown.show,
+.tc-hero #notifDropdownToggle:focus, .tc-hero #notifDropdownToggle:focus-visible, .tc-hero #notifDropdownToggle.show,
+.tc-hero .btn:focus, .tc-hero .btn:focus-visible {
+  outline: 0 !important; box-shadow: 0 0 0 3px rgba(255,255,255,.35) !important;
+}
+.tc-hero #userDropdown .ti-chevron-down { color: #fff !important; opacity: .85; }
+.tc-hero #userDropdown .small, .tc-hero #userDropdown .text-muted { color: #fff !important; }
+.tc-hero #userDropdown .text-muted { opacity: .8; }
+.tc-hero #userDropdown .avatar { background: rgba(255,255,255,.22) !important; color: #fff !important; }
+
+/* Páginas con KPIs: las tarjetas "flotan" sobre la cabecera (body.tc-overlap) */
+body.tc-overlap .page-header.tc-hero { padding-bottom: 5.4rem !important; margin-bottom: 0 !important; }
+body.tc-overlap .page-body { margin-top: -4.2rem !important; position: relative; z-index: 2; }
+
+/* Tarjetas: bordes más redondos como el mockup */
+.card { border-radius: 18px !important; }
+
+/* Móvil: el sidebar de Tabler pasa a barra superior; el riel se oculta */
+@media (max-width: 991.98px) {
+  .tc-side-search { margin: 6px 0 8px; }
+  .page-header.tc-hero { padding: 1rem 0 1.15rem !important; }
+  .tc-hero .page-title { font-size: 1.25rem; }
+  body.tc-overlap .page-header.tc-hero { padding-bottom: 4.4rem !important; }
+  body.tc-overlap .page-body { margin-top: -3.4rem !important; }
+}
+@media print { .tc-rail { display: none !important; } .page-header.tc-hero { background: none !important; color: #000; } }

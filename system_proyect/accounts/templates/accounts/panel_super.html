@@ -1,95 +1,97 @@
 {% extends 'tickets/base_tickets_user.html' %}
 {% load static %}
 {% block title %}Panel Principal{% endblock %}
-{% block page_pretitle %}Bienvenido{% endblock %}
-{% block page_title %}Panel Principal{% endblock %}
+{% block body_class %}tc-overlap{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=7">
+{% endblock %}
+
+{# <--- hecho por claude code (30-sep-2026): cabecera Horizon — saludo + fecha en vez de migas #}
+{% block breadcrumb %}<div class="page-pretitle ps-pretitle"><i class="ti ti-calendar me-1"></i>{{ fecha_larga }} · Panel del superusuario</div>{% endblock %}
+{% block page_title %}{{ saludo }}, {{ request.user.first_name|default:request.user.username }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'settings_actividad' %}" class="btn btn-sm"><i class="ti ti-activity me-1"></i>Actividad</a>
+<a href="{% url 'settings_auditoria' %}" class="btn btn-sm"><i class="ti ti-shield-check me-1"></i>Auditoría</a>
+<a href="{% url 'mantenimiento_modo' %}" class="btn btn-sm"><i class="ti ti-tool me-1"></i>Mantenimiento</a>
+<a href="{% url 'technician_dashboard' %}" class="btn btn-sm btn-primary"><i class="ti ti-ticket me-1"></i>Tickets</a>
 {% endblock %}
 
 {% block content %}
-{# <--- hecho por claude code: panel del superusuario como dashboard (KPIs + gráficas + secciones) #}
-<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=6">
-
+{# <--- hecho por claude code (30-sep-2026): Panel Principal con el diseño Horizon Split (KPIs sobre la cabecera, gráficas y módulos en cuadrícula con filtro) #}
 <div class="ps-dash">
 
-  <p class="text-muted mb-3">Administración del sistema · Accesos por área.</p>
-
   {# ===== KPIs (datos reales de la vista) ===== #}
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-      <a href="{% url 'technician_dashboard' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#206bc4;">
-        <span class="ps-kpi-ico"><i class="ti ti-ticket"></i></span>
-        <span>
-          <span class="ps-kpi-num">{{ tickets_pendientes|default:0 }}</span>
-          <span class="ps-kpi-lbl">Tickets abiertos</span>
-        </span>
-      </a>
-    </div>
-    <div class="col-6 col-lg-3">
-      <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#0ca678;">
-        <span class="ps-kpi-ico"><i class="ti ti-chalkboard"></i></span>
-        <span>
-          <span class="ps-kpi-num">{{ reportes_bl|default:0 }}</span>
-          <span class="ps-kpi-lbl">Reportes nuevos · Bilingüe</span>
-        </span>
-      </a>
-    </div>
-    <div class="col-6 col-lg-3">
-      <a href="{% url 'dashboard_coordinador' area='colegio' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#f08c00;">
-        <span class="ps-kpi-ico"><i class="ti ti-user-check"></i></span>
-        <span>
-          <span class="ps-kpi-num">{{ reportes_col|default:0 }}</span>
-          <span class="ps-kpi-lbl">Reportes nuevos · Colegio</span>
-        </span>
-      </a>
-    </div>
-    <div class="col-6 col-lg-3">
-      <a href="{% url 'settings_actividad' %}" class="ps-kpi text-decoration-none" style="--kpi-c:#ae3ec9;">
-        <span class="ps-kpi-ico"><i class="ti ti-login"></i></span>
-        <span>
-          <span class="ps-kpi-num">{{ accesos_hoy|default:0 }}</span>
-          <span class="ps-kpi-lbl">Accesos hoy</span>
-        </span>
-      </a>
-    </div>
+  <div class="ps-kpis">
+    <a href="{% url 'technician_dashboard' %}" class="ps-kpi" style="--kpi-c:#2563eb;">
+      <span class="ps-kpi-ico"><i class="ti ti-ticket"></i></span>
+      <span class="ps-kpi-body">
+        <span class="ps-kpi-lbl">Tickets abiertos</span>
+        <span class="ps-kpi-num">{{ tickets_pendientes|default:0 }}</span>
+        <span class="ps-kpi-hint">Panel de técnicos</span>
+      </span>
+    </a>
+    <a href="{% url 'dashboard_coordinador' area='bilingue' %}" class="ps-kpi" style="--kpi-c:#7c3aed;">
+      <span class="ps-kpi-ico"><i class="ti ti-chalkboard"></i></span>
+      <span class="ps-kpi-body">
+        <span class="ps-kpi-lbl">Reportes nuevos · Bilingüe</span>
+        <span class="ps-kpi-num">{{ reportes_bl|default:0 }}</span>
+        <span class="ps-kpi-hint">Coordinación BL</span>
+      </span>
+    </a>
+    <a href="{% url 'dashboard_coordinador' area='colegio' %}" class="ps-kpi" style="--kpi-c:#f79009;">
+      <span class="ps-kpi-ico"><i class="ti ti-user-check"></i></span>
+      <span class="ps-kpi-body">
+        <span class="ps-kpi-lbl">Reportes nuevos · Colegio</span>
+        <span class="ps-kpi-num">{{ reportes_col|default:0 }}</span>
+        <span class="ps-kpi-hint">Coordinación Colegio</span>
+      </span>
+    </a>
+    <a href="{% url 'settings_actividad' %}" class="ps-kpi" style="--kpi-c:#12b76a;">
+      <span class="ps-kpi-ico"><i class="ti ti-login"></i></span>
+      <span class="ps-kpi-body">
+        <span class="ps-kpi-lbl">Accesos hoy</span>
+        <span class="ps-kpi-num">{{ accesos_hoy|default:0 }}</span>
+        <span class="ps-kpi-hint">{{ accesos_14d|default:0 }} en 14 días</span>
+      </span>
+    </a>
   </div>
 
   {# ===== Gráficas de actividad (datos reales de RegistroAcceso) ===== #}
-  <div class="row g-3 mb-4">
-    <div class="col-lg-8">
-      <div class="card h-100">
-        <div class="card-header">
-          <h3 class="card-title"><i class="ti ti-chart-line me-2 text-blue"></i>Actividad de accesos · últimos 14 días</h3>
-          <div class="card-actions text-muted small">{{ accesos_14d|default:0 }} accesos</div>
-        </div>
-        <div class="card-body"><div class="ps-chart-wrap"><canvas id="psChartAccesos"></canvas></div></div>
+  <div class="ps-charts">
+    <div class="card">
+      <div class="card-body">
+        <h3 class="ps-card-title">Actividad de accesos</h3>
+        <div class="ps-card-sub">Últimos 14 días · inicios de sesión por día · {{ accesos_14d|default:0 }} accesos</div>
+        <div class="ps-chart-wrap"><canvas id="psChartAccesos"></canvas></div>
       </div>
     </div>
-    <div class="col-lg-4">
-      <div class="card h-100">
-        <div class="card-header">
-          <h3 class="card-title"><i class="ti ti-users me-2 text-purple"></i>Usuarios más activos · 30 días</h3>
-        </div>
-        <div class="card-body"><div class="ps-chart-wrap"><canvas id="psChartTop"></canvas></div></div>
+    <div class="card">
+      <div class="card-body">
+        <h3 class="ps-card-title">Usuarios más activos</h3>
+        <div class="ps-card-sub">Últimos 30 días</div>
+        <div class="ps-chart-wrap"><canvas id="psChartTop"></canvas></div>
       </div>
     </div>
   </div>
 
-  <div class="dg-section-title mb-3" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;">
-    <i class="ti ti-layout-grid me-1"></i>Módulos
-  </div>
-
-  {# ===== Secciones por área en 2 columnas ===== #}
-  <div class="row g-3 ps-cols">
-    <div class="col-lg-6">
-      {% for g in grupos_col1 %}{% include 'accounts/_ps_seccion.html' %}{% endfor %}
+  {# ===== Módulos del sistema: cuadrícula con pestañas de filtro ===== #}
+  <section class="ps-mods">
+    <div class="ps-mods-head">
+      <h2>Módulos del sistema <span>{{ grupos_panel|length }} programas</span></h2>
+      <div class="ps-tabs" id="ps-tabs" role="tablist">
+        <button type="button" class="on" data-cat="">Todos</button>
+        <button type="button" data-cat="soporte">Soporte</button>
+        <button type="button" data-cat="academico">Académico</button>
+        <button type="button" data-cat="admin">Administración</button>
+      </div>
     </div>
-    <div class="col-lg-6">
-      {% for g in grupos_col2 %}{% include 'accounts/_ps_seccion.html' %}{% endfor %}
+    <div class="ps-grid" id="ps-grid">
+      {% for g in grupos_panel %}{% include 'accounts/_ps_seccion.html' %}{% endfor %}
     </div>
-  </div>
+  </section>
 
 </div>
 
@@ -99,5 +101,5 @@
      data-acc-data="{{ acc_data_json }}"
      data-top-labels="{{ top_labels_json }}"
      data-top-data="{{ top_data_json }}"></div>
-<script src="{% static 'accounts/js/panel_super.js' %}?v=1"></script>
+<script src="{% static 'accounts/js/panel_super.js' %}?v=3"></script>
 {% endblock %}

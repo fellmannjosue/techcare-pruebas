@@ -262,11 +262,18 @@ _GRUPO_A_ROL = {
     'administracion':       {'titulo': 'Administración',        'subtitulo': 'Gestión de tickets y solicitudes',                   'icon': 'ti-layout-dashboard','clase': 'icon-admin', 'url': '/tickets/dashboard_administracion/'},
     'tecnicos':             {'titulo': 'Soporte Técnico',       'subtitulo': 'Gestión de tickets técnicos',                       'icon': 'ti-tools',           'clase': 'icon-tech',  'url': '/tickets/dashboard/'},
     'enfermeria':           {'titulo': 'Enfermería',            'subtitulo': 'Atención médica y control de medicamentos',          'icon': 'ti-first-aid-kit',   'clase': 'icon-enf',   'url': '/enfermeria/'},
-    'inventario':           {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
+    'inventario':           {'titulo': 'Control y Servicio Técnico', 'subtitulo': 'Inventario de equipos y fichas de mantenimiento', 'icon': 'ti-headset',    'clase': 'icon-inv',   'url': '/servicio-tecnico/'},
     'reloj':                {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
     # <--- hecho por claude code: sin esta entrada, un instructor CFP sin otro grupo
     # no podía iniciar sesión ('no tienes rol asignado').
     'instructores':         {'titulo': 'Instructor CFP',        'subtitulo': 'Registrar notas de mis cursos del CFP',              'icon': 'ti-list-numbers',    'clase': 'icon-cfp',   'url': '/cfp/notas/'},
+    # <--- hecho por claude code (02-oct-2026): usuarios NO staff de Mantenimiento Mecánico entran directo al módulo (sin esto el login los rechazaba)
+    'mantenimiento_mecanico':         {'titulo': 'Mantenimiento Mecánico', 'subtitulo': 'Registrar entregas de combustibles y aceites', 'icon': 'ti-engine', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
+    'mantenimiento_mecanico_lectura': {'titulo': 'Mantenimiento Mecánico · Auditoría', 'subtitulo': 'Ver y comentar las entregas', 'icon': 'ti-engine', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
+    # <--- hecho por claude code (12-oct-2026): Mantenimiento de vehículos (ventana aparte)
+    'vehiculos_registro':    {'titulo': 'Mantenimiento de vehículos', 'subtitulo': 'Registrar km y mantenimientos', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
+    'vehiculos_kilometraje': {'titulo': 'Mantenimiento de vehículos', 'subtitulo': 'Registrar kilometraje', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
+    'vehiculos_auditoria':   {'titulo': 'Mantenimiento de vehículos · Auditoría', 'subtitulo': 'Ver y comentar', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
 }
 
 _ROLES_POR_USUARIO = {
@@ -281,7 +288,7 @@ _ROLES_POR_USUARIO = {
     ],
     'glorenzo@ana-hn.org': [
         {'titulo': 'Control de Reloj',      'subtitulo': 'Gestión de asistencia y horarios',                  'icon': 'ti-clock',           'clase': 'icon-reloj', 'url': '/reloj/'},
-        {'titulo': 'Inventario',            'subtitulo': 'Control de equipos y recursos',                     'icon': 'ti-package',         'clase': 'icon-inv',   'url': '/inventario/'},
+        {'titulo': 'Control y Servicio Técnico', 'subtitulo': 'Inventario de equipos y fichas de mantenimiento', 'icon': 'ti-headset',    'clase': 'icon-inv',   'url': '/servicio-tecnico/'},
     ],
 }
 
@@ -342,10 +349,12 @@ def panel_seguridad(request):
     correos = list(CorreoInstitucional.objects.all())
     for c in correos:
         c.ya_registrado = c.correo in registrados
+    from core.programas import programas_para_ui
     return render(request, 'accounts/panel_seguridad.html', {
         'registro_activo': config.REGISTRO_USUARIOS_ACTIVO,
         'dosfa_activo':    config.DOSFA_ACTIVO,
         'correos':         correos,
+        'programas':       programas_para_ui(config),   # <--- hecho por claude code (10-sep-2026)
     })
 
 
@@ -362,6 +371,30 @@ def seguridad_toggle(request):
         return JsonResponse({'ok': False, 'error': 'Interruptor inválido'}, status=400)
     setattr(config, clave, valor)
     return JsonResponse({'ok': True, 'clave': clave, 'valor': valor})
+
+
+@login_required
+@require_POST
+def seguridad_programa_toggle(request):
+    """<--- hecho por claude code (10-sep-2026): ocultar/mostrar un programa para TODOS los usuarios.
+
+    visible=false → el programa desaparece de los menús de todos y sus rutas se bloquean
+    (middleware); el superusuario lo sigue viendo con la etiqueta "Oculto".
+    """
+    from django.http import JsonResponse
+    from constance import config
+    from core.programas import POR_KEY, ocultos, guardar_ocultos
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    clave = request.POST.get('clave')
+    if clave not in POR_KEY:
+        return JsonResponse({'ok': False, 'error': 'Programa inválido'}, status=400)
+    visible = request.POST.get('visible') == 'true'
+    actual = ocultos(config)
+    (actual.discard if visible else actual.add)(clave)
+    actual = guardar_ocultos(config, actual)
+    return JsonResponse({'ok': True, 'clave': clave, 'visible': visible,
+                         'label': POR_KEY[clave]['label'], 'ocultos': sorted(actual)})
 
 
 @login_required
@@ -935,6 +968,9 @@ def menu_view(request):
 
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
+        'show_servicio':    is_admin or can_view_inventory or is_group_inventario or can_view_maintenance,   # <--- hecho por claude code (28-sep-2026)
+        'show_mant_mecanico': is_admin or user.groups.filter(name__in=['mantenimiento_mecanico', 'mantenimiento_mecanico_lectura', 'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026): combustibles ∪ vehículos (un solo módulo)
+        'show_vehiculos':     is_admin or user.groups.filter(name__in=['vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026)
         'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
         # <--- hecho por claude code: 'instructores' ya no da tickets por sí solo; se les puso el grupo 'administracion'
         'show_tickets':     is_admin or can_view_tickets or is_administracion,
@@ -952,7 +988,7 @@ def menu_view(request):
         'show_coordinador_colegio':  is_admin or is_coord_colegio,
         'show_agendas':        is_admin or is_coord_bilingue or is_coord_colegio or is_maestro_bilingue or is_maestro_colegio,
         'show_directorio':     is_admin or is_coord_bilingue or is_coord_colegio,
-        'show_calculadoras':   is_admin,  # <--- hecho por claude code: Calculadoras solo superuser
+        'show_calculadoras':   is_admin or user.groups.filter(name='calculadoras_tiempo').exists(),  # <--- hecho por claude code (30-sep-2026): + grupo calculadoras_tiempo
 
         # <--- hecho por claude code: 'atencion_padres' y 'camaras' eliminadas (no se usaban)
         'show_salidas_bano':    user.is_superuser or user.groups.filter(
@@ -964,6 +1000,11 @@ def menu_view(request):
                                 ).exists(),
     }
 
+    # <--- hecho por claude code (10-sep-2026): programas ocultos a todos (Configuración → Seguridad)
+    from constance import config as _cfg_prog
+    from core.programas import ocultos as _prog_ocultos, aplicar_ocultos as _aplicar_ocultos
+    _aplicar_ocultos(context, _prog_ocultos(_cfg_prog))
+
     # <--- hecho por claude code: pasar show_welcome al contexto antes de limpiar la sesión
     show_welcome = request.session.pop('show_welcome', False)
     context['show_welcome'] = show_welcome
@@ -972,11 +1013,12 @@ def menu_view(request):
     # Superusuario: Panel Principal (Django). <--- hecho por claude code: el redirect al
     # prototipo SPA Next (/portal/app/) se retiró el 26-ago-2026; ese portal ya no existe.
     if user.is_superuser:
-        _col1, _col2 = _grupos_super_panel_columnas()
         return render(request, 'accounts/panel_super.html', {
-            # <--- hecho por claude code: panel en 2 columnas (los administrativos van al sidebar)
-            'grupos_col1': _col1,
-            'grupos_col2': _col2,
+            # <--- hecho por claude code (30-sep-2026): diseño Horizon Split — cuadrícula de módulos
+            # con categoría (Soporte / Académico / Administración) para las pestañas de filtro
+            'grupos_panel': _grupos_super_panel_cat(),
+            'saludo': _saludo_hora(),
+            'fecha_larga': _fecha_larga_es(),
             'tickets_pendientes': tickets_pendientes,
             'reportes_bl': reportes_bl,
             'reportes_col': reportes_col,
@@ -995,8 +1037,8 @@ GRUPOS_SUPER = [
      'desc': 'Tickets, inventario y mantenimiento',
      'cards': [
         {'t': 'Sistema de Tickets', 's': 'Gestión de solicitudes', 'i': 'ti-ticket', 'c': '#206bc4', 'url': 'technician_dashboard'},
-        {'t': 'Inventario', 's': 'Control de activos', 'i': 'ti-package', 'c': '#2fb344', 'url': 'inventario:dashboard'},
-        {'t': 'Mantenimiento', 's': 'Reportes de mantenimiento', 'i': 'ti-tool', 'c': '#d63939', 'url': 'mantenimiento:maintenance_dashboard'},
+        # <--- hecho por claude code (28-sep-2026): Inventario + Mantenimiento se unen en un solo hub
+        {'t': 'Control y Servicio Técnico', 's': 'Inventario de equipos y fichas de mantenimiento', 'i': 'ti-headset', 'c': '#0ca678', 'url': 'servicio_tecnico:hub'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
      ]},
     # <--- hecho por claude code: Gestión de Desarrollo en grupo propio (sacado de Soporte y TI)
@@ -1097,6 +1139,21 @@ GRUPOS_SUPER = [
         # <--- hecho por claude code: Proveedores/Compras/Uniformes ahora viven dentro del hub de Inventario
         {'t': 'Inventario', 's': 'Uniformes, proveedores y compras', 'i': 'ti-package', 'c': '#206bc4', 'url': 'contabilidad:inventario_dashboard'},
      ]},
+    # <--- hecho por claude code (01-oct-2026): Mantenimiento Mecánico en GRUPO PROPIO (pedido del usuario; antes iba dentro de Soporte y TI y del hub de Servicio Técnico)
+    # <--- hecho por claude code (12-oct-2026): vehículos UNIDO aquí (pedido del usuario): un solo sub-dashboard /mantenimiento-mecanico/
+    {'key': 'mantenimiento_mecanico', 'titulo': 'Mantenimiento Mecánico', 'icon': 'ti-engine', 'color': '#f76707',
+     'desc': 'Combustibles, aceites y mantenimiento de vehículos',
+     'cards': [
+        {'t': 'Panel del módulo',  's': 'Saldos y estado de la flota',    'i': 'ti-layout-dashboard', 'c': '#f76707', 'url': 'mantenimiento_mecanico:index'},
+        {'t': 'Gasolina',          's': 'Compra en galones · entregas',   'i': 'ti-gas-station',    'c': '#f76707', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'gasolina'}},
+        {'t': 'Diésel',            's': 'Tanque · entregas con km',       'i': 'ti-truck',          'c': '#206bc4', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'diesel'}},
+        {'t': 'Aceite 40',         's': 'Barril · entregas',              'i': 'ti-droplet',        'c': '#a16207', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'aceite-40'}},
+        {'t': 'Aceite 50',         's': 'Barril · entregas',              'i': 'ti-droplet',        'c': '#ae3ec9', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'aceite-50'}},
+        {'t': 'Aceite hidráulico', 's': 'Barril · entregas',              'i': 'ti-droplet-half-2', 'c': '#0ca678', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'aceite-hidraulico'}},
+        {'t': 'Coolant',           's': 'Barril · entregas',              'i': 'ti-snowflake',      'c': '#1098ad', 'url': 'mantenimiento_mecanico:pagina', 'args': {'clave': 'coolant'}},   # <--- hecho por claude code (01-oct-2026)
+        {'t': 'Flota de vehículos', 's': 'Km, próximo mantenimiento y lo que falta', 'i': 'ti-car', 'c': '#206bc4', 'url': 'vehiculos:flota'},
+        {'t': 'Hojas de la flota', 's': 'Tareas para imprimir (PDF)', 'i': 'ti-printer', 'c': '#475569', 'url': 'vehiculos:hojas'},
+     ]},
     # <--- hecho por claude code: ANA Network Manager (IPAM/red) — superadmin
     {'key': 'red', 'titulo': 'Red (ANA Network Manager)', 'icon': 'ti-network', 'color': '#0ca678',
      'desc': 'IPAM, VLAN, dispositivos y documentación de red',
@@ -1124,10 +1181,16 @@ def _reverse_seguro(name, args=None, query=None):
 
 
 def _grupos_super_con_hrefs():
-    return [
-        {**g, 'cards': [{**c, 'href': _reverse_seguro(c.get('url'), c.get('args'), c.get('query'))} for c in g['cards']]}
-        for g in GRUPOS_SUPER
-    ]
+    # <--- hecho por claude code (10-sep-2026): las tarjetas de programas ocultos llevan 'oculto'
+    # (el superusuario las sigue viendo, con etiqueta, para poder revisarlas).
+    from constance import config as _cfg
+    from core.programas import programa_de_ruta, ocultos
+    _oc = ocultos(_cfg)
+    def _card(c):
+        href = _reverse_seguro(c.get('url'), c.get('args'), c.get('query'))
+        prog = programa_de_ruta(href) if href else None
+        return {**c, 'href': href, 'oculto': bool(prog and prog['key'] in _oc)}
+    return [{**g, 'cards': [_card(c) for c in g['cards']]} for g in GRUPOS_SUPER]
 
 
 # <--- hecho por claude code: estos módulos quedan SOLO en el sidebar (no en el Panel Principal)
@@ -1140,7 +1203,7 @@ def _grupos_super_panel():
 
 
 # <--- hecho por claude code: distribución del Panel Principal en 2 columnas
-_PANEL_COL1 = ['soporte', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'red']
+_PANEL_COL1 = ['soporte', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'mantenimiento_mecanico', 'red']
 _PANEL_COL2 = ['academico', 'notas_mitad_parcial', 'enfermeria', 'ruteo', 'ingresos_notas', 'salidas', 'cfp']
 
 
@@ -1150,6 +1213,61 @@ def _grupos_super_panel_columnas():
     col1 = [by_key[k] for k in _PANEL_COL1 if k in by_key]
     col2 = [by_key[k] for k in _PANEL_COL2 if k in by_key]
     return col1, col2
+
+
+# <--- hecho por claude code (30-sep-2026): categoría de cada grupo para las pestañas del panel Horizon
+_PANEL_CAT = {
+    'soporte': 'soporte', 'desarrollo': 'soporte', 'red': 'soporte',
+    'academico': 'academico', 'notas_mitad_parcial': 'academico', 'enfermeria': 'academico',
+    'ruteo': 'academico', 'ingresos_notas': 'academico', 'salidas': 'academico',
+    'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin', 'cfp': 'admin',
+    'mantenimiento_mecanico': 'admin',   # <--- hecho por claude code (01-oct-2026)
+}
+
+
+def _grupos_super_panel_cat():
+    """Grupos del Panel Principal en el orden de las columnas antiguas, con su categoría."""
+    orden = _PANEL_COL1 + _PANEL_COL2
+    by_key = {g['key']: g for g in _grupos_super_con_hrefs()}
+    grupos = [{**by_key[k], 'cat': _PANEL_CAT.get(k, 'admin')} for k in orden if k in by_key]
+    for g in grupos:
+        if g['key'] == 'mantenimiento_mecanico':
+            g['cards'] = _cards_con_saldo_mecanico(g['cards'])
+    return grupos
+
+
+def _cards_con_saldo_mecanico(cards):
+    """<--- hecho por claude code (01-oct-2026): en las tarjetas de Mantenimiento Mecánico el subtítulo
+    es el saldo actual de cada insumo y se marca `bajo` (badge rojo). Nunca rompe el panel."""
+    try:
+        from mantenimiento_mecanico.models import Insumo
+        from mantenimiento_mecanico import services as _mms
+        por_clave = {i.clave: i for i in Insumo.objects.filter(activo=True)}
+        out = []
+        for c in cards:
+            ins = por_clave.get((c.get('args') or {}).get('clave'))
+            if ins:
+                r = _mms.resumen(ins)
+                extra = (f" · {r['pct']} % del tanque" if r['pct'] is not None
+                         else (f" · ≈ {r['barriles']} barriles" if r['barriles'] is not None else ''))
+                c = {**c, 's': f"Saldo {r['saldo']:.1f} gal{extra}", 'bajo': r['bajo']}
+            out.append(c)
+        return out
+    except Exception:
+        return cards
+
+
+def _saludo_hora():
+    h = datetime.datetime.now().hour
+    return 'Buenos días' if h < 12 else ('Buenas tardes' if h < 18 else 'Buenas noches')
+
+
+def _fecha_larga_es():
+    dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+             'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    d = datetime.date.today()
+    return f'{dias[d.weekday()]} {d.day} de {meses[d.month - 1]} de {d.year}'
 
 
 def _datos_actividad_panel():
@@ -1288,6 +1406,15 @@ def panel_general(request):
         'show_maestro_col': _g(user, 'maestros_colegio'),
         'show_enfermeria':  _g(user, *_GRUPOS_COORD_BL),
         'show_reloj':       user.is_superuser or _g(user, 'reloj'),
+        # <--- hecho por claude code (12-oct-2026): Control y Servicio Técnico también en el Panel (estaba solo en el sidebar)
+        'show_servicio':    user.is_superuser or _g(user, 'inventario', 'mantenimiento') or user.has_perm('inventario.view_item') or user.has_perm('mantenimiento.view_maintenancerecord'),
+        # <--- hecho por claude code (12-oct-2026): CFP y Gestión de Desarrollo también como tarjeta (estaban solo en el sidebar)
+        'show_cfp':         user.is_superuser or _g(user, 'director_cfp', 'instructores', 'contabilidad_cfp'),
+        'solo_conta_cfp':   _g(user, 'contabilidad_cfp') and not _g(user, 'director_cfp', 'instructores'),
+        'show_desarrollo':  user.is_superuser or _g(user, 'desarrollo_admin', 'desarrollo_dev', 'desarrollo_solicitante'),
+        'show_calc_tiempo': _g(user, 'calculadoras_tiempo'),   # <--- hecho por claude code (30-sep-2026): calculadoras de tiempo
+        'show_mant_mecanico': user.is_superuser or _g(user, 'mantenimiento_mecanico', 'mantenimiento_mecanico_lectura', 'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria'),   # <--- hecho por claude code (12-oct-2026): combustibles ∪ vehículos
+        'show_vehiculos':     user.is_superuser or _g(user, 'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria'),   # <--- hecho por claude code (12-oct-2026)
         'toggle_area':      maestro_dos_areas(user),
         'welcome_name':     user.get_full_name() or user.username,
         # <--- hecho por claude code: una tarjeta de Notas Mitad de Parcial por cada área
@@ -1300,6 +1427,10 @@ def panel_general(request):
                                  'ok': _g(user, 'maestros_colegio')},
                              ) if a['ok']],
     }
+    # <--- hecho por claude code (10-sep-2026): programas ocultos a todos (Configuración → Seguridad)
+    from constance import config as _cfg_prog
+    from core.programas import ocultos as _prog_ocultos, aplicar_ocultos as _aplicar_ocultos
+    _aplicar_ocultos(ctx, _prog_ocultos(_cfg_prog))
     return render(request, 'accounts/dashboard_general.html', ctx)
 
 
@@ -2224,6 +2355,8 @@ def settings_reloj_permisos(request):
         ('permisos',      'Permisos Emp.',          'ti-license',       False),
         ('reportes_pdf',  'Reportes PDF',           'ti-file-download', False),
         ('vigilancia',    'Vigilancia',             'ti-shield',        False),
+        ('pruebas_comp',  'Pruebas Comp.',          'ti-flask',         False),   # <--- hecho por claude code (16-sep-2026)
+        ('bono_ajuste',   'Bono · Ajuste manual',   'ti-award',         False),   # <--- hecho por claude code (01-oct-2026)
     ]
 
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -2588,6 +2721,43 @@ def _audit_model_key(m):
     return f'{m._meta.app_label}.{m._meta.object_name}'
 
 
+# <--- hecho por claude code (30-sep-2026): el selector de la auditoría se agrupa por PROGRAMA (los mismos grupos
+# del panel principal). Elegir un programa ("grupo:<key>") muestra la actividad de TODAS sus tablas.
+_AUDIT_GRUPOS = [
+    ('soporte',      'Soporte y TI',                 ('tickets', 'inventario', 'mantenimiento', 'inventario_camaras', 'servicio_tecnico')),
+    ('desarrollo',   'Gestión de Desarrollo',        ('desarrollo',)),
+    ('reloj',        'Reloj',                        ('reloj',)),
+    ('sponsors',     'Sponsors',                     ('sponsors',)),
+    ('contabilidad', 'Contabilidad',                 ('contabilidad',)),
+    ('red',          'Red (ANA Network Manager)',    ('red',)),
+    ('academico',    'Académico (Conducta y Agendas)', ('conducta', 'agendas')),
+    ('notas',        'Notas Mitad de Parcial',       ('notas_parcial',)),
+    ('enfermeria',   'Enfermería',                   ('enfermeria',)),
+    ('ingresos',     'Ingresos de Notas',            ('ingresos_notas',)),
+    ('salidas',      'Salidas al baño',              ('salidas_bano',)),
+    ('cfp',          'CFP (Contabilidad y Notas)',   ('cfp',)),
+    ('cuentas',      'Cuentas y accesos',            ('accounts',)),
+    ('sistema',      'Sistema',                      ('core', 'calculadoras')),
+]
+
+
+def _audit_grupos(modelos):
+    """[{key, label, modelos:[m…]}] solo con los programas que tienen tablas auditadas."""
+    por_app = {}
+    for m in modelos:
+        por_app.setdefault(m._meta.app_label, []).append(m)
+    out, usadas = [], set()
+    for key, label, apps_ in _AUDIT_GRUPOS:
+        ms = [m for a in apps_ for m in por_app.get(a, [])]
+        usadas.update(apps_)
+        if ms:
+            out.append({'key': key, 'label': label, 'modelos': ms})
+    resto = [m for a, ms in por_app.items() if a not in usadas for m in ms]
+    if resto:
+        out.append({'key': 'otros', 'label': 'Otros', 'modelos': resto})
+    return out
+
+
 def _fmt_val(v):
     if v is None or v == '':
         return '—'
@@ -2647,6 +2817,10 @@ def settings_auditoria(request):
     modelos_ctx = [{'key': _audit_model_key(m),
                     'label': m._meta.verbose_name.title(),
                     'app': m._meta.app_label} for m in modelos]
+    grupos = _audit_grupos(modelos)
+    grupos_ctx = [{'key': g['key'], 'label': g['label'],
+                   'modelos': [{'key': _audit_model_key(m), 'label': m._meta.verbose_name.title()} for m in g['modelos']]}
+                  for g in grupos]
 
     f_tabla = (request.GET.get('tabla') or '').strip()
     f_op    = (request.GET.get('op') or '').strip().lower()
@@ -2670,6 +2844,8 @@ def settings_auditoria(request):
         return qs
 
     sel_model = next((m for m in modelos if _audit_model_key(m) == f_tabla), None)
+    # <--- hecho por claude code (30-sep-2026): "grupo:<key>" = todas las tablas de un programa
+    sel_grupo = next((g for g in grupos if f_tabla == f"grupo:{g['key']}"), None)
 
     eventos = []
     page_obj = None
@@ -2691,11 +2867,17 @@ def settings_auditoria(request):
         page_obj  = paginator.get_page(request.GET.get('page'))
         eventos   = [_build_audit_event(hr) for hr in page_obj]
     else:
-        # Feed global: últimos eventos de cada tabla, mezclados por fecha
+        # Feed global (o de un programa): últimos eventos de cada tabla, mezclados por fecha
         merged = []
-        # Con rango de fechas se amplía la ventana por tabla; sin rango, los últimos 8.
-        _lim = 60 if (f_desde or f_hasta) else 8
-        for m in modelos:
+        fuente = sel_grupo['modelos'] if sel_grupo else modelos
+        # Con rango de fechas o programa se amplía la ventana por tabla; sin nada, los últimos 8.
+        _lim = 60 if (f_desde or f_hasta or sel_grupo) else 8
+        if sel_grupo:
+            for m in fuente:
+                cnts = {r['history_type']: r['c'] for r in _rango(m.history.model.objects.all()).values('history_type').annotate(c=Count('history_id'))}
+                creados += cnts.get('+', 0); editados += cnts.get('~', 0); eliminados += cnts.get('-', 0)
+            total = creados + editados + eliminados
+        for m in fuente:
             q = _rango(m.history.model.objects.select_related('history_user').order_by('-history_date'))
             if op_db:
                 q = q.filter(history_type=op_db)
@@ -2708,10 +2890,12 @@ def settings_auditoria(request):
     ctx = _settings_ctx(request, 'auditoria')
     ctx.update({
         'modelos':    modelos_ctx,
+        'grupos':     grupos_ctx,
+        'sel_grupo':  sel_grupo['label'] if sel_grupo else '',
         'eventos':    eventos,
         'page_obj':   page_obj,
         'es_global':  es_global,
-        'sel_label':  sel_model._meta.verbose_name.title() if sel_model else '',
+        'sel_label':  sel_model._meta.verbose_name.title() if sel_model else (sel_grupo['label'] if sel_grupo else ''),
         'total':      total,
         'creados':    creados,
         'editados':   editados,

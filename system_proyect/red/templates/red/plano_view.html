@@ -65,12 +65,15 @@
               <input id="ms-rot" type="range" min="0" max="360" value="0" class="form-range flex-fill">
               <input id="ms-rot-num" type="number" min="0" max="360" value="0" class="form-control form-control-sm" style="width:74px">
               <span class="text-muted small">°</span></div></div>
+          {# <--- hecho por claude code (01-oct-2026): cambiar el texto de todos los marcadores seleccionados #}
+          <div class="mb-2"><label class="form-label small">Texto</label>
+            <input id="ms-txt" type="text" maxlength="80" class="form-control form-control-sm" placeholder="Dejar vacío = no cambiar"></div>
           <div class="d-flex gap-2">
             <button id="ms-aplicar" class="btn btn-sm btn-primary flex-fill"><i class="ti ti-check me-1"></i>Aplicar</button>
             <button id="ms-limpiar" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-eraser me-1"></i>Limpiar</button>
           </div>
           <button id="ms-borrar" class="btn btn-sm btn-outline-danger w-100 mt-2"><i class="ti ti-trash me-1"></i>Eliminar seleccionados</button>
-          <div class="form-hint mt-2">Haz clic en <strong>marcadores y líneas</strong> para seleccionarlos. En marcadores, los deslizadores cambian tamaño/giro (pulsa <strong>Aplicar</strong>). <strong>Eliminar seleccionados</strong> borra marcadores y líneas elegidos.</div>
+          <div class="form-hint mt-2">Haz clic en <strong>marcadores y líneas</strong> para seleccionarlos. En marcadores, los deslizadores cambian tamaño/giro y el campo <strong>Texto</strong> renombra todos los elegidos (pulsa <strong>Aplicar</strong>). <strong>Eliminar seleccionados</strong> borra marcadores y líneas elegidos.</div>
         </div>
       </div>
     </div>
@@ -193,4 +196,4 @@
      data-switches="[{% for s in switches %}{&quot;id&quot;:{{ s.id }},&quot;t&quot;:&quot;{{ s.nombre|escapejs }}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"></div>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'red/js/plano_map.js' %}?v=11"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'red/js/plano_map.js' %}?v=12"></script>{% endblock %}

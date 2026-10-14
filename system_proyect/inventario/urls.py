@@ -20,9 +20,18 @@ urlpatterns = [
     path("routers/", views.inventario_routers, name="inventario_routers"),
     path("datashows/", views.inventario_datashows, name="inventario_datashows"),
     path("monitores/", views.inventario_monitores, name="inventario_monitores"),
+    # <--- hecho por claude code (13-oct-2026): Inventario general
+    path("general/", views.inventario_general, name="inventario_general"),
+    path("general/<int:pk>/comentario/", views.item_general_comentario, name="item_general_comentario"),
+    path("general/<int:pk>/eliminar/", views.item_general_eliminar, name="item_general_eliminar"),
+    path("general/<int:pk>/pdf/", views.item_general_pdf, name="item_general_pdf"),
+    path("general/pdf/", views.item_general_pdf, name="item_general_pdf_todos"),
+    path("general/excel/", views.item_general_excel, name="item_general_excel"),
+    path("general/categoria/add/", views.categoria_general_add, name="categoria_general_add"),
 
     path("registros/", views.inventario_registros, name="inventario_registros"),
     path("registros/excel/<str:categoria>/", views.exportar_excel_inventario, name="exportar_excel"),
+    path("registros/pdf/<str:categoria>/", views.exportar_pdf_inventario, name="exportar_pdf"),  # <--- hecho por claude code (17-sep-2026)
 
     # ---------------------------------------------------------
     # PDF + QR

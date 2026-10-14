@@ -379,3 +379,176 @@ class PrecioProveedor(AuditModel):
 
     def __str__(self):
         return f'{self.producto} · {self.proveedor.nombre}: {self.precio}'
+
+
+# ═══════════════════════ FASE 3 · Núcleo contable (partida doble) ═══════════════════════
+# <--- hecho por claude code (23-sep-2026): catálogo de cuentas, períodos, centros de costo y
+# partidas (asientos) de partida doble. Es la base sobre la que los demás módulos (inventario,
+# CFP, sponsors) postearán sus asientos automáticamente en fases posteriores.
+class TipoCuenta(models.TextChoices):
+    ACTIVO     = 'activo',     'Activo'
+    PASIVO     = 'pasivo',     'Pasivo'
+    PATRIMONIO = 'patrimonio', 'Patrimonio'
+    INGRESO    = 'ingreso',    'Ingreso'
+    COSTO      = 'costo',      'Costo'
+    GASTO      = 'gasto',      'Gasto'
+
+
+# Naturaleza normal del saldo por tipo: deudora (Activo, Costo, Gasto) o acreedora (Pasivo, Patrimonio, Ingreso)
+NATURALEZA_POR_TIPO = {
+    TipoCuenta.ACTIVO: 'deudora', TipoCuenta.COSTO: 'deudora', TipoCuenta.GASTO: 'deudora',
+    TipoCuenta.PASIVO: 'acreedora', TipoCuenta.PATRIMONIO: 'acreedora', TipoCuenta.INGRESO: 'acreedora',
+}
+
+
+class CuentaContable(AuditModel):
+    """Cuenta del catálogo. Árbol por `padre`; solo las cuentas de DETALLE reciben movimientos.
+    El código es jerárquico (1 · 1.1 · 1.1.01 · 1.1.01.001) y ordena el catálogo."""
+    NATURALEZAS = (('deudora', 'Deudora'), ('acreedora', 'Acreedora'))
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=12, choices=TipoCuenta.choices)
+    naturaleza = models.CharField(max_length=10, choices=NATURALEZAS)
+    padre = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='hijas')
+    nivel = models.PositiveSmallIntegerField(default=1, editable=False)
+    es_detalle = models.BooleanField(default=True, verbose_name='Acepta movimientos',
+                                     help_text='Solo las cuentas de detalle se usan en las partidas; las de agrupación solo suman.')
+    descripcion = models.CharField(max_length=200, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'contabilidad_cuenta'
+        ordering = ['codigo']
+        verbose_name = 'Cuenta contable'
+        verbose_name_plural = 'Catálogo de cuentas'
+
+    def __str__(self):
+        return f'{self.codigo} · {self.nombre}'
+
+    def save(self, *args, **kwargs):
+        if not self.naturaleza:
+            self.naturaleza = NATURALEZA_POR_TIPO.get(self.tipo, 'deudora')
+        self.nivel = (self.padre.nivel + 1) if self.padre_id else 1
+        super().save(*args, **kwargs)
+
+    @property
+    def es_balance(self):
+        """Cuentas de balance (activo/pasivo/patrimonio) vs. de resultados (ingreso/costo/gasto)."""
+        return self.tipo in (TipoCuenta.ACTIVO, TipoCuenta.PASIVO, TipoCuenta.PATRIMONIO)
+
+
+class CentroCosto(AuditModel):
+    """Centro de costo / fondo / proyecto (contabilidad por fondos: donante → proyecto → gasto)."""
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.CharField(max_length=200, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'contabilidad_centro_costo'
+        ordering = ['codigo']
+        verbose_name = 'Centro de costo'
+        verbose_name_plural = 'Centros de costo'
+
+    def __str__(self):
+        return f'{self.codigo} · {self.nombre}'
+
+
+class PeriodoContable(AuditModel):
+    """Mes contable. Un período CERRADO no admite partidas nuevas ni cambios."""
+    ESTADOS = (('abierto', 'Abierto'), ('cerrado', 'Cerrado'))
+    anio = models.PositiveIntegerField()
+    mes = models.PositiveSmallIntegerField()
+    estado = models.CharField(max_length=10, choices=ESTADOS, default='abierto')
+    cerrado_por = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'contabilidad_periodo'
+        unique_together = ('anio', 'mes')
+        ordering = ['-anio', '-mes']
+        verbose_name = 'Período contable'
+        verbose_name_plural = 'Períodos contables'
+
+    MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+             'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+    def __str__(self):
+        return f'{self.MESES[self.mes]} {self.anio}'
+
+    @property
+    def abierto(self):
+        return self.estado == 'abierto'
+
+
+class TipoAsiento(models.TextChoices):
+    DIARIO   = 'diario',   'Diario'
+    INGRESO  = 'ingreso',  'Ingreso'
+    EGRESO   = 'egreso',   'Egreso'
+    AJUSTE   = 'ajuste',   'Ajuste'
+    APERTURA = 'apertura', 'Apertura'
+    CIERRE   = 'cierre',   'Cierre'
+
+
+class EstadoAsiento(models.TextChoices):
+    BORRADOR      = 'borrador',      'Borrador'
+    CONTABILIZADO = 'contabilizado', 'Contabilizado'
+    ANULADO       = 'anulado',       'Anulado'
+
+
+class Asiento(AuditModel):
+    """Partida contable (encabezado). Solo las CONTABILIZADAS afectan saldos y reportes.
+    `origen_modulo`/`origen_id` enlazan las partidas generadas automáticamente por otros módulos."""
+    numero = models.CharField(max_length=20, unique=True, blank=True, verbose_name='Nº de partida')
+    fecha = models.DateField()
+    periodo = models.ForeignKey(PeriodoContable, on_delete=models.PROTECT, related_name='asientos')
+    tipo = models.CharField(max_length=10, choices=TipoAsiento.choices, default=TipoAsiento.DIARIO)
+    descripcion = models.CharField(max_length=250, verbose_name='Concepto')
+    referencia = models.CharField(max_length=80, blank=True, verbose_name='Documento / referencia')
+    estado = models.CharField(max_length=14, choices=EstadoAsiento.choices, default=EstadoAsiento.BORRADOR)
+    total_debe = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    total_haber = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    origen_modulo = models.CharField(max_length=30, blank=True, editable=False)
+    origen_id = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    contabilizado_por = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    contabilizado_en = models.DateTimeField(null=True, blank=True)
+    anulado_por = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    anulado_en = models.DateTimeField(null=True, blank=True)
+    motivo_anulacion = models.CharField(max_length=250, blank=True)
+
+    class Meta:
+        db_table = 'contabilidad_asiento'
+        ordering = ['-fecha', '-id']
+        verbose_name = 'Partida contable'
+        verbose_name_plural = 'Partidas contables'
+
+    def __str__(self):
+        return f'{self.numero or "(borrador)"} · {self.descripcion[:40]}'
+
+    @property
+    def cuadrada(self):
+        return self.total_debe == self.total_haber and self.total_debe > 0
+
+    @property
+    def editable(self):
+        return self.estado == EstadoAsiento.BORRADOR
+
+
+class DetalleAsiento(models.Model):
+    """Línea de una partida: una cuenta de detalle con importe en el Debe O en el Haber."""
+    asiento = models.ForeignKey(Asiento, on_delete=models.CASCADE, related_name='detalles')
+    orden = models.PositiveSmallIntegerField(default=1)
+    cuenta = models.ForeignKey(CuentaContable, on_delete=models.PROTECT, related_name='movimientos')
+    centro_costo = models.ForeignKey(CentroCosto, null=True, blank=True, on_delete=models.PROTECT, related_name='movimientos')
+    descripcion = models.CharField(max_length=200, blank=True)
+    debe = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    haber = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+
+    class Meta:
+        db_table = 'contabilidad_asiento_detalle'
+        ordering = ['asiento', 'orden']
+        verbose_name = 'Línea de partida'
+        verbose_name_plural = 'Líneas de partida'
+
+    def __str__(self):
+        return f'{self.cuenta.codigo} D {self.debe} H {self.haber}'

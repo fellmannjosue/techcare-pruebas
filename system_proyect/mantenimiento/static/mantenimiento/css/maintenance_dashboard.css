@@ -26,3 +26,111 @@
 .mant-pop { cursor: help; border-bottom: 1px dotted var(--ps-muted, #94a3b8); }
 .mant-pop .ti-info-circle { font-size: .8em; vertical-align: middle; }
 .popover .popover-body { font-size: .85rem; line-height: 1.45; max-width: 320px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   REDISEÑO v5 — <--- hecho por claude code (28-sep-2026): look profesional
+   del panel de Fichas de Mantenimiento (cabecera, KPIs, pestañas, tabla,
+   controles de DataTables, acciones). Solo estilo: la lógica no cambia.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --mant-radius: 14px;
+  --mant-border: rgba(98, 105, 118, .14);
+  --mant-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px -12px rgba(16, 24, 40, .18);
+  --mant-teal: #0ca678; --mant-blue: #206bc4; --mant-orange: #f76707; --mant-green: #2fb344; --mant-purple: #ae3ec9; --mant-pink: #d6336c;
+}
+
+/* Cabecera */
+.page-header .page-pretitle { letter-spacing: .12em; }
+.page-header .page-title { font-size: 1.55rem; letter-spacing: -.01em; }
+.page-header .btn-primary { box-shadow: 0 6px 16px -6px rgba(66, 99, 235, .6); }
+
+/* KPIs */
+.mant-kpi { border-radius: var(--mant-radius) !important; box-shadow: var(--mant-shadow) !important; border: 1px solid var(--mant-border) !important; overflow: hidden; position: relative; }
+.mant-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--kpi, var(--mant-blue)); }
+.mant-kpi .card-body { padding: 1.1rem 1.25rem; }
+.mant-kpi .stat-card-icon { width: 52px; height: 52px; border-radius: 14px; font-size: 1.55rem; }
+.mant-kpi .kpi-label { font-size: .76rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: #8492a6; }
+.mant-kpi .kpi-value { font-size: 1.9rem; font-weight: 800; line-height: 1.1; color: #182433; letter-spacing: -.02em; }
+
+/* Tarjeta principal */
+.mant-main { border-radius: var(--mant-radius) !important; box-shadow: var(--mant-shadow) !important; border: 1px solid var(--mant-border) !important; overflow: hidden; }
+.mant-main > .card-header { background: #fff; border-bottom: 1px solid var(--mant-border); padding: .5rem 1rem 0; }
+
+/* Pestañas: subrayado limpio, contador en píldora */
+.mant-tabs.nav-tabs { border-bottom: 0; gap: .25rem; }
+.mant-tabs .nav-link { border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0; color: #667085; font-weight: 500; padding: .7rem .85rem; background: transparent !important; transition: color .15s, border-color .15s; }
+.mant-tabs .nav-link:hover { color: #182433; border-bottom-color: rgba(32, 107, 196, .35) !important; }
+.mant-tabs .nav-link.active { color: var(--mant-blue); border-bottom-color: var(--mant-blue) !important; font-weight: 600; }
+.mant-tabs .nav-link .badge { border-radius: 999px; padding: .2rem .5rem; font-size: .68rem; }
+
+/* Barra de herramientas de cada pestaña (reportes + buscador de DataTables) */
+.mant-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .75rem 1rem 0; }
+.mant-toolbar .btn { border-radius: 8px; font-weight: 500; }
+.mant-toolbar .btn-teal, .mant-toolbar .btn-orange, .mant-toolbar .btn-green { background: #fff; }
+.mant-toolbar .btn-teal   { color: var(--mant-teal);   border-color: rgba(12, 166, 120, .45); }
+.mant-toolbar .btn-orange { color: var(--mant-orange); border-color: rgba(247, 103, 7, .45); }
+.mant-toolbar .btn-green  { color: var(--mant-green);  border-color: rgba(47, 179, 68, .45); }
+.mant-toolbar .btn-teal:hover   { background: var(--mant-teal);   color: #fff; }
+.mant-toolbar .btn-orange:hover { background: var(--mant-orange); color: #fff; }
+.mant-toolbar .btn-green:hover  { background: var(--mant-green);  color: #fff; }
+
+/* DataTables: controles integrados */
+.mant-main .dataTables_wrapper { padding: 0 0 .5rem; }
+.mant-main .dataTables_wrapper .row { margin: 0; }
+.mant-main .dataTables_wrapper .row > div { padding: .5rem 1rem; }
+/* (fix 28-sep) el label en flex de bloque colapsaba el select (caja vacía) y dejaba el buscador a la izquierda */
+.mant-main .dataTables_length label, .mant-main .dataTables_filter label { font-size: .8rem; color: #667085; display: inline-flex; align-items: center; gap: .5rem; margin: 0; white-space: nowrap; }
+.mant-main .dataTables_filter { text-align: right; }
+.mant-main .dataTables_filter label { justify-content: flex-end; }
+.mant-main .dataTables_length select { width: auto !important; min-width: 72px; display: inline-block; flex: 0 0 auto; }
+.mant-main .dataTables_wrapper > .row:first-child { border-bottom: 1px solid var(--mant-border); }
+.mant-main .dataTables_filter input { border-radius: 8px; border: 1px solid var(--mant-border); padding: .38rem .7rem .38rem 2rem; min-width: 240px;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='10' r='7'/><path d='m21 21-6-6'/></svg>") no-repeat .6rem center; }
+.mant-main .dataTables_filter input:focus { outline: 0; border-color: var(--mant-blue); box-shadow: 0 0 0 3px rgba(32, 107, 196, .12); }
+.mant-main .dataTables_length select { border-radius: 8px; border: 1px solid var(--mant-border); padding: .3rem 1.8rem .3rem .6rem; color: #182433; background-color: #fff; }
+.mant-main .dataTables_info { font-size: .78rem; color: #8492a6; }
+.mant-main .dataTables_paginate .pagination { gap: .2rem; }
+.mant-main .dataTables_paginate .page-link { border-radius: 8px !important; border: 1px solid transparent; color: #475467; font-size: .8rem; padding: .3rem .6rem; }
+.mant-main .dataTables_paginate .page-item.active .page-link { background: var(--mant-blue); color: #fff; }
+.mant-main .dataTables_paginate .page-link:hover { background: #f1f3f5; }
+
+/* Tabla */
+.mant-main .tabla-mant { width: 100% !important; }
+.mant-main .table thead th { font-size: .7rem; letter-spacing: .08em; color: #667085; background: #f8fafc; border-bottom: 1px solid var(--mant-border); padding: .65rem 1rem; white-space: nowrap; }
+.mant-main .table tbody td { padding: .8rem 1rem; border-bottom: 1px solid rgba(98, 105, 118, .09); font-size: .86rem; }
+.mant-main .table tbody tr:last-child td { border-bottom: 0; }
+.mant-main .table-hover tbody tr:hover { background: #f5f8ff; }
+.mant-main .table td > .badge:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; letter-spacing: .02em; border-radius: 6px; padding: .3rem .5rem; }
+.mant-main .table .mant-pop { border-bottom: 1px dashed rgba(98, 105, 118, .45); }
+.mant-main .table .badge.bg-success-lt, .mant-main .table .badge.bg-secondary-lt { border-radius: 6px; font-weight: 500; }
+/* Acciones: iconos discretos que se resaltan al pasar el mouse */
+.mant-main .table td.text-nowrap .btn { border-radius: 8px; opacity: .55; transition: opacity .12s, background .12s; }
+.mant-main .table tbody tr:hover td.text-nowrap .btn { opacity: 1; }
+.mant-main .table td.text-nowrap .btn-firma-link { opacity: 1; }
+/* Vacío */
+.mant-main .table td.text-center.text-muted.py-5 { padding: 3rem 1rem !important; }
+
+/* Modales: encabezado más limpio */
+.modal .modal-header { border-bottom: 1px solid var(--mant-border); padding: 1rem 1.25rem; }
+.modal .modal-title { font-weight: 700; letter-spacing: -.01em; }
+.modal .hr-text { font-size: .72rem; letter-spacing: .1em; }
+.mant-equipo-btn { border-radius: 999px; font-weight: 500; }
+
+@media (max-width: 767.98px) {
+  .mant-kpi .kpi-value { font-size: 1.5rem; }
+  .mant-toolbar { padding: .6rem .75rem 0; }
+  .mant-toolbar .btn { flex: 1 1 auto; }
+  .mant-main .dataTables_filter { text-align: left; }
+  .mant-main .dataTables_filter input { min-width: 0; width: 100%; }
+  .mant-main .table thead th, .mant-main .table tbody td { padding: .55rem .6rem; }
+}
+
+/* (28-sep) página individual por tipo: icono del título de la tarjeta */
+.mant-titulo-icono { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; margin-right: .5rem; color: var(--kpi); background: color-mix(in srgb, var(--kpi) 14%, #fff); vertical-align: middle; }
+.mant-main > .card-header { padding: .8rem 1rem; }
+.mant-main > .card-header .card-title { font-weight: 700; }
+
+/* (28-sep) cambio de equipo: cajas de equipo anterior / nuevo */
+.mant-equipo-box { border: 1px solid rgba(98,105,118,.2); border-radius: 8px; padding: .45rem .7rem; background: #f8f9fb; color: #475467; min-height: 2.4rem; font-size: .9rem; }
+.mant-equipo-box--nuevo { border-color: rgba(66,99,235,.35); background: #f2f5ff; color: #182433; }
+.mant-equipo-box--nuevo.vacio { color: #8492a6; font-style: italic; }

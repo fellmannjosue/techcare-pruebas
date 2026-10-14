@@ -1,0 +1,35 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (28-sep-2026): página individual de fichas · Cambios de equipo (equipo anterior → equipo nuevo, nacen de un Control) #}
+{% block ficha %}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'cambio_equipo' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+                  <a href="{% url 'mantenimiento:reporte_tipo_excel' 'cambio_equipo' %}" class="btn btn-sm btn-green"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Control</th><th>Asset ID</th><th>Equipo anterior</th><th>Equipo nuevo</th><th>Maestro</th><th>Grado</th>
+                      <th>Fecha</th><th>Comentario</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_cam %}
+                      <tr>
+                        <td><span class="badge bg-azure-lt text-azure">{{ r.record_id }}</span></td>
+                        <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</td>
+                        <td><div>{{ r.modelo_anterior|default:"—" }}</div><div class="text-muted small">{% if r.serie_anterior %}Serie {{ r.serie_anterior }}{% endif %}{% if r.ip_anterior %} · IP {{ r.ip_anterior }}{% endif %}</div></td>
+                        <td><div class="fw-semibold text-azure">{{ r.modelo_nuevo|default:"—" }}</div><div class="text-muted small">{% if r.serie_nuevo %}Serie {{ r.serie_nuevo }}{% endif %}{% if r.ip_nuevo %} · IP {{ r.ip_nuevo }}{% endif %}</div></td>
+                        <td>{{ r.teacher_name|default:"—" }}</td>
+                        <td class="small">{{ r.grade|default:"—" }}</td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>{% if r.obs_tecnico %}<span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="left" data-bs-title="Comentario del técnico" data-bs-content="{{ r.obs_tecnico }}"><i class="ti ti-message-2 me-1"></i>{{ r.obs_tecnico|truncatechars:28 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="11" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay cambios de equipo aún. Se crean marcando "Cambio de equipo" al registrar un Control de equipo.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

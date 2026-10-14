@@ -1,0 +1,70 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (16-sep-2026): Lista de IPs actuales — formulario categorizado con VLAN implementada y usuario #}
+{% block title %}Red · IPs actuales{% endblock %}
+{% block page_pretitle %}ANA Network Manager{% endblock %}
+{% block page_title %}<i class="ti ti-list-numbers me-2 text-teal"></i>Lista de IPs actuales{% endblock %}
+{% block back_button %}<a href="{% url 'red:dashboard' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Dashboard</a>{% endblock %}
+{% block page_actions %}
+  {% if puede_editar %}
+  <div class="d-flex gap-2 align-items-center">
+    <select id="ia-nueva-cat" class="form-select form-select-sm" style="max-width:230px;" title="Categoría de la IP nueva">
+      {% for k, lbl in categorias %}<option value="{{ k }}" {% if k == 'computadora' %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-primary btn-sm" id="ia-agregar"><i class="ti ti-plus me-1"></i>Agregar IP</button>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
+    <div class="text-muted small">
+      <b id="ia-total">{{ total }}</b> IPs · <b id="ia-con-usuario">{{ con_usuario }}</b> con usuario · <b>{{ vlans|length }}</b> VLANs implementadas
+      {% if puede_editar %}· <span class="text-muted">se guarda solo al escribir · en una VLAN <b>en producción</b> la IP asignada se toma sola</span>{% endif %}
+    </div>
+    <input type="search" id="ia-filtro" class="form-control form-control-sm ms-auto" style="max-width:280px;" placeholder="Filtrar por IP, equipo, usuario o VLAN…">
+  </div>
+</div>
+
+{% for g in grupos %}
+<div class="card mb-3 ia-grupo" data-cat="{{ g.key }}" {% if not g.filas %}hidden{% endif %}>
+  <div class="card-header py-2">
+    <h3 class="card-title"><i class="ti ti-folder me-2 text-muted"></i>{{ g.label }} <span class="badge bg-secondary-lt text-secondary ms-2 ia-count">{{ g.filas|length }}</span></h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm mb-0">
+      <thead><tr>
+        <th style="width:13%">IP actual</th>
+        <th style="width:13%">Categoría</th>
+        <th style="width:15%">VLAN implementada / IP asignada</th>
+        <th style="width:19%">Equipo / descripción</th>
+        <th style="width:7%" class="text-center">¿Tiene usuario?</th>
+        <th style="width:14%">Usuario</th>
+        <th style="width:14%">Contraseña</th>
+        <th style="width:5%"></th>
+      </tr></thead>
+      <tbody>
+        {% for f in g.filas %}{% include 'red/_ip_actual_fila.html' with f=f %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="text-center text-muted py-4" id="ia-vacio" {% if total %}hidden{% endif %}>
+  <i class="ti ti-list-numbers me-1"></i>Aún no hay IPs en la lista.{% if puede_editar %} Elige la categoría arriba y pulsa <b>Agregar IP</b>.{% endif %}
+</div>
+
+<template id="ia-tpl-fila">{% include 'red/_ip_actual_fila.html' with f=None %}</template>
+<div id="ia-cfg" hidden
+     data-guardar="{% url 'red:ip_actual_guardar' %}"
+     data-borrar="{% url 'red:ip_actual_borrar' 0 %}"
+     data-csrf="{{ csrf_token }}"
+     data-editar="{{ puede_editar|yesno:'1,0' }}"
+     data-ipam-url="{% url 'red:ip_actual_vlan_ips' 0 %}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'red/js/ips_actuales.js' %}?v=6"></script>
+{% endblock %}

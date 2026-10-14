@@ -1,0 +1,142 @@
+{% extends 'inventario/base_inventario.html' %}
+{% load static %}
+{# <--- hecho por claude code (13-oct-2026): Inventario general (código automático, descripción, ubicación, estado, foto, comentario y firma de la auditora) #}
+{% block title %}Inventario general{% endblock %}
+{% block page_pretitle %}Inventario general{% endblock %}
+{% block page_title %}Inventario – General{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'inventario/css/inventario_general.css' %}?v=2">{% endblock %}
+
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}
+
+{% block content %}
+{# <--- hecho por claude code (13-oct-2026): filtro por ÁREA y luego por SU categoría #}
+<form method="get" class="ig-filtro">
+  <div class="ig-filtro-campo"><label class="form-label">Área</label>
+    <select name="f_area" id="ig-f-area" class="form-select form-select-sm"><option value="">Todas las áreas</option>{% for k, l in areas %}<option value="{{ k }}" {% if f_area == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="ig-filtro-campo"><label class="form-label">Categoría</label>
+    <select name="f_cat" id="ig-f-cat" class="form-select form-select-sm"><option value="">Todas las categorías</option>{% for c in categorias %}<option value="{{ c.pk }}" data-area="{{ c.area }}" {% if f_cat == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}{% if not f_area %} · {{ c.get_area_display }}{% endif %}</option>{% endfor %}</select></div>
+  <div class="ig-filtro-acc"><button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>{% if f_area or f_cat %}<a href="{% url 'inventario:inventario_general' %}" class="btn btn-sm">Limpiar</a>{% endif %}</div>
+</form>
+
+<div class="ig-kpis">
+  <div class="ig-kpi"><span>Artículos</span><b>{{ items|length }}</b></div>
+  {% for k, l, n in kpi_estados %}<div class="ig-kpi"><span><i class="ig-dot ig-dot--{{ k }}"></i>{{ l }}</span><b>{{ n }}</b></div>{% endfor %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">{% if edit %}<i class="ti ti-pencil me-2 text-blue"></i>Editar {{ edit.codigo }}{% else %}<i class="ti ti-plus me-2 text-green"></i>Agregar artículo{% endif %}</h3>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+          {% csrf_token %}
+          {% if edit %}<input type="hidden" name="edit_id" value="{{ edit.pk }}">{% endif %}
+          <div class="col-12">
+            <label class="form-label">Código</label>
+            <input class="form-control" value="{% if edit %}{{ edit.codigo }}{% else %}{{ next_codigo }}{% endif %}" readonly>
+            <div class="form-hint">{% if edit %}No cambia.{% else %}Se asigna solo al guardar.{% endif %}</div>
+          </div>
+          <div class="col-md-6 col-lg-12"><label class="form-label required">Área</label>{{ form.area }}{% for e in form.area.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-md-6 col-lg-12"><label class="form-label required">Categoría</label>
+            <div class="input-group">
+              <select name="categoria" id="ig-categoria" class="form-select" required>
+                <option value="">— Elige la categoría —</option>
+                {% for c in categorias %}<option value="{{ c.pk }}" data-area="{{ c.area }}" {% if cat_sel|stringformat:"s" == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-primary" id="ig-cat-nueva-btn" title="Agregar categoría a esta área"><i class="ti ti-plus"></i></button>
+            </div>
+            <div class="input-group mt-2 d-none" id="ig-cat-nueva">
+              <input type="text" class="form-control" id="ig-cat-nombre" maxlength="80" placeholder="Nueva categoría (ej.: Mobiliario)">
+              <button type="button" class="btn btn-primary" id="ig-cat-guardar">Agregar</button>
+            </div>
+            <div class="small text-danger mt-1 d-none" id="ig-cat-err"></div>
+            {% for e in form.categoria.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12"><label class="form-label required">{{ form.descripcion.label }}</label>{{ form.descripcion }}{% for e in form.descripcion.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-md-7 col-lg-12"><label class="form-label required">{{ form.ubicacion.label }}</label>{{ form.ubicacion }}{% for e in form.ubicacion.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <datalist id="ig-ubicaciones">{% for u in ubicaciones %}<option value="{{ u }}">{% endfor %}</datalist></div>
+          <div class="col-md-5 col-lg-12"><label class="form-label">{{ form.estado.label }}</label>{{ form.estado }}</div>
+          <div class="col-12"><label class="form-label">Foto</label>
+            {% if edit and edit.foto %}<div class="mb-2"><img src="{{ edit.foto.url }}" alt="Foto actual" class="ig-foto-actual"></div>{% endif %}
+            <input type="file" name="foto" accept="image/*" class="form-control">
+            {% if edit and edit.foto %}<label class="form-check mt-1"><input type="checkbox" class="form-check-input" name="foto-clear"><span class="form-check-label small">Quitar la foto</span></label>{% endif %}
+            {% for e in form.foto.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          {% if edit %}<div class="col-12"><div class="ig-aud-ro"><b>Comentario de la auditora:</b> {{ edit.comentario_auditora|default:"—" }}</div></div>{% endif %}
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill"><i class="ti ti-device-floppy me-1"></i>{% if edit %}Guardar cambios{% else %}Guardar artículo{% endif %}</button>
+            {% if edit %}<a href="{% url 'inventario:inventario_general' %}" class="btn">Cancelar</a>{% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-package me-2"></i>Artículos registrados</h3>
+        <div class="card-actions btn-list">
+          <a href="{% url 'inventario:item_general_pdf_todos' %}?{{ filtro_qs }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf me-1"></i>Fichas PDF</a>
+          <a href="{% url 'inventario:item_general_excel' %}?{{ filtro_qs }}" class="btn btn-sm btn-outline-success"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="ig-tabla" class="table table-vcenter table-hover card-table" style="width:100%;">
+            <thead><tr><th>Foto</th><th>Código</th><th>Área</th><th>Categoría</th><th>Descripción</th><th>Ubicación</th><th>Estado</th><th>Auditoría</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+            {% for it in items %}
+              <tr>
+                <td>{% if it.foto %}<img src="{{ it.foto.url }}" alt="Foto de {{ it.codigo }}" class="ig-thumb" data-full="{{ it.foto.url }}" data-titulo="{{ it.codigo }} · {{ it.descripcion }}">{% else %}<span class="ig-sin-foto"><i class="ti ti-photo-off"></i></span>{% endif %}</td>
+                <td class="text-nowrap"><b>{{ it.codigo }}</b></td>
+                <td class="text-nowrap">{{ it.get_area_display }}</td>
+                <td>{% if it.categoria %}<span class="badge bg-blue-lt text-blue">{{ it.categoria.nombre }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>{{ it.descripcion }}</td>
+                <td>{{ it.ubicacion }}</td>
+                <td><span class="ig-estado ig-estado--{{ it.estado }}"><i class="ig-dot ig-dot--{{ it.estado }}"></i>{{ it.get_estado_display }}</span></td>
+                <td class="ig-aud">{% if it.comentario_auditora %}<i class="ti ti-message-check text-green me-1"></i>{{ it.comentario_auditora|truncatechars:60 }}{% else %}<span class="text-muted small">Sin comentario</span>{% endif %}</td>
+                <td class="text-end text-nowrap">
+                  <a href="{% url 'inventario:item_general_pdf' it.pk %}" target="_blank" class="btn btn-sm btn-ghost-danger btn-icon" title="Ficha PDF (con firma de la auditora)"><i class="ti ti-file-type-pdf"></i></a>
+                  {% if es_auditora %}<button type="button" class="btn btn-sm btn-ghost-info btn-icon ig-comentar" title="Comentario de la auditora" data-url="{% url 'inventario:item_general_comentario' it.pk %}" data-codigo="{{ it.codigo }}" data-texto="{{ it.comentario_auditora }}"><i class="ti ti-message-2"></i></button>{% endif %}
+                  <a href="?editar={{ it.pk }}" class="btn btn-sm btn-ghost-primary btn-icon" title="Editar"><i class="ti ti-pencil"></i></a>
+                  <form method="post" action="{% url 'inventario:item_general_eliminar' it.pk %}" class="d-inline ig-eliminar" data-codigo="{{ it.codigo }}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-ghost-danger btn-icon" title="Eliminar"><i class="ti ti-trash"></i></button></form>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer small text-muted"><i class="ti ti-signature me-1"></i>Las fichas PDF llevan la firma del responsable que registró y la de la auditora: <b>{{ auditora.0 }}</b> ({{ auditora.1 }}).</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="igModalFoto" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="ig-foto-titulo"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body text-center"><img id="ig-foto-grande" alt="" class="ig-foto-grande"></div>
+  </div></div>
+</div>
+
+{% if es_auditora %}
+<div class="modal modal-blur fade" id="igModalComentario" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" id="ig-form-comentario">{% csrf_token %}
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-message-2 me-2 text-info"></i>Comentario de la auditora · <span id="ig-com-cod"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <textarea name="comentario" id="ig-com-txt" class="form-control" rows="5" maxlength="2000" placeholder="Observación de la auditoría sobre este artículo"></textarea>
+        <div class="form-hint">Sale en la ficha PDF junto a la firma de la auditora.</div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+    </form>
+  </div></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<div id="ig-config" hidden data-url-cat="{% url 'inventario:categoria_general_add' %}" data-csrf="{{ csrf_token }}"></div>
+<script src="{% static 'inventario/js/inventario_general.js' %}?v=2"></script>
+{% endblock %}

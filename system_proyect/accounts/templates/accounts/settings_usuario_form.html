@@ -12,6 +12,8 @@
       {% endif %}
     </h3>
     <div class="card-options">
+      {# <--- hecho por claude code (12-oct-2026): Iniciar sesión como (solo superusuario) #}
+      {% if modo != 'crear' and request.user.is_superuser and not edit_user.is_superuser and edit_user.is_active %}<a href="{% url 'suplantar' edit_user.pk %}" class="btn btn-sm btn-outline-warning me-1"><i class="ti ti-login-2 me-1"></i>Iniciar sesión como</a>{% endif %}
       <a href="{% url 'settings_usuarios' %}" class="btn btn-sm btn-ghost-secondary">
         <i class="ti ti-arrow-left me-1"></i>Volver a la lista
       </a>

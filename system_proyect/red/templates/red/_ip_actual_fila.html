@@ -1,0 +1,39 @@
+{# <--- hecho por claude code (16-sep-2026): fila de la lista de IPs actuales (real, o plantilla con f=None) #}
+<tr class="ia-fila" data-id="{{ f.pk|default:'' }}">
+  <td><input class="form-control form-control-sm font-monospace ia-ip" value="{{ f.ip|default:'' }}" placeholder="192.168.10.25" inputmode="decimal" maxlength="15" {% if not puede_editar %}readonly{% endif %}></td>
+  <td>
+    <select class="form-select form-select-sm ia-cat" {% if not puede_editar %}disabled{% endif %}>
+      {% for k, lbl in categorias %}<option value="{{ k }}" {% if f and f.categoria == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+    </select>
+  </td>
+  <td>
+    <select class="form-select form-select-sm ia-vlan" {% if not puede_editar %}disabled{% endif %}>
+      <option value="">— sin VLAN —</option>
+      {% for v in vlans %}<option value="{{ v.pk }}" data-subred="{{ v.subred|default:'' }}" data-estado="{{ v.estado }}" {% if f and f.vlan_id == v.pk %}selected{% endif %}>VLAN {{ v.vlan_id }} · {{ v.nombre }}</option>{% endfor %}
+    </select>
+    {# <--- hecho por claude code (16-sep-2026): IP que le toca al equipo en la VLAN elegida. Se ELIGE del listado #}
+    {# del IPAM de esa VLAN (select que el JS llena, con el hostname); el input solo queda si la VLAN no tiene IPs en el IPAM. #}
+    <select class="form-select form-select-sm font-monospace mt-1 ia-ipnueva-sel" hidden {% if not puede_editar %}disabled{% endif %}></select>
+    <input class="form-control form-control-sm font-monospace mt-1 ia-ipnueva" value="{{ f.ip_nueva|default:'' }}" placeholder="IP asignada en la VLAN" inputmode="decimal" maxlength="15" {% if not f or not f.vlan_id %}hidden{% endif %} {% if not puede_editar %}readonly{% endif %}>
+  </td>
+  <td><input class="form-control form-control-sm ia-desc" value="{{ f.descripcion|default:'' }}" placeholder="Ej. PC de contabilidad" maxlength="120" {% if not puede_editar %}readonly{% endif %}></td>
+  <td class="text-center">
+    <label class="form-check form-switch d-inline-block m-0" title="¿Tiene usuario asignado?">
+      <input type="checkbox" class="form-check-input ia-tiene" {% if f and f.tiene_usuario %}checked{% endif %} {% if not puede_editar %}disabled{% endif %}>
+    </label>
+  </td>
+  <td><input class="form-control form-control-sm ia-usuario" value="{{ f.usuario|default:'' }}" placeholder="Nombre del usuario" maxlength="120" {% if not f or not f.tiene_usuario %}hidden{% endif %} {% if not puede_editar %}readonly{% endif %}></td>
+  <td>
+    {# <--- hecho por claude code (16-sep-2026): contraseña del equipo (cifrada); solo la ve/edita quien administra la red #}
+    {% if puede_editar %}
+    <div class="input-group input-group-sm ia-pass-wrap" {% if not f or not f.tiene_usuario %}hidden{% endif %}>
+      <input type="password" class="form-control ia-pass" value="{{ f.password|default:'' }}" placeholder="Contraseña" maxlength="120" autocomplete="new-password">
+      <button type="button" class="btn ia-ver" title="Mostrar / ocultar"><i class="ti ti-eye"></i></button>
+    </div>
+    {% elif f and f.tiene_usuario and f.password_enc %}<span class="text-muted" title="Solo visible para administradores de red">••••••••</span>{% endif %}
+  </td>
+  <td class="text-end text-nowrap">
+    <span class="ia-msg small me-1"></span>
+    {% if puede_editar %}<button type="button" class="btn btn-sm btn-ghost-danger ia-borrar" title="Quitar de la lista"><i class="ti ti-trash"></i></button>{% endif %}
+  </td>
+</tr>

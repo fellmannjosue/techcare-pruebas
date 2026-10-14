@@ -1,0 +1,46 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): detalle de una partida (contabilizar / anular / editar borrador) #}
+{% block title %}Partida {{ a.numero|default:"borrador" }}{% endblock %}
+{% block page_pretitle %}Contabilidad · Partidas{% endblock %}
+{% block page_title %}Partida {{ a.numero|default:"(borrador)" }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'contabilidad:asientos_lista' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Partidas</a>
+  {% if a.editable and p_modificar %}<a href="{% url 'contabilidad:asiento_editar' a.pk %}" class="btn btn-outline-primary"><i class="ti ti-pencil me-1"></i>Editar</a>{% endif %}
+  {% if a.editable and p_crear %}<form method="post" action="{% url 'contabilidad:asiento_contabilizar' a.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-primary"><i class="ti ti-check me-1"></i>Contabilizar</button></form>{% endif %}
+{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+<div class="card mb-3"><div class="card-body">
+  <div class="row g-3">
+    <div class="col-md-2"><div class="text-muted small">Fecha</div><div class="fw-semibold">{{ a.fecha|date:"d/m/Y" }}</div></div>
+    <div class="col-md-2"><div class="text-muted small">Tipo</div><div>{{ a.get_tipo_display }}</div></div>
+    <div class="col-md-2"><div class="text-muted small">Período</div><div>{{ a.periodo }} {% if not p_periodo_abierto %}<span class="badge bg-red-lt text-red">cerrado</span>{% endif %}</div></div>
+    <div class="col-md-2"><div class="text-muted small">Estado</div><span class="badge estado-{{ a.estado }}">{{ a.get_estado_display }}</span></div>
+    <div class="col-md-4"><div class="text-muted small">Referencia</div><div>{{ a.referencia|default:"—" }}</div></div>
+    <div class="col-12"><div class="text-muted small">Concepto</div><div class="fw-semibold">{{ a.descripcion }}</div></div>
+  </div>
+  <div class="text-muted small mt-3">
+    Creada por {{ a.creado_por.get_full_name|default:a.creado_por.username|default:"—" }} el {{ a.fecha_creado|date:"d/m/Y H:i" }}
+    {% if a.contabilizado_por %} · Contabilizada por {{ a.contabilizado_por.get_full_name|default:a.contabilizado_por.username }} el {{ a.contabilizado_en|date:"d/m/Y H:i" }}{% endif %}
+    {% if a.origen_modulo %} · Origen automático: <strong>{{ a.origen_modulo }} #{{ a.origen_id }}</strong>{% endif %}
+  </div>
+  {% if a.estado == 'anulado' %}<div class="alert alert-danger mt-3 mb-0"><strong>Anulada</strong> por {{ a.anulado_por.get_full_name|default:a.anulado_por.username }} el {{ a.anulado_en|date:"d/m/Y H:i" }} · Motivo: {{ a.motivo_anulacion }}</div>{% endif %}
+</div></div>
+<div class="card"><div class="table-responsive"><table class="table table-vcenter card-table">
+  <thead><tr><th>#</th><th>Cuenta</th><th>Centro</th><th>Detalle</th><th class="text-end">Debe</th><th class="text-end">Haber</th></tr></thead>
+  <tbody>{% for d in detalles %}<tr><td class="text-muted">{{ d.orden }}</td><td><span class="font-monospace">{{ d.cuenta.codigo }}</span> · {{ d.cuenta.nombre }}</td><td class="small">{{ d.centro_costo.codigo|default:"—" }}</td><td class="small">{{ d.descripcion }}</td>
+    <td class="text-end font-monospace">{% if d.debe %}{{ d.debe|miles }}{% endif %}</td><td class="text-end font-monospace">{% if d.haber %}{{ d.haber|miles }}{% endif %}</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th colspan="4" class="text-end">Totales</th><th class="text-end font-monospace">{{ a.total_debe|miles }}</th><th class="text-end font-monospace">{{ a.total_haber|miles }}</th></tr></tfoot>
+</table></div></div>
+{% if a.estado == 'contabilizado' and p_anular and p_periodo_abierto %}
+<div class="card mt-3 border-danger"><div class="card-body"><form method="post" action="{% url 'contabilidad:asiento_anular' a.pk %}" class="row g-2 align-items-end" onsubmit="return confirm('¿Anular la partida {{ a.numero }}? Dejará de afectar saldos.')">{% csrf_token %}
+  <div class="col-md-8"><label class="form-label">Anular partida · motivo</label><input type="text" name="motivo" class="form-control" minlength="5" required placeholder="Explica por qué se anula (mín. 5 caracteres)"></div>
+  <div class="col-auto"><button class="btn btn-outline-danger"><i class="ti ti-ban me-1"></i>Anular</button></div>
+</form></div></div>
+{% endif %}
+{% if a.editable and p_modificar %}
+<form method="post" action="{% url 'contabilidad:asiento_eliminar' a.pk %}" class="mt-3" onsubmit="return confirm('¿Eliminar este borrador?')">{% csrf_token %}<button class="btn btn-ghost-danger btn-sm"><i class="ti ti-trash me-1"></i>Eliminar borrador</button></form>
+{% endif %}
+{% endblock %}

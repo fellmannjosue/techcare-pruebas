@@ -1,0 +1,54 @@
+/* hub.css — <--- hecho por claude code (28-sep-2026): estilos del hub Control y Servicio Técnico */
+.st-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.5rem 1.75rem; border-radius: 18px;
+  background: linear-gradient(135deg, #eef4ff 0%, #f6fbff 55%, #eefbf5 100%); border: 1px solid rgba(32, 107, 196, .12); }
+.st-hero__kicker { font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 700; color: #206bc4; }
+.st-hero__title { font-size: 1.45rem; font-weight: 800; letter-spacing: -.02em; margin: .25rem 0; color: #182433; }
+.st-hero__title span { color: #206bc4; }
+.st-hero__sub { margin: 0; color: #667085; max-width: 62ch; }
+.st-hero__links { display: flex; flex-wrap: wrap; gap: .5rem; }
+.st-hero__links .btn { border-radius: 10px; background: #fff; }
+
+.st-kpi { border-radius: 14px !important; border: 1px solid rgba(98, 105, 118, .14) !important; box-shadow: 0 8px 24px -14px rgba(16, 24, 40, .25) !important; }
+.st-kpi .card-body { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.15rem; }
+.st-kpi__icon { width: 50px; height: 50px; border-radius: 13px; display: grid; place-items: center; font-size: 1.5rem; color: var(--st); background: color-mix(in srgb, var(--st) 13%, #fff); flex: 0 0 auto; }
+.st-kpi__label { font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: #8492a6; }
+.st-kpi__value { font-size: 1.8rem; font-weight: 800; color: #182433; letter-spacing: -.02em; line-height: 1.1; }
+
+.st-section { background: #fff; border: 1px solid rgba(98, 105, 118, .14); border-radius: 16px; padding: 1.1rem 1.15rem 1.25rem; height: 100%; box-shadow: 0 8px 24px -16px rgba(16, 24, 40, .25); }
+.st-section__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: 1rem; }
+.st-section__head > div:first-child { display: flex; align-items: center; gap: .6rem; }
+.st-section__head h4 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.st-section__head small { color: #8492a6; }
+.st-section__badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: var(--st); font-size: 1.1rem; }
+
+.st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.st-tile { display: flex; align-items: center; gap: .7rem; padding: .7rem .8rem; border-radius: 12px; border: 1px solid rgba(98, 105, 118, .14); text-decoration: none !important; color: inherit; background: #fff; transition: transform .12s, box-shadow .12s, border-color .12s; }
+.st-tile:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -14px rgba(16, 24, 40, .35); border-color: color-mix(in srgb, var(--st) 45%, #fff); }
+.st-tile__icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 1.25rem; color: var(--st); background: color-mix(in srgb, var(--st) 13%, #fff); flex: 0 0 auto; }
+.st-tile__body { display: flex; flex-direction: column; min-width: 0; }
+.st-tile__title { font-weight: 600; color: #182433; font-size: .9rem; }
+.st-tile__sub { font-size: .72rem; color: #8492a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-tile__count { margin-left: auto; font-weight: 700; font-size: .9rem; color: var(--st); background: color-mix(in srgb, var(--st) 10%, #fff); border-radius: 999px; padding: .15rem .6rem; }
+
+.st-card { border-radius: 16px !important; border: 1px solid rgba(98, 105, 118, .14) !important; box-shadow: 0 8px 24px -16px rgba(16, 24, 40, .25) !important; overflow: hidden; }
+.st-card .card-header { display: flex; align-items: center; gap: .5rem; }
+.st-alert { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; }
+.st-alert__icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 1.1rem; flex: 0 0 auto; }
+.st-alert--danger .st-alert__icon  { background: #fff0f0; color: #d63939; }
+.st-alert--warning .st-alert__icon { background: #fff7e6; color: #f59f00; }
+.st-alert--info .st-alert__icon    { background: #eaf3ff; color: #206bc4; }
+.st-table thead th { font-size: .7rem; letter-spacing: .08em; color: #667085; background: #f8fafc; }
+.st-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; font-weight: 600; color: #475467; background: #f1f3f5; border-radius: 6px; padding: .2rem .45rem; }
+.badge.st-tipo { border-radius: 6px; font-weight: 500; }
+.st-tipo--computadora { background: #e7f5ff; color: #1971c2; } .st-tipo--impresora { background: #fff4e6; color: #d9480f; }
+.st-tipo--control { background: #e6fcf5; color: #087f5b; } .st-tipo--inspeccion { background: #fff9db; color: #b25e09; }
+.st-tipo--entrega { background: #ebfbee; color: #2b8a3e; } .st-tipo--recogida { background: #f3d9fa; color: #862e9c; } .st-tipo--caso_especial { background: #ffe3ec; color: #c2255c; }
+
+@media (max-width: 575.98px) {
+  .st-hero { padding: 1.1rem 1rem; }
+  .st-hero__title { font-size: 1.2rem; }
+  .st-grid { grid-template-columns: 1fr; }
+  .st-kpi__value { font-size: 1.45rem; }
+}
+
+.st-tipo--cambio_equipo { background: #e7f0ff; color: #3b5bdb; }

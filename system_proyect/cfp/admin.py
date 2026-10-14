@@ -88,3 +88,14 @@ class InstructorCursoAdmin(admin.ModelAdmin):
     list_filter = ('curso',)
     search_fields = ('instructor__username', 'instructor__email', 'curso')
     autocomplete_fields = ('instructor',)
+
+
+# <--- hecho por claude code (09-sep-2026): quién ocupa cada cargo de la planilla administrativa
+from .models import PersonaCargoPlanilla
+
+@admin.register(PersonaCargoPlanilla)
+class PersonaCargoPlanillaAdmin(admin.ModelAdmin):
+    """Al elegir el cargo en la planilla se cargan solos el nombre y el DNI de aquí."""
+    list_display  = ('cargo', 'nombre', 'dni')
+    list_editable = ('nombre', 'dni')
+    ordering = ('cargo',)

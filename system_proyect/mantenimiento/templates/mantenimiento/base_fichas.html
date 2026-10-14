@@ -1,0 +1,72 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (28-sep-2026): base de las páginas de Fichas de Mantenimiento (una página por tipo). KPIs + navegación por tipo + modales compartidos. Antes era un solo dashboard standalone con 7 pestañas. #}
+{% block title %}{{ tipo_label }} · Servicio Técnico{% endblock %}
+{% block page_pretitle %}Control y Servicio Técnico{% endblock %}
+{% block page_title %}<i class="ti {{ tipo_icon }} me-2" style="color:{{ tipo_color }}"></i>{{ tipo_label }}{% endblock %}
+{% block vendor_head %}
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css"/>
+  <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=9">
+{% endblock %}
+{% block back_button %}<a href="{% url 'servicio_tecnico:hub' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Control y Servicio Técnico</a>{% endblock %}
+{% block page_actions %}{% if not crea_desde_control %}<button type="button" class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalNuevoRegistro"><i class="ti ti-plus"></i> Nuevo · {{ tipo_label }}</button>{% else %}<a href="{% url 'mantenimiento:fichas' 'control' %}" class="btn btn-primary d-flex align-items-center gap-1"><i class="ti ti-clipboard-check"></i> Ir a Control de equipos</a>{% endif %}{% endblock %}
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}
+
+{% block content %}
+        {# <--- hecho por claude code (28-sep-2026): cada tipo de ficha es una PÁGINA individual: KPIs propios, tabla propia y "Nuevo" fijo al tipo #}
+        <div class="row row-deck row-cards mb-4">
+          <div class="col-sm-6 col-lg-3">
+            <div class="card mant-kpi" style="--kpi:{{ tipo_color }}"><div class="card-body"><div class="d-flex align-items-center gap-3">
+              <div class="stat-card-icon" style="background:{{ tipo_color }}22;color:{{ tipo_color }}"><i class="ti {{ tipo_icon }}"></i></div>
+              <div><div class="kpi-label">{{ tipo_label }}</div><div class="kpi-value">{{ kpi_total }}</div></div>
+            </div></div></div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card mant-kpi" style="--kpi:#f59f00"><div class="card-body"><div class="d-flex align-items-center gap-3">
+              <div class="stat-card-icon bg-yellow-lt text-yellow"><i class="ti ti-calendar-event"></i></div>
+              <div><div class="kpi-label">Este mes</div><div class="kpi-value">{{ kpi_mes }}</div></div>
+            </div></div></div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card mant-kpi" style="--kpi:#17a2b8"><div class="card-body"><div class="d-flex align-items-center gap-3">
+              <div class="stat-card-icon bg-cyan-lt text-cyan"><i class="ti ti-settings"></i></div>
+              <div><div class="kpi-label">Pendientes / en proceso</div><div class="kpi-value">{{ kpi_pendiente|add:kpi_proceso }}</div></div>
+            </div></div></div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card mant-kpi" style="--kpi:#2fb344"><div class="card-body"><div class="d-flex align-items-center gap-3">
+              <div class="stat-card-icon bg-green-lt text-green"><i class="ti ti-circle-check"></i></div>
+              <div><div class="kpi-label">Completadas</div><div class="kpi-value">{{ kpi_completado }}</div></div>
+            </div></div></div>
+          </div>
+        </div>
+
+        <div class="card mant-main">
+          <div class="card-header">
+            <h3 class="card-title"><span class="mant-titulo-icono" style="--kpi:{{ tipo_color }}"><i class="ti {{ tipo_icon }}"></i></span>{{ tipo_label }}</h3>
+            <div class="card-actions">
+              {% if crea_desde_control %}<span class="text-muted small"><i class="ti ti-info-circle me-1"></i>Se crean desde un <a href="{% url 'mantenimiento:fichas' 'control' %}">Control de equipo</a></span>{% endif %}
+            </div>
+          </div>
+          <div class="card-body p-0">
+{% block ficha %}{% endblock %}
+          </div>
+        </div>
+{% endblock %}
+
+{% block modals %}
+{% include 'mantenimiento/_modal_nuevo.html' %}
+{% include 'mantenimiento/_modal_editar.html' %}
+{% include 'mantenimiento/_modal_equipo_nuevo.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<div id="maintenance_dashboard-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "mantenimiento:tipo_falla_crear" %}"
+     data-v2="{{ computadoras_json }}"
+     data-v3="{{ impresoras_json }}"
+     data-v4="{{ tipo_equipo }}"></div>
+<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=32"></script>
+{% endblock %}

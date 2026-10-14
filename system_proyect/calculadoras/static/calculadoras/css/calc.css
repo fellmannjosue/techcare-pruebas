@@ -14,3 +14,6 @@
 .calc-result .lbl{color:var(--ps-muted);font-size:.85rem;}
 .calc-chip{background:var(--ps-surface)!important;border:1px solid var(--ps-border)!important;border-radius:10px;padding:.6rem;}
 .calc-chip .v{font-weight:800;font-size:1.4rem;color:var(--ps-text);}
+
+/* <--- hecho por claude code (12-oct-2026): ícono de las tarjetas del tablero (mismo tamaño que el resto: 2.8rem) */
+.calc-dash-ico{font-size:2.8rem;}

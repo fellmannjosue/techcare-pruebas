@@ -33,6 +33,22 @@
     });
   });
 
+  // ── Programas activos (10-sep-2026): apagado = oculto para TODOS los usuarios ──
+  var progEstado = document.getElementById('prog-estado');
+  document.querySelectorAll('.sw-programa').forEach(function (sw) {
+    sw.addEventListener('change', function () {
+      var visible = sw.checked;
+      var badge = sw.closest('.d-flex.justify-content-between').querySelector('.prog-badge');
+      post(d.ptoggle, { clave: sw.dataset.clave, visible: visible })
+        .then(function (r) {
+          if (!r.ok) { sw.checked = !visible; msg(progEstado, r.error || 'No se pudo cambiar', false); return; }
+          if (badge) badge.hidden = visible;
+          msg(progEstado, r.label + (visible ? ' visible para todos' : ' oculto para todos los usuarios'), true);
+        })
+        .catch(function () { sw.checked = !visible; msg(progEstado, 'Sin conexión', false); });
+    });
+  });
+
   // ── Agregar correo ──
   var frm = document.getElementById('frm-add');
   var addMsg = document.getElementById('add-msg');

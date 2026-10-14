@@ -1,0 +1,22 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>{{ e.codigo }}</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="ficha">
+{% with titulo="Control de "|add:insumo.nombre derecha="<b>"|add:e.codigo|add:"</b>" %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' %}{% endwith %}
+<table class="datos">
+  <tr><th>Fecha</th><td>{{ e.fecha|date:"d/m/Y" }}</td><th>Hora</th><td>{{ e.hora|time:"H:i"|default:"—" }}</td></tr>
+  <tr><th>{% if e.vehiculo_id %}Vehículo{% else %}Maquinaria{% endif %}</th><td>{{ e.equipo_nombre|default:"—" }}</td><th>Galones</th><td class="big">{{ e.galones|floatformat:2 }} gal</td></tr>
+  {% if insumo.requiere_kilometraje %}<tr><th>Kilometraje</th><td>{{ e.kilometraje|default:"—" }} km</td><th>Recorrido desde la carga anterior</th><td>{% if recorrido is not None %}{{ e.kilometraje }} − {{ km_anterior }} = <b>{{ recorrido }} km</b>{% else %}—{% endif %}</td></tr>{% endif %}
+  <tr><th>Persona que recibe</th><td colspan="3">{{ e.persona|default:"—" }}</td></tr>
+  <tr><th>Observaciones</th><td colspan="3" class="obs">{{ e.observaciones|default:"—"|linebreaksbr }}</td></tr>
+</table>
+{% if comentarios %}<h3>Comentarios de auditoría</h3>
+<table class="lista chica" style="width:100%"><thead><tr><th style="width:22%">Fecha</th><th style="width:22%">Autor</th><th>Comentario</th></tr></thead><tbody>
+{% for c in comentarios %}<tr><td>{{ c.creado|date:"d/m/Y H:i" }}</td><td>{{ c.autor.get_full_name|default:c.autor.username|default:"—" }}</td><td>{{ c.texto|linebreaksbr }}</td></tr>{% endfor %}
+</tbody></table>{% endif %}
+<div class="firmas">
+  <div class="firma"><div class="linea"></div><div class="nom">{{ e.firma_responsable }}</div><div class="cargo">Responsable</div></div>
+  <div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div>
+</div>
+<div class="pie">Registrado por {{ e.registrado_por.get_full_name|default:e.registrado_por.username|default:"—" }} el {{ e.creado|date:"d/m/Y H:i" }} · TechCare</div>
+</body></html>

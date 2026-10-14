@@ -198,7 +198,7 @@
             <tbody>
               {% for pc in computadoras %}
               <tr>
-                <td>{{ pc.id }}</td><td>{{ pc.asset_id }}</td><td>{{ pc.modelo }}</td>
+                <td>{{ pc.id }}</td><td>{{ pc.asset_id }}</td><td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ pc.serie|default:'—' }}</div><div><b>IP:</b> {{ pc.ip|default:'—' }}</div><div><b>Asignado a:</b> {{ pc.asignado_a|default:'—' }}</div><div><b>Área:</b> {{ pc.area|default:'—' }}</div><div><b>Grado:</b> {{ pc.grado|default:'—' }}</div><div><b>Edificio:</b> {{ pc.edificio|default:'—' }}</div><div><b>Fecha inst.:</b> {{ pc.fecha_instalado|date:'d/m/Y'|default:'—' }}</div><div><b>Categoría:</b> {{ pc.category|default:'—' }}</div><div><b>Observaciones:</b> {{ pc.observaciones|default:'—' }}</div>">{{ pc.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ pc.serie }}</td><td>{{ pc.ip }}</td><td>{{ pc.asignado_a }}</td>
                 <td>{{ pc.area }}</td><td>{{ pc.grado }}</td>
                 <td>{{ pc.edificio|default:"—" }}</td>
@@ -243,5 +243,5 @@
      data-v2="{{ next_id_bl }}"
      data-v3="{{ next_id_col }}"
      data-v4="{{ next_id_inf }}"></div>
-<script src="{% static 'inventario/js/inventario_computadoras.js' %}?v=13"></script>
+<script src="{% static 'inventario/js/inventario_computadoras.js' %}?v=14"></script>
 {% endblock %}

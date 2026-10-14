@@ -26,8 +26,10 @@ def version_context(request):
             mostrar = no_vista and (not es_menor or u.is_superuser)
         except Exception:
             mostrar = False
+    from core.middleware import SesionInactividadMiddleware
     return {'app_version': v, 'novedades': ent, 'mostrar_novedades': mostrar,
-            'version_menor': es_menor}
+            'version_menor': es_menor,
+            'sesion_inactividad_min': SesionInactividadMiddleware.minutos()}   # <--- hecho por claude code (28-sep-2026): lo lee idle_logout
 
 
 def nav_context(request):
@@ -124,13 +126,15 @@ def nav_context(request):
     # <--- hecho por claude code: CFP tiene sus propios grupos, independientes del colegio
     is_salidas_bano_cfp = is_admin or grp('control baño coord cfp', 'control baños cfp')
 
-    return {
+    ctx = {
         # <--- hecho por claude code: 'instructores' salió de aquí; los instructores CFP van en 'administracion'
         'nav_tickets':          is_admin or can('tickets.view_ticket') or grp('administracion'),
         # <--- hecho por claude code: True solo para quien gestiona tickets ajenos (panel de técnico)
         'nav_tickets_tecnico':  is_admin or can('tickets.view_ticket'),
         'nav_reloj':            is_admin or grp('reloj'),
-        'nav_calculadoras':     is_admin,  # <--- hecho por claude code: Calculadoras solo superuser
+        # <--- hecho por claude code (16-sep-2026): botón "Pruebas" del Reloj solo para quien tiene el permiso pruebas_comp
+        'nav_reloj_pruebas':    is_admin or _puede_reloj_pruebas(user),
+        'nav_calculadoras':     is_admin or grp('calculadoras_tiempo'),  # <--- hecho por claude code: superuser + grupo calculadoras_tiempo (solo las de tiempo)
         'nav_inventory':        is_admin or can('inventario.view_item') or grp('inventario'),
         'nav_sponsors':         is_admin or can('sponsors.view_sponsor'),
         'nav_cfp':              is_admin or grp('director_cfp', 'instructores', 'contabilidad_cfp'),
@@ -138,11 +142,20 @@ def nav_context(request):
         # es maintenancerecord) — con eso el menú jamás salía para no-admins. Se corrige y se
         # acepta también el grupo 'mantenimiento' (Yeny Lagos, auditora de Control de equipo).
         'nav_maintenance':      is_admin or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
+        # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico = Inventario ∪ Mantenimiento
+        'nav_servicio':         is_admin or can('inventario.view_item') or grp('inventario') or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
+        'nav_mm_insumos':       is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura'),   # <--- hecho por claude code (12-oct-2026): combustibles y aceites
+        'nav_mant_mecanico':    is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura') or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # módulo completo (hub)
+        'nav_vehiculos':        is_admin or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # <--- hecho por claude code (12-oct-2026)   # <--- hecho por claude code (01-oct-2026): combustibles y aceites
         'nav_enfermeria':       is_admin or grp('enfermeria'),
         'nav_coord_bl':         nav_coord_bl,
         'nav_coord_col':        nav_coord_col,
         'nav_maestro_bl':       nav_mbl,
         'nav_maestro_col':      nav_mcol,
+        # <--- hecho por claude code (16-sep-2026): un coordinador de notas que también da clase
+        # (druiz) no tenía "Mis notas" en el sidebar; estas flags van por GRUPO, sin depender del modo.
+        'nav_notas_maestro_bl':  is_maestro_bl,
+        'nav_notas_maestro_col': is_maestro_col,
         'nav_es_coord_maestro': es_coord_maestro,
         'nav_modo_maestro':     modo_maestro,
         'nav_home_url':         nav_home_url,
@@ -162,6 +175,15 @@ def nav_context(request):
         'nav_red':              is_admin or request.user.has_perm('red.ver_red'),
         'nav_red_admin':        is_admin or request.user.has_perm('red.administrar_red'),
     }
+    # <--- hecho por claude code (10-sep-2026): programas ocultos a todos (Configuración → Seguridad):
+    # se apagan sus nav_* y se expone `programas_ocultos` para los enlaces sueltos de las plantillas.
+    try:
+        from constance import config as _cfg
+        from core.programas import ocultos, aplicar_ocultos
+        aplicar_ocultos(ctx, ocultos(_cfg))
+    except Exception:
+        ctx.setdefault('programas_ocultos', {})
+    return ctx
 
 
 def _puede_ver_ruteo_bl(request):
@@ -175,5 +197,14 @@ def _puede_ver_ruteo_bl(request):
         from conducta.views import _permiso_ruteo_email
         # <--- hecho por claude code: puede ver si su permiso es 'lectura' o 'edit'
         return _permiso_ruteo_email(u.email) in ('lectura', 'edit')
+    except Exception:
+        return False
+
+
+def _puede_reloj_pruebas(user):
+    """<--- hecho por claude code (16-sep-2026): permiso `pruebas_comp` del Reloj (RelojPermiso)."""
+    try:
+        from reloj.views import _reloj_can_ver
+        return bool(_reloj_can_ver(user, 'pruebas_comp'))
     except Exception:
         return False

@@ -1,0 +1,30 @@
+{# <--- hecho por claude code (28-sep-2026): "Equipo nuevo" del cambio de equipo = formulario de la computadora (mismo diseño que Editar Computadora del inventario). NO envía nada: copia los valores al formulario del control y el inventario se actualiza al guardar el control. #}
+<div class="modal modal-blur fade" id="modalEquipoNuevo" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-replace me-2 text-azure"></i>Registrar equipo nuevo <span class="badge bg-azure-lt text-azure ms-2" id="eqn-asset"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2"><i class="ti ti-info-circle me-1"></i>El Asset ID, el maestro, el área, el grado y el edificio <strong>se conservan</strong>. Escribe los datos del hardware que reemplaza al equipo anterior.</div>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label fw-semibold">Asset ID</label><input type="text" id="eqn-asset-input" class="form-control bg-light text-muted" readonly></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Modelo <span class="text-danger">*</span></label><input type="text" id="eqn-modelo" class="form-control" placeholder="Modelo del equipo nuevo"></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Serie</label><input type="text" id="eqn-serie" class="form-control" style="text-transform:uppercase" placeholder="Serie del equipo nuevo"></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">IP</label><input type="text" id="eqn-ip" class="form-control" placeholder="192.168.10.x"></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Asignado a</label><input type="text" id="eqn-asignado" class="form-control bg-light text-muted" readonly></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Área</label><input type="text" id="eqn-area" class="form-control bg-light text-muted" readonly></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Grado</label><input type="text" id="eqn-grado" class="form-control bg-light text-muted" readonly></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Edificio</label><input type="text" id="eqn-edificio" class="form-control bg-light text-muted" readonly></div>
+          <div class="col-12"><label class="form-label fw-semibold">Observaciones</label><textarea id="eqn-obs" class="form-control" rows="2" placeholder="Se agregan a las observaciones de la computadora en el inventario (opcional)"></textarea></div>
+        </div>
+        <div class="text-muted small mt-3" id="eqn-anterior"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-equipo-nuevo-ok"><i class="ti ti-device-floppy me-1"></i>Guardar equipo nuevo</button>
+      </div>
+    </div>
+  </div>
+</div>

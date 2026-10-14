@@ -1,0 +1,40 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): listado de partidas contables con filtros #}
+{% block title %}Partidas contables{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Partidas contables{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'contabilidad:libro_diario' %}?desde={{ filtros.desde|date:'Y-m-d' }}&hasta={{ filtros.hasta|date:'Y-m-d' }}" class="btn btn-ghost-secondary"><i class="ti ti-notebook me-1"></i>Libro diario</a>
+  {% if p_crear %}<a href="{% url 'contabilidad:asiento_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nueva partida</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+{% with nav_c='partidas' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+<form method="get" class="card mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+  <div class="col-md-2"><label class="form-label small mb-1">Desde</label><input type="date" name="desde" value="{{ filtros.desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Hasta</label><input type="date" name="hasta" value="{{ filtros.hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Estado</label><select name="estado" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in estados %}<option value="{{ k }}" {% if filtros.estado == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Tipo</label><select name="tipo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in tipos %}<option value="{{ k }}" {% if filtros.tipo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label small mb-1">Buscar</label><input type="text" name="q" value="{{ filtros.q }}" class="form-control form-control-sm" placeholder="Nº, concepto, referencia…"></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Filtrar</button></div>
+</div></div></form>
+{% if borradores %}<div class="alert alert-warning py-2"><i class="ti ti-alert-triangle me-1"></i>Hay <strong>{{ borradores }}</strong> partida(s) en borrador pendientes de contabilizar. <a href="?estado=borrador&desde=2000-01-01&hasta=2099-12-31">Verlas</a></div>{% endif %}
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-vcenter table-hover card-table">
+    <thead><tr><th>Nº</th><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Referencia</th><th>Estado</th><th class="text-end">Importe</th><th>Registró</th></tr></thead>
+    <tbody>{% for a in asientos %}
+      <tr style="cursor:pointer" onclick="location.href='{% url 'contabilidad:asiento_detalle' a.pk %}'">
+        <td class="font-monospace">{{ a.numero|default:"—" }}</td><td>{{ a.fecha|date:"d/m/Y" }}</td><td class="small">{{ a.get_tipo_display }}</td>
+        <td>{{ a.descripcion }}{% if a.origen_modulo %} <span class="badge bg-azure-lt text-azure ms-1">{{ a.origen_modulo }}</span>{% endif %}</td>
+        <td class="small text-muted">{{ a.referencia }}</td>
+        <td><span class="badge estado-{{ a.estado }}">{{ a.get_estado_display }}</span></td>
+        <td class="text-end font-monospace">{{ a.total_debe|lps }}</td>
+        <td class="small text-muted">{{ a.creado_por.get_full_name|default:a.creado_por.username|default:"—" }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">No hay partidas en el rango.</td></tr>{% endfor %}</tbody>
+    {% if asientos %}<tfoot><tr><th colspan="6" class="text-end">Total contabilizado ({{ n }} partidas)</th><th class="text-end font-monospace">{{ total|lps }}</th><th></th></tr></tfoot>{% endif %}
+  </table>
+</div></div></div>
+{% endblock %}

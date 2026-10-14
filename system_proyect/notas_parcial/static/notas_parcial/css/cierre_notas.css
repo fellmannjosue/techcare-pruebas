@@ -1,0 +1,9 @@
+/* cierre_notas.css — <--- hecho por claude code (12-oct-2026): estado de cierre en la barra de Maestros asignados */
+.cierre-ctrl .cierre-badge { font-weight: 700; padding: .38em .7em; }
+.cierre-ctrl .cierre-badge.abierto  { background: rgba(18,183,106,.14); color: #0f8a50; }
+.cierre-ctrl .cierre-badge.programa { background: rgba(247,144,9,.16);  color: #b45309; }
+.cierre-ctrl .cierre-badge.cerrado  { background: rgba(240,68,56,.14);  color: #c0362c; }
+html.dark .cierre-ctrl .cierre-badge.abierto  { color: #4ade80; }
+html.dark .cierre-ctrl .cierre-badge.programa { color: #fbbf24; }
+html.dark .cierre-ctrl .cierre-badge.cerrado  { color: #fb7185; }
+@media (max-width: 767px) { .cierre-ctrl { margin-left: 0 !important; width: 100%; } }

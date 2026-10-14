@@ -283,12 +283,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!sf || compTeHrs === undefined) return;
     const totalHrs = parseFloat(sf.closest('td').dataset.totalHrs) || 0;
     const val = Math.round((totalHrs - compTeHrs) * 100) / 100;
-    // <--- hecho por claude code: sin deuda → excedente (horas de más); con deuda → la deuda
+    // <--- hecho por claude code (30-sep-2026): aquí solo la deuda; las horas de más van en el tab "4 · Con 3 días de permiso"
     if (val <= 0) {
       sf.className = `badge bg-green-lt text-green saldo-fecha-${pk}`;
-      const exc = Math.round((-val) * 100) / 100;
-      if (exc > 0) { sf.innerHTML = `<i class="ti ti-arrow-up-right me-1"></i>+${exc} h de más`; sf.setAttribute('title', 'Horas de más ya trabajadas por encima del total'); }
-      else { sf.innerHTML = '<i class="ti ti-circle-check me-1"></i>0 h'; }
+      sf.innerHTML = '<i class="ti ti-circle-check me-1"></i>0 h'; sf.removeAttribute('title');
     } else { sf.className = `badge bg-red-lt text-red saldo-fecha-${pk}`; sf.textContent = `${val} h`; }
   }
   document.querySelectorAll('.btn-set-tomado').forEach(btn => {

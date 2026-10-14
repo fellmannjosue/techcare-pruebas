@@ -1,5 +1,6 @@
 # <--- hecho por claude code: ANA Network Manager — vistas Fase 1 (superadmin por ahora)
 import json
+import ipaddress
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,6 +8,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from django.db.models import ProtectedError
 
@@ -70,6 +73,7 @@ def dashboard(request):
         'modulos': [
             {'t': 'Panel avanzado', 'i': 'ti-chart-histogram', 'c': '#2fb344', 'url': reverse('red:panel')},
             {'t': 'VLANs',       'i': 'ti-router',    'c': '#206bc4', 'url': reverse('red:vlan_list')},
+            {'t': 'IPs actuales', 'i': 'ti-list-numbers', 'c': '#0ca678', 'url': reverse('red:ips_actuales')},   # <--- hecho por claude code (16-sep-2026)
             {'t': 'Ubicaciones', 'i': 'ti-building',  'c': '#f76707', 'url': reverse('red:ubicaciones')},
             {'t': 'Dispositivos','i': 'ti-devices',   'c': '#ae3ec9', 'url': reverse('red:device_list')},
             {'t': 'Switches',    'i': 'ti-switch-3',  'c': '#4263eb', 'url': reverse('red:switch_list')},
@@ -179,6 +183,155 @@ def panel(request):
 
 
 # ═══════════════════════ VLAN ═══════════════════════
+# ═══════════════════════ Lista de IPs actuales ═══════════════════════
+# <--- hecho por claude code (16-sep-2026): inventario de las IPs EN USO HOY, agrupado por
+# categoría de equipo, con la VLAN implementada y si tiene usuario (nombre solo si lo tiene).
+def _ia_dict(o):
+    return {'id': o.pk, 'ip': o.ip, 'categoria': o.categoria, 'vlan': o.vlan_id, 'ip_nueva': o.ip_nueva,
+            'descripcion': o.descripcion, 'tiene_usuario': o.tiene_usuario, 'usuario': o.usuario}
+
+
+@login_required
+def ips_actuales(request):
+    from .models import IPActual
+    _gate(request)
+    filas = list(IPActual.objects.select_related('vlan'))
+    por_cat = {}
+    for f in filas:
+        por_cat.setdefault(f.categoria, []).append(f)
+    grupos = [{'key': k, 'label': lbl, 'filas': por_cat.get(k, [])} for k, lbl in Device.TIPOS]
+    return render(request, 'red/ips_actuales.html', {
+        'grupos': grupos, 'categorias': Device.TIPOS,
+        'vlans': list(VLAN.objects.order_by('vlan_id')),
+        'total': len(filas), 'con_usuario': sum(1 for f in filas if f.tiene_usuario),
+        'puede_editar': puede_administrar_red(request.user), 'nav_home_url': '/',
+    })
+
+
+@login_required
+def ip_actual_vlan_ips(request, pk):
+    """<--- hecho por claude code (16-sep-2026): IPs del IPAM de una VLAN para elegir la "IP asignada".
+    Primero las ocupadas (con hostname/dispositivo), luego las libres. Se pide por VLAN al vuelo
+    porque el IPAM tiene miles de direcciones y no cabe incrustarlo en la página."""
+    _gate(request)
+    filas = list(IPAddress.objects.filter(vlan_id=pk).exclude(estado='no_utilizable')
+                 .order_by('direccion_int')
+                 .values('direccion', 'hostname', 'estado', 'dispositivo__nombre'))
+    def _d(r):
+        return {'ip': r['direccion'], 'nombre': r['hostname'] or r['dispositivo__nombre'] or '', 'estado': r['estado']}
+    ocupadas = [_d(r) for r in filas if r['estado'] != 'libre']
+    libres = [_d(r) for r in filas if r['estado'] == 'libre']
+    return JsonResponse({'ok': True, 'ips': ocupadas + libres, 'ocupadas': len(ocupadas), 'libres': len(libres)})
+
+
+@login_required
+@require_POST
+def ip_actual_guardar(request):
+    """Autoguardado de una fila (crea o actualiza). Cuerpo JSON; responde JSON."""
+    from .models import IPActual
+    try:
+        _gate(request, escribir=True)
+    except PermissionDenied as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=403)
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    ip = (d.get('ip') or '').strip()
+    try:
+        ipaddress.IPv4Address(ip)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'IP inválida'}, status=400)
+    cat = d.get('categoria') or 'otro'
+    if cat not in dict(Device.TIPOS):
+        cat = 'otro'
+    vlan = VLAN.objects.filter(pk=d.get('vlan')).first() if d.get('vlan') else None
+    obj = IPActual.objects.filter(pk=d.get('id')).first() if d.get('id') else None
+    dup = IPActual.objects.filter(ip=ip).exclude(pk=obj.pk if obj else None).first()
+    if dup:
+        return JsonResponse({'ok': False, 'error': f'La IP {ip} ya está en la lista ({dup.get_categoria_display()})'}, status=400)
+    # <--- hecho por claude code (16-sep-2026): IP asignada en la VLAN elegida (validada contra su subred)
+    ip_nueva = (d.get('ip_nueva') or '').strip() or None
+    if vlan is None:
+        ip_nueva = None
+    if ip_nueva:
+        try:
+            ipaddress.IPv4Address(ip_nueva)
+        except ValueError:
+            return JsonResponse({'ok': False, 'error': 'IP asignada inválida'}, status=400)
+        if vlan.subred:
+            try:
+                red = ipaddress.ip_network(vlan.subred, strict=False)
+                if ipaddress.IPv4Address(ip_nueva) not in red:
+                    return JsonResponse({'ok': False, 'error': f'La IP {ip_nueva} no pertenece a la subred {red} de la VLAN {vlan.vlan_id}'}, status=400)
+            except ValueError:
+                pass
+        dup2 = IPActual.objects.filter(ip_nueva=ip_nueva).exclude(pk=obj.pk if obj else None).first()
+        if dup2:
+            return JsonResponse({'ok': False, 'error': f'La IP asignada {ip_nueva} ya la tiene {dup2.ip} ({dup2.descripcion or dup2.get_categoria_display()})'}, status=400)
+    # <--- hecho por claude code (16-sep-2026): si la VLAN está EN PRODUCCIÓN y la fila aún no tiene
+    # IP asignada, se toma sola la primera IP libre del rango asignable del IPAM que no use otra fila.
+    auto = False
+    if vlan is not None and not ip_nueva and vlan.estado == 'produccion':
+        ip_nueva = _ip_libre_para(vlan, excluir_pk=obj.pk if obj else None)
+        auto = bool(ip_nueva)
+    antes = _ia_dict(obj) if obj else None
+    if obj is None:
+        obj = IPActual(creado_por=request.user)
+    obj.ip = ip
+    obj.categoria = cat
+    obj.vlan = vlan
+    obj.ip_nueva = ip_nueva
+    obj.descripcion = (d.get('descripcion') or '').strip()[:120]
+    obj.tiene_usuario = bool(d.get('tiene_usuario'))
+    obj.usuario = (d.get('usuario') or '').strip()[:120] if obj.tiene_usuario else ''
+    # <--- hecho por claude code (16-sep-2026): contraseña cifrada; nunca va a la auditoría en claro
+    cambio_pass = False
+    if obj.tiene_usuario and 'password' in d:
+        nueva = (d.get('password') or '').strip()[:120]
+        if nueva != obj.password:
+            obj.password = nueva
+            cambio_pass = True
+    obj.modificado_por = request.user
+    obj.save()
+    despues = _ia_dict(obj)
+    if cambio_pass:
+        despues['password'] = '(cambiada)'
+    _audit(request, 'ips_actuales', obj, 'editar' if antes else 'crear', antes, despues)
+    return JsonResponse({'ok': True, 'id': obj.pk, 'fila': _ia_dict(obj), 'auto': auto})
+
+
+def _ip_libre_para(vlan, excluir_pk=None):
+    """Primera IP 'libre' del IPAM de la VLAN dentro de su rango asignable, que ninguna otra fila
+    de la lista tenga ya como IP asignada. None si no queda ninguna."""
+    from .models import IPActual
+    usadas = set(IPActual.objects.exclude(pk=excluir_pk).exclude(ip_nueva__isnull=True)
+                 .values_list('ip_nueva', flat=True))
+    qs = IPAddress.objects.filter(vlan=vlan, estado='libre').order_by('direccion_int')
+    if vlan.ip_inicial_asignable and vlan.ip_final_asignable:
+        qs = qs.filter(direccion_int__gte=int(ipaddress.ip_address(vlan.ip_inicial_asignable)),
+                       direccion_int__lte=int(ipaddress.ip_address(vlan.ip_final_asignable)))
+    for cand in qs.values_list('direccion', flat=True):
+        if cand not in usadas:
+            return cand
+    return None
+
+
+@login_required
+@require_POST
+def ip_actual_borrar(request, pk):
+    from .models import IPActual
+    try:
+        _gate(request, escribir=True)
+    except PermissionDenied as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=403)
+    obj = get_object_or_404(IPActual, pk=pk)
+    antes = _ia_dict(obj)
+    obj.delete()
+    _audit(request, 'ips_actuales', antes['ip'], 'eliminar', antes, None)
+    return JsonResponse({'ok': True})
+
+
 @login_required
 def vlan_list(request):
     _gate(request)
@@ -750,6 +903,9 @@ def marcadores_bulk(request):
         updates['tamano'] = max(8, min(120, int(d.get('tamano'))))
     if d.get('rotacion') not in (None, ''):
         updates['rotacion'] = int(d.get('rotacion')) % 360
+    # <--- hecho por claude code (01-oct-2026): texto en lote (mismo nombre para todos los seleccionados)
+    if (d.get('etiqueta') or '').strip():
+        updates['etiqueta'] = d.get('etiqueta').strip()[:80]
     if not updates:
         return JsonResponse({'ok': False, 'error': 'Nada que aplicar.'}, status=400)
     updates['modificado_por'] = request.user

@@ -1,0 +1,30 @@
+{% load static l10n %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Tareas Mantenimiento Vehículos y Máquinas</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="tabla horizontal hojas-veh">
+{% for h in hojas %}
+<section class="hoja-veh">
+  {% with titulo="Tareas de mantenimiento · vehículos y máquinas" derecha="Hoja para llenar a mano" modulo="Mantenimiento Mecánico · Mantenimiento de vehículos" %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' %}{% endwith %}
+  <table class="hv-cab">
+    <tr>
+      <td class="hv-nombre">{{ forloop.counter }}. {{ h.v.nombre }}<small>{% if h.v.Placa %}Placa {{ h.v.Placa }} · {% endif %}cada {{ h.v.intervalo|unlocalize }} {{ h.v.unidad }}</small></td>
+      <td><small>{% if h.v.base_es_lectura %}Base (sin mantenimientos){% else %}Fecha últ. mantenimiento{% endif %}</small>{{ h.v.FechaBase|date:"d/m/Y"|default:"—" }}</td>
+      <td><small>Estado actual</small>{% if h.v.estado_actual is not None %}{{ h.v.estado_actual|unlocalize }}{% else %}—{% endif %}</td>
+      <td><small>Próximo mant.</small>{% if h.v.proximo is not None %}{{ h.v.proximo|unlocalize }}{% else %}—{% endif %}</td>
+      <td class="hv-falta"><small>Falta para próx. mant.</small>{% if h.v.falta is not None %}{{ h.v.falta|unlocalize }}{% else %}—{% endif %}</td>
+      <td><small>Estado al hacerlo</small>&nbsp;</td>
+    </tr>
+  </table>
+  <table class="lista hv-tareas">
+    <thead><tr><th class="num">#</th><th>Tarea</th><th class="c">Intervalo</th><th class="c">Fecha últ. tarea hecha</th><th class="c">Nunca hecho</th><th class="c">Toca hacer esta vez</th><th class="c">Hecho</th></tr></thead>
+    <tbody>
+    {% for t in h.tareas %}<tr class="{% if t.toca %}toca{% endif %}"><td class="num">{{ t.n }}</td><td>{{ t.Tarea }}</td><td class="c">{{ t.Intervalo }}</td><td class="c">{{ t.ultima_fecha|date:"d/m/Y"|default:"" }}</td><td class="c">{% if t.nunca %}X{% endif %}</td><td class="c">{% if t.toca %}X{% endif %}</td><td class="c"><span class="caja"></span></td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div class="hv-pie">
+    <p class="hv-const">Hago constar que todas las tareas arriba marcadas como HECHO están hechas por mí mismo según el manual de procedimientos de mantenimiento de máquinas y vehículos. Si alguna tarea no se pudo hacer no está marcada como Hecho y será reportado al responsable superior.</p>
+    <div class="hv-firmas"><div>Fecha y firma<span></span></div><div>Fecha y firma revisado<span></span></div></div>
+  </div>
+</section>
+{% endfor %}
+</body></html>

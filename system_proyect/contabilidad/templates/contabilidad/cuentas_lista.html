@@ -1,0 +1,59 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): catálogo de cuentas (árbol por código) con saldo a hoy #}
+{% block title %}Catálogo de Cuentas{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Catálogo de Cuentas{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block page_actions %}
+  {% if p_admin_cuentas %}<a href="{% url 'contabilidad:cuenta_nueva' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nueva cuenta</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+{% with nav_c='cuentas' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+
+{% if vacio %}
+<div class="card mb-3"><div class="card-body text-center py-5">
+  <i class="ti ti-list-numbers fs-1 text-muted d-block mb-2"></i>
+  <h3>El catálogo está vacío</h3>
+  <p class="text-muted">Puedes cargar el <strong>catálogo base</strong> (asociación sin fines de lucro en Honduras: activo, pasivo, patrimonio, donaciones, ingresos educativos, ventas, costos CFP, gastos de personal con IHSS/RAP/13º/14º…) y luego ajustarlo, o crear las cuentas una por una.</p>
+  {% if p_admin_cuentas %}
+  <form method="post" action="{% url 'contabilidad:cuentas_cargar_base' %}" class="d-inline">{% csrf_token %}
+    <button class="btn btn-primary"><i class="ti ti-download me-1"></i>Cargar catálogo base</button></form>
+  {% endif %}
+</div></div>
+{% else %}
+<form method="get" class="card mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+  <div class="col-md-5"><label class="form-label small mb-1">Buscar</label><input type="text" name="q" value="{{ filtros.q }}" class="form-control form-control-sm" placeholder="Código o nombre…"></div>
+  <div class="col-md-3"><label class="form-label small mb-1">Tipo</label><select name="tipo" class="form-select form-select-sm"><option value="">Todos</option>{% for k, v in tipos %}<option value="{{ k }}" {% if filtros.tipo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Filtrar</button> <a href="{% url 'contabilidad:cuentas_lista' %}" class="btn btn-sm btn-ghost-secondary">Limpiar</a></div>
+  <div class="col-auto ms-auto text-muted small">{{ total }} cuentas</div>
+</div></div></form>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-vcenter table-hover card-table cont-catalogo">
+    <thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th><th>Naturaleza</th><th class="text-end">Saldo a hoy</th><th></th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+      <tr class="nivel-{{ f.c.nivel }} {% if not f.c.activo %}text-muted{% endif %}">
+        <td class="font-monospace">{{ f.c.codigo }}</td>
+        <td><span class="cont-indent-{{ f.c.nivel }}">{% if not f.c.es_detalle %}<strong>{{ f.c.nombre }}</strong>{% else %}{{ f.c.nombre }}{% endif %}</span>
+            {% if not f.c.activo %}<span class="badge bg-secondary-lt text-secondary ms-1">Inactiva</span>{% endif %}</td>
+        <td><span class="badge tipo-{{ f.c.tipo }}">{{ f.c.get_tipo_display }}</span></td>
+        <td class="small text-muted">{{ f.c.get_naturaleza_display }}</td>
+        <td class="text-end font-monospace {% if f.saldo < 0 %}text-danger{% endif %}">{% if f.tiene_mov %}{{ f.saldo|lps }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-end text-nowrap">
+          {% if f.tiene_mov %}<a href="{% url 'contabilidad:mayor' %}?cuenta={{ f.c.pk }}" class="btn btn-sm btn-ghost-secondary" title="Ver mayor"><i class="ti ti-report"></i></a>{% endif %}
+          {% if p_admin_cuentas %}
+            {% if not f.c.es_detalle %}<a href="{% url 'contabilidad:cuenta_nueva' %}?padre={{ f.c.pk }}" class="btn btn-sm btn-ghost-secondary" title="Agregar subcuenta"><i class="ti ti-plus"></i></a>{% endif %}
+            <a href="{% url 'contabilidad:cuenta_editar' f.c.pk %}" class="btn btn-sm btn-ghost-secondary" title="Editar"><i class="ti ti-pencil"></i></a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Sin resultados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div></div>
+{% endif %}
+{% endblock %}

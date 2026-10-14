@@ -39,6 +39,33 @@ def _es_gestor_tickets(user):
 # ======================================================
 # HELPER: notificar nuevo ticket a técnicos y superusers
 # ======================================================
+def _aviso_horario_laboral(ticket):
+    """<--- hecho por claude code: si el ticket se creó FUERA del horario laboral (L-V 7-16),
+    avisa al usuario que se atenderá en horas laborables (el SLA no corre fuera de horario).
+    Se dispara también cerca del cierre (últimos 15 min), como pidió el usuario ('3:59')."""
+    from .sla import en_horario_laboral, proxima_apertura, _local, _LAB_FIN
+    from datetime import time as _t, timedelta as _td
+    creado = _local(ticket.created_at)
+    cerca_cierre = (en_horario_laboral(creado) and creado.time() >= _t(15, 45))
+    if en_horario_laboral(creado) and not cerca_cierre:
+        return
+    pa = proxima_apertura(creado if not cerca_cierre else creado + _td(minutes=20))
+    cuando = ''
+    if pa:
+        from django.utils import timezone as _tz
+        hoy = _local(ticket.created_at).date()
+        cuando = (' el mismo día' if pa.date() == hoy else ' mañana' if (pa.date() - hoy).days == 1 else pa.strftime(' el %d/%m'))
+        cuando += f' a las {pa.strftime("%H:%M")}'
+    msg = ('Recibimos tu ticket. Como llegó fuera del horario de atención (lunes a viernes, '
+           f'7:00 a 4:00 pm), será atendido en horas laborables{cuando}. El tiempo de atención '
+           'solo corre en ese horario.')
+    from .models import TicketComment
+    TicketComment.objects.create(ticket=ticket, usuario=None, tipo='sistema', mensaje=msg)
+    if ticket.usuario:
+        crear_notificacion(usuario=ticket.usuario, mensaje=msg, modulo='tickets',
+                           tipo='info', enviar_correo=False)
+
+
 def _notificar_nuevo_ticket(ticket, usuario_solicitante=None):
     User = get_user_model()
     mensaje_staff = f"Nuevo ticket #{ticket.ticket_id} de {ticket.name} — {ticket.grade}"
@@ -95,6 +122,16 @@ def _send_tickets_notif(subject, html_msg):
     send_email_async(subject, html_msg, all_to)
 
 
+def enviar_correo_estado(ticket, titulo, mensaje, info_requerida='', color=('#1864ab', '#228be6')):
+    """<--- hecho por claude code: correo al usuario cuando cambia el estado del ticket."""
+    if not ticket.email:
+        return
+    html = render_to_string('tickets/email/ticket_estado.html', {
+        'ticket': ticket, 'titulo': titulo, 'mensaje': mensaje,
+        'info_requerida': info_requerida, 'color_ini': color[0], 'color_fin': color[1]})
+    send_email_async(f'Ticket #{ticket.ticket_id} — {titulo}', html, [ticket.email])
+
+
 def enviar_correo_ticket_resuelto(ticket):
     """Envía el historial del chat al usuario y al técnico cuando el ticket se resuelve."""
     comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
@@ -147,6 +184,7 @@ def submit_ticket(request):
 
                 # 🔔 Notificaciones
                 _notificar_nuevo_ticket(ticket, request.user)
+                _aviso_horario_laboral(ticket)  # <--- hecho por claude code
 
                 # 📧 Correos
                 subject_technician = f'Nuevo Ticket #{ticket.ticket_id} - {ticket.name}'
@@ -180,6 +218,7 @@ def submit_ticket(request):
 
             # 🔔 Notificaciones
             _notificar_nuevo_ticket(ticket, request.user)
+            _aviso_horario_laboral(ticket)  # <--- hecho por claude code
 
             # 📧 Correos
             subject = f'Nuevo Ticket #{ticket.ticket_id} - {ticket.name}'
@@ -228,7 +267,7 @@ def technician_dashboard(request):
     # <--- hecho por claude code: antes cualquier usuario logueado veía TODOS los tickets del sistema
     if not (request.user.is_superuser or request.user.has_perm('tickets.view_ticket')):
         return redirect('dashboard_administracion')
-    tickets = Ticket.objects.all()
+    tickets = Ticket.objects.select_related('requerimiento', 'asignado_a').all()
     return render(request, 'tickets/technician_dashboard.html', {'tickets': tickets})
 
 
@@ -239,7 +278,7 @@ def tickets_sin_atender_ajax(request):
         return JsonResponse({'ok': False, 'count': 0, 'tickets': []})
     from django.utils import timezone
     from .sla import minutos_laborales_entre
-    qs = Ticket.objects.filter(status__in=['Nuevo', 'Pendiente']).order_by('created_at')
+    qs = Ticket.objects.filter(status__in=['Nuevo', 'Pendiente']).exclude(sin_sla=True).order_by('created_at')   # <--- hecho por claude code (29-sep-2026): los tickets de desarrollo no suenan
     data = []
     ahora = timezone.now()
     for t in qs:
@@ -424,6 +463,13 @@ def ticket_send_comment_ajax(request, ticket_id):
         tipo="usuario" if not _es_gestor_tickets(request.user) else "tecnico"
     )
 
+    # <--- hecho por claude code: si el USUARIO responde y el ticket está EN ESPERA,
+    # se reanuda solo (cierra la pausa, corre el SLA y avisa al técnico).
+    if comentario.tipo == "usuario" and ticket.en_espera and ticket.pausa_abierta:
+        from . import estados as _estados
+        _estados.reanudar(ticket, request.user, via='comentario')
+        ticket.refresh_from_db()
+
     # <--- hecho por claude code: si un TÉCNICO real escribe, la IA se retira de este ticket.
     if comentario.tipo == "tecnico" and not ticket.ia_bloqueada:
         ticket.ia_bloqueada = True
@@ -496,11 +542,38 @@ def ticket_status_update_ajax(request, ticket_id):
     new_status = (request.POST.get("status") or "").strip()
     comments = (request.POST.get("comments") or "").strip()
 
-    if new_status not in ["Pendiente", "En Proceso", "Resuelto"]:
+    if new_status not in ["Pendiente", "En Proceso", "En espera del usuario", "Incompleto", "Resuelto"]:
         return JsonResponse({"ok": False}, status=400)
 
+    from .models import ESTADO_ESPERA, ESTADOS_PAUSA
+    from . import estados as _estados
+    from django.core.exceptions import ValidationError as _VE
     old_status = ticket.status
-    if new_status != old_status:
+
+    # <--- hecho por claude code: ENTRAR a un estado de pausa (En espera / Incompleto) → pausa el SLA
+    if new_status in ESTADOS_PAUSA and old_status != new_status:
+        motivo = (request.POST.get('motivo') or '').strip()
+        info = (request.POST.get('info_requerida') or '').strip()
+        if new_status == ESTADO_ESPERA and (not motivo or not info):
+            return JsonResponse({"ok": False, "need_motivo": True,
+                                 "error": "Indica el motivo y la información requerida."}, status=400)
+        try:
+            _estados.poner_en_pausa(ticket, request.user, motivo, info, new_status)
+        except _VE as e:
+            return JsonResponse({"ok": False, "error": '; '.join(e.messages)}, status=400)
+        if comments:
+            ticket.refresh_from_db(); ticket.comments = comments; ticket.save(update_fields=['comments'])
+        return JsonResponse({"ok": True, "status": new_status})
+
+    # <--- hecho por claude code: SALIR de un estado de pausa → reanuda (acumula tiempo, corre SLA)
+    if old_status in ESTADOS_PAUSA and new_status not in ESTADOS_PAUSA and ticket.pausa_abierta:
+        _estados.reanudar(ticket, request.user, via='tecnico')
+        ticket.refresh_from_db()
+        if new_status != 'En Proceso':
+            ticket.status = new_status
+        ticket.comments = comments
+        ticket.save()
+    elif new_status != old_status:
         ticket.status = new_status
         ticket.comments = comments
         ticket.save()
@@ -519,7 +592,7 @@ def ticket_status_update_ajax(request, ticket_id):
         ticket.save()
 
     # 🔔 Notificaciones
-    if new_status == "En Proceso" and ticket.usuario:
+    if new_status == "En Proceso" and old_status != new_status and ticket.usuario:
         crear_notificacion(
             usuario=ticket.usuario,
             mensaje=f"Tu ticket #{ticket.ticket_id} está en proceso.",
@@ -527,6 +600,10 @@ def ticket_status_update_ajax(request, ticket_id):
             tipo="info",
             enviar_correo=False,
         )
+        # <--- hecho por claude code: correo de cambio a "En Proceso"
+        enviar_correo_estado(
+            ticket, 'Tu ticket está siendo atendido',
+            'Un técnico de soporte está trabajando en tu solicitud. Te avisaremos ante cualquier novedad.')
 
     if new_status == "Resuelto":
         if ticket.usuario:
@@ -556,13 +633,61 @@ def ticket_eliminar_ajax(request, ticket_id):
 
 
 # ======================================================
+# <--- hecho por claude code: poner EN ESPERA DEL USUARIO (pausa el SLA) — solo técnicos/admin
+# ======================================================
+@require_POST
+@login_required
+def ticket_poner_espera_ajax(request, ticket_id):
+    from . import estados as _estados
+    from django.core.exceptions import PermissionDenied, ValidationError
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    motivo = (request.POST.get('motivo') or '').strip()
+    info = (request.POST.get('info_requerida') or '').strip()
+    try:
+        _estados.poner_en_espera(ticket, request.user, motivo, info)
+    except PermissionDenied as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=403)
+    except ValidationError as e:
+        return JsonResponse({'ok': False, 'error': '; '.join(e.messages)}, status=400)
+    return JsonResponse({'ok': True, 'status': ticket.status})
+
+
+# <--- hecho por claude code: reanudar la atención (cierra la pausa, corre el SLA)
+@require_POST
+@login_required
+def ticket_reanudar_ajax(request, ticket_id):
+    from . import estados as _estados
+    from django.core.exceptions import ValidationError
+    if not _es_gestor_tickets(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo técnicos o administradores.'}, status=403)
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    try:
+        _estados.reanudar(ticket, request.user, via='tecnico')
+    except ValidationError as e:
+        return JsonResponse({'ok': False, 'error': '; '.join(e.messages)}, status=400)
+    return JsonResponse({'ok': True, 'status': ticket.status})
+
+
+# ======================================================
 # AJAX → Obtener estado
 # ======================================================
 @require_GET
 @login_required
 def ticket_status_get_ajax(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
-    return JsonResponse({"status": ticket.status, "comments": ticket.comments})
+    pa = ticket.pausa_abierta
+    return JsonResponse({
+        "status": ticket.status, "comments": ticket.comments,
+        # <--- hecho por claude code: estado del SLA para el panel del detalle
+        "sla_estado": ticket.sla_estado, "sla_texto": ticket.sla_texto,
+        "sla_pausado": ticket.sla_pausado, "en_espera": ticket.en_espera,
+        "pausa_motivo": pa.motivo if pa else "",
+        "pausa_info": pa.info_requerida if pa else "",
+        "pausa_desde": pa.inicio.strftime('%d/%m/%Y %H:%M') if pa else "",
+        # <--- hecho por claude code: SLA congelado por estar fuera del horario laboral
+        "fuera_horario": ticket.fuera_horario,
+        "fuera_horario_texto": ticket.fuera_horario_texto,
+    })
 
 
 # ======================================================

@@ -15,6 +15,7 @@ urlpatterns = [
     path('informe/<int:pk>/pdf/', views.informe_pdf, name='informe_pdf'),
 
     # ── Planilla de gastos administrativos (reparto del resto del 20%) ──
+    path('planilla/personas-cargo/', views.planilla_personas_cargo, name='planilla_personas_cargo'),  # <--- hecho por claude code (09-sep-2026)
     path('planilla/<int:pk>/',     views.planilla_form, name='planilla_form'),
     path('planilla/<int:pk>/pdf/', views.planilla_pdf,  name='planilla_pdf'),
 

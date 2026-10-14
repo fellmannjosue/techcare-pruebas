@@ -1,0 +1,25 @@
+{% load static l10n %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Mantenimiento {{ v.nombre }}</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="ficha">
+{% with titulo="Mantenimiento de vehículo" derecha="<b>Nº "|add:num|add:"</b>" modulo="Mantenimiento Mecánico · Mantenimiento de vehículos" %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' %}{% endwith %}
+<table class="datos">
+  <tr><th>Vehículo</th><td>{{ v.nombre }}</td><th>Placa</th><td>{{ v.Placa|default:"—" }}</td></tr>
+  <tr><th>Fecha</th><td>{{ m.Fecha|date:"d/m/Y" }}</td><th>{{ v.unidad|upper }} al hacerlo</th><td class="big">{{ m.KmReal_Horas|unlocalize }}</td></tr>
+  <tr><th>Realizado por</th><td>{{ m.persona|default:"—" }}</td><th>Próximo mantenimiento</th><td>{% if proximo %}{{ proximo|unlocalize }} {{ v.unidad }}{% else %}—{% endif %}</td></tr>
+</table>
+<table class="lista" style="margin-top:10px">
+  <thead><tr><th class="num">#</th><th>Tarea</th><th class="num">Intervalo</th><th class="c">Hecho</th></tr></thead>
+  <tbody>{% for t in m.tareas %}<tr><td class="num">{{ t.Numero }}</td><td>{{ t.Tarea }}</td><td class="num">{{ t.Intervalo }}</td><td class="c">{% if t.Hecho %}✔{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% if comentarios %}<h3>Comentarios de auditoría</h3>
+<table class="lista chica" style="width:100%"><thead><tr><th style="width:22%">Fecha</th><th style="width:22%">Autor</th><th>Comentario</th></tr></thead><tbody>
+{% for c in comentarios %}<tr><td>{{ c.creado|date:"d/m/Y H:i" }}</td><td>{{ c.autor.get_full_name|default:c.autor.username|default:"—" }}</td><td>{{ c.texto|linebreaksbr }}</td></tr>{% endfor %}
+</tbody></table>{% endif %}
+<p class="hv-const" style="margin-top:14px">Hago constar que todas las tareas marcadas como HECHO están hechas según el manual de procedimientos de mantenimiento de máquinas y vehículos.</p>
+<div class="firmas">
+  <div class="firma"><div class="linea"></div><div class="nom">{{ m.persona|default:"—" }}</div><div class="cargo">Realizó</div></div>
+  <div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">Revisó · {{ auditora.1 }}</div></div>
+</div>
+<div class="pie">Registrado por {{ m.Usuario|default:"—" }} el {{ m.FchaReg|date:"d/m/Y H:i" }} · Sistema de mantenimiento (Test2) · TechCare</div>
+</body></html>

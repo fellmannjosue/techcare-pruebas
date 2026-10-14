@@ -1,0 +1,55 @@
+{% extends 'mantenimiento_mecanico/base_mm.html' %}
+{% load l10n %}
+{# <--- hecho por claude code (12-oct-2026): alta / edición de un vehículo (mismos campos que el formulario de Access) #}
+{% block title %}{% if nuevo %}Registrar vehículo{% else %}Editar {{ obj.nombre }}{% endif %}{% endblock %}
+{% block page_pretitle %}Mantenimiento de vehículos{% endblock %}
+{% block page_title %}<i class="ti ti-car me-2"></i>{% if nuevo %}Registrar vehículo{% else %}Editar · {{ obj.nombre }}{% endif %}{% endblock %}
+{% block back_button %}{% if nuevo %}<a href="{% url 'vehiculos:flota' %}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Flota</a>{% else %}<a href="{% url 'vehiculos:detalle' obj.pk %}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Volver al vehículo</a>{% endif %}{% endblock %}
+
+{% block content %}
+<form method="post" class="card mv-form" autocomplete="off">
+  {% csrf_token %}
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-id me-2 text-blue"></i>Datos del vehículo</h3></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label required">Marca</label><input name="marca" class="form-control" maxlength="50" required value="{{ obj.marca }}" placeholder="Toyota"></div>
+      <div class="col-md-4"><label class="form-label">Tipo</label><input name="tipo" class="form-control" maxlength="50" value="{{ obj.tipo }}" placeholder="Hiace, Pick-up, Tractor…"></div>
+      <div class="col-md-4"><label class="form-label">Color</label><input name="color" class="form-control" maxlength="50" value="{{ obj.color }}"></div>
+      <div class="col-md-3"><label class="form-label">Año</label><input name="anio" type="number" min="1950" max="2100" class="form-control" value="{{ obj.anio|default_if_none:''|unlocalize }}"></div>
+      <div class="col-md-3"><label class="form-label">Placa</label><input name="placa" class="form-control text-uppercase" maxlength="20" value="{{ obj.placa }}"></div>
+      <div class="col-md-3"><label class="form-label">Chasis</label><input name="chasis" class="form-control" maxlength="50" value="{{ obj.chasis }}"></div>
+      <div class="col-md-3"><label class="form-label">Motor</label><input name="motor" class="form-control" maxlength="50" value="{{ obj.motor }}"></div>
+      <div class="col-md-4"><label class="form-label">Cuenta diésel</label><input name="cuenta_diesel" class="form-control" maxlength="50" value="{{ obj.cuenta_diesel }}"></div>
+    </div>
+  </div>
+  <div class="card-header border-top"><h3 class="card-title"><i class="ti ti-tool me-2 text-orange"></i>Mantenimiento</h3></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3"><label class="form-label required">Intervalo de mantenimiento</label><input name="intervalo" type="number" min="1" step="1" class="form-control" required value="{{ obj.intervalo|default_if_none:''|unlocalize }}" placeholder="5000"><div class="form-hint">Cada cuántos km / horas / millas toca.</div></div>
+      <div class="col-md-3"><label class="form-label">Se mide en</label>
+        <select name="unidad" class="form-select">
+          <option value="km" {% if unidad == 'km' %}selected{% endif %}>Kilómetros</option>
+          <option value="mi" {% if unidad == 'mi' %}selected{% endif %}>Millas</option>
+          <option value="h" {% if unidad == 'h' %}selected{% endif %}>Horas (motor)</option>
+        </select></div>
+      <div class="col-md-3"><label class="form-label">Clase</label>
+        <select name="clase" class="form-select">
+          <option value="vehiculo" {% if not obj.agricultura %}selected{% endif %}>Vehículo</option>
+          <option value="tractor" {% if obj.agricultura %}selected{% endif %}>Tractor / agrícola</option>
+        </select><div class="form-hint">Define qué tareas aplican (Vehic / Tract).</div></div>
+      <div class="col-md-3 d-flex flex-column justify-content-end gap-1">
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="sin_tacometro" value="1" {% if obj.sin_tacometro %}checked{% endif %}><span class="form-check-label">Sin tacómetro</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" name="no_en_uso" value="1" {% if obj.no_en_uso %}checked{% endif %}><span class="form-check-label">Fuera de uso</span></label>
+      </div>
+      {% if nuevo %}
+      <div class="col-md-3"><label class="form-label">Lectura inicial (km / horas)</label><input name="lectura_inicial" type="number" min="0" step="1" class="form-control" value="{{ post.lectura_inicial|default:'' }}"><div class="form-hint">Desde aquí se cuenta el primer mantenimiento.</div></div>
+      <div class="col-md-3"><label class="form-label">Fecha de la lectura</label><input name="fecha_lectura" type="date" class="form-control" value="{% if post.fecha_lectura %}{{ post.fecha_lectura }}{% else %}{{ hoy|date:'Y-m-d' }}{% endif %}"></div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2 justify-content-end">
+    <a href="{% if nuevo %}{% url 'vehiculos:flota' %}{% else %}{% url 'vehiculos:detalle' obj.pk %}{% endif %}" class="btn">Cancelar</a>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>{% if nuevo %}Registrar vehículo{% else %}Guardar cambios{% endif %}</button>
+  </div>
+</form>
+{% endblock %}

@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
   <!-- Responsive global -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=7">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=8"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
@@ -25,13 +25,17 @@
   {% if True %}
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) #}
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=3">
   {% endif %}
 </head>
-<body class="antialiased">
+<body class="antialiased tc-overlap">
 <div class="wrapper">
 
+  {% include '_rail.html' %}
+
   <!-- ===== SIDEBAR ===== -->
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+  <aside class="navbar navbar-vertical navbar-expand-lg"{% if not request.user.is_superuser %} data-acordeon="1"{% endif %} data-bs-theme="dark">{# <--- hecho por claude code (12-oct-2026): acordeón menos el superusuario #}
     <div class="container-fluid">
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
@@ -41,12 +45,15 @@
       <div class="navbar-brand">
         <a href="{% url 'menu' %}" class="d-flex align-items-center text-decoration-none">
           <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
+          <span class="tc-brand-txt"><b>TechCare</b><small>Asociación Nuevo Amanecer</small></span>
         </a>
       </div>
 
       <div class="collapse navbar-collapse" id="navbar-menu">
+        {# <--- hecho por claude code (30-sep-2026): buscador del menú (filtra los enlaces, tc_shell.js) #}
+        <label class="tc-side-search"><i class="ti ti-search"></i><input type="search" id="tc-side-q" placeholder="Buscar en el menú…" autocomplete="off"></label>
         {% include 'accounts/_sidebar.html' %}
+        <div class="tc-side-foot"><span class="tc-dot"></span>Sistema en línea{% if app_version %} · v{{ app_version }}{% endif %}</div>
         {# <--- hecho por claude code: el user dropdown se movió al topbar (junto a la campana) #}
       </div>
     </div>
@@ -56,7 +63,7 @@
   <div class="page-wrapper">
 
     <!-- ===== HEADER ===== -->
-    <div class="page-header d-print-none">
+    <div class="page-header d-print-none tc-hero">
       <div class="container-xl">
         <div class="row g-2 align-items-center">
           <div class="col">
@@ -215,14 +222,31 @@
           </div>
           {% endif %}
 
-          {% if show_inventory %}
+          {# <--- hecho por claude code (12-oct-2026): vehículos unido a la tarjeta de Mantenimiento Mecánico #}
+          {# <--- hecho por claude code (01-oct-2026): Mantenimiento Mecánico (combustibles y aceites) en tarjeta propia #}
+          {% if show_mant_mecanico %}
           <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'inventario:dashboard' %}" class="text-decoration-none">
+            <a href="{% url 'mantenimiento_mecanico:index' %}" class="text-decoration-none">
               <div class="card card-link card-link-pop text-center py-3">
                 <div class="card-body">
-                  <div class="mb-2"><i class="ti ti-package text-teal" style="font-size:2.5rem;"></i></div>
-                  <div class="fw-bold">Inventario</div>
-                  <div class="text-muted small mt-1">Control de activos</div>
+                  <div class="mb-2"><i class="ti ti-engine text-orange" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Mantenimiento Mecánico</div>
+                  <div class="text-muted small mt-1">Combustibles, aceites y vehículos</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+          {# <--- hecho por claude code (28-sep-2026): Inventario y Mantenimiento unidos en Control y Servicio Técnico #}
+          {% if show_servicio %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'servicio_tecnico:hub' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-headset text-teal" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Control y Servicio Técnico</div>
+                  <div class="text-muted small mt-1">Inventario y mantenimiento</div>
                 </div>
               </div>
             </a>
@@ -237,20 +261,6 @@
                   <div class="mb-2"><i class="ti ti-school text-green" style="font-size:2.5rem;"></i></div>
                   <div class="fw-bold">CFP</div>
                   <div class="text-muted small mt-1">Contabilidad y Notas</div>
-                </div>
-              </div>
-            </a>
-          </div>
-          {% endif %}
-
-          {% if show_maintenance %}
-          <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'mantenimiento:maintenance_dashboard' %}" class="text-decoration-none">
-              <div class="card card-link card-link-pop text-center py-3">
-                <div class="card-body">
-                  <div class="mb-2"><i class="ti ti-tool text-red" style="font-size:2.5rem;"></i></div>
-                  <div class="fw-bold">Mantenimiento</div>
-                  <div class="text-muted small mt-1">Reportes de mantenimiento</div>
                 </div>
               </div>
             </a>
@@ -369,6 +379,7 @@
           </div>
           {% endif %}
 
+          {% if not programas_ocultos.notas_parcial %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           {% if request.user.is_superuser or request.user|es_coord_notas or request.user|es_maestro_notas %}
           <div class="col-6 col-sm-4 col-lg-3">
             <a href="{% if request.user.is_superuser %}{% url 'notas_parcial_index' %}{% elif request.user|es_coord_notas %}{% url 'notas_parcial_coordinador' %}{% else %}{% url 'notas_parcial_maestro' %}{% endif %}" class="text-decoration-none">
@@ -381,6 +392,7 @@
               </div>
             </a>
           </div>
+          {% endif %}
           {% endif %}
 
           {# <--- hecho por claude code: apps 'Atención a Padres' y 'Mapeo de Cámaras' eliminadas (no se usaban) #}
@@ -662,5 +674,7 @@
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=2"></script>
 {% endif %}
+<script src="{% static 'js/tc_shell.js' %}?v=3"></script>
+<script src="{% static 'js/tc_responsive.js' %}?v=1"></script>
 </body>
 </html>

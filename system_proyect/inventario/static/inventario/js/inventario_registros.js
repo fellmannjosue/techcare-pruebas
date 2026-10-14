@@ -27,6 +27,24 @@ function iniciarTabla(idTabla) {
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' }
   });
 }
+/* <--- hecho por claude code (17-sep-2026): los botones Todos / General / Lab BL / Lab COL / Lab CFP
+   NO tenían manejador (se perdió al sacar el JS del HTML). Filtran la tabla de Computadoras por el
+   prefijo del Asset ID (columna 1) y los botones de Excel/PDF exportan lo mismo que se ve. */
+$(document).on('click', '#subtabs-prefijo [data-prefijo]', function () {
+  var pref = String($(this).data('prefijo') || '');
+  $('#subtabs-prefijo [data-prefijo]').removeClass('active');
+  $(this).addClass('active');
+  var rx = pref ? '^' + pref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+  $('#tablaComputadoras').DataTable().column(1).search(rx, true, false).draw();
+  document.querySelectorAll('.exp-comp').forEach(function (a) {
+    a.href = a.dataset.base + (pref ? '?prefijo=' + encodeURIComponent(pref) : '');
+  });
+  // al filtrar se limpia la selección (evita aplicar un grupo a filas que ya no se ven)
+  document.querySelectorAll('.chk-comp').forEach(function (c) { c.checked = false; });
+  var all = document.getElementById('chk-all-comp'); if (all) all.checked = false;
+  var bar = document.getElementById('bulk-bar'); if (bar) { bar.classList.add('d-none'); bar.classList.remove('d-flex'); }
+});
+
 $(function(){
   iniciarTabla('tablaComputadoras');
   iniciarTabla('tablaImpresoras');

@@ -185,8 +185,8 @@
             <td class="text-center">
               <button type="button" class="btn btn-sm btn-ghost-secondary btn-coment-emp px-2"
                       data-emp="{{ row.emp_code }}"
-                      data-nombre="{{ row.nombre|escapejs }}"
-                      data-texto="{% if r %}{{ r.comentario|escapejs }}{% endif %}"
+                      data-nombre="{{ row.nombre }}"
+                      data-texto="{% if r %}{{ r.comentario }}{% endif %}"
                       title="{% if r and r.comentario %}{{ r.comentario|truncatechars:120 }}{% else %}Agregar comentario{% endif %}">
                 <i class="ti ti-message-2{% if r and r.comentario %} text-blue{% endif %}"></i>
                 {% if r and r.comentario %}<span class="badge bg-blue ms-1" style="width:7px;height:7px;padding:0;border-radius:50%;"></span>{% endif %}

@@ -45,12 +45,12 @@
     {% for c in capturados %}
     <tr><td class="resta">(−) {{ c.label }}</td><td class="num">{{ c.valor|money_c }}</td></tr>
     {% endfor %}
-    <tr class="tot"><td>Monto a repartir</td><td class="num">{{ a_repartir|money }}</td></tr>
+    <tr class="tot"><td>Disponible para la planilla</td><td class="num">{{ a_repartir|money }}</td></tr>
   </table>
 
   {# ── Personas y firma ── #}
   <div class="subtitulo">DETALLE DE PAGOS</div>
-  <table class="personas">
+  <table class="personas{% if compacta %} compacta{% endif %}">
     <thead>
       <tr>
         <th class="c-n">No.</th>
@@ -71,18 +71,25 @@
         <td class="num">{{ r.monto|money }}</td>
         <td></td>
       </tr>
-      {% empty %}
-      <tr><td colspan="6" class="center vacio">Sin personas registradas en la planilla.</td></tr>
+      {% endfor %}
+      {# <--- hecho por claude code (09-sep-2026): líneas numeradas en blanco hasta llenar la hoja legal #}
+      {% for i in filas_vacias %}
+      <tr class="vacia">
+        <td class="center">{{ forloop.counter|add:n_personas }}</td>
+        <td></td><td></td><td></td><td></td><td></td>
+      </tr>
       {% endfor %}
       <tr class="tot">
         <td colspan="4" class="der">TOTAL</td>
-        <td class="num">{{ a_repartir|money }}</td>
+        <td class="num">{{ total_repartido|money }}</td>
         <td></td>
       </tr>
     </tbody>
   </table>
 
   {# ── Cierre ── #}
+  {# <--- hecho por claude code (09-sep-2026): bloque fijo al pie de la hoja legal #}
+  <div class="cierre-bloque">
   <table class="dg cierre">
     <tr><td class="lbl w-lug">Lugar y fecha</td><td class="val">{{ lugar_fecha_str }}</td></tr>
   </table>
@@ -99,9 +106,10 @@
   </table>
 
   <div class="nota">
-    <b>Nota:</b> el monto a repartir corresponde al 20% de Administración del curso, una vez descontados
-    el seguro de accidentes de los participantes, el teléfono y otros gastos ya determinados. El reparto
-    se hace en partes iguales entre las personas listadas.
+    <b>Nota:</b> el disponible corresponde al 20% de Administración del curso, una vez descontados
+    el teléfono, papel, marcadores y otros gastos ya determinados. El monto de cada persona se
+    asigna de forma manual.
+  </div>
   </div>
 
 </div>

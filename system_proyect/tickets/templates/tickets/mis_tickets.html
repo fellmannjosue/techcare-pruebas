@@ -43,6 +43,10 @@
             <td>
               {% if t.status == 'Resuelto' %}
                 <span class="badge bg-success-lt text-success"><i class="ti ti-circle-check me-1"></i>{{ t.status }}</span>
+              {% elif t.status == 'En espera del usuario' %}
+                <span class="badge bg-orange-lt text-orange"><i class="ti ti-player-pause me-1"></i>En espera de ti</span>
+              {% elif t.status == 'Incompleto' %}
+                <span class="badge bg-secondary-lt text-secondary"><i class="ti ti-alert-circle me-1"></i>Incompleto</span>
               {% elif t.status == 'En Proceso' %}
                 <span class="badge bg-blue-lt text-blue"><i class="ti ti-loader me-1"></i>{{ t.status }}</span>
               {% else %}

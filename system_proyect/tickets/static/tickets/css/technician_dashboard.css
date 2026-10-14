@@ -12,3 +12,9 @@
 .chat-row-right .chat-bubble-modal { text-align: left; }
 .chat-meta { font-size: .71rem; color: var(--ps-muted); margin-bottom: 2px; }
 .chat-meta.right { text-align: right; }
+
+
+/* <--- hecho por claude code: descripción con hover (popover) */
+.td-desc { cursor: help; border-bottom: 1px dotted #adb5bd; }
+.td-desc .ti-info-circle { font-size: .8em; vertical-align: middle; }
+.popover .popover-body { font-size: .85rem; max-width: 320px; }

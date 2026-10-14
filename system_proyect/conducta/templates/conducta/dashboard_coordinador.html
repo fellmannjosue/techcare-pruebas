@@ -60,18 +60,22 @@
     </a>
   </li>
   {% if area == 'bilingue' %}
+  {% if not programas_ocultos.enfermeria %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
       <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
       <span class="nav-link-title">Enfermería</span>
     </a>
   </li>
+  {% endif %}
+  {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
       <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
       <span class="nav-link-title">Agendas</span>
     </a>
   </li>
+  {% endif %}
   {% if request.user.is_superuser %}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'materias_docentes_bl' %}">
@@ -153,8 +157,8 @@
     {# <--- hecho por claude code (Nivel 2): app enfocada → encabezado + barra de tabs oculta #}
     {% if app_activo and app_def %}
     <div class="d-flex align-items-center w-100">
-      {# <--- hecho por claude code: este botón ahora va al Menú Principal (antes al lanzador de apps) #}
-      <a href="{{ nav_home_url }}" class="btn btn-sm btn-ghost-secondary me-2"><i class="ti ti-arrow-left me-1"></i>Menú Principal</a>
+      {# <--- hecho por claude code (01-oct-2026): pedido del usuario — vuelve al lanzador de apps del coordinador (esta misma pantalla sin ?app=) #}
+      <a href="{% url 'dashboard_coordinador' area=area %}" class="btn btn-sm btn-ghost-secondary me-2"><i class="ti ti-arrow-left me-1"></i>Menú Principal</a>
       <h3 class="card-title m-0"><i class="ti {{ app_def.i }} me-2" style="color:{{ app_def.c }};"></i>{{ app_def.t }}</h3>
     </div>
     {% endif %}
@@ -190,15 +194,23 @@
       </li>
       {# ── Enlaces con estilo de tab ── #}
       {% if area == 'bilingue' %}
+      {% if not programas_ocultos.tutorias %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item"><a href="{% url 'convocatorias_coordinador' %}" class="nav-link"><i class="ti ti-school me-1 text-orange"></i>Tutorías<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
       {% endif %}
       <li class="nav-item"><a href="{% url 'directorio_telefonos' %}" class="nav-link"><i class="ti ti-address-book me-1 text-green"></i>Directorio<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
       {% if area == 'bilingue' %}
+      {% if not programas_ocultos.enfermeria %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item"><a href="{% url 'enfermeria:enfermeria_dashboard' %}" class="nav-link"><i class="ti ti-stethoscope me-1 text-red"></i>Enfermería<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
       {% endif %}
+      {% endif %}
+      {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item"><a href="{% url 'agendas:dashboard_coordinador' %}" class="nav-link"><i class="ti ti-calendar-week me-1 text-purple"></i>Agendas<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
       {% if request.user|es_coord_notas or request.user.is_superuser %}
+      {% if not programas_ocultos.notas_parcial %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item"><a href="{% url 'notas_parcial_coordinador' %}" class="nav-link"><i class="ti ti-file-certificate me-1 text-blue"></i>Notas<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>
+      {% endif %}
       {% endif %}
       {% if request.user.is_superuser and area == 'bilingue' %}
       <li class="nav-item"><a href="{% url 'materias_docentes_bl' %}" class="nav-link"><i class="ti ti-table me-1 text-primary"></i>Materias-Docentes<i class="ti ti-external-link ms-1 text-muted" style="font-size:.7rem;"></i></a></li>

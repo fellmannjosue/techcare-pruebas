@@ -1,0 +1,23 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code (23-sep-2026): períodos contables (abrir/cerrar mes) #}
+{% block title %}Períodos contables{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Períodos contables{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+{% with nav_c='periodos' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+<p class="text-muted">Los períodos se crean solos al registrar partidas. Un período <strong>cerrado</strong> ya no admite partidas nuevas, cambios ni anulaciones (solo lo cierra/reabre quien administra la configuración contable).</p>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-vcenter card-table">
+    <thead><tr><th>Período</th><th>Estado</th><th class="text-end">Partidas</th><th class="text-end">Borradores</th><th>Cerrado por</th><th></th></tr></thead>
+    <tbody>{% for p in periodos %}
+      <tr><td class="fw-semibold">{{ p }}</td>
+      <td>{% if p.abierto %}<span class="badge bg-green-lt text-green">Abierto</span>{% else %}<span class="badge bg-red-lt text-red">Cerrado</span>{% endif %}</td>
+      <td class="text-end">{{ p.n }}</td><td class="text-end">{% if p.borradores %}<span class="badge bg-orange-lt text-orange">{{ p.borradores }}</span>{% else %}0{% endif %}</td>
+      <td class="small text-muted">{% if p.cerrado_por %}{{ p.cerrado_por.get_full_name|default:p.cerrado_por.username }} · {{ p.cerrado_en|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+      <td class="text-end">{% if p_cerrar %}<form method="post" action="{% url 'contabilidad:periodo_toggle' p.pk %}" class="d-inline" onsubmit="return confirm('¿{% if p.abierto %}Cerrar{% else %}Reabrir{% endif %} el período {{ p }}?')">{% csrf_token %}
+        <button class="btn btn-sm {% if p.abierto %}btn-outline-danger{% else %}btn-outline-success{% endif %}">{% if p.abierto %}<i class="ti ti-lock me-1"></i>Cerrar{% else %}<i class="ti ti-lock-open me-1"></i>Reabrir{% endif %}</button></form>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div></div></div>
+{% endblock %}

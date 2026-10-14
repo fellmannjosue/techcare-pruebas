@@ -2,6 +2,7 @@
 
 from django import forms
 from .models import (
+    ItemGeneral, CategoriaGeneral,   # <--- hecho por claude code (13-oct-2026)
     CategoriaInventario,
     InventoryItem,
     Computadora,
@@ -341,3 +342,31 @@ class MonitorForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         cats = list(CategoriaInventario.objects.values_list('nombre', flat=True))
         self.fields['category'].choices = [('', '— Categoría —')] + [(c, c) for c in cats]
+
+
+# <--- hecho por claude code (13-oct-2026): Inventario general (el código lo pone el servidor; el comentario de la auditora va aparte)
+class ItemGeneralForm(forms.ModelForm):
+    class Meta:
+        model = ItemGeneral
+        fields = ['area', 'categoria', 'descripcion', 'ubicacion', 'estado', 'foto']
+        widgets = {
+            'area':        forms.Select(attrs={'class': 'form-select', 'id': 'ig-area'}),
+            'categoria':   forms.Select(attrs={'class': 'form-select', 'id': 'ig-categoria'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 200, 'placeholder': 'Ej.: Escritorio de madera 2 gavetas'}),
+            'ubicacion':   forms.TextInput(attrs={'class': 'form-control', 'list': 'ig-ubicaciones', 'autocomplete': 'off', 'placeholder': 'Ej.: Bodega, Aula 7mo A'}),
+            'estado':      forms.Select(attrs={'class': 'form-select'}),
+            'foto':        forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+        }
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.fields['categoria'].required = True
+        self.fields['categoria'].empty_label = '— Elige la categoría —'
+        self.fields['categoria'].queryset = CategoriaGeneral.objects.all()
+
+    def clean(self):
+        d = super().clean()
+        cat, area = d.get('categoria'), d.get('area')
+        if cat and area and cat.area != area:
+            self.add_error('categoria', 'Esa categoría es de otra área.')
+        return d

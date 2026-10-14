@@ -53,7 +53,7 @@
                 <td>{{ ds.id }}</td>
                 <td>{{ ds.asset_id }}</td>
                 <td>{{ ds.nombre }}</td>
-                <td>{{ ds.modelo }}</td>
+                <td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ ds.serie|default:'—' }}</div><div><b>Estado:</b> {{ ds.estado|default:'—' }}</div><div><b>Cable de corriente:</b> {{ ds.cable_corriente|yesno:'Sí,No' }}</div><div><b>HDMI:</b> {{ ds.hdmi|yesno:'Sí,No' }}</div><div><b>VGA:</b> {{ ds.vga|yesno:'Sí,No' }}</div><div><b>Extensión:</b> {{ ds.extension|yesno:'Sí,No' }}</div><div><b>Observaciones:</b> {{ ds.observaciones|default:'—' }}</div>">{{ ds.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ ds.serie }}</td>
                 <td>{{ ds.estado }}</td>
                 <td>{{ ds.cable_corriente|yesno:"Sí,No" }}</td>
@@ -89,6 +89,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'inventario/js/inventario_datashows.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/inventario_datashows.js' %}?v=21"></script>
 <script src="{% static 'inventario/js/datashows_edit.js' %}?v=20"></script>
 {% endblock %}

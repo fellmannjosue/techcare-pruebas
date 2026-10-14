@@ -1,11 +1,13 @@
 from django.urls import path
-from . import views
+from . import views, suplantar
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     # Login principal (unificado)
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('iniciar-como/<int:pk>/', suplantar.confirmar, name='suplantar'),   # <--- hecho por claude code (12-oct-2026): solo superusuario
+    path('iniciar-como/volver/', suplantar.volver, name='suplantar_volver'),
     path('maestro_logout/', views.maestro_logout, name='maestro_logout'),
     path('register/', views.register_maestro, name='register_maestro'),
     path('register/correos-disponibles/', views.correos_disponibles_json, name='correos_disponibles_json'),  # <--- hecho por claude code
@@ -13,6 +15,7 @@ urlpatterns = [
     # ── Panel de Seguridad (superusuario) ──
     path('seguridad/',                 views.panel_seguridad,        name='panel_seguridad'),
     path('seguridad/toggle/',          views.seguridad_toggle,       name='seguridad_toggle'),
+    path('seguridad/programa/toggle/', views.seguridad_programa_toggle, name='seguridad_programa_toggle'),  # <--- hecho por claude code (10-sep-2026)
     path('seguridad/correo/add/',      views.seguridad_correo_add,   name='seguridad_correo_add'),
     path('seguridad/correo/toggle/',   views.seguridad_correo_toggle,name='seguridad_correo_toggle'),
     path('seguridad/correo/del/',      views.seguridad_correo_del,   name='seguridad_correo_del'),

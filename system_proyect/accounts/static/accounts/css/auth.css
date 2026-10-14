@@ -6,3 +6,6 @@
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.18);
 }
+
+/* <--- hecho por claude code (14-oct-2026): mismo degradado que el login y con prioridad sobre portal.css (lo tapaba) */
+body.auth-bg { background: linear-gradient(115deg, #1e3a8a 0%, #2563eb 40%, #7c3aed 80%, #db2777 120%) !important; background-attachment: fixed !important; }

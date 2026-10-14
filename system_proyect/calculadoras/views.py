@@ -9,14 +9,25 @@ from .models import TasaCambio, MONEDA_CHOICES
 
 API_URL = 'https://open.exchangerate-api.com/v6/latest/USD'
 
-# <--- hecho por claude code: Calculadoras es SOLO para el superusuario (nadie más).
+# <--- hecho por claude code: Calculadoras es SOLO para el superusuario (nadie más)…
 solo_super = user_passes_test(lambda u: u.is_superuser, login_url='menu')
+# …salvo las 5 calculadoras de TIEMPO (sumar horas, entre dos horas, horas→días, fecha a fecha, minutos→horas),
+# que también las usa el grupo `calculadoras_tiempo` (30-sep-2026, pedido para yzavala). Divisas, MB→GB, IPs y
+# Lorem siguen siendo solo del superusuario.
+GRUPO_TIEMPO = 'calculadoras_tiempo'
 
 
-@solo_super
+def puede_tiempo(u):
+    return u.is_authenticated and (u.is_superuser or u.groups.filter(name=GRUPO_TIEMPO).exists())
+
+
+tiempo_o_super = user_passes_test(puede_tiempo, login_url='menu')
+
+
+@tiempo_o_super
 def dashboard(request):
     tasas = {t.moneda: t for t in TasaCambio.objects.all()}
-    return render(request, 'calculadoras/dashboard.html', {'tasas': tasas})
+    return render(request, 'calculadoras/dashboard.html', {'tasas': tasas, 'es_super': request.user.is_superuser})
 
 
 @solo_super
@@ -28,7 +39,7 @@ def divisas(request):
     })
 
 
-@solo_super
+@tiempo_o_super
 def tiempo(request):
     return render(request, 'calculadoras/tiempo.html', {})
 
@@ -43,7 +54,7 @@ TIEMPO_META = {
 }
 
 
-@solo_super
+@tiempo_o_super
 def tiempo_calc(request, calc):
     meta = TIEMPO_META.get(calc)
     if meta is None:

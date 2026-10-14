@@ -1,0 +1,51 @@
+{% extends 'reloj/base_reloj.html' %}
+{% load static %}
+{% load l10n %}
+{# <--- hecho por claude code (16-sep-2026): botón "Pruebas" del Reloj — mismos 4 tabs que Cálculo Compensatorio (parcial compartido); se mantiene como pantalla aparte porque faltan detalles por agregar #}
+{% block title %}Pruebas · Compensatorio{% endblock %}
+{% block page_pretitle %}Reloj · Pruebas{% endblock %}
+{% block page_title %}<i class="ti ti-flask me-2 text-teal"></i>Pruebas — compensatorio 47 min/día{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'reloj/css/compensatorio_calculo_list.css' %}?v=1">{% endblock %}
+
+{% block page_actions %}
+<div class="col-auto">
+  <a href="{% url 'reloj_dashboard' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i> Volver</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-3" id="pruebas-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptab-vac" type="button"><i class="ti ti-beach me-1 text-orange"></i>1 · Vacaciones</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Tiempo hecho y deuda</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-cierre" type="button"><i class="ti ti-calendar-check me-1 text-teal"></i>3 · Cierre</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-permisos" type="button"><i class="ti ti-license me-1 text-purple"></i>4 · Con 3 días de permiso <span class="badge bg-purple-lt text-purple ms-1">{{ con_permisos|length }}</span></button></li>
+  <li class="nav-item ms-auto"><span class="nav-link disabled text-muted">Año {{ anio_sel }} · hoy {{ hoy|date:"d/m/Y" }}</span></li>
+</ul>
+
+<div class="tab-content">
+{% include 'reloj/_compensatorio_pruebas_tabs.html' %}
+</div>
+
+{# <--- hecho por claude code (16-sep-2026): misma config y modales que Cálculo Compensatorio; el JS compartido los maneja #}
+<div id="compensatorio_calculo_list-config" hidden
+     data-v0="{{ csrf_token }}"
+     data-v1="{% url "reloj_compensatorio_emp_buscar" %}"
+     data-v2="{% url "reloj_compensatorio_mensual_add" %}"
+     data-v3="{% url "reloj_compensatorio_mensual_cell" %}"
+     data-v4="{% url "reloj_compensatorio_mensual_comentario" %}"
+     data-v5="{% url "reloj_compensatorio_mensual_detalle_get" %}"
+     data-v6="{% url "reloj_compensatorio_mensual_detalle_add" %}"
+     data-v7="{% url "reloj_compensatorio_instructor_add" %}"
+     data-v8="{{ can_edit|yesno:'true,false' }}"
+     data-v9="{{ can_edit_extra|yesno:'true,false' }}"
+     data-v10="{{ can_delete_extra|yesno:'true,false' }}"
+     data-v11="{{ request.user.is_superuser|yesno:'true,false' }}"
+     data-v12="{{ anio_sel }}"
+     data-v13="{{ puede_tomado|yesno:'true,false' }}"></div>
+{% include 'reloj/_compensatorio_modales.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=38"></script>
+<script src="{% static 'reloj/js/compensatorio_pruebas.js' %}?v=6"></script>
+{% endblock %}

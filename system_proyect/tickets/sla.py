@@ -57,6 +57,24 @@ def sumar_horas_laborales(inicio, horas):
     return cur
 
 
+def en_horario_laboral(dt=None):
+    """<--- hecho por claude code: True si dt (o ahora) cae en la ventana laboral L-V 07:00-16:00."""
+    d = _local(dt) if dt is not None else _local(timezone.now())
+    return _es_laborable(d) and (_LAB_INI <= d.time() < _LAB_FIN)
+
+
+def proxima_apertura(dt=None):
+    """Datetime de la próxima apertura laboral (07:00 del próximo día hábil), o el mismo día
+    si aún no abre. None si ya está dentro del horario."""
+    d = _local(dt) if dt is not None else _local(timezone.now())
+    if en_horario_laboral(d):
+        return None
+    # antes de abrir hoy (día hábil) → hoy 07:00
+    if _es_laborable(d) and d.time() < _LAB_INI:
+        return d.replace(hour=7, minute=0, second=0, microsecond=0)
+    return _siguiente_apertura(d)
+
+
 def minutos_laborales_entre(a, b):
     """Minutos de tiempo laboral entre a y b (0 si b <= a)."""
     a = _local(a)

@@ -162,3 +162,64 @@ class CompraHeaderForm(forms.Form):
     fecha = forms.DateField(widget=forms.DateInput(attrs={**_INPUT, 'type': 'date'}))
     documento = forms.CharField(required=False, max_length=60, widget=forms.TextInput(attrs=_INPUT))
     observaciones = forms.CharField(required=False, widget=forms.Textarea(attrs={**_INPUT, 'rows': 2}))
+
+
+# ═══════════════════════ FASE 3 · Núcleo contable ═══════════════════════
+# <--- hecho por claude code (23-sep-2026): formularios del catálogo, centros de costo y encabezado de partida.
+from .models import CuentaContable, CentroCosto, Asiento, TipoAsiento   # noqa: E402
+
+
+class CuentaContableForm(forms.ModelForm):
+    class Meta:
+        model = CuentaContable
+        fields = ['codigo', 'nombre', 'tipo', 'naturaleza', 'padre', 'es_detalle', 'descripcion', 'activo']
+        widgets = {
+            'codigo': forms.TextInput(attrs={**_INPUT, 'placeholder': 'ej. 1.1.01.003'}),
+            'nombre': forms.TextInput(attrs=_INPUT),
+            'tipo': forms.Select(attrs=_SELECT),
+            'naturaleza': forms.Select(attrs=_SELECT),
+            'padre': forms.Select(attrs=_SELECT),
+            'es_detalle': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'descripcion': forms.TextInput(attrs=_INPUT),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        qs = CuentaContable.objects.filter(es_detalle=False)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        self.fields['padre'].queryset = qs
+        self.fields['padre'].required = False
+        self.fields['naturaleza'].required = False
+
+    def clean(self):
+        d = super().clean()
+        padre, tipo = d.get('padre'), d.get('tipo')
+        if padre and tipo and padre.tipo != tipo:
+            self.add_error('padre', f'La cuenta padre es de tipo {padre.get_tipo_display()}; la hija debe ser del mismo tipo.')
+        if self.instance.pk and not d.get('es_detalle') and self.instance.movimientos.exists():
+            self.add_error('es_detalle', 'Esta cuenta ya tiene movimientos: no puede pasar a cuenta de agrupación.')
+        return d
+
+
+class CentroCostoForm(forms.ModelForm):
+    class Meta:
+        model = CentroCosto
+        fields = ['codigo', 'nombre', 'descripcion', 'activo']
+        widgets = {'codigo': forms.TextInput(attrs={**_INPUT, 'placeholder': 'ej. CFP, COL, BL, PROY-01'}),
+                   'nombre': forms.TextInput(attrs=_INPUT), 'descripcion': forms.TextInput(attrs=_INPUT),
+                   'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'})}
+
+
+class AsientoHeaderForm(forms.ModelForm):
+    """Encabezado de la partida; las líneas llegan por POST (arrays) y las valida contable.validar_lineas."""
+    class Meta:
+        model = Asiento
+        fields = ['fecha', 'tipo', 'descripcion', 'referencia']
+        widgets = {
+            'fecha': forms.DateInput(attrs={**_INPUT, 'type': 'date'}, format='%Y-%m-%d'),
+            'tipo': forms.Select(attrs=_SELECT),
+            'descripcion': forms.TextInput(attrs={**_INPUT, 'placeholder': 'Concepto de la partida'}),
+            'referencia': forms.TextInput(attrs={**_INPUT, 'placeholder': 'Nº factura, recibo, cheque… (opcional)'}),
+        }

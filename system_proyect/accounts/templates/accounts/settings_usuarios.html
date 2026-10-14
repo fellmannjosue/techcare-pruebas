@@ -85,6 +85,7 @@
             <td class="text-center">
               <a href="{% url 'settings_usuario_editar' u.pk %}"
                  class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              {% if request.user.is_superuser and not u.is_superuser and u.is_active %}<a href="{% url 'suplantar' u.pk %}" class="btn btn-sm btn-ghost-warning" title="Iniciar sesión como este usuario"><i class="ti ti-login-2"></i></a>{% endif %}
               {% if u != request.user %}
               <button class="btn btn-sm btn-ghost-danger btn-del-user"
                       data-pk="{{ u.pk }}"
@@ -186,6 +187,7 @@
             <td class="text-center">
               <a href="{% url 'settings_usuario_editar' u.pk %}"
                  class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              {% if request.user.is_superuser and not u.is_superuser and u.is_active %}<a href="{% url 'suplantar' u.pk %}" class="btn btn-sm btn-ghost-warning" title="Iniciar sesión como este usuario"><i class="ti ti-login-2"></i></a>{% endif %}
               {% if u != request.user %}
               <button class="btn btn-sm btn-ghost-danger btn-del-user"
                       data-pk="{{ u.pk }}"
@@ -282,6 +284,7 @@
             <td class="text-center">
               <a href="{% url 'settings_usuario_editar' u.pk %}"
                  class="btn btn-sm btn-ghost-primary" title="Editar"><i class="ti ti-edit"></i></a>
+              {% if request.user.is_superuser and not u.is_superuser and u.is_active %}<a href="{% url 'suplantar' u.pk %}" class="btn btn-sm btn-ghost-warning" title="Iniciar sesión como este usuario"><i class="ti ti-login-2"></i></a>{% endif %}
               <button class="btn btn-sm btn-ghost-danger btn-del-user"
                       data-pk="{{ u.pk }}"
                       data-nombre="{{ u.get_full_name|default:u.username }}">

@@ -1,8 +1,10 @@
+import datetime
 import os
 import textwrap
 from io import BytesIO
 from PIL import Image as PILImage
 
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles import finders
@@ -70,6 +72,25 @@ def _siguiente_record_id_control():
     return f"{prefix}{n+1:03d}"
 
 
+# <--- hecho por claude code (17-sep-2026): prefijos de Entrega / Recogida de equipo
+PREFIJO_ENTREGA  = 'ANAMAESENT-'
+PREFIJO_RECOGIDA = 'ANAMAESREC-'
+PREFIJO_CASO     = 'ANAMAESCE-'    # <--- hecho por claude code (28-sep-2026): recogida por caso especial
+PREFIJO_CAMBIO   = 'ANAMAESCAM-'   # <--- hecho por claude code (28-sep-2026): cambio de equipo
+PREFIJO_REASIG   = 'ANAMAESREA-'   # <--- hecho por claude code (12-oct-2026): reasignación de computadora (maestro A → maestro B)
+TIPOS_PORTADOR_ACTUAL = ('control', 'inspeccion', 'entrega', 'recogida', 'caso_especial', 'cambio_equipo')   # maestro/grado SIEMPRE del inventario
+
+
+def _siguiente_record_id_prefijo(prefix):
+    ultimo = (MaintenanceRecord.objects.filter(record_id__startswith=prefix)
+              .order_by('-record_id').values_list('record_id', flat=True).first())
+    try:
+        n = int(ultimo[len(prefix):]) if ultimo else 0
+    except ValueError:
+        n = 0
+    return f"{prefix}{n+1:03d}"
+
+
 # <--- hecho por claude code: ID propio para Inspección (ANAMAESINSP-001)
 def _siguiente_record_id_inspeccion():
     prefix = 'ANAMAESINSP-'
@@ -101,8 +122,147 @@ def _resolver_post_tipo_falla(request):
     return post
 
 
+# <--- hecho por claude code (28-sep-2026): una PÁGINA por tipo de ficha (antes 7 pestañas en un dashboard).
+FICHAS_TIPOS = {   # slug de URL → (tipo_equipo, etiqueta, plantilla)
+    'computadoras':     ('computadora',   'Computadoras',       'mantenimiento/fichas_computadoras.html'),
+    'impresoras':       ('impresora',     'Impresoras',         'mantenimiento/fichas_impresoras.html'),
+    'control':          ('control',       'Control de equipos', 'mantenimiento/fichas_control.html'),
+    'inspecciones':     ('inspeccion',    'Inspecciones',       'mantenimiento/fichas_inspecciones.html'),
+    'entregas':         ('entrega',       'Entregas',           'mantenimiento/fichas_entregas.html'),
+    'recogidas':        ('recogida',      'Recogidas',          'mantenimiento/fichas_recogidas.html'),
+    'casos-especiales': ('caso_especial', 'Casos especiales',   'mantenimiento/fichas_casos_especiales.html'),
+    'cambios-equipo':   ('cambio_equipo', 'Cambios de equipo',   'mantenimiento/fichas_cambios_equipo.html'),
+    'reasignaciones':   ('reasignacion',  'Reasignaciones',      'mantenimiento/fichas_reasignaciones.html'),   # <--- hecho por claude code (12-oct-2026)
+}
+SLUG_POR_TIPO = {v[0]: k for k, v in FICHAS_TIPOS.items()}
+
+
+def _redirect_fichas(tipo_equipo):
+    """Vuelve a la página del tipo de ficha (computadora → /mantenimiento/computadoras/)."""
+    return redirect('mantenimiento:fichas', tipo=SLUG_POR_TIPO.get(tipo_equipo, 'computadoras'))
+
+
+def _aplicar_cambio_en_inventario(cam, obs_nueva=''):
+    """<--- hecho por claude code (28-sep-2026): el Asset ID se queda con el maestro; se actualiza el HARDWARE de la
+    computadora (modelo, serie, IP) con los datos del equipo nuevo. El historial de Computadora conserva lo anterior
+    y en observaciones queda la nota con el número de ficha."""
+    comp = cam.computadora
+    if not comp:
+        return
+    fecha = cam.date.strftime('%d/%m/%Y') if cam.date else ''
+    ant = ' · '.join(x for x in [cam.modelo_anterior, ('Serie ' + cam.serie_anterior) if cam.serie_anterior else '', ('IP ' + cam.ip_anterior) if cam.ip_anterior else ''] if x) or '—'
+    nue = ' · '.join(x for x in [cam.modelo_nuevo, ('Serie ' + cam.serie_nuevo) if cam.serie_nuevo else '', ('IP ' + cam.ip_nuevo) if cam.ip_nuevo else ''] if x) or '—'
+    nota = f'[{cam.record_id} · {fecha}] Cambio de equipo: {ant} → {nue}.'
+    if cam.modelo_nuevo:
+        comp.modelo = cam.modelo_nuevo
+    comp.serie = cam.serie_nuevo
+    if cam.ip_nuevo:
+        comp.ip = cam.ip_nuevo
+    comp.observaciones = '\n'.join(x for x in [(comp.observaciones or '').strip(), (obs_nueva or '').strip(), nota] if x)
+    comp.save(update_fields=['modelo', 'serie', 'ip', 'observaciones'])
+
+
+def _aplicar_reasignacion_en_inventario(rea):
+    """<--- hecho por claude code (12-oct-2026): la MISMA computadora (Asset ID y hardware) pasa del maestro A al B.
+    Se actualizan asignado/área/grado/edificio; el historial de Computadora conserva los datos anteriores y en
+    observaciones queda la nota con el número de ficha."""
+    comp = rea.computadora
+    if not comp:
+        return
+    fecha = rea.date.strftime('%d/%m/%Y') if rea.date else ''
+    nota = (f'[{rea.record_id} · {fecha}] Reasignación: {rea.asignado_anterior or "—"} ({rea.grado_anterior or "—"}) '
+            f'→ {rea.asignado_nuevo} ({rea.grado_nuevo or rea.grado_anterior or "—"}).')
+    comp.asignado_a = rea.asignado_nuevo
+    if rea.area_nueva:
+        comp.area = rea.area_nueva
+    if rea.grado_nuevo:
+        comp.grado = rea.grado_nuevo
+    if rea.edificio_nuevo:
+        comp.edificio = rea.edificio_nuevo
+    comp.observaciones = '\n'.join(x for x in [(comp.observaciones or '').strip(), nota] if x)
+    comp.save(update_fields=['asignado_a', 'area', 'grado', 'edificio', 'observaciones'])
+
+
+def _crear_derivados_del_control(request, record, messages):
+    """<--- hecho por claude code (28-sep-2026): un CONTROL con "cambio de equipo" / "caso especial" crea a la vez la ficha
+    derivada (usado al crear Y al editar el control). Un control admite como máximo UNA de cada; si ya existe, no se duplica."""
+    if record.tipo_equipo != 'control':
+        return
+    if request.POST.get('cambio_equipo') and (record.modelo_nuevo or record.serie_nuevo) and record.computadora_id:
+        if record.casos_especiales.filter(tipo_equipo='cambio_equipo').exists():
+            messages.info(request, f'El control {record.record_id} ya tiene un cambio de equipo registrado.')
+        else:
+            comp = record.computadora
+            cam = MaintenanceRecord(
+                tipo_equipo='cambio_equipo', record_id=_siguiente_record_id_prefijo(PREFIJO_CAMBIO),
+                computadora=comp, model=comp.modelo or '', serie=comp.serie or '',
+                modelo_anterior=comp.modelo or '', serie_anterior=comp.serie or '', ip_anterior=comp.ip or '',
+                modelo_nuevo=record.modelo_nuevo, serie_nuevo=record.serie_nuevo, ip_nuevo=record.ip_nuevo,
+                teacher_name=record.teacher_name, grade=record.grade,
+                control_origen=record, obs_tecnico=record.obs_tecnico, firma_nombre=record.teacher_name or '',
+                date=record.date, status='Completado', creado_por=getattr(record, 'creado_por', None))
+            cam.save()
+            for f in record.fotos.all():
+                FotoMantenimiento.objects.create(registro=cam, imagen=f.imagen, orden=f.orden)
+            _aplicar_cambio_en_inventario(cam, request.POST.get('obs_equipo_nuevo', ''))
+            messages.success(request, f'Cambio de equipo {cam.record_id} creado junto con el control {record.record_id}. '
+                                      f'Inventario actualizado: {comp.asset_id} ahora es {cam.modelo_nuevo or cam.serie_nuevo}.')
+        MaintenanceRecord.objects.filter(pk=record.pk).update(modelo_anterior='', serie_anterior='', ip_anterior='',
+                                                             modelo_nuevo='', serie_nuevo='', ip_nuevo='')
+    # <--- hecho por claude code (12-oct-2026): REASIGNACIÓN — la computadora del control pasa al maestro B
+    if request.POST.get('reasignacion') and (request.POST.get('asignado_nuevo') or '').strip() and record.computadora_id:
+        if record.casos_especiales.filter(tipo_equipo='reasignacion').exists():
+            messages.info(request, f'El control {record.record_id} ya tiene una reasignación registrada.')
+        else:
+            comp = record.computadora
+            P = request.POST
+            rea = MaintenanceRecord(
+                tipo_equipo='reasignacion', record_id=_siguiente_record_id_prefijo(PREFIJO_REASIG),
+                computadora=comp, model=comp.modelo or '', serie=comp.serie or '',
+                asignado_anterior=comp.asignado_a or '', area_anterior=comp.area or '',
+                grado_anterior=comp.grado or '', edificio_anterior=comp.edificio or '',
+                asignado_nuevo=P.get('asignado_nuevo', '').strip()[:150],
+                area_nueva=(P.get('area_nueva') or '').strip()[:100] or (comp.area or ''),
+                grado_nuevo=(P.get('grado_nuevo') or '').strip()[:50] or (comp.grado or ''),
+                edificio_nuevo=(P.get('edificio_nuevo') or '').strip()[:100] or (comp.edificio or ''),
+                teacher_name=P.get('asignado_nuevo', '').strip()[:150],
+                grade=(P.get('grado_nuevo') or '').strip()[:50] or (comp.grado or ''),
+                control_origen=record, obs_tecnico=record.obs_tecnico, firma_nombre=P.get('asignado_nuevo', '').strip()[:150],
+                date=record.date, status='Completado', creado_por=getattr(record, 'creado_por', None))
+            rea.save()
+            for f in record.fotos.all():
+                FotoMantenimiento.objects.create(registro=rea, imagen=f.imagen, orden=f.orden)
+            _aplicar_reasignacion_en_inventario(rea)
+            messages.success(request, f'Reasignación {rea.record_id} creada junto con el control {record.record_id}. '
+                                      f'Inventario actualizado: {comp.asset_id} pasó de {rea.asignado_anterior or "—"} a {rea.asignado_nuevo}.')
+    if request.POST.get('caso_especial'):
+        if record.casos_especiales.filter(tipo_equipo='caso_especial').exists():
+            messages.info(request, f'El control {record.record_id} ya tiene una recogida por caso especial.')
+        else:
+            ce = MaintenanceRecord(
+                tipo_equipo='caso_especial', record_id=_siguiente_record_id_prefijo(PREFIJO_CASO),
+                computadora=record.computadora, model=record.model, serie=record.serie,
+                teacher_name=record.teacher_name, grade=record.grade, control_origen=record,
+                ent_equipo=record.ent_equipo, ent_mouse_teclado=record.ent_mouse_teclado,
+                ent_televisor=record.ent_televisor, ent_control_tv=record.ent_control_tv, televisor=record.televisor,
+                firma_nombre=record.firma_nombre, fecha_hora=record.fecha_hora, obs_tecnico=record.obs_tecnico,
+                date=(record.fecha_hora.date() if record.fecha_hora else record.date), status='Completado',
+                creado_por=getattr(record, 'creado_por', None))
+            ce.save()
+            for f in record.fotos.all():
+                FotoMantenimiento.objects.create(registro=ce, imagen=f.imagen, orden=f.orden)
+            messages.success(request, f'Recogida por caso especial {ce.record_id} creada junto con el control {record.record_id}.')
+        # el control conserva su ficha limpia: el checklist vive en la recogida
+        MaintenanceRecord.objects.filter(pk=record.pk).update(ent_equipo=False, ent_mouse_teclado=False, ent_televisor=False,
+                                                             ent_control_tv=False, televisor=None, firma_nombre='', fecha_hora=None)
+
+
 @login_required
-def maintenance_dashboard(request):
+def maintenance_dashboard(request, tipo='computadoras'):
+    from django.http import Http404
+    if tipo not in FICHAS_TIPOS:
+        raise Http404('Tipo de ficha no disponible')
+    tipo_equipo, tipo_label, plantilla = FICHAS_TIPOS[tipo]
     if request.method == 'POST':
         form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES)
         if form.is_valid():
@@ -120,12 +280,16 @@ def maintenance_dashboard(request):
                 # <--- hecho por claude code: control de equipo lleva su propia numeración
                 record.record_id = (_siguiente_record_id_control() if record.tipo_equipo == 'control'
                                     else _siguiente_record_id_inspeccion() if record.tipo_equipo == 'inspeccion'
+                                    else _siguiente_record_id_prefijo(PREFIJO_ENTREGA) if record.tipo_equipo == 'entrega'
+                                    else _siguiente_record_id_prefijo(PREFIJO_RECOGIDA) if record.tipo_equipo == 'recogida'
+                                    else _siguiente_record_id_prefijo(PREFIJO_CASO) if record.tipo_equipo == 'caso_especial'
+                                    else _siguiente_record_id_prefijo(PREFIJO_CAMBIO) if record.tipo_equipo == 'cambio_equipo'
                                     else _siguiente_record_id())
                 comp = record.computadora
                 if comp:
                     # <--- hecho por claude code: el CONTROL/INSPECCIÓN evalúa al portador ACTUAL del
                     # equipo, así que maestro/grado se toman SIEMPRE del inventario (no del formulario).
-                    if record.tipo_equipo in ('control', 'inspeccion'):
+                    if record.tipo_equipo in TIPOS_PORTADOR_ACTUAL:
                         record.teacher_name = comp.asignado_a or ''
                         record.grade = comp.grado or ''
                     else:
@@ -151,6 +315,9 @@ def maintenance_dashboard(request):
                 imp.save(update_fields=['nivel_tinta', 'ultima_vez_llenado'])
             from django.contrib import messages
             messages.success(request, f'Registro {record.record_id} guardado correctamente.')
+            # <--- hecho por claude code (28-sep-2026): un CONTROL con "caso especial" crea a la vez la recogida
+            # (tipo caso_especial) con el checklist, firma, fecha/hora y fotos capturados en el mismo formulario.
+            _crear_derivados_del_control(request, record, messages)
         else:
             from django.contrib import messages
             errores = '; '.join(
@@ -159,12 +326,13 @@ def maintenance_dashboard(request):
                 if field != '__all__'
             )
             messages.error(request, f'Error al guardar: {errores or "Verifica los campos requeridos."}')
-        return redirect('mantenimiento:maintenance_dashboard')
+            return _redirect_fichas(request.POST.get('tipo_equipo') or tipo_equipo)
+        return _redirect_fichas(record.tipo_equipo)
 
     form = MaintenanceRecordForm()
 
-    records = (MaintenanceRecord.objects.select_related('computadora', 'impresora', 'tipo_falla')
-               .prefetch_related('fotos').order_by('-date'))
+    records = (MaintenanceRecord.objects.select_related('computadora', 'impresora', 'tipo_falla', 'televisor', 'control_origen')
+               .prefetch_related('fotos', 'casos_especiales').order_by('-date'))
 
     import json
     # Solo computadoras de general (excluye laboratorios)
@@ -176,6 +344,9 @@ def maintenance_dashboard(request):
             'asignado': c.asignado_a or '',
             'area':     c.area or '',
             'grado':    c.grado or '',
+            # <--- hecho por claude code (28-sep-2026): para el modal "Equipo nuevo" del cambio de equipo
+            'asset':    c.asset_id, 'ip': c.ip or '', 'edificio': c.edificio or '',
+            'fecha':    c.fecha_instalado.strftime('%Y-%m-%d') if c.fecha_instalado else '',
         }
         for c in comps_qs
     })
@@ -197,13 +368,51 @@ def maintenance_dashboard(request):
     records_imp  = [r for r in records if r.tipo_equipo == 'impresora']
     records_ctrl = [r for r in records if r.tipo_equipo == 'control']
     records_insp = [r for r in records if r.tipo_equipo == 'inspeccion']
-    return render(request, 'mantenimiento/maintenance_dashboard.html', {
+    # <--- hecho por claude code (17-sep-2026): Entrega / Recogida de equipo
+    records_ent  = [r for r in records if r.tipo_equipo == 'entrega']
+    records_rec  = [r for r in records if r.tipo_equipo == 'recogida']
+    records_ce   = [r for r in records if r.tipo_equipo == 'caso_especial']   # <--- hecho por claude code (28-sep-2026)
+    records_cam  = [r for r in records if r.tipo_equipo == 'cambio_equipo']
+    records_rea  = [r for r in records if r.tipo_equipo == 'reasignacion']   # <--- hecho por claude code (12-oct-2026)
+    from inventario.models import Televisor
+    # <--- hecho por claude code (28-sep-2026): cada página es INDIVIDUAL: KPIs y "Nuevo" solo de su tipo
+    regs_tipo = [r for r in records if r.tipo_equipo == tipo_equipo]
+    iconos = {'computadora': 'ti-device-desktop', 'impresora': 'ti-printer', 'control': 'ti-clipboard-check', 'inspeccion': 'ti-zoom-check',
+              'entrega': 'ti-package-export', 'recogida': 'ti-package-import', 'caso_especial': 'ti-alert-octagon', 'cambio_equipo': 'ti-replace', 'reasignacion': 'ti-arrows-exchange'}
+    colores = {'computadora': '#206bc4', 'impresora': '#f76707', 'control': '#0ca678', 'inspeccion': '#f59f00',
+               'entrega': '#2fb344', 'recogida': '#ae3ec9', 'caso_especial': '#d6336c', 'cambio_equipo': '#4263eb', 'reasignacion': '#0891b2'}
+    return render(request, plantilla, {
+        'tipo_actual':       tipo,
+        'tipo_label':        tipo_label,
+        'tipo_equipo':       tipo_equipo,
+        'tipo_icon':         iconos.get(tipo_equipo, 'ti-tool'),
+        'tipo_color':        colores.get(tipo_equipo, '#206bc4'),
+        'crea_desde_control': tipo_equipo in ('caso_especial', 'cambio_equipo', 'reasignacion'),
+        'kpi_total':         len(regs_tipo),
+        'kpi_pendiente':     sum(1 for r in regs_tipo if r.status == 'Pendiente'),
+        'kpi_proceso':       sum(1 for r in regs_tipo if r.status == 'En Proceso'),
+        'kpi_completado':    sum(1 for r in regs_tipo if r.status == 'Completado'),
+        'kpi_mes':           sum(1 for r in regs_tipo if r.date and r.date >= datetime.date.today().replace(day=1)),
         'form':              form,
         'records':           records,
         'records_comp':      records_comp,
         'records_imp':       records_imp,
         'records_ctrl':      records_ctrl,
         'records_insp':      records_insp,
+        'records_ent':       records_ent,
+        'records_rec':       records_rec,
+        'records_ce':        records_ce,
+        'records_cam':       records_cam,
+        'records_rea':       records_rea,
+        'next_record_id_ce': _siguiente_record_id_prefijo(PREFIJO_CASO),
+        'televisores':       Televisor.objects.order_by('asset_id'),
+        # <--- hecho por claude code (17-sep-2026): la firma de entrega/recogida se ELIGE de la lista de maestros
+        # (asignados del inventario + catálogo de Mantenimiento), no se escribe a mano.
+        'firmantes':         sorted({(x or '').strip() for x in list(comps_qs.values_list('asignado_a', flat=True))
+                                     + list(MaestroMantenimiento.objects.values_list('nombre', flat=True)) if (x or '').strip()},
+                                    key=lambda x: x.lower()),
+        'next_record_id_ent': _siguiente_record_id_prefijo(PREFIJO_ENTREGA),
+        'next_record_id_rec': _siguiente_record_id_prefijo(PREFIJO_RECOGIDA),
         'site_url':          SITE_URL,
         'total':             records.count(),
         'pendiente':         records.filter(status='Pendiente').count(),
@@ -242,6 +451,11 @@ def download_maintenance_pdf(request, record_id):
         topMargin=2*cm, bottomMargin=2*cm,
         title=(f"Ficha de Control de Equipo - {record.record_id}" if record.es_control
                else f"Ficha de Inspección - {record.record_id}" if record.es_inspeccion
+               else f"Ficha de Entrega de Equipo - {record.record_id}" if record.es_entrega
+               else f"Ficha de Recogida de Equipo - {record.record_id}" if record.es_recogida
+               else f"Ficha de Recogida por Caso Especial - {record.record_id}" if record.es_caso_especial
+               else f"Ficha de Cambio de Equipo - {record.record_id}" if record.es_cambio
+               else f"Ficha de Reasignación de Computadora - {record.record_id}" if record.es_reasignacion
                else f"Ficha de Mantenimiento - {record.record_id}"),
     )
 
@@ -250,7 +464,7 @@ def download_maintenance_pdf(request, record_id):
     GRAY_BG = colors.HexColor("#f5f5f5")
     GRAY_LT = colors.HexColor("#eeeeee")
 
-    st_title = ParagraphStyle("title", fontSize=16, fontName="Helvetica-Bold",
+    st_title = ParagraphStyle("title", fontSize=16, leading=19, fontName="Helvetica-Bold",   # <--- hecho por claude code (17-sep-2026): leading para que no se monte sobre el subtítulo
                                textColor=ORANGE, spaceAfter=2)
     st_sub   = ParagraphStyle("sub",   fontSize=9,  fontName="Helvetica",
                                textColor=colors.gray, spaceAfter=6)
@@ -270,6 +484,11 @@ def download_maintenance_pdf(request, record_id):
         [
             Paragraph("Ficha de Control de Equipo" if record.es_control
                       else "Ficha de Inspección del Espacio de Trabajo" if record.es_inspeccion
+                      else "Ficha de Entrega de Equipo" if record.es_entrega
+                      else "Ficha de Recogida de Equipo" if record.es_recogida
+                      else "Ficha de Recogida por Caso Especial" if record.es_caso_especial
+                      else "Ficha de Cambio de Equipo" if record.es_cambio
+                      else "Ficha de Reasignación de Computadora" if record.es_reasignacion
                       else "Ficha de Mantenimiento de Equipo", st_title),
             Paragraph("Asociación Nuevo Amanecer – Sistema TechCare", st_sub),
         ],
@@ -352,11 +571,43 @@ def download_maintenance_pdf(request, record_id):
     # ── Sección: Diagnóstico ──────────────────────────────────────
     story.append(_st("Evaluación del Equipo" if record.es_control
                      else "Inspección del Espacio de Trabajo" if record.es_inspeccion
+                     else "Equipo que se entrega al usuario" if record.es_entrega
+                     else "Equipo que recibe Soporte Técnico" if record.es_recogida
+                     else "Equipo que recibe Soporte Técnico (caso especial)" if record.es_caso_especial
+                     else "Cambio de equipo" if record.es_cambio
+                     else "Reasignación de computadora" if record.es_reasignacion
                      else "Diagnóstico y Solución"))
     story.append(Spacer(1, 0.1*cm))
 
     # <--- hecho por claude code: diagnóstico según tipo (computadora / impresora / control)
-    if record.es_inspeccion:
+    if record.es_reasignacion:
+        # <--- hecho por claude code (12-oct-2026): reasignación — maestro A → maestro B (misma computadora)
+        def _asig(n, g, a, e):
+            return ' · '.join(x for x in [n or '', ('Grado ' + g) if g else '', a or '', ('Edificio ' + e) if e else ''] if x) or '—'
+        comp = record.computadora
+        diag_data = [field_row("Computadora (no cambia):", ' · '.join(x for x in [comp.asset_id if comp else '', record.model or '', ('Serie ' + record.serie) if record.serie else ''] if x) or '—'),
+                     field_row("Asignada antes a:", _asig(record.asignado_anterior, record.grado_anterior, record.area_anterior, record.edificio_anterior)),
+                     field_row("Se reasigna a:", _asig(record.asignado_nuevo, record.grado_nuevo, record.area_nueva, record.edificio_nuevo)),
+                     field_row("Comentario del técnico:", record.obs_tecnico or "—"),
+                     field_row("Originado en el control:", record.control_origen.record_id if record.control_origen else "—")]
+    elif record.es_cambio:
+        # <--- hecho por claude code (28-sep-2026): cambio de equipo — anterior → nuevo
+        def _eq(m, s, ip):
+            return ' · '.join(x for x in [m or '', ('Serie ' + s) if s else '', ('IP ' + ip) if ip else ''] if x) or '—'
+        diag_data = [field_row("Asset ID (se conserva):", record.computadora.asset_id if record.computadora else '—'),
+                     field_row("Equipo anterior:", _eq(record.modelo_anterior, record.serie_anterior, record.ip_anterior)),
+                     field_row("Equipo nuevo:", _eq(record.modelo_nuevo, record.serie_nuevo, record.ip_nuevo)),
+                     field_row("Comentario del técnico:", record.obs_tecnico or "—"),
+                     field_row("Originado en el control:", record.control_origen.record_id if record.control_origen else "—")]
+    elif record.es_movimiento:
+        # <--- hecho por claude code (17-sep-2026): checklist de entrega/recogida (dice CUÁL equipo y CUÁL televisor)
+        diag_data = [field_row(lbl + ":", ("Sí" + (f" — {det}" if det else "")) if ok else "No")
+                     for lbl, ok, det in record.movimiento_respuestas]
+        diag_data.append(field_row("Fecha y hora:", record.fecha_hora.strftime('%d/%m/%Y %H:%M') if record.fecha_hora else "—"))
+        diag_data.append(field_row("Comentario del técnico:", record.obs_tecnico or "—"))   # <--- hecho por claude code (28-sep-2026)
+        if record.es_caso_especial:
+            diag_data.append(field_row("Originado en el control:", record.control_origen.record_id if record.control_origen else "—"))
+    elif record.es_inspeccion:
         diag_data = [field_row(lbl, "Sí" if ok else "No") for lbl, ok in record.inspeccion_respuestas]
     elif record.es_control:
         fallas = record.get_eval_fallas_display() or "—"
@@ -388,7 +639,7 @@ def download_maintenance_pdf(request, record_id):
             field_row("Solución aplicada:", record.solucion or "—"),
             field_row("Observaciones:",    record.observaciones or "—"),
         ]
-    diag_tbl = Table(diag_data, colWidths=([6.5*cm, 10.8*cm] if record.es_control or record.es_inspeccion
+    diag_tbl = Table(diag_data, colWidths=([6.5*cm, 10.8*cm] if record.es_control or record.es_inspeccion or record.es_movimiento or record.es_cambio or record.es_reasignacion
                                            else [4*cm, 13.3*cm]))
     diag_tbl.setStyle(TableStyle([
         ("FONTSIZE",    (0,0), (-1,-1), 9),
@@ -478,7 +729,29 @@ def download_maintenance_pdf(request, record_id):
                Paragraph("Firma del Maestro (Evidencia)", st_firma_lbl),
                Paragraph(sub_maestro, st_firma_sub)]
 
-    if record.es_inspeccion:
+    if record.es_movimiento or record.es_cambio or record.es_reasignacion:
+        # <--- hecho por claude code (17-sep-2026): firma = nombre ESCRITO por el usuario + Soporte Técnico (fija)
+        st_fija_m = ParagraphStyle("ffm", fontSize=12, fontName="Helvetica-BoldOblique",
+                                   textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
+        def _col_mov(nombre, titulo, sub):
+            return [Spacer(1, 1.2*cm), Paragraph(nombre or "—", st_fija_m), Spacer(1, 0.15*cm),
+                    HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
+                    Paragraph(titulo, st_firma_lbl), Paragraph(sub, st_firma_sub)]
+        n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
+        _fh = record.fecha_hora.strftime('%d/%m/%Y %H:%M') if record.fecha_hora else ''
+        if record.es_reasignacion:
+            # <--- hecho por claude code (12-oct-2026): entrega el maestro A, recibe el maestro B, soporte da fe
+            cols = [_col_mov(record.asignado_anterior, "Entrega (maestro anterior)", record.grado_anterior or ''),
+                    _col_mov(record.asignado_nuevo, "Recibe (maestro nuevo)", record.grado_nuevo or ''),
+                    _col_mov(n_t, "Soporte Técnico", c_t)]
+            firmas_tbl = Table([cols], colWidths=[5.77*cm, 5.77*cm, 5.76*cm])
+        elif record.es_entrega:
+            cols = [_col_mov(n_t, "Entrega", c_t), _col_mov(record.firma_nombre, "Recibe (firma del usuario)", _fh)]
+        else:
+            cols = [_col_mov(record.firma_nombre, "Entrega (firma del usuario)", _fh), _col_mov(n_t, "Recibe", c_t)]
+        if not record.es_reasignacion:
+            firmas_tbl = Table([cols], colWidths=[8.65*cm, 8.65*cm])
+    elif record.es_inspeccion:
         # <--- hecho por claude code: en la inspección la firma es el NOMBRE del asignado (impreso)
         st_fija_i = ParagraphStyle("ffi", fontSize=12, fontName="Helvetica-BoldOblique",
                                    textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
@@ -642,6 +915,185 @@ def control_reporte_pdf(request):
     return resp
 
 
+# ─────────────────────────────────────────────────────────────
+# <--- hecho por claude code (17-sep-2026): reporte consolidado (PDF y Excel) de las pestañas
+# Inspecciones, Entregas y Recogidas. Una sola definición de columnas por tipo para ambos formatos.
+# ─────────────────────────────────────────────────────────────
+_REPORTES_TIPO = {
+    'inspeccion': {'titulo': 'Reporte de Inspecciones del Espacio de Trabajo', 'archivo': 'inspecciones', 'color': '#f76707'},
+    'entrega':    {'titulo': 'Reporte de Entregas de Equipo',                  'archivo': 'entregas_de_equipo', 'color': '#2fb344'},
+    'recogida':   {'titulo': 'Reporte de Recogidas de Equipo',                 'archivo': 'recogidas_de_equipo', 'color': '#ae3ec9'},
+    'caso_especial': {'titulo': 'Reporte de Recogidas por Caso Especial',        'archivo': 'casos_especiales', 'color': '#d6336c'},   # <--- hecho por claude code (28-sep-2026)
+    'cambio_equipo': {'titulo': 'Reporte de Cambios de Equipo',                  'archivo': 'cambios_de_equipo', 'color': '#4263eb'},
+    'reasignacion':  {'titulo': 'Reporte de Reasignaciones de Computadora',      'archivo': 'reasignaciones', 'color': '#0891b2'},   # <--- hecho por claude code (12-oct-2026)
+}
+
+
+def _reporte_tipo_datos(tipo):
+    """(encabezados, filas, anchos_cm) del reporte de un tipo. Las filas son listas de texto plano."""
+    regs = (MaintenanceRecord.objects.filter(tipo_equipo=tipo)
+            .select_related('computadora', 'televisor', 'control_origen').order_by('id'))
+    sn = lambda b: 'Sí' if b else 'No'
+    base = lambda r: [r.record_id, (r.computadora.asset_id if r.computadora else '') or '—',
+                      r.model or (r.computadora.modelo if r.computadora else '') or '—',
+                      r.serie or (r.computadora.serie if r.computadora else '') or '—',
+                      r.teacher_name or '—', r.grade or '—']
+    if tipo == 'reasignacion':
+        # <--- hecho por claude code (12-oct-2026): maestro A → maestro B (misma computadora)
+        enc = ['ID', 'Control', 'Asset ID', 'Modelo', 'Serie', 'Asignado antes', 'Grado antes', 'Área antes', 'Reasignado a', 'Grado nuevo', 'Área nueva', 'Fecha', 'Comentario técnico']
+        anchos = [2.5, 2.5, 2.0, 2.2, 1.8, 2.6, 1.4, 1.6, 2.6, 1.4, 1.6, 1.5, 1.8]   # suma 25.5 cm
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+                  r.model or '—', r.serie or '—', r.asignado_anterior or '—', r.grado_anterior or '—', r.area_anterior or '—',
+                  r.asignado_nuevo or '—', r.grado_nuevo or '—', r.area_nueva or '—',
+                  r.date.strftime('%d/%m/%Y') if r.date else '—', r.obs_tecnico or '—'] for r in regs]
+    elif tipo == 'cambio_equipo':
+        # <--- hecho por claude code (28-sep-2026): equipo anterior → equipo nuevo
+        enc = ['ID', 'Control', 'Asset ID', 'Modelo anterior', 'Serie anterior', 'IP anterior', 'Modelo nuevo', 'Serie nueva', 'IP nueva', 'Maestro', 'Grado', 'Fecha', 'Comentario técnico']
+        anchos = [2.5, 2.5, 2.2, 2.4, 1.9, 1.7, 2.4, 1.9, 1.7, 2.3, 1.5, 1.5, 1.0]   # suma 25.5 cm
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+                  r.modelo_anterior or '—', r.serie_anterior or '—', r.ip_anterior or '—', r.modelo_nuevo or '—', r.serie_nuevo or '—', r.ip_nuevo or '—',
+                  r.teacher_name or '—', r.grade or '—', r.date.strftime('%d/%m/%Y') if r.date else '—', r.obs_tecnico or '—'] for r in regs]
+    elif tipo == 'inspeccion':
+        enc = ['ID', 'Equipo', 'Modelo', 'Serie', 'Maestro', 'Grado', 'Fecha',
+               'Espacio limpio', 'Espacio ordenado', 'Cables en orden', 'Sin comida/bebidas', 'Firma (asignado)']
+        anchos = [3.0, 2.4, 2.8, 2.2, 2.7, 1.9, 1.7, 1.5, 1.6, 1.5, 1.7, 2.5]   # suma 25.5 cm = ancho útil carta apaisada (ID ancho para que no se parta)
+        filas = [base(r) + [r.date.strftime('%d/%m/%Y') if r.date else '—', sn(r.insp_limpio), sn(r.insp_ordenado),
+                            sn(r.insp_cables), sn(r.insp_alimentos), r.teacher_name or '—'] for r in regs]
+    else:
+        verbo = 'Entregó' if tipo == 'entrega' else 'Recibió'
+        enc = ['ID', 'Equipo', 'Modelo', 'Serie', 'Asignado', 'Grado', 'Fecha y hora',
+               f'{verbo} equipo', 'Mouse y teclado', 'Televisor', 'Control TV + batería',
+               'Firma de quien recibe' if tipo == 'entrega' else 'Firma de quien entrega', 'Comentario técnico']
+        anchos = [2.8, 2.1, 2.3, 1.8, 2.3, 1.6, 2.0, 1.3, 1.3, 2.0, 1.5, 2.0, 2.5]   # suma 25.5 cm (28-sep-2026: + comentario)
+        def _tv(r):
+            if not r.ent_televisor:
+                return 'No'
+            return 'Sí' + (f' — {r.televisor.asset_id}' if r.televisor_id else '')
+        filas = [base(r) + [r.fecha_hora.strftime('%d/%m/%Y %H:%M') if r.fecha_hora else '—', sn(r.ent_equipo),
+                            sn(r.ent_mouse_teclado), _tv(r), sn(r.ent_control_tv), r.firma_nombre or '—', r.obs_tecnico or '—'] for r in regs]
+        if tipo == 'caso_especial':   # <--- hecho por claude code (28-sep-2026): + control de origen
+            enc = enc + ['Control origen']
+            anchos = [2.6, 2.0, 2.2, 1.7, 2.2, 1.5, 1.9, 1.2, 1.2, 1.9, 1.4, 1.9, 2.3, 1.5]   # suma 25.5 cm
+            filas = [f + [r.control_origen.record_id if r.control_origen else '—'] for f, r in zip(filas, regs)]
+    return enc, filas, anchos
+
+
+@login_required
+def reporte_tipo_pdf(request, tipo):
+    """PDF apaisado con todos los registros de la pestaña (inspeccion / entrega / recogida)."""
+    from django.http import Http404
+    if tipo not in _REPORTES_TIPO:
+        raise Http404('Tipo de reporte no disponible')
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+                                    HRFlowable, Image as RLImage)
+    from reportlab.lib.enums import TA_CENTER
+    from django.utils import timezone as _tz
+    meta = _REPORTES_TIPO[tipo]
+    enc, filas, anchos = _reporte_tipo_datos(tipo)
+    COLOR = colors.HexColor(meta['color']); GRAY_LT = colors.HexColor("#eeeeee")
+    st_title = ParagraphStyle("t", fontSize=15, leading=18, fontName="Helvetica-Bold", textColor=COLOR, spaceAfter=5)
+    st_sub   = ParagraphStyle("s", fontSize=9, fontName="Helvetica", textColor=colors.gray)
+    st_cell  = ParagraphStyle("c", fontSize=7.5, fontName="Helvetica", leading=9)
+    st_cellb = ParagraphStyle("cb", fontSize=7.5, fontName="Helvetica-Bold", leading=9, textColor=colors.white)
+    st_ctr   = ParagraphStyle("ct", fontSize=8, fontName="Helvetica-Oblique", textColor=colors.gray, alignment=TA_CENTER)
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(letter), leftMargin=1.2*cm, rightMargin=1.2*cm,
+                            topMargin=1.2*cm, bottomMargin=1.2*cm, title=meta['titulo'])
+    story = []
+    logo_path = finders.find('mantenimiento/img/ana.jpg')
+    head = Table([[RLImage(logo_path, width=1.9*cm, height=1.9*cm) if logo_path else "",
+                   [Paragraph(meta['titulo'], st_title),
+                    Paragraph("Asociación Nuevo Amanecer – Sistema TechCare · "
+                              f"Generado el {_tz.now().strftime('%d/%m/%Y %H:%M')}", st_sub)]]],   # USE_TZ=False -> now() naive
+                 colWidths=[2.3*cm, 22.3*cm])
+    head.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
+    story += [head, Spacer(1, 0.3*cm),
+              Paragraph(f"Total de registros: {len(filas)}", ParagraphStyle("r", fontSize=9, fontName="Helvetica-Bold")),
+              Spacer(1, 0.25*cm)]
+    if filas:
+        data = [[Paragraph(x, st_cellb) for x in enc]] + [[Paragraph(str(v), st_cell) for v in f] for f in filas]
+        tabla = Table(data, colWidths=[a*cm for a in anchos], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), COLOR),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, GRAY_LT]),
+            ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#cccccc")),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("LEFTPADDING", (0,0), (-1,-1), 4), ("RIGHTPADDING", (0,0), (-1,-1), 4),
+            ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ]))
+        story.append(tabla)
+    else:
+        story.append(Paragraph("No hay registros.", st_ctr))
+    # Firmas fijas al pie: Soporte Técnico y Auditoría
+    # <--- hecho por claude code (17-sep-2026): pedido del usuario — el reporte de inspecciones lleva la firma de la auditora
+    st_f  = ParagraphStyle("f", fontSize=11, fontName="Helvetica-BoldOblique",
+                           textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
+    st_fl = ParagraphStyle("fl", fontSize=8, fontName="Helvetica-Bold", alignment=TA_CENTER)
+    st_fs = ParagraphStyle("fs", fontSize=7, fontName="Helvetica-Oblique", textColor=colors.gray, alignment=TA_CENTER)
+    def _col_firma(nombre, titulo, cargo):
+        return [Paragraph(nombre, st_f), Spacer(1, 0.12*cm),
+                HRFlowable(width="70%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.08*cm),
+                Paragraph(titulo, st_fl), Paragraph(cargo, st_fs)]
+    n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
+    story.append(Spacer(1, 1.0*cm))
+    # (17-sep-2026) el usuario pidió la firma de Auditoría en los TRES reportes (inspecciones, entregas y recogidas)
+    n_a, c_a = MaintenanceRecord.FIRMA_AUDITORA_FIJA
+    firmas = Table([[_col_firma(n_t, "Firma del Técnico", c_t), _col_firma(n_a, "Firma de la Auditora", c_a)]],
+                   colWidths=[12.75*cm, 12.75*cm])
+    firmas.setStyle(TableStyle([("ALIGN", (0,0), (-1,-1), "CENTER")]))
+    story.append(firmas)
+    doc.build(story)
+    buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="{meta["archivo"]}.pdf"'
+    return resp
+
+
+@login_required
+def reporte_tipo_excel(request, tipo):
+    """Excel (.xlsx) con todos los registros de la pestaña (inspeccion / entrega / recogida)."""
+    from django.http import Http404
+    if tipo not in _REPORTES_TIPO:
+        raise Http404('Tipo de reporte no disponible')
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.utils import timezone as _tz
+    meta = _REPORTES_TIPO[tipo]
+    enc, filas, anchos = _reporte_tipo_datos(tipo)
+    wb = Workbook(); ws = wb.active; ws.title = meta['archivo'][:31]
+    ws.append([meta['titulo']]); ws.append([f"Asociación Nuevo Amanecer – TechCare · Generado el {_tz.now().strftime('%d/%m/%Y %H:%M')} · {len(filas)} registros"])
+    ws.append([])
+    ws.append(enc)
+    for f in filas:
+        ws.append(f)
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(enc))
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(enc))
+    ws['A1'].font = Font(bold=True, size=14, color=meta['color'].lstrip('#'))
+    ws['A2'].font = Font(italic=True, size=9, color='666666')
+    relleno = PatternFill('solid', fgColor=meta['color'].lstrip('#'))
+    borde = Border(*(Side(style='thin', color='CCCCCC'),) * 4)
+    for c in ws[4]:
+        c.font = Font(bold=True, color='FFFFFF'); c.fill = relleno; c.border = borde
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    for fila in ws.iter_rows(min_row=5, max_row=4 + len(filas)):
+        for c in fila:
+            c.border = borde; c.alignment = Alignment(vertical='top', wrap_text=True)
+    for i, a in enumerate(anchos, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = round(a * 6.2, 1)
+    ws.row_dimensions[4].height = 30
+    ws.freeze_panes = 'A5'
+    if filas:
+        ws.auto_filter.ref = f"A4:{get_column_letter(len(enc))}{4 + len(filas)}"
+    buf = BytesIO(); wb.save(buf); buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="{meta["archivo"]}.xlsx"'
+    return resp
+
+
 # <--- hecho por claude code: TODAS las fichas de Control de equipo en un solo PDF
 # (mismo estilo que la ficha individual: reutiliza download_maintenance_pdf por registro
 # y une las páginas con pypdfium2 — cero duplicación del diseño).
@@ -687,6 +1139,9 @@ def editar_mantenimiento(request, pk):
         # control) y envía los campos propios de cada uno; solo se preserva el tipo del registro.
         post = _resolver_post_tipo_falla(request).copy()
         post['tipo_equipo'] = record.tipo_equipo
+        # <--- hecho por claude code (28-sep-2026): el modal de edición no manda control_origen; se preserva
+        if record.control_origen_id:
+            post['control_origen'] = str(record.control_origen_id)
         form = MaintenanceRecordForm(post, request.FILES, instance=record)
         if form.is_valid():
             rec = form.save(commit=False)
@@ -700,7 +1155,7 @@ def editar_mantenimiento(request, pk):
             else:
                 comp = rec.computadora
                 if comp:
-                    if rec.tipo_equipo in ('control', 'inspeccion'):
+                    if rec.tipo_equipo in TIPOS_PORTADOR_ACTUAL:
                         # <--- hecho por claude code: sincroniza con el portador actual del inventario
                         rec.teacher_name = comp.asignado_a or ''
                         rec.grade = comp.grado or ''
@@ -718,6 +1173,7 @@ def editar_mantenimiento(request, pk):
             rec.save()
             for f in request.FILES.getlist('fotos'):
                 FotoMantenimiento.objects.create(registro=rec, imagen=f)
+            _crear_derivados_del_control(request, rec, msg)   # <--- hecho por claude code (28-sep-2026): switches también al editar
             if rec.tipo_equipo == 'impresora' and rec.impresora_id and rec.tipo_mant_impresora == 'llenado_tinta':
                 imp = rec.impresora
                 if rec.estado_tinta:
@@ -731,7 +1187,7 @@ def editar_mantenimiento(request, pk):
                 for field, errs in form.errors.items() if field != '__all__'
             )
             msg.error(request, f'Error al actualizar: {errores or "Verifica los campos requeridos."}')
-        return redirect('mantenimiento:maintenance_dashboard')
+        return _redirect_fichas(record.tipo_equipo)
 
     # GET → devuelve JSON con los datos del registro para llenar el modal
     import json as _json
@@ -744,6 +1200,22 @@ def editar_mantenimiento(request, pk):
         'obs_tecnico':  record.obs_tecnico, 'estado_equipo': record.estado_equipo,
         'insp_limpio': record.insp_limpio, 'insp_ordenado': record.insp_ordenado,
         'insp_cables': record.insp_cables, 'insp_alimentos': record.insp_alimentos,
+        # <--- hecho por claude code (17-sep-2026): Entrega / Recogida
+        'ent_equipo': record.ent_equipo, 'ent_mouse_teclado': record.ent_mouse_teclado,
+        'ent_televisor': record.ent_televisor, 'ent_control_tv': record.ent_control_tv,
+        'televisor': record.televisor_id, 'firma_nombre': record.firma_nombre,
+        'control_origen': record.control_origen_id, 'control_origen_rid': record.control_origen.record_id if record.control_origen_id else '',   # <--- hecho por claude code (28-sep-2026)
+        'computadora_rid': record.computadora.asset_id if record.computadora_id else '',
+        'modelo_anterior': record.modelo_anterior, 'serie_anterior': record.serie_anterior, 'ip_anterior': record.ip_anterior,
+        'modelo_nuevo': record.modelo_nuevo, 'serie_nuevo': record.serie_nuevo, 'ip_nuevo': record.ip_nuevo,
+        # <--- hecho por claude code (28-sep-2026): fichas derivadas de un control (para los switches del modal de edición)
+        'hijo_caso_especial': (record.casos_especiales.filter(tipo_equipo='caso_especial').values_list('record_id', flat=True).first() or '') if record.tipo_equipo == 'control' else '',
+        'hijo_cambio_equipo': (record.casos_especiales.filter(tipo_equipo='cambio_equipo').values_list('record_id', flat=True).first() or '') if record.tipo_equipo == 'control' else '',
+        # <--- hecho por claude code (12-oct-2026): reasignación
+        'hijo_reasignacion': (record.casos_especiales.filter(tipo_equipo='reasignacion').values_list('record_id', flat=True).first() or '') if record.tipo_equipo == 'control' else '',
+        'asignado_anterior': record.asignado_anterior, 'grado_anterior': record.grado_anterior, 'area_anterior': record.area_anterior, 'edificio_anterior': record.edificio_anterior,
+        'asignado_nuevo': record.asignado_nuevo, 'grado_nuevo': record.grado_nuevo, 'area_nueva': record.area_nueva, 'edificio_nuevo': record.edificio_nuevo,
+        'fecha_hora': record.fecha_hora.strftime('%Y-%m-%dT%H:%M') if record.fecha_hora else '',
         'computadora':  record.computadora_id,
         'impresora':    record.impresora_id, 'area': record.area,
         'tipo_mant_impresora': record.tipo_mant_impresora, 'estado_tinta': record.estado_tinta,
@@ -842,12 +1314,18 @@ def eliminar_mantenimiento(request, pk):
             nuevo_id = f"ANAMAESINSP-{i:03d}"
             if r.record_id != nuevo_id:
                 MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
+        # <--- hecho por claude code (17-sep-2026): Entrega / Recogida renumeran con su prefijo
+        for _tipo, _pref in (('entrega', PREFIJO_ENTREGA), ('recogida', PREFIJO_RECOGIDA), ('caso_especial', PREFIJO_CASO), ('cambio_equipo', PREFIJO_CAMBIO), ('reasignacion', PREFIJO_REASIG)):
+            for i, r in enumerate(MaintenanceRecord.objects.filter(tipo_equipo=_tipo).order_by('id'), start=1):
+                nuevo_id = f"{_pref}{i:03d}"
+                if r.record_id != nuevo_id:
+                    MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
         for i, r in enumerate(
-            MaintenanceRecord.objects.exclude(tipo_equipo__in=['impresora', 'control', 'inspeccion']).order_by('id'), start=1
+            MaintenanceRecord.objects.exclude(tipo_equipo__in=['impresora', 'control', 'inspeccion', 'entrega', 'recogida', 'caso_especial', 'cambio_equipo', 'reasignacion']).order_by('id'), start=1
         ):
             nuevo_id = f"ANAMAESCOMP{i:03d}"
             if r.record_id != nuevo_id:
                 MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
         msg.success(request, 'Registro eliminado y numeración reiniciada.')
-        return redirect('mantenimiento:maintenance_dashboard')
+        return _redirect_fichas(record.tipo_equipo)
     return JsonResponse({'error': 'Método no permitido'}, status=405)

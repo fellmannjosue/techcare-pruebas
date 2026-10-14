@@ -1,0 +1,23 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (23-sep-2026): centros de costo / fondos / proyectos #}
+{% block title %}Centros de costo{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Centros de costo{% endblock %}
+{% block page_actions %}{% if p_admin_cuentas %}<a href="{% url 'contabilidad:centro_nuevo' %}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nuevo centro</a>{% endif %}{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+{% with nav_c='centros' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+<p class="text-muted">Un centro de costo agrupa movimientos por <strong>programa, área o proyecto/donante</strong> (contabilidad por fondos). Es opcional en cada línea de partida y permite filtrar los reportes.</p>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-vcenter card-table">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Estado</th><th class="text-end">Movimientos</th><th></th></tr></thead>
+    <tbody>{% for c in lista %}
+      <tr><td class="font-monospace">{{ c.codigo }}</td><td class="fw-semibold">{{ c.nombre }}</td><td class="text-muted small">{{ c.descripcion }}</td>
+      <td>{% if c.activo %}<span class="badge bg-green-lt text-green">Activo</span>{% else %}<span class="badge bg-secondary-lt text-secondary">Inactivo</span>{% endif %}</td>
+      <td class="text-end">{{ c.n }}</td>
+      <td class="text-end">{% if p_admin_cuentas %}<a href="{% url 'contabilidad:centro_editar' c.pk %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-pencil"></i></a>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Sin centros de costo. Ejemplos: COL Colegio · BL Bilingüe · CFP · ADM Administración · PROY-01 Proyecto del donante X.</td></tr>{% endfor %}</tbody>
+  </table>
+</div></div></div>
+{% endblock %}

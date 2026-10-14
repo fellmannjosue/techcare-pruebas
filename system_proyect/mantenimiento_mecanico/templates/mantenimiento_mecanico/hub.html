@@ -1,0 +1,64 @@
+{% extends 'mantenimiento_mecanico/base_mm.html' %}
+{% load l10n %}
+{# <--- hecho por claude code (12-oct-2026): sub-dashboard de Mantenimiento Mecánico (combustibles y aceites + vehículos unidos) #}
+{% block title %}Mantenimiento Mecánico{% endblock %}
+{% block page_pretitle %}Combustibles, aceites y vehículos{% endblock %}
+{% block page_title %}<i class="ti ti-engine me-2"></i>Mantenimiento Mecánico{% endblock %}
+{% block back_button %}<a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Panel Principal</a>{% endblock %}
+{% block page_actions %}
+{% if ver_veh and puede_registrar_veh %}<a href="{% url 'vehiculos:nuevo' %}" class="btn btn-sm"><i class="ti ti-car me-1"></i>Registrar vehículo</a>{% endif %}
+{% if ver_insumos %}<a href="{% url 'mantenimiento_mecanico:pagina' 'diesel' %}" class="btn btn-sm btn-primary"><i class="ti ti-gas-station me-1"></i>Cargar diésel</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if ver_insumos %}
+<section class="mmh-sec">
+  <div class="mmh-sec-head">
+    <h2><i class="ti ti-droplet-filled"></i>Combustibles y aceites</h2>
+    {% if n_bajos %}<span class="badge bg-red-lt text-red">{{ n_bajos }} con saldo bajo</span>{% endif %}
+    <div class="mmh-sec-act btn-list">
+      <a href="{% url 'mantenimiento_mecanico:reporte_general' 'pdf' %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf me-1"></i>Reporte general</a>
+      <a href="{% url 'mantenimiento_mecanico:reporte_general' 'xlsx' %}" class="btn btn-sm btn-outline-success"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+    </div>
+  </div>
+  <div class="mmh-grid">
+    {% for t in tiles_comb %}{% include 'mantenimiento_mecanico/_hub_tile.html' %}{% endfor %}
+    {% for t in tiles_aceite %}{% include 'mantenimiento_mecanico/_hub_tile.html' %}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if ver_veh %}
+<section class="mmh-sec">
+  <div class="mmh-sec-head">
+    <h2><i class="ti ti-car"></i>Mantenimiento de vehículos</h2>
+    <div class="mmh-sec-act btn-list">
+      <a href="{% url 'vehiculos:hojas' %}" target="_blank" class="btn btn-sm"><i class="ti ti-printer me-1"></i>Hojas de la flota</a>
+      <a href="{% url 'vehiculos:flota' %}" class="btn btn-sm btn-primary"><i class="ti ti-bus me-1"></i>Ver flota</a>
+    </div>
+  </div>
+  <div class="mm-kpis mmh-kpis">
+    <a href="{% url 'vehiculos:flota' %}" class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#206bc4"><i class="ti ti-car"></i></div><div><div class="mm-kpi-lbl">Unidades en uso</div><div class="mm-kpi-num">{{ veh_total }}</div></div></a>
+    <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#f04438"><i class="ti ti-alert-triangle"></i></div><div><div class="mm-kpi-lbl">Mantenimiento vencido</div><div class="mm-kpi-num">{{ veh_vencidos }}</div></div></div>
+    <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#f79009"><i class="ti ti-clock"></i></div><div><div class="mm-kpi-lbl">Por llegar (≤ 10 %)</div><div class="mm-kpi-num">{{ veh_pronto }}</div></div></div>
+    <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#12b76a"><i class="ti ti-circle-check"></i></div><div><div class="mm-kpi-lbl">Al día</div><div class="mm-kpi-num">{{ veh_ok }}</div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="ti ti-tool me-2 text-orange"></i>Requieren atención</h3></div>
+    <div class="list-group list-group-flush">
+      {% for v in veh_atencion %}
+      <a href="{% url 'vehiculos:detalle' v.id %}" class="list-group-item list-group-item-action mmh-veh">
+        <span class="badge mv-est mv-est--{{ v.semaforo }}">{% if v.semaforo == 'vencido' %}Vencido{% else %}Pronto{% endif %}</span>
+        <span class="mmh-veh-n"><b>{{ v.nombre }}</b>{% if v.Placa %}<small>Placa {{ v.Placa }}</small>{% endif %}</span>
+        <span class="mmh-veh-km">{% if v.semaforo == 'vencido' %}Pasado por {{ v.excedido|unlocalize }} {{ v.unidad }}{% else %}Faltan {{ v.falta|unlocalize }} {{ v.unidad }}{% endif %}<small>toca a los {{ v.proximo|unlocalize }}</small></span>
+      </a>
+      {% empty %}
+      <div class="list-group-item text-muted"><i class="ti ti-circle-check text-green me-1"></i>Ningún vehículo vencido ni por llegar.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

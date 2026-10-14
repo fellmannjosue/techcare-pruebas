@@ -1,0 +1,16 @@
+{% extends 'base_app.html' %}
+{# <--- hecho por claude code (23-sep-2026): hub de reportes contables #}
+{% block title %}Reportes contables{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Reportes contables{% endblock %}
+{% block content %}
+{% with nav_c='reportes' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+<div class="row row-cards g-3">
+  {% for r in reportes_hub %}{% endfor %}
+  <div class="col-md-6 col-lg-3"><a href="{% url 'contabilidad:balanza' %}" class="card card-link h-100"><div class="card-body"><span class="rounded p-2 d-inline-flex mb-2" style="background:#4263eb22;color:#4263eb"><i class="ti ti-scale fs-2"></i></span><div class="fw-semibold">Balanza de comprobación</div><div class="text-muted small">Saldos iniciales, movimientos y saldos finales de todas las cuentas.</div></div></a></div>
+  <div class="col-md-6 col-lg-3"><a href="{% url 'contabilidad:balance_general' %}" class="card card-link h-100"><div class="card-body"><span class="rounded p-2 d-inline-flex mb-2" style="background:#0ca67822;color:#0ca678"><i class="ti ti-building-bank fs-2"></i></span><div class="fw-semibold">Balance general</div><div class="text-muted small">Activo = Pasivo + Patrimonio a una fecha.</div></div></a></div>
+  <div class="col-md-6 col-lg-3"><a href="{% url 'contabilidad:estado_resultados' %}" class="card card-link h-100"><div class="card-body"><span class="rounded p-2 d-inline-flex mb-2" style="background:#d6336c22;color:#d6336c"><i class="ti ti-chart-line fs-2"></i></span><div class="fw-semibold">Estado de resultados</div><div class="text-muted small">Ingresos − costos − gastos del período.</div></div></a></div>
+  <div class="col-md-6 col-lg-3"><a href="{% url 'contabilidad:libro_diario' %}" class="card card-link h-100"><div class="card-body"><span class="rounded p-2 d-inline-flex mb-2" style="background:#f59f0022;color:#f59f00"><i class="ti ti-notebook fs-2"></i></span><div class="fw-semibold">Libro diario</div><div class="text-muted small">Todas las partidas contabilizadas, línea por línea.</div></div></a></div>
+</div>
+<p class="text-muted small mt-3">Todos los reportes se filtran por fecha y centro de costo y se exportan a Excel. Solo cuentan las partidas <strong>contabilizadas</strong>.</p>
+{% endblock %}

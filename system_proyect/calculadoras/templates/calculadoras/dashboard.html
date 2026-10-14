@@ -5,6 +5,8 @@
 {% block page_title %}Calculadoras{% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code (30-sep-2026): tasas y divisas solo para el superusuario; el grupo calculadoras_tiempo ve solo las 5 de tiempo #}
+{% if es_super %}
 <div class="row g-3 mb-4">
   <div class="col-12">
     <div class="alert alert-info py-2">
@@ -16,9 +18,11 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <div class="row g-4">
   <!-- Divisas -->
+{% if es_super %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'calculadoras_divisas' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-4">
@@ -53,12 +57,13 @@
     </a>
   </div>
   {# <--- hecho por claude code: Sumar horas y minutos (varias filas HH:MM) #}
+{% endif %}
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'calc_tiempo_sumar_horas' %}" class="text-decoration-none">
       <div class="card card-link card-link-pop text-center py-4">
         <div class="card-body">
-          <i class="ti ti-sum icon-lg text-teal"></i>
-          <div class="fw-bold mt-2">Sumar horas</div>
+          <div class="mb-3"><i class="ti ti-sum text-teal calc-dash-ico"></i></div>{# <--- hecho por claude code (12-oct-2026): mismo tamaño que las demás tarjetas (icon-lg no aplica a íconos de fuente) #}
+          <div class="fw-bold">Sumar horas</div>
           <div class="text-muted small mt-1">Suma varias horas y minutos</div>
         </div>
       </div>
@@ -110,6 +115,7 @@
       </div>
     </a>
   </div>
+{% if es_super %}
   <!-- Almacenamiento -->
   <div class="col-6 col-sm-4 col-lg-3">
     <a href="{% url 'calculadoras_almacenamiento' %}" class="text-decoration-none">
@@ -146,5 +152,6 @@
       </div>
     </a>
   </div>
+{% endif %}
 </div>
 {% endblock %}

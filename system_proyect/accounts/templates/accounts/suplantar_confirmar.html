@@ -1,0 +1,42 @@
+{% extends 'accounts/settings_base.html' %}
+{# <--- hecho por claude code (12-oct-2026): confirmación de "Iniciar sesión como" (solo superusuario) #}
+{% block title %}Iniciar sesión como {{ destino.username }}{% endblock %}
+{% block settings_content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-login-2 me-2 text-orange"></i>Iniciar sesión como otro usuario</h3>
+    <div class="card-options"><a href="{% url 'settings_usuario_editar' destino.pk %}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a></div>
+  </div>
+  <div class="card-body">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span class="avatar avatar-lg bg-orange-lt text-orange"><i class="ti ti-user"></i></span>
+      <div>
+        <div class="fs-3 fw-bold">{{ destino.get_full_name|default:destino.username }}</div>
+        <div class="text-muted">{{ destino.username }}{% if destino.email and destino.email != destino.username %} · {{ destino.email }}{% endif %}{% if destino.is_staff %} · <span class="badge bg-blue-lt text-blue">Staff</span>{% endif %}</div>
+        <div class="mt-1">{% for g in grupos %}<span class="badge bg-secondary-lt me-1">{{ g }}</span>{% empty %}<span class="text-muted small">Sin grupos</span>{% endfor %}</div>
+      </div>
+    </div>
+    {% if motivo %}
+    <div class="alert alert-danger mb-0"><i class="ti ti-ban me-1"></i>{{ motivo }}</div>
+    {% else %}
+    <div class="alert alert-warning">
+      <b>Vas a entrar al sistema como esta persona</b> y verás exactamente lo que ella ve. Todo lo que hagas quedará registrado a su nombre en el sistema, y esta entrada queda en la bitácora con tu usuario.
+      Para regresar usa <b>"Volver a mi cuenta"</b> en el aviso naranja al pie de la pantalla. Mientras tanto no podrás cambiar su contraseña.
+    </div>
+    <form method="post" class="d-flex gap-2">{% csrf_token %}
+      <button type="submit" class="btn btn-warning"><i class="ti ti-login-2 me-1"></i>Iniciar sesión como {{ destino.first_name|default:destino.username }}</button>
+      <a href="{% url 'settings_usuario_editar' destino.pk %}" class="btn btn-ghost-secondary">Cancelar</a>
+    </form>
+    {% endif %}
+  </div>
+  {% if recientes %}
+  <div class="card-header border-top"><h3 class="card-title text-muted fs-5">Entradas anteriores a esta cuenta</h3></div>
+  <div class="table-responsive">
+    <table class="table table-sm table-vcenter card-table">
+      <thead><tr><th>Superusuario</th><th>Inicio</th><th>Fin</th><th>IP</th></tr></thead>
+      <tbody>{% for r in recientes %}<tr><td>{{ r.super_username }}</td><td>{{ r.inicio|date:"d/m/Y H:i" }}</td><td>{% if r.fin %}{{ r.fin|date:"d/m/Y H:i" }} <span class="text-muted small">({{ r.cierre }})</span>{% else %}<span class="text-muted">—</span>{% endif %}</td><td class="text-muted small">{{ r.ip|default:"" }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

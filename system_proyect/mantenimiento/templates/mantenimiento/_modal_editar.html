@@ -1,0 +1,326 @@
+{# <--- hecho por claude code (28-sep-2026): modal Editar registro, compartido por las 7 páginas de fichas (base_fichas.html) #}
+{# ══════════ MODAL EDITAR REGISTRO ══════════ #}
+<div class="modal modal-blur fade" id="modalEditarRegistro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      {# <--- hecho por claude code: enctype para poder adjuntar fotos al editar #}
+      <form method="post" id="form-edit-mant" action="" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="firma_data" id="edit-firma-data">
+        <input type="hidden" name="firma_tecnico_data" id="edit-firma-tecnico-data">
+        <input type="hidden" name="teacher_name" id="edit-teacher-name">
+        <input type="hidden" name="grade" id="edit-grade">
+
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ti ti-pencil me-2 text-primary"></i>Editar Registro
+            <span id="edit-record-id-badge" class="badge bg-blue-lt text-blue ms-2"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+          <div class="row g-3">
+
+            <div class="col-md-4 edit-no-impresora">
+              <label class="form-label fw-semibold">Computadora</label>
+              <select name="computadora" id="edit-computadora" class="form-select">
+                <option value="">— Seleccionar computadora —</option>
+                {% for c in computadoras %}
+                <option value="{{ c.id }}">{{ c.asset_id }} – {{ c.modelo }}{% if c.asignado_a %} · {{ c.asignado_a }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {# <--- hecho por claude code: el modal de edición se adapta a IMPRESORA (antes mostraba el de computadora) #}
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Impresora</label>
+              <select name="impresora" id="edit-impresora" class="form-select">
+                <option value="">— Seleccionar impresora —</option>
+                {% for i in impresoras %}
+                <option value="{{ i.id }}">{{ i.asset_id }} – {{ i.modelo }}{% if i.asignado_a %} · {{ i.asignado_a }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Modelo</label>
+              <input type="text" name="model" id="edit-model" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Serie</label>
+              <input type="text" name="serie" id="edit-serie" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nombre de la persona</label>
+              <input type="text" id="edit-asignado-display" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            <div class="col-md-4 edit-no-impresora">
+              <label class="form-label fw-semibold">Área</label>
+              <input type="text" id="edit-area-display" class="form-control bg-light text-muted" readonly>
+            </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Área <span class="text-muted fw-normal small">(manual)</span></label>
+              <input type="text" name="area" id="edit-area" class="form-control" maxlength="100">
+            </div>
+
+            <div class="col-md-4 edit-no-impresora">
+              <label class="form-label fw-semibold">Grado</label>
+              <input type="text" id="edit-grado-display" class="form-control bg-light text-muted" readonly>
+            </div>
+
+            {# Campos propios de impresora #}
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Tipo de mantenimiento</label>
+              <select name="tipo_mant_impresora" id="edit-tipo-mant-imp" class="form-select">
+                <option value="">---------</option>
+                <option value="llenado_tinta">Llenado de tinta</option>
+                <option value="actualizacion_sistema">Actualización de sistema</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Estado de la tinta</label>
+              <select name="estado_tinta" id="edit-estado-tinta" class="form-select">
+                <option value="">---------</option>
+                <option value="vacio">Vacío</option><option value="media">Media</option>
+                <option value="llena">Llena</option><option value="full">Full</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-impresora d-none">
+              <label class="form-label fw-semibold">Tipo de tinta</label>
+              <select name="tipo_tinta" id="edit-tipo-tinta" class="form-select">
+                <option value="">---------</option><option value="544">544</option><option value="504">504</option>
+              </select>
+            </div>
+            <div class="col-12 edit-impresora d-none">
+              <label class="form-label fw-semibold">Colores rellenados</label>
+              <div class="d-flex flex-wrap gap-4 mt-1">
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_negra" id="edit-tinta-negra"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#111"></i>Negra</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_magenta" id="edit-tinta-magenta"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#e64980"></i>Magenta</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_amarillo" id="edit-tinta-amarillo"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#f1c40f"></i>Amarillo</span></label>
+                <label class="form-check form-check-inline mb-0"><input type="checkbox" class="form-check-input" name="tinta_cyan" id="edit-tinta-cyan"><span class="form-check-label"><i class="ti ti-drop-filled me-1" style="color:#15aabf"></i>Cyan</span></label>
+              </div>
+            </div>
+
+            <div class="col-md-4 edit-no-control edit-no-impresora edit-no-inspeccion">
+              <label class="form-label fw-semibold">Tipo de Falla</label>
+              <select name="tipo_falla" id="edit-tipo-falla" class="form-select">
+                {% for tf in tipos_falla %}
+                <option value="{{ tf.id }}">{{ tf.nombre }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="tipo_falla_nueva" id="edit-tipo-falla-nueva"
+                     class="form-control mt-2 d-none" maxlength="100" placeholder="Escribe la nueva falla…">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha</label>
+              <input type="date" name="date" id="edit-date" class="form-control">
+            </div>
+
+            <div class="col-md-4 edit-control d-none">
+              <label class="form-label fw-semibold">Estado del equipo</label>
+              <select name="estado_equipo" id="edit-estado-equipo" class="form-select">
+                <option value="">— Seleccionar —</option>
+                <option value="bueno">Buen estado</option><option value="regular">Regular</option>
+                <option value="malo">Mal estado</option><option value="fuera">Fuera de servicio</option>
+              </select>
+            </div>
+            <div class="col-md-4 edit-no-control edit-no-inspeccion">
+              <label class="form-label fw-semibold">Estado</label>
+              <select name="status" id="edit-status" class="form-select">
+                <option value="Pendiente">Pendiente</option>
+                <option value="En Proceso">En Proceso</option>
+                <option value="Completado">Completado</option>
+              </select>
+            </div>
+
+            <div class="col-12 edit-no-control edit-no-inspeccion">
+              <label class="form-label fw-semibold">Solución Aplicada</label>
+              <textarea name="solucion" id="edit-solucion" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="col-12 edit-no-control edit-no-inspeccion">
+              <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
+              <textarea name="observaciones" id="edit-observaciones" class="form-control" rows="2"></textarea>
+            </div>
+
+            {# <--- hecho por claude code: campos del Control de equipo en el modal de edición #}
+            <div class="col-12 edit-control d-none"><div class="hr-text text-teal"><i class="ti ti-clipboard-check me-1"></i>Evaluación del equipo</div></div>
+            <div class="col-md-6 edit-control edit-preguntas d-none">
+              <label class="form-label fw-semibold">1. ¿Qué tal ha trabajado su equipo de trabajo?</label>
+              <select name="eval_trabajo" id="edit-eval-trabajo" class="form-select">
+                <option value="">— Seleccionar —</option>
+                <option value="excelente">Excelente</option><option value="bien">Bien</option>
+                <option value="regular">Regular</option><option value="mal">Mal</option>
+              </select>
+            </div>
+            <div class="col-md-6 edit-control edit-preguntas d-none">
+              <label class="form-label fw-semibold">2. ¿Le ha presentado fallas su equipo de trabajo?</label>
+              <select name="eval_fallas" id="edit-eval-fallas" class="form-select">
+                <option value="">— Seleccionar —</option><option value="no">No</option><option value="si">Sí</option>
+              </select>
+            </div>
+            <div class="col-12 edit-control edit-preguntas d-none" id="edit-ctrl-fallas-detalle-wrap">
+              <label class="form-label fw-semibold">¿Cuáles fallas?</label>
+              <textarea name="eval_fallas_detalle" id="edit-eval-fallas-detalle" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user-check me-1 text-purple"></i>Observaciones de la auditora</label>
+              <textarea name="obs_auditora" id="edit-obs-auditora" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-control d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Observaciones del técnico</label>
+              <textarea name="obs_tecnico" id="edit-obs-tecnico" class="form-control" rows="2"></textarea>
+            </div>
+            {# <--- hecho por claude code (28-sep-2026): switches Caso especial / Cambio de equipo también al EDITAR un control #}
+            <div class="col-12 edit-control d-none">
+              <label class="form-check form-switch mb-1">
+                <input type="checkbox" class="form-check-input" name="caso_especial" id="edit-chk-caso-especial" value="1">
+                <span class="form-check-label fw-semibold text-pink"><i class="ti ti-alert-octagon me-1"></i>Caso especial — el equipo se recoge</span>
+                <span class="badge bg-pink-lt text-pink ms-2 d-none" id="edit-ce-existente"></span>
+              </label>
+              <label class="form-check form-switch mb-0">
+                <input type="checkbox" class="form-check-input" name="cambio_equipo" id="edit-chk-cambio-equipo" value="1">
+                <span class="form-check-label fw-semibold text-azure"><i class="ti ti-replace me-1"></i>Cambio de equipo — se reemplaza el equipo del maestro</span>
+                <span class="badge bg-azure-lt text-azure ms-2 d-none" id="edit-cam-existente"></span>
+              </label>
+              {# <--- hecho por claude code (12-oct-2026): reasignación también al editar un control #}
+              <label class="form-check form-switch mb-0 mt-1">
+                <input type="checkbox" class="form-check-input" name="reasignacion" id="edit-chk-reasignacion" value="1">
+                <span class="form-check-label fw-semibold text-cyan"><i class="ti ti-arrows-exchange me-1"></i>Reasignación — la computadora pasa a otro maestro</span>
+                <span class="badge bg-cyan-lt text-cyan ms-2 d-none" id="edit-rea-existente"></span>
+              </label>
+              <div class="form-hint">Al marcar uno, las dos preguntas se reemplazan por el checklist de recogida o por Equipo anterior / Equipo nuevo, y al guardar se crea la ficha derivada.</div>
+            </div>
+
+            {# Fotos de evidencia (hecho por claude code: adjuntar imágenes al editar) #}
+            <div class="col-12">
+              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small">(agregar hasta 5)</span></label>
+              <div id="edit-fotos-actuales"></div>
+              <div id="edit-drop-zone">
+                <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-1"></i>
+                <p class="mb-1 text-muted small">Arrastra imágenes aquí o haz clic para seleccionar</p>
+                <input type="file" name="fotos" id="edit-fotos-input" multiple accept="image/*" class="d-none">
+              </div>
+              <div id="edit-fotos-preview"></div>
+            </div>
+
+            {# <--- hecho por claude code (17-sep-2026): Entrega / Recogida en el modal de edición #}
+            {# <--- hecho por claude code (12-oct-2026): reasignación — al editar un control (nueva) o al ver una ficha de reasignación (solo lectura) #}
+            <div class="col-12 edit-reasig-info d-none"><div class="alert alert-cyan py-2 mb-0"><i class="ti ti-arrows-exchange me-1"></i><strong>Reasignación</strong> · control de origen <span id="edit-rea-control" class="fw-bold"></span> · <span id="edit-rea-resumen"></span></div></div>
+            <div class="col-md-6 edit-reasig d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user-minus me-1 text-muted"></i>Asignada actualmente a</label>
+              <div class="mant-equipo-box" id="edit-rea-anterior">—</div>
+            </div>
+            <div class="col-md-6 edit-reasig d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user-plus me-1 text-cyan"></i>Se reasigna a (maestro nuevo)</label>
+              <input type="text" name="asignado_nuevo" id="edit-asignado-nuevo" class="form-control" list="rea-maestros" maxlength="150" autocomplete="off" placeholder="Escribe o elige el maestro">
+              <div class="form-hint text-orange d-none" id="edit-rea-aviso"></div>
+            </div>
+            <div class="col-md-4 edit-reasig d-none"><label class="form-label">Área</label><input type="text" name="area_nueva" id="edit-area-nueva" class="form-control" maxlength="100"></div>
+            <div class="col-md-4 edit-reasig d-none"><label class="form-label">Grado</label><input type="text" name="grado_nuevo" id="edit-grado-nuevo" class="form-control" maxlength="50"></div>
+            <div class="col-md-4 edit-reasig d-none"><label class="form-label">Edificio</label><input type="text" name="edificio_nuevo" id="edit-edificio-nuevo" class="form-control" maxlength="100"></div>
+            {# <--- hecho por claude code (28-sep-2026): cambio de equipo en el modal de edición #}
+            <div class="col-12 edit-cambio d-none"><div class="alert alert-azure py-2 mb-0"><i class="ti ti-replace me-1"></i><strong>Cambio de equipo</strong> · control de origen <span id="edit-cam-control" class="fw-bold"></span> · el Asset ID se conserva</div></div>
+            <div class="col-md-6 edit-cambio d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-device-desktop-off me-1 text-muted"></i>Equipo anterior</label>
+              <div class="mant-equipo-box" id="edit-cambio-anterior">—</div>
+            </div>
+            <div class="col-md-6 edit-cambio d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-device-desktop me-1 text-azure"></i>Equipo nuevo</label>
+              <div class="mant-equipo-box mant-equipo-box--nuevo" id="edit-cambio-nuevo">Sin registrar</div>
+              <button type="button" class="btn btn-sm btn-azure mt-2 btn-equipo-nuevo d-none" data-origen="editar" id="edit-btn-equipo-nuevo"><i class="ti ti-edit me-1"></i>Registrar equipo nuevo</button>
+              <input type="hidden" name="modelo_nuevo" id="edit-modelo-nuevo"><input type="hidden" name="serie_nuevo" id="edit-serie-nuevo"><input type="hidden" name="ip_nuevo" id="edit-ip-nuevo"><input type="hidden" name="obs_equipo_nuevo" id="edit-obs-equipo-nuevo">
+            </div>
+            <div class="col-12 d-none" id="edit-ce-aviso"><div class="alert alert-pink py-2 mb-0"><i class="ti ti-alert-octagon me-1"></i><strong>Recogida por caso especial</strong> · control de origen <span id="edit-ce-control" class="fw-bold"></span></div></div>
+            <div class="col-12 edit-entrega d-none"><div class="hr-text text-green"><i class="ti ti-package me-1"></i><span class="lbl-mov-edit" data-ent="Qué se entrega al usuario" data-rec="Qué recibe Soporte Técnico">Qué se entrega al usuario</span></div></div>
+            <div class="col-md-7 edit-entrega d-none">
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_equipo" id="edit-ent-equipo"><span class="form-check-label lbl-mov-edit" data-ent="Se entrega el equipo" data-rec="Se recibe el equipo">Se entrega el equipo</span></label>
+              <div class="ms-4 mb-2 small text-muted">Equipo: <span class="fw-semibold text-body" id="edit-ent-equipo-detalle">—</span></div>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_mouse_teclado" id="edit-ent-mouse"><span class="form-check-label lbl-mov-edit" data-ent="Se le entrega mouse y teclado" data-rec="Se recibe mouse y teclado">Se le entrega mouse y teclado</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_televisor" id="edit-ent-televisor"><span class="form-check-label lbl-mov-edit" data-ent="Se le entrega televisor" data-rec="Se recibe televisor">Se le entrega televisor</span></label>
+              <div class="ms-4 mb-2" id="edit-ent-televisor-wrap" hidden>
+                <select name="televisor" id="edit-televisor" class="form-select">
+                  <option value="">— Seleccionar televisor —</option>
+                  {% for t in televisores %}<option value="{{ t.id }}">{{ t.asset_id }} · {{ t.modelo }}{% if t.grado %} · {{ t.grado }}{% endif %}</option>{% endfor %}
+                </select>
+              </div>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_control_tv" id="edit-ent-control"><span class="form-check-label lbl-mov-edit" data-ent="Se le entrega control del televisor más batería" data-rec="Se recibe control del televisor más batería">Se le entrega control del televisor más batería</span></label>
+            </div>
+            <div class="col-md-5 edit-entrega d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma (maestro)</label>
+              <select name="firma_nombre" id="edit-firma-nombre" class="form-select mb-2">
+                <option value="">— Seleccionar maestro —</option>
+                {% for f in firmantes %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+              </select>
+              <label class="form-label fw-semibold"><i class="ti ti-calendar-time me-1 text-primary"></i>Fecha y hora</label>
+              <input type="datetime-local" name="fecha_hora" id="edit-fecha-hora" class="form-control">
+            </div>
+            <div class="col-12 edit-entrega d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Comentario del técnico</label>
+              <textarea name="obs_tecnico" id="edit-obs-tecnico-mov" class="form-control" rows="2" placeholder="Estado en que se entrega/recibe el equipo, faltantes, daños, acuerdos…" disabled></textarea>
+            </div>
+
+            {# <--- hecho por claude code: checklist de la Inspección en el modal de edición #}
+            <div class="col-12 edit-inspeccion d-none"><div class="hr-text text-orange"><i class="ti ti-zoom-check me-1"></i>Inspección del espacio de trabajo</div></div>
+            <div class="col-md-7 edit-inspeccion d-none">
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_limpio" id="edit-insp-limpio"><span class="form-check-label">1. ¿Mantiene limpio el espacio de trabajo?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_ordenado" id="edit-insp-ordenado"><span class="form-check-label">2. ¿Tiene ordenado el espacio de trabajo?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_cables" id="edit-insp-cables"><span class="form-check-label">3. ¿Los cables del equipo están ordenados y en buen estado?</span></label>
+              <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="insp_alimentos" id="edit-insp-alimentos"><span class="form-check-label">4. ¿El equipo está libre de comida y bebidas cerca?</span></label>
+            </div>
+            <div class="col-md-5 edit-inspeccion d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro</label>
+              <div class="card card-sm bg-light"><div class="card-body py-2">
+                <div class="text-muted small">Nombre del asignado del equipo</div>
+                <div class="fw-bold fst-italic fs-3" id="edit-insp-firma-nombre">—</div>
+              </div></div>
+            </div>
+
+            {# Firma del técnico (manual, para firmar registros existentes) #}
+            <div class="col-md-6 edit-no-control edit-no-inspeccion">
+              <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
+              <div id="edit-firma-tec-actual" class="mb-2" style="display:none">
+                <span class="text-muted small d-block mb-1">Firma actual:</span>
+                <img id="edit-firma-tec-img" style="max-height:70px;border:1px solid #e6e7e9;border-radius:6px;background:#fff;padding:2px">
+              </div>
+              <div id="signature-pad-wrap-edit-tec">
+                <canvas id="edit-signature-canvas-tec"></canvas>
+                <button type="button" class="btn btn-sm btn-ghost-danger" id="edit-btn-clear-firma-tec">
+                  <i class="ti ti-trash me-1"></i>Limpiar
+                </button>
+              </div>
+              <p class="text-muted small mt-1">Dibuja para agregar o reemplazar la firma del técnico.</p>
+            </div>
+
+            {# Firma del maestro (segunda opción: firmar en persona, además del link WhatsApp) #}
+            <div class="col-md-6 edit-no-inspeccion">
+              <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro (evidencia)</label>
+              <div id="edit-firma-mae-actual" class="mb-2" style="display:none">
+                <span class="text-muted small d-block mb-1">Firma actual:</span>
+                <img id="edit-firma-mae-img" style="max-height:70px;border:1px solid #e6e7e9;border-radius:6px;background:#fff;padding:2px">
+              </div>
+              <div id="signature-pad-wrap-edit-mae">
+                <canvas id="edit-signature-canvas-mae"></canvas>
+                <button type="button" class="btn btn-sm btn-ghost-danger" id="edit-btn-clear-firma-mae">
+                  <i class="ti ti-trash me-1"></i>Limpiar
+                </button>
+              </div>
+              <p class="text-muted small mt-1">Firma del maestro en persona (alternativa al link de WhatsApp).</p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary ms-auto">
+            <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

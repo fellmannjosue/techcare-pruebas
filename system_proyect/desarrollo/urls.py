@@ -23,6 +23,9 @@ urlpatterns = [
     path('requerimientos/<str:codigo>/adjuntar/', views.adjunto_subir, name='req_adjuntar'),
     path('requerimientos/<str:codigo>/convertir/', views.requerimiento_convertir, name='req_convertir'),
     path('requerimientos/<str:codigo>/mover/', views.requerimiento_mover, name='req_mover'),
+    # <--- hecho por claude code (29-sep-2026): vínculo con el Sistema de Tickets
+    path('requerimientos/<str:codigo>/ticket/', views.requerimiento_abrir_ticket, name='req_abrir_ticket'),
+    path('tickets/<int:ticket_id>/convertir/', views.ticket_convertir, name='ticket_convertir'),
     path('adjuntos/<int:pk>/eliminar/', views.adjunto_eliminar, name='adjunto_eliminar'),
 
     # Proyectos (FASE 3)

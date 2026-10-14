@@ -1,0 +1,24 @@
+{% load static %}
+{# <--- hecho por claude code (30-sep-2026): riel de íconos del diseño Horizon Split. Los ítems los construye tc_shell.js a partir de los grupos del sidebar; aquí solo van logo, pie y (superuser) accesos rápidos a los módulos operativos. #}
+<aside class="tc-rail d-print-none" id="tc-rail" aria-label="Módulos">
+  <a class="tc-rail-logo" href="{{ nav_home_url|default:'/accounts/menu/' }}" data-tip="Inicio">
+    <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="ANA">
+  </a>
+  <nav class="tc-rail-nav" id="tc-rail-nav"
+       {% if request.user.is_superuser %}data-extra='[
+         {"t":"Sistema de Tickets","i":"ti-ticket","h":"{% url 'technician_dashboard' %}"},
+         {"t":"Gestión de Desarrollo","i":"ti-clipboard-list","h":"{% url 'desarrollo:dashboard' %}"},
+         {"t":"Control y Servicio Técnico","i":"ti-headset","h":"{% url 'servicio_tecnico:hub' %}"},
+         {"t":"Red","i":"ti-network","h":"{% url 'red:dashboard' %}"},
+         {"t":"Reloj","i":"ti-clock","h":"{% url 'reloj_dashboard' %}"},
+         {"t":"Contabilidad","i":"ti-report-money","h":"{% url 'contabilidad:dashboard' %}"},
+         {"t":"Mantenimiento Mecánico","i":"ti-engine","h":"{% url 'mantenimiento_mecanico:index' %}"},
+         {"t":"Académico","i":"ti-school","h":"{% url 'dashboard_coordinador' area='bilingue' %}"}
+       ]'{% endif %}></nav>
+  <div class="tc-rail-foot">
+    {% if request.user.is_superuser %}<a href="{% url 'panel_seguridad' %}" data-tip="Seguridad"><i class="ti ti-shield-lock"></i></a>{% endif %}
+    <a class="tc-rail-av" href="{% url 'settings_perfil' %}" data-tip="{{ request.user.get_full_name|default:request.user.username }}">
+      {% if request.user.perfil.avatar %}<img src="{{ request.user.perfil.avatar.url }}" alt="">{% else %}{{ request.user.get_full_name|default:request.user.username|slice:":1"|upper }}{% endif %}
+    </a>
+  </div>
+</aside>

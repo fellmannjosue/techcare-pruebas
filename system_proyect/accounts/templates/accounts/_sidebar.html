@@ -211,6 +211,15 @@
               <span class="nav-link-title">Cálculo Compensatorio</span>
             </a>
           </li>
+          {# <--- hecho por claude code (16-sep-2026): botón Pruebas (compensatorio 47 min + matrícula), solo con permiso pruebas_comp #}
+          {% if nav_reloj_pruebas %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reloj_compensatorio_pruebas' %}">
+              <span class="nav-link-icon"><i class="ti ti-flask"></i></span>
+              <span class="nav-link-title">Pruebas</span>
+            </a>
+          </li>
+          {% endif %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_permisos_list' %}">
               <span class="nav-link-icon"><i class="ti ti-file-check"></i></span>
@@ -257,19 +266,26 @@
   </li>
   {% endif %}
 
-  {# ── Inventario ──────────────────────────────────────── #}
-  {% if nav_inventory %}
+  {# ── Control y Servicio Técnico (hecho por claude code, 28-sep-2026: Inventario + Mantenimiento unidos) ── #}
+  {% if nav_servicio %}
   <li class="nav-item">
-    <a class="nav-link collapsed" href="#navInventario" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-package"></i></span>
-      <span class="nav-link-title">Inventario</span>
+    <a class="nav-link collapsed" href="#navServicio" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-headset"></i></span>
+      <span class="nav-link-title">Control y Servicio Técnico</span>
       <span class="nav-link-arrow"></span>
     </a>
-    <ul class="navbar-nav collapse ps-4" id="navInventario">
+    <ul class="navbar-nav collapse ps-4" id="navServicio">
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'inventario:dashboard' %}">
+        <a class="nav-link" href="{% url 'servicio_tecnico:hub' %}">
           <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
+          <span class="nav-link-title">Hub</span>
+        </a>
+      </li>
+      {% if nav_inventory %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'inventario:inventario_computadoras' %}">
+          <span class="nav-link-icon"><i class="ti ti-package"></i></span>
+          <span class="nav-link-title">Inventario</span>
         </a>
         <ul class="navbar-nav ps-3" id="navInventarioModulos">
           <li class="nav-item">
@@ -308,6 +324,13 @@
               <span class="nav-link-title">Monitores</span>
             </a>
           </li>
+          {# <--- hecho por claude code (13-oct-2026): inventario general #}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario:inventario_general' %}">
+              <span class="nav-link-icon"><i class="ti ti-package"></i></span>
+              <span class="nav-link-title">Inventario General</span>
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="{% url 'inventario:inventario_por_categoria' %}">
               <span class="nav-link-icon"><i class="ti ti-layout-grid"></i></span>
@@ -322,6 +345,39 @@
           </li>
         </ul>
       </li>
+      {% endif %}
+      {% if nav_maintenance %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}">
+          <span class="nav-link-icon"><i class="ti ti-tool"></i></span>
+          <span class="nav-link-title">Fichas de Mantenimiento</span>
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </li>
+  {% endif %}
+
+  {# <--- hecho por claude code (01-oct-2026): Mantenimiento Mecánico (combustibles y aceites) en grupo propio #}
+  {% if nav_mant_mecanico %}
+  <li class="nav-item">
+    <a class="nav-link collapsed" href="#navMantMecanico" data-bs-toggle="collapse">
+      <span class="nav-link-icon"><i class="ti ti-engine"></i></span>
+      <span class="nav-link-title">Mantenimiento Mecánico</span>
+      <span class="nav-link-arrow"></span>
+    </a>
+    <ul class="navbar-nav collapse ps-4" id="navMantMecanico">
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:index' %}"><span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span><span class="nav-link-title">Panel del módulo</span></a></li>
+      {% if nav_mm_insumos %}
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'gasolina' %}"><span class="nav-link-icon"><i class="ti ti-gas-station"></i></span><span class="nav-link-title">Gasolina</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'diesel' %}"><span class="nav-link-icon"><i class="ti ti-truck"></i></span><span class="nav-link-title">Diésel</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-40' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 40</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-50' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 50</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-hidraulico' %}"><span class="nav-link-icon"><i class="ti ti-droplet-half-2"></i></span><span class="nav-link-title">Aceite hidráulico</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'coolant' %}"><span class="nav-link-icon"><i class="ti ti-snowflake"></i></span><span class="nav-link-title">Coolant</span></a></li>
+      {% endif %}
+      {# <--- hecho por claude code (12-oct-2026): vehículos unido al módulo (antes enlace suelto) #}
+      {% if nav_vehiculos %}<li class="nav-item"><a class="nav-link" href="{% url 'vehiculos:flota' %}"><span class="nav-link-icon"><i class="ti ti-car"></i></span><span class="nav-link-title">Flota de vehículos</span></a></li>{% endif %}
     </ul>
   </li>
   {% endif %}
@@ -354,25 +410,6 @@
   </li>
   {% endif %}
 
-
-  {# ── Mantenimiento ───────────────────────────────────── #}
-  {% if nav_maintenance %}
-  <li class="nav-item">
-    <a class="nav-link collapsed" href="#navMantenimiento" data-bs-toggle="collapse">
-      <span class="nav-link-icon"><i class="ti ti-tool"></i></span>
-      <span class="nav-link-title">Mantenimiento</span>
-      <span class="nav-link-arrow"></span>
-    </a>
-    <ul class="navbar-nav collapse ps-4" id="navMantenimiento">
-      <li class="nav-item">
-        <a class="nav-link" href="{% url 'mantenimiento:maintenance_dashboard' %}">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-        </a>
-      </li>
-    </ul>
-  </li>
-  {% endif %}
 
   {# ── Enfermería (grupo enfermería, no coordinadores) ─── #}
   {% if nav_enfermeria %}
@@ -422,25 +459,31 @@
               <span class="nav-link-title">Directorio</span>
             </a>
           </li>
+          {% if not programas_ocultos.enfermeria %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'enfermeria:enfermeria_dashboard' %}">
               <span class="nav-link-icon"><i class="ti ti-stethoscope text-red"></i></span>
               <span class="nav-link-title">Enfermería</span>
             </a>
           </li>
+          {% endif %}
+          {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
+            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}?modo=coord">
               <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
               <span class="nav-link-title">Agendas BL</span>
             </a>
           </li>
+          {% endif %}
           {# <--- hecho por claude code: consistencia con el Panel General (Tutorías, Período, Ruteo) #}
+          {% if not programas_ocultos.tutorias %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'convocatorias_coordinador' %}">
               <span class="nav-link-icon"><i class="ti ti-school text-orange"></i></span>
               <span class="nav-link-title">Tutorías</span>
             </a>
           </li>
+          {% endif %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'dashboard_coordinador' area='bilingue' %}?app=periodo">
               <span class="nav-link-icon"><i class="ti ti-calendar-stats text-green"></i></span>
@@ -480,12 +523,14 @@
               <span class="nav-link-title">Directorio</span>
             </a>
           </li>
+          {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}">
+            <a class="nav-link" href="{% url 'agendas:dashboard_coordinador' %}?modo=coord">
               <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
               <span class="nav-link-title">Agendas COL</span>
             </a>
           </li>
+          {% endif %}
         </ul>
       </li>
     </ul>
@@ -494,12 +539,14 @@
 
   {# ── Solo Progress Report ────────────────────────────── #}
   {% if nav_solo_progress %}
+  {% if not programas_ocultos.progress %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'progress_report_bilingue' %}">
       <span class="nav-link-icon"><i class="ti ti-chart-line text-blue"></i></span>
       <span class="nav-link-title">Progress Report</span>
     </a>
   </li>
+  {% endif %}
   {% endif %}
 
   {# ── Maestro BL ──────────────────────────────────────── #}
@@ -530,24 +577,28 @@
           <span class="nav-link-title">R. Conductual</span>
         </a>
       </li>
+      {% if not programas_ocultos.progress %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item">
         <a class="nav-link" href="{% url 'progress_report_bilingue' %}">
           <span class="nav-link-icon"><i class="ti ti-chart-line text-blue"></i></span>
           <span class="nav-link-title">Progress Report</span>
         </a>
       </li>
+      {% endif %}
       <li class="nav-item">
         <a class="nav-link" href="{% url 'historial_maestro_bilingue' %}">
           <span class="nav-link-icon"><i class="ti ti-history"></i></span>
           <span class="nav-link-title">Historial</span>
         </a>
       </li>
+      {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'agendas:historial_maestro' %}">
+        <a class="nav-link" href="{% url 'agendas:form_agenda' %}?modo=maestro&area=bilingue">
           <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
           <span class="nav-link-title">Agendas</span>
         </a>
       </li>
+      {% endif %}
     </ul>
   </li>
   {% endif %}
@@ -586,18 +637,21 @@
           <span class="nav-link-title">Historial</span>
         </a>
       </li>
+      {% if not programas_ocultos.agendas %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'agendas:historial_maestro' %}">
+        <a class="nav-link" href="{% url 'agendas:form_agenda' %}?modo=maestro&area=colegio">
           <span class="nav-link-icon"><i class="ti ti-calendar-week text-purple"></i></span>
           <span class="nav-link-title">Agendas</span>
         </a>
       </li>
+      {% endif %}
     </ul>
   </li>
   {% endif %}
 
   {# ── Notas Mitad de Parcial ───────────────────────────────── #}
   {% load notas_tags %}
+  {% if not programas_ocultos.notas_parcial %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   {% if request.user.is_superuser or request.user|es_coord_notas %}
   <li class="nav-item">
     <a class="nav-link collapsed" href="#navNotasCoord" data-bs-toggle="collapse">
@@ -620,6 +674,23 @@
         </a>
       </li>
       {% endif %}
+      {# <--- hecho por claude code (16-sep-2026): coordinador que también es maestro → sus propias notas por área #}
+      {% if nav_notas_maestro_bl %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'notas_parcial_maestro' %}?ambito=bilingue">
+          <span class="nav-link-icon"><i class="ti ti-pencil"></i></span>
+          <span class="nav-link-title">Mis notas · Bilingüe</span>
+        </a>
+      </li>
+      {% endif %}
+      {% if nav_notas_maestro_col %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'notas_parcial_maestro' %}?ambito=colegio">
+          <span class="nav-link-icon"><i class="ti ti-pencil"></i></span>
+          <span class="nav-link-title">Mis notas · Colegio</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
   </li>
   {% elif request.user|es_maestro_notas %}
@@ -629,6 +700,7 @@
       <span class="nav-link-title">Notas Mitad de Parcial</span>
     </a>
   </li>
+  {% endif %}
   {% endif %}
 
   {# <--- hecho por claude code: Ingreso de Notas al sistema academico #}

@@ -311,6 +311,62 @@ class IPAddress(AuditModel):
 
 
 # ═══════════════════════ Auditoría propia (IP del usuario + motivo) ═══════════════════════
+class IPActual(AuditModel):
+    """<--- hecho por claude code (16-sep-2026): LISTA DE IPs ACTUALES.
+
+    Inventario de las direcciones que están EN USO HOY (red plana, antes de migrar),
+    agrupadas por categoría de equipo, con la VLAN implementada a la que pertenecen
+    (o pertenecerán) y si tienen un usuario asignado. Es una lista de trabajo del
+    responsable de red; no reemplaza al IPAM por VLAN (`IPAddress`).
+    """
+    ip = models.GenericIPAddressField(protocol='IPv4', unique=True, verbose_name='IP actual')
+    ip_int = models.BigIntegerField(editable=False, db_index=True, default=0)     # para ordenar
+    categoria = models.CharField(max_length=20, choices=Device.TIPOS, default='computadora')
+    vlan = models.ForeignKey(VLAN, null=True, blank=True, on_delete=models.SET_NULL,
+                             related_name='ips_actuales', verbose_name='VLAN implementada')
+    # <--- hecho por claude code (16-sep-2026): la IP que le toca al equipo en esa VLAN (se escribe a mano)
+    ip_nueva = models.GenericIPAddressField(protocol='IPv4', null=True, blank=True, verbose_name='IP asignada en la VLAN')
+    descripcion = models.CharField(max_length=120, blank=True, verbose_name='Equipo / descripción')
+    tiene_usuario = models.BooleanField(default=False, verbose_name='¿Tiene usuario?')
+    usuario = models.CharField(max_length=120, blank=True, verbose_name='Usuario')   # solo si tiene_usuario
+    # <--- hecho por claude code (16-sep-2026): contraseña del equipo, CIFRADA (red/crypto.py);
+    # solo la ve quien puede administrar la red. Se usa vía la propiedad `password`.
+    password_enc = models.TextField(blank=True, editable=False)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        db_table = 'red_ip_actual'
+        ordering = ['categoria', 'ip_int']
+        verbose_name = 'IP actual'
+        verbose_name_plural = 'IPs actuales'
+
+    def save(self, *args, **kwargs):
+        try:
+            self.ip_int = int(ipaddress.ip_address(self.ip))
+        except (ValueError, TypeError):
+            self.ip_int = 0
+        if not self.vlan_id:                # sin VLAN no hay IP asignada
+            self.ip_nueva = None
+        if not self.tiene_usuario:          # sin usuario no se guarda nombre ni contraseña sueltos
+            self.usuario = ''
+            self.password_enc = ''
+        super().save(*args, **kwargs)
+
+    @property
+    def password(self):
+        from .crypto import descifrar
+        return descifrar(self.password_enc)
+
+    @password.setter
+    def password(self, valor):
+        from .crypto import cifrar
+        self.password_enc = cifrar(valor)
+
+    def __str__(self):
+        return f'{self.ip} ({self.get_categoria_display()})'
+
+
 class RedAuditLog(models.Model):
     """simple_history guarda el 'antes/después' por modelo; esto añade IP del usuario y MOTIVO."""
     usuario = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')

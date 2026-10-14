@@ -75,9 +75,11 @@ urlpatterns = [
     # Cálculo de fecha fin compensatorio
     # ─────────────────────────────────────────────
     path('compensatorio-calculo/', views.compensatorio_calculo_list, name='reloj_compensatorio_calculo_list'),
-    # <--- hecho por claude code: guardar el rango del periodo (rediseño tabs 1-2)
+    path('compensatorio-calculo/pruebas/', views.compensatorio_pruebas, name='reloj_compensatorio_pruebas'),  # <--- hecho por claude code (16-sep-2026)
+    path('compensatorio-calculo/pruebas/permiso-tomado/', views.compensatorio_permiso_tomado_save, name='reloj_compensatorio_permiso_tomado_save'),  # <--- hecho por claude code (16-sep-2026)
+    path('compensatorio-calculo/pruebas/saldo/', views.compensatorio_saldo_manual_save, name='reloj_compensatorio_saldo_manual_save'),  # <--- hecho por claude code (16-sep-2026)
+    # <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario"
     path('compensatorio-calculo/periodo/', views.compensatorio_periodo_save, name='reloj_compensatorio_periodo_save'),
-    # <--- hecho por claude code: override manual de "Vacación acumulada"
     path('compensatorio-calculo/vac-acumulada/', views.compensatorio_vac_acumulada_save, name='reloj_compensatorio_vac_acumulada_save'),
     path('compensatorio-calculo/nuevo/', views.compensatorio_calculo_new, name='reloj_compensatorio_calculo_new'),
     path('compensatorio-calculo/<int:pk>/editar/', views.compensatorio_calculo_edit, name='reloj_compensatorio_calculo_edit'),
@@ -97,6 +99,7 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/tomado/', views.compensatorio_calculo_get_tomado, name='reloj_compensatorio_get_tomado'),
     path('compensatorio-calculo/<int:pk>/tomado-manual/add/', views.compensatorio_tomado_manual_add, name='reloj_compensatorio_tomado_manual_add'),
     path('compensatorio-tomado-manual/<int:tm_pk>/delete/', views.compensatorio_tomado_manual_del, name='reloj_compensatorio_tomado_manual_del'),
+    path('compensatorio-tomado-manual/<int:tm_pk>/edit/', views.compensatorio_tomado_manual_edit, name='reloj_compensatorio_tomado_manual_edit'),
     path('compensatorio/emp-buscar/', views.compensatorio_emp_buscar, name='reloj_compensatorio_emp_buscar'),
     path('compensatorio-mensual/add/', views.compensatorio_mensual_add, name='reloj_compensatorio_mensual_add'),
     path('compensatorio-mensual/cell/', views.compensatorio_mensual_cell, name='reloj_compensatorio_mensual_cell'),

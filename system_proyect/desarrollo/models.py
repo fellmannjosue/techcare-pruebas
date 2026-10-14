@@ -256,6 +256,10 @@ class RequerimientoDesarrollo(AuditModel):
         verbose_name="Avance (%)")
     version_implementada = models.CharField(max_length=30, blank=True)
     observaciones = models.TextField(blank=True)
+    # <--- hecho por claude code (29-sep-2026): ticket del Sistema de Tickets enlazado (uno a uno). Se crea al marcar
+    # "Abrir ticket" en el requerimiento o al convertir un ticket en requerimiento. El requerimiento MANDA el estado.
+    ticket = models.OneToOneField('tickets.Ticket', null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name='requerimiento', verbose_name='Ticket enlazado')
 
     class Meta:
         db_table = 'desarrollo_requerimiento'

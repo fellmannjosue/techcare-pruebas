@@ -140,6 +140,15 @@
   .chat-bubble { max-width: 92%; font-size: .85rem; }
 }
 
+/* <--- hecho por claude code (30-sep-2026): burbujas de mensajes del sistema (pausa=naranja, ok=verde, info=gris) */
+.chat-avatar.av-sistema { background: #e9ecef; color: #495057; }
+.chat-avatar.av-sistema--pausa { background: #ffe8cc; color: #d9480f; }
+.chat-avatar.av-sistema--ok { background: #d3f9d8; color: #2b8a3e; }
+.bubble-sistema { background: #f1f3f5; border: 1px solid #dee2e6; color: #354052; border-radius: 0 8px 8px 8px; max-width: 520px; white-space: normal; }
+.bubble-sistema--pausa { background: #fff4e6; border-color: #ffd8a8; color: #9c3d0a; }
+.bubble-sistema--pausa .fw-semibold { color: #d9480f; }
+.bubble-sistema--ok { background: #ebfbee; border-color: #b2f2bb; color: #1f5e2b; }
+.bubble-sistema--ok .fw-semibold { color: #2b8a3e; }
 /* <--- hecho por claude code: burbuja del asistente IA */
 .bubble-ia { background:#eef2ff; border:1px solid #c7d2fe; color:#312e81; border-top-left-radius:4px; }
 .av-ia { background:#eef2ff; border:1px solid #c7d2fe; display:flex; align-items:center; justify-content:center; }

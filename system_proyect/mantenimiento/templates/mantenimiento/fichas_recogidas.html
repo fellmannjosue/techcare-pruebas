@@ -1,0 +1,40 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (28-sep-2026): página individual de fichas · Recogidas (antes pestaña del dashboard) #}
+{% block ficha %}
+                {# <--- hecho por claude code (17-sep-2026): reporte de la pestaña en PDF y Excel #}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'recogida' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+                  <a href="{% url 'mantenimiento:reporte_tipo_excel' 'recogida' %}" class="btn btn-sm btn-green"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Equipo</th><th>Modelo</th><th>Se recibió</th><th>Televisor</th>
+                      <th>Fecha y hora</th><th>Firma (usuario)</th><th>Comentario</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_rec %}
+                      <tr>
+                        <td><span class="badge bg-purple-lt text-purple">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Asignado:</b> {{ r.teacher_name|default:'—' }}</div><div><b>Grado:</b> {{ r.grade|default:'—' }}</div>">{{ r.model|default:"—" }}</span></td>
+                        <td>
+                          {% for lbl, ok, det in r.movimiento_respuestas %}
+                          <span class="badge {% if ok %}bg-success-lt text-success{% else %}bg-secondary-lt text-secondary{% endif %} me-1" title="{{ lbl }}{% if det %} — {{ det }}{% endif %}">{% if ok %}✓{% else %}—{% endif %} {% if forloop.counter == 1 %}Equipo{% elif forloop.counter == 2 %}Mouse/teclado{% elif forloop.counter == 3 %}TV{% else %}Control TV{% endif %}</span>
+                          {% endfor %}
+                        </td>
+                        <td>{% if r.ent_televisor and r.televisor %}{{ r.televisor.asset_id }} <span class="text-muted small">{{ r.televisor.modelo }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        <td data-order="{{ r.fecha_hora|date:'Y-m-d H:i' }}">{{ r.fecha_hora|date:"d/m/Y H:i" }}</td>
+                        <td class="fst-italic">{{ r.firma_nombre|default:"—" }}</td>
+                        <td>{% if r.obs_tecnico %}<span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="left" data-bs-title="Comentario del técnico" data-bs-content="{{ r.obs_tecnico }}"><i class="ti ti-message-2 me-1"></i>{{ r.obs_tecnico|truncatechars:28 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="9" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay recogidas aún.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

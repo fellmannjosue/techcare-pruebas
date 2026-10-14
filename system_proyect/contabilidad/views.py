@@ -30,10 +30,10 @@ _SUBMODULOS = [
     {'nombre': 'Deudas',               'icono': 'ti-receipt',        'color': '#d63939', 'perm': 'ver_deudas',          'listo': False},
     {'nombre': 'SAR / Declaraciones',  'icono': 'ti-file-invoice',   'color': '#f59f00', 'perm': 'ver_declaraciones',   'listo': False},
     {'nombre': 'Conciliaciones',       'icono': 'ti-arrows-shuffle', 'color': '#ae3ec9', 'perm': 'ver_conciliaciones',  'listo': False},
-    {'nombre': 'Catálogo de Cuentas',  'icono': 'ti-list-numbers',   'color': '#0ca678', 'perm': 'ver_cuentas',         'listo': False},
-    {'nombre': 'Partidas Contables',   'icono': 'ti-book',           'color': '#4263eb', 'perm': 'ver_partidas',        'listo': False},
-    {'nombre': 'Mayor de Cuentas',     'icono': 'ti-report',         'color': '#7048e8', 'perm': 'ver_cuentas',         'listo': False},
-    {'nombre': 'Reportes',             'icono': 'ti-chart-bar',      'color': '#d6336c', 'perm': 'ver_reportes',        'listo': False},
+    {'nombre': 'Catálogo de Cuentas',  'icono': 'ti-list-numbers',   'color': '#0ca678', 'perm': 'ver_cuentas',         'listo': True,  'url': 'contabilidad:cuentas_lista'},
+    {'nombre': 'Partidas Contables',   'icono': 'ti-book',           'color': '#4263eb', 'perm': 'ver_partidas',        'listo': True,  'url': 'contabilidad:asientos_lista'},
+    {'nombre': 'Mayor de Cuentas',     'icono': 'ti-report',         'color': '#7048e8', 'perm': 'ver_cuentas',         'listo': True,  'url': 'contabilidad:mayor'},
+    {'nombre': 'Reportes',             'icono': 'ti-chart-bar',      'color': '#d6336c', 'perm': 'ver_reportes',        'listo': True,  'url': 'contabilidad:reportes'},
 ]
 
 

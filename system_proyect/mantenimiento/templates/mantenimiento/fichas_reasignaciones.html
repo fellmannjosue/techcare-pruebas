@@ -1,0 +1,33 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{# <--- hecho por claude code (12-oct-2026): página individual · Reasignaciones de computadora (maestro A → maestro B, nacen de un Control) #}
+{% block ficha %}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'reasignacion' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+                  <a href="{% url 'mantenimiento:reporte_tipo_excel' 'reasignacion' %}" class="btn btn-sm btn-green"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="asc">
+                    <thead><tr>
+                      <th>ID</th><th>Control</th><th>Computadora</th><th>Asignada antes a</th><th>Reasignada a</th>
+                      <th>Fecha</th><th>Comentario</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_rea %}
+                      <tr>
+                        <td><span class="badge bg-cyan-lt text-cyan">{{ r.record_id }}</span></td>
+                        <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        <td><div class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
+                        <td><div>{{ r.asignado_anterior|default:"—" }}</div><div class="text-muted small">{{ r.grado_anterior|default:"" }}{% if r.area_anterior %} · {{ r.area_anterior }}{% endif %}</div></td>
+                        <td><div class="fw-semibold text-cyan">{{ r.asignado_nuevo|default:"—" }}</div><div class="text-muted small">{{ r.grado_nuevo|default:"" }}{% if r.area_nueva %} · {{ r.area_nueva }}{% endif %}</div></td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td>{% if r.obs_tecnico %}<span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="left" data-bs-title="Comentario del técnico" data-bs-content="{{ r.obs_tecnico }}"><i class="ti ti-message-2 me-1"></i>{{ r.obs_tecnico|truncatechars:28 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="9" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay reasignaciones aún. Se crean marcando "Reasignación" al registrar un Control de equipo.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}

@@ -38,17 +38,22 @@
       {% if can_edit %}
       <div class="card mb-3"><div class="card-header"><strong>Agregar entrada</strong></div><div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-sm-3"><label class="form-label mb-1">Horas</label><input type="number" id="dnl-horas" class="form-control form-control-sm" value="8.8" step="0.1" min="0.1"></div>
-          <div class="col-sm-7"><label class="form-label mb-1">Descripción (opcional)</label><input type="text" id="dnl-desc" class="form-control form-control-sm" placeholder="Ej: Semana Santa"></div>
+          <div class="col-sm-3"><label class="form-label mb-1">Fecha del feriado</label><input type="date" id="dnl-fecha" class="form-control form-control-sm"></div>
+          <div class="col-sm-2"><label class="form-label mb-1">Horas</label><input type="number" id="dnl-horas" class="form-control form-control-sm" value="8.8" step="0.1" min="0.1"></div>
+          {# <--- hecho por claude code: días reales del feriado (no se derivan de las horas) #}
+          <div class="col-sm-2"><label class="form-label mb-1">Días</label><input type="number" id="dnl-dias" class="form-control form-control-sm" step="0.5" min="0" placeholder="Ej: 2.5"></div>
+          <div class="col-sm-3"><label class="form-label mb-1">Descripción</label><input type="text" id="dnl-desc" class="form-control form-control-sm" placeholder="Ej: Semana Santa"></div>
           <div class="col-sm-2"><button class="btn btn-sm btn-orange w-100" id="btn-dnl-add"><i class="ti ti-plus me-1"></i>Agregar</button></div>
         </div>
+        {# <--- hecho por claude code: el Tiempo tomado solo refleja los feriados cuya fecha ya pasó #}
+        <div class="text-muted small mt-2"><i class="ti ti-info-circle me-1"></i>El <strong>Tiempo tomado</strong> solo refleja los feriados cuya fecha <strong>ya pasó</strong>. Los futuros quedan como <span class="text-orange">pendientes</span>.</div>
         <div id="dnl-add-error" class="d-none mt-2"><div class="alert alert-danger py-1 px-2 mb-0 small"></div></div>
       </div></div>
       {% endif %}
       <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-orange"></i>Entradas registradas</h6>
       <div class="table-responsive mb-3"><table class="table table-sm table-vcenter">
-        <thead><tr><th>Descripción</th><th class="text-center">Horas</th>{% if can_edit %}<th class="text-center">Eliminar</th>{% endif %}</tr></thead>
-        <tbody id="dnl-tbody"><tr id="dnl-empty"><td colspan="3" class="text-center text-muted py-3">Sin entradas</td></tr></tbody>
+        <thead><tr><th>Fecha</th><th>Descripción</th><th class="text-center">Horas</th><th class="text-center">Días</th><th class="text-center">Estado</th>{% if can_edit %}<th class="text-center">Eliminar</th>{% endif %}</tr></thead>
+        <tbody id="dnl-tbody"><tr id="dnl-empty"><td colspan="6" class="text-center text-muted py-3">Sin entradas</td></tr></tbody>
       </table></div>
       <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
         <i class="ti ti-sum text-orange fs-3"></i>
@@ -133,7 +138,7 @@
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header" style="background:#ffe3ec;"><h5 class="modal-title text-pink"><i class="ti ti-calendar-minus me-2"></i>Tiempo tomado — <span id="tom-nombre"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <h6 class="fw-semibold mb-2"><i class="ti ti-list me-1 text-pink"></i>Detalle (permiso compensatorio)</h6>
+      <h6 class="fw-semibold mb-2" id="tom-detalle-titulo"><i class="ti ti-list me-1 text-pink"></i>Detalle (permiso compensatorio)</h6>
       <div class="table-responsive mb-3"><table class="table table-sm table-vcenter">
         <thead><tr><th class="text-center" style="width:120px;">Fecha</th><th class="text-center" style="width:90px;">Horas</th><th>Razón</th></tr></thead>
         <tbody id="tom-tbody"><tr id="tom-empty"><td colspan="3" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin permisos compensatorio registrados</td></tr></tbody>
@@ -145,8 +150,10 @@
         </div>
       </div>
 
+      <div id="tom-manual-wrap">
       <h6 class="fw-semibold mb-2 mt-3"><i class="ti ti-edit me-1 text-pink"></i>Tiempo tomado manual</h6>
-      {% if request.user.is_superuser %}
+      {# <--- hecho por claude code: lo gestiona el grupo reloj (agregar/editar/eliminar) #}
+      {% if puede_tomado %}
       <div class="card mb-3"><div class="card-body py-2">
         <div class="row g-2 align-items-end">
           <div class="col-sm-3"><label class="form-label mb-1 small">Fecha</label><input type="date" id="tomm-fecha" class="form-control form-control-sm"></div>
@@ -158,10 +165,11 @@
       </div></div>
       {% endif %}
       <div class="table-responsive mb-2"><table class="table table-sm table-vcenter">
-        <thead><tr><th class="text-center" style="width:120px;">Fecha</th><th class="text-center" style="width:90px;">Horas</th><th>Razón</th>{% if request.user.is_superuser %}<th class="text-center" style="width:60px;">Eliminar</th>{% endif %}</tr></thead>
-        <tbody id="tomm-tbody"><tr id="tomm-empty"><td colspan="{% if request.user.is_superuser %}4{% else %}3{% endif %}" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas manuales</td></tr></tbody>
+        <thead><tr><th class="text-center" style="width:120px;">Fecha</th><th class="text-center" style="width:90px;">Horas</th><th>Razón</th>{% if puede_tomado %}<th class="text-center" style="width:90px;">Acciones</th>{% endif %}</tr></thead>
+        <tbody id="tomm-tbody"><tr id="tomm-empty"><td colspan="{% if puede_tomado %}4{% else %}3{% endif %}" class="text-center text-muted py-3"><i class="ti ti-mood-empty me-1"></i>Sin entradas manuales</td></tr></tbody>
       </table></div>
 
+      </div>{# /tom-manual-wrap #}
       {# <--- hecho por claude code: receso — minutos de más por mes (se cuentan como tomado) #}
       <div id="tom-receso-wrap" class="mb-2" style="display:none;">
         <h6 class="fw-semibold mb-2 mt-3"><i class="ti ti-coffee me-1 text-orange"></i>Receso — minutos de más (extra)</h6>

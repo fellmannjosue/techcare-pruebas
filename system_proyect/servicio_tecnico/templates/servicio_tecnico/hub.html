@@ -1,0 +1,119 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (28-sep-2026): hub "Control y Servicio Técnico" = Inventario + Mantenimiento en una sola pantalla #}
+{% block title %}Control y Servicio Técnico{% endblock %}
+{% block page_pretitle %}Soporte y TI{% endblock %}
+{% block page_title %}Control y Servicio Técnico{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=2">{% endblock %}
+{% block page_actions %}
+  {% if ver_mant %}<a href="{{ url_mant }}" class="btn btn-primary"><i class="ti ti-plus me-1"></i>Nueva ficha</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% include 'ui/messages.html' %}
+
+<div class="st-hero mb-4">
+  <div>
+    <div class="st-hero__kicker"><i class="ti ti-headset me-1"></i>Soporte y TI</div>
+    <h3 class="st-hero__title">Un solo lugar para el <span>equipo</span> y su <span>servicio</span></h3>
+    <p class="st-hero__sub">Inventario de activos y fichas de mantenimiento conectados: cada computadora, monitor, televisor o impresora con su historial de control, reparación, entrega y recogida.</p>
+  </div>
+  <div class="st-hero__links">
+    {% if ver_inv %}<a href="{{ url_inv_registros }}" class="btn btn-outline-primary"><i class="ti ti-clipboard-list me-1"></i>Registros de inventario</a>{% endif %}
+    {% if ver_mant %}<a href="{{ url_mant }}" class="btn btn-outline-primary"><i class="ti ti-tool me-1"></i>Fichas de Mantenimiento</a>{% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  {% for k in kpis %}
+  <div class="col-6 col-lg-3">
+    <div class="card st-kpi" style="--st:{{ k.c }}"><div class="card-body">
+      <div class="st-kpi__icon"><i class="ti {{ k.i }}"></i></div>
+      <div><div class="st-kpi__label">{{ k.t }}</div><div class="st-kpi__value">{{ k.v }}</div></div>
+    </div></div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-4">
+  {% if ver_inv %}
+  <div class="col-lg-6">
+    <div class="st-section">
+      <div class="st-section__head">
+        <div><span class="st-section__badge" style="--st:#206bc4"><i class="ti ti-package"></i></span><h4>Inventario</h4><small>Control de activos</small></div>
+        <div class="btn-list">
+          <a href="{{ url_inv_categoria }}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-category me-1"></i>Por categoría</a>
+          <a href="{{ url_inv_registros }}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-clipboard-list me-1"></i>Registros y reportes</a>
+        </div>
+      </div>
+      <div class="st-grid">
+        {% for x in inventario %}
+        <a href="{{ x.url }}" class="st-tile" style="--st:{{ x.c }}">
+          <span class="st-tile__icon"><i class="ti {{ x.i }}"></i></span>
+          <span class="st-tile__body"><span class="st-tile__title">{{ x.t }}</span><span class="st-tile__sub">{{ x.s }}</span></span>
+          <span class="st-tile__count">{{ x.n }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if ver_mant %}
+  <div class="col-lg-6">
+    <div class="st-section">
+      <div class="st-section__head">
+        <div><span class="st-section__badge" style="--st:#0ca678"><i class="ti ti-tool"></i></span><h4>Servicio técnico</h4><small>Fichas de mantenimiento por tipo</small></div>
+        <a href="{{ url_mant }}" class="btn btn-sm btn-ghost-secondary"><i class="ti ti-layout-dashboard me-1"></i>Abrir panel</a>
+      </div>
+      <div class="st-grid">
+        {% for x in fichas %}
+        <a href="{{ x.url }}" class="st-tile" style="--st:{{ x.c }}">
+          <span class="st-tile__icon"><i class="ti {{ x.i }}"></i></span>
+          <span class="st-tile__body"><span class="st-tile__title">{{ x.t }}</span><span class="st-tile__sub">{{ x.s }}</span></span>
+          <span class="st-tile__count">{{ x.n }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-5">
+    <div class="card st-card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-bell-ringing me-2 text-orange"></i>Alertas</h3><span class="badge bg-secondary-lt text-secondary ms-auto">{{ alertas|length }}</span></div>
+      <div class="list-group list-group-flush">
+        {% for a in alertas %}
+        <a href="{{ a.url }}" class="list-group-item list-group-item-action st-alert st-alert--{{ a.nivel }}">
+          <span class="st-alert__icon"><i class="ti {{ a.i }}"></i></span>
+          <span><span class="d-block fw-semibold">{{ a.t }}</span><span class="text-muted small">{{ a.s }}</span></span>
+          <i class="ti ti-chevron-right ms-auto text-muted"></i>
+        </a>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-4"><i class="ti ti-circle-check fs-2 d-block mb-1 text-green"></i>Sin alertas por ahora.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card st-card h-100">
+      <div class="card-header"><h3 class="card-title"><i class="ti ti-history me-2 text-blue"></i>Actividad reciente</h3>{% if ver_mant %}<a href="{{ url_mant }}" class="ms-auto small">Ver todo</a>{% endif %}</div>
+      <div class="table-responsive"><table class="table table-vcenter card-table st-table">
+        <thead><tr><th>Ficha</th><th>Equipo</th><th>Tipo</th><th>Persona</th><th>Fecha</th><th>Estado</th></tr></thead>
+        <tbody>
+        {% for r in recientes %}
+          <tr>
+            <td><span class="st-id">{{ r.record_id }}</span></td>
+            <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% elif r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+            <td><span class="badge st-tipo st-tipo--{{ r.tipo_equipo }}">{{ r.get_tipo_equipo_display }}</span></td>
+            <td class="text-muted">{{ r.teacher_name|default:"—" }}</td>
+            <td class="text-nowrap">{{ r.date|date:"d/m/Y" }}</td>
+            <td>{% if r.status == 'Completado' %}<span class="badge bg-green-lt text-green">Completado</span>{% elif r.status == 'En Proceso' %}<span class="badge bg-cyan-lt text-cyan">En proceso</span>{% else %}<span class="badge bg-orange-lt text-orange">Pendiente</span>{% endif %}</td>
+          </tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Sin fichas registradas.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords   # <--- hecho por claude code (30-sep-2026): auditoría de Notas CFP
 from django.conf import settings
 
 # ── Talleres (subdashboards) ──────────────────────────────────────────────────
@@ -22,20 +23,27 @@ PCT_ADMIN  = 0.20   # Administración
 EGRESO_GRUPOS = [
     ('personal', 'Gastos de Personal', [
         ('instructor', 'Instructor'), ('encargado', 'Encargado del centro'),
-        ('apoyo', 'Personal de apoyo')]),
+        ('apoyo', 'Personal de apoyo'),
+        # <--- hecho por claude code (pedido del usuario 09-sep-2026): gastos y viáticos del personal
+        ('viaticos', 'Gastos y viáticos')]),
     ('materia', 'Materia Prima y Mantenimiento', [
         # <--- hecho por claude code: "Disketes" del formulario viejo pasó a "Imprevistos"
         ('materiales', 'Materiales'), ('manual', 'Manual'), ('imprevistos', 'Imprevistos'),
-        ('papel', 'Papel'), ('marcadores', 'Marcadores'),
+        # <--- hecho por claude code (09-sep-2026): Papel y Marcadores pasaron a Administración;
+        # el Seguro de Accidentes Personales vino de Administración a este grupo (60%).
+        ('seguro', 'Seguro de Accidentes Personales (participantes)'),
         ('equipos', 'Equipos'), ('maquinaria', 'Maquinaria'), ('instalaciones', 'Instalaciones'),
+        # <--- hecho por claude code (10-sep-2026): casilla "Mantenimiento" pedida por el usuario
+        ('mantenimiento', 'Mantenimiento'),
         ('otros', 'Otros')]),
     ('administracion', 'Gastos de Administración', []),   # se rellena abajo
 ]
 
 # ── Grupo de Administración: dos naturalezas distintas ───────────────────────
-# <--- hecho por claude code: primero se CAPTURAN seguro/teléfono/otros (el seguro
-# depende de la cantidad de alumnos), y el resto del 20% se reparte en la PLANILLA
-# entre los cargos. Por eso los cargos no se escriben: los calcula la planilla.
+# <--- hecho por claude code: primero se CAPTURAN teléfono/papel/marcadores/otros y lo
+# que queda del 20% es el DISPONIBLE para la PLANILLA. Desde el 09-sep-2026 el monto de
+# cada persona se escribe A MANO (ya no se reparte automático); los cargos del informe
+# se siguen escribiendo desde la planilla (sincronizar_cargos).
 CARGOS_ADMIN = [
     ('administracion', 'Administración'), ('contador', 'Contador'),
     ('asistente', 'Asistente Administrativo'), ('soporte', 'Soporte Técnico'),
@@ -43,7 +51,9 @@ CARGOS_ADMIN = [
 ]
 ADMIN_CAPTURADOS = [
     ('telefono', 'Teléfono'),
-    ('seguro', 'Seguro de Accidentes Personales (participantes)'),
+    # <--- hecho por claude code (09-sep-2026): Papel y Marcadores vinieron de Materia Prima;
+    # el Seguro se fue a Materia Prima y Mantenimiento.
+    ('papel', 'Papel'), ('marcadores', 'Marcadores'),
     ('otros', 'Otros'),
 ]
 CARGO_LABEL = dict(CARGOS_ADMIN)
@@ -105,6 +115,8 @@ class EjecucionCurso(models.Model):
     costo_hora   = models.DecimalField('Costo por Hora', max_digits=8, decimal_places=2, default=0)
     horario      = models.CharField('Horario', max_length=80, blank=True)
     creado       = models.DateTimeField(auto_now_add=True)
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         ordering = ['anio', 'taller', 'no_ejecucion', 'id']
@@ -173,6 +185,8 @@ class InformeContable(models.Model):
     egresos         = models.JSONField(default=dict, blank=True)
     actualizado     = models.DateTimeField(auto_now=True)
 
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
+
     def grupo_subtotal(self, grupo):
         keys = [k for g, _, items in EGRESO_GRUPOS if g == grupo for k, _ in items]
         return round(sum(float(self.egresos.get(f'{grupo}_{k}', 0) or 0) for k in keys), 2)
@@ -191,11 +205,11 @@ class InformeContable(models.Model):
 
     # ── Planilla de gastos administrativos ──────────────────────────────────
     # <--- hecho por claude code: el 20% NO se reparte entero. Primero se descuenta
-    # lo que ya está determinado (seguro según nº de alumnos, teléfono, otros) y solo
-    # el resto se divide en partes iguales entre las personas de la planilla.
+    # lo que ya está determinado (teléfono, papel, marcadores, otros); lo que queda es el
+    # DISPONIBLE para la planilla. El monto por persona se escribe a mano (09-sep-2026).
     @property
     def admin_capturado(self):
-        """Seguro + Teléfono + Otros: lo que se escribe a mano y no se reparte."""
+        """Teléfono + Papel + Marcadores + Otros: lo que se escribe a mano y no se reparte."""
         return round(sum(float(self.egresos.get(f'administracion_{k}', 0) or 0)
                          for k in _CLAVES_CAPTURADO), 2)
 
@@ -205,15 +219,14 @@ class InformeContable(models.Model):
         return round(self.ejecucion.dist_admin - self.admin_capturado, 2)
 
     def reparto_planilla(self):
-        """[(persona, monto)] en partes iguales; el residuo de centavos va al último."""
-        filas = list(self.ejecucion.planilla.all())
-        n = len(filas)
-        if not n:
-            return []
-        total = self.admin_a_repartir
-        parte = round(total / n, 2)
-        montos = [parte] * (n - 1) + [round(total - parte * (n - 1), 2)]
-        return list(zip(filas, montos))
+        """[(persona, monto)] con el monto ESCRITO A MANO en cada persona.
+        <--- hecho por claude code (09-sep-2026): ya no se reparte en partes iguales."""
+        return [(p, round(float(p.monto or 0), 2)) for p in self.ejecucion.planilla.all()]
+
+    @property
+    def total_repartido(self):
+        """Suma de los montos escritos en la planilla (para compararlo con el disponible)."""
+        return round(sum(m for _, m in self.reparto_planilla()), 2)
 
     def sincronizar_cargos(self, guardar=True):
         """Vuelca el reparto de la planilla en los egresos del informe (por cargo)."""
@@ -232,15 +245,19 @@ class InformeContable(models.Model):
 class GastoAdministrativo(models.Model):
     """<--- hecho por claude code: una persona de la planilla administrativa de un curso.
 
-    El MONTO no se guarda a propósito: se calcula siempre desde el informe
-    (20% − seguro − teléfono − otros, en partes iguales). Guardarlo dejaría
-    copias desactualizadas en cuanto cambie el seguro.
+    El MONTO se escribe a mano por persona (pedido del usuario 09-sep-2026; antes se
+    repartía automáticamente en partes iguales el resto del 20%). La pantalla muestra el
+    "disponible" (20% − capturados) solo como referencia para que cuadre.
     """
     ejecucion = models.ForeignKey(EjecucionCurso, on_delete=models.CASCADE, related_name='planilla')
     nombre    = models.CharField('Nombre completo', max_length=200)
     dni       = models.CharField('DNI', max_length=30, blank=True, default='')
     cargo     = models.CharField('Cargo', max_length=40, choices=CARGOS_ADMIN)
     orden     = models.PositiveSmallIntegerField(default=0)
+    # <--- hecho por claude code (09-sep-2026): monto editable, ya no automático
+    monto     = models.DecimalField('Monto', max_digits=10, decimal_places=2, default=0)
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         ordering = ['orden', 'id']
@@ -250,6 +267,31 @@ class GastoAdministrativo(models.Model):
     def __str__(self):
         return f'{self.nombre} — {self.get_cargo_display()}'
 
+
+
+class PersonaCargoPlanilla(models.Model):
+    """<--- hecho por claude code (09-sep-2026): quién ocupa cada cargo administrativo.
+
+    Catálogo que se mantiene desde el admin. En la planilla, al elegir el cargo se
+    rellenan solos el nombre y el DNI de la persona registrada aquí (pedido del usuario).
+    """
+    cargo  = models.CharField('Cargo', max_length=40, choices=CARGOS_ADMIN, unique=True)
+    nombre = models.CharField('Nombre completo', max_length=200, blank=True)
+    dni    = models.CharField('DNI', max_length=30, blank=True)
+
+    class Meta:
+        verbose_name = 'Persona por cargo (planilla)'
+        verbose_name_plural = 'Personas por cargo (planilla)'
+        ordering = ['cargo']
+
+    def __str__(self):
+        return f'{self.get_cargo_display()}: {self.nombre or "(sin asignar)"}'
+
+    @classmethod
+    def mapa(cls):
+        """{cargo: {'nombre','dni'}} solo de los cargos que ya tienen persona."""
+        return {p.cargo: {'nombre': p.nombre, 'dni': p.dni}
+                for p in cls.objects.all() if (p.nombre or '').strip()}
 
 class CfpDatosGenerales(models.Model):
     """Datos generales COMPARTIDOS por todos los informes/cursos (registro único id=1)."""
@@ -316,6 +358,8 @@ class CursoNota(models.Model):
     jornada = models.CharField('Jornada', max_length=12, choices=JORNADA_CHOICES, default='unica')
     codigo  = models.CharField('Prefijo de código de módulo', max_length=20, blank=True, default='')
 
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
+
     class Meta:
         unique_together = ('anio', 'curso', 'jornada')
         ordering = ['curso', 'jornada']
@@ -340,6 +384,8 @@ class Participante(models.Model):
     sub_grupo  = models.CharField(max_length=20, blank=True, default='')
     orden      = models.PositiveSmallIntegerField(default=0)
 
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
+
     class Meta:
         unique_together = ('curso', 'persona_id')
         ordering = ['orden', 'nombre']
@@ -356,6 +402,8 @@ class ModuloNota(models.Model):
     puntaje      = models.DecimalField('Puntaje', max_digits=6, decimal_places=2, default=100)
     fecha_inicio = models.DateField('Fecha inicio', null=True, blank=True)
     fecha_fin    = models.DateField('Fecha final', null=True, blank=True)
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         unique_together = ('curso', 'numero')
@@ -383,6 +431,8 @@ class NotaIntento(models.Model):
     p1 = models.DecimalField('Práctico 1', max_digits=5, decimal_places=2, null=True, blank=True)
     p2 = models.DecimalField('Práctico 2', max_digits=5, decimal_places=2, null=True, blank=True)
     p3 = models.DecimalField('Práctico 3', max_digits=5, decimal_places=2, null=True, blank=True)
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         unique_together = ('modulo', 'persona_id')
@@ -417,6 +467,8 @@ class HorasMetaMes(models.Model):
     mes   = models.PositiveSmallIntegerField()  # 2..11 (Febrero..Noviembre)
     horas = models.DecimalField(max_digits=6, decimal_places=2, default=0)
 
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
+
     class Meta:
         unique_together = ('curso', 'mes')
         ordering = ['mes']
@@ -428,6 +480,8 @@ class HorasParticipanteMes(models.Model):
     persona_id = models.IntegerField(db_index=True)
     mes        = models.PositiveSmallIntegerField()
     horas      = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         unique_together = ('curso', 'persona_id', 'mes')
@@ -445,6 +499,8 @@ class InstructorCurso(models.Model):
         related_name='cfp_cursos', verbose_name='Instructor',
     )
     curso = models.CharField('Curso', max_length=160)   # una clave de CURSOS_CFP
+
+    history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
 
     class Meta:
         verbose_name = 'Instructor – Curso CFP'

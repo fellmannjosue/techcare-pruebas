@@ -1,0 +1,119 @@
+{% extends 'mantenimiento_mecanico/base_mm.html' %}
+{% load l10n %}
+{% load static %}
+{# <--- hecho por claude code (01-oct-2026): página de un insumo: saldo, KPIs, entregas (formularios), entradas, reportes #}
+{% block page_actions %}
+{% if puede_editar %}
+<button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#mmModalEntrada"><i class="ti ti-arrow-bar-to-down me-1"></i>{{ insumo.etiqueta_entrada }}</button>
+<button type="button" class="btn btn-sm btn-primary" id="mm-btn-nueva"><i class="ti ti-plus me-1"></i>Nueva entrega</button>
+{% else %}<span class="badge bg-white text-primary"><i class="ti ti-eye me-1"></i>Auditoría · solo lectura y comentarios</span>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include 'mantenimiento_mecanico/_tabs.html' %}
+
+<div class="mm-kpis">
+  <div class="mm-saldo {% if resumen.bajo %}mm-saldo--bajo{% endif %}" style="--mm:{{ insumo.color }}">
+    <div class="mm-saldo-ico"><i class="ti {{ insumo.icono }}"></i></div>
+    <div class="mm-saldo-body">
+      <div class="mm-saldo-lbl">Saldo disponible {% if resumen.bajo %}<span class="badge bg-red text-white ms-1">Saldo bajo</span>{% endif %}</div>
+      <div class="mm-saldo-num">{{ resumen.saldo|floatformat:2 }} <small>gal</small></div>
+      {% if insumo.presentacion == 'tanque' %}
+        <div class="mm-bar"><i style="width:{{ resumen.pct|default:0 }}%"></i></div>
+        <div class="mm-saldo-sub">{{ resumen.pct|default:0 }} % del tanque de {{ insumo.capacidad_envase|floatformat:0 }} gal</div>
+      {% elif insumo.presentacion == 'barril' %}
+        <div class="mm-saldo-sub">≈ {{ resumen.barriles|default:0 }} barriles de {{ insumo.capacidad_envase|floatformat:0 }} gal</div>
+      {% else %}
+        <div class="mm-saldo-sub">Compras acumuladas {{ resumen.entradas|floatformat:2 }} gal · entregado {{ resumen.entregas|floatformat:2 }} gal</div>
+      {% endif %}
+    </div>
+    {% if puede_editar %}<button type="button" class="btn btn-sm btn-ghost-secondary mm-saldo-cfg" data-bs-toggle="modal" data-bs-target="#mmModalConfig" title="Configurar capacidad y mínimo"><i class="ti ti-settings"></i></button>{% endif %}
+  </div>
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#f59f00"><i class="ti ti-calendar-event"></i></div><div><div class="mm-kpi-lbl">Entregas este mes</div><div class="mm-kpi-num">{{ kpi_mes_n }}</div></div></div>
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#0ca678"><i class="ti ti-droplet"></i></div><div><div class="mm-kpi-lbl">Galones este mes</div><div class="mm-kpi-num">{{ kpi_mes_gal|floatformat:2 }}</div></div></div>
+  <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#4263eb"><i class="ti ti-arrow-bar-to-down"></i></div><div><div class="mm-kpi-lbl">Última entrada</div><div class="mm-kpi-num mm-kpi-num--sm">{% if resumen.ultima_entrada %}{{ resumen.ultima_entrada.fecha|date:"d/m/Y" }} · +{{ resumen.ultima_entrada.cantidad|floatformat:2 }} gal{% else %}—{% endif %}</div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-clipboard-list me-2" style="color:{{ insumo.color }}"></i>Entregas · {{ insumo.nombre }}</h3>
+    <form method="get" class="card-actions d-flex align-items-center gap-2 flex-wrap" id="mm-filtro">
+      <label class="small text-muted">Del</label><input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-control form-control-sm" style="width:150px">
+      <label class="small text-muted">al</label><input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control form-control-sm" style="width:150px">
+      <button class="btn btn-sm btn-outline-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>
+      <a href="{% url 'mantenimiento_mecanico:reporte_tabla' insumo.clave 'pdf' %}?desde={{ desde|date:'Y-m-d' }}&hasta={{ hasta|date:'Y-m-d' }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+      <a href="{% url 'mantenimiento_mecanico:reporte_tabla' insumo.clave 'xlsx' %}?desde={{ desde|date:'Y-m-d' }}&hasta={{ hasta|date:'Y-m-d' }}" class="btn btn-sm btn-outline-success"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-hover" id="mm-tabla">
+      <thead><tr>
+        <th>Nº</th><th>Fecha</th><th>Hora</th><th>Maquinaria</th>{% if insumo.requiere_kilometraje %}<th class="text-end">Km</th>{% endif %}
+        <th class="text-end">Galones</th><th>Persona</th><th>Observaciones</th><th>Responsable</th><th class="text-end">Acciones</th>
+      </tr></thead>
+      <tbody>
+      {% for e in entregas %}
+        <tr>
+          <td class="fw-semibold text-nowrap">{{ e.codigo }}</td>
+          <td class="text-nowrap" data-order="{{ e.fecha|date:'Y-m-d' }}">{{ e.fecha|date:"d/m/Y" }}</td>
+          <td>{{ e.hora|time:"H:i"|default:"—" }}</td>
+          <td>{{ e.equipo_nombre|default:"—" }}</td>
+          {% if insumo.requiere_kilometraje %}<td class="text-end">{{ e.kilometraje|default:"—" }}</td>{% endif %}
+          <td class="text-end fw-bold" style="color:{{ insumo.color }}">{{ e.galones|floatformat:2 }}</td>
+          <td>{{ e.persona|default:"—" }}</td>
+          <td class="text-muted small mm-obs">{{ e.observaciones|default:"—" }}</td>
+          <td class="small">{{ e.firma_responsable }}</td>
+          <td class="text-end text-nowrap">
+            <a href="{% url 'mantenimiento_mecanico:entrega_pdf' e.pk %}" target="_blank" class="btn btn-sm btn-ghost-danger btn-icon" title="Ficha PDF"><i class="ti ti-file-type-pdf"></i></a>
+            <button type="button" class="btn btn-sm btn-ghost-info mm-comentarios" data-id="{{ e.pk }}" data-url="{% url 'mantenimiento_mecanico:comentario_crear' e.pk %}" title="Comentarios de auditoría"><i class="ti ti-message-2"></i>{% with n=e.comentarios.all|length %}{% if n %}<span class="badge bg-info text-white ms-1">{{ n }}</span>{% endif %}{% endwith %}</button>
+            {% if puede_modificar %}<button type="button" class="btn btn-sm btn-ghost-primary btn-icon mm-editar" data-id="{{ e.pk }}" title="Editar"><i class="ti ti-pencil"></i></button>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-center text-muted py-4">No hay entregas en este rango.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-arrow-bar-to-down me-2 text-azure"></i>Entradas al inventario <span class="text-muted small ms-2">(últimas 30)</span></h3></div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm">
+      <thead><tr><th>Fecha</th><th>Tipo</th><th class="text-end">Galones</th><th>Observaciones</th><th>Registró</th><th></th></tr></thead>
+      <tbody>
+      {% for a in entradas %}
+        <tr>
+          <td class="text-nowrap">{{ a.fecha|date:"d/m/Y" }}</td>
+          <td><span class="badge bg-azure-lt text-azure">{{ a.get_tipo_display }}</span></td>
+          <td class="text-end fw-semibold text-green">+{{ a.cantidad|floatformat:2 }}</td>
+          <td class="text-muted small">{{ a.observaciones|default:"—" }}</td>
+          <td class="small">{{ a.registrado_por.get_full_name|default:a.registrado_por.username|default:"—" }}</td>
+          <td class="text-end"></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">Aún no hay entradas. Registra el saldo inicial con el botón «{{ insumo.etiqueta_entrada }}».</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include 'mantenimiento_mecanico/_modales.html' %}
+
+<div id="mm-config" hidden
+     data-url-maquinaria="{% url 'mantenimiento_mecanico:maquinaria_add' %}"
+     data-url-crear="{% url 'mantenimiento_mecanico:entrega_crear' insumo.clave %}"
+     data-url-editar="{% url 'mantenimiento_mecanico:entrega_editar' 0 %}"
+     data-csrf="{{ csrf_token }}"
+     data-saldo="{{ resumen.saldo|unlocalize }}"
+     data-km="{% if insumo.requiere_kilometraje %}1{% else %}0{% endif %}"
+     data-qs="{{ request.META.QUERY_STRING }}"
+     data-editar="{% if puede_editar %}1{% else %}0{% endif %}"></div>
+{{ entregas_json|json_script:"mm-entregas" }}
+{{ maquinaria_json|json_script:"mm-maquinaria" }}
+{% endblock %}
+
+{# <--- hecho por claude code (01-oct-2026): el JS va en extra_js, DESPUÉS de jQuery/Bootstrap; dentro de content corría antes y el modal de Nueva entrega no abría #}
+{% block extra_js %}<script src="{% static 'mantenimiento_mecanico/js/mm.js' %}?v=8"></script>{% endblock %}

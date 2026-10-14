@@ -118,6 +118,7 @@
   var msRot = document.getElementById('ms-rot'), msRotNum = document.getElementById('ms-rot-num');
   var msAplicar = document.getElementById('ms-aplicar'), msLimpiar = document.getElementById('ms-limpiar');
   var msBorrar = document.getElementById('ms-borrar');
+  var msTxt = document.getElementById('ms-txt');   // <--- hecho por claude code (01-oct-2026): texto en lote
   var tamTocado = false, rotTocado = false;
   linkRange(msTam, msTamNum, function (v) { tamTocado = true; Object.keys(SEL).forEach(function (id) { setTam(SEL[id], v); }); });
   linkRange(msRot, msRotNum, function (v) { rotTocado = true; Object.keys(SEL).forEach(function (id) { setRot(SEL[id], v); }); });
@@ -132,6 +133,7 @@
     tamTocado = false; rotTocado = false;
     msTam.value = 30; msTamNum.value = 30;
     msRot.value = 0; msRotNum.value = 0;
+    if (msTxt) msTxt.value = '';
   }
   function setSelect(on) {
     modoSelect = on;
@@ -164,13 +166,21 @@
   });
   msLimpiar.addEventListener('click', function () { limpiarSel(); });
   msAplicar.addEventListener('click', function () {
-    if (!Object.keys(SEL).length) { alert('Selecciona al menos un marcador para cambiar tamaño/giro.'); return; }
-    if (!tamTocado && !rotTocado) { alert('Mueve el deslizador de tamaño o de giro.'); return; }
+    if (!Object.keys(SEL).length) { alert('Selecciona al menos un marcador para cambiar tamaño/giro/texto.'); return; }
+    var txt = msTxt ? msTxt.value.trim() : '';
+    if (!tamTocado && !rotTocado && !txt) { alert('Mueve el deslizador de tamaño o de giro, o escribe un texto.'); return; }
     var data = { ids: Object.keys(SEL).join(',') };
     if (tamTocado) data.tamano = msTamNum.value;
     if (rotTocado) data.rotacion = msRotNum.value;
+    if (txt) data.etiqueta = txt;
     post(URL_BULK, data).then(function (d) {
-      if (d.ok) { limpiarSel(); resetSliders(); }
+      if (d.ok) {
+        if (txt) Object.keys(SEL).forEach(function (id) {   // <--- hecho por claude code: refleja el texto nuevo sin recargar
+          var el = SEL[id]; if (!el) return;
+          el.dataset.etiqueta = txt; var lb = el.querySelector('.mk-lbl'); if (lb) lb.textContent = txt;
+        });
+        limpiarSel(); resetSliders();
+      }
       else alert(d.error || 'No se pudo aplicar.');
     });
   });

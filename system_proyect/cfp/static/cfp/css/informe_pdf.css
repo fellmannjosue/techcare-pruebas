@@ -12,15 +12,20 @@
 
 body {
   color: #000;
-  font-size: 7.6pt;
+  font-size: 8.6pt;
   line-height: 1.25;
   margin: 0;
 }
 
-/* Marco exterior de la hoja, como el formulario impreso */
+/* Marco exterior de la hoja, como el formulario impreso.
+   (09-sep-2026) Alto fijo = alto útil de la hoja legal (35.56cm − 1.8cm de márgenes, con
+   holgura) para que el informe llene la hoja; el cierre va absoluto al pie. */
 .hoja {
   border: 1px solid #000;
   padding: 10px 12px 12px;
+  position: relative;
+  height: 33.6cm;
+  box-sizing: border-box;
 }
 
 table { width: 100%; border-collapse: collapse; }
@@ -30,18 +35,18 @@ td { vertical-align: bottom; }
 
 /* ── Encabezado institucional ───────────────────────────────────────────── */
 .encabezado td { vertical-align: top; padding: 0 0 2px; }
-.enc-infop  { width: 45%; font-weight: bold; font-size: 7.8pt; padding-left: 46px; }
-.enc-centro { width: 35%; color: #1f3864; font-size: 7.8pt; }
+.enc-infop  { width: 45%; font-weight: bold; font-size: 8.8pt; padding-left: 46px; }
+.enc-centro { width: 35%; color: #1f3864; font-size: 8.8pt; }
 .enc-logo   { width: 20%; text-align: right; }
 .enc-logo img { height: 46px; }
 
 .titulo {
   text-align: center;
   font-weight: bold;
-  font-size: 9pt;
-  margin: 4px 0 6px;
+  font-size: 10.5pt;
+  margin: 6px 0 8px;
 }
-.sec { font-weight: bold; font-size: 8pt; margin: 0 0 6px; }
+.sec { font-weight: bold; font-size: 9pt; margin: 0 0 6px; }
 
 /* ── Datos generales: etiqueta + línea de llenado ────────────────────────── */
 .dg { margin-bottom: 7px; }
@@ -69,17 +74,17 @@ td { vertical-align: bottom; }
 .codigos .cajas { padding-bottom: 0; white-space: nowrap; }
 .caja {
   display: inline-block;
-  width: 13px;
-  height: 12px;
-  line-height: 12px;
+  width: 15px;
+  height: 14px;
+  line-height: 14px;
   border: 0.6px solid #000;
   text-align: center;
-  font-size: 7.4pt;
+  font-size: 8.4pt;
   margin-right: -0.6px;   /* bordes compartidos, sin doble línea */
 }
 .horario {
   text-align: right;
-  font-size: 7.2pt;
+  font-size: 8pt;
   margin: -4px 0 6px;
 }
 
@@ -87,24 +92,27 @@ td { vertical-align: bottom; }
 .titulo-detalle {
   text-align: center;
   font-weight: bold;
-  font-size: 8.4pt;
-  margin: 6px 0 3px;
+  font-size: 9.4pt;
+  margin: 8px 0 4px;
 }
 
+/* (09-sep-2026) OJO: WeasyPrint NO reparte un `height` de tabla entre las filas (probado);
+   el detalle llena la hoja con filas más altas (padding/height de las celdas). Si se
+   agregan partidas a EGRESO_GRUPOS hay que bajar estos valores para que no se monte al pie. */
 .cuentas { border: 1px solid #000; }
 .cuentas col.c-desc { width: 54%; }
 .cuentas col.c-sub  { width: 23%; }
 .cuentas col.c-tot  { width: 23%; }
 /* las dos líneas verticales que parten la tabla en 3 columnas */
 .cuentas td + td { border-left: 1px solid #000; }
-.cuentas td { padding: 1px 6px; height: 11px; }
+.cuentas td { padding: 3px 6px; height: 14px; }
 
 .cuentas tr.cab td { font-weight: bold; border-bottom: 1px solid #000; }
 .cuentas tr.cab-egresos td { font-weight: bold; padding-top: 2px; }
-.cuentas tr.espacio td { height: 7px; }
+.cuentas tr.espacio td { height: 12px; }
 
 /* Rubro (Gastos de Personal, Mantenimiento...): subrayado solo bajo el texto */
-.cuentas .grupo { padding-top: 4px; padding-left: 4px; }
+.cuentas .grupo { padding-top: 10px; padding-left: 4px; }
 .cuentas .grupo-txt {
   font-weight: bold;
   border-bottom: 0.8px solid #000;
@@ -123,17 +131,19 @@ td { vertical-align: bottom; }
   padding-top: 1px;
 }
 
-.cuentas tr.total td { font-weight: bold; padding: 5px 6px; }
+.cuentas tr.total td { font-weight: bold; padding: 8px 6px; }
 .cuentas tr.utilidad td { padding-bottom: 6px; }
 .cuentas .neg { color: #c00000; }
 
 /* ── Cierre ──────────────────────────────────────────────────────────────── */
-.cierre { margin-top: 10px; }
-.firmas { margin-top: 4px; }
-.firmas td { padding-top: 7px; }
+/* (09-sep-2026) Pegado al pie de la hoja */
+.cierre-bloque { position: absolute; left: 12px; right: 12px; bottom: 12px; }
+.cierre { margin-top: 0; }
+.firmas { margin-top: 6px; }
+.firmas td { padding-top: 10px; }
 .nota {
-  margin-top: 8px;
-  font-size: 7.4pt;
+  margin-top: 10px;
+  font-size: 8.2pt;
   font-weight: bold;
   line-height: 1.45;
 }

@@ -1,0 +1,24 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): estado de resultados del período #}
+{% block title %}Estado de resultados{% endblock %}
+{% block page_pretitle %}Contabilidad · Reportes{% endblock %}
+{% block page_title %}Estado de resultados{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block page_actions %}<a href="{% url 'contabilidad:reportes' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Reportes</a>{% endblock %}
+{% block content %}
+{% include 'contabilidad/_rep_filtros.html' with desde=desde hasta=hasta %}
+<div class="card"><div class="card-header"><h3 class="card-title">Del {{ desde|date:"d/m/Y" }} al {{ hasta|date:"d/m/Y" }}{% if centro %} · {{ centro }}{% endif %}</h3></div>
+<table class="table card-table table-sm cont-catalogo"><tbody>
+  <tr class="bg-light"><th colspan="3">INGRESOS</th></tr>
+  {% for f in d.ingresos %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% endfor %}
+  <tr><th colspan="2" class="text-end">Total ingresos</th><th class="text-end font-monospace">{{ d.total_ingresos|miles }}</th></tr>
+  <tr class="bg-light"><th colspan="3">COSTOS</th></tr>
+  {% for f in d.costos %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% endfor %}
+  <tr><th colspan="2" class="text-end">Total costos</th><th class="text-end font-monospace">{{ d.total_costos|miles }}</th></tr>
+  <tr><th colspan="2" class="text-end">Utilidad bruta</th><th class="text-end font-monospace {% if d.utilidad_bruta < 0 %}text-danger{% endif %}">{{ d.utilidad_bruta|miles }}</th></tr>
+  <tr class="bg-light"><th colspan="3">GASTOS</th></tr>
+  {% for f in d.gastos %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% endfor %}
+  <tr><th colspan="2" class="text-end">Total gastos</th><th class="text-end font-monospace">{{ d.total_gastos|miles }}</th></tr>
+</tbody><tfoot><tr class="{% if d.resultado < 0 %}table-danger{% else %}table-success{% endif %}"><th colspan="2" class="text-end">{% if d.resultado < 0 %}DÉFICIT{% else %}SUPERÁVIT{% endif %} DEL PERÍODO</th><th class="text-end font-monospace">{{ d.resultado|miles }}</th></tr></tfoot></table></div>
+{% endblock %}

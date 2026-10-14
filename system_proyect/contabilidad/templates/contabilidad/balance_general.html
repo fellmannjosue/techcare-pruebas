@@ -1,0 +1,25 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): balance general a una fecha #}
+{% block title %}Balance general{% endblock %}
+{% block page_pretitle %}Contabilidad · Reportes{% endblock %}
+{% block page_title %}Balance general{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block page_actions %}<a href="{% url 'contabilidad:reportes' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Reportes</a>{% endblock %}
+{% block content %}
+{% include 'contabilidad/_rep_filtros.html' with hasta=hasta solo_hasta=True %}
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Activo</h3></div>
+    <table class="table card-table table-sm cont-catalogo"><tbody>{% for f in d.activo %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% empty %}<tr><td class="text-muted text-center py-3">Sin saldos.</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><th colspan="2" class="text-end">TOTAL ACTIVO</th><th class="text-end font-monospace">{{ d.total_activo|miles }}</th></tr></tfoot></table></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><h3 class="card-title">Pasivo y Patrimonio</h3></div>
+    <table class="table card-table table-sm cont-catalogo"><tbody>
+      {% for f in d.pasivo %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% endfor %}
+      <tr class="bg-light"><th colspan="2" class="text-end">Total pasivo</th><th class="text-end font-monospace">{{ d.total_pasivo|miles }}</th></tr>
+      {% for f in d.patrimonio %}<tr class="nivel-{{ f.cuenta.nivel }}"><td class="font-monospace">{{ f.cuenta.codigo }}</td><td><span class="cont-indent-{{ f.cuenta.nivel }}">{% if not f.cuenta.es_detalle %}<strong>{{ f.cuenta.nombre }}</strong>{% else %}{{ f.cuenta.nombre }}{% endif %}</span></td><td class="text-end font-monospace">{{ f.saldo|miles }}</td></tr>{% endfor %}
+      <tr><td></td><td><em>Resultado del ejercicio (acumulado al {{ hasta|date:"d/m/Y" }})</em></td><td class="text-end font-monospace {% if d.resultado < 0 %}text-danger{% endif %}">{{ d.resultado|miles }}</td></tr>
+      <tr class="bg-light"><th colspan="2" class="text-end">Total patrimonio</th><th class="text-end font-monospace">{{ d.total_patrimonio|add:d.resultado|miles }}</th></tr>
+    </tbody><tfoot><tr><th colspan="2" class="text-end">TOTAL PASIVO + PATRIMONIO</th><th class="text-end font-monospace">{{ d.total_pasivo_patrimonio|miles }}</th></tr></tfoot></table></div></div>
+</div>
+<div class="mt-3">{% if d.cuadra %}<span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>El balance cuadra</span>{% else %}<span class="badge bg-red-lt text-red"><i class="ti ti-alert-triangle me-1"></i>El balance NO cuadra (revisa partidas con cuentas inactivas o de tipo mal clasificado)</span>{% endif %}</div>
+{% endblock %}

@@ -160,3 +160,22 @@ class DataShowAdmin(AuditAdminMixin):
     list_display = ('asset_id', 'nombre', 'modelo', 'serie', 'estado')
     list_filter = ('estado', 'cable_corriente', 'hdmi', 'vga', 'extension')
     search_fields = ('asset_id', 'nombre', 'modelo', 'serie')
+
+
+# <--- hecho por claude code (13-oct-2026): catálogo de categorías del inventario general (para corregir nombres)
+from .models import CategoriaGeneral, ItemGeneral as _ItemGeneral
+
+
+@admin.register(CategoriaGeneral)
+class CategoriaGeneralAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'area')
+    list_filter = ('area',)
+    search_fields = ('nombre',)
+
+
+@admin.register(_ItemGeneral)
+class ItemGeneralAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'area', 'categoria', 'descripcion', 'ubicacion', 'estado')
+    list_filter = ('area', 'categoria', 'estado')
+    search_fields = ('codigo', 'descripcion', 'ubicacion')
+    readonly_fields = ('codigo',)

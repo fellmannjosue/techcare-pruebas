@@ -1,0 +1,21 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Reporte {{ insumo.nombre }}</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="tabla">
+{% with titulo="Reporte de entregas · "|add:insumo.nombre %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' with derecha="Del <b>"|add:desde|date:"d/m/Y"|add:"</b> al <b>"|add:hasta|date:"d/m/Y"|add:"</b>" %}{% endwith %}
+<div class="resumen-linea">Saldo actual: <b>{{ resumen.saldo|floatformat:2 }} gal</b>{% if insumo.presentacion == 'tanque' %} ({{ resumen.pct }} % del tanque de {{ insumo.capacidad_envase|floatformat:0 }} gal){% elif insumo.presentacion == 'barril' %} (≈ {{ resumen.barriles }} barriles){% endif %} · Entregado en el rango: <b>{{ total|floatformat:2 }} gal</b> en {{ entregas|length }} entregas</div>
+<table class="lista">
+  <thead><tr><th>Nº</th><th>Fecha</th><th>Hora</th><th>Maquinaria</th>{% if insumo.requiere_kilometraje %}<th class="num">Km</th>{% endif %}<th class="num">Galones</th><th>Persona</th><th>Observaciones</th><th>Responsable</th></tr></thead>
+  <tbody>
+  {% for e in entregas %}<tr><td>{{ e.codigo }}</td><td>{{ e.fecha|date:"d/m/Y" }}</td><td>{{ e.hora|time:"H:i"|default:"" }}</td><td>{{ e.equipo_nombre|default:"—" }}</td>{% if insumo.requiere_kilometraje %}<td class="num">{{ e.kilometraje|default:"" }}</td>{% endif %}<td class="num">{{ e.galones|floatformat:2 }}</td><td>{{ e.persona }}</td><td class="obs">{{ e.observaciones }}</td><td>{{ e.firma_responsable }}</td></tr>
+  {% empty %}<tr><td colspan="9" class="vacio">Sin entregas en el rango.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="{% if insumo.requiere_kilometraje %}5{% else %}4{% endif %}">TOTAL</td><td class="num">{{ total|floatformat:2 }}</td><td colspan="3"></td></tr></tfoot>
+</table>
+{% if por_maquinaria %}<h3>Consumo por maquinaria</h3>
+<table class="lista chica"><thead><tr><th>Maquinaria</th><th class="num">Entregas</th><th class="num">Galones</th></tr></thead><tbody>
+{% for m in por_maquinaria %}<tr><td>{{ m.maquinaria__nombre|default:"— sin maquinaria —" }}</td><td class="num">{{ m.n }}</td><td class="num">{{ m.gal|floatformat:2 }}</td></tr>{% endfor %}
+</tbody></table>{% endif %}
+<div class="firmas"><div class="firma"><div class="linea"></div><div class="nom">{{ generado_por }}</div><div class="cargo">Responsable</div></div><div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div></div>
+<div class="pie">Generado el {{ ahora|date:"d/m/Y H:i" }} por {{ generado_por }} · TechCare</div>
+</body></html>

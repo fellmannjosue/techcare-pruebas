@@ -1,0 +1,133 @@
+{% load l10n %}
+{# <--- hecho por claude code (01-oct-2026): modales de Mantenimiento Mecánico (entrega, entrada, configuración, reportes) #}
+{% if puede_editar %}
+<div class="modal fade" id="mmModalEntrega" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="post" class="modal-content" id="mm-form-entrega" action="">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti {{ insumo.icono }} me-2" style="color:{{ insumo.color }}"></i><span id="mm-entrega-titulo">Nueva entrega</span> · {{ insumo.nombre }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" required></div>
+          <div class="col-6 col-md-3"><label class="form-label">Hora</label><input type="time" name="hora" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Galones</label>
+            <div class="input-group"><input type="number" step="0.01" min="0.01" name="galones" class="form-control" required><span class="input-group-text">gal</span></div>
+            <div class="form-hint mm-aviso-saldo d-none text-danger"><i class="ti ti-alert-triangle me-1"></i>Supera el saldo disponible (<span class="mm-saldo-txt"></span> gal). Se guardará igual, pero registra la entrada pendiente.</div>
+          </div>
+          {% if insumo.clave == 'diesel' %}{# <--- hecho por claude code (12-oct-2026): el diésel se carga a un vehículo de Mantenimiento de vehículos #}
+          <div class="col-md-6"><label class="form-label">Vehículo</label>
+            <select name="vehiculo" class="form-select" id="mm-veh" required><option value="">— Elige el vehículo —</option>{% for v in vehiculos_diesel %}<option value="{{ v.id }}" data-km="{{ v.km|default_if_none:'' }}">{{ v.nombre }}{% if v.placa %} · {{ v.placa }}{% endif %}</option>{% endfor %}</select>
+            <div class="form-hint" id="mm-veh-km"></div>
+          </div>
+          {% else %}
+          <div class="col-md-6"><label class="form-label">Maquinaria</label>
+            <div class="input-group">
+              <select name="maquinaria" class="form-select" id="mm-maq"><option value="">— Sin maquinaria —</option>{% for m in maquinaria %}<option value="{{ m.id }}" data-km="{% if m.usa_kilometraje %}1{% else %}0{% endif %}">{{ m.nombre }}</option>{% endfor %}</select>
+              <button type="button" class="btn btn-outline-primary" id="mm-maq-nueva-btn" title="Agregar maquinaria"><i class="ti ti-plus"></i></button>
+            </div>
+            <div class="input-group input-group-sm mt-2 d-none" id="mm-maq-nueva">
+              <input type="text" class="form-control" placeholder="Nombre de la maquinaria nueva" id="mm-maq-nombre" maxlength="120">
+              <select class="form-select" id="mm-maq-tipo" style="max-width:130px"><option value="maquina">Máquina</option><option value="vehiculo">Vehículo</option><option value="otro">Otro</option></select>
+              <button type="button" class="btn btn-primary" id="mm-maq-guardar">Agregar</button>
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-md-6 {% if not insumo.requiere_kilometraje %}d-none{% endif %}" id="mm-km-wrap"><label class="form-label">{% if insumo.clave == 'diesel' %}Estado km del vehículo{% else %}Kilometraje{% endif %}</label>
+            <div class="input-group"><input type="number" min="0" name="kilometraje" class="form-control" {% if insumo.requiere_kilometraje %}required{% endif %}><span class="input-group-text">km</span></div>
+          </div>
+          <div class="col-md-6"><label class="form-label">Persona que recibe</label><input type="text" name="persona" class="form-control" maxlength="120"></div>
+          <div class="col-md-6"><label class="form-label">Responsable (firma)</label><input type="text" name="firma_responsable" class="form-control" maxlength="120" value="{{ responsable_default }}"></div>
+          <div class="col-12"><label class="form-label">Observaciones</label><textarea name="observaciones" class="form-control" rows="2"></textarea></div>
+          <div class="col-12 text-muted small"><i class="ti ti-signature me-1"></i>Auditora: <strong>{{ firma_auditora }}</strong> (firma fija en la ficha).</div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="mmModalEntrada" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" action="{% url 'mantenimiento_mecanico:entrada_crear' insumo.clave %}">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-arrow-bar-to-down me-2 text-azure"></i>{{ insumo.etiqueta_entrada }} · {{ insumo.nombre }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-6"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" required></div>
+          <div class="col-6"><label class="form-label">Galones</label>
+            <div class="input-group"><input type="number" step="0.01" min="0" name="cantidad" class="form-control" value="{% if insumo.presentacion == 'barril' %}{{ insumo.capacidad_envase|unlocalize }}{% endif %}" required><span class="input-group-text">gal</span></div>
+          </div>
+          <div class="col-12"><label class="form-label">Tipo</label>
+            <select name="tipo" class="form-select">
+              {% if insumo.presentacion == 'galones' %}<option value="compra">Compra de galones</option>{% elif insumo.presentacion == 'tanque' %}<option value="llenado">Llenado de tanque</option>{% else %}<option value="barril">Barril nuevo</option>{% endif %}
+              <option value="inicial">Saldo inicial (lo que hay hoy)</option>
+              <option value="ajuste">Ajuste</option>
+            </select>
+          </div>
+          {% if insumo.presentacion == 'tanque' %}<div class="col-12"><label class="form-check"><input type="checkbox" class="form-check-input" name="confirmar_capacidad" value="1"><span class="form-check-label">Confirmar de todas formas si supera la capacidad del tanque ({{ insumo.capacidad_envase|floatformat:0 }} gal)</span></label></div>{% endif %}
+          <div class="col-12"><label class="form-label">Observaciones</label><input type="text" name="observaciones" class="form-control" placeholder="Proveedor, factura, nota…"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Registrar</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="mmModalConfig" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <form method="post" class="modal-content" action="{% url 'mantenimiento_mecanico:insumo_config' insumo.clave %}">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-settings me-2"></i>Configurar {{ insumo.nombre }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        {% if insumo.presentacion != 'galones' %}<div class="mb-3"><label class="form-label">{% if insumo.presentacion == 'tanque' %}Capacidad del tanque{% else %}Galones por barril{% endif %}</label><div class="input-group"><input type="number" step="0.01" min="1" name="capacidad_envase" class="form-control" value="{{ insumo.capacidad_envase|unlocalize }}"><span class="input-group-text">gal</span></div></div>{% endif %}
+        <div><label class="form-label">Mínimo para alertar</label><div class="input-group"><input type="number" step="0.01" min="0" name="minimo_alerta" class="form-control" value="{{ insumo.minimo_alerta|unlocalize }}"><span class="input-group-text">gal</span></div>
+        <div class="form-hint">Al bajar de este saldo se avisa al grupo <code>mantenimiento_mecanico_alertas</code>.</div></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+
+<div class="modal fade" id="mmModalComentarios" tabindex="-1" aria-hidden="true">{# <--- hecho por claude code (02-oct-2026): comentarios de auditoría #}
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="mm-form-comentario" action="">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-message-2 me-2 text-info"></i>Comentarios de auditoría · <span id="mm-com-cod"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div id="mm-com-lista" class="mm-com-lista"></div>
+        <label class="form-label mt-3">Nuevo comentario</label>
+        <textarea name="texto" class="form-control" rows="3" maxlength="2000" required placeholder="Observación de auditoría…"></textarea>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button><button type="submit" class="btn btn-primary"><i class="ti ti-send me-1"></i>Agregar comentario</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="mmModalReportes" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-report me-2"></i>Reportes</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label">Del</label><input type="date" class="form-control" id="mm-rep-desde" value="{{ desde|date:'Y-m-d' }}"></div>
+          <div class="col-6"><label class="form-label">Al</label><input type="date" class="form-control" id="mm-rep-hasta" value="{{ hasta|date:'Y-m-d' }}"></div>
+        </div>
+        <div class="mm-rep">
+          <div class="mm-rep-row"><div><b>Reporte tabla · {{ insumo.nombre }}</b><small>Todas las entregas del rango y totales por maquinaria</small></div>
+            <div class="btn-list"><a class="btn btn-sm btn-outline-danger mm-rep-link" data-base="{% url 'mantenimiento_mecanico:reporte_tabla' insumo.clave 'pdf' %}" target="_blank"><i class="ti ti-file-type-pdf me-1"></i>PDF</a><a class="btn btn-sm btn-outline-success mm-rep-link" data-base="{% url 'mantenimiento_mecanico:reporte_tabla' insumo.clave 'xlsx' %}"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a></div></div>
+          <div class="mm-rep-row"><div><b>Reporte general</b><small>Todos los insumos: saldo, entradas y entregas del rango, consumo por maquinaria</small></div>
+            <div class="btn-list"><a class="btn btn-sm btn-outline-danger mm-rep-link" data-base="{% url 'mantenimiento_mecanico:reporte_general' 'pdf' %}" target="_blank"><i class="ti ti-file-type-pdf me-1"></i>PDF</a><a class="btn btn-sm btn-outline-success mm-rep-link" data-base="{% url 'mantenimiento_mecanico:reporte_general' 'xlsx' %}"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -44,6 +44,44 @@
     </div>
   </div>
 
+  {# ── Programas activos ── #}
+  {# <--- hecho por claude code (10-sep-2026): ocultar programas a TODOS los usuarios #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Programas activos</h3>
+        <div class="card-actions text-muted small">
+          Apagado = se oculta de los menús de <strong>todos</strong> los usuarios y nadie puede entrar, ni con la URL.
+        </div>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-0">
+          {% for p in programas %}
+          <div class="col-md-6 {% if forloop.counter|divisibleby:2 %}ps-md-3{% else %}pe-md-3{% endif %}">
+            <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+              <div class="d-flex align-items-center pe-2">
+                <span class="avatar avatar-sm bg-secondary-lt me-2"><i class="ti {{ p.icon }}"></i></span>
+                <div>
+                  <div class="fw-semibold">{{ p.label }}
+                    <span class="badge bg-secondary-lt text-secondary ms-1 prog-badge" {% if not p.oculto %}hidden{% endif %}>Oculto</span>
+                  </div>
+                  <div class="text-muted small font-monospace">{{ p.prefijos|join:" · " }}</div>
+                </div>
+              </div>
+              <label class="form-check form-switch mb-0">
+                <input class="form-check-input sw-programa" type="checkbox" data-clave="{{ p.key }}"
+                       {% if not p.oculto %}checked{% endif %} style="cursor:pointer;">
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="text-muted small mt-2">El superusuario sigue viendo los programas ocultos en su Panel Principal (con la etiqueta "Oculto") y puede entrar por URL para revisarlos.</div>
+        <div id="prog-estado" class="small mt-1"></div>
+      </div>
+    </div>
+  </div>
+
   {# ── Lista blanca de correos ── #}
   <div class="col-12">
     <div class="card">
@@ -130,6 +168,7 @@
 
 <div id="seg-config" hidden
      data-toggle="{% url 'seguridad_toggle' %}"
+     data-ptoggle="{% url 'seguridad_programa_toggle' %}"
      data-add="{% url 'seguridad_correo_add' %}"
      data-ctoggle="{% url 'seguridad_correo_toggle' %}"
      data-cdel="{% url 'seguridad_correo_del' %}"
@@ -138,5 +177,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'accounts/js/panel_seguridad.js' %}?v=2"></script>
+<script src="{% static 'accounts/js/panel_seguridad.js' %}?v=3"></script>
 {% endblock %}

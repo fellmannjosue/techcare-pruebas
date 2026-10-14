@@ -1,0 +1,10 @@
+{% load static %}
+{# <--- hecho por claude code (12-oct-2026): aviso fijo de "Iniciar sesión como" (se incluye desde _welcome_overlay, que está en todas las bases) #}
+{% if tc_suplantando %}
+<link rel="stylesheet" href="{% static 'accounts/css/suplantacion.css' %}?v=1">
+<div class="tc-suplanta" role="alert">
+  <i class="ti ti-user-share"></i>
+  <span class="tc-suplanta-txt">Estás usando la cuenta de <b>{{ request.user.get_full_name|default:request.user.username }}</b>{% if tc_suplantador %} · sesión de {{ tc_suplantador.get_full_name|default:tc_suplantador.username }}{% endif %}</span>
+  <form method="post" action="{% url 'suplantar_volver' %}">{% csrf_token %}<button type="submit" class="tc-suplanta-btn"><i class="ti ti-arrow-back-up"></i>Volver a mi cuenta</button></form>
+</div>
+{% endif %}

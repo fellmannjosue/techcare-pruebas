@@ -1,0 +1,78 @@
+{% load l10n %}
+{# <--- hecho por claude code (13-oct-2026): pestaña Historial — coordinación ve todo el ámbito, el maestro solo lo que registró #}
+<div class="tab-pane fade {% if tab_activo == 'historial' %}show active{% endif %}" id="tab-historial">
+  <form method="get" class="sb-hist-filtros">
+    <input type="hidden" name="tab" value="historial">
+    <div class="sb-hist-campo"><label class="form-label">Período</label>
+      <select name="h_periodo" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for p in h_periodos %}<option value="{{ p.pk }}" {% if h_f.periodo == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}{% if p.activo %} (activo){% endif %}</option>{% endfor %}
+      </select></div>
+    <div class="sb-hist-campo"><label class="form-label">Desde</label><input type="date" name="h_desde" value="{{ h_f.desde }}" class="form-control form-control-sm"></div>
+    <div class="sb-hist-campo"><label class="form-label">Hasta</label><input type="date" name="h_hasta" value="{{ h_f.hasta }}" class="form-control form-control-sm"></div>
+    {% if areas|length > 1 %}
+    <div class="sb-hist-campo"><label class="form-label">Área</label>
+      <select name="h_area" class="form-select form-select-sm"><option value="">Todas</option>{% for a, l in areas %}<option value="{{ a }}" {% if h_f.area == a %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="sb-hist-campo"><label class="form-label">{{ label_grado }}</label>
+      <select name="h_grado" class="form-select form-select-sm"><option value="">Todos</option>{% for v, l in h_grados %}<option value="{{ v }}" {% if h_f.grado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="sb-hist-campo"><label class="form-label">Semáforo</label>
+      <select name="h_semaforo" class="form-select form-select-sm"><option value="">Todos</option>{% for v, l in h_semaforo_choices %}<option value="{{ v }}" {% if h_f.semaforo == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    {% if h_maestros %}
+    <div class="sb-hist-campo"><label class="form-label">Registró</label>
+      <select name="h_maestro" class="form-select form-select-sm"><option value="">Todos</option>{% for i, n in h_maestros %}<option value="{{ i }}" {% if h_f.maestro == i|stringformat:"s" %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="sb-hist-campo sb-hist-campo--q"><label class="form-label">Buscar</label><input type="search" name="h_q" value="{{ h_f.q }}" class="form-control form-control-sm" placeholder="Alumno, clase o comentario"></div>
+    <label class="form-check sb-hist-check"><input type="checkbox" class="form-check-input" name="h_pendiente" value="1" {% if h_f.pendiente == '1' %}checked{% endif %}><span class="form-check-label">Sin regreso</span></label>
+    <div class="sb-hist-acciones">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-filter me-1"></i>Filtrar</button>
+      {% if h_filtrado %}<a href="?tab=historial" class="btn btn-sm">Limpiar</a>{% endif %}
+      <a href="{% if es_cfp %}{% url 'salidas_bano:historial_exportar_cfp' %}{% else %}{% url 'salidas_bano:historial_exportar' %}{% endif %}?{{ h_query }}" class="btn btn-sm btn-outline-success"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+    </div>
+  </form>
+
+  {% if not es_coordinador %}<div class="sb-hist-nota"><i class="ti ti-info-circle me-1"></i>Se muestran las salidas que registraste tú.</div>{% endif %}
+
+  <div class="sb-hist-kpis">
+    <div class="sb-hist-kpi"><span>Salidas</span><b>{{ h_total }}</b></div>
+    <div class="sb-hist-kpi"><span>Alumnos</span><b>{{ h_alumnos }}</b></div>
+    <div class="sb-hist-kpi"><span>Promedio fuera</span><b>{% if h_promedio is not None %}{{ h_promedio }} min{% else %}—{% endif %}</b></div>
+    <div class="sb-hist-kpi{% if h_sin_regreso %} sb-hist-kpi--alerta{% endif %}"><span>Sin regreso registrado</span><b>{{ h_sin_regreso }}</b></div>
+    {% for k, l, n in h_semaforos %}<div class="sb-hist-kpi sb-hist-kpi--sem"><span><i class="sb-dot sb-dot--{{ k }}"></i>{{ l }}</span><b>{{ n }}</b></div>{% endfor %}
+  </div>
+
+  <div class="sb-hist-grid">
+    <div class="sb-hist-tabla">
+      <div class="table-responsive">
+        <table class="table table-vcenter table-sm card-table mb-0">
+          <thead><tr><th>Fecha</th><th>Salida</th><th>Regreso</th><th class="text-end">Min</th><th>Alumno</th><th>{{ label_grado }}</th><th>Clase</th><th>Semáforo</th><th>Registró</th><th>Comentario</th></tr></thead>
+          <tbody>
+          {% for s in h_filas %}
+            <tr>
+              <td class="text-nowrap">{{ s.fecha|date:"d/m/Y" }}</td>
+              <td>{{ s.hora_salida|time:"H:i" }}</td>
+              <td>{% if s.hora_regreso %}{{ s.hora_regreso|time:"H:i" }}{% else %}<span class="badge bg-orange-lt text-orange">Sin regreso</span>{% endif %}</td>
+              <td class="text-end">{{ s.duracion_minutos|default_if_none:"—" }}</td>
+              <td><b>{{ s.alumno }}</b>{% if areas|length > 1 %}<div class="text-muted small">{{ s.get_area_display }}</div>{% endif %}</td>
+              <td class="text-nowrap">{{ s.grado_label }}{% if s.grupo %} · {{ s.grupo }}{% endif %}</td>
+              <td>{{ s.clase }}</td>
+              <td><span class="sb-sem sb-sem--{{ s.semaforo }}"><i class="sb-dot sb-dot--{{ s.semaforo }}"></i>{{ s.get_semaforo_display }}</span></td>
+              <td class="small">{% if s.maestro %}{{ s.maestro.get_full_name|default:s.maestro.username }}{% else %}—{% endif %}</td>
+              <td class="small sb-hist-com">{{ s.comentario|default:"" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="10" class="text-center text-muted py-4"><i class="ti ti-mood-empty me-1"></i>Sin salidas con estos filtros.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if h_recortado %}<div class="sb-hist-nota">Se muestran las {{ h_limite }} más recientes de {{ h_total }}. El Excel trae todas.</div>{% endif %}
+    </div>
+    <aside class="sb-hist-top">
+      <h4><i class="ti ti-trophy me-1"></i>Alumnos con más salidas</h4>
+      {% for t in h_top %}
+      <div class="sb-hist-top-row"><span class="sb-hist-top-n">{{ forloop.counter }}</span><span class="sb-hist-top-nom"><b>{{ t.alumno }}</b><small>{{ t.grado_label }}{% if t.grupo %} · {{ t.grupo }}{% endif %}</small></span><span class="badge bg-teal-lt text-teal">{{ t.n }}</span></div>
+      {% empty %}<div class="text-muted small">Sin datos.</div>{% endfor %}
+    </aside>
+  </div>
+</div>

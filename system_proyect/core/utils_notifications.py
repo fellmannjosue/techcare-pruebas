@@ -22,6 +22,8 @@ _TIPO_ICON = {
 }
 _MODULO_LABEL = {
     'tickets':       'Soporte Técnico',
+    'mantenimiento_mecanico': 'Mantenimiento Mecánico',   # <--- hecho por claude code (01-oct-2026)
+    'vehiculos': 'Mantenimiento de vehículos',   # <--- hecho por claude code (12-oct-2026)
     'conducta':      'Conducta',
     'reloj':         'Control de Horario',
     'inventario':    'Inventario',

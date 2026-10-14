@@ -13,6 +13,10 @@ class MaintenanceRecordForm(forms.ModelForm):
                   # <--- hecho por claude code: campos del Control de equipo
                   'eval_trabajo', 'eval_fallas', 'eval_fallas_detalle', 'obs_auditora', 'obs_tecnico', 'estado_equipo',
                   'insp_limpio', 'insp_ordenado', 'insp_cables', 'insp_alimentos',
+                  # <--- hecho por claude code (17-sep-2026): Entrega / Recogida de equipo
+                  'ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv',
+                  'televisor', 'firma_nombre', 'fecha_hora', 'control_origen',
+                  'modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo',
                   'date', 'status', 'solucion', 'observaciones']
         widgets = {
             'tipo_equipo':  forms.HiddenInput(),
@@ -41,6 +45,13 @@ class MaintenanceRecordForm(forms.ModelForm):
             'insp_ordenado':  forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'insp_cables':    forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'insp_alimentos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ent_equipo':        forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ent_mouse_teclado': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ent_televisor':     forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ent_control_tv':    forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'televisor':         forms.Select(attrs={'class': 'form-select'}),
+            'firma_nombre':      forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Escriba su nombre completo', 'autocomplete': 'off'}),
+            'fecha_hora':        forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'date':         forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'status':       forms.Select(attrs={'class': 'form-select'}),
             'solucion':     forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -72,8 +83,20 @@ class MaintenanceRecordForm(forms.ModelForm):
                   'grade', 'area', 'tipo_falla', 'tipo_mant_impresora',
                   'estado_tinta', 'tipo_tinta',
                   'eval_trabajo', 'eval_fallas', 'eval_fallas_detalle', 'obs_auditora', 'obs_tecnico',
-                  'estado_equipo', 'status'):
+                  'estado_equipo', 'status',
+                  # <--- hecho por claude code (17-sep-2026): entrega/recogida; `date` la pone fecha_hora en clean()
+                  'televisor', 'firma_nombre', 'fecha_hora', 'date', 'control_origen',
+                  'modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo'):
             self.fields[f].required = False
+        # <--- hecho por claude code (28-sep-2026): el origen de un caso especial solo puede ser un Control de equipo
+        self.fields['control_origen'].queryset = MaintenanceRecord.objects.filter(tipo_equipo='control')
+        self.fields['control_origen'].widget = forms.HiddenInput()
+        from inventario.models import Televisor
+        self.fields['televisor'].queryset = Televisor.objects.order_by('asset_id')
+        self.fields['televisor'].empty_label = '— Seleccionar televisor —'
+        self.fields['televisor'].label_from_instance = (
+            lambda t: ' · '.join(x for x in [t.asset_id, t.modelo or '', t.grado or t.area or ''] if x))
+        self.fields['fecha_hora'].input_formats = ['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S']
         self.fields['estado_equipo'].choices = [('', '— Seleccionar —')] + list(MaintenanceRecord.ESTADO_EQUIPO_CHOICES)
         # Los selects de evaluación arrancan sin opción elegida
         self.fields['eval_trabajo'].choices = [('', '— Seleccionar —')] + list(MaintenanceRecord.EVAL_TRABAJO_CHOICES)
@@ -97,13 +120,58 @@ class MaintenanceRecordForm(forms.ModelForm):
             # <--- hecho por claude code: el control se hace sobre la computadora del maestro
             if not cleaned.get('computadora'):
                 self.add_error('computadora', 'Selecciona la computadora del maestro.')
-            if not cleaned.get('eval_trabajo'):
-                self.add_error('eval_trabajo', 'Responde cómo ha trabajado el equipo.')
-            if not cleaned.get('eval_fallas'):
-                self.add_error('eval_fallas', 'Indica si el equipo ha presentado fallas.')
+            # <--- hecho por claude code (28-sep-2026): con "caso especial" las dos preguntas se reemplazan por el checklist de recogida
+            if self.data.get('reasignacion'):
+                # <--- hecho por claude code (12-oct-2026): reasignación — la computadora pasa del maestro A al B
+                nuevo = (self.data.get('asignado_nuevo') or '').strip()
+                comp = cleaned.get('computadora')
+                if not nuevo:
+                    self.add_error('computadora', 'Reasignación: indica a qué maestro pasa la computadora.')
+                elif comp and nuevo.lower() == (comp.asignado_a or '').strip().lower():
+                    self.add_error('computadora', f'Reasignación: la computadora ya está asignada a {nuevo}.')
+            elif self.data.get('cambio_equipo'):
+                # <--- hecho por claude code (28-sep-2026): cambio de equipo — equipo anterior (computadora) → equipo nuevo
+                if not ((cleaned.get('modelo_nuevo') or '').strip() or (cleaned.get('serie_nuevo') or '').strip()):
+                    self.add_error('modelo_nuevo', 'Registra el equipo nuevo (modelo o serie).')
+            elif self.data.get('caso_especial'):
+                if not (cleaned.get('firma_nombre') or '').strip():
+                    self.add_error('firma_nombre', 'Elige quién firma la recogida.')
+                if not cleaned.get('fecha_hora'):
+                    self.add_error('fecha_hora', 'Indica la fecha y la hora de la recogida.')
+                if cleaned.get('ent_televisor') and not cleaned.get('televisor'):
+                    self.add_error('televisor', 'Indica qué televisor.')
+                if not any(cleaned.get(c) for c in ('ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv')):
+                    self.add_error('ent_equipo', 'Marca al menos una cosa que se recibe.')
+                if not cleaned.get('ent_televisor'):
+                    cleaned['televisor'] = None
+            else:
+                if not cleaned.get('eval_trabajo'):
+                    self.add_error('eval_trabajo', 'Responde cómo ha trabajado el equipo.')
+                if not cleaned.get('eval_fallas'):
+                    self.add_error('eval_fallas', 'Indica si el equipo ha presentado fallas.')
             if not cleaned.get('estado_equipo'):
                 self.add_error('estado_equipo', 'Indica el estado del equipo.')
             # El control queda registrado como trámite completado (el "estado" real es el del equipo)
+            cleaned['status'] = 'Completado'
+        elif tipo in ('entrega', 'recogida', 'caso_especial'):
+            # <--- hecho por claude code (17-sep-2026): entrega/recogida — equipo + checklist + firma escrita + fecha y hora
+            # <--- hecho por claude code (28-sep-2026): el caso especial valida igual que una recogida y exige el control de origen
+            if tipo == 'caso_especial' and not cleaned.get('control_origen'):
+                self.add_error('control_origen', 'El caso especial debe nacer de un Control de equipo.')
+            if not cleaned.get('computadora'):
+                self.add_error('computadora', 'Selecciona la computadora.')
+            if not (cleaned.get('firma_nombre') or '').strip():
+                self.add_error('firma_nombre', 'El usuario debe escribir su nombre como firma.')
+            if not cleaned.get('fecha_hora'):
+                self.add_error('fecha_hora', 'Indica la fecha y la hora.')
+            if cleaned.get('ent_televisor') and not cleaned.get('televisor'):
+                self.add_error('televisor', 'Indica qué televisor.')
+            if not any(cleaned.get(c) for c in ('ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv')):
+                self.add_error('ent_equipo', 'Marca al menos una cosa.')
+            if not cleaned.get('ent_televisor'):
+                cleaned['televisor'] = None
+            if cleaned.get('fecha_hora'):
+                cleaned['date'] = cleaned['fecha_hora'].date()
             cleaned['status'] = 'Completado'
         elif tipo == 'inspeccion':
             # <--- hecho por claude code: la inspección es del equipo del maestro; queda completada al registrarse
@@ -115,6 +183,9 @@ class MaintenanceRecordForm(forms.ModelForm):
                 self.add_error('computadora', 'Selecciona una computadora.')
             if not cleaned.get('status'):
                 self.add_error('status', 'Selecciona el estado.')
+        # `date` dejó de ser obligatoria a nivel de campo (entrega/recogida la derivan de fecha_hora)
+        if not cleaned.get('date'):
+            self.add_error('date', 'Selecciona la fecha.')
         return cleaned
 
 

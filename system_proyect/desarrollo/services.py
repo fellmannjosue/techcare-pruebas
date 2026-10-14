@@ -59,6 +59,10 @@ def registrar_cambio(req, usuario, *, nuevo_estado=None, nuevo_responsable=_UNSE
 
     if cambios or comentario:
         h.save()
+    if cambios and req.ticket_id:
+        # <--- hecho por claude code (29-sep-2026): el requerimiento manda el estado/responsable del ticket enlazado
+        from .tickets_link import sincronizar_ticket
+        sincronizar_ticket(req, usuario)
     return cambios
 
 

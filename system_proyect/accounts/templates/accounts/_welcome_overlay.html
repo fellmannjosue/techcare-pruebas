@@ -1,6 +1,7 @@
 {% load static %}
 {# <--- hecho por claude code: overlay de bienvenida universal — se incluye en todos los base templates #}
-<link rel="stylesheet" href="{% static 'accounts/css/welcome_overlay.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'accounts/css/welcome_overlay.css' %}?v=3">
+{% include 'accounts/_suplantacion_banner.html' %}
 
 <div id="tcWelcomeOverlay">
 
@@ -15,14 +16,14 @@
   </div>
 
   <div style="margin-top:2.4rem;width:260px;">
-    <div style="background:rgba(255,255,255,.12);border-radius:99px;height:6px;overflow:hidden;">
+    <div style="background:rgba(255,255,255,.22);border-radius:99px;height:6px;overflow:hidden;">
       <div id="tcWBar"></div>
     </div>
     <div id="tcWLabel">Cargando…</div>
   </div>
 </div>
 
-<script src="{% static 'accounts/js/welcome_overlay.js' %}?v=3"></script>
+<script src="{% static 'accounts/js/welcome_overlay.js' %}?v=4"></script>
 
 {# Cierre de sesión por inactividad (4h) — se carga en todas las bases vía este include #}
 {% include 'accounts/_idle_logout.html' %}

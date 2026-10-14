@@ -1,6 +1,6 @@
 {# <--- hecho por claude code: celda de acciones compartida por las 3 pestañas (computadoras / impresoras / control) #}
 <td class="text-nowrap">
-  {% if r.tipo_equipo == 'inspeccion' %}
+  {% if r.tipo_equipo == 'inspeccion' or r.tipo_equipo == 'entrega' or r.tipo_equipo == 'recogida' or r.tipo_equipo == 'caso_especial' or r.tipo_equipo == 'cambio_equipo' or r.tipo_equipo == 'reasignacion' %}
   {# <--- hecho por claude code: la inspección se firma con el nombre del asignado, sin link #}
   {% elif r.tipo_equipo == 'control' and r.firmado_maestro or r.tipo_equipo != 'control' and r.status == 'Completado' %}
   <span class="btn btn-sm btn-secondary disabled" style="opacity:.55"

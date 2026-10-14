@@ -1,0 +1,7 @@
+{# <--- hecho por claude code (12-oct-2026): pestañas del módulo (insumos + vehículos + reportes), compartidas por todas las páginas #}
+<div class="mm-tabs">
+  {% for i in combustibles %}<a href="{% url 'mantenimiento_mecanico:pagina' i.clave %}" class="mm-tab {% if i.pk == insumo.pk %}on{% endif %}" style="--mm:{{ i.color }}"><i class="ti {{ i.icono }}"></i>{{ i.nombre }}</a>{% endfor %}
+  <span class="mm-tabs-sep"></span>
+  {% for i in aceites %}<a href="{% url 'mantenimiento_mecanico:pagina' i.clave %}" class="mm-tab {% if i.pk == insumo.pk %}on{% endif %}" style="--mm:{{ i.color }}"><i class="ti {{ i.icono }}"></i>{{ i.nombre }}</a>{% endfor %}
+  {% if insumo %}<a href="#" class="mm-tab mm-tab--rep" data-bs-toggle="modal" data-bs-target="#mmModalReportes"><i class="ti ti-report"></i>Reportes</a>{% endif %}
+</div>

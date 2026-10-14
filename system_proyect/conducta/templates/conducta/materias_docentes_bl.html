@@ -123,9 +123,9 @@
       <tbody id="tbody-materias">
         {% for m in materias %}
         <tr class="fila-materia" data-pk="{{ m.pk }}"
-            data-materia="{{ m.materia|escapejs }}"
-            data-docente="{{ m.docente|escapejs }}"
-            data-coordinador="{{ m.coordinador|escapejs }}"
+            data-materia="{{ m.materia }}"
+            data-docente="{{ m.docente }}"
+            data-coordinador="{{ m.coordinador }}"
             data-activo="{{ m.activo|yesno:'1,0' }}">
           <td class="text-center" style="width:32px;">
             <input type="checkbox" class="form-check-input chk-fila" data-pk="{{ m.pk }}">
@@ -163,7 +163,7 @@
               <i class="ti ti-pencil"></i>
             </button>
             <button class="btn btn-sm btn-ghost-danger btn-eliminar px-2 py-1" title="Eliminar"
-                    data-pk="{{ m.pk }}" data-nombre="{{ m.materia|escapejs }}">
+                    data-pk="{{ m.pk }}" data-nombre="{{ m.materia }}">
               <i class="ti ti-trash"></i>
             </button>
           </td>

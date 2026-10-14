@@ -52,7 +52,7 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.asset_id }}</td>
-                <td>{{ r.modelo }}</td>
+                <td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Nombre:</b> {{ r.nombre_router|default:'—' }}</div><div><b>Clave:</b> {{ r.clave_router|default:'—' }}</div><div><b>IP asignada:</b> {{ r.ip_asignada|default:'—' }}</div><div><b>IP uso:</b> {{ r.ip_uso|default:'—' }}</div><div><b>Ubicado:</b> {{ r.ubicado|default:'—' }}</div><div><b>Observaciones:</b> {{ r.observaciones|default:'—' }}</div>">{{ r.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ r.serie }}</td>
                 <td>{{ r.nombre_router }}</td>
                 <td>{{ r.clave_router }}</td>
@@ -88,6 +88,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'inventario/js/inventario_routers.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/inventario_routers.js' %}?v=21"></script>
 <script src="{% static 'inventario/js/routers_edit.js' %}?v=20"></script>
 {% endblock %}

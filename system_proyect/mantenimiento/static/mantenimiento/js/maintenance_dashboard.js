@@ -12,6 +12,7 @@ const CFG_MAINTENANCE_DASHBOARD = (function(){
     j2: j(d.v2),
     v3: d.v3,
     j3: j(d.v3),
+    v4: d.v4,
   };
 })();
 
@@ -42,11 +43,11 @@ $(function () {
       const col = parseInt(this.dataset.orderCol || '7', 10);
       const dir = this.dataset.orderDir || 'desc';   // <--- hecho por claude code: control ordena por ID asc fijo
       $(this).DataTable({
-        pageLength: 15, order: [[col, dir]],
+        pageLength: 15, order: [[col, dir]], autoWidth: false,   // <--- hecho por claude code (28-sep-2026): autoWidth dejaba la tabla más angosta que la tarjeta
         language: {
           lengthMenu:"Mostrar _MENU_ registros", zeroRecords:"Sin registros",
           info:"Mostrando _START_ a _END_ de _TOTAL_", infoEmpty:"Sin registros",
-          infoFiltered:"(de _MAX_ totales)", search:"Buscar:",
+          infoFiltered:"(de _MAX_ totales)", search:"", searchPlaceholder:"Buscar en esta pestaña…",
           paginate:{first:"«",last:"»",next:"›",previous:"‹"}
         }
       });
@@ -71,6 +72,17 @@ $(function () {
     if (!bootstrap.Popover.getInstance(this)) {
       bootstrap.Popover.getOrCreateInstance(this, { container: 'body', sanitize: false }).show();
     }
+  });
+  // <--- hecho por claude code (17-sep-2026): BUG — quedaban DOS recuadros abiertos: el popover abre con hover Y con foco,
+  // así que al hacer clic en un Modelo ese quedaba enfocado (abierto) y al pasar el mouse a otra fila se abría el segundo.
+  // Ahora al abrirse uno se cierran los demás (y se les quita el foco para que no queden "pegados").
+  document.addEventListener('show.bs.popover', function (e) {
+    document.querySelectorAll('.mant-pop').forEach(function (el) {
+      if (el === e.target) return;
+      const i = bootstrap.Popover.getInstance(el);
+      if (i) i.hide();
+      if (document.activeElement === el) el.blur();
+    });
   });
   // Al cambiar de página/orden/búsqueda se cierran los popovers abiertos
   $('.tabla-mant').on('draw.dt', function(){
@@ -128,22 +140,228 @@ $(function () {
     // Reset + aplicar: un elemento puede tener varias clases solo-* y los toggles
     // independientes se pisaban entre sí.
     const esCtrl = tipo === 'control', esInsp = tipo === 'inspeccion';
-    $('.equipo-computadora').toggleClass('d-none', !(tipo === 'computadora' || esCtrl || esInsp));
+    // <--- hecho por claude code (17-sep-2026): Entrega / Recogida reutilizan el bloque de computadora (parte 1)
+    const esMov = tipo === 'entrega' || tipo === 'recogida' || tipo === 'caso_especial';   // <--- hecho por claude code (28-sep-2026): caso especial = recogida
+    $('#ce-aviso').toggleClass('d-none', tipo !== 'caso_especial');
+    if (tipo !== 'caso_especial') $('#id_control_origen').val('');
+    if (tipo !== 'control') $('#chk-caso-especial, #chk-cambio-equipo').prop('checked', false);
+    $('.equipo-computadora').toggleClass('d-none', !(tipo === 'computadora' || esCtrl || esInsp || esMov));
+    $('.equipo-entrega').toggleClass('d-none', !esMov);
     $('.equipo-impresora').toggleClass('d-none', tipo !== 'impresora');
     $('.equipo-control').toggleClass('d-none', !esCtrl);
     $('.equipo-inspeccion').toggleClass('d-none', !esInsp);
-    $('.solo-computadora, .solo-control, .solo-inspeccion, .solo-no-control, .solo-no-inspeccion').removeClass('d-none');
+    $('.solo-computadora, .solo-control, .solo-inspeccion, .solo-no-control, .solo-no-inspeccion, .solo-entrega, .solo-recogida, .solo-no-entrega').removeClass('d-none');
     if (tipo !== 'computadora') $('.solo-computadora').addClass('d-none');
     if (!esCtrl) $('.solo-control').addClass('d-none');
     if (!esInsp) $('.solo-inspeccion').addClass('d-none');
     if (esCtrl) $('.solo-no-control').addClass('d-none');
     if (esInsp) $('.solo-no-inspeccion').addClass('d-none');
+    if (tipo !== 'entrega') $('.solo-entrega').addClass('d-none');
+    if (tipo !== 'recogida' && tipo !== 'caso_especial') $('.solo-recogida').addClass('d-none');
+    // <--- hecho por claude code (28-sep-2026): un solo obs_tecnico por POST — se habilita el textarea del bloque visible
+    $('#id_obs_tecnico').prop('disabled', esMov);
+    $('#id_obs_tecnico_mov').prop('disabled', !esMov);
+    if (esMov) {
+      $('.solo-no-inspeccion, .solo-no-entrega').addClass('d-none');   // sin estado/solución/pads: firma escrita + fecha y hora
+      $('.lbl-mov').each(function(){ $(this).text($(this).data(tipo === 'entrega' ? 'ent' : 'rec')); });
+      const fh = $('#id_fecha_hora');
+      if (fh.length && !fh.val()) {                                     // por defecto, ahora
+        const d = new Date(), p2 = x => String(x).padStart(2, '0');
+        fh.val(d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
+      }
+      movDetalleEquipo();
+    }
     $('.mant-equipo-btn').each(function(){
       const activo = $(this).data('equipo') === tipo;
       $(this).toggleClass('btn-primary', activo).toggleClass('btn-outline-primary', !activo);
     });
+    if (tipo === 'control') { ctrlSwitches(); }
   }
+
+  // <--- hecho por claude code (17-sep-2026): Entrega / Recogida — "debe mostrar QUÉ equipo" y QUÉ televisor
+  function movDetalleEquipo() {
+    const sel = document.getElementById('id_computadora'), out = document.getElementById('ent-equipo-detalle');
+    if (!sel || !out) return;
+    const c = COMP_DATA[sel.value] || null;
+    const id = sel.value && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.trim() : '';
+    out.textContent = c ? [id, c.serie ? 'Serie ' + c.serie : '', c.asignado || ''].filter(Boolean).join(' · ') : '— selecciona la computadora arriba —';
+    if (c && c.asignado) movElegirFirmante('#id_firma_nombre', c.asignado);   // firma = asignado del equipo (se puede cambiar)
+  }
+  // Selecciona un nombre en el select de firma; si no está en la lista, lo agrega
+  function movElegirFirmante(selector, nombre) {
+    const sel = document.querySelector(selector); if (!sel) return;
+    nombre = (nombre || '').trim();
+    if (nombre && !Array.from(sel.options).some(o => o.value === nombre)) sel.add(new Option(nombre, nombre));
+    sel.value = nombre;
+  }
+  $('#id_computadora').on('change', movDetalleEquipo);
+  $('#id_ent_televisor').on('change', function () {
+    $('#ent-televisor-wrap').prop('hidden', !this.checked);
+    if (!this.checked) $('#id_televisor').val('');
+  });
+  $('#edit-ent-televisor').on('change', function () {
+    $('#edit-ent-televisor-wrap').prop('hidden', !this.checked);
+    if (!this.checked) $('#edit-televisor').val('');
+  });
   $('.mant-equipo-btn').on('click', function(){ setEquipo($(this).data('equipo')); });
+  // <--- hecho por claude code (28-sep-2026): cada página es de UN tipo: el modal "Nuevo" queda fijo en ese tipo y
+  // se ocultan los botones para cambiarlo (data-v4 del div de config).
+  (function(){
+    const fijo = CFG_MAINTENANCE_DASHBOARD.v4;
+    if (!fijo || !document.querySelector('.mant-equipo-btn[data-equipo="' + fijo + '"]')) return;
+    $('#equipo-toggle').addClass('d-none');
+    setEquipo(fijo);
+    $('#modalNuevoRegistro').on('show.bs.modal', function(){ setEquipo(fijo); });
+  })();
+  // <--- hecho por claude code (28-sep-2026): "Caso especial" dentro del CONTROL: reemplaza las dos preguntas por el
+  // checklist de recogida (bloque equipo-entrega) y al guardar se crean control + recogida por caso especial juntos.
+  function casoEspecialToggle() {
+    const on = $('#chk-caso-especial').is(':checked') && $('#id_tipo_equipo').val() === 'control';
+    $('.ctrl-preguntas').toggleClass('d-none', on);
+    if (on) $('#ctrl-fallas-detalle-wrap').addClass('d-none');
+    $('.equipo-entrega').toggleClass('d-none', !on);
+    if (on) {
+      $('.lbl-mov').each(function(){ $(this).text($(this).data('rec')); });
+      $('#id_obs_tecnico_mov').prop('disabled', true);               // el comentario del técnico es el del control
+      $('#id_obs_tecnico').prop('disabled', false);
+      const fh = $('#id_fecha_hora');
+      if (fh.length && !fh.val()) {
+        const d = new Date(), p2 = x => String(x).padStart(2, '0');
+        fh.val(d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()));
+      }
+      movDetalleEquipo();
+    }
+  }
+  // <--- hecho por claude code (28-sep-2026): "Cambio de equipo" dentro del CONTROL: reemplaza las dos preguntas por
+  // Equipo anterior (la computadora del control) / Equipo nuevo. Excluyente con "Caso especial".
+  function cambioEquipoToggle() {
+    const on = $('#chk-cambio-equipo').is(':checked') && $('#id_tipo_equipo').val() === 'control';
+    $('.ctrl-cambio').toggleClass('d-none', !on);
+    if (on) {
+      $('.ctrl-preguntas').addClass('d-none'); $('#ctrl-fallas-detalle-wrap').addClass('d-none');
+      cambioEquipoAnterior();
+    }
+  }
+  function equipoTexto(d, asset) {
+    if (!d) return '—';
+    return [asset || d.asset || '', d.modelo || '', d.serie ? 'Serie ' + d.serie : '', d.ip ? 'IP ' + d.ip : ''].filter(Boolean).join(' · ');
+  }
+  function cambioEquipoAnterior() {
+    const id = $('#id_computadora').val(), d = COMP_DATA[id];
+    $('#cambio-equipo-anterior').text(id && d ? equipoTexto(d) : '— selecciona la computadora arriba —');
+  }
+  // Modal "Registrar equipo nuevo": se abre desde el control (nuevo o editar), NO envía nada al servidor:
+  // copia modelo/serie/IP/observaciones a los hidden del formulario que lo abrió y vuelve a mostrar ese modal.
+  let eqnOrigen = 'nuevo';
+  const EQN = { nuevo: { parent: '#modalNuevoRegistro', comp: '#id_computadora', box: '#cambio-equipo-nuevo', m: '#id_modelo_nuevo', s: '#id_serie_nuevo', ip: '#id_ip_nuevo', o: '#id_obs_equipo_nuevo' },
+                editar: { parent: '#modalEditarRegistro', comp: '#edit-computadora', box: '#edit-cambio-nuevo', m: '#edit-modelo-nuevo', s: '#edit-serie-nuevo', ip: '#edit-ip-nuevo', o: '#edit-obs-equipo-nuevo' } };
+  $(document).on('click', '.btn-equipo-nuevo', function(){
+    eqnOrigen = $(this).data('origen') || 'nuevo';
+    const k = EQN[eqnOrigen], id = $(k.comp).val(), d = COMP_DATA[id] || {};
+    if (!id) { alert('Primero selecciona la computadora del control.'); return; }
+    $('#eqn-asset, #eqn-asset-input').text(d.asset || '').val(d.asset || '');
+    $('#eqn-modelo').val($(k.m).val() || ''); $('#eqn-serie').val($(k.s).val() || ''); $('#eqn-ip').val($(k.ip).val() || ''); $('#eqn-obs').val($(k.o).val() || '');
+    $('#eqn-asignado').val(d.asignado || ''); $('#eqn-area').val(d.area || ''); $('#eqn-grado').val(d.grado || ''); $('#eqn-edificio').val(d.edificio || '');
+    $('#eqn-anterior').html('<i class="ti ti-device-desktop-off me-1"></i>Equipo anterior: <strong>' + $('<div>').text(equipoTexto(d)).html() + '</strong>');
+    $(k.parent).modal('hide');
+    $('#modalEquipoNuevo').modal('show');
+  });
+  $('#btn-equipo-nuevo-ok').on('click', function(){
+    const k = EQN[eqnOrigen];
+    const m = $('#eqn-modelo').val().trim(), s = $('#eqn-serie').val().trim().toUpperCase(), ip = $('#eqn-ip').val().trim();
+    if (!m && !s) { $('#eqn-modelo').focus(); return; }
+    $(k.m).val(m); $(k.s).val(s); $(k.ip).val(ip); $(k.o).val($('#eqn-obs').val().trim());
+    $(k.box).removeClass('vacio').text([m, s ? 'Serie ' + s : '', ip ? 'IP ' + ip : ''].filter(Boolean).join(' · '));
+    $('#modalEquipoNuevo').modal('hide');
+  });
+  $('#modalEquipoNuevo').on('hidden.bs.modal', function(){ $(EQN[eqnOrigen].parent).modal('show'); });
+  /* <--- hecho por claude code (12-oct-2026): REASIGNACIÓN (maestro A → maestro B). Los TRES interruptores del control
+     (caso especial / cambio de equipo / reasignación) son excluyentes; el orden de los toggles importa porque
+     casoEspecialToggle vuelve a mostrar las preguntas cuando está apagado y los otros dos solo las ocultan. */
+  function ctrlSwitches() { casoEspecialToggle(); cambioEquipoToggle(); reasignacionToggle(); }
+  function reaTexto(d) {
+    if (!d) return '—';
+    return [d.asignado || 'Sin asignar', d.grado ? 'Grado ' + d.grado : '', d.area || '', d.edificio ? 'Edificio ' + d.edificio : ''].filter(Boolean).join(' · ');
+  }
+  // ¿El maestro nuevo ya tiene otra computadora asignada? Aviso + sugiere su área/grado/edificio
+  function reaRevisarNuevo(inp, aviso, campos, compSel) {
+    const nombre = ($(inp).val() || '').trim().toLowerCase();
+    const propia = $(compSel).val();
+    const suyas = Object.keys(COMP_DATA).filter(k => k !== String(propia) && (COMP_DATA[k].asignado || '').trim().toLowerCase() === nombre && nombre);
+    if (!suyas.length) { $(aviso).addClass('d-none').text(''); return; }
+    const d = COMP_DATA[suyas[0]];
+    $(aviso).removeClass('d-none').html('<i class="ti ti-alert-triangle me-1"></i>' + $('<div>').text($(inp).val()).html() + ' ya tiene asignada ' +
+      suyas.map(k => $('<div>').text(COMP_DATA[k].asset || k).html()).join(', ') + ' (seguirá asignada). Se tomaron su área y grado.');
+    if (d.area) $(campos.a).val(d.area); if (d.grado) $(campos.g).val(d.grado); if (d.edificio) $(campos.e).val(d.edificio);
+  }
+  function reasignacionToggle() {
+    const on = $('#chk-reasignacion').is(':checked') && $('#id_tipo_equipo').val() === 'control';
+    $('.ctrl-reasig').toggleClass('d-none', !on);
+    $('#id_asignado_nuevo').prop('required', on);
+    if (on) {
+      $('.ctrl-preguntas').addClass('d-none'); $('#ctrl-fallas-detalle-wrap').addClass('d-none');
+      reasignacionAnterior();
+    }
+  }
+  function reasignacionAnterior() {
+    const id = $('#id_computadora').val(), d = COMP_DATA[id];
+    $('#rea-anterior').text(id && d ? reaTexto(d) : '— selecciona la computadora arriba —');
+    if (d) {   // por defecto la computadora conserva su ubicación; se cambia si el maestro nuevo está en otro lado
+      if (!$('#id_area_nueva').val()) $('#id_area_nueva').val(d.area || '');
+      if (!$('#id_grado_nuevo').val()) $('#id_grado_nuevo').val(d.grado || '');
+      if (!$('#id_edificio_nuevo').val()) $('#id_edificio_nuevo').val(d.edificio || '');
+    }
+  }
+  $(document).on('change', '#chk-caso-especial, #chk-cambio-equipo, #chk-reasignacion', function(){
+    if (this.checked) $('#chk-caso-especial, #chk-cambio-equipo, #chk-reasignacion').not(this).prop('checked', false);
+    ctrlSwitches();
+  });
+  $(document).on('input change', '#id_asignado_nuevo', function(){
+    reaRevisarNuevo(this, '#rea-aviso', { a: '#id_area_nueva', g: '#id_grado_nuevo', e: '#id_edificio_nuevo' }, '#id_computadora');
+  });
+  $('#id_computadora').on('change', function(){
+    $('#id_area_nueva, #id_grado_nuevo, #id_edificio_nuevo').val('');
+    cambioEquipoAnterior(); reasignacionAnterior();
+  });
+  // Edición de un control: un switch activo (y sin ficha derivada aún) reemplaza las preguntas por su bloque
+  function editCtrlSwitches() {
+    const esCtrl = $('#form-edit-mant').attr('data-tipo') === 'control' || $('#edit-record-id-badge').text().indexOf('ANAMAESCTRL') === 0;
+    if (!esCtrl) return;
+    const ceOn = $('#edit-chk-caso-especial').is(':checked') && !$('#edit-chk-caso-especial').prop('disabled');
+    const camOn = $('#edit-chk-cambio-equipo').is(':checked') && !$('#edit-chk-cambio-equipo').prop('disabled');
+    const reaOn = $('#edit-chk-reasignacion').is(':checked') && !$('#edit-chk-reasignacion').prop('disabled');   // <--- hecho por claude code (12-oct-2026)
+    $('.edit-reasig').toggleClass('d-none', !reaOn);
+    $('#edit-asignado-nuevo').prop('required', reaOn);
+    if (reaOn) {
+      const dr = COMP_DATA[$('#edit-computadora').val()];
+      $('#edit-rea-anterior').text(dr ? reaTexto(dr) : '—');
+      if (dr) {
+        if (!$('#edit-area-nueva').val()) $('#edit-area-nueva').val(dr.area || '');
+        if (!$('#edit-grado-nuevo').val()) $('#edit-grado-nuevo').val(dr.grado || '');
+        if (!$('#edit-edificio-nuevo').val()) $('#edit-edificio-nuevo').val(dr.edificio || '');
+      }
+    }
+    $('.edit-preguntas').toggleClass('d-none', ceOn || camOn || reaOn);
+    if (!(ceOn || camOn || reaOn)) $('#edit-ctrl-fallas-detalle-wrap').toggleClass('d-none', $('#edit-eval-fallas').val() !== 'si');
+    $('.edit-entrega').toggleClass('d-none', !ceOn);
+    $('#edit-obs-tecnico-mov').prop('disabled', true);                 // el comentario del técnico es el del control
+    if (ceOn) {
+      $('.lbl-mov-edit').each(function(){ $(this).text($(this).data('rec')); });
+      const fh = $('#edit-fecha-hora');
+      if (!fh.val()) { const d = new Date(), p2 = x => String(x).padStart(2, '0'); fh.val(d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes())); }
+      $('#edit-ent-equipo-detalle').text($('#edit-computadora option:selected').text() || '—');
+    }
+    $('.edit-cambio').toggleClass('d-none', !camOn);
+    $('#edit-btn-equipo-nuevo').toggleClass('d-none', !camOn);
+    if (camOn) { const dc = COMP_DATA[$('#edit-computadora').val()]; $('#edit-cambio-anterior').text(dc ? equipoTexto(dc) : ($('#edit-computadora option:selected').text() || '—')); }
+  }
+  $(document).on('change', '#edit-chk-caso-especial, #edit-chk-cambio-equipo, #edit-chk-reasignacion', function(){
+    if (this.checked) $('#edit-chk-caso-especial, #edit-chk-cambio-equipo, #edit-chk-reasignacion').not(this).filter(':not(:disabled)').prop('checked', false);
+    editCtrlSwitches();
+  });
+  $(document).on('input change', '#edit-asignado-nuevo', function(){
+    reaRevisarNuevo(this, '#edit-rea-aviso', { a: '#edit-area-nueva', g: '#edit-grado-nuevo', e: '#edit-edificio-nuevo' }, '#edit-computadora');
+  });
 
   // <--- hecho por claude code: "¿Cuáles fallas?" solo si respondió Sí (nuevo y editar)
   $(document).on('change', '#id_eval_fallas', function(){ $('#ctrl-fallas-detalle-wrap').toggleClass('d-none', this.value !== 'si'); });
@@ -374,6 +592,7 @@ $(function () {
     const pk = $(this).data('pk');
     $.getJSON(`/mantenimiento/${pk}/editar/`, function(d){
       $('#edit-record-id-badge').text(d.record_id);
+      $('#form-edit-mant').attr('data-tipo', d.tipo_equipo);   // <--- hecho por claude code (28-sep-2026): tipo del registro en edición
       $('#form-edit-mant').attr('action', `/mantenimiento/${pk}/editar/`);
       $('#edit-computadora').val(d.computadora);
       const comp = COMP_DATA[String(d.computadora)] || {};
@@ -392,12 +611,63 @@ $(function () {
       // <--- hecho por claude code: el modal de edición se adapta al Control de equipo
       const esCtrl = d.tipo_equipo === 'control';
       const esInsp = d.tipo_equipo === 'inspeccion';
+      // <--- hecho por claude code (17-sep-2026): Entrega / Recogida en el modal de edición
+      const esMov = d.tipo_equipo === 'entrega' || d.tipo_equipo === 'recogida' || d.tipo_equipo === 'caso_especial';
+      $('.edit-entrega').toggleClass('d-none', !esMov);
+      $('.lbl-mov-edit').each(function(){ $(this).text($(this).data(d.tipo_equipo === 'entrega' ? 'ent' : 'rec')); });
+      // <--- hecho por claude code (28-sep-2026): aviso del control de origen en un caso especial
+      $('#edit-ce-aviso').toggleClass('d-none', d.tipo_equipo !== 'caso_especial');
+      // <--- hecho por claude code (28-sep-2026): cambio de equipo en edición
+      const esCam = d.tipo_equipo === 'cambio_equipo';
+      $('.edit-cambio').toggleClass('d-none', !esCam);
+      $('#edit-cam-control').text(d.control_origen_rid || '—');
+      $('#edit-modelo-nuevo, #edit-serie-nuevo, #edit-ip-nuevo, #edit-obs-equipo-nuevo').val('');
+      $('#edit-btn-equipo-nuevo').toggleClass('d-none', esCam);      // en una ficha de cambio ya registrada no se re-registra
+      if (esCam) {
+        const ant = [d.modelo_anterior, d.serie_anterior ? 'Serie ' + d.serie_anterior : '', d.ip_anterior ? 'IP ' + d.ip_anterior : ''].filter(Boolean).join(' · ');
+        const nue = [d.modelo_nuevo, d.serie_nuevo ? 'Serie ' + d.serie_nuevo : '', d.ip_nuevo ? 'IP ' + d.ip_nuevo : ''].filter(Boolean).join(' · ');
+        $('#edit-cambio-anterior').text((d.computadora_rid ? d.computadora_rid + ' · ' : '') + (ant || '—'));
+        $('#edit-cambio-nuevo').removeClass('vacio').text(nue || '—');
+      } else {
+        $('#edit-cambio-anterior').text('—'); $('#edit-cambio-nuevo').addClass('vacio').text('Sin registrar');
+      }
+      // <--- hecho por claude code (28-sep-2026): switches Caso especial / Cambio de equipo al EDITAR un control
+      $('#edit-chk-caso-especial').prop('checked', false).prop('disabled', false);
+      $('#edit-chk-cambio-equipo').prop('checked', false).prop('disabled', false);
+      $('#edit-chk-reasignacion').prop('checked', false).prop('disabled', false);   // <--- hecho por claude code (12-oct-2026)
+      $('#edit-rea-existente').addClass('d-none').text('');
+      $('#edit-asignado-nuevo, #edit-area-nueva, #edit-grado-nuevo, #edit-edificio-nuevo').val('');
+      $('#edit-rea-aviso').addClass('d-none').text('');
+      // ficha de REASIGNACIÓN ya registrada: solo se muestra (el inventario ya se actualizó al crearla)
+      const esRea = d.tipo_equipo === 'reasignacion';
+      $('.edit-reasig-info').toggleClass('d-none', !esRea);
+      if (esRea) {
+        $('#edit-rea-control').text(d.control_origen_rid || '—');
+        $('#edit-rea-resumen').text((d.computadora_rid || '') + ': ' + (d.asignado_anterior || '—') + (d.grado_anterior ? ' (' + d.grado_anterior + ')' : '') + ' → ' + (d.asignado_nuevo || '—') + (d.grado_nuevo ? ' (' + d.grado_nuevo + ')' : ''));
+      }
+      $('#edit-ce-existente, #edit-cam-existente').addClass('d-none').text('');
+      if (esCtrl) {
+        if (d.hijo_caso_especial) { $('#edit-chk-caso-especial').prop('checked', true).prop('disabled', true); $('#edit-ce-existente').removeClass('d-none').text(d.hijo_caso_especial); }
+        if (d.hijo_cambio_equipo) { $('#edit-chk-cambio-equipo').prop('checked', true).prop('disabled', true); $('#edit-cam-existente').removeClass('d-none').text(d.hijo_cambio_equipo); }
+        if (d.hijo_reasignacion) { $('#edit-chk-reasignacion').prop('checked', true).prop('disabled', true); $('#edit-rea-existente').removeClass('d-none').text(d.hijo_reasignacion); }
+      }
+      editCtrlSwitches();
+      $('#edit-ce-control').text(d.control_origen_rid || '—');
+      $('#edit-ent-equipo').prop('checked', !!d.ent_equipo);
+      $('#edit-ent-mouse').prop('checked', !!d.ent_mouse_teclado);
+      $('#edit-ent-televisor').prop('checked', !!d.ent_televisor);
+      $('#edit-ent-control').prop('checked', !!d.ent_control_tv);
+      $('#edit-ent-televisor-wrap').prop('hidden', !d.ent_televisor);
+      $('#edit-televisor').val(d.televisor ? String(d.televisor) : '');
+      movElegirFirmante('#edit-firma-nombre', d.firma_nombre || '');
+      $('#edit-fecha-hora').val(d.fecha_hora || '');
+      $('#edit-ent-equipo-detalle').text([d.model, d.serie ? 'Serie ' + d.serie : '', d.teacher_name].filter(Boolean).join(' · ') || '—');
       $('.edit-inspeccion').toggleClass('d-none', !esInsp);
       $('#edit-insp-limpio').prop('checked', !!d.insp_limpio);
       $('#edit-insp-ordenado').prop('checked', !!d.insp_ordenado);
       $('#edit-insp-cables').prop('checked', !!d.insp_cables);
       $('#edit-insp-alimentos').prop('checked', !!d.insp_alimentos);
-      if (esCtrl || esInsp) {
+      if (esCtrl || esInsp || esMov) {
         // <--- hecho por claude code: el control muestra al portador ACTUAL del inventario
         const compAct = COMP_DATA[String(d.computadora)] || {};
         $('#edit-asignado-display').val(compAct.asignado || d.teacher_name || '');
@@ -415,7 +685,7 @@ $(function () {
       $('.edit-no-control, .edit-no-impresora, .edit-no-inspeccion').removeClass('d-none');
       if (esCtrl) $('.edit-no-control').addClass('d-none');
       if (esImp) $('.edit-no-impresora').addClass('d-none');
-      if (esInsp) $('.edit-no-inspeccion').addClass('d-none');
+      if (esInsp || esMov) $('.edit-no-inspeccion').addClass('d-none');
       $('#edit-impresora').val(d.impresora ? String(d.impresora) : '');
       if (esImp) {
         const imp = IMP_DATA[String(d.impresora)] || {};
@@ -438,6 +708,8 @@ $(function () {
       $('#edit-ctrl-fallas-detalle-wrap').toggleClass('d-none', !(esCtrl && d.eval_fallas === 'si'));
       $('#edit-obs-auditora').val(d.obs_auditora || '');
       $('#edit-obs-tecnico').val(d.obs_tecnico || '');
+      $('#edit-obs-tecnico').prop('disabled', esMov);
+      $('#edit-obs-tecnico-mov').prop('disabled', !esMov).val(esMov ? (d.obs_tecnico || '') : '');
       $('#edit-estado-equipo').val(d.estado_equipo || '');
       // Firma del técnico: mostrar la actual (si existe) y limpiar el lienzo
       padEditTec.clear();

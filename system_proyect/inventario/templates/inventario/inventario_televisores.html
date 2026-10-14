@@ -88,7 +88,7 @@
             <tbody>
               {% for tv in televisores %}
               <tr>
-                <td>{{ tv.id }}</td><td>{{ tv.asset_id }}</td><td>{{ tv.modelo }}</td>
+                <td>{{ tv.id }}</td><td>{{ tv.asset_id }}</td><td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ tv.serie|default:'—' }}</div><div><b>IP:</b> {{ tv.ip|default:'—' }}</div><div><b>Grado:</b> {{ tv.grado|default:'—' }}</div><div><b>Área:</b> {{ tv.area|default:'—' }}</div><div><b>Observaciones:</b> {{ tv.observaciones|default:'—' }}</div>">{{ tv.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ tv.serie }}</td><td>{{ tv.ip }}</td><td>{{ tv.grado }}</td>
                 <td>{{ tv.area }}</td><td>{{ tv.observaciones|default:"—" }}</td>
                 <td>
@@ -119,6 +119,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'inventario/js/inventario_televisores.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/inventario_televisores.js' %}?v=21"></script>
 <script src="{% static 'inventario/js/televisores_edit.js' %}?v=20"></script>
 {% endblock %}

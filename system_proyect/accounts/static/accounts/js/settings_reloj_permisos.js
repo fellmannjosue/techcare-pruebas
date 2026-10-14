@@ -16,14 +16,24 @@
     const b = document.querySelector(`.perm-hasta-cd[data-user="${user}"]`);
     if (b) b.dataset.ms = ms || 0;
   }
-  document.querySelectorAll('.perm-hasta-save').forEach(btn => {
-    btn.addEventListener('click', async function () {
+  // <--- hecho por claude code: AUTOGUARDADO — al elegir la fecha se guarda solo y arranca
+  // la cuenta regresiva de inmediato. Si la fecha elegida ya pasó, se avisa.
+  document.querySelectorAll('.perm-hasta-input').forEach(inp => {
+    inp.addEventListener('change', async function () {
       const user = this.dataset.user;
-      const inp = document.querySelector(`.perm-hasta-input[data-user="${user}"]`);
       this.disabled = true;
-      const r = await guardar(user, inp.value || '');
+      const r = await guardar(user, this.value || '');
       this.disabled = false;
-      if (r.ok) badge(user, r.hasta_ms); else alert(r.error || 'Error al guardar');
+      if (r.ok) {
+        badge(user, r.hasta_ms);
+        this.classList.add('is-valid');
+        setTimeout(() => this.classList.remove('is-valid'), 1500);
+        if (r.hasta_ms && r.hasta_ms <= Date.now()) {
+          alert('⚠️ Esa fecha/hora ya pasó — elige una futura para activar la ventana.');
+        }
+      } else {
+        alert(r.error || 'Error al guardar');
+      }
     });
   });
   document.querySelectorAll('.perm-hasta-clear').forEach(btn => {
@@ -35,20 +45,25 @@
       if (r.ok) badge(user, 0);
     });
   });
-  // Cuenta regresiva en vivo
+  // <--- hecho por claude code: binario y claro — VERDE "Permiso activo" (con cuenta
+  // regresiva) mientras la ventana está vigente; ROJO "Permiso denegado" si venció o
+  // no hay fecha. Así se ve de un vistazo quién tiene permiso.
   function tick() {
     const now = Date.now();
     document.querySelectorAll('.perm-hasta-cd').forEach(b => {
       const ms = parseInt(b.dataset.ms || '0', 10);
-      if (!ms) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Sin permiso'; b.dataset.ms = 0; return; }
-      let diff = Math.floor((ms - now) / 1000);
-      if (diff <= 0) { b.className = 'ms-auto badge bg-secondary-lt text-secondary perm-hasta-cd'; b.textContent = 'Vencido'; return; }
+      let diff = ms ? Math.floor((ms - now) / 1000) : 0;
+      if (!ms || diff <= 0) {
+        b.className = 'ms-auto badge bg-red-lt text-red perm-hasta-cd';
+        b.innerHTML = '<i class="ti ti-lock me-1"></i>Permiso denegado';
+        if (!ms) b.dataset.ms = 0;
+        return;
+      }
       const d = Math.floor(diff / 86400); diff %= 86400;
       const h = Math.floor(diff / 3600); diff %= 3600;
       const m = Math.floor(diff / 60), s = diff % 60;
-      const cls = (ms - now) < 3600000 ? 'bg-red-lt text-red' : 'bg-green-lt text-green';
-      b.className = `ms-auto badge ${cls} perm-hasta-cd`;
-      b.innerHTML = `<i class="ti ti-clock-hour-4 me-1"></i>${d ? d + 'd ' : ''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      b.className = 'ms-auto badge bg-green-lt text-green perm-hasta-cd';
+      b.innerHTML = `<i class="ti ti-lock-open me-1"></i>Permiso activo · ${d ? d + 'd ' : ''}${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     });
   }
   tick(); setInterval(tick, 1000);

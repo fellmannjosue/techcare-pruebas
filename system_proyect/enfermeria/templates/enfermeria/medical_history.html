@@ -134,7 +134,7 @@
               <td class="small text-muted">{{ a.atendido_por.nombre }}</td>
               <td class="text-center">
                 <button class="btn btn-sm btn-info btn-ver-historial"
-                        data-estudiante="{{ a.estudiante|escapejs }}"
+                        data-estudiante="{{ a.estudiante }}"
                         title="Ver historial completo de {{ a.estudiante }}">
                   <i class="ti ti-history"></i>
                 </button>
@@ -170,7 +170,7 @@
               <td class="small text-muted font-monospace" data-order="{{ alumno.ultima_visita|date:'YmdHi' }}">{{ alumno.ultima_visita|date:"d/m/Y H:i" }}</td>
               <td class="text-center">
                 <button class="btn btn-sm btn-info btn-ver-historial"
-                        data-estudiante="{{ alumno.estudiante|escapejs }}"
+                        data-estudiante="{{ alumno.estudiante }}"
                         title="Ver historial completo de {{ alumno.estudiante }}">
                   <i class="ti ti-history"></i>
                 </button>

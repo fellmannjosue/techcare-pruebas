@@ -189,6 +189,24 @@ def _rol_ctx(request):
     }
 
 
+# <--- hecho por claude code (16-sep-2026): un coordinador-maestro (p. ej. druiz, C2) entraba
+# por la tarjeta "Agendas · Mis agendas" del Panel General y caía en la ventana de coordinador,
+# porque el modo vive en la sesión y solo cambiaba con el toggle. Ahora los enlaces pueden
+# fijar el modo: ?modo=maestro[&area=bilingue|colegio] abre la parte de maestro y
+# ?modo=coord la de coordinador.
+def _aplicar_modo_get(request):
+    modo = request.GET.get('modo')
+    if not modo:
+        return
+    if modo == 'maestro' and _es_coord_maestro(request.user):
+        request.session['agenda_modo_maestro'] = True
+        area = request.GET.get('area')
+        if area in ('bilingue', 'colegio'):
+            request.session['agenda_area_maestro'] = area
+    elif modo == 'coord' and _es_coordinador(request.user):
+        request.session['agenda_modo_maestro'] = False
+
+
 # ── TOGGLE MODO MAESTRO / COORDINADOR ─────────────────────────────────────────
 @login_required
 def toggle_modo_maestro(request):
@@ -204,6 +222,7 @@ def toggle_modo_maestro(request):
 # ── FORMULARIO MAESTRO ────────────────────────────────────────────────────────
 @login_required
 def form_agenda(request):
+    _aplicar_modo_get(request)   # <--- hecho por claude code (16-sep-2026)
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
 
@@ -502,6 +521,7 @@ def _agrupar_agendas_por_parcial(agendas_qs):
 
 @login_required
 def historial_maestro(request):
+    _aplicar_modo_get(request)   # <--- hecho por claude code (16-sep-2026)
     # El listado completo de agendas solo lo ve el coordinador.
     # Un maestro normal crea desde el formulario y revisa las suyas en su Historial.
     if not _es_coordinador(request.user):
@@ -522,6 +542,7 @@ def historial_maestro(request):
 # ── DASHBOARD COORDINADOR ─────────────────────────────────────────────────────
 @login_required
 def dashboard_coordinador(request):
+    _aplicar_modo_get(request)   # <--- hecho por claude code (16-sep-2026)
     if not _es_coordinador(request.user):
         return HttpResponseForbidden()
     areas = _areas_para_usuario(request.user, request)

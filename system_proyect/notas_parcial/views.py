@@ -1,3 +1,6 @@
+from django.contrib import messages
+from django.urls import reverse
+from django.core.exceptions import PermissionDenied
 import io
 import json
 import os
@@ -10,7 +13,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db import connections
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 
 from reportlab.lib import colors
@@ -23,7 +26,7 @@ from reportlab.pdfgen import canvas
 from django.contrib.auth import get_user_model
 
 from django.core.mail import send_mail
-from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada
+from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada, CierreNotas, MaestroGuia
 from . import pdf_emoji  # <--- hecho por claude code: emojis a color en el PDF de comentarios
 
 User = get_user_model()
@@ -81,6 +84,74 @@ _solo_maestro = user_passes_test(
 
 _superuser = user_passes_test(lambda u: u.is_superuser, login_url='login')
 
+
+# ─── Cierre de escritura de los maestros (hecho por claude code, 12-oct-2026) ───────────────
+def _fmt_dt(d):
+    return d.strftime('%d/%m/%Y %H:%M') if d else ''
+
+
+def _estado_cierre(area, parcial, anio, grado='', seccion=''):
+    """Estado de escritura de un grado-sección: combina su propio cierre y el de todo el parcial.
+    cerrado=True si alguno está revocado o su fecha de cierre ya pasó."""
+    import datetime as _dt
+    ahora = _dt.datetime.now()
+    try:
+        parcial, anio = int(parcial), int(anio)
+    except (TypeError, ValueError):
+        return {'cerrado': False, 'motivo': '', 'texto': '', 'cierre_en': '', 'cierre_iso': '',
+                'revocado_grupo': False, 'revocado_parcial': False, 'fecha_grupo': '', 'fecha_parcial': ''}
+    filas = {(c.grado, c.seccion): c for c in CierreNotas.objects.filter(area=area, parcial=parcial, anio=anio)}
+    g = filas.get((grado or '', seccion or '')) if grado else None
+    p = filas.get(('', ''))
+    revocado = bool((g and g.revocado) or (p and p.revocado))
+    fechas = [c.cierre_en for c in (g, p) if c and c.cierre_en]
+    cierre = min(fechas) if fechas else None
+    vencido = bool(cierre and cierre <= ahora)
+    p_cerrado = bool(p and p.parcial_cerrado)
+    extra = {'parcial_cerrado': p_cerrado,
+             'parcial_cerrado_en': _fmt_dt(p.parcial_cerrado_en) if p_cerrado and p.parcial_cerrado_en else '',
+             'parcial_cerrado_por': ((p.actualizado_por.get_full_name() or p.actualizado_por.username)
+                                     if p_cerrado and p.actualizado_por_id else '')}
+    if p_cerrado:
+        return {'cerrado': True, 'motivo': 'parcial_cerrado', 'texto': f'Coordinación cerró el Parcial {parcial}.',
+                'cierre_en': _fmt_dt(cierre), 'cierre_iso': cierre.strftime('%Y-%m-%dT%H:%M') if cierre else '',
+                'revocado_grupo': bool(g and g.revocado), 'revocado_parcial': bool(p and p.revocado),
+                'fecha_grupo': g.cierre_en.strftime('%Y-%m-%dT%H:%M') if (g and g.cierre_en) else '',
+                'fecha_parcial': p.cierre_en.strftime('%Y-%m-%dT%H:%M') if (p and p.cierre_en) else '', **extra}
+    if revocado:
+        motivo, texto = 'revocado', 'Coordinación revocó los permisos de escritura.'
+    elif vencido:
+        motivo, texto = 'fecha', f'El plazo para escribir cerró el {_fmt_dt(cierre)}.'
+    else:
+        motivo, texto = '', (f'Puedes escribir hasta el {_fmt_dt(cierre)}.' if cierre else '')
+    return {'cerrado': revocado or vencido, 'motivo': motivo, 'texto': texto,
+            'cierre_en': _fmt_dt(cierre), 'cierre_iso': cierre.strftime('%Y-%m-%dT%H:%M') if cierre else '',
+            'revocado_grupo': bool(g and g.revocado), 'revocado_parcial': bool(p and p.revocado),
+            'fecha_grupo': g.cierre_en.strftime('%Y-%m-%dT%H:%M') if (g and g.cierre_en) else '',
+            'fecha_parcial': p.cierre_en.strftime('%Y-%m-%dT%H:%M') if (p and p.cierre_en) else '', **extra}
+
+
+def _parciales_cerrados():
+    """{(area, parcial, anio)} con "Cerrar parcial" activo."""
+    return set(CierreNotas.objects.filter(parcial_cerrado=True, grado='', seccion='')
+               .values_list('area', 'parcial', 'anio'))
+
+
+def _maestro_puede_escribir(user, area, parcial, anio, grado='', seccion=''):
+    """(ok, mensaje). Coordinadores y superusuario siempre pueden; el maestro no, si su grupo está cerrado.
+    Sin grado (pantallas viejas) se bloquea si TODAS sus asignaciones de ese parcial están cerradas."""
+    if _es_coordinador(user):
+        return True, ''
+    if grado:
+        est = _estado_cierre(area, parcial, anio, grado, seccion)
+        return (not est['cerrado']), est['texto']
+    asigs = AsignacionMaestro.objects.filter(maestro=user, area=area, parcial=int(parcial), anio=int(anio))
+    estados = [_estado_cierre(area, parcial, anio, a.grado, a.seccion) for a in asigs] or \
+              [_estado_cierre(area, parcial, anio)]
+    if all(e['cerrado'] for e in estados):
+        return False, estados[0]['texto']
+    return True, ''
+
 AREAS = [
     ('bl',           'Primaria Bilingüe'),
     ('colegio_bl',   'Colegio BL'),
@@ -135,8 +206,9 @@ _COLS_STAGING = (
 # tabla de staging era la fuente rápida y el SP solo se llamaba de milagro; ahora el
 # SP es la ÚNICA fuente viva (la staging está congelada y no podemos regenerarla,
 # solo tenemos lectura), así que la caché es lo único que separa la pantalla de los
-# datos reales. 30 min mantiene el SP fuera del camino sin dejar notas viejas medio día.
-_CACHE_TTL = 1800  # 30 minutos
+# datos reales. <--- hecho por claude code (30-sep-2026): bajado de 30 a 10 min a pedido del usuario (los cambios
+# hechos en Access tardaban media hora en verse); el SP tarda 4-10 s, así que 10 min sigue siendo suficiente.
+_CACHE_TTL = 600  # 10 minutos
 
 # Correo destino según usuario — bilingüe → lchavez, colegio → malvarado
 _DEST_POR_USUARIO = {
@@ -219,7 +291,9 @@ def _llamar_sp(area, parcial, anio, curso=None):
 
     # 1. Caché en BD Django (compartida entre workers)
     cached = cache.get(key)
-    if cached:
+    # <--- hecho por claude code (30-sep-2026): solo se acepta un caché con la forma (rows: list, cols: list); cualquier
+    # otra cosa se descarta y se vuelve a leer (un valor corrupto tumbaba la pantalla con 500).
+    if cached and isinstance(cached, tuple) and len(cached) == 2 and isinstance(cached[0], list) and isinstance(cached[1], list):
         return cached
 
     # <--- hecho por claude code: EL SP VA PRIMERO, ya no la tabla de staging.
@@ -465,6 +539,12 @@ def guardar_comentario(request):
         if len(comentario) > 600:
             return JsonResponse({'ok': False, 'error': 'El comentario no puede superar los 600 caracteres.'})
 
+        # <--- hecho por claude code (12-oct-2026): cierre de escritura (revocado o fecha vencida)
+        _ok, _msg = _maestro_puede_escribir(request.user, area_v, parcial_v, anio_v,
+                                            (data.get('grado') or '').strip(), (data.get('seccion') or '').strip())
+        if not _ok:
+            return JsonResponse({'ok': False, 'error': _msg or 'La escritura está cerrada.', 'cerrado': True}, status=403)
+
         # Maestro autor del comentario (caja). Por defecto, el usuario actual.
         maestro_id = data.get('maestro_id')
         es_coord = request.user.is_superuser or request.user.groups.filter(name__icontains='coord').exists()
@@ -513,8 +593,10 @@ def generar_pdf(request):
     pdf.setTitle(f"Reporte Notas Parcial {parcial} {anio}.pdf")
 
     total = len(alumnos)
+    _guias = _guias_map(area, anio)   # <--- hecho por claude code (13-oct-2026): firma del maestro guía
     for idx, alumno in enumerate(alumnos, 1):
-        _dibujar_pagina(pdf, alumno, int(parcial), int(anio), idx, total)
+        _dibujar_pagina(pdf, alumno, int(parcial), int(anio), idx, total,
+                        guia=_guias.get((alumno.get('grado', ''), alumno.get('grupo', '')), ''))
         if idx < total:
             pdf.showPage()
 
@@ -812,7 +894,7 @@ def _dibujar_tabla(pdf, materias, y_top):
     return y
 
 
-def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
+def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag, guia=''):
     w, h = letter
 
     # ── Logo ──────────────────────────────────────────────────────
@@ -970,7 +1052,14 @@ def _dibujar_pagina(pdf, alumno, parcial, anio, num_pag, total_pag):
     pdf.drawCentredString(42 * mm, y_firma, 'Firma del Encargado')
 
     pdf.line(w / 2 + 5 * mm, y_firma + 8 * mm, w - 10 * mm, y_firma + 8 * mm)
-    pdf.drawCentredString(w / 2 + 40 * mm, y_firma, 'Firma del Maestro')
+    # <--- hecho por claude code (13-oct-2026): firma del MAESTRO GUÍA. El nombre va SOBRE la línea (como la firma)
+    # y la leyenda debajo, centrados en la línea (pedido del usuario).
+    x_guia = (w / 2 + 5 * mm + w - 10 * mm) / 2
+    if guia:
+        pdf.setFont('Helvetica-Bold', 9)
+        pdf.drawCentredString(x_guia, y_firma + 9.5 * mm, guia[:60])   # SOBRE la línea (va como la firma)
+        pdf.setFont('Helvetica', 9)
+    pdf.drawCentredString(x_guia, y_firma, 'Firma del Maestro Guía')
 
     # ── Footer ────────────────────────────────────────────────────
     hoy      = date.today()
@@ -1093,6 +1182,14 @@ def coordinador_notas(request):
         'ya_revisado':            _ya_revisado(request.user, area, parcial, anio, grado, seccion),   # <--- hecho por claude code
         'ocultar_asignaciones':   _es_solo_revision(request.user),
         'areas':                  _areas_para(request.user),
+        'puede_refrescar':        _puede_refrescar(request.user, area),   # <--- hecho por claude code (30-sep-2026)
+        # <--- hecho por claude code (12-oct-2026): estado de cierre de cada grado-sección (lo pinta cierre_notas.js)
+        'cierres': ({f"{gs['grado']}|{gs['seccion']}": _estado_cierre(area, parcial, anio, gs['grado'], gs['seccion'])
+                     for gs in grados_secciones} if (area and parcial) else {}),
+        'cierre_parcial': _estado_cierre(area, parcial, anio) if (area and parcial) else None,
+        # <--- hecho por claude code (13-oct-2026): maestro guía por grado-sección (lo pinta maestro_guia.js)
+        'guias': ({f'{g}|{sec}': n for (g, sec), n in _guias_map(area, anio).items()} if (area and anio) else {}),
+        'maestros_lista': _maestros_lista(),
     })
 
 
@@ -1183,7 +1280,12 @@ def maestro_notas(request):
     # las diferenciaba una etiqueta pequeña. Se agrupan por área y en bachillerato el
     # grado se muestra como el año que es (1er Año / 2do Año), con su curso en el enlace.
     asignaciones = list(asignaciones)
+    # <--- hecho por claude code (12-oct-2026): "Cerrar parcial": el maestro deja de ver ese parcial; coordinación lo ve marcado
+    _cerrados = _parciales_cerrados()
+    # 13-oct-2026 (pedido del usuario): oculto para TODOS en Mis Reportes, también coordinación y superusuario
+    asignaciones = [a for a in asignaciones if (a.area, a.parcial, a.anio) not in _cerrados]
     for a in asignaciones:
+        a.parcial_cerrado = (a.area, a.parcial, a.anio) in _cerrados
         a.curso = _curso_de_grado(a.grado) if a.area == 'bachillerato' else ''
         a.titulo = (f'{_ORDINAL_ANIO.get(a.grado, a.grado)} Año' if a.area == 'bachillerato'
                     else f'Grado {a.grado}')
@@ -1207,7 +1309,11 @@ def maestro_notas(request):
     error       = ''
     asig_activa = None
 
-    if area_sel and parcial_sel and anio_sel:
+    # <--- hecho por claude code (13-oct-2026): un parcial cerrado no se abre desde Mis Reportes, ni por coordinación
+    if area_sel and parcial_sel and anio_sel and parcial_sel.isdigit() and anio_sel.isdigit() \
+            and (area_sel, int(parcial_sel), int(anio_sel)) in _parciales_cerrados():
+        error = f'El Parcial {parcial_sel} está cerrado. Coordinación lo puede reabrir desde la pantalla del coordinador.'
+    elif area_sel and parcial_sel and anio_sel:
         # Verificar que el maestro tenga asignación (o sea coordinador)
         if _es_coordinador(user):
             asig_activa = AsignacionMaestro.objects.filter(
@@ -1222,6 +1328,8 @@ def maestro_notas(request):
             ).first()
             if not asig_activa:
                 error = 'No tienes asignación para esos parámetros.'
+            elif (area_sel, int(parcial_sel), int(anio_sel)) in _parciales_cerrados():
+                error = f'Coordinación cerró el Parcial {parcial_sel}.'   # <--- hecho por claude code (12-oct-2026)
 
         if not error:
             rows, _ = _llamar_sp(area_sel, parcial_sel, anio_sel, curso_sel or None)
@@ -1256,7 +1364,13 @@ def maestro_notas(request):
 
     area_label = dict(AREAS).get(area_sel, area_sel)
 
+    # <--- hecho por claude code (12-oct-2026): aviso y bloqueo en pantalla si coordinación cerró la escritura
+    cierre = _estado_cierre(area_sel, parcial_sel, anio_sel, grado_sel, seccion_sel) if (area_sel and parcial_sel and anio_sel) else None
+    escritura_cerrada = bool(cierre and cierre['cerrado'] and not _es_coordinador(user))
+
     return render(request, 'notas_parcial/maestro.html', {
+        'cierre':            cierre,
+        'escritura_cerrada': escritura_cerrada,
         'asignaciones': asignaciones,
         'grupos_asig':  grupos_asig,   # <--- hecho por claude code: tarjetas agrupadas por área
         'ver_todas':    ver_todas,   # <--- hecho por claude code
@@ -1293,6 +1407,11 @@ def finalizar_revision(request):
         grado   = data.get('grado', '')
         seccion = data.get('seccion', '')
 
+        # <--- hecho por claude code (12-oct-2026): con la escritura cerrada tampoco se marca Finalizado
+        _ok, _msg = _maestro_puede_escribir(request.user, area, parcial, anio, grado, seccion)
+        if not _ok:
+            return JsonResponse({'ok': False, 'error': _msg or 'La escritura está cerrada.', 'cerrado': True}, status=403)
+
         RevisionFinalizada.objects.update_or_create(
             maestro=request.user,
             area=area, parcial=parcial, anio=anio,
@@ -1319,6 +1438,55 @@ def finalizar_revision(request):
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
+
+
+@login_required
+@_coordinador
+@require_POST
+def cierre_guardar(request):
+    """<--- hecho por claude code (12-oct-2026): revocar/restaurar permisos o fijar/quitar la fecha de cierre.
+    alcance 'grupo' = ese grado-sección; 'parcial' = todos los grados del área en ese parcial."""
+    import datetime as _dt
+    if _es_solo_revision(request.user):
+        return JsonResponse({'ok': False, 'error': 'Tu rol es solo de revisión.'}, status=403)
+    try:
+        data    = json.loads(request.body or b'{}')
+        area    = data['area']
+        parcial = int(data['parcial'])
+        anio    = int(data['anio'])
+        accion  = data.get('accion')
+        alcance = data.get('alcance', 'grupo')
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Datos incompletos.'}, status=400)
+    if area not in [a for a, _ in _areas_para(request.user)]:
+        return JsonResponse({'ok': False, 'error': 'No coordinas esa área.'}, status=403)
+    grado, seccion = ('', '') if alcance == 'parcial' else ((data.get('grado') or '').strip(), (data.get('seccion') or '').strip())
+    if alcance != 'parcial' and not grado:
+        return JsonResponse({'ok': False, 'error': 'Falta el grado.'}, status=400)
+    obj, _ = CierreNotas.objects.get_or_create(area=area, parcial=parcial, anio=anio, grado=grado, seccion=seccion)
+    if accion == 'revocar':
+        obj.revocado = True
+    elif accion == 'restaurar':
+        obj.revocado = False
+    elif accion in ('cerrar_parcial', 'reabrir_parcial'):   # <--- hecho por claude code (12-oct-2026)
+        if alcance != 'parcial':
+            return JsonResponse({'ok': False, 'error': 'Cerrar parcial aplica a todo el parcial.'}, status=400)
+        obj.parcial_cerrado = accion == 'cerrar_parcial'
+        obj.parcial_cerrado_en = _dt.datetime.now() if obj.parcial_cerrado else None
+    elif accion == 'fecha':
+        raw = (data.get('cierre_en') or '').strip()
+        if raw:
+            try:
+                obj.cierre_en = _dt.datetime.strptime(raw, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                return JsonResponse({'ok': False, 'error': 'Fecha y hora inválidas.'}, status=400)
+        else:
+            obj.cierre_en = None
+    else:
+        return JsonResponse({'ok': False, 'error': 'Acción inválida.'}, status=400)
+    obj.actualizado_por = request.user
+    obj.save()
+    return JsonResponse({'ok': True, 'estado': _estado_cierre(area, parcial, anio, grado, seccion)})
 
 
 @login_required
@@ -1380,8 +1548,10 @@ def enviar_pdf_email(request):
     pdf = canvas.Canvas(buf, pagesize=letter)
     pdf.setTitle(f"Reporte Notas Parcial {parcial} {anio}.pdf")
     total = len(alumnos)
+    _guias = _guias_map(area, anio)   # <--- hecho por claude code (13-oct-2026): firma del maestro guía
     for idx, alumno in enumerate(alumnos, 1):
-        _dibujar_pagina(pdf, alumno, int(parcial), int(anio), idx, total)
+        _dibujar_pagina(pdf, alumno, int(parcial), int(anio), idx, total,
+                        guia=_guias.get((alumno.get('grado', ''), alumno.get('grupo', '')), ''))
         if idx < total:
             pdf.showPage()
     pdf.save()
@@ -1479,7 +1649,8 @@ def enviar_pdf_email(request):
 
 @login_required
 def notificaciones_json(request):
-    if not _es_coordinador(request.user):
+    # <--- hecho por claude code (01-oct-2026): el superusuario no recibe estos avisos (pedido del usuario)
+    if request.user.is_superuser or not _es_coordinador(request.user):
         return JsonResponse({'notificaciones': []})
     notifs = (
         RevisionFinalizada.objects
@@ -1516,6 +1687,12 @@ def asignaciones_vista(request):
     ).select_related(
         'maestro', 'asignado_por'
     ).order_by('-anio', 'parcial', 'area', 'grado', 'seccion')
+    # <--- hecho por claude code (12-oct-2026): los parciales cerrados ("Cerrar parcial") se ocultan; ?cerrados=1 los muestra
+    ver_cerrados = request.GET.get('cerrados') == '1'
+    _cerr = _parciales_cerrados()
+    n_cerradas = sum(1 for a in qs if (a.area, a.parcial, a.anio) in _cerr)
+    if not ver_cerrados:
+        qs = [a for a in qs if (a.area, a.parcial, a.anio) not in _cerr]
 
     area_map = dict(AREAS)
     grupos = {}
@@ -1529,6 +1706,7 @@ def asignaciones_vista(request):
                 'parcial':    a.parcial,
                 'anio':       a.anio,
                 'cached':     cache.get(ck) is not None,
+                'cerrado':    key in _cerr,
                 'items':      [],
                 'maestros':   {},   # <--- hecho por claude code
             }
@@ -1550,6 +1728,8 @@ def asignaciones_vista(request):
 
     return render(request, 'notas_parcial/asignaciones.html', {
         'grupos':   list(grupos.values()),
+        'ver_cerrados': ver_cerrados,
+        'n_cerradas':   n_cerradas,
         'areas':    AREAS,
         'maestros': User.objects.filter(
             groups__name__in=_GRUPOS_MAESTRO
@@ -1588,6 +1768,45 @@ def eliminar_asignacion(request):
         return JsonResponse({'ok': True})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
+
+
+# <--- hecho por claude code (30-sep-2026): botón "Actualizar datos" del coordinador. Limpia el caché del SP para
+# área/parcial/año y vuelve a leer en vivo (los cambios hechos en Access se ven al instante, sin esperar los 10 min).
+# Regla del usuario: en Bilingüe SOLO David Ruiz y Catherine Varela; en Colegio/Bachillerato todos los coordinadores.
+_REFRESCAR_BL_USUARIOS = {'druiz@ana-hn.org', 'cvarela@ana-hn.org'}
+
+
+def _puede_refrescar(user, area):
+    if not area:
+        return False
+    if user.is_superuser:
+        return True
+    if area in dict(AREAS_BL):
+        return user.username in _REFRESCAR_BL_USUARIOS
+    return _es_coordinador(user)
+
+
+@login_required
+@_coordinador
+@require_POST
+def refrescar_cache(request):
+    """Vacía el caché de un área/parcial/año (y de los 2 cursos si es bachillerato) y precarga en vivo."""
+    area    = request.POST.get('area', '')
+    parcial = request.POST.get('parcial', '')
+    anio    = request.POST.get('anio', '')
+    if not _puede_refrescar(request.user, area):
+        raise PermissionDenied('No puedes actualizar los datos de esta área.')
+    if area and parcial and anio:
+        for curso in ([None, '1', '2'] if area == 'bachillerato' else [None]):
+            cache.delete(_cache_key(area, parcial, anio, curso))
+        try:
+            _llamar_sp(area, parcial, anio)
+            messages.success(request, 'Datos actualizados desde el sistema académico.')
+        except Exception as e:
+            messages.error(request, f'No se pudo leer el sistema académico: {e}')
+    q = {k: request.POST.get(k, '') for k in ('parcial', 'anio', 'area', 'curso', 'grado', 'seccion') if request.POST.get(k)}
+    from urllib.parse import urlencode
+    return redirect(f"{reverse('notas_parcial_coordinador')}?{urlencode(q)}")
 
 
 @login_required
@@ -1715,3 +1934,50 @@ def _ya_revisado(user, area, parcial, anio, grado, seccion):
             grado=grado or '', seccion=seccion or '').exists()
     except Exception:
         return False
+
+
+# ─── Maestro guía (hecho por claude code, 13-oct-2026) ──────────────────────────────────────
+def _guias_map(area, anio):
+    """{(grado, seccion): nombre} del maestro guía de cada grado-sección del área en ese año."""
+    try:
+        anio = int(anio)
+    except (TypeError, ValueError):
+        return {}
+    return {(m.grado, m.seccion): m.nombre for m in MaestroGuia.objects.filter(area=area, anio=anio)}
+
+
+def _maestros_lista():
+    """Nombres de los maestros (grupos de maestro) para sugerir en el modal."""
+    qs = (User.objects.filter(groups__name__in=_GRUPOS_MAESTRO, is_active=True)
+          .distinct().order_by('first_name', 'last_name'))
+    return sorted({(u.get_full_name() or u.username).strip() for u in qs})
+
+
+@login_required
+@_coordinador
+@require_POST
+def maestro_guia_guardar(request):
+    """Guarda (o quita, con nombre vacío) el maestro guía de un grado-sección para el año."""
+    if _es_solo_revision(request.user):
+        return JsonResponse({'ok': False, 'error': 'Tu rol es solo de revisión.'}, status=403)
+    try:
+        data   = json.loads(request.body or b'{}')
+        area   = data['area']
+        anio   = int(data['anio'])
+        grado  = (data.get('grado') or '').strip()
+        seccion = (data.get('seccion') or '').strip()
+        nombre = ' '.join((data.get('nombre') or '').split())[:120]
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Datos incompletos.'}, status=400)
+    if area not in [a for a, _ in _areas_para(request.user)]:
+        return JsonResponse({'ok': False, 'error': 'No coordinas esa área.'}, status=403)
+    if not grado:
+        return JsonResponse({'ok': False, 'error': 'Falta el grado.'}, status=400)
+    if not nombre:
+        MaestroGuia.objects.filter(area=area, anio=anio, grado=grado, seccion=seccion).delete()
+        return JsonResponse({'ok': True, 'nombre': ''})
+    obj, _ = MaestroGuia.objects.get_or_create(area=area, anio=anio, grado=grado, seccion=seccion,
+                                                defaults={'nombre': nombre})
+    obj.nombre, obj.actualizado_por = nombre, request.user
+    obj.save()
+    return JsonResponse({'ok': True, 'nombre': obj.nombre})

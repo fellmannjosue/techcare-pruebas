@@ -25,6 +25,9 @@ urlpatterns = [
 
     # ── Historial ────────────────────────────────────────────────────────────
     path('historial/<int:ingr_egr_id>/', views.historial_alumno,   name='historial'),
+    # <--- hecho por claude code (13-oct-2026): Excel de la pestaña Historial
+    path('historial/exportar/',          views.historial_exportar, name='historial_exportar'),
+    path('cfp/historial/exportar/',      views.historial_exportar, {'ambito': 'cfp'}, name='historial_exportar_cfp'),
 
     # ── Coordinador: Períodos Escolares ──────────────────────────────────────
     path('periodos/',                    views.periodos_view,       name='periodos'),

@@ -38,10 +38,16 @@
         <tbody>
           {% for ticket in tickets %}
           <tr class="ticket-row" data-ticket-id="{{ ticket.id }}" title="Click para ver reporte">
-            <td><code>{{ ticket.ticket_id }}</code></td>
+            <td><code>{{ ticket.ticket_id }}</code>{% if ticket.sin_sla %}<br><span class="badge bg-purple-lt text-purple mt-1" title="Ticket de desarrollo{% if ticket.asignado_a %} · asignado a {{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}{% endif %}"><i class="ti ti-code me-1"></i>Desarrollo{% if ticket.req_desarrollo %} · {{ ticket.req_desarrollo.codigo }}{% endif %}</span>{% endif %}</td>
             <td>{{ ticket.name }}</td>
             <td>{{ ticket.email }}</td>
-            <td style="max-width:220px;">{{ ticket.description|truncatechars:60 }}</td>
+            {# <--- hecho por claude code: descripción compacta con hover que muestra el texto completo #}
+            <td style="max-width:200px;">
+              <span class="td-desc" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus"
+                    data-bs-placement="top" data-bs-html="true" onclick="event.stopPropagation();"
+                    data-bs-content="{{ ticket.description|escape|linebreaksbr }}">
+                {{ ticket.description|truncatechars:55 }} <i class="ti ti-info-circle text-muted"></i></span>
+            </td>
             {# <--- hecho por claude code: badge de urgencia #}
             <td>
               {% if ticket.urgencia == "urgente" %}<span class="badge bg-red-lt text-red"><i class="ti ti-alert-triangle-filled me-1"></i>Urgente</span>
@@ -52,6 +58,10 @@
             <td>
               {% if ticket.status == "Resuelto" %}
                 <span class="badge bg-success-lt text-success">{{ ticket.status }}</span>
+              {% elif ticket.status == "En espera del usuario" %}
+                <span class="badge bg-orange-lt text-orange"><i class="ti ti-player-pause me-1"></i>En espera del usuario</span>
+              {% elif ticket.status == "Incompleto" %}
+                <span class="badge bg-secondary-lt text-secondary"><i class="ti ti-alert-circle me-1"></i>Incompleto</span>
               {% elif ticket.status == "En Proceso" %}
                 <span class="badge bg-blue-lt text-blue">{{ ticket.status }}</span>
               {% else %}
@@ -60,9 +70,11 @@
             </td>
             {# <--- hecho por claude code: semáforo SLA #}
             <td>
-              {% if ticket.sla_estado == "vencido" %}<span class="badge bg-red-lt text-red"><i class="ti ti-clock-x me-1"></i>Vencido</span>
+              {% if ticket.sla_estado == "sin_sla" %}<span class="badge bg-secondary-lt text-secondary" title="Ticket de desarrollo: el plazo lo lleva el requerimiento"><i class="ti ti-infinity me-1"></i>Sin SLA</span>
+              {% elif ticket.sla_estado == "pausado" %}<span class="badge bg-orange-lt text-orange"><i class="ti ti-player-pause me-1"></i>Pausado</span>
+              {% elif ticket.sla_estado == "vencido" %}<span class="badge bg-red-lt text-red"><i class="ti ti-clock-x me-1"></i>Vencido</span>
               {% elif ticket.sla_estado == "por_vencer" %}<span class="badge bg-yellow-lt text-yellow"><i class="ti ti-clock-exclamation me-1"></i>{{ ticket.sla_texto }}</span>
-              {% elif ticket.sla_estado == "a_tiempo" %}<span class="badge bg-green-lt text-green"><i class="ti ti-clock-check me-1"></i>{{ ticket.sla_texto }}</span>
+              {% elif ticket.sla_estado == "a_tiempo" %}<span class="badge bg-green-lt text-green"><i class="ti ti-clock-check me-1"></i>{{ ticket.sla_texto }}</span>{% if ticket.fuera_horario %}<i class="ti ti-moon text-muted ms-1" title="{{ ticket.fuera_horario_texto }}"></i>{% endif %}
               {% elif ticket.sla_estado == "cumplido" %}<span class="badge bg-green-lt text-green">Cumplido</span>
               {% else %}<span class="badge bg-red-lt text-red">Incumplido</span>{% endif %}
             </td>
@@ -76,17 +88,18 @@
                 <span class="text-muted small">—</span>
               {% endif %}
             </td>
-            <td class="d-flex gap-1 align-items-center">
-              <a href="{% url 'ticket_comments' ticket.id %}" class="btn btn-sm btn-ghost-primary"
-                 onclick="event.stopPropagation();" title="Abrir chat">
-                <i class="ti ti-message-circle"></i>
-              </a>
-              <button class="btn btn-sm btn-ghost-danger btn-eliminar-ticket"
-                      data-id="{{ ticket.id }}"
-                      data-tid="{{ ticket.ticket_id }}"
-                      onclick="event.stopPropagation();" title="Eliminar ticket">
-                <i class="ti ti-trash"></i>
-              </button>
+            <td class="text-nowrap">
+              <div class="d-flex gap-1 align-items-center">
+                <a href="{% url 'ticket_comments' ticket.id %}" class="btn btn-sm btn-ghost-primary"
+                   onclick="event.stopPropagation();" title="Abrir chat">
+                  <i class="ti ti-message-circle"></i>
+                </a>
+                <button class="btn btn-sm btn-ghost-danger btn-eliminar-ticket"
+                        data-id="{{ ticket.id }}" data-tid="{{ ticket.ticket_id }}"
+                        onclick="event.stopPropagation();" title="Eliminar ticket">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
           {% empty %}
@@ -175,7 +188,7 @@
 {% block extra_js %}
 <div id="technician_dashboard-config" hidden
      data-v0="{{ csrf_token }}"></div>
-<script src="{% static 'tickets/js/technician_dashboard.js' %}?v=11"></script>
+<script src="{% static 'tickets/js/technician_dashboard.js' %}?v=12"></script>
 {# <--- hecho por claude code: alerta cada 10 min de tickets sin atender #}
 <div id="tickets-alerta-cfg" hidden
      data-url="{% url 'tickets_sin_atender_ajax' %}"

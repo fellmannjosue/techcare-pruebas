@@ -19,6 +19,9 @@ urlpatterns = [
     path('eliminar-asignacion/',   views.eliminar_asignacion,          name='notas_parcial_eliminar_asignacion'),
     path('actualizar-fecha/',      views.actualizar_fecha_limite,      name='notas_parcial_actualizar_fecha'),
     path('precargar-cache/',       views.precargar_cache,              name='notas_parcial_precargar'),
+    path('maestro-guia/',          views.maestro_guia_guardar,         name='notas_parcial_maestro_guia'),   # <--- hecho por claude code (13-oct-2026)
+    path('cierre/',                views.cierre_guardar,               name='notas_parcial_cierre'),   # <--- hecho por claude code (12-oct-2026)
+    path('refrescar-cache/',       views.refrescar_cache,              name='notas_parcial_refrescar'),   # <--- hecho por claude code (30-sep-2026)
     path('revision-comentarios/',  views.revision_comentarios_view,    name='notas_parcial_revision_comentarios'),
     path('eliminar-comentario/',   views.eliminar_comentario,          name='notas_parcial_eliminar_comentario'),
 ]

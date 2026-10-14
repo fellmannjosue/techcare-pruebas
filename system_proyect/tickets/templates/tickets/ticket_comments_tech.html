@@ -11,6 +11,9 @@
 
 {% block page_actions %}
 <div class="col-auto ms-auto d-flex gap-2">
+  {# <--- hecho por claude code (29-sep-2026): vínculo con Gestión de Desarrollo #}
+  {% if ticket.req_desarrollo %}<a href="{% url 'desarrollo:req_detail' ticket.req_desarrollo.codigo %}" class="btn btn-sm btn-outline-purple"><i class="ti ti-code me-1"></i>{{ ticket.req_desarrollo.codigo }}</a>
+  {% elif nav_desarrollo %}<form method="post" action="{% url 'desarrollo:ticket_convertir' ticket.id %}" class="d-inline" onsubmit="return confirm('¿Convertir este ticket en un requerimiento de desarrollo? Dejará de contar SLA y su estado seguirá al requerimiento.')">{% csrf_token %}<button class="btn btn-sm btn-outline-purple"><i class="ti ti-code me-1"></i>Convertir en requerimiento</button></form>{% endif %}
   <a href="{% url 'submit_ticket' %}" class="btn btn-sm btn-outline-primary">
     <i class="ti ti-plus me-1"></i>Nuevo Ticket
   </a>
@@ -39,6 +42,8 @@
           <span class="ti-id">{{ t.ticket_id }}</span>
           <span class="badge badge-sm
             {% if t.status == 'Resuelto' %}bg-success-lt text-success
+            {% elif t.status == 'En espera del usuario' %}bg-orange-lt text-orange
+            {% elif t.status == 'Incompleto' %}bg-secondary-lt text-secondary
             {% elif t.status == 'En Proceso' %}bg-blue-lt text-blue
             {% else %}bg-warning-lt text-warning{% endif %}">
             {{ t.status }}
@@ -65,6 +70,8 @@
             <div class="fw-semibold">{{ ticket.name }}
               <span id="badge-status" class="ms-2 badge
                 {% if ticket.status == 'Resuelto' %}bg-success-lt text-success
+                {% elif ticket.status == 'En espera del usuario' %}bg-orange-lt text-orange
+                {% elif ticket.status == 'Incompleto' %}bg-secondary-lt text-secondary
                 {% elif ticket.status == 'En Proceso' %}bg-blue-lt text-blue
                 {% else %}bg-warning-lt text-warning{% endif %}">
                 {{ ticket.status }}
@@ -88,9 +95,11 @@
         {% csrf_token %}
         <div>
           <label class="form-label mb-1 small fw-semibold">Estado</label>
-          <select class="form-select form-select-sm" id="chat-status-select" name="status" style="width:130px;">
+          <select class="form-select form-select-sm" id="chat-status-select" name="status" style="width:175px;" {% if ticket.req_desarrollo %}disabled title="El estado lo controla el requerimiento {{ ticket.req_desarrollo.codigo }}"{% endif %}>
             <option value="Pendiente"  {% if ticket.status == "Pendiente"  %}selected{% endif %}>Pendiente</option>
             <option value="En Proceso" {% if ticket.status == "En Proceso" %}selected{% endif %}>En Proceso</option>
+            <option value="En espera del usuario" {% if ticket.status == "En espera del usuario" %}selected{% endif %}>En espera del usuario</option>
+            <option value="Incompleto" {% if ticket.status == "Incompleto" %}selected{% endif %}>Incompleto</option>
             <option value="Resuelto"   {% if ticket.status == "Resuelto"   %}selected{% endif %}>Resuelto</option>
           </select>
         </div>
@@ -103,7 +112,23 @@
         <button type="submit" class="btn btn-sm btn-primary">
           <i class="ti ti-device-floppy me-1"></i>Guardar
         </button>
+        {# <--- hecho por claude code: pausar / reanudar el SLA #}
+        {% if ticket.status == 'En espera del usuario' %}
+        <button type="button" class="btn btn-sm btn-success" id="btn-reanudar"><i class="ti ti-player-play me-1"></i>Reanudar atención</button>
+        {% elif ticket.status != 'Resuelto' %}
+        <button type="button" class="btn btn-sm btn-orange text-white" id="btn-poner-espera"><i class="ti ti-player-pause me-1"></i>Poner en espera del usuario</button>
+        {% endif %}
       </form>
+      {# <--- hecho por claude code: panel del SLA (estado, restante, pausa) #}
+      <div id="sla-panel" class="mt-2 small d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted">SLA:</span>
+        <span id="sla-badge" class="badge {% if ticket.sla_estado == 'pausado' %}bg-orange-lt text-orange{% elif ticket.sla_estado == 'vencido' %}bg-red-lt text-red{% elif ticket.sla_estado == 'por_vencer' %}bg-yellow-lt text-yellow{% else %}bg-green-lt text-green{% endif %}">
+          {% if ticket.sla_estado == 'pausado' %}<i class="ti ti-player-pause me-1"></i>{% endif %}{{ ticket.sla_texto }}</span>
+        <span id="sla-pausa-info" class="text-orange {% if ticket.sla_estado != 'pausado' %}d-none{% endif %}">
+          {% with p=ticket.pausa_abierta %}<i class="ti ti-info-circle me-1"></i>Desde {{ p.inicio|date:'d/m/Y H:i' }} · {{ p.motivo }}{% endwith %}</span>
+        {# <--- hecho por claude code: aviso de SLA congelado fuera del horario laboral #}
+        <span id="sla-fuera-horario" class="badge bg-secondary-lt text-secondary {% if not ticket.fuera_horario %}d-none{% endif %}"><i class="ti ti-moon me-1"></i>{{ ticket.fuera_horario_texto }}</span>
+      </div>
     </div>
 
     {# Mensajes #}
@@ -160,9 +185,39 @@
     </div>
   </div>
 </div>
+
+{# <--- hecho por claude code: modal para poner el ticket EN ESPERA DEL USUARIO #}
+<div class="modal modal-blur fade" id="modalPonerEspera" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header" style="background:#fff4e6;"><h5 class="modal-title text-orange"><i class="ti ti-player-pause me-2"></i>Poner en espera del usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="text-muted small">Se pausará el tiempo de atención (SLA) hasta que el usuario responda o esté disponible.</p>
+      <div class="mb-2">
+        <label class="form-label fw-semibold small">Motivo de la espera <span class="text-danger">*</span></label>
+        <select class="form-select form-select-sm mb-2" id="esp-motivo-pre">
+          <option value="">— Elegir motivo común —</option>
+          <option>El usuario no se encuentra disponible</option>
+          <option>Se necesita acceso al equipo</option>
+          <option>Se necesita información adicional</option>
+          <option>Se espera confirmación del usuario</option>
+        </select>
+        <input type="text" class="form-control form-control-sm" id="esp-motivo" maxlength="300" placeholder="Motivo…">
+      </div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold small">Información o acción requerida al usuario <span class="text-danger">*</span></label>
+        <textarea class="form-control form-control-sm" id="esp-info" rows="3" placeholder="Ej. Necesitamos que traiga el equipo el lunes por la mañana…"></textarea>
+      </div>
+      <div id="esp-error" class="alert alert-danger py-1 px-2 small d-none mb-0"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button type="button" class="btn btn-orange text-white" id="btn-esp-confirmar"><i class="ti ti-player-pause me-1"></i>Poner en espera</button>
+    </div>
+  </div></div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'tickets/js/comments.js' %}?v=9"></script>
-<script src="{% static 'tickets/js/ticket_comments_tech.js' %}?v=3"></script>
+<script src="{% static 'tickets/js/ticket_comments_tech.js' %}?v=5"></script>
 {% endblock %}

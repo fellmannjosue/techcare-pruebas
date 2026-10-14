@@ -1,0 +1,31 @@
+{% extends 'base_app.html' %}
+{% load static contabilidad_extras %}
+{# <--- hecho por claude code (23-sep-2026): libro mayor por cuenta con saldo corrido #}
+{% block title %}Mayor de cuentas{% endblock %}
+{% block page_pretitle %}Contabilidad{% endblock %}
+{% block page_title %}Mayor de cuentas{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'contabilidad/css/contable.css' %}?v=1">{% endblock %}
+{% block content %}
+{% include 'contabilidad/_messages.html' %}
+{% with nav_c='mayor' %}{% include 'contabilidad/_contable_nav.html' %}{% endwith %}
+<form method="get" class="card mb-3"><div class="card-body py-2"><div class="row g-2 align-items-end">
+  <div class="col-md-5"><label class="form-label small mb-1">Cuenta</label><select name="cuenta" class="form-select form-select-sm" required><option value="">— Selecciona —</option>{% for c in cuentas %}<option value="{{ c.pk }}" {% if filtros.cuenta == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.codigo }} · {{ c.nombre }}{% if not c.es_detalle %} (grupo){% endif %}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Desde</label><input type="date" name="desde" value="{{ filtros.desde|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Hasta</label><input type="date" name="hasta" value="{{ filtros.hasta|date:'Y-m-d' }}" class="form-control form-control-sm"></div>
+  <div class="col-md-2"><label class="form-label small mb-1">Centro</label><select name="centro" class="form-select form-select-sm"><option value="">Todos</option>{% for c in centros %}<option value="{{ c.pk }}" {% if filtros.centro == c.pk %}selected{% endif %}>{{ c.codigo }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Ver</button></div>
+</div></div></form>
+{% if cuenta %}
+<div class="card"><div class="card-header"><h3 class="card-title"><span class="font-monospace">{{ cuenta.codigo }}</span> · {{ cuenta.nombre }} <span class="badge tipo-{{ cuenta.tipo }} ms-2">{{ cuenta.get_tipo_display }}</span></h3></div>
+<div class="table-responsive"><table class="table table-vcenter card-table">
+  <thead><tr><th>Fecha</th><th>Partida</th><th>Concepto</th><th>Detalle</th><th>Centro</th><th class="text-end">Debe</th><th class="text-end">Haber</th><th class="text-end">Saldo</th></tr></thead>
+  <tbody>
+    <tr class="bg-light"><td colspan="7" class="fw-semibold">Saldo inicial al {{ filtros.desde|date:"d/m/Y" }}</td><td class="text-end font-monospace fw-semibold">{{ data.saldo_inicial|miles }}</td></tr>
+    {% for f in data.filas %}<tr><td>{{ f.d.asiento.fecha|date:"d/m/Y" }}</td><td><a href="{% url 'contabilidad:asiento_detalle' f.d.asiento.pk %}" class="font-monospace">{{ f.d.asiento.numero }}</a></td><td class="small">{{ f.d.asiento.descripcion }}</td><td class="small text-muted">{{ f.d.descripcion }}</td><td class="small">{{ f.d.centro_costo.codigo|default:"" }}</td>
+      <td class="text-end font-monospace">{% if f.d.debe %}{{ f.d.debe|miles }}{% endif %}</td><td class="text-end font-monospace">{% if f.d.haber %}{{ f.d.haber|miles }}{% endif %}</td><td class="text-end font-monospace {% if f.saldo < 0 %}text-danger{% endif %}">{{ f.saldo|miles }}</td></tr>
+    {% empty %}<tr><td colspan="8" class="text-center text-muted py-3">Sin movimientos en el rango.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="5" class="text-end">Movimientos del período / Saldo final</th><th class="text-end font-monospace">{{ data.debe|miles }}</th><th class="text-end font-monospace">{{ data.haber|miles }}</th><th class="text-end font-monospace {% if data.saldo_final < 0 %}text-danger{% endif %}">{{ data.saldo_final|miles }}</th></tr></tfoot>
+</table></div></div>
+{% else %}<div class="card"><div class="card-body text-center text-muted py-5"><i class="ti ti-report fs-1 d-block mb-2"></i>Elige una cuenta para ver su mayor.</div></div>{% endif %}
+{% endblock %}

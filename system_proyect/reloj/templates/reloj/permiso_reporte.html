@@ -234,7 +234,7 @@
               {% if b.pierde %}<span class="badge bg-red-lt text-red fw-bold bono-badge-{{ b.emp_code }}"><i class="ti ti-x me-1"></i>Pierde</span>
               {% else %}<span class="badge bg-green-lt text-green fw-bold bono-badge-{{ b.emp_code }}"><i class="ti ti-check me-1"></i>Conserva</span>{% endif %}
               {% if b.override %}<span class="badge bg-yellow-lt text-yellow ms-1" style="font-size:.6rem;">manual</span>{% endif %}
-              {% if request.user.is_superuser %}
+              {% if puede_bono_override %}{# <--- hecho por claude code (01-oct-2026): superuser o permiso Bono · Ajuste manual #}
               <select class="form-select form-select-sm d-inline-block mt-1 bono-override" style="width:auto;font-size:.7rem;"
                       data-emp="{{ b.emp_code }}" data-nombre="{{ b.nombre }}" data-mes="{{ mes_str }}">
                 <option value="" {% if not b.override %}selected{% endif %}>Auto ({% if b.pierde_auto %}Pierde{% else %}Conserva{% endif %})</option>

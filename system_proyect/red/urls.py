@@ -30,6 +30,11 @@ urlpatterns = [
     path('api/buscar/', views.api_buscar, name='api_buscar'),
     path('export/excel/', views.export_excel, name='export_excel'),
     # VLAN
+    # <--- hecho por claude code (16-sep-2026): lista de IPs actuales (categorizada, con VLAN y usuario)
+    path('ips-actuales/', views.ips_actuales, name='ips_actuales'),
+    path('ips-actuales/vlan/<int:pk>/ips/', views.ip_actual_vlan_ips, name='ip_actual_vlan_ips'),
+    path('ips-actuales/guardar/', views.ip_actual_guardar, name='ip_actual_guardar'),
+    path('ips-actuales/<int:pk>/borrar/', views.ip_actual_borrar, name='ip_actual_borrar'),
     path('vlans/', views.vlan_list, name='vlan_list'),
     path('vlans/nueva/', views.vlan_form, name='vlan_nueva'),
     path('vlans/<int:pk>/', views.vlan_detail, name='vlan_detail'),

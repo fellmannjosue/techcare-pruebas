@@ -382,7 +382,7 @@ class CompensatorioCalculo(models.Model):
     minutos_autorizados_dia = models.PositiveIntegerField("Min. autorizados/día", default=47)
 
     # Factor de conversión días → horas para días adeudados
-    factor_horas_dia = models.DecimalField("Horas por día (factor)", max_digits=4, decimal_places=1, default=8.0)
+    factor_horas_dia = models.DecimalField("Horas por día (factor)", max_digits=4, decimal_places=1, default=8.8)
 
     # Calculados y guardados
     minutos_total           = models.PositiveIntegerField("Minutos a compensar", default=0)
@@ -450,6 +450,13 @@ class DiaNoLaborableANA(models.Model):
     )
     descripcion = models.CharField("Descripción", max_length=200, blank=True)
     horas       = models.DecimalField("Horas", max_digits=6, decimal_places=2, default=8.8)
+    # <--- hecho por claude code: fecha del feriado. El "Tiempo tomado" solo refleja las
+    # entradas cuya fecha YA pasó (fecha <= hoy). Los feriados futuros quedan pendientes.
+    fecha       = models.DateField("Fecha", null=True, blank=True)
+    # <--- hecho por claude code: días reales del feriado (NO se derivan de las horas: cada
+    # feriado tiene su propio conteo, p.ej. Semana Santa 2.5, Trimestral 5.5, Morazánico 2,
+    # Cierre Diciembre 8 ó 7). Es lo que se muestra en la columna "Días no lab. ANA".
+    dias        = models.DecimalField("Días", max_digits=5, decimal_places=2, null=True, blank=True)
 
     @property
     def total_horas(self):
@@ -465,8 +472,9 @@ class DiaNoLaborableANA(models.Model):
         return f"{self.calculo.nombre_empleado} – {self.descripcion}"
 
 
-# <--- hecho por claude code: rediseño tabs 1-2 (pruebas). Periodo del año escolar sobre el que
-# se reparte el tiempo compensatorio diario (p.ej. 1-feb → 26-nov de 2026). CAMBIA año a año.
+# <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario".
+# Periodo del año escolar sobre el que se reparte el tiempo compensatorio diario (1-feb → 26-nov,
+# configurable por año) y override manual de "Vacación acumulada" por empleado.
 class CompensatorioPeriodoAnual(models.Model):
     """Rango de fechas (por año) sobre el que se distribuye el tiempo compensatorio diario."""
     anio         = models.PositiveIntegerField("Año", unique=True, db_index=True)
@@ -483,9 +491,37 @@ class CompensatorioPeriodoAnual(models.Model):
         return f"{self.anio}: {self.fecha_inicio} → {self.fecha_fin}"
 
 
-# <--- hecho por claude code: override manual de "Vacación acumulada" por empleado (rediseño tabs 1-2).
-# Si existe, reemplaza el valor calculado desde el módulo de Vacaciones.
+class CompensatorioSaldoManual(models.Model):
+    """<--- hecho por claude code (16-sep-2026): override de "Saldo para gastar" (pantalla Pruebas, tab 1).
+    Si existe sustituye a Derecho − Acumulada; de él sale "Días que debe compensar"."""
+    emp_code = models.CharField(max_length=20, unique=True)
+    saldo = models.DecimalField(max_digits=6, decimal_places=2)
+
+    class Meta:
+        db_table = 'reloj_compensatorio_saldo_manual'
+        verbose_name = 'Saldo para gastar manual (Pruebas)'
+
+    def __str__(self):
+        return f'{self.emp_code}: {self.saldo}'
+
+
+class CompensatorioPermisoTomadoManual(models.Model):
+    """<--- hecho por claude code (16-sep-2026): override de "Tomado de los 3 días de permiso"
+    (pantalla Pruebas, tab 4). Si existe, sustituye a las horas calculadas desde los permisos
+    registrados; p. ej. Ana Zúniga ya consumió los 3 días aunque solo consten 17.6 h."""
+    emp_code = models.CharField(max_length=20, unique=True)
+    horas = models.DecimalField(max_digits=6, decimal_places=2)
+
+    class Meta:
+        db_table = 'reloj_compensatorio_permiso_tomado_manual'
+        verbose_name = 'Permiso tomado manual (3 días)'
+
+    def __str__(self):
+        return f'{self.emp_code}: {self.horas} h'
+
+
 class CompensatorioVacacionManual(models.Model):
+    """Override manual de 'Vacación acumulada' por empleado (reemplaza el valor calculado)."""
     emp_code  = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
     acumulada = models.DecimalField("Vacación acumulada (manual)", max_digits=7, decimal_places=2)
 
@@ -978,6 +1014,10 @@ class RelojPermiso(models.Model):
     calculo_comp_ver      = models.BooleanField("Cálculo Comp. – Ver",      default=False)
     calculo_comp_editar   = models.BooleanField("Cálculo Comp. – Editar",   default=False)
     calculo_comp_eliminar = models.BooleanField("Cálculo Comp. – Eliminar", default=False)
+    # <--- hecho por claude code (16-sep-2026): botón "Pruebas" (compensatorio 47 min + matrícula)
+    pruebas_comp_ver      = models.BooleanField("Pruebas Comp. – Ver",      default=False)
+    pruebas_comp_editar   = models.BooleanField("Pruebas Comp. – Editar",   default=False)
+    pruebas_comp_eliminar = models.BooleanField("Pruebas Comp. – Eliminar", default=False)
     # Compensatorio Mensual / Instructores (tabs 3-4-5)  <--- hecho por claude code
     comp_mensual_ver      = models.BooleanField("Comp. Mensual – Ver",      default=False)
     comp_mensual_editar   = models.BooleanField("Comp. Mensual – Editar",   default=False)
@@ -997,6 +1037,9 @@ class RelojPermiso(models.Model):
     cfp_ver               = models.BooleanField("Instructores CFP – Ver", default=False)
     # Reportes PDF (vista previa y descarga)
     reportes_pdf_ver      = models.BooleanField("Reportes PDF – Ver",     default=False)
+    # <--- hecho por claude code (01-oct-2026): ajuste manual del bono (Auto / Forzar: Pierde / Forzar: Conserva),
+    # antes exclusivo del superusuario. Se llama *_ver para encajar en la matriz de Permisos Reloj (módulo "solo Ver").
+    bono_ajuste_ver       = models.BooleanField("Bono – Ajuste manual",   default=False)
 
     class Meta:
         db_table         = 'reloj_permiso_usuario'

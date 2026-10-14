@@ -58,9 +58,18 @@ body {
 
 /* ── Tabler-based login styles ── */
 .login-bg {
-  background: linear-gradient(135deg, #1864ab 0%, #1971c2 50%, #228be6 100%);
+  background: linear-gradient(115deg, #1e3a8a 0%, #2563eb 40%, #7c3aed 80%, #db2777 120%); /* <--- hecho por claude code (30-sep-2026): paleta Horizon */
   min-height: 100vh;
 }
+/* <--- hecho por claude code (14-oct-2026): portal.css (se carga DESPUÉS) pone body{background:var(--ps-bg)!important}
+   y tapaba el degradado: el título "TechCare" (blanco) quedaba sobre fondo claro. body.login-bg gana por especificidad. */
+body.login-bg {
+  background: linear-gradient(115deg, #1e3a8a 0%, #2563eb 40%, #7c3aed 80%, #db2777 120%) !important;
+  background-attachment: fixed !important;
+}
+.login-bg h2.text-white { text-shadow: 0 2px 12px rgba(15, 23, 42, .35); letter-spacing: -.02em; }
+.login-bg .text-white-50 { color: rgba(255, 255, 255, .82) !important; }
+.login-logo { filter: drop-shadow(0 6px 16px rgba(15, 23, 42, .35)); }
 .login-card {
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.18);

@@ -1,0 +1,22 @@
+/* <--- hecho por claude code (13-oct-2026): Inventario general */
+.ig-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.ig-kpi { display: flex; flex-direction: column; padding: 10px 16px; border-radius: 14px; background: var(--ps-surface, #fff); border: 1px solid var(--ps-border, #e2e8f0); min-width: 120px; }
+.ig-kpi span { font-size: .74rem; font-weight: 700; color: var(--ps-muted, #64748b); display: flex; align-items: center; gap: 6px; }
+.ig-kpi b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ig-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.ig-dot--bueno { background: #2fb344; } .ig-dot--regular { background: #f59f00; } .ig-dot--malo { background: #d63939; }
+.ig-dot--reparacion { background: #4263eb; } .ig-dot--baja { background: #868e96; }
+.ig-estado { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+.ig-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; cursor: zoom-in; border: 1px solid var(--ps-border, #e2e8f0); }
+.ig-sin-foto { width: 52px; height: 52px; border-radius: 10px; display: grid; place-items: center; color: var(--ps-muted, #94a3b8); background: var(--ps-surface-2, #f1f5f9); font-size: 1.3rem; }
+.ig-foto-actual { max-width: 100%; max-height: 160px; border-radius: 10px; border: 1px solid var(--ps-border, #e2e8f0); }
+.ig-foto-grande { max-width: 100%; max-height: 70vh; border-radius: 10px; }
+.ig-aud { max-width: 240px; white-space: normal; font-size: .85rem; }
+.ig-aud-ro { padding: 8px 10px; border-radius: 10px; background: var(--ps-surface-2, #f1f5f9); font-size: .85rem; }
+/* <--- hecho por claude code (13-oct-2026): filtro por área y categoría */
+.ig-filtro { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; margin-bottom: 14px; padding: 12px 14px; border-radius: 14px;
+  background: var(--ps-surface, #fff); border: 1px solid var(--ps-border, #e2e8f0); }
+.ig-filtro-campo { display: flex; flex-direction: column; min-width: 180px; flex: 0 1 220px; }
+.ig-filtro-campo .form-label { font-size: .72rem; font-weight: 700; margin-bottom: 3px; color: var(--ps-muted, #64748b); }
+.ig-filtro-acc { display: flex; gap: 6px; }
+@media (max-width: 600px) { .ig-filtro-campo { flex: 1 1 100%; } }

@@ -23,7 +23,15 @@
       <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo"
            style="width:52px;height:52px;object-fit:contain;" class="mb-3">
 
-      {% if solo_lectura %}
+      {% if desactivado %}
+        {# <--- hecho por claude code (10-sep-2026): programa ocultado desde Configuración → Seguridad #}
+        <div class="fb-icon bg-secondary-lt text-secondary mb-3"><i class="ti ti-eye-off"></i></div>
+        <h1 class="h2 mb-1">Programa desactivado</h1>
+        <p class="text-muted mb-3">
+          <strong>{{ mod_label }}</strong> está <strong>desactivado</strong> por el administrador
+          y por ahora no está disponible.
+        </p>
+      {% elif solo_lectura %}
         <div class="fb-icon bg-yellow-lt text-yellow mb-3"><i class="ti ti-eye"></i></div>
         <h1 class="h2 mb-1">Solo lectura</h1>
         <p class="text-muted mb-3">
@@ -70,5 +78,6 @@
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
+{% include 'accounts/_suplantacion_banner.html' %}{# <--- hecho por claude code (12-oct-2026): aviso de Iniciar sesión como #}
 </body>
 </html>

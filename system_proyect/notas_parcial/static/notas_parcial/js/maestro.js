@@ -79,6 +79,8 @@ window._PAGE = Object.assign(window._PAGE || {}, {
           area:        slide.dataset.area,
           maestro_id:  box ? box.dataset.maestro : null,
           comentario:  ta.value,
+          grado:       window._PAGE.gradoSel || '',     // <--- hecho por claude code (12-oct-2026): el servidor valida el cierre del grupo
+          seccion:     window._PAGE.seccionSel || '',
         }),
       });
       const d = await res.json();
@@ -138,7 +140,15 @@ window._PAGE = Object.assign(window._PAGE || {}, {
       if (el && document.activeElement !== el) el.value = current + 1;
     });
     actualizarBotones();
-    window.scrollTo({ top: document.getElementById('carrusel-wrap').offsetTop - 80, behavior: 'smooth' });
+    // <--- hecho por claude code (12-oct-2026): offsetTop es relativo al contenedor (no a la página) y mandaba
+    // la vista arriba, a las tarjetas de grupos. Se mide contra la página y solo se mueve si el reporte no está a la vista.
+    const wrap = document.getElementById('carrusel-wrap');
+    if (wrap) {
+      const top = wrap.getBoundingClientRect().top;
+      if (top < 0 || top > window.innerHeight * 0.5) {
+        window.scrollTo({ top: top + window.pageYOffset - 80, behavior: 'smooth' });
+      }
+    }
   }
 
   document.getElementById('btnAnterior')?.addEventListener('click', () => mostrar(current - 1));

@@ -28,7 +28,7 @@
   <div class="card-header">
     <h3 class="card-title">
       <i class="ti ti-shield-lock me-2"></i>
-      {% if es_global %}Actividad reciente — todas las tablas{% else %}Historial: {{ sel_label }}{% endif %}
+      {% if sel_grupo %}Actividad reciente — {{ sel_grupo }}{% elif es_global %}Actividad reciente — todo el sistema{% else %}Historial: {{ sel_label }}{% endif %}
     </h3>
   </div>
 
@@ -37,10 +37,14 @@
     <form method="get" class="row g-2 align-items-end">
       <div class="col-12 col-md-4">
         <label class="form-label small text-muted mb-1">Tabla</label>
+        {# <--- hecho por claude code (30-sep-2026): selector agrupado por PROGRAMA; la primera opción de cada grupo trae todo el programa #}
         <select name="tabla" class="form-select form-select-sm">
-          <option value="">Todas las tablas (actividad reciente)</option>
-          {% for m in modelos %}
-          <option value="{{ m.key }}" {% if m.key == f_tabla %}selected{% endif %}>{{ m.label }} · {{ m.app }}</option>
+          <option value="">Todo el sistema (actividad reciente)</option>
+          {% for g in grupos %}
+          <optgroup label="{{ g.label }}">
+            <option value="grupo:{{ g.key }}" {% if f_tabla == 'grupo:'|add:g.key %}selected{% endif %}>▶ Todo · {{ g.label }}</option>
+            {% for m in g.modelos %}<option value="{{ m.key }}" {% if m.key == f_tabla %}selected{% endif %}>&nbsp;&nbsp;&nbsp;{{ m.label }}</option>{% endfor %}
+          </optgroup>
           {% endfor %}
         </select>
       </div>

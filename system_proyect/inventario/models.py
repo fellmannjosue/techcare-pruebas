@@ -285,3 +285,57 @@ class Monitor(AuditModel):
 
     def __str__(self):
         return f"{self.asset_id} – {self.modelo}"
+
+
+# <--- hecho por claude code (13-oct-2026): INVENTARIO GENERAL (todo lo que no es equipo de cómputo/red):
+# código automático, descripción, ubicación, estado, foto y comentario de la auditora.
+AREAS_GENERAL = [   # <--- hecho por claude code (13-oct-2026): mismas áreas que el inventario de computadoras
+    ('administracion', 'Administración'),
+    ('bilingue',       'Bilingüe'),
+    ('colegio',        'Colegio'),
+    ('vocacional',     'Vocacional'),
+]
+
+
+class CategoriaGeneral(models.Model):
+    """<--- hecho por claude code (13-oct-2026): categoría del inventario general, POR ÁREA y agregable desde el formulario."""
+    area   = models.CharField("Área", max_length=20, choices=AREAS_GENERAL)
+    nombre = models.CharField("Categoría", max_length=80)
+
+    class Meta:
+        verbose_name = "Categoría (inventario general)"
+        verbose_name_plural = "Categorías (inventario general)"
+        unique_together = ('area', 'nombre')
+        ordering = ['area', 'nombre']
+
+    def __str__(self):
+        return f"{self.get_area_display()} · {self.nombre}"
+
+
+class ItemGeneral(AuditModel):
+    ESTADOS = [
+        ('bueno',      'Bueno'),
+        ('regular',    'Regular'),
+        ('malo',       'Malo'),
+        ('reparacion', 'En reparación'),
+        ('baja',       'De baja'),
+    ]
+    PREFIJO = 'ANAGEN-'
+
+    codigo      = models.CharField("Código", max_length=20, unique=True, editable=False)
+    area        = models.CharField("Área", max_length=20, choices=AREAS_GENERAL, default='administracion')
+    categoria   = models.ForeignKey(CategoriaGeneral, verbose_name="Categoría", null=True, blank=False,
+                                    on_delete=models.PROTECT, related_name='items')   # PROTECT: no se borra una categoría en uso
+    descripcion = models.CharField("Descripción", max_length=200)
+    ubicacion   = models.CharField("Ubicación", max_length=120)
+    estado      = models.CharField("Estado", max_length=12, choices=ESTADOS, default='bueno')
+    foto        = models.ImageField("Foto", upload_to='inventario/general/', blank=True, null=True)
+    comentario_auditora = models.TextField("Comentario de la auditora", blank=True, default='')
+
+    class Meta:
+        verbose_name = "Artículo (inventario general)"
+        verbose_name_plural = "Inventario general"
+        ordering = ['-id']
+
+    def __str__(self):
+        return f"{self.codigo} – {self.descripcion}"

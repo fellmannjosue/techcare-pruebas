@@ -1,6 +1,69 @@
 {
-  "version": "7.6.2",
+  "version": "7.8.0.001",
   "entradas": [
+    {
+      "version": "7.8.0.001",
+      "fecha": "2026-10-12",
+      "commit": "79e4aff",
+      "cambios": [
+        "fix(v7.8.0.001): menú lateral en acordeón para todos los usuarios y tamaño del ícono de Sumar horas"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.8.0",
+      "fecha": "2026-10-12",
+      "commit": "0eedf1a",
+      "cambios": [
+        "feat(v7.8.0): Mantenimiento Mecánico (combustibles, aceites y vehículos), cierre de parciales en Notas, menú en acordeón, reasignación de computadora y tarjetas nuevas en el Panel"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.7.1",
+      "fecha": "2026-09-30",
+      "commit": "4aeb7fe",
+      "cambios": [
+        "feat(v7.7.1): diseño Horizon Split en todo el sistema, Tickets ↔ Gestión de Desarrollo, calculadoras de tiempo por grupo, refresco de notas parciales y ajustes de Reloj"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.7.0",
+      "fecha": "2026-09-28",
+      "commit": "b96bea8",
+      "cambios": [
+        "feat(v7.7.0): Control y Servicio Técnico (Inventario + Mantenimiento unidos), fichas por página, caso especial y cambio de equipo, núcleo contable, capa responsiva y cierre de sesión por inactividad"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.6.5",
+      "fecha": "2026-09-17",
+      "commit": "4ec2524",
+      "cambios": [
+        "feat(v7.6.5): Red lista de IPs actuales, Reloj compensatorio 47 min/día en 4 tabs, Mantenimiento entrega y recogida de equipo, Inventario compacto con PDF"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.6.4",
+      "fecha": "2026-09-10",
+      "commit": "7849338",
+      "cambios": [
+        "feat(v7.6.4): CFP planilla con monto manual, partidas reubicadas y PDFs en legal; Reloj compensatorio por vacaciones y tiempo diario; Programas ocultos en Seguridad"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.6.3",
+      "fecha": "2026-09-04",
+      "commit": "411b040",
+      "cambios": [
+        "feat(v7.6.3): Tickets SLA con pausas + correos, Mantenimiento Control/Inspección, Reloj compensatorio y calculadora"
+      ],
+      "menor": true
+    },
     {
       "version": "7.6.2",
       "fecha": "2026-08-26",

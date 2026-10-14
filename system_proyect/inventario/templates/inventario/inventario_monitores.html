@@ -183,7 +183,7 @@
               <tr>
                 <td>{{ mon.id }}</td>
                 <td>{{ mon.asset_id }}</td>
-                <td>{{ mon.modelo }}</td>
+                <td><span class="inv-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo" data-bs-content="<div><b>Serie:</b> {{ mon.serie|default:'—' }}</div><div><b>Tipo de ubicación:</b> {{ mon.get_ubicacion_tipo_display|default:'—' }}</div><div><b>Laboratorio:</b> {{ mon.laboratorio|default:'—' }}</div><div><b>Asignado a:</b> {{ mon.asignado_a|default:'—' }}</div><div><b>Categoría:</b> {{ mon.category|default:'—' }}</div><div><b>Observaciones:</b> {{ mon.observaciones|default:'—' }}</div>">{{ mon.modelo }} <i class="ti ti-info-circle text-muted"></i></span></td>
                 <td>{{ mon.serie }}</td>
                 <td>{{ mon.get_ubicacion_tipo_display|default:"—" }}</td>
                 <td>{{ mon.laboratorio|default:"—" }}</td>
@@ -227,6 +227,6 @@
 }
 </script>
 <script src="{% static 'inventario/js/inventario_monitores_page.js' %}?v=2"></script>
-<script src="{% static 'inventario/js/inventario_monitores.js' %}?v=20"></script>
+<script src="{% static 'inventario/js/inventario_monitores.js' %}?v=21"></script>
 <script src="{% static 'inventario/js/monitores_edit.js' %}?v=20"></script>
 {% endblock %}

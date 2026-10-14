@@ -473,8 +473,10 @@ def directorio_telefonos(request):
     is_admin      = user.is_superuser
     is_coord_bl   = user.groups.filter(name='coordinador_bilingue').exists()
     is_coord_col  = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+    # <--- hecho por claude code (13-oct-2026): Enfermería atiende a TODOS los alumnos; antes caía en el else (área vacía) y el directorio salía con 0 alumnos
+    is_enfermeria = user.groups.filter(name='enfermeria').exists()
 
-    if is_admin:
+    if is_admin or is_enfermeria:
         areas = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
         titulo = 'Todos los Alumnos'
     elif is_coord_bl:

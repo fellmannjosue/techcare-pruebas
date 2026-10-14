@@ -307,3 +307,76 @@ footer.tc-footer .tc-footer-row {
 .contador .salto-alumno::-webkit-outer-spin-button,
 .contador .salto-alumno::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .contador .salto-alumno { -moz-appearance: textfield; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE v6 — capa móvil del sistema completo
+   <--- hecho por claude code (28-sep-2026): el sitio no era responsivo. Reglas
+   globales que evitan el desborde horizontal, apilan la retícula sin
+   breakpoint, dan scroll a toda tabla (tc_responsive.js envuelve las que no
+   lo tienen) y acomodan DataTables, cabeceras, modales y formularios.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Scroll horizontal SOLO en móvil/tablet para las tablas que envuelve tc_responsive.js
+   (en escritorio no se activa overflow para no recortar dropdowns/popovers) */
+@media (max-width: 991.98px) {
+  html, body { overflow-x: hidden; max-width: 100vw; }
+  .page-wrapper, .page-body, .container-xl, .container-fluid { max-width: 100vw; min-width: 0; }
+  /* (fix 28-sep) height:auto SOLO para imágenes sin alto fijo: el logo del menú lleva height="36" y salía gigante */
+  img, canvas, svg, video { max-width: 100%; }
+  img:not([height]), canvas, video { height: auto; }
+  .navbar-brand img { max-height: 40px; width: auto; }
+  .tc-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .tc-scroll-x > table { margin-bottom: 0; }
+  .dataTables_wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .dataTables_wrapper > .row { margin-left: 0; margin-right: 0; }
+  /* Menú lateral abierto en móvil: con scroll propio (el del superusuario es muy largo) */
+  .navbar-vertical .navbar-collapse { max-height: 75vh; overflow-y: auto; }
+  /* Cabecera de página: botones con salto de línea */
+  .page-header .btn-list { flex-wrap: wrap; row-gap: .35rem; }
+  .page-title, .card-title, h1, h2, h3, .breadcrumb { overflow-wrap: anywhere; }
+  .btn-group { flex-wrap: wrap; }
+  .card-header { flex-wrap: wrap; row-gap: .5rem; }
+  .card-actions { margin-left: auto; }
+  /* Modales grandes a todo el ancho ya desde tablet */
+  .modal-dialog.modal-lg, .modal-dialog.modal-xl { max-width: calc(100vw - 1rem); margin: .5rem auto; }
+  /* Pestañas con scroll horizontal en vez de amontonarse */
+  .nav-tabs { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tabs .nav-item { flex-shrink: 0; }
+}
+
+@media (max-width: 767.98px) {
+  /* DataTables: controles apilados y paginación que salta de línea */
+  .dataTables_wrapper .row > [class*="col-"] { flex: 0 0 100%; max-width: 100%; width: 100%; }
+  .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_paginate { text-align: left !important; }
+  .dataTables_wrapper .dataTables_paginate .pagination { flex-wrap: wrap; justify-content: flex-start; row-gap: .25rem; }
+  .dataTables_wrapper .dataTables_filter input { width: 100% !important; max-width: 100%; }
+  .dataTables_wrapper .dataTables_length { display: block !important; }
+  /* Cabecera: las acciones bajan debajo del título a todo el ancho */
+  .page-header .row > .col-auto.ms-auto { flex: 0 0 100%; max-width: 100%; }
+  .page-header .btn-list > .btn:not(.btn-icon) { flex: 1 1 auto; }
+  /* KPIs: dos por fila */
+  .row-cards > .col-sm-4, .row-cards > .col-lg-3, .row-cards > .col-xl-3, .row-cards > .col-md-3 { flex: 0 0 50%; max-width: 50%; }
+}
+
+@media (max-width: 575.98px) {
+  /* Retícula sin breakpoint (col-1..col-11): se apila para que quepa en el teléfono */
+  .row > .col-1, .row > .col-2, .row > .col-3, .row > .col-4, .row > .col-5 { flex: 0 0 50%; max-width: 50%; }
+  .row > .col-7, .row > .col-8, .row > .col-9, .row > .col-10, .row > .col-11 { flex: 0 0 100%; max-width: 100%; }
+  /* Botones de la cabecera: uno por línea, a todo el ancho */
+  .page-header .btn-list > .btn:not(.btn-icon), .page-header .btn-list > form { flex: 1 1 100%; }
+  .page-header .btn-list > .btn:not(.btn-icon) { justify-content: center; }
+  /* Grupos de botones de filtro y toolbars */
+  .btn-group > .btn { flex: 1 1 auto; }
+  .btn-list > .btn { flex: 1 1 auto; }
+  /* Formularios: iOS hace zoom si el input tiene < 16px */
+  .form-control, .form-select, .form-control-sm, .form-select-sm, textarea { font-size: 16px !important; }
+  .input-group { flex-wrap: wrap; }
+  /* KPIs: uno por fila cuando el teléfono es angosto */
+  .row-cards > .col-6 { flex: 0 0 50%; max-width: 50%; }
+  /* Tarjetas de módulo: sin transform en el hover (evita scroll lateral en móvil) */
+  .card-link:hover, .card-link-pop:hover, .stat-card-click:hover { transform: none !important; }
+  /* Toasts y overlays no exceden el ancho */
+  .toast-container { max-width: 100vw; }
+  .toast { max-width: calc(100vw - 2rem); }
+}
