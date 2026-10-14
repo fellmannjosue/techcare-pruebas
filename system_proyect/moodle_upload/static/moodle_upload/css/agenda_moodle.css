@@ -1,0 +1,11 @@
+/* <--- hecho por claude code (14-oct-2026): Publicar en Moodle desde el Dashboard de Agendas (pruebas) */
+.mda-preview { display: block; max-width: 100%; max-height: 260px; margin: 8px auto 0; border-radius: 10px; border: 1px solid var(--ps-border, #e2e8f0); }
+.mda-msg { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: .88rem; border: 1px solid; }
+.mda-msg--ok   { background: rgba(18, 183, 106, .1); border-color: rgba(18, 183, 106, .35); color: #0f8a50; }
+.mda-msg--err  { background: rgba(240, 68, 56, .08); border-color: rgba(240, 68, 56, .35); color: #c0362c; }
+.mda-msg--info { background: rgba(37, 99, 235, .08); border-color: rgba(37, 99, 235, .3); color: #1e40af; }
+.mda-badge { background: rgba(18, 183, 106, .14); color: #0f8a50; font-weight: 700; white-space: nowrap; }
+.btn-moodle-agenda.mda-hecha { border-color: #12b76a; color: #0f8a50; }
+.mda-gira { display: inline-block; animation: mda-gira 1s linear infinite; }
+@keyframes mda-gira { to { transform: rotate(360deg); } }
+html.dark .mda-msg--ok, html.dark .mda-badge { color: #4ade80; } html.dark .mda-msg--err { color: #fb7185; } html.dark .mda-msg--info { color: #93c5fd; }

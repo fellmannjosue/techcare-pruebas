@@ -565,8 +565,23 @@ def dashboard_coordinador(request):
         'bloqueo_cfg':  bcfg,
         'bloqueo_ids':  bloqueo_ids,
         'maestros_bl':  maestros_bl,
+        'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
         **_rol_ctx(request),
     })
+
+
+def _moodle_publicadas():
+    """{agenda_id: {fecha, curso, n}} de la última publicación OK en Moodle (pruebas: app moodle_upload)."""
+    try:
+        from moodle_upload.models import PublicacionMoodle
+    except Exception:
+        return {}
+    out = {}
+    for p in PublicacionMoodle.objects.filter(ok=True, agenda__isnull=False).order_by('fecha'):
+        d = out.setdefault(str(p.agenda_id), {'n': 0})
+        d.update({'fecha': p.fecha.strftime('%d/%m/%Y %H:%M'), 'curso': p.curso_nombre or str(p.curso_id)})
+        d['n'] += 1
+    return out
 
 
 @login_required

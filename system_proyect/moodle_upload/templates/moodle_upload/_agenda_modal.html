@@ -1,0 +1,34 @@
+{% load static %}
+{# <--- hecho por claude code (14-oct-2026): ventana "Publicar en Moodle" del Dashboard de Agendas (pruebas) #}
+<div class="modal modal-blur fade" id="modalMoodleAgenda" tabindex="-1" aria-hidden="true">
+  <form class="modal-dialog modal-dialog-centered" id="mda-form">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-cloud-upload me-2 text-info"></i>Publicar en Moodle · <span id="mda-titulo"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label required">Curso de Moodle</label>
+          <select name="curso" id="mda-curso" class="form-select" required><option value="">Cargando cursos…</option></select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label required">Imagen final de la agenda (PNG o JPG)</label>
+          <input type="file" name="imagen" id="mda-imagen" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="form-control" required>
+          <div class="form-hint">La que exportas de PowerPoint después de ajustarla (Archivo → Exportar → PNG).</div>
+        </div>
+        <img id="mda-preview" alt="Vista previa de la agenda" class="mda-preview d-none">
+        <div class="mda-msg d-none" id="mda-msg"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="submit" class="btn btn-primary" id="mda-btn"><i class="ti ti-send me-1"></i>Publicar</button>
+      </div>
+    </div>
+  </form>
+</div>
+{{ moodle_publicadas|json_script:"mda-publicadas" }}
+<div id="mda-config" hidden data-csrf="{{ csrf_token }}" data-url-cursos="{% url 'moodle_upload:cursos_json' %}"
+     data-url-publicar="{% url 'moodle_upload:publicar_agenda' 0 %}"></div>
+<link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=1">
+<script src="{% static 'moodle_upload/js/agenda_moodle.js' %}?v=1"></script>

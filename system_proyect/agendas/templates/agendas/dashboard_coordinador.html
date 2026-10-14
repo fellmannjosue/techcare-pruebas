@@ -76,6 +76,10 @@
                         <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success" title="Descargar PPTX">
                           <i class="ti ti-download"></i>
                         </a>
+                        {# <--- hecho por claude code (14-oct-2026): publicar la imagen final en Moodle (pruebas) #}
+                        <button type="button" class="btn btn-sm btn-outline-info btn-moodle-agenda" data-pk="{{ ag.pk }}"
+                                data-grado="{{ ag.grado.nombre }}" data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
+                                title="Publicar en Moodle"><i class="ti ti-cloud-upload"></i></button>
                         <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
                                 data-pk="{{ ag.pk }}"
                                 data-grado="{{ ag.grado.nombre }}"
@@ -204,4 +208,5 @@
      data-v0="{{ csrf_token }}"
      data-v1="{% url "agendas:bloqueo_config_guardar" %}"></div>
 <script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=4"></script>
+{% include 'moodle_upload/_agenda_modal.html' %}
 {% endblock %}

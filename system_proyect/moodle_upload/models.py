@@ -37,6 +37,9 @@ class ConexionMoodle(models.Model):
 
 class PublicacionMoodle(models.Model):
     """Bitácora de cada intento de publicación (no guarda la imagen, solo sus datos)."""
+    # <--- hecho por claude code (14-oct-2026): publicación hecha desde el Dashboard de Agendas (vacío = desde /moodle-upload/)
+    agenda       = models.ForeignKey('agendas.Agenda', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='publicaciones_moodle')
     curso_id     = models.IntegerField('ID del curso')
     curso_nombre = models.CharField('Curso', max_length=255, blank=True, default='')
     archivo      = models.CharField('Archivo', max_length=255)
