@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from . import services
@@ -36,9 +37,18 @@ def index(request):
                 cache.set('moodle_upload_cursos', cursos, 60)
         except services.MoodleError as e:
             estado = {'ok': False, 'texto': str(e)}
+    import datetime as _dt
+    from django.utils import timezone
+    pubs = PublicacionMoodle.objects
+    hace7 = timezone.now() - _dt.timedelta(days=7)
+    tab = request.GET.get('tab', 'publicar')
     return render(request, 'moodle_upload/index.html', {
         'con': con, 'tiene_token': bool(con.token), 'estado': estado, 'cursos': cursos,
-        'historial': PublicacionMoodle.objects.select_related('usuario')[:30], 'max_mb': MAX_MB,
+        'historial': pubs.select_related('usuario', 'agenda__grado')[:100], 'max_mb': MAX_MB,
+        'tab': tab if tab in ('publicar', 'historial', 'conexion') else 'publicar',
+        'kpi_total': pubs.filter(ok=True).count(), 'kpi_semana': pubs.filter(ok=True, fecha__gte=hace7).count(),
+        'kpi_agendas': pubs.filter(ok=True, agenda__isnull=False).count(), 'kpi_errores': pubs.filter(ok=False).count(),
+        'ultima': pubs.filter(ok=True).first(),
     })
 
 
@@ -59,7 +69,7 @@ def guardar_conexion(request):
     con.save()
     cache.delete('moodle_upload_cursos')
     messages.success(request, 'Conexión guardada.')
-    return redirect('moodle_upload:index')
+    return redirect(reverse('moodle_upload:index') + '?tab=conexion')
 
 
 @login_required

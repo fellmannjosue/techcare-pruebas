@@ -6,3 +6,13 @@
 .mu-estado--sin { background: var(--ps-surface-2, #f1f5f9); border-color: var(--ps-border, #e2e8f0); color: var(--ps-muted, #64748b); }
 .mu-detalle { max-width: 360px; white-space: normal; word-break: break-word; }
 html.dark .mu-estado--ok { color: #4ade80; } html.dark .mu-estado--err { color: #fb7185; }
+/* <--- hecho por claude code (14-oct-2026): dashboard único (KPIs + pestañas) */
+.mu-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.6fr); gap: 12px; margin-bottom: 18px; }
+.mu-kpi { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--ps-surface, #fff); border: 1px solid var(--ps-border, #e2e8f0); min-width: 0; }
+.mu-kpi small { display: block; font-size: .72rem; font-weight: 700; color: var(--ps-muted, #64748b); }
+.mu-kpi b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.mu-kpi .mu-kpi-txt { font-size: .9rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-kpi > div { min-width: 0; }
+.mu-kpi-ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 1.2rem; flex: none; color: var(--mu); background: color-mix(in srgb, var(--mu) 14%, transparent); }
+.mu-form { max-width: 760px; }
+@media (max-width: 1100px) { .mu-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mu-kpi--ancho { grid-column: 1 / -1; } }

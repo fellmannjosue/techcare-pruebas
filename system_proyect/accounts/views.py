@@ -1053,6 +1053,7 @@ GRUPOS_SUPER = [
         {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
         {'t': 'Coordinador Colegio', 's': 'Colegio', 'i': 'ti-user-cog', 'c': '#f08c00', 'url': 'dashboard_coordinador', 'args': {'area': 'colegio'}},
         {'t': 'Agendas', 's': 'Agendas semanales', 'i': 'ti-calendar-week', 'c': '#7048e8', 'url': 'agendas:form_agenda'},
+        {'t': 'Moodle', 's': 'Publicar agendas en los cursos', 'i': 'ti-cloud-upload', 'c': '#f98012', 'url': 'moodle_upload:index'},   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
         # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
