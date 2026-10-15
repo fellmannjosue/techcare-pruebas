@@ -138,15 +138,17 @@ def _areas_para_usuario(user, request=None):
         if area == "colegio":
             return ["colegio"]
         return ["primaria", "colegio_bl"]
-    if user.groups.filter(name__in=['coordinador_bilingue', 'coord_progress_bl']).exists():
-        return ['primaria', 'colegio_bl']
-    if user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists():
-        return ['colegio']
-    if user.groups.filter(name='maestros_bilingue').exists():
-        return ['primaria', 'colegio_bl']
-    if user.groups.filter(name='maestros_colegio').exists():
-        return ['colegio']
-    return None
+    # <--- hecho por claude code (15-oct-2026): las áreas se SUMAN (antes ganaba el primer grupo y quien da clases en BL
+    # y en Colegio —p. ej. ngonzales— solo veía BL). Un coordinador ve SOLO las áreas que coordina (druiz coordina BL:
+    # aunque también sea maestra de Colegio, como coordinadora no ve Colegio; en su modo maestra elige el área).
+    grupos = set(user.groups.values_list('name', flat=True))
+    coord_bl = bool(grupos & {'coordinador_bilingue', 'coord_progress_bl'})
+    coord_col = bool(grupos & {'coordinadores_colegio', 'coordinador_colegio', 'coordinadores'})
+    if coord_bl or coord_col:
+        return (['primaria', 'colegio_bl'] if coord_bl else []) + (['colegio'] if coord_col else [])
+    areas = (['primaria', 'colegio_bl'] if 'maestros_bilingue' in grupos else []) + \
+            (['colegio'] if 'maestros_colegio' in grupos else [])
+    return areas or None
 
 
 def _es_coordinador(user):
