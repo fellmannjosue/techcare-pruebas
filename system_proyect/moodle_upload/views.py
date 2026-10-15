@@ -43,7 +43,18 @@ def index(request):
     pubs = PublicacionMoodle.objects
     hace7 = timezone.now() - _dt.timedelta(days=7)
     tab = request.GET.get('tab', 'publicar')
+    conexiones = list(ConexionMoodle.objects.order_by('id'))
+    ahora = timezone.now()
+    for c in conexiones:   # <--- hecho por claude code (15-oct-2026): días que le quedan al token
+        c.tiene_token = bool(c.token_enc)
+        c.dias = (c.vence - ahora).days if c.vence else None
+        c.vencido = bool(c.vence and c.vence <= ahora)
+        c.por_vencer = bool(c.vence and not c.vencido and (c.vence - ahora).days < AVISO_DIAS)
+    activa = next((c for c in conexiones if c.pk == con.pk), con)
+    token_invalido = bool(estado and not estado['ok'] and 'token' in estado['texto'].lower())
     return render(request, 'moodle_upload/index.html', {
+        'conexiones': conexiones, 'activa': activa, 'aviso_dias': AVISO_DIAS,
+        'abrir_token': token_invalido or activa.vencido or activa.por_vencer,
         'con': con, 'tiene_token': bool(con.token), 'estado': estado, 'cursos': cursos,
         'grupos': services.agrupar(cursos),   # <--- hecho por claude code (15-oct-2026)
         'historial': pubs.select_related('usuario', 'agenda__grado')[:100], 'max_mb': MAX_MB,
@@ -54,24 +65,80 @@ def index(request):
     })
 
 
+AVISO_DIAS = 15   # <--- hecho por claude code (15-oct-2026): con 15 días o menos para vencer, se abre la ventana del token nuevo
+
+
+def _vence(texto):
+    """'AAAA-MM-DD' → fin de ese día (el token sirve hasta las 23:59)."""
+    import datetime as _dt
+    try:
+        d = _dt.date.fromisoformat((texto or '').strip())
+    except ValueError:
+        return None
+    return _dt.datetime.combine(d, _dt.time(23, 59))
+
+
+def _probar(url, token):
+    """Comprueba la dirección y el token contra Moodle antes de guardarlos. Devuelve (ok, texto)."""
+    import types
+    try:
+        i = services.info(types.SimpleNamespace(url=url, token=token))
+        return True, f"«{i.get('sitename')}» como {i.get('username')}"
+    except services.MoodleError as e:
+        return False, str(e)
+
+
 @login_required
 @require_POST
 def guardar_conexion(request):
+    """Crea o edita una conexión guardada (nombre, dirección, token nuevo, vencimiento). Un token nuevo se prueba antes."""
     _solo_super(request)
-    con = ConexionMoodle.actual()
-    url = (request.POST.get('url') or '').strip().rstrip('/')
+    volver = redirect(reverse('moodle_upload:index') + '?tab=conexion')
+    pk = request.POST.get('pk', '')
+    con = ConexionMoodle.objects.filter(pk=pk).first() if pk.isdigit() else ConexionMoodle(activa=not ConexionMoodle.objects.exists())
+    if pk.isdigit() and not con:
+        messages.error(request, 'La conexión no existe.')
+        return volver
+    url = (request.POST.get('url') or con.url or '').strip().rstrip('/')
     if not url.startswith(('http://', 'https://')):
         messages.error(request, 'La dirección debe empezar con http:// o https://')
-        return redirect('moodle_upload:index')
-    con.url = url
+        return volver
     token = (request.POST.get('token') or '').strip()
-    if token:                       # vacío = conservar el token guardado
+    if not pk.isdigit() and not token:
+        messages.error(request, 'Pega el token de la conexión nueva.')
+        return volver
+    if token:
+        ok, texto = _probar(url, token)
+        if not ok:
+            messages.error(request, f'No se guardó: Moodle rechazó la dirección o el token ({texto}).')
+            return volver
         con.set_token(token)
+    con.nombre = (request.POST.get('nombre') or con.nombre or 'Moodle').strip()[:60]
+    con.url = url
+    if 'vence' in request.POST:
+        con.vence = _vence(request.POST.get('vence'))
     con.actualizado_por = request.user
     con.save()
-    cache.delete('moodle_upload_cursos')
-    messages.success(request, 'Conexión guardada.')
-    return redirect(reverse('moodle_upload:index') + '?tab=conexion')
+    if con.activa:
+        cache.delete('moodle_upload_cursos')
+    messages.success(request, f'Conexión «{con.nombre}» guardada' + (f' y verificada: {texto}.' if token else '.'))
+    return volver
+
+
+@login_required
+@require_POST
+def conectar(request, pk):
+    """Cambia la conexión activa (Moodle de pruebas ↔ real) con un clic: el token ya está guardado."""
+    _solo_super(request)
+    con = ConexionMoodle.objects.filter(pk=pk).first()
+    if not con:
+        messages.error(request, 'La conexión no existe.')
+    else:
+        con.activar()
+        cache.delete('moodle_upload_cursos')
+        messages.success(request, f'Conectado a «{con.nombre}».')
+    destino = request.POST.get('next') or ''
+    return redirect(destino if destino.startswith('/') and not destino.startswith('//') else reverse('moodle_upload:index'))
 
 
 @login_required

@@ -4,8 +4,13 @@
 {% block title %}Moodle{% endblock %}
 {% block page_pretitle %}Académico · Moodle{% endblock %}
 {% block page_title %}<i class="ti ti-cloud-upload me-2"></i>Moodle · Agendas{% endblock %}
-{% block page_actions %}<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-calendar-week me-1"></i>Dashboard de Agendas</a>{% endblock %}
-{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=2"><link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">{% endblock %}
+{% block page_actions %}<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-calendar-week me-1"></i>Dashboard de Agendas</a>{% if conexiones|length > 1 %}<div class="dropdown d-inline-block ms-1">
+  <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="ti ti-plug-connected me-1"></i>{{ activa.nombre }}</button>
+  <div class="dropdown-menu dropdown-menu-end">
+    {% for c in conexiones %}{% if c.activa %}<span class="dropdown-item active"><i class="ti ti-check me-2"></i>{{ c.nombre }}</span>{% else %}<form method="post" action="{% url 'moodle_upload:conectar' c.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item" {% if not c.tiene_token %}disabled{% endif %}><i class="ti ti-plug me-2"></i>Conectar a {{ c.nombre }}</button></form>{% endif %}{% endfor %}
+  </div>
+</div>{% endif %}{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=3"><link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">{% endblock %}
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}
 
 {% block content %}
@@ -78,19 +83,43 @@
     </div>
 
     <div class="tab-pane fade {% if tab == 'conexion' %}show active{% endif %}" id="mu-tab-conexion">
-      <form method="post" action="{% url 'moodle_upload:conexion' %}" class="card-body mu-form">
-        {% csrf_token %}
-        <div class="mb-3">
-          <label class="form-label">Dirección de Moodle</label>
-          <input type="url" name="url" class="form-control" value="{{ con.url }}" required>
+      {# <--- hecho por claude code (15-oct-2026): conexiones GUARDADAS (pruebas y real): "Conectar" cambia sin pegar el token #}
+      <div class="card-body">
+        <div class="mu-cons">
+          {% for c in conexiones %}
+          <div class="mu-con{% if c.activa %} mu-con--activa{% endif %}">
+            <div class="mu-con-cab">
+              <span class="mu-con-ico"><i class="ti {% if c.activa %}ti-plug-connected{% else %}ti-plug{% endif %}"></i></span>
+              <div class="mu-con-txt"><b>{{ c.nombre }}</b>{% if c.activa %} <span class="badge bg-green-lt text-green">Conectado</span>{% endif %}<div class="text-muted small text-truncate">{{ c.url }}</div></div>
+            </div>
+            <div class="mu-con-token small">
+              {% if not c.tiene_token %}<span class="text-danger"><i class="ti ti-key-off me-1"></i>Sin token</span>
+              {% elif c.vencido %}<span class="text-danger fw-bold"><i class="ti ti-alert-triangle me-1"></i>Token vencido el {{ c.vence|date:"d/m/Y" }}</span>
+              {% elif c.vence %}<span class="{% if c.por_vencer %}text-warning fw-bold{% else %}text-muted{% endif %}"><i class="ti ti-key me-1"></i>Token guardado · vence el {{ c.vence|date:"d/m/Y" }} · <span class="mu-cuenta" data-vence="{{ c.vence|date:'c' }}"></span></span>
+              {% else %}<span class="text-muted"><i class="ti ti-key me-1"></i>Token guardado · sin fecha de vencimiento</span>{% endif %}
+            </div>
+            <div class="mu-con-acc">
+              {% if not c.activa %}<form method="post" action="{% url 'moodle_upload:conectar' c.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}?tab=conexion"><button class="btn btn-sm btn-primary" {% if not c.tiene_token %}disabled{% endif %}><i class="ti ti-plug-connected me-1"></i>Conectar</button></form>{% endif %}
+              <button type="button" class="btn btn-sm mu-btn-token" data-pk="{{ c.pk }}" data-nombre="{{ c.nombre }}" data-url="{{ c.url }}" data-vence="{% if c.vence %}{{ c.vence|date:'c' }}{% endif %}"><i class="ti ti-key me-1"></i>Token nuevo</button>
+            </div>
+          </div>
+          {% endfor %}
         </div>
-        <div class="mb-2">
-          <label class="form-label">Token del servicio web</label>
-          <input type="password" name="token" class="form-control" autocomplete="off" placeholder="{% if tiene_token %}•••••••• (guardado; déjalo vacío para conservarlo){% else %}Pega el token{% endif %}">
-        </div>
-        <div class="form-hint mb-3">El token se guarda cifrado. Servicio de Moodle: «TechCare Agendas» (plugin <code>local_techcareagenda</code>).</div>
-        <div class="text-end"><button type="submit" class="btn"><i class="ti ti-device-floppy me-1"></i>Guardar conexión</button></div>
-      </form>
+        <details class="mu-nueva mt-3">
+          <summary><i class="ti ti-plus me-1"></i>Agregar otra conexión</summary>
+          <form method="post" action="{% url 'moodle_upload:conexion' %}" class="mu-form mt-2">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-md-4"><label class="form-label">Nombre</label><input name="nombre" class="form-control" maxlength="60" placeholder="Moodle real" required></div>
+              <div class="col-md-8"><label class="form-label">Dirección de Moodle</label><input type="url" name="url" class="form-control" placeholder="https://moodle.ana-hn.org/moodle" required></div>
+              <div class="col-md-8"><label class="form-label">Token del servicio web</label><input type="password" name="token" class="form-control" autocomplete="off" required></div>
+              <div class="col-md-4"><label class="form-label">El token vence</label><input type="date" name="vence" class="form-control"></div>
+            </div>
+            <div class="form-hint my-2">Antes de guardar se prueba contra Moodle. El token se guarda cifrado.</div>
+            <button class="btn btn-sm"><i class="ti ti-device-floppy me-1"></i>Guardar conexión</button>
+          </form>
+        </details>
+      </div>
       {# <--- hecho por claude code (14-oct-2026): descarga del plugin para instalarlo en un Moodle (Site administration → Plugins → Install plugins) #}
       <div class="card-body border-top mu-form">
         <h4 class="mb-1"><i class="ti ti-puzzle me-1 text-orange"></i>Plugin de Moodle «TechCare · Agendas»</h4>
@@ -100,6 +129,30 @@
     </div>
   </div>
 </div>
+
+{# <--- hecho por claude code (15-oct-2026): ventana del token nuevo, con cuenta regresiva hasta que venza el actual #}
+<div class="modal modal-blur fade" id="muModalToken" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'moodle_upload:conexion' %}" class="modal-content" id="mu-form-token">
+      {% csrf_token %}
+      <input type="hidden" name="pk" id="mt-pk">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-key me-2 text-warning"></i>Token nuevo · <span id="mt-nombre"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mu-reloj" id="mt-reloj">
+          <div class="mu-reloj-tit" id="mt-reloj-tit">El token actual vence en</div>
+          <div class="mu-reloj-num"><span><b id="mt-d">–</b><small>días</small></span><span><b id="mt-h">–</b><small>horas</small></span><span><b id="mt-m">–</b><small>min</small></span><span><b id="mt-s">–</b><small>seg</small></span></div>
+          <div class="mu-reloj-pie" id="mt-reloj-pie"></div>
+        </div>
+        {% if estado and not estado.ok %}<div class="alert alert-danger py-2 small mb-3"><i class="ti ti-plug-x me-1"></i>{{ estado.texto }}</div>{% endif %}
+        <div class="mb-2"><label class="form-label required">Token nuevo</label><input type="password" name="token" class="form-control" autocomplete="off" required placeholder="Pega aquí el token que creaste en Moodle"></div>
+        <div class="mb-2"><label class="form-label">Vence el</label><input type="date" name="vence" id="mt-vence" class="form-control"><div class="form-hint">La fecha «Válido hasta» que pusiste al crearlo en Moodle (Gestionar fichas).</div></div>
+        <div class="form-hint">Se prueba contra Moodle antes de guardarlo y reemplaza al anterior.</div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Después</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar token</button></div>
+    </form>
+  </div>
+</div>
+<div id="mu-con-config" hidden data-abrir="{% if abrir_token %}{{ activa.pk }}{% endif %}" data-aviso-dias="{{ aviso_dias }}"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -107,4 +160,5 @@
 <div id="mu-config" hidden data-csrf="{{ csrf_token }}" data-url-publicar="{% url 'moodle_upload:publicar' %}?ajax=1"></div>
 <script src="{% static 'moodle_upload/js/mu_selector.js' %}?v=1"></script>
 <script src="{% static 'moodle_upload/js/mu_publicar.js' %}?v=1"></script>
+<script src="{% static 'moodle_upload/js/mu_conexion.js' %}?v=1"></script>
 {% endblock %}

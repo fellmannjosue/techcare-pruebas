@@ -5,9 +5,14 @@ from django.db import models
 
 
 class ConexionMoodle(models.Model):
-    """Registro único: dirección del Moodle y token del servicio web (cifrado con red.crypto)."""
+    """Conexiones guardadas (p. ej. Moodle de pruebas y Moodle real): dirección + token cifrado (red.crypto).
+    <--- hecho por claude code (15-oct-2026): varias conexiones, UNA activa (se cambia con "Conectar") y la fecha
+    de vencimiento del token para avisar con cuenta regresiva."""
+    nombre     = models.CharField('Nombre', max_length=60, default='Moodle')
     url        = models.CharField('Dirección de Moodle', max_length=200, default='http://192.168.10.6:452')
     token_enc  = models.TextField('Token (cifrado)', blank=True, default='')
+    activa     = models.BooleanField('Activa', default=False)
+    vence      = models.DateTimeField('El token vence', null=True, blank=True)
     actualizado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                         on_delete=models.SET_NULL, related_name='+')
     actualizado_en  = models.DateTimeField(auto_now=True)
@@ -18,7 +23,14 @@ class ConexionMoodle(models.Model):
 
     @classmethod
     def actual(cls):
-        return cls.objects.order_by('id').first() or cls.objects.create()
+        """La conexión activa (si ninguna lo está, la primera; si no hay ninguna, se crea vacía)."""
+        return (cls.objects.filter(activa=True).order_by('id').first() or cls.objects.order_by('id').first()
+                or cls.objects.create(activa=True))
+
+    def activar(self):
+        type(self).objects.exclude(pk=self.pk).update(activa=False)
+        self.activa = True
+        self.save(update_fields=['activa'])
 
     @property
     def token(self):
