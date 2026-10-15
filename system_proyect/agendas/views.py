@@ -152,9 +152,11 @@ def _areas_para_usuario(user, request=None):
 
 
 def _es_coordinador(user):
+    # <--- hecho por claude code (15-oct-2026): faltaba 'coordinador_colegio' (singular, el que usa el resto del sistema):
+    # fvalladares, coordinador de Colegio, recibía 403 en el Dashboard de Agendas.
     return user.is_superuser or user.groups.filter(
         name__in=['coordinador_bilingue', 'coord_progress_bl',
-                  'coordinadores_colegio', 'coordinadores']
+                  'coordinadores_colegio', 'coordinador_colegio', 'coordinador_col', 'coordinadores']
     ).exists()
 
 
