@@ -130,7 +130,16 @@ def cursos_json(request):
         return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
     con = ConexionMoodle.actual()
     try:
-        return JsonResponse({'ok': True, 'cursos': _cursos_cache(con)})
+        cursos = _cursos_cache(con)
+        # <--- hecho por claude code (15-oct-2026): agrupados por grado-sección + el grupo que corresponde a la agenda
+        grupos = services.agrupar(cursos)
+        sugerido = ''
+        if (request.GET.get('agenda') or '').isdigit():
+            from agendas.models import Agenda
+            ag = Agenda.objects.select_related('grado').filter(pk=request.GET['agenda']).first()
+            if ag and ag.grado_id:
+                sugerido = services.grupo_sugerido(grupos, ag.grado.area, ag.grado.nombre)
+        return JsonResponse({'ok': True, 'cursos': cursos, 'grupos': grupos, 'sugerido': sugerido})
     except services.MoodleError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=502)
 

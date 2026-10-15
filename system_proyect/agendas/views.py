@@ -576,11 +576,14 @@ def _moodle_publicadas():
         from moodle_upload.models import PublicacionMoodle
     except Exception:
         return {}
-    out = {}
+    out, cursos = {}, {}
     for p in PublicacionMoodle.objects.filter(ok=True, agenda__isnull=False).order_by('fecha'):
         d = out.setdefault(str(p.agenda_id), {'n': 0})
         d.update({'fecha': p.fecha.strftime('%d/%m/%Y %H:%M'), 'curso': p.curso_nombre or str(p.curso_id)})
         d['n'] += 1
+        cursos.setdefault(str(p.agenda_id), set()).add(p.curso_id)   # <--- 15-oct-2026: en cuántos cursos distintos
+    for k, d in out.items():
+        d['ncursos'] = len(cursos[k])
     return out
 
 

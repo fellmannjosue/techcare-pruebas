@@ -9,3 +9,21 @@
 .mda-gira { display: inline-block; animation: mda-gira 1s linear infinite; }
 @keyframes mda-gira { to { transform: rotate(360deg); } }
 html.dark .mda-msg--ok, html.dark .mda-badge { color: #4ade80; } html.dark .mda-msg--err { color: #fb7185; } html.dark .mda-msg--info { color: #93c5fd; }
+/* <--- hecho por claude code (15-oct-2026): cursos agrupados por grado-sección con selección múltiple */
+.mda-grupos { max-height: 46vh; overflow-y: auto; border: 1px solid var(--ps-border, #e2e8f0); border-radius: 10px; padding: 4px 8px; position: relative; }
+.mda-area + .mda-area { margin-top: 6px; }
+.mda-area-tit { position: sticky; top: 0; z-index: 1; background: var(--tblr-bg-surface, #fff); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--tblr-secondary, #64748b); padding: 8px 2px 4px; }
+.mda-grupo { border-radius: 8px; }
+.mda-grupo--sel { background: rgba(37, 99, 235, .06); }
+.mda-ghead { display: flex; align-items: center; gap: 8px; padding: 4px 4px; }
+.mda-ghead .form-check { flex: 1; min-width: 0; }
+.mda-gnum { font-size: .78rem; color: var(--tblr-secondary, #64748b); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mda-gtoggle i { transition: transform .15s; }
+.mda-gtoggle.mda-abierto i { transform: rotate(180deg); }
+.mda-gbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 12px; padding: 2px 8px 8px 30px; }
+.mda-gbody .form-check { margin-bottom: 0; font-size: .86rem; }
+.mda-cuenta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: .85rem; font-weight: 600; }
+.mda-sug { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; font-size: .84rem; background: rgba(124, 58, 237, .08); color: #6d28d9; }
+.mda-msg--warn { background: rgba(245, 159, 0, .1); border-color: rgba(245, 159, 0, .4); color: #9a6700; }
+.mda-errs { margin: 4px 0 0; padding-left: 18px; }
+html.dark .mda-sug { color: #c4b5fd; } html.dark .mda-msg--warn { color: #fbbf24; }

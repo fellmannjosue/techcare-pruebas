@@ -1,16 +1,20 @@
 {% load static %}
 {# <--- hecho por claude code (14-oct-2026): ventana "Publicar en Moodle" del Dashboard de Agendas (pruebas) #}
 <div class="modal modal-blur fade" id="modalMoodleAgenda" tabindex="-1" aria-hidden="true">
-  <form class="modal-dialog modal-dialog-centered" id="mda-form">
+  <form class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" id="mda-form">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="ti ti-cloud-upload me-2 text-info"></i>Publicar en Moodle · <span id="mda-titulo"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        {# <--- hecho por claude code (15-oct-2026): cursos agrupados por grado-sección, selección múltiple (marcar el grado = todas sus clases) #}
         <div class="mb-3">
-          <label class="form-label required">Curso de Moodle</label>
-          <select name="curso" id="mda-curso" class="form-select" required><option value="">Cargando cursos…</option></select>
+          <label class="form-label required">Cursos de Moodle</label>
+          <div class="mda-sug d-none" id="mda-sug"></div>
+          <input type="search" id="mda-buscar" class="form-control form-control-sm mb-2" placeholder="Buscar grado o clase (ej.: 1ero-1, Math, Bach)…" autocomplete="off">
+          <div class="mda-grupos" id="mda-grupos"><div class="text-muted small p-2">Cargando cursos…</div></div>
+          <div class="mda-cuenta"><span id="mda-cuenta">0 cursos seleccionados</span><button type="button" class="btn btn-sm btn-ghost-secondary" id="mda-limpiar">Quitar todos</button></div>
         </div>
         <div class="mb-2">
           <label class="form-label required">Imagen final de la agenda (PNG o JPG)</label>
@@ -30,5 +34,5 @@
 {{ moodle_publicadas|json_script:"mda-publicadas" }}
 <div id="mda-config" hidden data-csrf="{{ csrf_token }}" data-url-cursos="{% url 'moodle_upload:cursos_json' %}"
      data-url-publicar="{% url 'moodle_upload:publicar_agenda' 0 %}"></div>
-<link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=1">
-<script src="{% static 'moodle_upload/js/agenda_moodle.js' %}?v=1"></script>
+<link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=2">
+<script src="{% static 'moodle_upload/js/agenda_moodle.js' %}?v=2"></script>
