@@ -1,6 +1,7 @@
 # <--- hecho por claude code (14-oct-2026): cliente mínimo de los Servicios Web REST de Moodle.
 import base64
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,5 +47,9 @@ def cursos(conexion):
 
 
 def publicar(conexion, curso_id, nombre_archivo, contenido, alt):
-    return ws(conexion, 'local_techcareagenda_publicar', courseid=int(curso_id), filename=nombre_archivo,
-              filecontent=base64.b64encode(contenido).decode(), alttext=alt or 'Agenda semanal')
+    # <--- hecho por claude code (15-oct-2026): el plugin v0.2 pone su propio nombre y rechaza nombres/textos con
+    # caracteres especiales → se manda un nombre neutro y el texto alternativo sin < > " ni saltos de línea.
+    ext = 'jpg' if str(nombre_archivo).lower().endswith(('.jpg', '.jpeg')) else 'png'
+    alt = re.sub(r'[<>"\\\s]+', ' ', alt or '').strip()[:200] or 'Agenda semanal'
+    return ws(conexion, 'local_techcareagenda_publicar', courseid=int(curso_id), filename=f'agenda.{ext}',
+              filecontent=base64.b64encode(contenido).decode(), alttext=alt)
