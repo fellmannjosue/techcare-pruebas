@@ -164,6 +164,14 @@ def publicar_agenda(request, pk):
     agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
     f = request.FILES.get('imagen')
     curso_id = request.POST.get('curso', '')
+    # <--- hecho por claude code (15-oct-2026): o la imagen final que generó el editor de diseño de Agendas
+    if not f and request.POST.get('usar_final') == '1' and agenda.imagen_final:
+        try:
+            from django.core.files.base import ContentFile
+            with agenda.imagen_final.open('rb') as fh:
+                f = ContentFile(fh.read(), name=os.path.basename(agenda.imagen_final.name))
+        except FileNotFoundError:
+            return JsonResponse({'ok': False, 'error': 'No se encontró la imagen final; vuelve a generarla en Diseño.'}, status=400)
     if not f or not curso_id.isdigit():
         return JsonResponse({'ok': False, 'error': 'Elige el curso y la imagen.'}, status=400)
     if os.path.splitext(f.name)[1].lower() not in EXT_OK:

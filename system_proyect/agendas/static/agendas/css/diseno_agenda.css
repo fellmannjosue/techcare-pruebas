@@ -1,0 +1,58 @@
+/* <--- hecho por claude code (15-oct-2026): editor de diseño de agendas (pruebas).
+   La hoja se dibuja a 96 px por pulgada: BL = 13.333 x 7.5 in (1280 x 720), Colegio = A4 horizontal (1123 x 794).
+   Las medidas salen del generador de PowerPoint/Word (agendas/views.py). */
+.dz-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 991.98px) { .dz-layout { grid-template-columns: 1fr; } }
+.dz-panel { position: sticky; top: 12px; }
+.dz-estado { font-size: .82rem; font-weight: 600; color: var(--tblr-secondary); margin-bottom: 10px; }
+.dz-estado--ok { color: #0f8a50; } .dz-estado--guardando { color: #b45309; } .dz-estado--err { color: #c0362c; }
+.dz-sec { border-top: 1px solid var(--tblr-border-color); padding-top: 10px; margin-top: 10px; }
+.dz-sec-tit { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.dz-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.dz-campos label { font-size: .78rem; color: var(--tblr-secondary); display: flex; flex-direction: column; gap: 2px; }
+.dz-campos--cols { grid-template-columns: repeat(3, 1fr); }
+.dz-celda { font-size: .85rem; }
+.dz-celda-nombre { font-weight: 600; margin-bottom: 6px; }
+.dz-celda-ctrl { display: flex; align-items: center; gap: 6px; }
+.dz-celda-ctrl b { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.dz-aviso { margin-top: 12px; padding: 8px 10px; border-radius: 8px; font-size: .82rem; background: rgba(240, 68, 56, .08); border: 1px solid rgba(240, 68, 56, .35); color: #c0362c; }
+
+.dz-zona { min-width: 0; }
+.dz-escenario { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 24px rgba(15, 23, 42, .18); background: #fff; }
+.dz-pie { margin-top: 8px; }
+
+/* ── La hoja ── */
+.dz-hoja { position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; color: #000; }
+.dz-hoja--bl { width: 1280px; height: 720px; background-size: 100% 100%; background-repeat: no-repeat; background-color: #f5f5e4; }
+.dz-hoja--col { width: 1123px; height: 794px; background: #fff; }
+.dz-caja { position: absolute; text-align: center; white-space: pre-line; }
+.dz-bl-titulo, .dz-bl-semana, .dz-bl-grado { font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, 'URW Palladio L', serif; font-style: italic; font-size: 26.67px; line-height: 1.2; }
+.dz-bl-titulo { left: 11.5px; top: 9.6px; width: 201.6px; padding: 4.8px 9.6px; font-weight: 700; color: #1e1e1e; text-shadow: 0 2.4px 4px rgba(0, 0, 0, .4); }
+.dz-bl-semana { left: 11.5px; top: 240px; width: 201.6px; padding: 4.8px 9.6px; color: #1e1e1e; text-shadow: 0 2.4px 4px rgba(0, 0, 0, .4); }
+.dz-bl-semana u { font-weight: 700; }
+.dz-bl-grado { left: -26.5px; top: 457.7px; width: 216.2px; height: 72.2px; display: flex; align-items: center; justify-content: center; white-space: nowrap; font-weight: 700; color: #fff; }
+
+.dz-tabla { position: absolute; border-collapse: collapse; table-layout: fixed; }
+.dz-tabla td, .dz-tabla th { overflow: hidden; word-wrap: break-word; overflow-wrap: anywhere; white-space: pre-wrap; text-align: center; vertical-align: middle; }
+.dz-hoja--bl .dz-tabla { left: 225.6px; top: 4.8px; font-family: 'Century Gothic', 'URW Gothic', 'URW Gothic L', 'Avant Garde', 'Questrial', sans-serif; }
+.dz-hoja--bl .dz-tabla td, .dz-hoja--bl .dz-tabla th { border: 2px solid #000; padding: 4.8px 9.6px; background: #fff; }
+.dz-hoja--bl .dz-tabla th { background: #ebeed7; font-weight: 700; }
+.dz-hoja--col { font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif; }
+.dz-col-cuerpo { position: absolute; left: 56.7px; right: 56.7px; top: 56.7px; }
+.dz-col-l1 { text-align: center; font-weight: 700; font-size: 18.67px; line-height: 1.2; margin-bottom: 2.7px; }
+.dz-col-l2 { text-align: center; font-weight: 700; font-size: 16px; line-height: 1.2; margin-bottom: 2.7px; }
+.dz-col-info { display: flex; justify-content: space-between; font-weight: 700; font-size: 13.33px; margin: 2px 0 18px; }
+.dz-hoja--col .dz-tabla { position: static; margin: 0 auto; }
+.dz-hoja--col .dz-tabla td, .dz-hoja--col .dz-tabla th { border: 1px solid #000; padding: 1px 7.2px; }
+.dz-hoja--col .dz-tabla th { background: #adc6e0; font-weight: 700; }
+.dz-hoja--col .dz-tabla td.dz-clase { text-align: left; }
+.dz-hoja--col .dz-tabla td.dz-dia { text-align: left; }
+.dz-tabla .dz-clase { font-weight: 700; }
+
+/* Edición y selección (no salen en el PNG: .dz-captura las apaga) */
+.dz-tabla .dz-sel { outline: 3px solid #7c3aed; outline-offset: -3px; }
+.dz-tabla .dz-ajustada { box-shadow: inset 0 0 0 2px rgba(124, 58, 237, .35); }
+.dz-hoja.dz-editando .dz-editable { cursor: text; }
+.dz-hoja.dz-editando .dz-editable:hover { background: #fffbe6; }
+.dz-hoja:not(.dz-editando) .dz-tabla td { cursor: pointer; }
+.dz-hoja.dz-captura .dz-sel, .dz-hoja.dz-captura .dz-ajustada { outline: none; box-shadow: none; }

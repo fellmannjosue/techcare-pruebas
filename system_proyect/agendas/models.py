@@ -51,6 +51,13 @@ class Agenda(AuditModel):
     nota_general           = models.CharField(max_length=200, blank=True, default='', verbose_name="Nota")
     estado                 = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='enviado', verbose_name="Estado")
     comentario_coordinador = models.TextField(blank=True, default='', verbose_name="Comentario del coordinador")
+    # <--- hecho por claude code (15-oct-2026): editor de diseño del coordinador (pruebas) — ajustes de letra/filas/columnas
+    # y la imagen FINAL (PNG generado en el navegador) que luego se publica en Moodle.
+    diseno_json            = models.JSONField(default=dict, blank=True, verbose_name="Ajustes de diseño")
+    imagen_final           = models.ImageField(upload_to='agendas/finales/', null=True, blank=True, verbose_name="Imagen final")
+    imagen_final_en        = models.DateTimeField(null=True, blank=True, verbose_name="Imagen final generada el")
+    imagen_final_por       = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                                               related_name='+', verbose_name="Imagen final generada por")
 
     class Meta:
         verbose_name        = "Agenda"

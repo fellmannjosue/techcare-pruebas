@@ -1,0 +1,80 @@
+{% extends 'agendas/base_agendas.html' %}
+{% load static %}
+{# <--- hecho por claude code (15-oct-2026): editor de diseño de la agenda (réplica del PowerPoint BL / Word de Colegio), ajustes y PNG final #}
+{% block title %}Diseño · {{ agenda.grado.nombre }} – Agendas{% endblock %}
+{% block page_pretitle %}Agendas · Diseño{% endblock %}
+{% block page_title %}{{ agenda.grado.nombre }} · {{ agenda.semana_inicio|date:"d/m/Y" }} – {{ agenda.semana_fin|date:"d/m/Y" }}{% endblock %}
+{% block crumbs %}
+<li class="breadcrumb-item"><a href="{% url 'agendas:dashboard_coordinador' %}">Dashboard Agendas</a></li>
+<li class="breadcrumb-item active">Diseño</li>
+{% endblock %}
+{% block page_actions %}
+<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Volver</a>
+<a href="{% url 'agendas:editar_agenda' agenda.pk %}" class="btn btn-sm"><i class="ti ti-pencil me-1"></i>Formulario</a>
+<a href="{% url 'agendas:descargar_pptx' agenda.pk %}" class="btn btn-sm dz-descarga-office"><i class="ti ti-file-download me-1"></i>{% if tipo == 'col' %}Word{% else %}PowerPoint{% endif %}</a>
+{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'agendas/css/diseno_agenda.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<div class="dz-layout">
+  <aside class="card dz-panel">
+    <div class="card-body">
+      <div class="dz-estado" id="dz-estado"><i class="ti ti-circle-check"></i> Sin cambios</div>
+
+      <div class="dz-sec">
+        <div class="dz-sec-tit"><i class="ti ti-typography"></i> Tamaño de letra <span class="text-muted">(pt)</span></div>
+        <div class="dz-campos">
+          <label>Textos de los días<input type="number" class="form-control form-control-sm" step="0.5" min="5" max="40" data-k="letra_celda"></label>
+          <label>Nombre de la clase<input type="number" class="form-control form-control-sm" step="0.5" min="5" max="40" data-k="letra_clase"></label>
+          <label>Encabezados<input type="number" class="form-control form-control-sm" step="0.5" min="5" max="40" data-k="letra_encabezado"></label>
+          {% if tipo == 'bl' %}<label>Nota<input type="number" class="form-control form-control-sm" step="0.5" min="5" max="40" data-k="letra_nota"></label>{% endif %}
+        </div>
+      </div>
+
+      <div class="dz-sec">
+        <div class="dz-sec-tit"><i class="ti ti-row-insert-bottom"></i> Filas</div>
+        <label class="form-check form-switch mb-1"><input type="checkbox" class="form-check-input" data-k="auto_alto"><span class="form-check-label">Ajustar a la hoja</span></label>
+        <div class="dz-campos"><label>Alto de cada fila (cm)<input type="number" class="form-control form-control-sm" step="0.1" min="0.5" max="6" data-k="alto_fila"></label></div>
+        <label class="form-check form-switch mb-0 mt-1"><input type="checkbox" class="form-check-input" data-k="ocultar_vacias"><span class="form-check-label">Ocultar clases vacías</span></label>
+      </div>
+
+      <div class="dz-sec">
+        <div class="dz-sec-tit"><i class="ti ti-columns"></i> Ancho de columnas <span class="text-muted">({% if tipo == 'col' %}cm{% else %}pulgadas{% endif %})</span></div>
+        <div class="dz-campos dz-campos--cols" id="dz-anchos"></div>
+      </div>
+
+      <div class="dz-sec">
+        <div class="dz-sec-tit"><i class="ti ti-pointer"></i> Celda seleccionada</div>
+        <div class="dz-celda" id="dz-celda"><span class="text-muted small">Haz clic en una celda de la hoja para darle su propio tamaño de letra.</span></div>
+      </div>
+
+      <div class="dz-sec">
+        <label class="form-check form-switch mb-1"><input type="checkbox" class="form-check-input" id="dz-editar"><span class="form-check-label"><b>Editar textos</b> en la hoja</span></label>
+        <div class="form-hint">Corrige lo que escribieron los maestros directamente en la celda. Se guarda solo.</div>
+      </div>
+
+      <div class="dz-aviso d-none" id="dz-aviso"></div>
+
+      <div class="d-grid gap-2 mt-3">
+        <button type="button" class="btn btn-primary" id="dz-png"><i class="ti ti-photo-down me-1"></i>Descargar PNG</button>
+        <div class="form-hint text-center mb-1" id="dz-final">{% if agenda.imagen_final %}Imagen final guardada el {{ agenda.imagen_final_en|date:"d/m/Y H:i" }}{% else %}El PNG también se guarda como imagen final para Moodle.{% endif %}</div>
+        <button type="button" class="btn btn-ghost-secondary btn-sm" id="dz-reset"><i class="ti ti-restore me-1"></i>Restablecer diseño</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="dz-zona">
+    <div class="dz-escenario" id="dz-escenario"><div class="dz-hoja dz-hoja--{{ tipo }}" id="dz-hoja"></div></div>
+    <div class="dz-pie text-muted small"><i class="ti ti-info-circle me-1"></i>{% if tipo == 'col' %}Hoja carta/A4 horizontal, como el Word de Colegio.{% else %}Diapositiva 16:9, como el PowerPoint de Bilingüe.{% endif %} El PNG sale en alta resolución.</div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ datos|json_script:"dz-datos" }}
+<div id="dz-config" hidden data-csrf="{{ csrf_token }}"
+     data-url-guardar="{% url 'agendas:diseno_guardar' agenda.pk %}"
+     data-url-final="{% url 'agendas:imagen_final_guardar' agenda.pk %}"></div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="{% static 'agendas/js/diseno_agenda.js' %}?v=1"></script>
+{% endblock %}

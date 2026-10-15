@@ -8,6 +8,7 @@ from django.conf import settings
 
 from django.contrib.auth.models import User
 from .models import GradoAgenda, Agenda, ImagenAgenda, AgendaBloqueoConfig
+from . import diseno
 
 
 def _agenda_bloqueado(request):
@@ -566,6 +567,8 @@ def dashboard_coordinador(request):
         'bloqueo_ids':  bloqueo_ids,
         'maestros_bl':  maestros_bl,
         'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
+        'tab_crear': request.GET.get('tab') == 'crear',   # <--- hecho por claude code (15-oct-2026): pestaña Crear agenda
+        **diseno.contexto_crear(request),
         **_rol_ctx(request),
     })
 
@@ -666,6 +669,13 @@ def _descargar_docx_colegio(agenda):
         return f"{d.day} de {_MESES_ES[d.month - 1]}"
 
     materias = agenda.materias_json or []
+    # <--- hecho por claude code (15-oct-2026): mismos ajustes que el editor de diseño
+    dz = diseno.diseno_efectivo(agenda)
+    if dz['ocultar_vacias']:
+        materias = [m for m in materias if any((m.get(d) or '').strip() for d in diseno.DIAS)]
+
+    def _pt(clave, base):
+        return dz['celdas'].get(clave, base)
 
     doc = Document()
 
@@ -743,30 +753,38 @@ def _descargar_docx_colegio(agenda):
         tcPr.append(shd)
 
     # 1 cm ≈ 567 twips; A4 landscape usable ≈ 26.7 cm
-    W_ASIG = int(4.2 * 567)
-    W_DIA  = int((26.7 - 4.2) / 5 * 567)
+    W_COL = [int(w * 567) for w in dz['anchos']]
 
     for ci, hdr in enumerate(headers):
         cell = tbl.cell(0, ci)
-        _set_width(cell, W_ASIG if ci == 0 else W_DIA)
+        _set_width(cell, W_COL[ci])
         _shd(cell, 'ADC6E0')
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run(hdr)
-        run.font.bold = True; run.font.size = Pt(10); run.font.name = 'Calibri'
+        run.font.bold = True; run.font.size = Pt(_pt(f'cab|{ci}', dz['letra_encabezado'])); run.font.name = 'Calibri'
 
     for ri, mat in enumerate(materias, start=1):
         vals = [mat.get('materia',''), mat.get('lunes',''), mat.get('martes',''),
                 mat.get('miercoles',''), mat.get('jueves',''), mat.get('viernes','')]
+        _m = mat.get('materia', '')
         for ci, val in enumerate(vals):
             cell = tbl.cell(ri, ci)
-            _set_width(cell, W_ASIG if ci == 0 else W_DIA)
+            _set_width(cell, W_COL[ci])
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             p = cell.paragraphs[0]
             run = p.add_run(val or '')
             run.font.bold = (ci == 0)
-            run.font.size = Pt(9); run.font.name = 'Calibri'
+            _k = f'{_m}|materia' if ci == 0 else f'{_m}|{diseno.DIAS[ci - 1]}'
+            run.font.size = Pt(_pt(_k, dz['letra_clase'] if ci == 0 else dz['letra_celda'])); run.font.name = 'Calibri'
+
+    # Alto de filas (mínimo): "Ajustar a la hoja" reparte el espacio que queda bajo el encabezado (~15.3 cm)
+    from docx.enum.table import WD_ROW_HEIGHT_RULE
+    _alto = Cm(15.3 / (len(materias) + 1)) if dz['auto_alto'] else Cm(dz['alto_fila'])
+    for _r in tbl.rows:
+        _r.height = _alto
+        _r.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -802,11 +820,18 @@ def descargar_pptx_agenda(request, pk):
 
 
     materias = agenda.materias_json or []
+    # <--- hecho por claude code (15-oct-2026): mismos ajustes que el editor de diseño (letra, filas, columnas, ocultas)
+    dz = diseno.diseno_efectivo(agenda)
+    if dz['ocultar_vacias']:
+        materias = [m for m in materias if any((m.get(d) or '').strip() for d in diseno.DIAS)]
+
+    def _pt(clave, base):
+        return dz['celdas'].get(clave, base)
 
     # Buscar imagen de plantilla subida por el usuario
     import glob as _glob
     from pptx.util import Cm
-    _base_img  = '/home/admin2/techcare_project/system_proyect/agendas/static/agendas/img/'
+    _base_img  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'agendas', 'img') + '/'   # <--- antes ruta fija de producción
     fondo_path = ''
     for _ext in ('jpg', 'jpeg', 'png'):
         _p = f'{_base_img}plantilla.{_ext}'
@@ -950,6 +975,7 @@ def descargar_pptx_agenda(request, pk):
 
     # ── Tabla ─────────────────────────────────────────────────────────────────
     num_rows = len(materias) + 1
+    TAB_W = sum(Inches(w) for w in dz['anchos'])
     tbl_shape = slide.shapes.add_table(num_rows, 7, TAB_X, Inches(0.05), TAB_W, SLIDE_H - Inches(0.1))
     tbl = tbl_shape.table
 
@@ -963,10 +989,8 @@ def descargar_pptx_agenda(request, pk):
     etree.SubElement(tblPr, qn('a:tableStyleId')).text = '{2D5ABB26-0587-4C30-8999-92F81FD0307C}'
 
     # Anchos columnas → total 10.8"
-    for _i, _w in enumerate([Inches(1.3),
-                              Inches(1.55), Inches(1.55), Inches(1.55),
-                              Inches(1.55), Inches(1.55), Inches(1.75)]):
-        tbl.columns[_i].width = _w
+    for _i, _w in enumerate(dz['anchos']):
+        tbl.columns[_i].width = Inches(_w)
 
     def _cell(cell, txt, bold=False, align=PP_ALIGN.CENTER, header=False, size=9):
         # Limpiar retornos de carro Windows (\r) que generan "_x000D_" en PPTX
@@ -1004,25 +1028,24 @@ def descargar_pptx_agenda(request, pk):
 
     headers = ['Clase/Día', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Nota']
     for _i, _h in enumerate(headers):
-        _cell(tbl.cell(0, _i), _h, bold=True, header=True, size=16)
+        _cell(tbl.cell(0, _i), _h, bold=True, header=True, size=_pt(f'cab|{_i}', dz['letra_encabezado']))
 
     for _row, mat in enumerate(materias, start=1):
-        _cell(tbl.cell(_row, 0), mat.get('materia',   ''), bold=True, size=16)  # <--- hecho por claude code: columna Clase/Día = 16
-        _cell(tbl.cell(_row, 1), mat.get('lunes',     ''))
-        _cell(tbl.cell(_row, 2), mat.get('martes',    ''))
-        _cell(tbl.cell(_row, 3), mat.get('miercoles', ''))
-        _cell(tbl.cell(_row, 4), mat.get('jueves',    ''))
-        _cell(tbl.cell(_row, 5), mat.get('viernes',   ''))
+        _m = mat.get('materia', '')
+        _cell(tbl.cell(_row, 0), _m, bold=True, size=_pt(f'{_m}|materia', dz['letra_clase']))
+        for _ci, _dia in enumerate(diseno.DIAS, start=1):
+            _cell(tbl.cell(_row, _ci), mat.get(_dia, ''), size=_pt(f'{_m}|{_dia}', dz['letra_celda']))
 
     # Columna Nota = una sola celda combinada (nota general de la semana)
     if materias:
         if len(materias) > 1:
             tbl.cell(1, 6).merge(tbl.cell(len(materias), 6))
-        _cell(tbl.cell(1, 6), agenda.nota_general or '')
+        _cell(tbl.cell(1, 6), agenda.nota_general or '', size=_pt('nota', dz['letra_nota']))
 
-    # Altura fija 1.8 cm por fila (el texto se encoge si no cabe)
+    # Alto de filas: "Ajustar a la hoja" reparte el alto de la diapositiva; si no, el alto fijo del editor
+    _alto = int((SLIDE_H - Inches(0.1)) / num_rows) if dz['auto_alto'] else Cm(dz['alto_fila'])
     for _i in range(num_rows):
-        tbl.rows[_i].height = Cm(1.8)
+        tbl.rows[_i].height = _alto
 
     # ── Descarga ──────────────────────────────────────────────────────────────
     buf = io.BytesIO()

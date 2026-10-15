@@ -16,6 +16,14 @@
   var msg = document.getElementById('mda-msg');
   var btn = document.getElementById('mda-btn');
   var actual = null, publicando = false, peticion = 0;
+  var boxFinal = document.getElementById('mda-final'), usarFinal = document.getElementById('mda-usar-final');
+  var subir = document.getElementById('mda-subir');
+  function conFinal() { return actual && actual.dataset.final && usarFinal.checked; }
+  function pintarFinal() {   // <--- 15-oct-2026: si hay imagen final del editor, no hace falta subir archivo
+    subir.classList.toggle('d-none', !!conFinal());
+    inpImg.required = !conFinal();
+  }
+  usarFinal.addEventListener('change', pintarFinal);
 
   var SEL = MU_SELECTOR.montar(document.getElementById('mda-selector'), function (n) {
     btn.innerHTML = '<i class="ti ti-send me-1"></i>' + (n > 1 ? 'Publicar en ' + n + ' cursos' : 'Publicar');
@@ -61,6 +69,13 @@
     document.getElementById('mda-titulo').textContent = b.dataset.grado + ' · ' + b.dataset.semana;
     form.reset(); prev.classList.add('d-none'); prev.removeAttribute('src'); msg.className = 'mda-msg d-none';
     btn.disabled = false;
+    boxFinal.classList.toggle('d-none', !b.dataset.final);
+    if (b.dataset.final) {
+      usarFinal.checked = true;
+      document.getElementById('mda-final-fecha').textContent = '(generada el ' + b.dataset.final + ')';
+      document.getElementById('mda-final-img').src = b.dataset.finalUrl + '?t=' + encodeURIComponent(b.dataset.final);
+    }
+    pintarFinal();
     var p = PUB[b.dataset.pk];
     if (p) aviso('info', 'Ya se publicó el ' + esc(p.fecha) + (p.ncursos > 1 ? ' en <b>' + p.ncursos + ' cursos</b>' : ' en <b>' + esc(p.curso) + '</b>') + '. Si publicas otra vez, <b>se reemplaza</b>.');
     cargarCursos(b.dataset.pk);
@@ -77,11 +92,13 @@
     e.preventDefault();
     if (!actual || publicando) return;
     var sel = SEL.marcados();
-    if (!sel.length || !inpImg.files.length) { aviso('err', 'Marca al menos un curso y elige la imagen.'); return; }
-    var pk = actual.dataset.pk, url = cfg.dataset.urlPublicar.replace('/0/', '/' + pk + '/'), img = inpImg.files[0];
+    var final = conFinal();
+    if (!sel.length || (!final && !inpImg.files.length)) { aviso('err', 'Marca al menos un curso y elige la imagen.'); return; }
+    var pk = actual.dataset.pk, url = cfg.dataset.urlPublicar.replace('/0/', '/' + pk + '/'), img = final ? null : inpImg.files[0];
     publicando = true; btn.disabled = true;
     MU_SELECTOR.publicarEnSerie(sel, function (cursoId) {
-      var fd = new FormData(); fd.append('curso', cursoId); fd.append('imagen', img);
+      var fd = new FormData(); fd.append('curso', cursoId);
+      if (img) fd.append('imagen', img); else fd.append('usar_final', '1');
       return fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': cfg.dataset.csrf } })
         .then(function (r) { return r.json(); });
     }, function (i, total, nombre) {

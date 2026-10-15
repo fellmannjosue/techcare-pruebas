@@ -9,9 +9,17 @@
 
 {% block extra_head %}
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <link href="{% static 'agendas/css/crear_agenda.css' %}?v=1" rel="stylesheet"/>
 {% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code (15-oct-2026): pestañas Agendas / Crear agenda (pruebas) #}
+<ul class="nav nav-tabs ag-tabs mb-3" role="tablist">
+  <li class="nav-item"><a class="nav-link {% if not tab_crear %}active{% endif %}" data-bs-toggle="tab" href="#ag-pane-lista"><i class="ti ti-list me-1"></i>Agendas</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab_crear %}active{% endif %}" data-bs-toggle="tab" href="#ag-pane-crear"><i class="ti ti-calendar-plus me-1"></i>Crear agenda</a></li>
+</ul>
+<div class="tab-content">
+<div class="tab-pane {% if not tab_crear %}active show{% endif %}" id="ag-pane-lista">
 <div class="card">
   <div class="card-header d-flex align-items-center">
     <h3 class="card-title mb-0"><i class="ti ti-calendar-week me-2 text-blue"></i>Todas las Agendas</h3>
@@ -73,13 +81,19 @@
                         <a href="{% url 'agendas:editar_agenda' ag.pk %}" class="btn btn-sm btn-outline-primary" title="Revisar / editar">
                           <i class="ti ti-pencil"></i>
                         </a>
-                        <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success" title="Descargar PPTX">
+                        {# <--- hecho por claude code (15-oct-2026): editor de diseño (vista previa, ajustes y PNG) #}
+                        <a href="{% url 'agendas:diseno' ag.pk %}" class="btn btn-sm btn-outline-purple" title="Diseño: vista previa, ajustes y PNG">
+                          <i class="ti ti-layout-board"></i>
+                        </a>
+                        <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success" title="{% if ag.grado.area == 'colegio' %}Descargar Word{% else %}Descargar PPTX{% endif %}">
                           <i class="ti ti-download"></i>
                         </a>
                         {# <--- hecho por claude code (14-oct-2026): publicar la imagen final en Moodle (pruebas) #}
                         <button type="button" class="btn btn-sm btn-outline-info btn-moodle-agenda" data-pk="{{ ag.pk }}"
                                 data-grado="{{ ag.grado.nombre }}" data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
+                                {% if ag.imagen_final %}data-final="{{ ag.imagen_final_en|date:'d/m/Y H:i' }}" data-final-url="{% url 'agendas:imagen_final' ag.pk %}"{% endif %}
                                 title="Publicar en Moodle"><i class="ti ti-cloud-upload"></i></button>
+                        {% if ag.imagen_final %}<span class="badge bg-purple-lt text-purple" title="Imagen final generada el {{ ag.imagen_final_en|date:'d/m/Y H:i' }}"><i class="ti ti-photo-check"></i></span>{% endif %}
                         <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
                                 data-pk="{{ ag.pk }}"
                                 data-grado="{{ ag.grado.nombre }}"
@@ -105,6 +119,11 @@
   {% else %}
   <div class="card-body text-center text-muted py-4">No hay agendas registradas.</div>
   {% endif %}
+</div>
+</div>
+<div class="tab-pane {% if tab_crear %}active show{% endif %}" id="ag-pane-crear">
+  {% include 'agendas/_crear_agenda.html' %}
+</div>
 </div>
 
 {# Modal doble confirmación eliminar agenda #}
@@ -208,5 +227,6 @@
      data-v0="{{ csrf_token }}"
      data-v1="{% url "agendas:bloqueo_config_guardar" %}"></div>
 <script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=4"></script>
+<script src="{% static 'agendas/js/crear_agenda.js' %}?v=1"></script>
 {% include 'moodle_upload/_agenda_modal.html' %}
 {% endblock %}

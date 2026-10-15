@@ -13,7 +13,13 @@
           <label class="form-label required">Cursos de Moodle</label>
           {% include "moodle_upload/_selector_cursos.html" with sel_id="mda-selector" %}
         </div>
-        <div class="mb-2">
+        {# <--- hecho por claude code (15-oct-2026): imagen final generada en el editor de diseño #}
+        <div class="mda-final d-none" id="mda-final">
+          <label class="form-check mb-1"><input type="checkbox" class="form-check-input" id="mda-usar-final" checked>
+            <span class="form-check-label"><b>Usar la imagen final del editor de diseño</b> <span class="text-muted" id="mda-final-fecha"></span></span></label>
+          <img id="mda-final-img" alt="Imagen final de la agenda" class="mda-preview">
+        </div>
+        <div class="mb-2" id="mda-subir">
           <label class="form-label required">Imagen final de la agenda (PNG o JPG)</label>
           <input type="file" name="imagen" id="mda-imagen" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="form-control" required>
           <div class="form-hint">La que exportas de PowerPoint después de ajustarla (Archivo → Exportar → PNG).</div>
@@ -31,6 +37,6 @@
 {{ moodle_publicadas|json_script:"mda-publicadas" }}
 <div id="mda-config" hidden data-csrf="{{ csrf_token }}" data-url-cursos="{% url 'moodle_upload:cursos_json' %}"
      data-url-publicar="{% url 'moodle_upload:publicar_agenda' 0 %}"></div>
-<link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=4">
 <script src="{% static 'moodle_upload/js/mu_selector.js' %}?v=1"></script>
-<script src="{% static 'moodle_upload/js/agenda_moodle.js' %}?v=3"></script>
+<script src="{% static 'moodle_upload/js/agenda_moodle.js' %}?v=4"></script>

@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import diseno, views
 
 app_name = 'agendas'
 
@@ -14,4 +14,10 @@ urlpatterns = [
     path('imagen/subir/',      views.subir_imagen,            name='subir_imagen'),
     path('imagen/<int:pk>/eliminar/', views.eliminar_imagen,  name='eliminar_imagen'),
     path('<int:pk>/eliminar/',        views.eliminar_agenda,   name='eliminar_agenda'),
+    # <--- hecho por claude code (15-oct-2026): crear la semana y editor de diseño del coordinador (pruebas)
+    path('crear-semana/',             diseno.crear_semana,         name='crear_semana'),
+    path('<int:pk>/diseno/',          diseno.editor,               name='diseno'),
+    path('<int:pk>/diseno/guardar/',  diseno.guardar,              name='diseno_guardar'),
+    path('<int:pk>/imagen-final/',    diseno.imagen_final_ver,     name='imagen_final'),
+    path('<int:pk>/imagen-final/guardar/', diseno.imagen_final_guardar, name='imagen_final_guardar'),
 ]

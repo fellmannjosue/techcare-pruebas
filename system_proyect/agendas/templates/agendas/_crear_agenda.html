@@ -1,0 +1,39 @@
+{# <--- hecho por claude code (15-oct-2026): pestaña Crear agenda — el coordinador crea grado + semana; los maestros la llenan #}
+<form method="post" action="{% url 'agendas:crear_semana' %}" class="card" id="ca-form">
+  {% csrf_token %}
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-calendar-plus me-2 text-blue"></i>Crear la agenda de la semana</h3></div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">Elige la semana y los grados. Se crea la agenda <b>vacía</b> de cada grado (solo grado y semana) y los maestros llenan sus clases. Después la diseñas con el botón <i class="ti ti-layout-board"></i> <b>Diseño</b> de la lista.</p>
+    <div class="row g-3 align-items-end mb-3">
+      <div class="col-sm-5 col-md-4">
+        <label class="form-label required">Semana (cualquier día)</label>
+        <input type="date" name="semana" id="ca-semana" class="form-control" value="{{ crear_lunes|date:'Y-m-d' }}" required>
+      </div>
+      <div class="col-sm-7 col-md-8"><div class="ca-rango" id="ca-rango"></div></div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <button type="button" class="btn btn-sm btn-ghost-secondary" id="ca-todos">Marcar todos</button>
+      <button type="button" class="btn btn-sm btn-ghost-secondary" id="ca-ninguno">Quitar todos</button>
+    </div>
+    {% for area, grados in crear_grupos.items %}
+    <div class="ca-area">
+      <div class="ca-area-tit"><label class="form-check mb-0"><input type="checkbox" class="form-check-input ca-area-chk"><span class="form-check-label">{{ area }}</span></label></div>
+      <div class="ca-grados">
+        {% for g in grados %}
+        <label class="form-check ca-grado{% if g.existe %} ca-grado--existe{% endif %}">
+          <input type="checkbox" class="form-check-input ca-grado-chk" name="grados" value="{{ g.id }}" {% if g.existe %}disabled{% endif %}>
+          <span class="form-check-label">{{ g.nombre }}{% if g.existe %} <span class="badge bg-green-lt text-green">ya creada</span>{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="text-muted">No hay grados activos para tu área.</div>
+    {% endfor %}
+    <div class="form-hint mt-2">Los grados con <span class="badge bg-green-lt text-green">ya creada</span> tienen agenda en la semana propuesta. Si cambias la semana, al crear se vuelve a comprobar y nunca se duplica.</div>
+  </div>
+  <div class="card-footer d-flex align-items-center gap-2">
+    <span class="text-muted small" id="ca-cuenta">0 grados marcados</span>
+    <button type="submit" class="btn btn-primary ms-auto" id="ca-btn" disabled><i class="ti ti-calendar-plus me-1"></i>Crear agendas</button>
+  </div>
+</form>

@@ -1,0 +1,8 @@
+/* <--- hecho por claude code (15-oct-2026): pestaña Crear agenda (pruebas) */
+.ag-tabs .nav-link { font-weight: 600; }
+.ca-rango { font-weight: 600; color: var(--tblr-primary); padding-bottom: 8px; }
+.ca-area { border: 1px solid var(--tblr-border-color); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.ca-area-tit { font-weight: 700; margin-bottom: 6px; }
+.ca-grados { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
+.ca-grado { margin-bottom: 0; }
+.ca-grado--existe .form-check-label { color: var(--tblr-secondary); }
