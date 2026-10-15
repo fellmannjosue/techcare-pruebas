@@ -5,7 +5,7 @@
 {% block page_pretitle %}Académico · Moodle{% endblock %}
 {% block page_title %}<i class="ti ti-cloud-upload me-2"></i>Moodle · Agendas{% endblock %}
 {% block page_actions %}<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-calendar-week me-1"></i>Dashboard de Agendas</a>{% endblock %}
-{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=2">{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=2"><link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">{% endblock %}
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}
 
 {% block content %}
@@ -33,25 +33,24 @@
   </div>
   <div class="tab-content">
     <div class="tab-pane fade {% if tab == 'publicar' %}show active{% endif %}" id="mu-tab-publicar">
-      <form method="post" action="{% url 'moodle_upload:publicar' %}" enctype="multipart/form-data" class="card-body mu-form">
+      <form method="post" action="{% url 'moodle_upload:publicar' %}" enctype="multipart/form-data" class="card-body mu-form" id="mu-form">
         {% csrf_token %}
+        {# <--- hecho por claude code (15-oct-2026): cursos agrupados por grado-sección, selección múltiple #}
         <div class="mb-3">
-          <label class="form-label required">Curso de Moodle</label>
-          <select name="curso" class="form-select" required {% if not cursos %}disabled{% endif %}>
-            <option value="">{% if cursos %}— Elige el curso —{% else %}(conecta Moodle para ver los cursos){% endif %}</option>
-            {% for c in cursos %}<option value="{{ c.id }}">{{ c.nombre }}{% if c.corto and c.corto != c.nombre %} · {{ c.corto }}{% endif %} (id {{ c.id }})</option>{% endfor %}
-          </select>
+          <label class="form-label required">Cursos de Moodle</label>
+          {% if cursos %}{% include "moodle_upload/_selector_cursos.html" with sel_id="mu-selector" %}{% else %}<div class="text-muted small">(conecta Moodle para ver los cursos)</div>{% endif %}
         </div>
         <div class="mb-3">
           <label class="form-label required">Imagen (PNG o JPG, máx. {{ max_mb }} MB)</label>
-          <input type="file" name="imagen" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="form-control" required>
+          <input type="file" name="imagen" id="mu-imagen" accept=".png,.jpg,.jpeg,image/png,image/jpeg" class="form-control" required>
         </div>
         <div class="mb-2">
           <label class="form-label">Texto alternativo</label>
-          <input type="text" name="alt" class="form-control" maxlength="200" placeholder="Agenda semanal">
+          <input type="text" name="alt" id="mu-alt" class="form-control" maxlength="200" placeholder="Agenda semanal">
         </div>
         <div class="form-hint mb-3">Se coloca en la sección <b>General</b> del curso. Si el curso ya tiene una agenda de TechCare, se <b>reemplaza</b>. Para publicar una agenda concreta usa el botón <i class="ti ti-cloud-upload"></i> del <a href="{% url 'agendas:dashboard_coordinador' %}">Dashboard de Agendas</a>.</div>
-        <div class="text-end"><button type="submit" class="btn btn-primary" {% if not cursos %}disabled{% endif %}><i class="ti ti-send me-1"></i>Publicar en Moodle</button></div>
+        <div class="mda-msg d-none" id="mu-msg"></div>
+        <div class="text-end mt-3"><button type="submit" class="btn btn-primary" id="mu-btn" {% if not cursos %}disabled{% endif %}><i class="ti ti-send me-1"></i>Publicar en Moodle</button></div>
       </form>
     </div>
 
@@ -101,4 +100,11 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ grupos|json_script:"mu-grupos" }}
+<div id="mu-config" hidden data-csrf="{{ csrf_token }}" data-url-publicar="{% url 'moodle_upload:publicar' %}?ajax=1"></div>
+<script src="{% static 'moodle_upload/js/mu_selector.js' %}?v=1"></script>
+<script src="{% static 'moodle_upload/js/mu_publicar.js' %}?v=1"></script>
 {% endblock %}

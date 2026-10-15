@@ -1,0 +1,7 @@
+{# <--- hecho por claude code (15-oct-2026): selector de cursos de Moodle agrupado por grado-sección (lo monta MU_SELECTOR, mu_selector.js) #}
+<div class="mu-sel" id="{{ sel_id }}">
+  <div class="mda-sug d-none"></div>
+  <input type="search" class="form-control form-control-sm mb-2 mda-buscar" placeholder="Buscar grado o clase (ej.: 1ero-1, Math, Bach)…" autocomplete="off">
+  <div class="mda-grupos"><div class="text-muted small p-2">{{ sel_vacio|default:"Cargando cursos…" }}</div></div>
+  <div class="mda-cuenta"><span class="mda-cuenta-txt">0 cursos seleccionados</span><button type="button" class="btn btn-sm btn-ghost-secondary mda-limpiar">Quitar todos</button></div>
+</div>

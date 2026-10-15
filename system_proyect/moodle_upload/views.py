@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -44,6 +45,7 @@ def index(request):
     tab = request.GET.get('tab', 'publicar')
     return render(request, 'moodle_upload/index.html', {
         'con': con, 'tiene_token': bool(con.token), 'estado': estado, 'cursos': cursos,
+        'grupos': services.agrupar(cursos),   # <--- hecho por claude code (15-oct-2026)
         'historial': pubs.select_related('usuario', 'agenda__grado')[:100], 'max_mb': MAX_MB,
         'tab': tab if tab in ('publicar', 'historial', 'conexion') else 'publicar',
         'kpi_total': pubs.filter(ok=True).count(), 'kpi_semana': pubs.filter(ok=True, fecha__gte=hace7).count(),
@@ -75,20 +77,26 @@ def guardar_conexion(request):
 @login_required
 @require_POST
 def publicar(request):
+    """Publica una imagen en UN curso. Con ?ajax=1 responde JSON (la pestaña Publicar llama una vez por curso marcado)."""
     _solo_super(request)
+    ajax = request.GET.get('ajax') == '1'   # <--- hecho por claude code (15-oct-2026): selección múltiple agrupada
+
+    def fallo(texto, status=400):
+        if ajax:
+            return JsonResponse({'ok': False, 'error': texto}, status=status)
+        messages.error(request, texto)
+        return redirect('moodle_upload:index')
+
     con = ConexionMoodle.actual()
     f = request.FILES.get('imagen')
     curso_id = request.POST.get('curso', '')
     alt = (request.POST.get('alt') or '').strip()[:200]
     if not f or not curso_id.isdigit():
-        messages.error(request, 'Elige el curso y la imagen.')
-        return redirect('moodle_upload:index')
+        return fallo('Elige el curso y la imagen.')
     if os.path.splitext(f.name)[1].lower() not in EXT_OK:
-        messages.error(request, 'Solo imágenes PNG o JPG.')
-        return redirect('moodle_upload:index')
+        return fallo('Solo imágenes PNG o JPG.')
     if f.size > MAX_MB * 1024 * 1024:
-        messages.error(request, f'La imagen pesa más de {MAX_MB} MB.')
-        return redirect('moodle_upload:index')
+        return fallo(f'La imagen pesa más de {MAX_MB} MB.')
     nombres = {str(c['id']): c['nombre'] for c in (cache.get('moodle_upload_cursos') or [])}
     reg = PublicacionMoodle(curso_id=int(curso_id), curso_nombre=nombres.get(curso_id, ''), archivo=f.name[:255],
                             tamano_kb=round(f.size / 1024), alt=alt, usuario=request.user)
@@ -96,17 +104,20 @@ def publicar(request):
         r = services.publicar(con, curso_id, f.name, f.read(), alt)
         reg.ok, reg.creada, reg.cmid = True, bool(r.get('creado')), r.get('cmid')
         reg.mensaje = r.get('url', '')
-        messages.success(request, ('Agenda CREADA' if reg.creada else 'Agenda REEMPLAZADA') +
-                         f" en «{reg.curso_nombre or curso_id}». Abre el curso para verla.")
     except services.MoodleError as e:
         reg.mensaje = str(e)
-        messages.error(request, f'No se publicó: {e}')
     reg.save()
+    if not reg.ok:
+        return fallo(f'No se publicó: {reg.mensaje}' if not ajax else reg.mensaje, status=502)
+    if ajax:
+        return JsonResponse({'ok': True, 'creada': reg.creada, 'curso': reg.curso_nombre or curso_id, 'url': reg.mensaje,
+                             'fecha': reg.fecha.strftime('%d/%m/%Y %H:%M')})
+    messages.success(request, ('Agenda CREADA' if reg.creada else 'Agenda REEMPLAZADA') +
+                     f" en «{reg.curso_nombre or curso_id}». Abre el curso para verla.")
     return redirect('moodle_upload:index')
 
 
 # ── Desde el Dashboard de Agendas (hecho por claude code, 14-oct-2026) ─────────────────────────────
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 
