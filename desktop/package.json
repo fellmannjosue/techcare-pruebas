@@ -22,7 +22,7 @@
     "directories": { "output": "dist" },
     "files": ["main.js", "preload.js", "offline.html", "build/icon.png"],
     "win": {
-      "target": "nsis",
+      "target": ["nsis", "portable", "msi"],
       "icon": "build/icon.ico"
     },
     "nsis": {
@@ -31,7 +31,15 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TechCare Pruebas"
+      "shortcutName": "TechCare Pruebas",
+      "artifactName": "TechCare-Pruebas-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "TechCare-Pruebas-Portable-${version}.${ext}"
+    },
+    "msi": {
+      "perMachine": true,
+      "artifactName": "TechCare-Pruebas-${version}.${ext}"
     }
   }
 }
