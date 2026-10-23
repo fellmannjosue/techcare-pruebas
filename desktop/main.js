@@ -41,6 +41,19 @@ function crearVentana() {
     return { action: 'allow' };
   });
 
+  // Seguridad: la ventana SOLO puede navegar dentro de TechCare. Cualquier intento de
+  // ir a otro sitio (redirección/phishing) se bloquea y, si es un enlace, se abre en el navegador.
+  const esInterno = (url) => url.startsWith(APP_URL) || url.startsWith('file://');
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (!esInterno(url)) { e.preventDefault(); shell.openExternal(url); }
+  });
+  mainWindow.webContents.on('will-redirect', (e, url) => {
+    if (!esInterno(url)) { e.preventDefault(); shell.openExternal(url); }
+  });
+
+  // Seguridad: negar por defecto los permisos del sistema (cámara, micrófono, ubicación, etc.).
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
+
   // Si no logra conectar con el servidor, muestra una página de "sin conexión" con reintento.
   mainWindow.webContents.on('did-fail-load', (_e, code) => {
     if (code === -3) return;          // abortos normales de carga
