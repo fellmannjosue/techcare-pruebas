@@ -127,3 +127,41 @@ a.mm-kpi { text-decoration: none !important; color: inherit; }
 .mmh-veh-km { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 @media (max-width: 900px) { .mmh-kpis { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 600px) { .mmh-sec-act { margin-left: 0; } .mmh-veh { flex-wrap: wrap; } }
+
+/* <--- hecho por claude code (14-oct-2026): lectura aproximada del barril (solo referencia) */
+.mm-lect-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
+.mm-lect-dato{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.mm-lect-dato span{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--tblr-secondary)}
+.mm-lect-dato b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.mm-lect-dato small{color:var(--tblr-secondary)}
+.mm-lect-dato--menos b{color:var(--tblr-red)}
+.mm-lect-dato--mas b{color:var(--tblr-green)}
+.mm-niveles{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.mm-nivel{display:flex;flex-direction:column;align-items:center;gap:.1rem;padding:.6rem .4rem;white-space:normal}
+.mm-nivel small{color:var(--tblr-secondary);font-weight:400}
+.btn-check:checked + .mm-nivel{background:var(--tblr-primary);border-color:var(--tblr-primary);color:#fff}
+.btn-check:checked + .mm-nivel small{color:rgba(255,255,255,.85)}
+@media (max-width:575.98px){.mm-niveles{grid-template-columns:repeat(2,1fr)}}
+
+/* <--- hecho por claude code (19-oct-2026): mantenimiento del tanque */
+.mm-limp-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.mm-limp-dato { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.mm-limp-dato span { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--tblr-secondary); }
+.mm-limp-dato b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.mm-limp-dato small { color: var(--tblr-secondary); }
+.mm-limp-sem { font-weight: 700; }
+.mm-limp--al_dia .mm-limp-sem { color: var(--tblr-green); }
+.mm-limp--pronto .mm-limp-sem, .mm-limp--hoy .mm-limp-sem { color: var(--tblr-orange); }
+.mm-limp--vencido .mm-limp-sem { color: var(--tblr-red); }
+.mm-limp--vencido, .mm-limp--hoy { border-left: 4px solid var(--tblr-red); }
+.mm-limp--pronto { border-left: 4px solid var(--tblr-orange); }
+
+/* <--- hecho por claude code (20-oct-2026): resultado del botón Validar (entrada) */
+.mm-ent-chk { border-radius: 10px; padding: 10px 12px; font-size: .88rem; border: 1px solid; }
+.mm-ent-chk--ok { background: rgba(18, 183, 106, .08); border-color: rgba(18, 183, 106, .35); }
+.mm-ent-chk--warn { background: rgba(245, 159, 0, .1); border-color: rgba(245, 159, 0, .4); }
+.mm-ent-chk--err { background: rgba(240, 68, 56, .08); border-color: rgba(240, 68, 56, .35); color: #c0362c; }
+.mm-ent-chk-grid { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; margin-bottom: 6px; }
+.mm-ent-chk-grid span { color: var(--tblr-secondary); }
+.mm-ent-chk-grid b { text-align: right; font-variant-numeric: tabular-nums; }
+.mm-ent-chk-msg { font-weight: 600; }

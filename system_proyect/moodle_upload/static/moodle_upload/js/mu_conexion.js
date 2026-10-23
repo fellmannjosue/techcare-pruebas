@@ -1,4 +1,4 @@
-/* mu_conexion.js — <--- hecho por claude code (15-oct-2026): conexiones de Moodle guardadas (pruebas).
+/* mu_conexion.js — <--- hecho por claude code (15-oct-2026): conexiones de Moodle guardadas.
    Cuenta regresiva del vencimiento de cada token y ventana "Token nuevo" (se abre sola si el token de la conexión
    activa vence pronto, ya venció o Moodle lo rechazó). Un solo global: MU_CONEXION. */
 (function () {

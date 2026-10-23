@@ -14,7 +14,7 @@ urlpatterns = [
     path('imagen/subir/',      views.subir_imagen,            name='subir_imagen'),
     path('imagen/<int:pk>/eliminar/', views.eliminar_imagen,  name='eliminar_imagen'),
     path('<int:pk>/eliminar/',        views.eliminar_agenda,   name='eliminar_agenda'),
-    # <--- hecho por claude code (15-oct-2026): crear la semana y editor de diseño del coordinador (pruebas)
+    # <--- hecho por claude code (15-oct-2026): crear la semana y editor de diseño del coordinador
     path('crear-semana/',             diseno.crear_semana,         name='crear_semana'),
     path('<int:pk>/diseno/',          diseno.editor,               name='diseno'),
     path('<int:pk>/diseno/guardar/',  diseno.guardar,              name='diseno_guardar'),

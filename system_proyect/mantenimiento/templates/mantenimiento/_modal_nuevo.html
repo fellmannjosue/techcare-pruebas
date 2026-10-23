@@ -30,6 +30,7 @@
             {# <--- hecho por claude code (17-sep-2026): Entrega / Recogida de equipo #}
             <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="entrega"><i class="ti ti-package-export me-1"></i>Entrega de equipo</button>
             <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="recogida"><i class="ti ti-package-import me-1"></i>Recogida de equipo</button>
+            <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="prestamo"><i class="ti ti-transfer-out me-1"></i>Préstamo de equipo</button>{# <--- hecho por claude code (16-oct-2026) #}
           </div>
 
           {# ───────── Bloque COMPUTADORA ───────── #}
@@ -55,6 +56,10 @@
             <div class="col-md-4 solo-recogida d-none">
               <label class="form-label fw-semibold">ID Registro</label>
               <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id_rec }}" readonly>
+            </div>
+            <div class="col-md-4 solo-prestamo d-none">{# <--- hecho por claude code (16-oct-2026) #}
+              <label class="form-label fw-semibold">ID Registro</label>
+              <input type="text" class="form-control bg-light text-muted fw-bold" value="{{ next_record_id_pre }}" readonly>
             </div>
 
             {# Computadora dropdown #}
@@ -157,6 +162,31 @@
             </div>
           </div>{# /equipo-impresora #}
 
+          {# <--- hecho por claude code (22-oct-2026): FORMULARIO ÚNICO de Control — toggles de acción (solo en la página de Control). Cada uno revela sus preguntas y crea su ficha. #}
+          <div class="row g-3 mt-1 d-none" id="acciones-equipo">
+            <div class="col-12"><div class="hr-text text-primary"><i class="ti ti-forms me-1"></i>¿Qué vas a registrar?</div></div>
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-3">
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input chk-accion" data-accion="control" id="chk-accion-control" checked><span class="form-check-label fw-semibold text-teal"><i class="ti ti-clipboard-check me-1"></i>Control de equipo</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input chk-accion" data-accion="inspeccion" id="chk-accion-inspeccion"><span class="form-check-label fw-semibold text-orange"><i class="ti ti-zoom-check me-1"></i>Inspección</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input chk-accion" data-accion="entrega" id="chk-accion-entrega"><span class="form-check-label fw-semibold text-green"><i class="ti ti-package-export me-1"></i>Entrega</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input chk-accion" data-accion="recogida" id="chk-accion-recogida"><span class="form-check-label fw-semibold text-purple"><i class="ti ti-package-import me-1"></i>Recogida</span></label>
+              </div>
+              <div class="form-hint">Activa uno. Al guardar se crea su ficha y vuelves a su tabla.</div>
+            </div>
+            {# <--- hecho por claude code (22-oct-2026): 2.ª fila — variantes del Control (solo visible con "Control de equipo" activo) #}
+            <div class="col-12 d-none" id="variantes-control">
+              <div class="hr-text text-muted"><i class="ti ti-adjustments-alt me-1"></i>¿Es una variante del control? <span class="fw-normal">(opcional)</span></div>
+              <div class="d-flex flex-wrap gap-3">
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" name="caso_especial" id="chk-caso-especial" value="1"><span class="form-check-label fw-semibold text-pink"><i class="ti ti-alert-octagon me-1"></i>Caso especial</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" name="cambio_equipo" id="chk-cambio-equipo" value="1"><span class="form-check-label fw-semibold text-azure"><i class="ti ti-replace me-1"></i>Cambio de equipo</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" name="reasignacion" id="chk-reasignacion" value="1"><span class="form-check-label fw-semibold text-cyan"><i class="ti ti-arrows-exchange me-1"></i>Reasignación</span></label>
+                <label class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" name="mantenimiento" id="chk-mantenimiento" value="1"><span class="form-check-label fw-semibold text-green"><i class="ti ti-tool me-1"></i>Mantenimiento</span></label>
+              </div>
+              <div class="form-hint">Activa una para reemplazar las dos preguntas por su bloque; al guardar se crean el control y la ficha juntos.</div>
+            </div>
+          </div>
+
           {# ───────── Bloque CONTROL DE EQUIPO (hecho por claude code) ───────── #}
           <div class="row g-3 mt-1 equipo-control d-none">
             <div class="col-12"><div class="hr-text text-teal"><i class="ti ti-clipboard-check me-1"></i>Evaluación del equipo</div></div>
@@ -181,22 +211,7 @@
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Observaciones del técnico</label>
               {{ form.obs_tecnico }}
             </div>
-            {# <--- hecho por claude code (28-sep-2026): al marcarlo, tras guardar el control se abre el formulario de recogida por caso especial #}
-            <div class="col-12">
-              <label class="form-check form-switch mb-0">
-                <input type="checkbox" class="form-check-input" name="caso_especial" id="chk-caso-especial" value="1">
-                <span class="form-check-label fw-semibold text-pink"><i class="ti ti-alert-octagon me-1"></i>Caso especial — el equipo se recoge</span>
-              </label>
-              <div class="form-hint">Las dos preguntas se reemplazan por el checklist de recogida; al guardar se crean el control y la recogida por caso especial juntos.</div>
-            </div>
-            {# <--- hecho por claude code (28-sep-2026): cambio de equipo — reemplaza las dos preguntas por equipo anterior / equipo nuevo #}
-            <div class="col-12">
-              <label class="form-check form-switch mb-0">
-                <input type="checkbox" class="form-check-input" name="cambio_equipo" id="chk-cambio-equipo" value="1">
-                <span class="form-check-label fw-semibold text-azure"><i class="ti ti-replace me-1"></i>Cambio de equipo — se reemplaza el equipo del maestro</span>
-              </label>
-              <div class="form-hint">Las dos preguntas se reemplazan por Equipo anterior / Equipo nuevo; al guardar se crean el control y la ficha de cambio juntos.</div>
-            </div>
+            {# <--- hecho por claude code (22-oct-2026): los 4 switches de variante se movieron a "¿Qué vas a registrar?"; aquí quedan sus campos #}
             <div class="col-md-6 ctrl-cambio d-none">
               <label class="form-label fw-semibold"><i class="ti ti-device-desktop-off me-1 text-muted"></i>Equipo anterior</label>
               <div class="mant-equipo-box" id="cambio-equipo-anterior">— selecciona la computadora arriba —</div>
@@ -209,14 +224,7 @@
               <input type="hidden" name="modelo_nuevo" id="id_modelo_nuevo"><input type="hidden" name="serie_nuevo" id="id_serie_nuevo"><input type="hidden" name="ip_nuevo" id="id_ip_nuevo"><input type="hidden" name="obs_equipo_nuevo" id="id_obs_equipo_nuevo">
               <div class="form-hint">Abre el formulario de la computadora para escribir modelo, serie e IP del equipo que la reemplaza.</div>
             </div>
-            {# <--- hecho por claude code (12-oct-2026): REASIGNACIÓN — la misma computadora pasa del maestro A al maestro B #}
-            <div class="col-12">
-              <label class="form-check form-switch mb-0">
-                <input type="checkbox" class="form-check-input" name="reasignacion" id="chk-reasignacion" value="1">
-                <span class="form-check-label fw-semibold text-cyan"><i class="ti ti-arrows-exchange me-1"></i>Reasignación — la computadora pasa a otro maestro</span>
-              </label>
-              <div class="form-hint">Las dos preguntas se reemplazan por Asignada a / Se reasigna a; al guardar se crean el control y la ficha de reasignación juntos, y el inventario queda con el maestro nuevo.</div>
-            </div>
+            {# <--- hecho por claude code (22-oct-2026): el switch de Reasignación se movió a la fila compacta de arriba; aquí quedan sus campos #}
             <div class="col-md-6 ctrl-reasig d-none">
               <label class="form-label fw-semibold"><i class="ti ti-user-minus me-1 text-muted"></i>Asignada actualmente a</label>
               <div class="mant-equipo-box" id="rea-anterior">— selecciona la computadora arriba —</div>
@@ -231,6 +239,34 @@
             <div class="col-md-4 ctrl-reasig d-none"><label class="form-label">Grado</label><input type="text" name="grado_nuevo" id="id_grado_nuevo" class="form-control" maxlength="50"></div>
             <div class="col-md-4 ctrl-reasig d-none"><label class="form-label">Edificio</label><input type="text" name="edificio_nuevo" id="id_edificio_nuevo" class="form-control" maxlength="100"></div>
             <datalist id="rea-maestros">{% for f in firmantes %}<option value="{{ f }}">{% endfor %}</datalist>
+            {# <--- hecho por claude code (22-oct-2026): el switch de Mantenimiento se movió a la fila compacta de arriba; aquí quedan Reparación y sus campos #}
+            <div class="col-12 ctrl-mant d-none">
+              <label class="form-check form-switch mb-0 ms-3">
+                <input type="checkbox" class="form-check-input" name="es_reparacion" id="chk-reparacion" value="1">
+                <span class="form-check-label fw-semibold text-orange"><i class="ti ti-tools me-1"></i>Reparación — fue un caso de reparación</span>
+              </label>
+              <div class="form-hint ms-3">Agrega las preguntas de la reparación y genera una ficha que se firma en papel (3 firmas).</div>
+            </div>
+            <div class="col-12 ctrl-mant d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-message me-1 text-green"></i>Comentarios</label>
+              <textarea name="mant_comentario" id="id_mant_comentario" class="form-control" rows="2" placeholder="Describe el mantenimiento realizado"></textarea>
+            </div>
+            <div class="col-md-6 ctrl-reparacion d-none">
+              <label class="form-label fw-semibold">¿Qué tiene dañado?</label>
+              <textarea name="rep_que_danado" id="id_rep_que_danado" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 ctrl-reparacion d-none">
+              <label class="form-label fw-semibold">¿Qué reparación se realizará?</label>
+              <textarea name="rep_que_reparacion" id="id_rep_que_reparacion" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 ctrl-reparacion d-none">
+              <label class="form-label fw-semibold">¿Cómo fue que se dañó?</label>
+              <textarea name="rep_como_dano" id="id_rep_como_dano" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 ctrl-reparacion d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user me-1 text-orange"></i>Asistido por</label>
+              <input type="text" name="rep_asistido_por" id="id_rep_asistido_por" class="form-control" maxlength="150" autocomplete="off" placeholder="Nombre de quien asistió">
+            </div>
           </div>{# /equipo-control #}
 
           {# ───────── Bloque INSPECCIÓN (hecho por claude code) ───────── #}
@@ -283,13 +319,16 @@
             </div>
           </div>{# /equipo-entrega #}
 
+          {# ───────── Bloque PRÉSTAMO DE EQUIPO (hecho por claude code, 16-oct-2026) ───────── #}
+          {% include 'mantenimiento/_prestamo_campos.html' with px='' %}
+
           {# ───────── Campos compartidos ───────── #}
           <div class="row g-3 mt-1">
             <div class="col-md-6 solo-no-entrega">
               <label class="form-label fw-semibold">Fecha</label>
               {{ form.date }}
             </div>
-            <div class="col-md-6 solo-no-control solo-no-inspeccion">
+            <div class="col-md-6 solo-no-control solo-no-inspeccion solo-no-prestamo">
               <label class="form-label fw-semibold">Estado</label>
               {{ form.status }}
             </div>
@@ -301,7 +340,7 @@
             </div>
 
             {# Solución #}
-            <div class="col-12 solo-no-control solo-no-inspeccion">
+            <div class="col-12 solo-no-control solo-no-inspeccion solo-no-prestamo">
               <label class="form-label fw-semibold">Solución Aplicada</label>
               {{ form.solucion }}
             </div>
@@ -338,7 +377,7 @@
             </div>
 
             {# Firma del técnico (soporte) #}
-            <div class="col-md-6 solo-no-control solo-no-inspeccion">
+            <div class="col-md-6 solo-no-control solo-no-inspeccion solo-no-prestamo">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
               <div id="signature-pad-wrap-tec">
                 <canvas id="signature-canvas-tec"></canvas>
@@ -350,7 +389,7 @@
             </div>
 
             {# Firma del maestro (evidencia) #}
-            <div class="col-md-6 solo-no-inspeccion">
+            <div class="col-md-6 solo-no-inspeccion solo-no-prestamo">
               <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro (evidencia)</label>
               <div id="signature-pad-wrap">
                 <canvas id="signature-canvas"></canvas>

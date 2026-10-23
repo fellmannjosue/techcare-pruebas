@@ -10,6 +10,11 @@
 #drop-zone.drag-over, #edit-drop-zone.drag-over { border-color: #206bc4; background: #e8f0fb; }
 #fotos-preview, #edit-fotos-preview, #edit-fotos-actuales { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
 #fotos-preview img, #edit-fotos-preview img, #edit-fotos-actuales img { width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #dee2e6; }
+/* <--- hecho por claude code (21-oct-2026): hover para ver la foto de evidencia más grande + quitar duplicadas */
+img.mant-foto-zoom { cursor: zoom-in; }
+.mant-foto-zoombox { position: fixed; z-index: 2000; display: none; pointer-events: none;
+  background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 4px; box-shadow: 0 8px 28px rgba(0,0,0,.28); }
+.mant-foto-zoombox img { width: 320px; height: 320px; object-fit: contain; border-radius: 4px; background: #f8f9fa; }
 
 /* Signature pad */
 #signature-pad-wrap, #signature-pad-wrap-tec, #signature-pad-wrap-edit-tec {
@@ -134,3 +139,17 @@
 .mant-equipo-box { border: 1px solid rgba(98,105,118,.2); border-radius: 8px; padding: .45rem .7rem; background: #f8f9fb; color: #475467; min-height: 2.4rem; font-size: .9rem; }
 .mant-equipo-box--nuevo { border-color: rgba(66,99,235,.35); background: #f2f5ff; color: #182433; }
 .mant-equipo-box--nuevo.vacio { color: #8492a6; font-style: italic; }
+
+/* <--- hecho por claude code (16-oct-2026): Préstamo de equipo */
+.prest-firmas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 767.98px) { .prest-firmas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.prest-firma { border: 1px dashed var(--tblr-border-color); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prest-firma span { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--tblr-secondary); font-weight: 600; }
+.prest-firma b { font-size: .9rem; font-style: italic; }
+.prest-firma--fija { border-style: solid; background: var(--tblr-bg-surface-secondary, #f6f8fb); }
+.prest-motivo { max-width: 260px; white-space: normal; }
+.prest-estado { font-weight: 600; }
+.prest-estado--pendiente { background: rgba(245, 159, 0, .15); color: #b45309; }
+.prest-estado--prestado { background: rgba(112, 72, 232, .14); color: #6741d9; }
+.prest-estado--vencido { background: rgba(214, 51, 108, .14); color: #c2255c; }
+.prest-estado--devuelto { background: rgba(47, 179, 68, .14); color: #2b8a3e; }

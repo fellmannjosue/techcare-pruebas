@@ -1,0 +1,34 @@
+{# <--- hecho por claude code (16-oct-2026): campos del PRÉSTAMO DE EQUIPO (los usan Nuevo con px='' y Editar con px='edit-'); el equipo sale de la computadora elegida arriba #}
+<div class="row g-3 mt-1 {% if px %}edit-prestamo{% else %}equipo-prestamo{% endif %} d-none">
+  <div class="col-12"><div class="hr-text text-purple"><i class="ti ti-transfer-out me-1"></i>Solicitud de préstamo</div></div>
+  <div class="col-md-5">
+    <label class="form-label fw-semibold required">Solicitante</label>
+    <input type="text" name="prest_solicitante" id="{{ px }}prest-solicitante" class="form-control" maxlength="150" list="{{ px }}prest-personas" autocomplete="off" placeholder="Nombre completo de quien se lleva el equipo">
+    <datalist id="{{ px }}prest-personas">{% for f in firmantes %}<option value="{{ f }}">{% endfor %}</datalist>
+  </div>
+  <div class="col-md-4"><label class="form-label fw-semibold">Cargo</label><input type="text" name="prest_cargo" id="{{ px }}prest-cargo" class="form-control" maxlength="100" placeholder="Ej.: Maestra de 3er grado"></div>
+  <div class="col-md-3"><label class="form-label fw-semibold">Área</label><input type="text" name="prest_area" id="{{ px }}prest-area" class="form-control" maxlength="100"></div>
+  <div class="col-12">
+    <label class="form-label fw-semibold required">Motivo o actividad</label>
+    <textarea name="prest_motivo" id="{{ px }}prest-motivo" class="form-control" rows="2" maxlength="2000" placeholder="Para qué se usará: capacitación, evento, trabajo desde casa, reemplazo temporal…"></textarea>
+  </div>
+  <div class="col-md-3"><label class="form-label fw-semibold required">Se entrega el</label><input type="date" name="prest_desde" id="{{ px }}prest-desde" class="form-control"></div>
+  <div class="col-md-3"><label class="form-label fw-semibold required">Se devuelve el</label><input type="date" name="prest_hasta" id="{{ px }}prest-hasta" class="form-control"></div>
+  <div class="col-md-6"><label class="form-label fw-semibold">Dónde se usará</label><input type="text" name="prest_lugar" id="{{ px }}prest-lugar" class="form-control" maxlength="200" placeholder="Ej.: Domicilio del solicitante"></div>
+  <div class="col-md-6">
+    <label class="form-check form-switch mt-md-4">
+      <input type="checkbox" class="form-check-input" name="prest_sale" value="1" id="{{ px }}prest-sale" checked>
+      <span class="form-check-label">El equipo <b>sale</b> de la institución</span>
+    </label>
+  </div>
+  <div class="col-md-6"><label class="form-label fw-semibold">Accesorios que se prestan</label><input type="text" name="prest_accesorios" id="{{ px }}prest-accesorios" class="form-control" maxlength="255" placeholder="Ej.: cargador, mouse, maletín"></div>
+  <div class="col-12">
+    <div class="prest-firmas">
+      <div class="prest-firma"><span>Solicitante</span><b class="text-muted">firma a mano</b></div>
+      <div class="prest-firma prest-firma--fija"><span>Soporte Técnico</span><b>Josué Fellmann</b></div>
+      <div class="prest-firma"><span>Dirección Ejecutiva</span><b class="text-muted">firma a mano</b></div>
+      <div class="prest-firma prest-firma--fija"><span>Auditoría</span><b>Yeny Lagos</b></div>
+    </div>
+    <div class="form-hint mt-1"><i class="ti ti-info-circle me-1"></i>Al guardar, descarga la solicitud en PDF (botón <i class="ti ti-file-type-pdf"></i>), fírmala en papel, escanéala y súbela con <i class="ti ti-upload"></i> en la lista. Al subirla, el equipo queda como <b>prestado</b>.</div>
+  </div>
+</div>

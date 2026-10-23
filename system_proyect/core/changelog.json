@@ -1,6 +1,24 @@
 {
-  "version": "7.8.1",
+  "version": "7.9.1",
   "entradas": [
+    {
+      "version": "7.9.1",
+      "fecha": "2026-10-16",
+      "commit": "2e5da09",
+      "cambios": [
+        "feat(v7.9.1): Préstamo de equipo con solicitud de 4 firmas y correcciones al editar fichas de Mantenimiento"
+      ],
+      "menor": true
+    },
+    {
+      "version": "7.9.0",
+      "fecha": "2026-10-15",
+      "commit": "96c7b41",
+      "cambios": [
+        "feat(v7.9.0): Agendas con pestaña Crear agenda y editor de diseño (vista previa, ajustes y PNG), publicación en Moodle por grado-sección y Mantenimiento Mecánico en litros"
+      ],
+      "menor": false
+    },
     {
       "version": "7.8.1",
       "fecha": "2026-10-14",

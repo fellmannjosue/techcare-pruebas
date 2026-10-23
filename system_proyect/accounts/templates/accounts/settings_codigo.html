@@ -1,0 +1,59 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{# <--- hecho por claude code (16-oct-2026): Configuración → Código del sistema (líneas por app y peso); se recalcula sola al cambiar un archivo #}
+{% block title %}Código del sistema{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'accounts/css/settings_codigo.css' %}?v=1">{% endblock %}
+
+{% block settings_content %}
+<div class="cod-kpis">
+  <div class="cod-kpi"><span>Líneas de código</span><b>{{ totales.total|floatformat:"0g" }}</b></div>
+  <div class="cod-kpi"><span>Archivos</span><b>{{ totales.archivos|floatformat:"0g" }}</b></div>
+  <div class="cod-kpi"><span>Peso de las apps</span><b>{{ totales.peso }}</b></div>
+  <div class="cod-kpi"><span>Apps</span><b>{{ filas|length }}</b></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="cod-dist-tit">Reparto de todo el sistema</div>
+    <div class="cod-barra cod-barra--grande">{% for c, etq, color, n, pct in tot_partes %}{% if n %}<i style="width:{{ pct|stringformat:'s' }}%;background:{{ color }}" title="{{ etq }}: {{ n|floatformat:'0g' }} líneas ({{ pct }} %)"></i>{% endif %}{% endfor %}</div>
+    <div class="cod-leyenda">{% for c, etq, color, n, pct in tot_partes %}<span><i style="background:{{ color }}"></i>{{ etq }} <b>{{ n|floatformat:"0g" }}</b> <small>{{ pct }} %</small></span>{% endfor %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-code me-2 text-blue"></i>Líneas por app <span class="text-muted small ms-2">de la más grande a la más pequeña · clic en una columna para ordenar</span></h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm cod-tabla" id="cod-tabla">
+      <thead><tr>
+        <th data-tipo="n">#</th><th data-tipo="t">App</th><th class="cod-col-barra">Tamaño</th>
+        {% for c, etq, color in categorias %}<th class="text-end" data-tipo="n"><i class="cod-dot" style="background:{{ color }}"></i>{{ etq }}</th>{% endfor %}
+        <th class="text-end" data-tipo="n">Total</th><th class="text-end" data-tipo="n">Archivos</th><th class="text-end" data-tipo="n">Peso</th><th data-tipo="n">Último cambio</th>
+      </tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td class="text-muted" data-v="{{ forloop.counter }}">{{ forloop.counter }}</td>
+          <td class="fw-semibold" data-v="{{ f.app }}">{{ f.app }}</td>
+          <td class="cod-col-barra"><div class="cod-barra" style="width:{{ f.pct|stringformat:'s' }}%">{% for c, etq, color, n, pct in f.partes %}{% if n %}<i style="width:{{ pct|stringformat:'s' }}%;background:{{ color }}" title="{{ etq }}: {{ n|floatformat:'0g' }}"></i>{% endif %}{% endfor %}</div></td>
+          {% for c, etq, color, n, pct in f.partes %}<td class="text-end cod-num{% if not n %} text-muted{% endif %}" data-v="{{ n }}">{% if n %}{{ n|floatformat:"0g" }}{% else %}—{% endif %}</td>{% endfor %}
+          <td class="text-end fw-bold cod-num" data-v="{{ f.total }}">{{ f.total|floatformat:"0g" }}</td>
+          <td class="text-end cod-num" data-v="{{ f.archivos }}">{{ f.archivos }}</td>
+          <td class="text-end cod-num text-nowrap" data-v="{{ f.bytes }}">{{ f.peso }}</td>
+          <td class="small text-muted text-nowrap" data-v="{{ f.ultima|floatformat:0 }}">{{ f.ultima_dt|date:"d/m/Y H:i"|default:"—" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr class="fw-bold">
+        <td></td><td>Total</td><td></td>
+        {% for c, etq, color, n, pct in tot_partes %}<td class="text-end cod-num">{{ n|floatformat:"0g" }}</td>{% endfor %}
+        <td class="text-end cod-num">{{ totales.total|floatformat:"0g" }}</td><td class="text-end cod-num">{{ totales.archivos }}</td><td class="text-end cod-num text-nowrap">{{ totales.peso }}</td><td></td>
+      </tr></tfoot>
+    </table>
+  </div>
+  <div class="card-footer small text-muted"><i class="ti ti-info-circle me-1"></i>Cuenta .py, .html, .css y .js de cada app (sin migraciones, cachés ni archivos <code>.min</code>). <b>Views/Models/Forms/Admin</b> = archivos de Python con ese nombre (incluye <code>views_*.py</code>); <b>Otros .py</b> = servicios, utilidades, comandos… El <b>peso</b> es todo lo que hay en la carpeta de la app (también imágenes y fuentes). Se recalcula solo cuando cambia algún archivo.</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'accounts/js/settings_codigo.js' %}?v=1"></script>{% endblock %}

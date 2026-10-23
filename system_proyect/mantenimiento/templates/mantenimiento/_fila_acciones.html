@@ -1,6 +1,6 @@
 {# <--- hecho por claude code: celda de acciones compartida por las 3 pestañas (computadoras / impresoras / control) #}
 <td class="text-nowrap">
-  {% if r.tipo_equipo == 'inspeccion' or r.tipo_equipo == 'entrega' or r.tipo_equipo == 'recogida' or r.tipo_equipo == 'caso_especial' or r.tipo_equipo == 'cambio_equipo' or r.tipo_equipo == 'reasignacion' %}
+  {% if r.tipo_equipo == 'inspeccion' or r.tipo_equipo == 'entrega' or r.tipo_equipo == 'recogida' or r.tipo_equipo == 'caso_especial' or r.tipo_equipo == 'cambio_equipo' or r.tipo_equipo == 'reasignacion' or r.tipo_equipo == 'prestamo' or r.tipo_equipo == 'mantenimiento' or r.tipo_equipo == 'reparacion' %}
   {# <--- hecho por claude code: la inspección se firma con el nombre del asignado, sin link #}
   {% elif r.tipo_equipo == 'control' and r.firmado_maestro or r.tipo_equipo != 'control' and r.status == 'Completado' %}
   <span class="btn btn-sm btn-secondary disabled" style="opacity:.55"
@@ -15,6 +15,15 @@
   {% endif %}
   <a href="{% url 'mantenimiento:download_maintenance_pdf' r.id %}"
      class="btn btn-sm btn-ghost-secondary" title="Descargar PDF"><i class="ti ti-file-type-pdf"></i></a>
+  {# <--- hecho por claude code (21-oct-2026): subir / ver la ficha firmada en papel (todos los tipos salvo préstamo y reparación, que tienen la suya) #}
+  {% if r.usa_firma_pdf %}
+  {% if r.firma_pdf %}
+  <a href="{% url 'mantenimiento:firma_pdf_ver' r.id %}" target="_blank" class="btn btn-sm btn-ghost-success" title="Ver la ficha firmada"><i class="ti ti-file-check"></i></a>
+  {% endif %}
+  <button type="button" class="btn btn-sm {% if r.firma_pdf %}btn-ghost-secondary{% else %}btn-ghost-teal{% endif %} btn-firma-subir"
+          data-url="{% url 'mantenimiento:firma_pdf_subir' r.id %}" data-rid="{{ r.record_id }}" data-reemplaza="{% if r.firma_pdf %}1{% endif %}"
+          title="Subir la ficha firmada (PDF)"><i class="ti ti-upload"></i></button>
+  {% endif %}
   <button class="btn btn-sm btn-ghost-primary btn-editar-mant"
           data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
   <button class="btn btn-sm btn-ghost-danger btn-eliminar-mant"

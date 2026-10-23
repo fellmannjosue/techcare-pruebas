@@ -5,20 +5,19 @@
 {% block page_title %}Inventario – Computadoras{% endblock %}
 {% block nav_computadoras %}active{% endblock %}
 
-{% block page_actions %}
-<a href="{% url 'inventario:filtro_computadoras' %}" class="btn btn-ghost-secondary">
-  <i class="ti ti-filter me-1"></i> Filtrar
-</a>
-{% endblock %}
+{# <--- hecho por claude code (22-oct-2026): se quitan los botones del encabezado (el alta entra por el launcher "+ Registrar"); solo queda el de regresar #}
+{% block page_actions %}{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title"><i class="ti ti-plus me-2 text-blue"></i>Agregar Computadora</h3>
+{# <--- hecho por claude code (22-oct-2026): el formulario "Agregar" se movió a un modal; la página queda con la tabla. Al guardar, la vista redirige a la tabla. #}
+<div class="modal modal-blur fade" id="modalAgregarInv" tabindex="-1" aria-hidden="true"{% if form.errors %} data-errores="1"{% endif %}>
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-plus me-2 text-blue"></i>Agregar Computadora</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="card-body">
+      <div class="modal-body">
         <form method="post" novalidate class="row g-3">
           {% csrf_token %}
 
@@ -161,7 +160,9 @@
       </div>
     </div>
   </div>
+</div>
 
+<div class="row g-4">
   <div class="col-12">
     <div class="card">
       <div class="card-header">

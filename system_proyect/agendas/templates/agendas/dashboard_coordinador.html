@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block content %}
-{# <--- hecho por claude code (15-oct-2026): pestañas Agendas / Crear agenda (pruebas) #}
+{# <--- hecho por claude code (15-oct-2026): pestañas Agendas / Crear agenda #}
 <ul class="nav nav-tabs ag-tabs mb-3" role="tablist">
   <li class="nav-item"><a class="nav-link {% if not tab_crear %}active{% endif %}" data-bs-toggle="tab" href="#ag-pane-lista"><i class="ti ti-list me-1"></i>Agendas</a></li>
   <li class="nav-item"><a class="nav-link {% if tab_crear %}active{% endif %}" data-bs-toggle="tab" href="#ag-pane-crear"><i class="ti ti-calendar-plus me-1"></i>Crear agenda</a></li>
@@ -88,7 +88,7 @@
                         <a href="{% url 'agendas:descargar_pptx' ag.pk %}" class="btn btn-sm btn-outline-success" title="{% if ag.grado.area == 'colegio' %}Descargar Word{% else %}Descargar PPTX{% endif %}">
                           <i class="ti ti-download"></i>
                         </a>
-                        {# <--- hecho por claude code (14-oct-2026): publicar la imagen final en Moodle (pruebas) #}
+                        {# <--- hecho por claude code (14-oct-2026): publicar la imagen final en Moodle #}
                         <button type="button" class="btn btn-sm btn-outline-info btn-moodle-agenda" data-pk="{{ ag.pk }}"
                                 data-grado="{{ ag.grado.nombre }}" data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
                                 {% if ag.imagen_final %}data-final="{{ ag.imagen_final_en|date:'d/m/Y H:i' }}" data-final-url="{% url 'agendas:imagen_final' ag.pk %}"{% endif %}

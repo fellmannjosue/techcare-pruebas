@@ -1,4 +1,4 @@
-/* agenda_moodle.js — <--- hecho por claude code (14-oct-2026): Dashboard de Agendas → "Publicar en Moodle" (pruebas).
+/* agenda_moodle.js — <--- hecho por claude code (14-oct-2026): Dashboard de Agendas → "Publicar en Moodle".
    15-oct-2026: cursos agrupados por grado-sección con selección múltiple (componente MU_SELECTOR, mu_selector.js),
    grupo sugerido según el grado de la agenda y publicación curso por curso con avance.
    Config por data-* (#mda-config) + isla JSON (#mda-publicadas). Un solo global: AGENDA_MOODLE. */

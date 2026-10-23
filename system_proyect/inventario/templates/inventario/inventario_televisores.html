@@ -5,14 +5,19 @@
 {% block page_title %}Inventario – Televisores{% endblock %}
 {% block nav_televisores %}active{% endblock %}
 
+{# <--- hecho por claude code (22-oct-2026): sin botones en el encabezado (el alta entra por el launcher); solo regresar #}
+{% block page_actions %}{% endblock %}
+
 {% block content %}
-<div class="row g-4">
-  <div class="col-lg-5">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title"><i class="ti ti-plus me-2 text-cyan"></i>Agregar Televisor</h3>
+{# <--- hecho por claude code (22-oct-2026): el formulario "Agregar" se movió a un modal; la página queda con la tabla #}
+<div class="modal modal-blur fade" id="modalAgregarInv" tabindex="-1" aria-hidden="true"{% if form.errors %} data-errores="1"{% endif %}>
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-plus me-2 text-cyan"></i>Agregar Televisor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="card-body">
+      <div class="modal-body">
         <form method="post" class="row g-3">
           {% csrf_token %}
 
@@ -70,8 +75,10 @@
       </div>
     </div>
   </div>
+</div>
 
-  <div class="col-lg-7">
+<div class="row g-4">
+  <div class="col-12">
     <div class="card">
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-device-tv me-2"></i>Televisores Registrados</h3>

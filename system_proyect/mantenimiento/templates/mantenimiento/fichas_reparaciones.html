@@ -1,0 +1,71 @@
+{% extends 'mantenimiento/base_fichas.html' %}
+{% load static %}
+{# <--- hecho por claude code (21-oct-2026): página individual · Reparaciones (nacen de un Control con "Mantenimiento > Reparación"; ficha PDF de 3 firmas en papel + PDF firmado) #}
+{% block ficha %}
+                <div class="mant-toolbar">
+                  <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'reparacion' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>
+                  <a href="{% url 'mantenimiento:reporte_tipo_excel' 'reparacion' %}" class="btn btn-sm btn-green"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter table-hover card-table tabla-mant" data-order-col="0" data-order-dir="desc">
+                    <thead><tr>
+                      <th>ID</th><th>Control</th><th>Computadora</th><th>Maestro</th><th>¿Qué dañado?</th><th>Reparación</th><th>Asistido por</th><th>Fecha</th><th>Estado</th><th>Ficha firmada</th><th>Fotos</th><th>Acciones</th>
+                    </tr></thead>
+                    <tbody>
+                      {% for r in records_rep %}
+                      {% with est=r.reparacion_estado %}
+                      <tr>
+                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                        <td><div class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
+                        <td>{{ r.teacher_name|default:"—" }}</td>
+                        <td class="small">{{ r.rep_que_danado|default:"—"|truncatechars:50 }}</td>
+                        <td class="small">{{ r.rep_que_reparacion|default:"—"|truncatechars:50 }}</td>
+                        <td>{{ r.rep_asistido_por|default:"—" }}</td>
+                        <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
+                        <td><span class="badge {% if est.0 == 'firmada' %}bg-green-lt text-green{% else %}bg-yellow-lt text-yellow{% endif %}">{{ est.1 }}</span></td>
+                        <td class="text-nowrap">
+                          {% if r.rep_pdf %}
+                            <a href="{% url 'mantenimiento:reparacion_pdf_ver' r.id %}" target="_blank" class="btn btn-sm btn-ghost-success" title="Ver la ficha firmada"><i class="ti ti-file-check me-1"></i>Ver</a>
+                            <div class="text-muted small">{{ r.rep_pdf_en|date:"d/m/Y H:i" }}</div>
+                          {% endif %}
+                          <button type="button" class="btn btn-sm {% if r.rep_pdf %}btn-ghost-secondary{% else %}btn-outline-orange{% endif %} btn-rep-subir"
+                                  data-url="{% url 'mantenimiento:reparacion_pdf_subir' r.id %}" data-rid="{{ r.record_id }}" data-reemplaza="{% if r.rep_pdf %}1{% endif %}"
+                                  title="Subir la ficha firmada (PDF)"><i class="ti ti-upload"></i>{% if not r.rep_pdf %} Subir firmada{% endif %}</button>
+                        </td>
+                        {% include "mantenimiento/_celda_fotos.html" %}
+                        {% include "mantenimiento/_fila_acciones.html" %}
+                      </tr>
+                      {% endwith %}
+                      {% empty %}
+                      <tr><td colspan="12" class="text-center text-muted py-5"><i class="ti ti-mood-empty fs-1 d-block mb-2 opacity-50"></i>No hay reparaciones aún. Se crean marcando «Mantenimiento > Reparación» al registrar un Control de equipo.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+{% endblock %}
+
+{% block modals %}
+{{ block.super }}
+                {# Subir la ficha de reparación firmada (PDF escaneado, 3 firmas en papel) #}
+                <div class="modal modal-blur fade" id="modalReparacionPdf" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered">
+                    <form method="post" enctype="multipart/form-data" class="modal-content" id="form-rep-pdf">
+                      {% csrf_token %}
+                      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-upload me-2 text-orange"></i>Ficha firmada · <span id="rep-pdf-rid"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                      <div class="modal-body">
+                        <p class="text-muted small mb-2">Sube la ficha ya firmada por <b>Soporte Técnico</b>, el <b>maestro</b> y el <b>técnico que reparó</b> (escaneada o fotografiada en PDF). Al subirla, la reparación queda como <b>firmada</b>.</p>
+                        <div class="alert alert-warning py-2 small d-none" id="rep-pdf-reemplaza"><i class="ti ti-alert-triangle me-1"></i>Esta ficha ya tiene un PDF firmado: el nuevo lo reemplaza.</div>
+                        <input type="file" name="pdf" accept="application/pdf,.pdf" class="form-control" required>
+                        <div class="form-hint">Solo PDF, máximo 15 MB.</div>
+                      </div>
+                      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Subir</button></div>
+                    </form>
+                  </div>
+                </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'mantenimiento/js/reparaciones.js' %}?v=1"></script>
+{% endblock %}

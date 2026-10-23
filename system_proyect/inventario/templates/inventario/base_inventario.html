@@ -8,6 +8,8 @@
   {# <--- hecho por claude code (17-sep-2026): popover de detalle en la celda Modelo (todas las tablas de inventario) #}
   <link rel="stylesheet" href="{% static 'inventario/css/inventario_pop.css' %}?v=1">
   <script src="{% static 'inventario/js/base_inventario.js' %}?v=4"></script>
+  {# <--- hecho por claude code (22-oct-2026): auto-abre el modal "Agregar" (launcher ?nuevo=1 o errores de validación) #}
+  <script src="{% static 'inventario/js/agregar_modal.js' %}?v=1"></script>
 {% endblock %}
 
 {% block breadcrumb %}

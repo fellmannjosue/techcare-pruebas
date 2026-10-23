@@ -570,7 +570,7 @@ def dashboard_coordinador(request):
         'bloqueo_cfg':  bcfg,
         'bloqueo_ids':  bloqueo_ids,
         'maestros_bl':  maestros_bl,
-        'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
+        'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026)
         'tab_crear': request.GET.get('tab') == 'crear',   # <--- hecho por claude code (15-oct-2026): pestaña Crear agenda
         **diseno.contexto_crear(request),
         **_rol_ctx(request),
@@ -578,7 +578,7 @@ def dashboard_coordinador(request):
 
 
 def _moodle_publicadas():
-    """{agenda_id: {fecha, curso, n}} de la última publicación OK en Moodle (pruebas: app moodle_upload)."""
+    """{agenda_id: {fecha, curso, n}} de la última publicación OK en Moodle (app moodle_upload)."""
     try:
         from moodle_upload.models import PublicacionMoodle
     except Exception:

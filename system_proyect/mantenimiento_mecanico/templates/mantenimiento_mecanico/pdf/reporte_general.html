@@ -13,6 +13,6 @@
 <table class="lista chica"><thead><tr><th>Insumo</th><th>Maquinaria</th><th class="num">Entregas</th><th class="num">Galones</th></tr></thead><tbody>
 {% for x in filas %}{% for m in x.por_maquinaria %}<tr><td>{{ x.insumo.nombre }}</td><td>{{ m.maquinaria__nombre|default:"— sin maquinaria —" }}</td><td class="num">{{ m.n }}</td><td class="num">{{ m.gal|floatformat:2 }}</td></tr>{% endfor %}{% empty %}<tr><td colspan="4" class="vacio">Sin datos.</td></tr>{% endfor %}
 </tbody></table>
-<div class="firmas"><div class="firma"><div class="linea"></div><div class="nom">{{ generado_por }}</div><div class="cargo">Responsable</div></div><div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div></div>
+<div class="firmas"><div class="firma"><div class="linea"></div><div class="nom">{{ responsable }}</div><div class="cargo">Responsable</div></div><div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div></div>
 <div class="pie">Generado el {{ ahora|date:"d/m/Y H:i" }} por {{ generado_por }} · TechCare</div>
 </body></html>

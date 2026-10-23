@@ -1041,6 +1041,17 @@ GRUPOS_SUPER = [
         {'t': 'Control y Servicio Técnico', 's': 'Inventario de equipos y fichas de mantenimiento', 'i': 'ti-headset', 'c': '#0ca678', 'url': 'servicio_tecnico:hub'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
      ]},
+    # <--- hecho por claude code (22-oct-2026): Inventario General y Préstamo de equipo salieron de Control y Servicio Técnico a grupos propios
+    {'key': 'inventario_general', 'titulo': 'Inventario General', 'icon': 'ti-package', 'color': '#0ca678',
+     'desc': 'Mobiliario y otros bienes',
+     'cards': [
+        {'t': 'Inventario General', 's': 'Mobiliario y otros bienes', 'i': 'ti-package', 'c': '#0ca678', 'url': 'inventario:inventario_general'},
+     ]},
+    {'key': 'prestamo_equipo', 'titulo': 'Préstamo de equipo', 'icon': 'ti-transfer-out', 'color': '#7048e8',
+     'desc': 'Solicitudes de préstamo (sincroniza con inventario)',
+     'cards': [
+        {'t': 'Préstamos de equipo', 's': 'Solicitud con 4 firmas', 'i': 'ti-transfer-out', 'c': '#7048e8', 'url': 'mantenimiento:fichas', 'args': {'tipo': 'prestamos'}},
+     ]},
     # <--- hecho por claude code: Gestión de Desarrollo en grupo propio (sacado de Soporte y TI)
     {'key': 'desarrollo', 'titulo': 'Gestión de Desarrollo', 'icon': 'ti-clipboard-list', 'color': '#ae3ec9',
      'desc': 'Requerimientos y proyectos',
@@ -1053,7 +1064,7 @@ GRUPOS_SUPER = [
         {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
         {'t': 'Coordinador Colegio', 's': 'Colegio', 'i': 'ti-user-cog', 'c': '#f08c00', 'url': 'dashboard_coordinador', 'args': {'area': 'colegio'}},
         {'t': 'Agendas', 's': 'Agendas semanales', 'i': 'ti-calendar-week', 'c': '#7048e8', 'url': 'agendas:form_agenda'},
-        {'t': 'Moodle', 's': 'Publicar agendas en los cursos', 'i': 'ti-cloud-upload', 'c': '#f98012', 'url': 'moodle_upload:index'},   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
+        {'t': 'Moodle', 's': 'Publicar agendas en los cursos', 'i': 'ti-cloud-upload', 'c': '#f98012', 'url': 'moodle_upload:index'},   # <--- hecho por claude code (15-oct-2026)
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
         # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
@@ -1204,7 +1215,7 @@ def _grupos_super_panel():
 
 
 # <--- hecho por claude code: distribución del Panel Principal en 2 columnas
-_PANEL_COL1 = ['soporte', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'mantenimiento_mecanico', 'red']
+_PANEL_COL1 = ['soporte', 'inventario_general', 'prestamo_equipo', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'mantenimiento_mecanico', 'red']   # <--- hecho por claude code (22-oct-2026): 2 grupos nuevos
 _PANEL_COL2 = ['academico', 'notas_mitad_parcial', 'enfermeria', 'ruteo', 'ingresos_notas', 'salidas', 'cfp']
 
 
@@ -1219,6 +1230,7 @@ def _grupos_super_panel_columnas():
 # <--- hecho por claude code (30-sep-2026): categoría de cada grupo para las pestañas del panel Horizon
 _PANEL_CAT = {
     'soporte': 'soporte', 'desarrollo': 'soporte', 'red': 'soporte',
+    'inventario_general': 'soporte', 'prestamo_equipo': 'soporte',   # <--- hecho por claude code (22-oct-2026)
     'academico': 'academico', 'notas_mitad_parcial': 'academico', 'enfermeria': 'academico',
     'ruteo': 'academico', 'ingresos_notas': 'academico', 'salidas': 'academico',
     'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin', 'cfp': 'admin',
@@ -2632,6 +2644,28 @@ def _leer_log(path, lineas=300):
         return result.stdout.strip().splitlines()
     except Exception as e:
         return [f'[ERROR leyendo log: {e}]']
+
+
+@login_required
+def settings_codigo(request):
+    """<--- hecho por claude code (16-oct-2026): Configuración → Código del sistema. Líneas por app (views, models,
+    forms, admin, otros .py, HTML, CSS, JS) de la más grande a la más pequeña y peso en disco. Solo superusuario."""
+    if not request.user.is_superuser:
+        messages.error(request, 'Solo superusuarios pueden ver el código del sistema.')
+        return redirect('settings_perfil')
+    from core.codigo import CATEGORIAS, estadisticas, peso
+    import datetime as _dt
+    filas, totales = estadisticas()
+    for f in filas:
+        f['peso'] = peso(f['bytes'])
+        f['ultima_dt'] = _dt.datetime.fromtimestamp(f['ultima']) if f['ultima'] else None
+    totales['peso'] = peso(totales['bytes'])
+    ctx = _settings_ctx(request, 'codigo')
+    ctx.update({'filas': filas, 'totales': totales, 'categorias': CATEGORIAS,
+                'tot_partes': [(c, etq, color, totales['lineas'][c],
+                                round(totales['lineas'][c] * 100 / totales['total'], 1) if totales['total'] else 0)
+                               for c, etq, color in CATEGORIAS]})
+    return render(request, 'accounts/settings_codigo.html', ctx)
 
 
 @login_required

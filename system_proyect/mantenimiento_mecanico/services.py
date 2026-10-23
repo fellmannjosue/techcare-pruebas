@@ -62,9 +62,94 @@ def alertar_si_bajo(insumo, saldo_antes, saldo_despues, url=''):
     for u in User.objects.filter(groups__name=GRUPO_ALERTAS, is_active=True).distinct():
         try:
             crear_notificacion(u, f'Saldo bajo de {insumo.nombre}: quedan {saldo_despues:.2f} gal '
-                                  f'(mínimo {minimo:.2f}). Registrar {insumo.etiqueta_entrada.lower()}.',
+                                  f'(mínimo {minimo:.2f}). Registrar {insumo.etiqueta_entrada.lower()}.'
+                                  + texto_limpieza(insumo),   # <--- 19-oct-2026: en el tanque, dentro de cuánto toca la limpieza
                                modulo='mantenimiento_mecanico', tipo='advertencia', extra=url, enviar_correo=False)
             n += 1
         except Exception as e:   # nunca romper el guardado por un aviso
             print('[mantenimiento_mecanico] no se pudo notificar a', u, e)
+    return n
+
+
+# ─────────────────────────────────────────────────────────────
+# <--- hecho por claude code (19-oct-2026): MANTENIMIENTO DEL TANQUE (limpieza del tanque y del filtro).
+# 3 veces al año = cada LIMPIEZA_MESES meses desde la última limpieza registrada. Antes de la primera, la fecha
+# programada es LIMPIEZA_INICIAL (decidida por el usuario: el 20-oct-2026 se llena el tanque y se limpia).
+# ─────────────────────────────────────────────────────────────
+import datetime as _dt
+import calendar as _cal
+
+LIMPIEZA_MESES = 4
+LIMPIEZA_INICIAL = _dt.date(2026, 10, 20)
+LIMPIEZA_AVISO_DIAS = 15   # "pronto" = faltan 15 días o menos
+
+
+def sumar_meses(d, meses):
+    m = d.month - 1 + meses
+    anio, mes = d.year + m // 12, m % 12 + 1
+    return d.replace(year=anio, month=mes, day=min(d.day, _cal.monthrange(anio, mes)[1]))
+
+
+def estado_limpieza(insumo, hoy=None):
+    """{ultima, proxima, dias, estado: al_dia|pronto|hoy|vencido, texto} — solo para insumos en TANQUE."""
+    if insumo.presentacion != 'tanque':
+        return None
+    from .models import LimpiezaTanque
+    hoy = hoy or _dt.date.today()
+    ultima = LimpiezaTanque.objects.filter(insumo=insumo).order_by('-fecha', '-id').first()
+    proxima = sumar_meses(ultima.fecha, LIMPIEZA_MESES) if ultima else LIMPIEZA_INICIAL
+    dias = (proxima - hoy).days
+    if dias < 0:
+        estado, texto = 'vencido', f'vencida hace {-dias} día{"s" if dias != -1 else ""}'
+    elif dias == 0:
+        estado, texto = 'hoy', 'toca hoy'
+    elif dias <= LIMPIEZA_AVISO_DIAS:
+        estado, texto = 'pronto', f'en {dias} día{"s" if dias != 1 else ""}'
+    else:
+        estado, texto = 'al_dia', f'en {dias} días'
+    return {'ultima': ultima, 'proxima': proxima, 'dias': dias, 'estado': estado, 'texto': texto,
+            'programada': ultima is None, 'cada_meses': LIMPIEZA_MESES}
+
+
+def texto_limpieza(insumo):
+    e = estado_limpieza(insumo)
+    if not e:
+        return ''
+    return f' Limpieza del tanque: {e["texto"]} ({e["proxima"]:%d/%m/%Y}).'
+
+
+def siguiente_codigo_limpieza():
+    from .models import LimpiezaTanque
+    ultimo = (LimpiezaTanque.objects.select_for_update().filter(codigo__startswith='LTQ-')
+              .order_by('-codigo').values_list('codigo', flat=True).first())
+    try:
+        n = int(ultimo[4:]) if ultimo else 0
+    except ValueError:
+        n = 0
+    return f'LTQ-{n + 1:04d}'
+
+
+def avisar_limpieza(insumo, url=''):
+    """Aviso por la campana cuando la limpieza está PRONTO / HOY / VENCIDA — una sola vez por etapa y fecha."""
+    e = estado_limpieza(insumo)
+    if not e or e['estado'] == 'al_dia':
+        return 0
+    marca = f'{e["estado"]}:{e["proxima"]:%Y-%m-%d}'
+    if insumo.aviso_limpieza == marca:
+        return 0
+    from core.utils_notifications import crear_notificacion
+    User = get_user_model()
+    msg = {'pronto': f'Mantenimiento del tanque de {insumo.nombre}: la limpieza (tanque y filtro) toca {e["texto"]}, el {e["proxima"]:%d/%m/%Y}.',
+           'hoy': f'Mantenimiento del tanque de {insumo.nombre}: la limpieza (tanque y filtro) toca HOY ({e["proxima"]:%d/%m/%Y}).',
+           'vencido': f'Mantenimiento del tanque de {insumo.nombre}: la limpieza está {e["texto"]} (tocaba el {e["proxima"]:%d/%m/%Y}).'}[e['estado']]
+    n = 0
+    for u in User.objects.filter(groups__name=GRUPO_ALERTAS, is_active=True).distinct():
+        try:
+            crear_notificacion(u, msg, modulo='mantenimiento_mecanico',
+                               tipo='alerta' if e['estado'] == 'vencido' else 'advertencia', extra=url, enviar_correo=False)
+            n += 1
+        except Exception as ex:
+            print('[mantenimiento_mecanico] no se pudo notificar la limpieza a', u, ex)
+    insumo.aviso_limpieza = marca
+    insumo.save(update_fields=['aviso_limpieza'])
     return n

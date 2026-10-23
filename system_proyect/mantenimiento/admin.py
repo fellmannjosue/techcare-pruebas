@@ -5,9 +5,11 @@ from .models import MaintenanceRecord, TipoFalla, MaestroMantenimiento, GradoMan
 
 @admin.register(MaintenanceRecord)
 class MaintenanceRecordAdmin(AuditAdminMixin):
-    list_display  = ('record_id', 'computadora', 'model', 'teacher_name', 'grade', 'tipo_falla', 'date', 'status')
-    list_filter   = ('status', 'tipo_falla', 'date')
-    search_fields = ('record_id', 'model', 'serie', 'teacher_name', 'grade')
+    # <--- hecho por claude code (16-oct-2026): + tipo de ficha (filtro y columna) y el solicitante del préstamo
+    list_display  = ('record_id', 'tipo_equipo', 'computadora', 'teacher_name', 'prest_solicitante', 'grade', 'date', 'status')
+    list_filter   = ('tipo_equipo', 'status', 'tipo_falla', 'date')
+    search_fields = ('record_id', 'model', 'serie', 'teacher_name', 'grade', 'prest_solicitante', 'firma_nombre')
+    list_per_page = 50
     ordering      = ('-date',)
     date_hierarchy = 'date'
 

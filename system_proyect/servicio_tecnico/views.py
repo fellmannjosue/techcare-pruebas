@@ -42,18 +42,22 @@ def hub(request):
             {'t': 'Impresoras',   's': 'Gestión e insumos',    'i': 'ti-printer',        'c': '#f97316', 'n': Impresora.objects.count(),   'url': reverse('inventario:inventario_impresoras')},
             {'t': 'Routers',      's': 'Inventario de red',    'i': 'ti-wifi',           'c': '#22c55e', 'n': Router.objects.count(),      'url': reverse('inventario:inventario_routers')},
             {'t': 'DataShows',    's': 'Proyectores',          'i': 'ti-video',          'c': '#a855f7', 'n': DataShow.objects.count(),    'url': reverse('inventario:inventario_datashows')},
-            {'t': 'Inventario General', 's': 'Mobiliario y otros bienes', 'i': 'ti-package', 'c': '#0ca678', 'n': ItemGeneral.objects.count(), 'url': reverse('inventario:inventario_general')},   # <--- hecho por claude code (13-oct-2026)
+            # <--- hecho por claude code (22-oct-2026): Inventario General salió a su propio grupo (Panel Principal)
         ]
     total_equipos = sum(x['n'] for x in inventario)
 
     # ── Mantenimiento ──
     fichas = []
+    fichas_control = []   # <--- hecho por claude code (22-oct-2026): familia del Control en grupo aparte
     por_tipo = {}
     if ver_mant:
         por_tipo = dict(MaintenanceRecord.objects.values_list('tipo_equipo').annotate(n=Count('id')).values_list('tipo_equipo', 'n'))
         fichas = [
             {'t': 'Computadoras',       's': 'Fichas de reparación',       'i': 'ti-device-desktop', 'c': '#206bc4', 'n': por_tipo.get('computadora', 0),   'url': reverse('mantenimiento:fichas', args=['computadoras'])},
             {'t': 'Impresoras',         's': 'Tinta y sistema',            'i': 'ti-printer',        'c': '#f76707', 'n': por_tipo.get('impresora', 0),     'url': reverse('mantenimiento:fichas', args=['impresoras'])},
+        ]
+        # <--- hecho por claude code (22-oct-2026): grupo APARTE — la familia del Control de equipo (todas se registran desde el formulario único de Control)
+        fichas_control = [
             {'t': 'Control de equipos', 's': 'Evaluación del maestro',     'i': 'ti-clipboard-check','c': '#0ca678', 'n': por_tipo.get('control', 0),       'url': reverse('mantenimiento:fichas', args=['control'])},
             {'t': 'Inspecciones',       's': 'Espacio de trabajo',         'i': 'ti-zoom-check',     'c': '#f59f00', 'n': por_tipo.get('inspeccion', 0),    'url': reverse('mantenimiento:fichas', args=['inspecciones'])},
             {'t': 'Entregas',           's': 'Soporte entrega al usuario', 'i': 'ti-package-export', 'c': '#2fb344', 'n': por_tipo.get('entrega', 0),       'url': reverse('mantenimiento:fichas', args=['entregas'])},
@@ -61,10 +65,42 @@ def hub(request):
             {'t': 'Casos especiales',   's': 'Recogidas desde un control', 'i': 'ti-alert-octagon',  'c': '#d6336c', 'n': por_tipo.get('caso_especial', 0), 'url': reverse('mantenimiento:fichas', args=['casos-especiales'])},
             {'t': 'Cambios de equipo',  's': 'Equipo anterior → nuevo',    'i': 'ti-replace',        'c': '#4263eb', 'n': por_tipo.get('cambio_equipo', 0), 'url': reverse('mantenimiento:fichas', args=['cambios-equipo'])},
             {'t': 'Reasignaciones',     's': 'Computadora: maestro A → B', 'i': 'ti-arrows-exchange', 'c': '#0891b2', 'n': por_tipo.get('reasignacion', 0), 'url': reverse('mantenimiento:fichas', args=['reasignaciones'])},   # <--- hecho por claude code (12-oct-2026)
+            # <--- hecho por claude code (22-oct-2026): Préstamo de equipo salió a su propio grupo (Panel Principal)
+            {'t': 'Mantenimientos',     's': 'Mantenimiento del equipo',  'i': 'ti-tool',  'c': '#0ca678', 'n': por_tipo.get('mantenimiento', 0), 'url': reverse('mantenimiento:fichas', args=['mantenimientos'])},   # <--- hecho por claude code (21-oct-2026)
+            {'t': 'Reparaciones',       's': 'Reparación · 3 firmas',     'i': 'ti-tools', 'c': '#e8590c', 'n': por_tipo.get('reparacion', 0),    'url': reverse('mantenimiento:fichas', args=['reparaciones'])},
         ]
     total_fichas = sum(por_tipo.values())
     fichas_mes = MaintenanceRecord.objects.filter(date__gte=inicio_mes).count() if ver_mant else 0
     pendientes = MaintenanceRecord.objects.exclude(status='Completado').count() if ver_mant else 0
+
+    # ── Launcher "＋ Registrar" (modal con sub-modales) ─── <--- hecho por claude code (22-oct-2026)
+    # Cada botón lleva a la pantalla de alta que YA existe y la auto-abre (router, no duplica formularios).
+    # Inventario General y Préstamo NO van aquí (se mueven a programas aparte).
+    _mf = lambda slug, nuevo: reverse('mantenimiento:fichas', args=[slug]) + (f'?nuevo={nuevo}' if nuevo else '')
+    reg_inv = ([
+        {'t': 'Computadora', 'i': 'ti-device-desktop', 'c': '#3b82f6', 'url': reverse('inventario:inventario_computadoras') + '?nuevo=1'},
+        {'t': 'Monitor',     'i': 'ti-device-imac',    'c': '#64748b', 'url': reverse('inventario:inventario_monitores') + '?nuevo=1'},
+        {'t': 'Televisor',   'i': 'ti-device-tv',      'c': '#06b6d4', 'url': reverse('inventario:inventario_televisores') + '?nuevo=1'},
+        {'t': 'Impresora',   'i': 'ti-printer',        'c': '#f97316', 'url': reverse('inventario:inventario_impresoras') + '?nuevo=1'},
+        {'t': 'Router',      'i': 'ti-wifi',           'c': '#22c55e', 'url': reverse('inventario:inventario_routers') + '?nuevo=1'},
+        {'t': 'DataShow',    'i': 'ti-video',          'c': '#a855f7', 'url': reverse('inventario:inventario_datashows') + '?nuevo=1'},
+    ] if ver_inv else [])
+    reg_mant = ([
+        {'t': 'Computadora', 'i': 'ti-device-desktop', 'c': '#206bc4', 'url': _mf('computadoras', '1')},
+        {'t': 'Impresora',   'i': 'ti-printer',        'c': '#f76707', 'url': _mf('impresoras', '1')},
+    ] if ver_mant else [])
+    # <--- hecho por claude code (22-oct-2026): Inspección/Entrega/Recogida entran por el FORMULARIO ÚNICO de Control
+    # (abren el Control con su toggle de acción ya activo). Caso/Cambio/Reasignación/Mantenimiento = switches del Control.
+    reg_control = ([
+        {'t': 'Control de equipo', 'i': 'ti-clipboard-check', 'c': '#0ca678', 'url': _mf('control', '1')},
+        {'t': 'Inspección',        'i': 'ti-zoom-check',      'c': '#f59f00', 'url': _mf('control', 'inspeccion')},
+        {'t': 'Entrega',           'i': 'ti-package-export',  'c': '#2fb344', 'url': _mf('control', 'entrega')},
+        {'t': 'Recogida',          'i': 'ti-package-import',  'c': '#ae3ec9', 'url': _mf('control', 'recogida')},
+        {'t': 'Caso especial',     'i': 'ti-alert-octagon',   'c': '#d6336c', 'url': _mf('control', 'caso_especial')},
+        {'t': 'Cambio de equipo',  'i': 'ti-replace',         'c': '#4263eb', 'url': _mf('control', 'cambio_equipo')},
+        {'t': 'Reasignación',      'i': 'ti-arrows-exchange', 'c': '#0891b2', 'url': _mf('control', 'reasignacion')},
+        {'t': 'Mantenimiento',     'i': 'ti-tool',            'c': '#0ca678', 'url': _mf('control', 'mantenimiento')},
+    ] if ver_mant else [])
 
     # ── Alertas (solo con datos reales) ──
     alertas = []
@@ -92,7 +128,8 @@ def hub(request):
 
     return render(request, 'servicio_tecnico/hub.html', {
         'ver_inv': ver_inv, 'ver_mant': ver_mant,
-        'inventario': inventario, 'fichas': fichas, 'alertas': alertas, 'recientes': recientes,
+        'inventario': inventario, 'fichas': fichas, 'fichas_control': fichas_control, 'alertas': alertas, 'recientes': recientes,
+        'reg_inv': reg_inv, 'reg_mant': reg_mant, 'reg_control': reg_control,   # <--- hecho por claude code (22-oct-2026): launcher
         'kpis': [
             {'t': 'Equipos en inventario', 'v': total_equipos, 'i': 'ti-package',        'c': '#206bc4'},
             {'t': 'Fichas de mantenimiento', 'v': total_fichas, 'i': 'ti-tool',          'c': '#0ca678'},

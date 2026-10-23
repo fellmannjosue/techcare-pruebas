@@ -1,4 +1,4 @@
-/* crear_agenda.js — <--- hecho por claude code (15-oct-2026): pestaña Crear agenda (pruebas). Un solo global: CREAR_AGENDA. */
+/* crear_agenda.js — <--- hecho por claude code (15-oct-2026): pestaña Crear agenda. Un solo global: CREAR_AGENDA. */
 (function () {
   'use strict';
   var form = document.getElementById('ca-form');

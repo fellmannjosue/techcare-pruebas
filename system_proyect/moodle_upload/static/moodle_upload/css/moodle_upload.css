@@ -1,4 +1,4 @@
-/* <--- hecho por claude code (14-oct-2026): Subir a Moodle (pruebas) */
+/* <--- hecho por claude code (14-oct-2026): Subir a Moodle */
 .mu-estado { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; margin-bottom: 18px; font-weight: 600; border: 1px solid; }
 .mu-estado i { font-size: 1.3rem; }
 .mu-estado--ok  { background: rgba(18, 183, 106, .1); border-color: rgba(18, 183, 106, .35); color: #0f8a50; }

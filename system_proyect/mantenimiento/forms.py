@@ -133,6 +133,15 @@ class MaintenanceRecordForm(forms.ModelForm):
                 # <--- hecho por claude code (28-sep-2026): cambio de equipo — equipo anterior (computadora) → equipo nuevo
                 if not ((cleaned.get('modelo_nuevo') or '').strip() or (cleaned.get('serie_nuevo') or '').strip()):
                     self.add_error('modelo_nuevo', 'Registra el equipo nuevo (modelo o serie).')
+            elif self.data.get('mantenimiento'):
+                # <--- hecho por claude code (21-oct-2026): mantenimiento (solo comentario) o reparación (preguntas); no exige las 2 preguntas del control
+                if self.data.get('es_reparacion'):
+                    if not (self.data.get('rep_que_danado') or '').strip():
+                        self.add_error('computadora', 'Reparación: indica qué tiene dañado.')
+                    if not (self.data.get('rep_que_reparacion') or '').strip():
+                        self.add_error('computadora', 'Reparación: indica qué reparación se realizará.')
+                elif not (self.data.get('mant_comentario') or '').strip():
+                    self.add_error('computadora', 'Mantenimiento: escribe el comentario.')
             elif self.data.get('caso_especial'):
                 if not (cleaned.get('firma_nombre') or '').strip():
                     self.add_error('firma_nombre', 'Elige quién firma la recogida.')
@@ -144,7 +153,11 @@ class MaintenanceRecordForm(forms.ModelForm):
                     self.add_error('ent_equipo', 'Marca al menos una cosa que se recibe.')
                 if not cleaned.get('ent_televisor'):
                     cleaned['televisor'] = None
-            else:
+            elif not (self.instance.pk and self.instance.casos_especiales.filter(
+                    tipo_equipo__in=('caso_especial', 'cambio_equipo', 'reasignacion', 'mantenimiento', 'reparacion')).exists()):
+                # <--- hecho por claude code (16-oct-2026): un control que YA generó un cambio de equipo / reasignación /
+                # caso especial no tiene las dos preguntas (se reemplazaron) y al editarlo el interruptor va bloqueado
+                # (no se envía): antes exigía las preguntas y no dejaba ni agregar fotos.
                 if not cleaned.get('eval_trabajo'):
                     self.add_error('eval_trabajo', 'Responde cómo ha trabajado el equipo.')
                 if not cleaned.get('eval_fallas'):
@@ -173,6 +186,28 @@ class MaintenanceRecordForm(forms.ModelForm):
             if cleaned.get('fecha_hora'):
                 cleaned['date'] = cleaned['fecha_hora'].date()
             cleaned['status'] = 'Completado'
+        elif tipo == 'prestamo':
+            # <--- hecho por claude code (16-oct-2026): préstamo de equipo. Sus campos (prest_*) NO son del ModelForm: los
+            # aplica la vista solo cuando llegan, así editar otra ficha nunca los borra. Aquí solo se validan.
+            import datetime as _dt
+            if not cleaned.get('computadora'):
+                self.add_error('computadora', 'Selecciona la computadora que se presta.')
+            d = self.data
+            if not (d.get('prest_solicitante') or '').strip():
+                self.add_error('computadora', 'Préstamo: indica quién solicita el equipo.')
+            if not (d.get('prest_motivo') or '').strip():
+                self.add_error('computadora', 'Préstamo: indica el motivo o la actividad.')
+            try:
+                desde = _dt.date.fromisoformat(d.get('prest_desde') or '')
+                hasta = _dt.date.fromisoformat(d.get('prest_hasta') or '')
+                if hasta < desde:
+                    self.add_error('computadora', 'Préstamo: la devolución no puede ser antes de la entrega.')
+            except ValueError:
+                self.add_error('computadora', 'Préstamo: indica la fecha de entrega y la de devolución.')
+            if not cleaned.get('status'):
+                cleaned['status'] = 'Pendiente'   # nace pendiente de firmas
+            if not cleaned.get('date'):
+                cleaned['date'] = _dt.date.today()
         elif tipo == 'inspeccion':
             # <--- hecho por claude code: la inspección es del equipo del maestro; queda completada al registrarse
             if not cleaned.get('computadora'):

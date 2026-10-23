@@ -10,8 +10,21 @@ class TicketCommentInline(admin.TabularInline):
     fields = ('usuario', 'mensaje', 'fecha')
 
 class TicketAdmin(AuditAdminMixin):
-    list_display = ('ticket_id', 'name', 'email', 'description', 'attachment_link', 'status', 'created_at')
+    # <--- hecho por claude code (16-oct-2026): lista práctica — urgencia, estado, SLA, asignado, filtros y búsqueda
+    list_display = ('ticket_id', 'name', 'grade', 'urgencia', 'status', 'sla', 'asignado_a', 'attachment_link', 'created_at')
+    list_filter = ('status', 'urgencia', 'sin_sla', 'asignado_a', 'created_at')
+    search_fields = ('ticket_id', 'name', 'email', 'grade', 'description')
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at',)
+    list_per_page = 50
     inlines = [TicketCommentInline]
+
+    def sla(self, obj):
+        try:
+            return obj.sla_texto
+        except Exception:
+            return '—'
+    sla.short_description = "SLA"
 
     def attachment_link(self, obj):
         """Muestra el archivo adjunto como un enlace en el panel de administración."""

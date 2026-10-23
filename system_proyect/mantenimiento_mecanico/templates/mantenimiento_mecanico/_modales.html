@@ -59,9 +59,24 @@
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-6"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" required></div>
+          {% if insumo.categoria == 'combustible' %}{# <--- hecho por claude code (14-oct-2026): gasolina y diésel se compran en LITROS → se convierten a galones #}
+          <div class="col-6"><label class="form-label">Litros comprados</label>
+            <div class="input-group"><input type="number" step="0.01" min="0" name="litros" id="mm-ent-lit" class="form-control" placeholder="Ej.: 200"><span class="input-group-text">L</span></div>
+            <div class="form-hint" id="mm-ent-lit-gal"></div>
+          </div>
+          {# <--- hecho por claude code (21-oct-2026): compra extra en galones (se suma al total) #}
+          <div class="col-6"><label class="form-label">Compra extra <span class="text-muted small">(opcional)</span></label>
+            <div class="input-group"><input type="number" step="0.01" min="0" name="galones_extra" id="mm-ent-extra" class="form-control" placeholder="Galones aparte"><span class="input-group-text">gal</span></div>
+          </div>
+          <div class="col-12"><label class="form-label">Total a registrar</label>
+            <div class="input-group"><input type="number" step="0.01" min="0" name="cantidad" id="mm-ent-gal" class="form-control" required readonly><span class="input-group-text">gal</span></div>
+            <div class="form-hint" id="mm-ent-hint">Litros → galones (1 galón = 3.785 L) + la compra extra. <a href="#" id="mm-ent-manual">Escribir el total directamente</a></div>
+          </div>
+          {% else %}
           <div class="col-6"><label class="form-label">Galones</label>
             <div class="input-group"><input type="number" step="0.01" min="0" name="cantidad" class="form-control" value="{% if insumo.presentacion == 'barril' %}{{ insumo.capacidad_envase|unlocalize }}{% endif %}" required><span class="input-group-text">gal</span></div>
           </div>
+          {% endif %}
           <div class="col-12"><label class="form-label">Tipo</label>
             <select name="tipo" class="form-select">
               {% if insumo.presentacion == 'galones' %}<option value="compra">Compra de galones</option>{% elif insumo.presentacion == 'tanque' %}<option value="llenado">Llenado de tanque</option>{% else %}<option value="barril">Barril nuevo</option>{% endif %}
@@ -71,13 +86,73 @@
           </div>
           {% if insumo.presentacion == 'tanque' %}<div class="col-12"><label class="form-check"><input type="checkbox" class="form-check-input" name="confirmar_capacidad" value="1"><span class="form-check-label">Confirmar de todas formas si supera la capacidad del tanque ({{ insumo.capacidad_envase|floatformat:0 }} gal)</span></label></div>{% endif %}
           <div class="col-12"><label class="form-label">Observaciones</label><input type="text" name="observaciones" class="form-control" placeholder="Proveedor, factura, nota…"></div>
+          {# <--- hecho por claude code (20-oct-2026): "Validar" muestra el resultado SIN registrar #}
+          <div class="col-12"><div class="mm-ent-chk d-none" id="mm-ent-chk"
+               data-saldo="{{ resumen.saldo|unlocalize }}"{% if insumo.presentacion == 'tanque' and insumo.capacidad_envase %} data-capacidad="{{ insumo.capacidad_envase|unlocalize }}"{% endif %}></div></div>
         </div>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Registrar</button></div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-outline-azure" id="mm-ent-btn-validar"><i class="ti ti-circle-check me-1"></i>Validar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Registrar</button></div>
     </form>
   </div>
 </div>
 
+{% if insumo.presentacion == 'barril' and puede_editar %}{# <--- hecho por claude code (14-oct-2026): lectura aproximada del barril (solo referencia) #}
+<div class="modal fade" id="mmModalLectura" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" action="{% url 'mantenimiento_mecanico:lectura_crear' insumo.clave %}">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-ruler-measure me-2 text-azure"></i>Lectura aproximada · {{ insumo.nombre }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="alert alert-warning py-2 small mb-3"><i class="ti ti-info-circle me-1"></i>Es solo una referencia: <b>el saldo del sistema no cambia</b>. Sirve para comparar lo que hay en el barril con lo calculado.</div>
+        <label class="form-label">¿Cómo está el barril en uso? <span class="text-muted small">(barril de {{ insumo.capacidad_envase|floatformat:0 }} gal)</span></label>
+        <div class="mm-niveles">
+          {% for k, l, g in niveles_barril %}
+          <input type="radio" class="btn-check" name="nivel" id="mm-niv-{{ forloop.counter }}" value="{{ k }}" required>
+          <label class="btn mm-nivel" for="mm-niv-{{ forloop.counter }}"><b>{{ l }}</b><small>≈ {{ g|floatformat:1 }} gal</small></label>
+          {% endfor %}
+        </div>
+        <div class="row g-3 mt-1">
+          <div class="col-6"><label class="form-label">Barriles llenos sin abrir</label><input type="number" name="barriles_llenos" min="0" max="99" value="0" class="form-control"></div>
+          <div class="col-6"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" required></div>
+          <div class="col-12"><label class="form-label">Observaciones</label><input type="text" name="observaciones" maxlength="255" class="form-control" placeholder="Opcional: quién revisó, cómo se midió…"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Registrar lectura</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if insumo.presentacion == 'tanque' and puede_editar %}{# <--- hecho por claude code (19-oct-2026): registrar la limpieza del tanque (el saldo no cambia) #}
+<div class="modal fade" id="mmModalLimpieza" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="post" enctype="multipart/form-data" class="modal-content" action="{% url 'mantenimiento_mecanico:limpieza_crear' insumo.clave %}">
+      {% csrf_token %}
+      <input type="hidden" name="_qs" value="{{ request.META.QUERY_STRING }}">
+      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-spray me-2 text-azure"></i>Mantenimiento del tanque · {{ insumo.nombre }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 small mb-3"><i class="ti ti-info-circle me-1"></i>El diésel se saca, se limpia el tanque y se vuelve a meter: <b>el saldo no cambia</b>. La próxima limpieza queda en esta fecha + {{ limpieza.cada_meses }} meses.</div>
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label required">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" required></div>
+          <div class="col-md-8"><label class="form-label">Trabajos realizados</label>
+            <div class="d-flex flex-wrap gap-3 pt-1">
+              <label class="form-check mb-0"><input type="checkbox" class="form-check-input" name="tanque_limpiado" value="1" checked><span class="form-check-label">Se limpió el tanque</span></label>
+              <label class="form-check mb-0"><input type="checkbox" class="form-check-input" name="filtro_limpiado" value="1"><span class="form-check-label">Se limpió el filtro</span></label>
+              <label class="form-check mb-0"><input type="checkbox" class="form-check-input" name="filtro_cambiado" value="1"><span class="form-check-label">Se cambió el filtro</span></label>
+            </div></div>
+          <div class="col-12"><label class="form-label required">Quién lo hizo (persona o empresa)</label><input type="text" name="responsable" maxlength="150" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Galones sacados</label><div class="input-group"><input type="number" step="0.01" min="0" name="galones_sacados" class="form-control"><span class="input-group-text">gal</span></div></div>
+          <div class="col-md-6"><label class="form-label">Galones reingresados</label><div class="input-group"><input type="number" step="0.01" min="0" name="galones_reingresados" class="form-control"><span class="input-group-text">gal</span></div><div class="form-hint">Solo como dato: no cambian el saldo.</div></div>
+          <div class="col-12"><label class="form-label">Fotos <span class="text-muted small">(hasta 8)</span></label><input type="file" name="fotos" accept="image/*" multiple class="form-control"></div>
+          <div class="col-12"><label class="form-label">Observaciones</label><textarea name="observaciones" rows="2" maxlength="2000" class="form-control" placeholder="Estado del tanque, sedimentos, filtro usado…"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Registrar limpieza</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
 <div class="modal fade" id="mmModalConfig" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <form method="post" class="modal-content" action="{% url 'mantenimiento_mecanico:insumo_config' insumo.clave %}">

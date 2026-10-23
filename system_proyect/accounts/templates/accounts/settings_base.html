@@ -65,6 +65,9 @@
           <a class="nav-link {% if active_tab == 'envio_login' %}active{% endif %}" href="{% url 'settings_envio_login' %}">
             <i class="ti ti-send me-2"></i>Enviar instrucciones
           </a>
+          <a class="nav-link {% if active_tab == 'codigo' %}active{% endif %}" href="{% url 'settings_codigo' %}">{# <--- hecho por claude code (16-oct-2026) #}
+            <i class="ti ti-code me-2"></i>Código del sistema
+          </a>
         </nav>
         {% endif %}
 

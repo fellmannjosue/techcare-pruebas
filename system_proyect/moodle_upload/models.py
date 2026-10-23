@@ -1,4 +1,4 @@
-# <--- hecho por claude code (14-oct-2026): "Subir a Moodle" — SOLO en techcare-pruebas, para probar la publicación
+# <--- hecho por claude code (14-oct-2026): "Moodle · Agendas" — publicación
 # de imágenes (agendas) en un curso de Moodle con el plugin local_techcareagenda.
 from django.conf import settings
 from django.db import models

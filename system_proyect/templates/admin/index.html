@@ -1,147 +1,72 @@
 {% extends 'admin/base.html' %}
-{% load static %}
-{% load i18n static %}
-
-{% block title %}Dashboard | {{ site_title }}{% endblock %}
-
-{% block branding %}
-    {% include "unfold/helpers/site_branding.html" %}
-{% endblock %}
+{% load static i18n %}
+{# <--- hecho por claude code (16-oct-2026): inicio PRÁCTICO del panel admin — indicadores, accesos por programa, últimos cambios (auditoría), gráficas y accesos #}
+{% block title %}Inicio | {{ site_title }}{% endblock %}
+{% block branding %}{% include "unfold/helpers/site_branding.html" %}{% endblock %}
 
 {% block content %}
-
-{# ── Tarjetas de estadísticas ───────────────────────────── #}
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-5 flex items-center gap-4">
-    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-950">
-      <span class="material-symbols-outlined text-primary-600 dark:text-primary-400 text-2xl">group</span>
-    </div>
-    <div>
-      <p class="text-xs text-base-400 uppercase tracking-wide">Usuarios</p>
-      <p class="text-2xl font-bold text-base-900 dark:text-base-100">{{ stat_total_users }}</p>
-    </div>
+<link rel="stylesheet" href="{% static 'core/css/admin_tc.css' %}?v=1">
+<div class="tca">
+  <div class="tca-hero">
+    <div><div class="tca-hero-pre">Panel de administración</div><h1>Hola, {{ request.user.get_full_name|default:request.user.username }}</h1>
+      <div class="tca-hero-sub">{% now "l j \d\e F \d\e Y" %} · {{ stat_active_users }} usuarios activos · {{ k_accesos_hoy }} accesos hoy</div></div>
+    <div class="tca-hero-acc"><a href="/" class="tca-btn"><span class="material-symbols-outlined">arrow_back</span>Volver a TechCare</a><a href="{% url 'settings_codigo' %}" class="tca-btn"><span class="material-symbols-outlined">data_object</span>Código del sistema</a></div>
   </div>
 
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-5 flex items-center gap-4">
-    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-green-50 dark:bg-green-950">
-      <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">how_to_reg</span>
-    </div>
-    <div>
-      <p class="text-xs text-base-400 uppercase tracking-wide">Activos</p>
-      <p class="text-2xl font-bold text-base-900 dark:text-base-100">{{ stat_active_users }}</p>
-    </div>
+  <div class="tca-kpis">
+    <a class="tca-kpi" href="{{ url_tickets }}" style="--c:#2563eb">
+      <span class="material-symbols-outlined">confirmation_number</span>
+      <div><small>Tickets abiertos</small><b>{{ k_tickets.abiertos|default:0 }}</b>
+      <em>{{ k_tickets.nuevos|default:0 }} sin atender{% if k_tickets.vencidos %} · <strong class="tca-rojo">{{ k_tickets.vencidos }} con SLA vencido</strong>{% endif %}</em></div></a>
+    <a class="tca-kpi" href="{{ url_prestamos }}" style="--c:#7048e8">
+      <span class="material-symbols-outlined">transfer_within_a_station</span>
+      <div><small>Préstamos de equipo</small><b>{{ k_prestamos.prestados|default:0 }}</b>
+      <em>prestados{% if k_prestamos.vencidos %} · <strong class="tca-rojo">{{ k_prestamos.vencidos }} vencidos</strong>{% endif %}{% if k_prestamos.por_firmar %} · {{ k_prestamos.por_firmar }} por firmar{% endif %}</em></div></a>
+    <a class="tca-kpi" href="{{ url_agendas }}" style="--c:#0ca678">
+      <span class="material-symbols-outlined">calendar_month</span>
+      <div><small>Agendas de la semana</small><b>{{ k_agendas.semana|default:0 }}</b>
+      <em>{{ k_agendas.lunes|date:"d/m" }}–{{ k_agendas.viernes|date:"d/m" }} · {{ k_agendas.con_imagen|default:0 }} con imagen · {{ k_agendas.en_moodle|default:0 }} en Moodle</em></div></a>
+    <a class="tca-kpi" href="{{ url_moodle }}" style="--c:#f98012">
+      <span class="material-symbols-outlined">cloud_upload</span>
+      <div><small>Moodle · últimos 7 días</small><b>{{ k_moodle.ok7|default:0 }}</b>
+      <em>publicadas{% if k_moodle.err7 %} · <strong class="tca-rojo">{{ k_moodle.err7 }} con error</strong>{% endif %}{% if k_moodle.conexion %} · conectado a {{ k_moodle.conexion }}{% endif %}{% if k_moodle.token_dias is not None and k_moodle.token_dias < 15 %} · <strong class="tca-rojo">token vence en {{ k_moodle.token_dias }} d</strong>{% endif %}</em></div></a>
   </div>
 
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-5 flex items-center gap-4">
-    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950">
-      <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">database</span>
-    </div>
-    <div>
-      <p class="text-xs text-base-400 uppercase tracking-wide">Total Acciones</p>
-      <p class="text-2xl font-bold text-base-900 dark:text-base-100">{{ stat_total_actions }}</p>
-    </div>
+  <div class="tca-grid">
+    <section class="tca-card">
+      <h2><span class="material-symbols-outlined">apps</span>Módulos por programa</h2>
+      {% for p in programas_admin %}
+      <div class="tca-prog">{{ p.titulo }}</div>
+      <div class="tca-mods">{% for m in p.items %}<a href="{{ m.url }}" class="tca-mod"><span class="material-symbols-outlined">{{ m.icono }}</span><span class="tca-mod-txt">{{ m.nombre }}<small>{{ m.tablas }} tabla{{ m.tablas|pluralize }}</small></span></a>{% endfor %}</div>
+      {% endfor %}
+    </section>
+    <section class="tca-card">
+      <h2><span class="material-symbols-outlined">history</span>Últimos cambios <small>auditoría · 7 días</small></h2>
+      <ul class="tca-cambios">
+        {% for c in ultimos_cambios %}
+        <li><span class="tca-tipo tca-tipo--{% if c.tipo == '+' %}alta{% elif c.tipo == '-' %}baja{% else %}cambio{% endif %}">{% if c.tipo == '+' %}Alta{% elif c.tipo == '-' %}Baja{% else %}Cambio{% endif %}</span>
+          <div class="tca-cambio-txt"><b>{{ c.modelo }}</b> · {{ c.objeto }}<small>{{ c.usuario }} · {{ c.fecha|date:"d/m H:i" }}</small></div></li>
+        {% empty %}<li class="tca-vacio">Sin cambios en los últimos 7 días.</li>{% endfor %}
+      </ul>
+      <a class="tca-mas" href="{% url 'settings_auditoria' %}">Ver la auditoría completa →</a>
+    </section>
   </div>
 
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-5 flex items-center gap-4">
-    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-orange-50 dark:bg-orange-950">
-      <span class="material-symbols-outlined text-primary-600 dark:text-primary-400 text-2xl">today</span>
-    </div>
-    <div>
-      <p class="text-xs text-base-400 uppercase tracking-wide">Acciones Hoy</p>
-      <p class="text-2xl font-bold text-base-900 dark:text-base-100">{{ stat_today_actions }}</p>
-    </div>
+  <div class="tca-grid tca-grid--2">
+    <section class="tca-card"><h2><span class="material-symbols-outlined">login</span>Inicios de sesión <small>14 días</small></h2><canvas id="tcaLogins" height="130"></canvas></section>
+    <section class="tca-card"><h2><span class="material-symbols-outlined">timeline</span>Acciones en el admin <small>14 días</small></h2><canvas id="tcaActividad" height="130"></canvas></section>
   </div>
 
+  <section class="tca-card">
+    <h2><span class="material-symbols-outlined">manage_accounts</span>Últimos accesos <a class="tca-mas tca-mas--der" href="{% url 'admin:accounts_registroacceso_changelist' %}">Ver todos →</a></h2>
+    <div class="tca-tabla-wrap"><table class="tca-tabla">
+      <thead><tr><th>Usuario</th><th>IP</th><th>Fecha y hora</th><th>Navegador</th></tr></thead>
+      <tbody>{% for a in accesos_recientes %}<tr><td><b>{{ a.username }}</b></td><td class="tca-mono">{{ a.ip|default:"—" }}</td><td>{{ a.fecha_hora|date:"d/m/Y H:i" }}</td><td class="tca-gris" title="{{ a.agente }}">{{ a.agente|truncatechars:60 }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="tca-vacio">Aún no hay registros de acceso.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
 </div>
-
-{# ── Gráficas ───────────────────────────────────────────── #}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-
-  {# Gráfica 1: Inicios de sesión #}
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-6">
-    <div class="flex items-center gap-2 mb-4">
-      <span class="material-symbols-outlined text-primary-500 text-xl">login</span>
-      <h3 class="font-semibold text-base-800 dark:text-base-200">Inicios de sesión — últimos 14 días</h3>
-    </div>
-    <canvas id="chartLogins" height="120"></canvas>
-  </div>
-
-  {# Gráfica 2: Actividad del sistema #}
-  <div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 p-6">
-    <div class="flex items-center gap-2 mb-4">
-      <span class="material-symbols-outlined text-blue-500 text-xl">timeline</span>
-      <h3 class="font-semibold text-base-800 dark:text-base-200">Actividad del sistema — últimos 14 días</h3>
-    </div>
-    <canvas id="chartActivity" height="120"></canvas>
-  </div>
-
-</div>
-
-{# ── Tabla de accesos ───────────────────────────────────── #}
-<div class="rounded-xl border border-base-200 bg-white dark:bg-base-900 dark:border-base-700 mb-8">
-  <div class="flex items-center justify-between px-6 py-4 border-b border-base-100 dark:border-base-800">
-    <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-primary-500 text-xl">manage_accounts</span>
-      <h3 class="font-semibold text-base-800 dark:text-base-200">Control de accesos — últimos 50 ingresos</h3>
-    </div>
-    <a href="{% url 'admin:accounts_registroacceso_changelist' %}"
-       class="text-xs text-primary-600 hover:underline dark:text-primary-400">
-      Ver todos →
-    </a>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-xs text-base-400 uppercase tracking-wide border-b border-base-100 dark:border-base-800">
-          <th class="px-6 py-3">Usuario</th>
-          <th class="px-6 py-3">Dirección IP</th>
-          <th class="px-6 py-3">Fecha y hora</th>
-          <th class="px-6 py-3">Navegador / Agente</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-base-100 dark:divide-base-800">
-        {% for a in accesos_recientes %}
-        <tr class="hover:bg-base-50 dark:hover:bg-base-800 transition-colors">
-          <td class="px-6 py-3 font-medium text-base-800 dark:text-base-200">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-base-400 text-base">person</span>
-              {{ a.username }}
-            </div>
-          </td>
-          <td class="px-6 py-3 text-base-500 font-mono text-xs">{{ a.ip|default:"—" }}</td>
-          <td class="px-6 py-3 text-base-500">{{ a.fecha_hora|date:"d/m/Y H:i" }}</td>
-          <td class="px-6 py-3 text-base-400 text-xs truncate max-w-xs" title="{{ a.agente }}">
-            {{ a.agente|truncatechars:60 }}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="px-6 py-8 text-center text-base-400">
-            <span class="material-symbols-outlined text-3xl block mb-2">login</span>
-            Aún no hay registros de acceso
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-{# ── Apps + Historial (layout original de Unfold) ──────── #}
-<div class="flex flex-col lg:flex-row lg:gap-8">
-  <div class="grow">
-    {% include "unfold/helpers/app_list_default.html" %}
-  </div>
-  {% include "unfold/helpers/history.html" %}
-</div>
-
-<div id="index-config" hidden
-     data-v0="{{ chart_logins_labels }}"
-     data-v1="{{ chart_logins_data }}"
-     data-v2="{{ chart_activity_labels }}"
-     data-v3="{{ chart_activity_data }}"></div>
-<script src="{% static 'js/index.js' %}?v=2"></script>
-<script src="{% static 'admin/js/index_dashboard.js' %}?v=20"></script>
-
+{{ chart_logins_labels|json_script:"tca-l-lab" }}{{ chart_logins_data|json_script:"tca-l-dat" }}
+{{ chart_activity_labels|json_script:"tca-a-lab" }}{{ chart_activity_data|json_script:"tca-a-dat" }}
+<script src="{% static 'core/js/admin_inicio.js' %}?v=1"></script>
 {% endblock %}

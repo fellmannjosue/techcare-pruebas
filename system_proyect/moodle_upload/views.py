@@ -1,4 +1,4 @@
-# <--- hecho por claude code (14-oct-2026): pantalla "Subir a Moodle" (solo superusuario, solo en pruebas).
+# <--- hecho por claude code (14-oct-2026): pantalla "Subir a Moodle" (solo superusuario).
 import os
 
 from django.contrib import messages

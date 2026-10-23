@@ -103,7 +103,7 @@
               </div>
             </div>
 
-            <div class="col-md-4 edit-no-control edit-no-impresora edit-no-inspeccion">
+            <div class="col-md-4 edit-no-control edit-no-impresora edit-no-inspeccion edit-no-prestamo edit-no-mant">
               <label class="form-label fw-semibold">Tipo de Falla</label>
               <select name="tipo_falla" id="edit-tipo-falla" class="form-select">
                 {% for tf in tipos_falla %}
@@ -134,14 +134,15 @@
                 <option value="En Proceso">En Proceso</option>
                 <option value="Completado">Completado</option>
               </select>
+              <div class="form-hint edit-prestamo-hint d-none">Préstamo: Pendiente = falta la solicitud firmada · En Proceso = prestado · Completado = devuelto</div>{# <--- hecho por claude code (16-oct-2026) #}
             </div>
 
-            <div class="col-12 edit-no-control edit-no-inspeccion">
+            <div class="col-12 edit-no-control edit-no-inspeccion edit-no-prestamo edit-no-mant">
               <label class="form-label fw-semibold">Solución Aplicada</label>
               <textarea name="solucion" id="edit-solucion" class="form-control" rows="3"></textarea>
             </div>
 
-            <div class="col-12 edit-no-control edit-no-inspeccion">
+            <div class="col-12 edit-no-control edit-no-inspeccion edit-no-mant">
               <label class="form-label fw-semibold">Observaciones <span class="text-muted fw-normal small">(opcional)</span></label>
               <textarea name="observaciones" id="edit-observaciones" class="form-control" rows="2"></textarea>
             </div>
@@ -192,7 +193,38 @@
                 <span class="form-check-label fw-semibold text-cyan"><i class="ti ti-arrows-exchange me-1"></i>Reasignación — la computadora pasa a otro maestro</span>
                 <span class="badge bg-cyan-lt text-cyan ms-2 d-none" id="edit-rea-existente"></span>
               </label>
-              <div class="form-hint">Al marcar uno, las dos preguntas se reemplazan por el checklist de recogida o por Equipo anterior / Equipo nuevo, y al guardar se crea la ficha derivada.</div>
+              {# <--- hecho por claude code (21-oct-2026): mantenimiento (y reparación) también al editar un control #}
+              <label class="form-check form-switch mb-0 mt-1">
+                <input type="checkbox" class="form-check-input" name="mantenimiento" id="edit-chk-mantenimiento" value="1">
+                <span class="form-check-label fw-semibold text-green"><i class="ti ti-tool me-1"></i>Mantenimiento — se le dio mantenimiento al equipo</span>
+                <span class="badge bg-green-lt text-green ms-2 d-none" id="edit-man-existente"></span>
+              </label>
+              <label class="form-check form-switch mb-0 mt-1 ms-3 edit-mant d-none">
+                <input type="checkbox" class="form-check-input" name="es_reparacion" id="edit-chk-reparacion" value="1">
+                <span class="form-check-label fw-semibold text-orange"><i class="ti ti-tools me-1"></i>Reparación — fue un caso de reparación</span>
+              </label>
+              <div class="form-hint">Al marcar uno, las dos preguntas se reemplazan por el checklist de recogida, por Equipo anterior / Equipo nuevo o por Comentarios, y al guardar se crea la ficha derivada.</div>
+            </div>
+            {# <--- hecho por claude code (21-oct-2026): campos de Mantenimiento / Reparación al editar un control o al ver la ficha derivada #}
+            <div class="col-12 edit-mant d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-message me-1 text-green"></i>Comentarios</label>
+              <textarea name="mant_comentario" id="edit-mant-comentario" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-reparacion d-none">
+              <label class="form-label fw-semibold">¿Qué tiene dañado?</label>
+              <textarea name="rep_que_danado" id="edit-rep-que-danado" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-reparacion d-none">
+              <label class="form-label fw-semibold">¿Qué reparación se realizará?</label>
+              <textarea name="rep_que_reparacion" id="edit-rep-que-reparacion" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-reparacion d-none">
+              <label class="form-label fw-semibold">¿Cómo fue que se dañó?</label>
+              <textarea name="rep_como_dano" id="edit-rep-como-dano" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-6 edit-reparacion d-none">
+              <label class="form-label fw-semibold"><i class="ti ti-user me-1 text-orange"></i>Asistido por</label>
+              <input type="text" name="rep_asistido_por" id="edit-rep-asistido-por" class="form-control" maxlength="150" autocomplete="off">
             </div>
 
             {# Fotos de evidencia (hecho por claude code: adjuntar imágenes al editar) #}
@@ -263,6 +295,7 @@
               <textarea name="obs_tecnico" id="edit-obs-tecnico-mov" class="form-control" rows="2" placeholder="Estado en que se entrega/recibe el equipo, faltantes, daños, acuerdos…" disabled></textarea>
             </div>
 
+            <div class="col-12">{% include 'mantenimiento/_prestamo_campos.html' with px='edit-' %}</div>{# <--- hecho por claude code (16-oct-2026): préstamo de equipo #}
             {# <--- hecho por claude code: checklist de la Inspección en el modal de edición #}
             <div class="col-12 edit-inspeccion d-none"><div class="hr-text text-orange"><i class="ti ti-zoom-check me-1"></i>Inspección del espacio de trabajo</div></div>
             <div class="col-md-7 edit-inspeccion d-none">
@@ -280,7 +313,7 @@
             </div>
 
             {# Firma del técnico (manual, para firmar registros existentes) #}
-            <div class="col-md-6 edit-no-control edit-no-inspeccion">
+            <div class="col-md-6 edit-no-control edit-no-inspeccion edit-no-prestamo">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Firma del técnico (soporte)</label>
               <div id="edit-firma-tec-actual" class="mb-2" style="display:none">
                 <span class="text-muted small d-block mb-1">Firma actual:</span>
@@ -296,7 +329,7 @@
             </div>
 
             {# Firma del maestro (segunda opción: firmar en persona, además del link WhatsApp) #}
-            <div class="col-md-6 edit-no-inspeccion">
+            <div class="col-md-6 edit-no-inspeccion edit-no-prestamo">
               <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del maestro (evidencia)</label>
               <div id="edit-firma-mae-actual" class="mb-2" style="display:none">
                 <span class="text-muted small d-block mb-1">Firma actual:</span>

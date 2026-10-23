@@ -1,4 +1,4 @@
-/* <--- hecho por claude code (15-oct-2026): editor de diseño de agendas (pruebas).
+/* <--- hecho por claude code (15-oct-2026): editor de diseño de agendas.
    La hoja se dibuja a 96 px por pulgada: BL = 13.333 x 7.5 in (1280 x 720), Colegio = A4 horizontal (1123 x 794).
    Las medidas salen del generador de PowerPoint/Word (agendas/views.py). */
 .dz-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start; }

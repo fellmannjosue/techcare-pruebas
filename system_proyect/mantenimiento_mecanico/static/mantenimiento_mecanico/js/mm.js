@@ -143,3 +143,61 @@
   }
   window.MM_PAGE = { abrir: (typeof abrir === 'function') ? abrir : null };
 })();
+
+/* <--- hecho por claude code (14-oct-2026): compra de gasolina/diésel EN LITROS → galones (1 gal = 3.785411784 L).
+   Los galones quedan de solo lectura mientras se escriben litros; "Escribir galones directamente" los libera
+   (saldo inicial / ajuste). El servidor vuelve a calcular con el mismo factor. */
+(function () {
+  'use strict';
+  var lit = document.getElementById('mm-ent-lit'), gal = document.getElementById('mm-ent-gal');
+  if (!lit || !gal) return;
+  var extra = document.getElementById('mm-ent-extra'), litGal = document.getElementById('mm-ent-lit-gal');
+  var L_POR_GAL = 3.785411784;
+  function recalc() {
+    if (gal.readOnly === false) return;   // modo manual: el usuario escribe el total
+    var l = parseFloat(lit.value), e = parseFloat(extra && extra.value);
+    var lg = (l > 0) ? l / L_POR_GAL : 0, ex = (e > 0) ? e : 0;
+    if (litGal) litGal.textContent = (l > 0) ? (lg.toFixed(2) + ' gal') : '';
+    gal.value = (lg + ex > 0) ? (lg + ex).toFixed(2) : '';
+  }
+  lit.addEventListener('input', function () { gal.readOnly = true; recalc(); });
+  if (extra) extra.addEventListener('input', function () { gal.readOnly = true; recalc(); });
+  var manual = document.getElementById('mm-ent-manual');
+  if (manual) manual.addEventListener('click', function (e) {
+    e.preventDefault();
+    lit.value = ''; if (extra) extra.value = ''; if (litGal) litGal.textContent = '';
+    gal.readOnly = false; gal.value = ''; gal.focus();
+  });
+})();
+
+/* <--- hecho por claude code (20-oct-2026): botón "Validar" en el modal de entrada — muestra galones, saldo que
+   quedaría y si supera la capacidad del tanque, SIN registrar nada. */
+(function () {
+  'use strict';
+  var box = document.getElementById('mm-ent-chk'), btn = document.getElementById('mm-ent-btn-validar');
+  if (!box || !btn) return;
+  var form = btn.closest('form');
+  var num = function (v) { v = parseFloat(v); return isNaN(v) ? 0 : v; };
+  function esc(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+  function fmt(n) { return n.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  btn.addEventListener('click', function () {
+    var cant = form.querySelector('[name="cantidad"]');
+    var gal = num(cant && cant.value);
+    box.classList.remove('d-none');
+    if (gal <= 0) { box.className = 'mm-ent-chk mm-ent-chk--err'; box.innerHTML = 'Escribe la cantidad primero.'; return; }
+    var saldo = num(box.dataset.saldo), nuevo = saldo + gal, cap = box.dataset.capacidad ? num(box.dataset.capacidad) : null;
+    var filas = [['Galones a ingresar', fmt(gal) + ' gal'], ['Saldo actual', fmt(saldo) + ' gal'], ['Saldo que quedaría', '<b>' + fmt(nuevo) + ' gal</b>']];
+    var aviso = '', clase = 'mm-ent-chk--ok';
+    if (cap !== null) {
+      filas.push(['Capacidad del tanque', fmt(cap) + ' gal']);
+      if (nuevo > cap) { clase = 'mm-ent-chk--warn'; aviso = '<i class="ti ti-alert-triangle me-1"></i>Supera la capacidad por <b>' + fmt(nuevo - cap) + ' gal</b>. Para registrarlo igual, marca «Confirmar de todas formas».'; }
+      else { aviso = '<i class="ti ti-circle-check me-1"></i>Cabe en el tanque (' + fmt(cap - nuevo) + ' gal de margen).'; }
+    } else {
+      aviso = '<i class="ti ti-circle-check me-1"></i>Listo para registrar.';
+    }
+    box.className = 'mm-ent-chk ' + clase;
+    box.innerHTML = '<div class="mm-ent-chk-grid">' + filas.map(function (f) { return '<span>' + esc(f[0]) + '</span><b>' + f[1] + '</b>'; }).join('') + '</div><div class="mm-ent-chk-msg">' + aviso + '</div>';
+  });
+  // al cambiar algún dato, oculta el resultado viejo
+  form.addEventListener('input', function () { if (!box.classList.contains('d-none')) box.classList.add('d-none'); });
+})();

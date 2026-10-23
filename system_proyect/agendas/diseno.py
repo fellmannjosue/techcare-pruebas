@@ -1,4 +1,4 @@
-# <--- hecho por claude code (15-oct-2026): Agendas · pestaña "Crear agenda" y EDITOR DE DISEÑO del coordinador (pruebas).
+# <--- hecho por claude code (15-oct-2026): Agendas · pestaña "Crear agenda" y EDITOR DE DISEÑO del coordinador.
 # Flujo: el coordinador crea la agenda (grado + semana) → los maestros llenan sus clases → el coordinador abre el
 # editor (réplica del PowerPoint BL / Word de Colegio), ajusta letra, filas, columnas y textos, y descarga el PNG,
 # que además queda guardado como IMAGEN FINAL (la que se publica en Moodle).
@@ -249,7 +249,7 @@ def imagen_final_guardar(request, pk):
 
 @login_required
 def imagen_final_ver(request, pk):
-    """Sirve la imagen final (en pruebas /media/ no se publica por Apache/nginx)."""
+    """Sirve la imagen final (sin depender de cómo se publique /media/)."""
     agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
     from .views import _es_coordinador
     areas = _areas(request)

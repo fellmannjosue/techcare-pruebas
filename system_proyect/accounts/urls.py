@@ -45,6 +45,7 @@ urlpatterns = [
     path('settings/usuarios/asignar-grupos/',          views.settings_usuarios_asignar_grupos, name='settings_usuarios_asignar_grupos'),
     path('settings/actividad/',                        views.settings_actividad,        name='settings_actividad'),
     path('settings/logs/',                             views.settings_logs,             name='settings_logs'),
+    path('settings/codigo/',                           views.settings_codigo,           name='settings_codigo'),   # <--- hecho por claude code (16-oct-2026)
     path('settings/logs/api/',                         views.settings_logs_api,         name='settings_logs_api'),
     path('settings/auditoria/',                        views.settings_auditoria,        name='settings_auditoria'),
     path('settings/correos/',                          views.settings_correos,          name='settings_correos'),

@@ -14,7 +14,7 @@ import json
 from threading import Thread
 
 # IA pendiente para más adelante
-from core.utils_ai import consultar_ia  # <--- hecho por claude code: chat IA activo en pruebas
+# from core.utils_ai import consultar_ia
 
 # 🔔 Notificaciones globales
 from core.utils_notifications import crear_notificacion
@@ -199,7 +199,7 @@ def submit_ticket(request):
 
                 return JsonResponse({
                     'message': f'Ticket #{ticket.ticket_id} creado exitosamente',
-                    'redirect_url': reverse('ticket_comments', args=[ticket.id]),  # <--- hecho por claude code: la IA vive en la Conversación
+                    'redirect_url': reverse('ticket_comments', args=[ticket.id]),
                 }, status=201)
 
             except json.JSONDecodeError:
@@ -231,7 +231,7 @@ def submit_ticket(request):
 
             return JsonResponse({
                 'message': f'Ticket #{ticket.ticket_id} creado exitosamente',
-                'redirect_url': reverse('ticket_comments', args=[ticket.id]),  # <--- hecho por claude code: la IA vive en la Conversación
+                'redirect_url': reverse('ticket_comments', args=[ticket.id]),
             }, status=201)
 
         return JsonResponse({'error': 'Error en formulario', 'details': form.errors.as_json()}, status=400)
@@ -302,21 +302,15 @@ def ticket_comments(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
     comentarios = TicketComment.objects.filter(ticket=ticket).order_by('fecha')
 
-    # MENSAJE AUTOMÁTICO INICIAL — <--- hecho por claude code: ahora saluda la IA (conoce
-    # el formulario del ticket); si la IA está bloqueada, saluda soporte como antes.
+    # MENSAJE AUTOMÁTICO INICIAL
     if not comentarios.exists():
-        if ticket.ia_bloqueada:
-            default_staff = User.objects.filter(is_staff=True).first() or User.objects.first()
-            TicketComment.objects.create(
-                ticket=ticket, usuario=default_staff,
-                mensaje="Soporte técnico: ¿En qué podemos ayudarte?", tipo="tecnico")
-        else:
-            TicketComment.objects.create(
-                ticket=ticket, usuario=None, tipo="ia",
-                mensaje=("¡Hola! Soy el asistente IA de TechCare 🤖. Ya leí tu solicitud "
-                         f"(“{(ticket.description or '')[:120]}…”) y voy a ayudarte a resolverla. "
-                         "Cuéntame más detalles, o escribe 'hablar con técnico' si prefieres "
-                         "que te atienda una persona."))
+        default_staff = User.objects.filter(is_staff=True).first() or User.objects.first()
+        TicketComment.objects.create(
+            ticket=ticket,
+            usuario=default_staff,
+            mensaje="Soporte técnico: ¿En qué podemos ayudarte?",
+            tipo="tecnico"
+        )
 
     status_resuelto = ticket.status.lower() == "resuelto"
 
@@ -470,48 +464,8 @@ def ticket_send_comment_ajax(request, ticket_id):
         _estados.reanudar(ticket, request.user, via='comentario')
         ticket.refresh_from_db()
 
-    # <--- hecho por claude code: si un TÉCNICO real escribe, la IA se retira de este ticket.
-    if comentario.tipo == "tecnico" and not ticket.ia_bloqueada:
-        ticket.ia_bloqueada = True
-        ticket.save(update_fields=['ia_bloqueada'])
-        if ticket.comentarios.filter(tipo='ia').exists():
-            TicketComment.objects.create(
-                ticket=ticket, usuario=None, tipo="sistema",
-                mensaje="Un técnico tomó la conversación — el asistente de IA se retira.")
-
-    # <--- hecho por claude code: IA integrada en ESTA conversación. Mientras el ticket no
-    # esté escalado/atendido por humano, la IA responde aquí mismo; si el usuario pide un
-    # técnico, se escala este mismo ticket.
-    if comentario.tipo == "usuario" and not ticket.ia_bloqueada and mensaje:
-        if _pide_tecnico(mensaje):
-            _escalar_a_tecnico(ticket, request.user)
-            TicketComment.objects.create(
-                ticket=ticket, usuario=None, tipo="sistema",
-                mensaje=("🔔 Un técnico ha sido notificado y continuará la atención en este "
-                         "ticket. El asistente de IA finaliza aquí — gracias por tu paciencia."))
-        else:
-            contexto = (
-                "Eres un asistente técnico amigable y útil de ANA-HN. Responde en español, breve y claro.\n"
-                f"Estás atendiendo el ticket {ticket.ticket_id} con estos datos del formulario:\n"
-                f"- Solicitante: {ticket.name} ({ticket.grade})\n"
-                f"- Urgencia: {ticket.urgencia}\n"
-                f"- Problema descrito: {ticket.description[:800]}\n"
-                "Ayuda a resolver ESE problema. Si requiere intervención física o no puedes "
-                "resolverlo, sugiérele escribir 'hablar con técnico' para que lo atienda una persona.")
-            previos = list(ticket.comentarios.filter(tipo__in=['usuario', 'ia'])
-                           .exclude(id=comentario.id).order_by('-id')[:12])[::-1]
-            historial = [{"role": "user" if x.tipo == 'usuario' else "assistant",
-                          "content": (x.mensaje or '')[:2000]} for x in previos]
-            respuesta_ia = consultar_ia([{"role": "system", "content": contexto}]
-                                        + historial + [{"role": "user", "content": mensaje}])
-            TicketComment.objects.create(
-                ticket=ticket, usuario=None, tipo="ia",
-                mensaje=respuesta_ia or ("No pude generar una respuesta ahora mismo. Escribe "
-                                         "'hablar con técnico' para atención humana."))
-
-    # Notificaciones — <--- hecho por claude code: mientras la IA atiende, no se molesta a los
-    # técnicos por cada mensaje (la escalada ya los notifica con alerta).
-    if comentario.tipo == "usuario" and ticket.ia_bloqueada:
+    # Notificaciones
+    if comentario.tipo == "usuario":
         for tech in User.objects.filter(groups__name__icontains="tecnico"):
             crear_notificacion(
                 usuario=tech,
@@ -760,53 +714,16 @@ def ticket_contact_technician(request, ticket_id):
 
 
 # ======================================================
-# CHAT IA — <--- hecho por claude code: ACTIVADO en pruebas
+# IA pendiente para más adelante
+# CHAT IA
 # ======================================================
-def _pide_tecnico(texto):
-    """<--- hecho por claude code: detecta que el usuario quiere atención HUMANA.
-    Normaliza tildes para que "técnico" y "tecnico" cuenten igual."""
-    import unicodedata
-    t = unicodedata.normalize('NFKD', (texto or '').lower())
-    t = ''.join(ch for ch in t if not unicodedata.combining(ch))
-    if 'tecnico' in t and any(v in t for v in (
-            'hablar', 'quiero', 'necesito', 'llama', 'contactar', 'comunicar',
-            'atienda', 'pasame', 'con un', 'con el')):
-        return True
-    return any(f in t for f in ('hablar con una persona', 'hablar con alguien',
-                                'atencion humana', 'una persona real', 'un humano'))
-
-
-def _escalar_a_tecnico(ticket, solicitante):
-    """<--- hecho por claude code: notifica a técnicos y superusers, deja el ticket
-    pendiente de atención humana y APAGA la IA de este ticket (ia_bloqueada)."""
-    User = get_user_model()
-    msg = f"🔔 {ticket.name} pide hablar con un TÉCNICO en el ticket #{ticket.ticket_id} — {ticket.grade}"
-    tecnicos = User.objects.filter(groups__name__icontains="tecnico")
-    for tech in tecnicos:
-        crear_notificacion(usuario=tech, mensaje=msg, modulo="tickets", tipo="alerta", enviar_correo=False)
-    ids = set(tecnicos.values_list('id', flat=True))
-    for su in User.objects.filter(is_superuser=True):
-        if su.id not in ids:
-            crear_notificacion(usuario=su, mensaje=msg, modulo="tickets", tipo="alerta", enviar_correo=False)
-    ticket.ia_bloqueada = True
-    campos = ['ia_bloqueada']
-    if (ticket.status or '').lower() in ('completado', 'cerrado', 'resuelto'):
-        ticket.status = 'Pendiente'   # el ticket se REABRE para el técnico
-        campos.append('status')
-    ticket.save(update_fields=campos)
-
-
+"""
 @csrf_exempt
 @require_POST
 @login_required
 def ticket_chat_ai_ajax(request, ticket_id):
     try:
         ticket = get_object_or_404(Ticket, id=ticket_id)
-
-        # <--- hecho por claude code: solo el dueño del ticket o staff pueden chatear en él
-        if not (request.user.is_superuser or ticket.usuario_id == request.user.id
-                or request.user.has_perm('tickets.view_ticket')):
-            return JsonResponse({"ok": False, "error": "Este ticket no es tuyo."}, status=403)
 
         if ticket.ia_bloqueada:
             return JsonResponse({
@@ -825,40 +742,19 @@ def ticket_chat_ai_ajax(request, ticket_id):
             tipo="usuario"
         )
 
-        # <--- hecho por claude code: "hablar con técnico" → notifica, reabre si hacía
-        # falta, y la IA TERMINA en este ticket (el guard de arriba bloquea lo siguiente).
-        if _pide_tecnico(mensaje_usuario):
-            _escalar_a_tecnico(ticket, request.user)
-            comentario_ai = TicketComment.objects.create(
-                ticket=ticket, usuario=None, tipo="sistema",
-                mensaje=("🔔 Un técnico ha sido notificado y continuará la atención en este "
-                         "ticket. El asistente de IA finaliza aquí — gracias por tu paciencia."))
-        else:
-            # <--- hecho por claude code: contexto = el FORMULARIO del ticket (paso 1) + la
-            # conversación previa de este ticket → la IA sabe de qué se trata sin repreguntar.
-            contexto = (
-                "Eres un asistente técnico amigable y útil de ANA-HN. Responde en español, breve y claro.\n"
-                f"Estás atendiendo el ticket {ticket.ticket_id} con estos datos del formulario:\n"
-                f"- Solicitante: {ticket.name} ({ticket.grade})\n"
-                f"- Urgencia: {ticket.get_urgencia_display() if hasattr(ticket, 'get_urgencia_display') else ticket.urgencia}\n"
-                f"- Problema descrito: {ticket.description[:800]}\n"
-                "Ayuda a resolver ESE problema. Si requiere intervención física o no puedes "
-                "resolverlo, sugiérele escribir 'hablar con técnico' para que lo atienda una persona.")
-            previos = list(ticket.comentarios.filter(tipo__in=['usuario', 'ia'])
-                           .exclude(id=comentario_user.id).order_by('-id')[:12])[::-1]
-            historial = [{"role": "user" if c.tipo == 'usuario' else "assistant",
-                          "content": (c.mensaje or '')[:2000]} for c in previos]
-            mensajes_ia = ([{"role": "system", "content": contexto}] + historial
-                           + [{"role": "user", "content": mensaje_usuario}])
+        mensajes_ia = [
+            {"role": "system", "content": "Eres un asistente técnico amigable y útil de ANA-HN."},
+            {"role": "user", "content": mensaje_usuario}
+        ]
 
-            respuesta_ia = consultar_ia(mensajes_ia)
+        respuesta_ia = consultar_ia(mensajes_ia)
 
-            comentario_ai = TicketComment.objects.create(
-                ticket=ticket,
-                usuario=None,
-                mensaje=respuesta_ia or "No pude generar respuesta. Escribe 'hablar con técnico' para atención humana.",
-                tipo="ia"
-            )
+        comentario_ai = TicketComment.objects.create(
+            ticket=ticket,
+            usuario=None,
+            mensaje=respuesta_ia,
+            tipo="ia"
+        )
 
         return JsonResponse({
             "ok": True,
@@ -873,76 +769,11 @@ def ticket_chat_ai_ajax(request, ticket_id):
                 "id": comentario_ai.id,
                 "mensaje": comentario_ai.mensaje,
                 "fecha": comentario_ai.fecha.strftime("%d/%m/%Y %H:%M"),
-                "autor": "Sistema" if comentario_ai.tipo == "sistema" else "IA TechCare",
-                "tipo": comentario_ai.tipo,
-                "ia_finalizada": ticket.ia_bloqueada,
+                "autor": "IA TechCare",
+                "tipo": "ia",
             }
         })
 
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
-
-
-# ======================================================
-# <--- hecho por claude code: SANDBOX de IA (solo pruebas). No guarda NADA en la base
-# (este contenedor apunta a las mismas BD del servidor): pregunta → OpenAI → respuesta.
-# ======================================================
-@login_required
-def ia_sandbox(request):
-    if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied
-    return render(request, "tickets/ia_sandbox.html")
-
-
-@require_POST
-@login_required
-def ia_sandbox_ajax(request):
-    if not request.user.is_superuser:
-        return JsonResponse({"ok": False, "error": "Solo superusuario"}, status=403)
-    mensaje = (request.POST.get("mensaje") or "").strip()
-    if not mensaje:
-        return JsonResponse({"ok": False, "error": "Escribe un mensaje"}, status=400)
-
-    # <--- hecho por claude code: el front manda el historial → la IA tiene MEMORIA de la
-    # conversación, y si el usuario pide un técnico se crea un TICKET REAL con la transcripción.
-    import json as _json
-    try:
-        historial = _json.loads(request.POST.get("historial") or "[]")[-12:]
-        historial = [{"role": h["role"], "content": str(h["content"])[:2000]}
-                     for h in historial if h.get("role") in ("user", "assistant")]
-    except Exception:
-        historial = []
-
-    if _pide_tecnico(mensaje):
-        transcripcion = "\n".join(
-            f"{'Usuario' if h['role'] == 'user' else 'IA'}: {h['content']}" for h in historial)
-        u = request.user
-        ticket = Ticket.objects.create(
-            usuario=u,
-            name=(u.get_full_name() or u.username),
-            grade="Chat IA",
-            email=(u.email or ""),
-            description=("Solicitud de atención con un TÉCNICO desde el chat de IA.\n\n"
-                         f"Último mensaje: {mensaje}\n\n— Transcripción del chat —\n"
-                         + (transcripcion or "(sin historial)")),
-            urgencia="medio",
-            ia_bloqueada=True,   # nace escalado: la IA ya terminó aquí
-        )
-        _notificar_nuevo_ticket(ticket, u)
-        return JsonResponse({"ok": True, "escalado": True, "ticket_id": ticket.ticket_id,
-                             "respuesta": (f"🔔 Listo: creé el ticket {ticket.ticket_id} con el resumen "
-                                           "de esta conversación y ya notifiqué a un técnico. Te "
-                                           "atenderán pronto — puedes darle seguimiento en «Mis "
-                                           "tickets». El asistente de IA finaliza aquí.")})
-
-    try:
-        mensajes = [{"role": "system", "content": (
-            "Eres un asistente técnico amigable y útil de ANA-HN. Responde en español, breve y "
-            "claro. Si no puedes resolver el problema, sugiérele al usuario escribir "
-            "'hablar con técnico' para crear un ticket y que lo atienda una persona.")}]
-        mensajes += historial + [{"role": "user", "content": mensaje}]
-        respuesta = consultar_ia(mensajes)
-        return JsonResponse({"ok": True, "respuesta": respuesta or "No pude generar respuesta."})
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+"""

@@ -56,6 +56,11 @@ class MaintenanceRecord(AuditModel):
         ('cambio_equipo', 'Cambio de equipo'),
         # <--- hecho por claude code (12-oct-2026): REASIGNACIÓN — la misma computadora pasa del maestro A al maestro B (nace desde un Control)
         ('reasignacion', 'Reasignación de computadora'),
+        # <--- hecho por claude code (16-oct-2026): PRÉSTAMO de equipo (una persona autorizada se lleva el equipo; solicitud con 4 firmas)
+        ('prestamo', 'Préstamo de equipo'),
+        # <--- hecho por claude code (21-oct-2026): MANTENIMIENTO (solo comentario) y REPARACIÓN (preguntas + 3 firmas), nacen del Control
+        ('mantenimiento', 'Mantenimiento'),
+        ('reparacion', 'Reparación'),
     ]
     # <--- hecho por claude code (17-sep-2026): checklist de Entrega/Recogida: (campo, texto en entrega, texto en recogida)
     MOVIMIENTO_ITEMS = [
@@ -92,6 +97,7 @@ class MaintenanceRecord(AuditModel):
     # Firmas FIJAS del control de equipo (no se dibujan; van impresas en la ficha)
     FIRMA_TECNICO_FIJA  = ('Josué Fellmann', 'Soporte Técnico')
     FIRMA_AUDITORA_FIJA = ('Yeny Lagos', 'Auditora')
+    FIRMA_TECNICO_REPARO = ('Ramón Lagos', 'Técnico que reparó')   # <--- hecho por claude code (21-oct-2026): firma a mano, nombre fijo
     TIPO_MANT_IMPRESORA_CHOICES = [
         ('llenado_tinta',         'Llenado de tinta'),
         ('actualizacion_sistema', 'Actualización de sistema'),
@@ -175,6 +181,38 @@ class MaintenanceRecord(AuditModel):
     area_nueva        = models.CharField('Área nueva', max_length=100, blank=True)
     grado_nuevo       = models.CharField('Grado nuevo', max_length=50, blank=True)
     edificio_nuevo    = models.CharField('Edificio nuevo', max_length=100, blank=True)
+    # <--- hecho por claude code (16-oct-2026): PRÉSTAMO de equipo. Estado del trámite en `status`:
+    # Pendiente = falta el PDF firmado · En Proceso = equipo prestado · Completado = devuelto.
+    prest_solicitante = models.CharField('Solicitante', max_length=150, blank=True)
+    prest_cargo       = models.CharField('Cargo del solicitante', max_length=100, blank=True)
+    prest_area        = models.CharField('Área del solicitante', max_length=100, blank=True)
+    prest_motivo      = models.TextField('Motivo o actividad', blank=True)
+    prest_lugar       = models.CharField('Dónde se usará', max_length=200, blank=True)
+    prest_sale        = models.BooleanField('El equipo sale de la institución', default=True)
+    prest_desde       = models.DateField('Préstamo desde (entrega)', null=True, blank=True)
+    prest_hasta       = models.DateField('Préstamo hasta (devolución)', null=True, blank=True)
+    prest_accesorios  = models.CharField('Accesorios que se prestan', max_length=255, blank=True)
+    prest_pdf         = models.FileField('Solicitud firmada (PDF)', upload_to='mantenimiento/prestamos/', null=True, blank=True)
+    prest_pdf_en      = models.DateTimeField('PDF firmado subido el', null=True, blank=True)
+    prest_pdf_por     = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+                                          verbose_name='PDF firmado subido por')
+    # <--- hecho por claude code (21-oct-2026): MANTENIMIENTO (comentario) y REPARACIÓN (preguntas + asistido por + PDF firmado).
+    # Nacen del Control; no están en el ModelForm (los copia _aplicar_mantenimiento desde el POST).
+    mant_comentario    = models.TextField('Comentario del mantenimiento', blank=True)
+    rep_que_danado     = models.TextField('¿Qué tiene dañado?', blank=True)
+    rep_que_reparacion = models.TextField('¿Qué reparación se realizará?', blank=True)
+    rep_como_dano      = models.TextField('¿Cómo fue que se dañó?', blank=True)
+    rep_asistido_por   = models.CharField('Asistido por', max_length=150, blank=True)
+    rep_pdf            = models.FileField('Reparación firmada (PDF)', upload_to='mantenimiento/reparaciones/', null=True, blank=True)
+    rep_pdf_en         = models.DateTimeField('PDF firmado subido el', null=True, blank=True)
+    rep_pdf_por        = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+                                           verbose_name='PDF firmado subido por')
+    # <--- hecho por claude code (21-oct-2026): ficha firmada en papel y escaneada (genérica, para todos los tipos salvo
+    # préstamo/reparación que tienen la suya). La firma de Soporte Técnico va FIJA en el PDF; el maestro firma a mano.
+    firma_pdf          = models.FileField('Ficha firmada (PDF)', upload_to='mantenimiento/firmas/', null=True, blank=True)
+    firma_pdf_en       = models.DateTimeField('Ficha firmada subida el', null=True, blank=True)
+    firma_pdf_por      = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+                                           verbose_name='Ficha firmada subida por')
     fecha_hora   = models.DateTimeField("Fecha y hora", null=True, blank=True)
     solucion     = models.TextField("Solución Aplicada", null=True, blank=True)
     date         = models.DateField("Fecha del Mantenimiento")
@@ -233,6 +271,52 @@ class MaintenanceRecord(AuditModel):
     @property
     def es_reasignacion(self):   # <--- hecho por claude code (12-oct-2026)
         return self.tipo_equipo == 'reasignacion'
+
+    @property
+    def es_mantenimiento(self):   # <--- hecho por claude code (21-oct-2026)
+        return self.tipo_equipo == 'mantenimiento'
+
+    @property
+    def es_reparacion(self):
+        return self.tipo_equipo == 'reparacion'
+
+    @property
+    def reparacion_estado(self):
+        """(clave, texto) de la reparación: por firmar / firmada."""
+        if self.rep_pdf:
+            return 'firmada', 'Firmada'
+        return 'pendiente', 'Por firmar'
+
+    @property
+    def mantenimiento(self):
+        """Mantenimiento generado desde este control (None si no tiene)."""
+        return self.casos_especiales.filter(tipo_equipo='mantenimiento').first() if self.tipo_equipo == 'control' else None
+
+    @property
+    def reparacion(self):
+        return self.casos_especiales.filter(tipo_equipo='reparacion').first() if self.tipo_equipo == 'control' else None
+
+    @property
+    def usa_firma_pdf(self):
+        """<--- hecho por claude code (21-oct-2026): tipos que suben la ficha firmada en papel por el campo genérico
+        firma_pdf. Préstamo y reparación tienen su propio PDF, así que se excluyen."""
+        return self.tipo_equipo not in ('prestamo', 'reparacion')
+
+    @property
+    def es_prestamo(self):   # <--- hecho por claude code (16-oct-2026)
+        return self.tipo_equipo == 'prestamo'
+
+    @property
+    def prestamo_estado(self):
+        """(clave, texto) del trámite: pendiente de firmas / prestado / vencido / devuelto."""
+        import datetime as _dt
+        if self.status == 'Completado':
+            return 'devuelto', 'Devuelto'
+        if self.status == 'En Proceso':
+            if self.prest_hasta and self.prest_hasta < _dt.date.today():
+                return 'vencido', 'Prestado · vencido'
+            return 'prestado', 'Prestado'
+        return 'pendiente', 'Pendiente de firmas'
 
     @property
     def es_movimiento(self):

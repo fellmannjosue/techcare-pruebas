@@ -4,7 +4,7 @@
 {% block title %}{% if insumo %}{{ insumo.nombre }} · {% endif %}Mantenimiento Mecánico{% endblock %}
 {% block page_pretitle %}Mantenimiento Mecánico · Combustibles y aceites{% endblock %}
 {% block page_title %}{% if insumo %}<i class="ti {{ insumo.icono }} me-2"></i>{{ insumo.nombre }}{% else %}Mantenimiento Mecánico{% endif %}{% endblock %}
-{% block vendor_head %}<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/mm.css' %}?v=5">{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/mm.css' %}?v=7">{% endblock %}
 {# <--- hecho por claude code (12-oct-2026): las páginas del módulo vuelven al sub-dashboard (combustibles + vehículos) #}
 {% block back_button %}<a href="{% url 'mantenimiento_mecanico:index' %}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Mantenimiento Mecánico</a>{% endblock %}
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}

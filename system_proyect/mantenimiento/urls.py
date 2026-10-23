@@ -19,6 +19,13 @@ urlpatterns = [
     path('tipo-falla/crear/',          views.tipo_falla_crear,          name='tipo_falla_crear'),
     path('<int:pk>/firma-solicitada/', views.marcar_firma_solicitada,   name='marcar_firma_solicitada'),
     path('firmar/<uuid:token>/',       views.firmar_publico,            name='firmar_publico'),
+    path('<int:pk>/prestamo/pdf-firmado/subir/', views.prestamo_pdf_subir, name='prestamo_pdf_subir'),   # <--- hecho por claude code (16-oct-2026)
+    path('<int:pk>/prestamo/pdf-firmado/',       views.prestamo_pdf_ver,   name='prestamo_pdf_ver'),
+    path('<int:pk>/reparacion/pdf-firmado/subir/', views.reparacion_pdf_subir, name='reparacion_pdf_subir'),   # <--- hecho por claude code (21-oct-2026)
+    path('<int:pk>/reparacion/pdf-firmado/',       views.reparacion_pdf_ver,   name='reparacion_pdf_ver'),
+    path('<int:pk>/ficha-firmada/subir/', views.firma_pdf_subir, name='firma_pdf_subir'),   # <--- hecho por claude code (21-oct-2026): subir firma en cualquier ficha
+    path('<int:pk>/ficha-firmada/',       views.firma_pdf_ver,   name='firma_pdf_ver'),
+    path('foto/<int:pk>/eliminar/', views.foto_eliminar, name='foto_eliminar'),   # <--- hecho por claude code (21-oct-2026): borrar foto de evidencia
     path(
         'menu/',
         lambda request: redirect('/accounts/menu/'),

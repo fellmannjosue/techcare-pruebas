@@ -1,7 +1,7 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import Entrada, Entrega, Insumo, Maquinaria
+from .models import Entrada, Entrega, Insumo, LecturaBarril, Maquinaria
 
 
 @admin.register(Insumo)
@@ -28,3 +28,10 @@ class EntregaAdmin(SimpleHistoryAdmin):
     list_display = ('codigo', 'insumo', 'fecha', 'hora', 'maquinaria', 'kilometraje', 'galones', 'persona', 'registrado_por')
     list_filter = ('insumo', 'maquinaria')
     search_fields = ('persona', 'observaciones')
+
+
+@admin.register(LecturaBarril)   # <--- hecho por claude code (14-oct-2026): lectura aproximada (solo referencia)
+class LecturaBarrilAdmin(SimpleHistoryAdmin):
+    list_display = ('insumo', 'fecha', 'nivel', 'barriles_llenos', 'galones_aprox', 'registrado_por')
+    list_filter = ('insumo', 'nivel')
+    date_hierarchy = 'fecha'

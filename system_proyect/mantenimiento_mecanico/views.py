@@ -3,6 +3,7 @@
 # maquinaria agregable, PDF de ficha, reporte tabla y reporte general en PDF y Excel.
 import datetime
 import json
+import os
 import re
 from decimal import Decimal, InvalidOperation
 
@@ -19,7 +20,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from . import services
-from .models import Comentario, Entrada, Entrega, Insumo, Maquinaria, FIRMA_AUDITORA, GRUPO_ACCESO, GRUPO_LECTURA
+from .models import Comentario, Entrada, Entrega, FotoLimpiezaTanque, Insumo, LecturaBarril, LimpiezaTanque, Maquinaria, FIRMA_AUDITORA, GRUPO_ACCESO, GRUPO_LECTURA, LITROS_POR_GALON
 
 MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
          'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
@@ -147,6 +148,13 @@ def pagina(request, clave):
         'resumen': r,
         'entregas': entregas,
         'entradas': entradas,
+        'lecturas': _lecturas_barril(insumo, r['saldo']),
+        # <--- hecho por claude code (19-oct-2026): mantenimiento del tanque (limpieza del tanque y del filtro, cada 4 meses)
+        'limpieza': services.estado_limpieza(insumo),
+        'limpiezas': (LimpiezaTanque.objects.filter(insumo=insumo).select_related('registrado_por').prefetch_related('fotos')[:20]
+                      if insumo.presentacion == 'tanque' else []),   # <--- hecho por claude code (14-oct-2026): lectura aproximada (solo referencia)
+        'niveles_barril': [(k, l, (LecturaBarril.FRACCION[k] * (insumo.capacidad_envase or Decimal('55'))).quantize(Decimal('0.1')))
+                           for k, l in LecturaBarril.NIVELES] if insumo.presentacion == 'barril' else [],
         'desde': desde, 'hasta': hasta,
         'kpi_mes_n': mes_qs.count(),
         'kpi_mes_gal': mes_qs.aggregate(t=Sum('galones'))['t'] or Decimal('0'),
@@ -323,6 +331,18 @@ def entrada_crear(request, clave):
     insumo = _insumo(clave)
     fecha = _fecha(request.POST.get('fecha'))
     cant = _dec(request.POST.get('cantidad'))
+    # <--- hecho por claude code (14-oct-2026): gasolina y diésel se compran en LITROS → los galones se calculan aquí
+    litros = _dec(request.POST.get('litros')) if insumo.categoria == 'combustible' else None
+    # <--- hecho por claude code (21-oct-2026): compra extra en galones (combustible). cantidad = galones de litros + extra.
+    extra = _dec(request.POST.get('galones_extra')) if insumo.categoria == 'combustible' else None
+    if extra is not None and extra <= 0:
+        extra = None
+    if litros is not None and litros > 0:
+        cant = (litros / LITROS_POR_GALON).quantize(Decimal('0.01')) + (extra or Decimal('0'))
+    else:
+        litros = None
+        if extra is not None:   # solo compra extra, sin litros: el total es el extra
+            cant = extra
     tipo = request.POST.get('tipo') or {'galones': 'compra', 'tanque': 'llenado', 'barril': 'barril'}[insumo.presentacion]
     if tipo not in dict(Entrada.TIPOS):
         tipo = 'ajuste'
@@ -335,13 +355,98 @@ def entrada_crear(request, clave):
             messages.error(request, f'Con este llenado el tanque quedaría en {nuevo:.2f} gal, más que su capacidad '
                                     f'({insumo.capacidad_envase} gal). Marca "Confirmar de todas formas" si es correcto.')
             return _volver(insumo, request)
-    Entrada.objects.create(insumo=insumo, fecha=fecha, cantidad=cant, tipo=tipo,
+    Entrada.objects.create(insumo=insumo, fecha=fecha, cantidad=cant, litros=litros, galones_extra=extra, tipo=tipo,
                            observaciones=(request.POST.get('observaciones') or '').strip(),
                            registrado_por=request.user)
-    messages.success(request, f'{dict(Entrada.TIPOS)[tipo]}: +{cant} gal. Saldo: {services.saldo(insumo):.2f} gal.')
+    messages.success(request, f'{dict(Entrada.TIPOS)[tipo]}: +{cant} gal' + (f' ({litros} L' + (f' + {extra} gal extra' if extra else '') + ')' if litros else (f' ({extra} gal extra)' if extra else '')) +
+                     f'. Saldo: {services.saldo(insumo):.2f} gal.')
     return _volver(insumo, request)
 
 
+
+
+def _lecturas_barril(insumo, saldo):
+    """Últimas lecturas aproximadas del barril; la primera trae la diferencia contra el saldo calculado de HOY."""
+    if insumo.presentacion != 'barril':
+        return []
+    lecturas = list(LecturaBarril.objects.filter(insumo=insumo).select_related('registrado_por')[:10])
+    if lecturas:
+        lecturas[0].diferencia = lecturas[0].galones_aprox - saldo
+    return lecturas
+
+
+@login_required
+@require_POST
+def lectura_crear(request, clave):
+    """<--- hecho por claude code (14-oct-2026): lectura APROXIMADA del barril (aceites y coolant). SOLO REFERENCIA: el saldo no cambia."""
+    _gate(request, escribir=True)
+    insumo = _insumo(clave)
+    if insumo.presentacion != 'barril':
+        raise PermissionDenied
+    fecha = _fecha(request.POST.get('fecha'))
+    nivel = request.POST.get('nivel')
+    try:
+        llenos = max(0, min(int(request.POST.get('barriles_llenos') or 0), 99))
+    except ValueError:
+        llenos = 0
+    if not fecha or nivel not in LecturaBarril.FRACCION:
+        messages.error(request, 'Elige el nivel del barril y la fecha.')
+        return _volver(insumo, request)
+    cap = insumo.capacidad_envase or Decimal('55')
+    gal = ((llenos + LecturaBarril.FRACCION[nivel]) * cap).quantize(Decimal('0.01'))
+    lec = LecturaBarril.objects.create(insumo=insumo, fecha=fecha, nivel=nivel, barriles_llenos=llenos, galones_aprox=gal,
+                                       observaciones=(request.POST.get('observaciones') or '').strip()[:255],
+                                       registrado_por=request.user)
+    messages.success(request, f'Lectura aproximada registrada: {lec.get_nivel_display()}'
+                              + (f' + {llenos} barril(es) lleno(s)' if llenos else '')
+                              + f' ≈ {gal} gal. El saldo calculado no cambia ({services.saldo(insumo):.2f} gal).')
+    return _volver(insumo, request)
+
+
+@login_required
+@require_POST
+def limpieza_crear(request, clave):
+    """<--- hecho por claude code (19-oct-2026): registra el MANTENIMIENTO DEL TANQUE. El saldo NO cambia (el diésel se
+    saca y se vuelve a meter); la próxima limpieza pasa a ser esta fecha + 4 meses."""
+    from django.db import transaction
+    _gate(request, escribir=True)
+    insumo = _insumo(clave)
+    if insumo.presentacion != 'tanque':
+        raise PermissionDenied
+    fecha = _fecha(request.POST.get('fecha'))
+    responsable = (request.POST.get('responsable') or '').strip()[:150]
+    marcas = {k: request.POST.get(k) == '1' for k in ('tanque_limpiado', 'filtro_limpiado', 'filtro_cambiado')}
+    if not fecha or not responsable or not any(marcas.values()):
+        messages.error(request, 'Indica la fecha, quién lo hizo y al menos un trabajo (tanque o filtro).')
+        return _volver(insumo, request)
+    if fecha > datetime.date.today():
+        messages.error(request, 'La fecha de la limpieza no puede ser futura.')
+        return _volver(insumo, request)
+    fotos = [f for f in request.FILES.getlist('fotos') if (f.content_type or '').startswith('image/')][:8]
+    with transaction.atomic():
+        lim = LimpiezaTanque.objects.create(
+            insumo=insumo, codigo=services.siguiente_codigo_limpieza(), fecha=fecha, responsable=responsable,
+            galones_sacados=_dec(request.POST.get('galones_sacados')),
+            galones_reingresados=_dec(request.POST.get('galones_reingresados')),
+            observaciones=(request.POST.get('observaciones') or '').strip()[:2000], registrado_por=request.user, **marcas)
+        for f in fotos:
+            FotoLimpiezaTanque.objects.create(limpieza=lim, imagen=f)
+    insumo.aviso_limpieza = ''
+    insumo.save(update_fields=['aviso_limpieza'])
+    e = services.estado_limpieza(insumo)
+    messages.success(request, f'Limpieza {lim.codigo} registrada. Próxima limpieza del tanque: {e["proxima"]:%d/%m/%Y} ({e["texto"]}). '
+                              f'El saldo de {insumo.nombre} no cambia.')
+    return _volver(insumo, request)
+
+
+@login_required
+def limpieza_pdf(request, pk):
+    _gate(request)
+    lim = get_object_or_404(LimpiezaTanque.objects.select_related('insumo', 'registrado_por').prefetch_related('fotos'), pk=pk)
+    fotos = [f'file://{f.imagen.path}' for f in lim.fotos.all() if f.imagen and os.path.exists(f.imagen.path)]
+    ctx = {'l': lim, 'insumo': lim.insumo, 'logo': _logo_file(), 'auditora': FIRMA_AUDITORA, 'fotos': fotos,
+           'proxima': services.sumar_meses(lim.fecha, services.LIMPIEZA_MESES)}
+    return _pdf(request, 'mantenimiento_mecanico/pdf/limpieza.html', ctx, f'{lim.codigo}.pdf')
 
 
 @login_required
@@ -423,6 +528,13 @@ def _datos_tabla(insumo, desde, hasta):
     return qs, total, por_maq
 
 
+def _responsable_firma(qs):
+    """<--- hecho por claude code (21-oct-2026): Responsable que FIRMA el reporte = el de las entregas (no quien lo genera).
+    Si todas las entregas tienen el mismo responsable, ese; si hay varios o ninguno, línea en blanco (firma a mano)."""
+    nombres = {(x or '').strip() for x in qs.values_list('firma_responsable', flat=True) if (x or '').strip()}
+    return nombres.pop() if len(nombres) == 1 else ''
+
+
 @login_required
 def reporte_tabla(request, clave, fmt):
     """Reporte TABLA de un insumo en el rango: todas las entregas + totales por maquinaria."""
@@ -433,7 +545,8 @@ def reporte_tabla(request, clave, fmt):
     if fmt == 'pdf':
         ctx = {'insumo': insumo, 'entregas': qs, 'total': total, 'por_maquinaria': por_maq, 'desde': desde, 'hasta': hasta,
                'logo': _logo_file(), 'resumen': services.resumen(insumo), 'auditora': FIRMA_AUDITORA,
-               'generado_por': request.user.get_full_name() or request.user.username, 'ahora': datetime.datetime.now()}
+               'generado_por': request.user.get_full_name() or request.user.username, 'ahora': datetime.datetime.now(),
+               'responsable': _responsable_firma(qs)}
         return _pdf(request, 'mantenimiento_mecanico/pdf/reporte_tabla.html', ctx,
                     f'{insumo.clave}_{desde}_{hasta}.pdf')
     return _excel_tabla(insumo, qs, total, por_maq, desde, hasta)
@@ -454,7 +567,8 @@ def reporte_general(request, fmt):
                       'entregas': sal['t'] or Decimal('0'), 'n_entregas': sal['n'], 'por_maquinaria': list(por_maq)})
     if fmt == 'pdf':
         ctx = {'filas': filas, 'desde': desde, 'hasta': hasta, 'logo': _logo_file(), 'auditora': FIRMA_AUDITORA,
-               'generado_por': request.user.get_full_name() or request.user.username, 'ahora': datetime.datetime.now()}
+               'generado_por': request.user.get_full_name() or request.user.username, 'ahora': datetime.datetime.now(),
+               'responsable': _responsable_firma(Entrega.objects.filter(fecha__range=(desde, hasta)))}
         return _pdf(request, 'mantenimiento_mecanico/pdf/reporte_general.html', ctx, f'general_{desde}_{hasta}.pdf')
     return _excel_general(filas, desde, hasta)
 

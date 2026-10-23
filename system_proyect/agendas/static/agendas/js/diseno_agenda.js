@@ -1,4 +1,4 @@
-/* diseno_agenda.js — <--- hecho por claude code (15-oct-2026): editor de diseño de la agenda (pruebas).
+/* diseno_agenda.js — <--- hecho por claude code (15-oct-2026): editor de diseño de la agenda.
    Dibuja la hoja (réplica del PowerPoint BL o del Word de Colegio) a partir de la isla #dz-datos, aplica los ajustes
    del panel, guarda solo (debounce) y genera el PNG con html2canvas, que además se guarda como imagen final.
    Un solo global: DISENO_AGENDA. */

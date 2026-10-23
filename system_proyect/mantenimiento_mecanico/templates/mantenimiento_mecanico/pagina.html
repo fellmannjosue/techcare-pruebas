@@ -4,6 +4,8 @@
 {# <--- hecho por claude code (01-oct-2026): página de un insumo: saldo, KPIs, entregas (formularios), entradas, reportes #}
 {% block page_actions %}
 {% if puede_editar %}
+{% if insumo.presentacion == 'tanque' %}<button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#mmModalLimpieza"><i class="ti ti-spray me-1"></i>Limpieza del tanque</button>{% endif %}
+{% if insumo.presentacion == 'barril' %}<button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#mmModalLectura"><i class="ti ti-ruler-measure me-1"></i>Lectura aproximada</button>{% endif %}
 <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#mmModalEntrada"><i class="ti ti-arrow-bar-to-down me-1"></i>{{ insumo.etiqueta_entrada }}</button>
 <button type="button" class="btn btn-sm btn-primary" id="mm-btn-nueva"><i class="ti ti-plus me-1"></i>Nueva entrega</button>
 {% else %}<span class="badge bg-white text-primary"><i class="ti ti-eye me-1"></i>Auditoría · solo lectura y comentarios</span>{% endif %}
@@ -34,6 +36,66 @@
   <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#4263eb"><i class="ti ti-arrow-bar-to-down"></i></div><div><div class="mm-kpi-lbl">Última entrada</div><div class="mm-kpi-num mm-kpi-num--sm">{% if resumen.ultima_entrada %}{{ resumen.ultima_entrada.fecha|date:"d/m/Y" }} · +{{ resumen.ultima_entrada.cantidad|floatformat:2 }} gal{% else %}—{% endif %}</div></div></div>
 </div>
 
+{% if insumo.presentacion == 'barril' %}{# <--- hecho por claude code (14-oct-2026): lectura APROXIMADA del barril, solo referencia (el saldo no cambia) #}
+<div class="card mb-3 mm-lect">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-ruler-measure me-2" style="color:{{ insumo.color }}"></i>Lectura aproximada del barril <span class="badge bg-yellow-lt text-yellow ms-2">Temporal · solo referencia</span></h3>
+  </div>
+  {% with u=lecturas.0 %}
+  <div class="card-body mm-lect-resumen">
+    {% if u %}
+    <div class="mm-lect-dato"><span>Última lectura</span><b>{{ u.get_nivel_display }}{% if u.barriles_llenos %} + {{ u.barriles_llenos }} lleno{{ u.barriles_llenos|pluralize }}{% endif %}</b><small>{{ u.fecha|date:"d/m/Y" }} · {{ u.registrado_por.get_full_name|default:u.registrado_por.username|default:"—" }}</small></div>
+    <div class="mm-lect-dato"><span>Aproximado</span><b>≈ {{ u.galones_aprox|floatformat:1 }} gal</b></div>
+    <div class="mm-lect-dato"><span>Saldo calculado hoy</span><b>{{ resumen.saldo|floatformat:2 }} gal</b></div>
+    <div class="mm-lect-dato {% if u.diferencia < 0 %}mm-lect-dato--menos{% elif u.diferencia > 0 %}mm-lect-dato--mas{% endif %}"><span>Diferencia</span><b>{% if u.diferencia > 0 %}+{% endif %}{{ u.diferencia|floatformat:1 }} gal</b><small>{% if u.diferencia < 0 %}el barril tiene menos de lo que dice el sistema{% elif u.diferencia > 0 %}el barril tiene más de lo que dice el sistema{% else %}coincide{% endif %}</small></div>
+    {% else %}
+    <div class="text-muted">Aún no hay lecturas. {% if puede_editar %}Usa «Lectura aproximada» para anotar cuánto tiene el barril.{% endif %} La lectura no cambia el saldo: sirve para comparar.</div>
+    {% endif %}
+  </div>
+  {% endwith %}
+  {% if lecturas|length > 1 %}
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm">
+      <thead><tr><th>Fecha</th><th>Nivel</th><th class="text-end">≈ Galones</th><th>Observaciones</th><th>Registró</th></tr></thead>
+      <tbody>
+      {% for l in lecturas %}
+        <tr><td class="text-nowrap">{{ l.fecha|date:"d/m/Y" }}</td><td>{{ l.get_nivel_display }}{% if l.barriles_llenos %} + {{ l.barriles_llenos }} lleno{{ l.barriles_llenos|pluralize }}{% endif %}</td><td class="text-end fw-semibold">{{ l.galones_aprox|floatformat:1 }}</td><td class="text-muted small">{{ l.observaciones|default:"—" }}</td><td class="small">{{ l.registrado_por.get_full_name|default:l.registrado_por.username|default:"—" }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if limpieza %}{# <--- hecho por claude code (19-oct-2026): mantenimiento del tanque (limpieza del tanque y del filtro, cada 4 meses) #}
+<div class="card mb-3 mm-limp mm-limp--{{ limpieza.estado }}">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-spray me-2" style="color:{{ insumo.color }}"></i>Mantenimiento del tanque <span class="text-muted small ms-2">limpieza del tanque y del filtro · 3 veces al año (cada {{ limpieza.cada_meses }} meses)</span></h3>
+    {% if puede_editar %}<div class="card-actions"><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#mmModalLimpieza"><i class="ti ti-plus me-1"></i>Registrar limpieza</button></div>{% endif %}
+  </div>
+  <div class="card-body mm-limp-resumen">
+    <div class="mm-limp-dato mm-limp-dato--prox"><span>{% if limpieza.programada %}Limpieza programada{% else %}Próxima limpieza{% endif %}</span><b>{{ limpieza.proxima|date:"d/m/Y" }}</b><small class="mm-limp-sem">{{ limpieza.texto }}</small></div>
+    <div class="mm-limp-dato"><span>Última limpieza</span>{% if limpieza.ultima %}<b>{{ limpieza.ultima.fecha|date:"d/m/Y" }}</b><small>{{ limpieza.ultima.codigo }} · {{ limpieza.ultima.trabajos|join:", " }}</small>{% else %}<b>—</b><small>Aún no hay limpiezas registradas</small>{% endif %}</div>
+    <div class="mm-limp-dato"><span>Aviso de llenado</span><b>{{ insumo.minimo_alerta|floatformat:0 }} gal</b><small>al llegar ahí avisa llenar y cuándo toca la limpieza</small></div>
+  </div>
+  {% if limpiezas %}
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-sm">
+      <thead><tr><th>Código</th><th>Fecha</th><th>Trabajos</th><th>Quién lo hizo</th><th class="text-end">Sacados / reingresados</th><th>Fotos</th><th>Registró</th><th></th></tr></thead>
+      <tbody>{% for l in limpiezas %}
+        <tr><td class="fw-semibold text-nowrap">{{ l.codigo }}</td><td class="text-nowrap">{{ l.fecha|date:"d/m/Y" }}</td>
+          <td class="small">{{ l.trabajos|join:" · " }}{% if l.observaciones %}<div class="text-muted">{{ l.observaciones|truncatechars:60 }}</div>{% endif %}</td>
+          <td>{{ l.responsable }}</td>
+          <td class="text-end small">{% if l.galones_sacados is not None or l.galones_reingresados is not None %}{{ l.galones_sacados|floatformat:2|default:"—" }} / {{ l.galones_reingresados|floatformat:2|default:"—" }} gal{% else %}—{% endif %}</td>
+          <td>{{ l.fotos.all|length }}</td><td class="small">{{ l.registrado_por.get_full_name|default:l.registrado_por.username|default:"—" }}</td>
+          <td class="text-end"><a href="{% url 'mantenimiento_mecanico:limpieza_pdf' l.pk %}" target="_blank" class="btn btn-sm btn-ghost-danger btn-icon" title="Ficha PDF"><i class="ti ti-file-type-pdf"></i></a></td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 <div class="card mb-3">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-clipboard-list me-2" style="color:{{ insumo.color }}"></i>Entregas · {{ insumo.nombre }}</h3>
@@ -64,7 +126,6 @@
           <td class="text-muted small mm-obs">{{ e.observaciones|default:"—" }}</td>
           <td class="small">{{ e.firma_responsable }}</td>
           <td class="text-end text-nowrap">
-            <a href="{% url 'mantenimiento_mecanico:entrega_pdf' e.pk %}" target="_blank" class="btn btn-sm btn-ghost-danger btn-icon" title="Ficha PDF"><i class="ti ti-file-type-pdf"></i></a>
             <button type="button" class="btn btn-sm btn-ghost-info mm-comentarios" data-id="{{ e.pk }}" data-url="{% url 'mantenimiento_mecanico:comentario_crear' e.pk %}" title="Comentarios de auditoría"><i class="ti ti-message-2"></i>{% with n=e.comentarios.all|length %}{% if n %}<span class="badge bg-info text-white ms-1">{{ n }}</span>{% endif %}{% endwith %}</button>
             {% if puede_modificar %}<button type="button" class="btn btn-sm btn-ghost-primary btn-icon mm-editar" data-id="{{ e.pk }}" title="Editar"><i class="ti ti-pencil"></i></button>{% endif %}
           </td>
@@ -87,7 +148,7 @@
         <tr>
           <td class="text-nowrap">{{ a.fecha|date:"d/m/Y" }}</td>
           <td><span class="badge bg-azure-lt text-azure">{{ a.get_tipo_display }}</span></td>
-          <td class="text-end fw-semibold text-green">+{{ a.cantidad|floatformat:2 }}</td>
+          <td class="text-end fw-semibold text-green">+{{ a.cantidad|floatformat:2 }}{% if a.litros or a.galones_extra %}<div class="small text-muted fw-normal">{% if a.litros %}{{ a.litros|floatformat:2 }} L{% endif %}{% if a.galones_extra %}{% if a.litros %} + {% endif %}{{ a.galones_extra|floatformat:2 }} gal extra{% endif %}</div>{% endif %}</td>
           <td class="text-muted small">{{ a.observaciones|default:"—" }}</td>
           <td class="small">{{ a.registrado_por.get_full_name|default:a.registrado_por.username|default:"—" }}</td>
           <td class="text-end"></td>
@@ -116,4 +177,4 @@
 {% endblock %}
 
 {# <--- hecho por claude code (01-oct-2026): el JS va en extra_js, DESPUÉS de jQuery/Bootstrap; dentro de content corría antes y el modal de Nueva entrega no abría #}
-{% block extra_js %}<script src="{% static 'mantenimiento_mecanico/js/mm.js' %}?v=8"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'mantenimiento_mecanico/js/mm.js' %}?v=11"></script>{% endblock %}

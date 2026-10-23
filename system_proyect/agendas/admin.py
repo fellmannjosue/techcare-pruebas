@@ -21,12 +21,19 @@ class GradoAgendaAdmin(ModelAdmin):
 
 @admin.register(Agenda)
 class AgendaAdmin(ModelAdmin):
-    list_display   = ('grado', 'semana_inicio', 'semana_fin', 'usuario', 'estado', 'fecha_creado')
-    list_filter    = ('estado', 'grado__area', 'grado')
+    # <--- hecho por claude code (16-oct-2026): + imagen final (editor de diseño) y filtro por semana
+    list_display   = ('grado', 'semana_inicio', 'semana_fin', 'usuario', 'estado', 'tiene_imagen_final', 'fecha_creado')
+    list_filter    = ('estado', 'grado__area', 'semana_inicio', 'grado')
+    date_hierarchy = 'semana_inicio'
+    list_per_page  = 50
     search_fields  = ('grado__nombre', 'usuario__username', 'usuario__first_name')
     readonly_fields = ('fecha_creado', 'fecha_modificado', 'creado_por', 'modificado_por')
     inlines        = [ImagenAgendaInline]
     ordering       = ('-semana_inicio',)
+
+    @admin.display(boolean=True, description='Imagen final')
+    def tiene_imagen_final(self, obj):
+        return bool(obj.imagen_final)
 
 
 @admin.register(ImagenAgenda)

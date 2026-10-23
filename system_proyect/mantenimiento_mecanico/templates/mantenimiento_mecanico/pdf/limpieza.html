@@ -1,0 +1,22 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>{{ l.codigo }}</title>
+<link rel="stylesheet" href="{% static 'mantenimiento_mecanico/css/pdf.css' %}"></head>
+<body class="ficha">
+{# <--- hecho por claude code (19-oct-2026): ficha del mantenimiento del tanque (limpieza del tanque y del filtro) #}
+{% with titulo="Mantenimiento del tanque · "|add:insumo.nombre derecha="<b>"|add:l.codigo|add:"</b>" %}{% include 'mantenimiento_mecanico/pdf/_cabecera.html' %}{% endwith %}
+<table class="datos">
+  <tr><th>Fecha</th><td>{{ l.fecha|date:"d/m/Y" }}</td><th>Próxima limpieza</th><td class="big">{{ proxima|date:"d/m/Y" }}</td></tr>
+  <tr><th>Trabajos realizados</th><td colspan="3">{{ l.trabajos|join:" · "|default:"—" }}</td></tr>
+  <tr><th>Quién lo hizo</th><td colspan="3">{{ l.responsable }}</td></tr>
+  <tr><th>Galones sacados</th><td>{% if l.galones_sacados is not None %}{{ l.galones_sacados|floatformat:2 }} gal{% else %}—{% endif %}</td><th>Galones reingresados</th><td>{% if l.galones_reingresados is not None %}{{ l.galones_reingresados|floatformat:2 }} gal{% else %}—{% endif %}</td></tr>
+  <tr><th>Observaciones</th><td colspan="3" class="obs">{{ l.observaciones|default:"—"|linebreaksbr }}</td></tr>
+</table>
+<p class="resumen-linea">El diésel se sacó y se volvió a meter al tanque: el saldo del inventario no cambia. Frecuencia: 3 veces al año (cada 4 meses).</p>
+{% if fotos %}<h3>Fotos</h3>
+<div class="lim-fotos">{% for f in fotos %}<img src="{{ f }}" alt="">{% endfor %}</div>{% endif %}
+<div class="firmas">
+  <div class="firma"><div class="linea"></div><div class="nom">{{ l.responsable }}</div><div class="cargo">Responsable de la limpieza</div></div>
+  <div class="firma"><div class="linea"></div><div class="nom">{{ auditora.0 }}</div><div class="cargo">{{ auditora.1 }}</div></div>
+</div>
+<div class="pie">Registrado por {{ l.registrado_por.get_full_name|default:l.registrado_por.username|default:"—" }} el {{ l.creado|date:"d/m/Y H:i" }} · TechCare</div>
+</body></html>

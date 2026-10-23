@@ -11,6 +11,7 @@ GRUPO_ACCESO  = 'mantenimiento_mecanico'
 GRUPO_ALERTAS = 'mantenimiento_mecanico_alertas'
 GRUPO_LECTURA = 'mantenimiento_mecanico_lectura'   # <--- hecho por claude code (02-oct-2026): auditoría = ver + comentar
 FIRMA_AUDITORA = ('Yeny Lagos', 'Auditora')
+LITROS_POR_GALON = Decimal('3.785411784')   # <--- galón estadounidense (el que se usa en Honduras)
 
 
 class Insumo(models.Model):
@@ -30,6 +31,9 @@ class Insumo(models.Model):
     icono  = models.CharField('Ícono Tabler', max_length=40, default='ti-gas-station')
     orden  = models.PositiveSmallIntegerField('Orden', default=0)
     activo = models.BooleanField('Activo', default=True)
+    # <--- hecho por claude code (19-oct-2026): última etapa avisada de la limpieza del tanque ("pronto:AAAA-MM-DD"),
+    # para que el aviso diario no se repita
+    aviso_limpieza = models.CharField('Último aviso de limpieza', max_length=40, blank=True, default='')
     history = HistoricalRecords()
 
     class Meta:
@@ -76,6 +80,11 @@ class Entrada(models.Model):
     insumo   = models.ForeignKey(Insumo, on_delete=models.PROTECT, related_name='entradas')
     fecha    = models.DateField('Fecha')
     cantidad = models.DecimalField('Galones', max_digits=9, decimal_places=2)
+    # <--- hecho por claude code (14-oct-2026): gasolina y diésel se COMPRAN en litros; se guardan los litros tal cual
+    # se compraron (trazabilidad) y `cantidad` queda en galones (el saldo del módulo se lleva en galones).
+    litros   = models.DecimalField('Litros comprados', max_digits=10, decimal_places=2, null=True, blank=True)
+    # <--- hecho por claude code (21-oct-2026): galones comprados aparte de los litros (compra extra); `cantidad` ya es el total
+    galones_extra = models.DecimalField('Compra extra (galones)', max_digits=9, decimal_places=2, null=True, blank=True)
     tipo     = models.CharField('Tipo', max_length=10, choices=TIPOS, default='compra')
     observaciones = models.TextField('Observaciones', blank=True)
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
@@ -270,3 +279,72 @@ class MantenimientoVehiculoTarea(models.Model):
         ordering = ['tarea__numero', 'id']
         verbose_name = 'Tarea de un mantenimiento'
         verbose_name_plural = 'Tareas de un mantenimiento'
+
+
+class LecturaBarril(models.Model):
+    """<--- hecho por claude code (14-oct-2026): lectura APROXIMADA del nivel del barril (aceites y coolant), TEMPORAL.
+    Es SOLO REFERENCIA (pedido del usuario): se muestra junto al saldo calculado para comparar; NO cambia el saldo."""
+    NIVELES = [('lleno', 'Lleno'), ('3/4', '¾ de barril'), ('1/2', '½ barril'), ('1/4', '¼ de barril'),
+               ('casi_vacio', 'Casi vacío'), ('vacio', 'Vacío')]
+    FRACCION = {'lleno': Decimal('1'), '3/4': Decimal('0.75'), '1/2': Decimal('0.5'), '1/4': Decimal('0.25'),
+                'casi_vacio': Decimal('0.1'), 'vacio': Decimal('0')}
+    insumo   = models.ForeignKey(Insumo, on_delete=models.PROTECT, related_name='lecturas_barril')
+    fecha    = models.DateField('Fecha')
+    nivel    = models.CharField('Nivel del barril en uso', max_length=12, choices=NIVELES)
+    barriles_llenos = models.PositiveSmallIntegerField('Barriles llenos sin abrir', default=0)
+    galones_aprox = models.DecimalField('Galones aproximados', max_digits=8, decimal_places=2)
+    observaciones = models.CharField('Observaciones', max_length=255, blank=True)
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    creado   = models.DateTimeField(auto_now_add=True)
+    history  = HistoricalRecords()
+
+    class Meta:
+        ordering = ['-fecha', '-id']
+        verbose_name = 'Lectura aproximada de barril'
+        verbose_name_plural = 'Lecturas aproximadas de barril'
+
+    def __str__(self):
+        return f'{self.insumo} · {self.fecha:%d/%m/%Y} · {self.get_nivel_display()}'
+
+
+class LimpiezaTanque(models.Model):
+    """<--- hecho por claude code (19-oct-2026): MANTENIMIENTO DEL TANQUE de diésel (limpieza del tanque y del filtro),
+    3 veces al año = cada 4 meses desde la última. El diésel se saca y se vuelve a meter: el SALDO NO CAMBIA
+    (los galones sacados/reingresados son solo un dato de la ficha)."""
+    insumo           = models.ForeignKey(Insumo, on_delete=models.PROTECT, related_name='limpiezas')
+    codigo           = models.CharField('Código', max_length=20, unique=True)
+    fecha            = models.DateField('Fecha')
+    tanque_limpiado  = models.BooleanField('Se limpió el tanque', default=True)
+    filtro_limpiado  = models.BooleanField('Se limpió el filtro', default=False)
+    filtro_cambiado  = models.BooleanField('Se cambió el filtro', default=False)
+    responsable      = models.CharField('Quién lo hizo (persona o empresa)', max_length=150)
+    costo            = models.DecimalField('Costo (L)', max_digits=10, decimal_places=2, null=True, blank=True)
+    galones_sacados  = models.DecimalField('Galones sacados', max_digits=8, decimal_places=2, null=True, blank=True)
+    galones_reingresados = models.DecimalField('Galones reingresados', max_digits=8, decimal_places=2, null=True, blank=True)
+    observaciones    = models.TextField('Observaciones', blank=True)
+    firma_auditora   = models.CharField('Auditora', max_length=120, default=FIRMA_AUDITORA[0])
+    registrado_por   = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    creado           = models.DateTimeField(auto_now_add=True)
+    history          = HistoricalRecords()
+
+    class Meta:
+        ordering = ['-fecha', '-id']
+        verbose_name = 'Limpieza del tanque'
+        verbose_name_plural = 'Limpiezas del tanque'
+
+    def __str__(self):
+        return f'{self.codigo} · {self.fecha:%d/%m/%Y}'
+
+    @property
+    def trabajos(self):
+        t = [('Tanque limpiado', self.tanque_limpiado), ('Filtro limpiado', self.filtro_limpiado), ('Filtro cambiado', self.filtro_cambiado)]
+        return [x for x, si in t if si]
+
+
+class FotoLimpiezaTanque(models.Model):
+    limpieza = models.ForeignKey(LimpiezaTanque, on_delete=models.CASCADE, related_name='fotos')
+    imagen   = models.ImageField('Foto', upload_to='mantenimiento_mecanico/limpiezas/')
+    subida   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']

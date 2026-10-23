@@ -6,6 +6,8 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from accounts import views as accounts_views
+from core.admin_auto import registrar_faltantes   # <--- hecho por claude code (16-oct-2026)
+registrar_faltantes()   # todo modelo propio sin admin.py aparece en /admin/ (antes de admin.site.urls)
 
 urlpatterns = [
 
@@ -35,7 +37,6 @@ urlpatterns = [
     path('inventario/',    include('inventario.urls')),
     path('mantenimiento/', include(('mantenimiento.urls', 'mantenimiento'), namespace='mantenimiento')),
     path('servicio-tecnico/', include(('servicio_tecnico.urls', 'servicio_tecnico'), namespace='servicio_tecnico')),
-    path('moodle-upload/', include(('moodle_upload.urls', 'moodle_upload'), namespace='moodle_upload')),   # <--- hecho por claude code (14-oct-2026): SOLO pruebas
     path('mantenimiento-mecanico/', include(('mantenimiento_mecanico.urls', 'mantenimiento_mecanico'), namespace='mantenimiento_mecanico')),   # <--- hecho por claude code (01-oct-2026)   # <--- hecho por claude code (28-sep-2026)
     path('mantenimiento-vehiculos/', include(('mantenimiento_mecanico.urls_vehiculos', 'vehiculos'), namespace='vehiculos')),   # <--- hecho por claude code (12-oct-2026): ventana aparte
 
@@ -55,6 +56,7 @@ urlpatterns = [
     # ──────────────────────────────────────────────────────────────────────────
     path('conducta/', include('conducta.urls')),
     path('agendas/',  include(('agendas.urls', 'agendas'), namespace='agendas')),
+    path('moodle-upload/', include(('moodle_upload.urls', 'moodle_upload'), namespace='moodle_upload')),   # <--- hecho por claude code (15-oct-2026)
     # <--- hecho por claude code: Gestión de Desarrollo (requerimientos y proyectos)
     path('desarrollo/', include(('desarrollo.urls', 'desarrollo'), namespace='desarrollo')),
     path('contabilidad/', include(('contabilidad.urls', 'contabilidad'), namespace='contabilidad')),

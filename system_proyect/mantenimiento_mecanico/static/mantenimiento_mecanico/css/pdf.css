@@ -67,3 +67,7 @@ table.hv-tareas td { padding: 1.2px 5px; font-size: 7.8pt; line-height: 1.15; }
 table.hv-tareas .caja { width: 10px; height: 10px; }
 body.hojas-veh .hv-pie { margin-top: 8px; }
 body.hojas-veh .hv-firmas { gap: 12px; }
+
+/* <--- hecho por claude code (19-oct-2026): fotos de la ficha de limpieza del tanque */
+.lim-fotos { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.lim-fotos img { width: 48%; max-height: 7cm; object-fit: cover; border: 1px solid #ccc; border-radius: 4px; }
