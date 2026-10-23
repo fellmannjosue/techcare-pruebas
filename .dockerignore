@@ -10,3 +10,7 @@ system_proyect/staticfiles/
 system_proyect/logs/
 *.sqlite3
 .DS_Store
+# App de escritorio (Electron) y CI: no van en la imagen del backend
+desktop/
+.github/
+**/node_modules/
