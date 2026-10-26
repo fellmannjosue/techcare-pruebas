@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'">
-  <title>Actualización de TechCare</title>
+  <title>Novedades y actualización · TechCare</title>
   <style>
     :root{
-      --bg:#0b1220; --fg:#e7ecf5; --muted:#8aa0c2;
+      --bg:#0b1220; --panel:#111c33; --fg:#e7ecf5; --muted:#8aa0c2;
       --marca1:#2563eb; --marca2:#7c3aed; --ok:#16a34a; --borde:#1e2b45;
     }
     *{box-sizing:border-box;}
@@ -18,73 +18,102 @@
     }
     .hero{
       background:linear-gradient(120deg,var(--marca1),var(--marca2));
-      padding:20px 22px; display:flex; align-items:center; gap:14px;
+      padding:16px 20px; display:flex; align-items:center; gap:13px; flex:0 0 auto;
     }
     .hero .ico{
-      width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);
-      display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto;
+      width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.15);
+      display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto;
     }
-    .hero h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px;}
+    .hero h1{font-size:15px;margin:0;font-weight:600;}
     .hero p{margin:2px 0 0;font-size:12px;color:rgba(255,255,255,.82);}
-    .cuerpo{flex:1;padding:22px;display:flex;flex-direction:column;gap:14px;}
-    .estado{font-size:14px;line-height:1.5;}
-    .estado b{color:#fff;}
-    .ver{color:var(--muted);font-size:12px;margin-top:-6px;min-height:14px;}
-    .barra{
-      height:10px;border-radius:999px;background:var(--borde);overflow:hidden;position:relative;
+
+    /* ── Estado de actualización (compacto) ── */
+    .upd{
+      margin:14px 16px 0; padding:12px 14px; border:1px solid var(--borde);
+      border-radius:12px; background:var(--panel); flex:0 0 auto;
     }
-    .barra > i{
-      display:block;height:100%;width:0%;border-radius:999px;
-      background:linear-gradient(90deg,var(--marca1),var(--marca2));
-      transition:width .25s ease;
-    }
-    .barra.indeterminada > i{ width:35% !important; animation:desliza 1.1s ease-in-out infinite; }
+    .upd-fila{display:flex;align-items:center;gap:10px;}
+    .upd-ico{font-size:18px;flex:0 0 auto;}
+    .upd-txt{font-size:13px;line-height:1.35;flex:1;min-width:0;}
+    .upd-txt b{color:#fff;}
+    .upd-sub{color:var(--muted);font-size:11px;}
+    .barra{height:8px;border-radius:999px;background:var(--borde);overflow:hidden;margin-top:10px;display:none;}
+    .barra > i{display:block;height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--marca1),var(--marca2));transition:width .25s ease;}
+    .barra.on{display:block;}
+    .barra.indeterminada > i{width:35% !important;animation:desliza 1.1s ease-in-out infinite;}
     @keyframes desliza{0%{margin-left:-35%}100%{margin-left:100%}}
-    .pct{font-size:12px;color:var(--muted);text-align:right;min-height:14px;}
-    .acciones{margin-top:auto;display:flex;gap:10px;justify-content:flex-end;}
-    button{
-      font:inherit;font-size:13px;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;
-    }
+    .upd-btns{display:flex;gap:8px;margin-top:10px;}
+    .upd-btns.vacio{display:none;}
+    button{font:inherit;font-size:12.5px;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;}
     .btn-ppal{background:var(--ok);color:#fff;font-weight:600;}
     .btn-sec{background:transparent;color:var(--muted);border:1px solid var(--borde);}
     .btn-sec:hover{color:var(--fg);}
+
+    /* ── Novedades ── */
+    .nov-wrap{flex:1 1 auto;overflow-y:auto;padding:16px;min-height:0;}
+    .nov-wrap h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;}
+    .nov-item{padding:10px 0;border-top:1px solid var(--borde);}
+    .nov-item:first-of-type{border-top:none;padding-top:0;}
+    .nov-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+    .badge{font-size:11px;font-weight:600;border-radius:6px;padding:2px 8px;background:#14321f;color:#5be08a;}
+    .badge.vieja{background:#1b2740;color:var(--muted);}
+    .nov-fecha{color:var(--muted);font-size:11px;}
+    .nov-item ul{margin:0;padding-left:18px;}
+    .nov-item li{font-size:12.5px;line-height:1.5;margin:2px 0;}
+    .nov-vacio{color:var(--muted);font-size:12.5px;}
+
+    .pie{flex:0 0 auto;padding:12px 16px;border-top:1px solid var(--borde);display:flex;justify-content:flex-end;}
     .oculto{display:none !important;}
   </style>
 </head>
 <body>
   <div class="hero">
-    <div class="ico" id="heroIco">⬆️</div>
+    <div class="ico">✨</div>
     <div>
-      <h1>Actualización de TechCare</h1>
-      <p>Asociación Nuevo Amanecer</p>
+      <h1 id="heroTitulo">Novedades de TechCare</h1>
+      <p id="heroVersion">Asociación Nuevo Amanecer</p>
     </div>
   </div>
 
-  <div class="cuerpo">
-    <div class="estado" id="titulo">Buscando actualizaciones…</div>
-    <div class="ver" id="version"></div>
-
-    <div class="barra indeterminada" id="barra"><i id="relleno"></i></div>
-    <div class="pct" id="pct"></div>
-
-    <div class="acciones">
-      <button class="btn-sec oculto" id="btnReintentar">Buscar de nuevo</button>
-      <button class="btn-sec" id="btnCerrar">Cerrar</button>
-      <button class="btn-ppal oculto" id="btnInstalar">Reiniciar e instalar</button>
+  <!-- Estado de la actualización -->
+  <div class="upd">
+    <div class="upd-fila">
+      <span class="upd-ico" id="updIco">🔎</span>
+      <div class="upd-txt">
+        <span id="updTitulo">Buscando actualizaciones…</span>
+        <div class="upd-sub" id="updSub"></div>
+      </div>
     </div>
+    <div class="barra indeterminada" id="barra"><i id="relleno"></i></div>
+    <div class="upd-btns vacio" id="updBtns">
+      <button class="btn-ppal oculto" id="btnInstalar">Reiniciar e instalar</button>
+      <button class="btn-sec oculto" id="btnReintentar">Buscar de nuevo</button>
+    </div>
+  </div>
+
+  <!-- Novedades -->
+  <div class="nov-wrap">
+    <h2>Novedades</h2>
+    <div id="novLista"><div class="nov-vacio">Cargando novedades…</div></div>
+  </div>
+
+  <div class="pie">
+    <button class="btn-sec" id="btnCerrar">Cerrar</button>
   </div>
 
   <script>
     (function(){
-      var heroIco  = document.getElementById('heroIco');
-      var titulo   = document.getElementById('titulo');
-      var version  = document.getElementById('version');
-      var barra    = document.getElementById('barra');
-      var relleno  = document.getElementById('relleno');
-      var pct      = document.getElementById('pct');
-      var btnInst  = document.getElementById('btnInstalar');
-      var btnReint = document.getElementById('btnReintentar');
-      var btnCerr  = document.getElementById('btnCerrar');
+      var updIco  = document.getElementById('updIco');
+      var updTit  = document.getElementById('updTitulo');
+      var updSub  = document.getElementById('updSub');
+      var barra   = document.getElementById('barra');
+      var relleno = document.getElementById('relleno');
+      var updBtns = document.getElementById('updBtns');
+      var btnInst = document.getElementById('btnInstalar');
+      var btnReint= document.getElementById('btnReintentar');
+      var btnCerr = document.getElementById('btnCerrar');
+      var heroVer = document.getElementById('heroVersion');
+      var novLista= document.getElementById('novLista');
 
       btnInst.addEventListener('click',  function(){ if(window.upd) window.upd.instalar(); });
       btnReint.addEventListener('click', function(){ if(window.upd) window.upd.reintentar(); });
@@ -92,61 +121,92 @@
 
       function mostrar(el, si){ el.classList.toggle('oculto', !si); }
 
-      function render(d){
+      // ── Estado de actualización ──
+      function renderEstado(d){
         if(!d) return;
         var f = d.fase;
-        // valores por defecto
-        version.textContent = d.version ? ('Versión ' + d.version) : '';
-        barra.classList.remove('oculto');
-        pct.textContent = '';
+        updSub.textContent = '';
+        barra.classList.remove('on');
         mostrar(btnInst, false);
         mostrar(btnReint, false);
-        btnCerr.textContent = 'Cerrar';
+        updBtns.classList.add('vacio');
 
         if(f === 'buscando'){
-          heroIco.textContent = '🔎';
-          titulo.textContent = 'Buscando actualizaciones…';
-          version.textContent = '';
-          barra.classList.add('indeterminada');
+          updIco.textContent = '🔎';
+          updTit.textContent = 'Buscando actualizaciones…';
+          barra.classList.add('on','indeterminada');
         } else if(f === 'descargando'){
-          heroIco.textContent = '⬆️';
-          titulo.textContent = 'Descargando la actualización…';
+          updIco.textContent = '⬆️';
+          updTit.textContent = 'Descargando la actualización…';
+          if(d.version) updSub.textContent = 'Versión ' + d.version;
+          barra.classList.add('on');
           if(typeof d.percent === 'number' && d.percent > 0){
             barra.classList.remove('indeterminada');
             relleno.style.width = d.percent + '%';
-            pct.textContent = d.percent + '%';
-          } else {
-            barra.classList.add('indeterminada');
-          }
-          btnCerr.textContent = 'Ocultar';
+            updSub.textContent = (d.version ? ('Versión ' + d.version + ' · ') : '') + d.percent + '%';
+          } else { barra.classList.add('indeterminada'); }
         } else if(f === 'listo'){
-          heroIco.textContent = '✅';
-          titulo.innerHTML = 'La actualización está lista. <b>Reinicia para instalarla.</b>';
-          barra.classList.remove('indeterminada');
-          relleno.style.width = '100%';
-          pct.textContent = '100%';
-          mostrar(btnInst, true);
-          btnCerr.textContent = 'Después';
+          updIco.textContent = '✅';
+          updTit.innerHTML = 'Actualización lista. <b>Reinicia para instalarla.</b>';
+          if(d.version) updSub.textContent = 'Versión ' + d.version;
+          mostrar(btnInst, true); updBtns.classList.remove('vacio');
         } else if(f === 'actual'){
-          heroIco.textContent = '✔️';
-          titulo.innerHTML = 'Ya tienes la <b>última versión</b>.';
-          barra.classList.add('oculto');
-          mostrar(btnReint, true);
+          updIco.textContent = '✔️';
+          updTit.innerHTML = 'Ya tienes la <b>última versión</b>.';
+          mostrar(btnReint, true); updBtns.classList.remove('vacio');
         } else if(f === 'error'){
-          heroIco.textContent = '⚠️';
-          titulo.textContent = 'No se pudo buscar la actualización.';
-          version.textContent = d.mensaje || 'Revisa la conexión con el servidor.';
-          barra.classList.add('oculto');
-          mostrar(btnReint, true);
+          updIco.textContent = '⚠️';
+          updTit.textContent = 'No se pudo buscar la actualización.';
+          updSub.textContent = d.mensaje || 'Revisa la conexión con el servidor.';
+          mostrar(btnReint, true); updBtns.classList.remove('vacio');
         } else if(f === 'dev'){
-          heroIco.textContent = 'ℹ️';
-          titulo.textContent = 'El actualizador solo funciona en la app instalada.';
-          version.textContent = '';
-          barra.classList.add('oculto');
+          updIco.textContent = 'ℹ️';
+          updTit.textContent = 'El actualizador solo funciona en la app instalada.';
         }
       }
 
-      if(window.upd) window.upd.alCambiar(render);
+      // ── Novedades ──
+      function renderNovedades(d){
+        novLista.textContent = '';
+        if(!d || !d.ok){
+          var v = document.createElement('div');
+          v.className = 'nov-vacio';
+          v.textContent = 'No se pudieron cargar las novedades (sin conexión con el servidor).';
+          novLista.appendChild(v);
+          return;
+        }
+        if(d.version) heroVer.textContent = 'Versión ' + d.version;
+        var ent = d.entradas || [];
+        if(!ent.length){
+          var z = document.createElement('div');
+          z.className = 'nov-vacio'; z.textContent = 'Sin novedades registradas.';
+          novLista.appendChild(z); return;
+        }
+        ent.forEach(function(e, idx){
+          var item = document.createElement('div'); item.className = 'nov-item';
+          var head = document.createElement('div'); head.className = 'nov-head';
+          var b = document.createElement('span');
+          b.className = 'badge' + (idx === 0 ? '' : ' vieja');
+          b.textContent = 'v' + (e.version || '');
+          head.appendChild(b);
+          if(e.fecha){
+            var fe = document.createElement('span'); fe.className = 'nov-fecha';
+            fe.textContent = e.fecha; head.appendChild(fe);
+          }
+          item.appendChild(head);
+          var ul = document.createElement('ul');
+          (e.cambios || []).forEach(function(c){
+            var li = document.createElement('li'); li.textContent = c; ul.appendChild(li);
+          });
+          item.appendChild(ul);
+          novLista.appendChild(item);
+        });
+      }
+
+      if(window.upd){
+        window.upd.alCambiar(renderEstado);
+        window.upd.alNovedades(renderNovedades);
+      }
     })();
   </script>
 </body>

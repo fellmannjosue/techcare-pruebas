@@ -3,6 +3,8 @@
 // No toca la base de datos ni necesita API: todo lo maneja el backend, igual que el navegador.
 const { app, BrowserWindow, Menu, Tray, nativeImage, shell, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
 const { autoUpdater } = require('electron-updater');
 
 // URL de TechCare PRUEBAS (cámbiala aquí si el servidor cambia de IP/puerto).
@@ -17,6 +19,10 @@ let tray = null;
 let estadoUpd = null;
 // true = el usuario pidió buscar a mano (entonces SÍ mostramos "ya estás al día"/errores).
 let chequeoManual = false;
+// Últimas novedades (changelog) traídas de la web; se reenvían a la ventana al cargar.
+let ultimasNovedades = null;
+// Archivo donde recordamos la última versión del sistema que el usuario ya vio.
+const VISTO_PATH = path.join(app.getPath('userData'), 'novedades_visto.json');
 
 function crearVentana() {
   mainWindow = new BrowserWindow({
@@ -89,13 +95,13 @@ function cargarSitio() {
 function crearVentanaActualizador() {
   if (updaterWindow && !updaterWindow.isDestroyed()) { updaterWindow.focus(); return; }
   updaterWindow = new BrowserWindow({
-    width: 480,
-    height: 340,
+    width: 540,
+    height: 600,
     resizable: false,
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    title: 'Actualización de TechCare',
+    title: 'Novedades y actualización · TechCare',
     icon: path.join(__dirname, 'build', 'icon.png'),
     parent: mainWindow || undefined,
     autoHideMenuBar: true,
@@ -109,9 +115,10 @@ function crearVentanaActualizador() {
   });
   updaterWindow.loadFile(path.join(__dirname, 'updater.html')).catch(() => {});
   updaterWindow.once('ready-to-show', () => updaterWindow.show());
-  // Cuando el HTML termina de cargar, mándale el último estado conocido.
+  // Cuando el HTML termina de cargar, mándale el último estado y las novedades conocidas.
   updaterWindow.webContents.on('did-finish-load', () => {
     if (estadoUpd) enviarAlActualizador(estadoUpd);
+    if (ultimasNovedades) enviarNovedades(ultimasNovedades);
   });
   updaterWindow.on('closed', () => { updaterWindow = null; });
 }
@@ -121,6 +128,51 @@ function enviarAlActualizador(datos) {
   if (updaterWindow && !updaterWindow.isDestroyed()) {
     updaterWindow.webContents.send('upd:estado', datos);
   }
+}
+
+function enviarNovedades(datos) {
+  ultimasNovedades = datos;
+  if (updaterWindow && !updaterWindow.isDestroyed()) {
+    updaterWindow.webContents.send('upd:novedades', datos);
+  }
+}
+
+// Lee las novedades (changelog) desde la WEB (proceso principal → sin CORS/CSP).
+// cb(infoVersion) opcional: recibe la versión del sistema cuando llega.
+function obtenerNovedades(cb) {
+  const url = APP_URL.replace(/\/+$/, '') + '/core/api/novedades/?limite=20';
+  const req = http.get(url, { timeout: 8000 }, (res) => {
+    let data = '';
+    res.on('data', (c) => { data += c; });
+    res.on('end', () => {
+      try {
+        const j = JSON.parse(data);
+        enviarNovedades({ ok: true, version: j.version, entradas: j.entradas || [] });
+        if (cb) cb(j.version);
+      } catch (e) {
+        enviarNovedades({ ok: false });
+        if (cb) cb(null);
+      }
+    });
+  });
+  req.on('error', () => { enviarNovedades({ ok: false }); if (cb) cb(null); });
+  req.on('timeout', () => { req.destroy(); enviarNovedades({ ok: false }); if (cb) cb(null); });
+}
+
+// Recuerda qué versión del sistema ya vio el usuario (para auto-mostrar solo lo nuevo).
+function versionVista() {
+  try { return JSON.parse(fs.readFileSync(VISTO_PATH, 'utf8')).version || ''; }
+  catch (e) { return ''; }
+}
+function guardarVersionVista(v) {
+  try { fs.writeFileSync(VISTO_PATH, JSON.stringify({ version: v })); } catch (e) { /* no-op */ }
+}
+
+// Abre la ventana de Novedades y actualización (desde la bandeja): siempre se ve.
+function abrirNovedades() {
+  crearVentanaActualizador();
+  obtenerNovedades();
+  buscarActualizaciones(true);
 }
 
 function configurarActualizaciones() {
@@ -188,7 +240,7 @@ function crearBandeja() {
     tray.setToolTip('TechCare Pruebas v' + app.getVersion());
     const menu = Menu.buildFromTemplate([
       { label: 'Abrir TechCare', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
-      { label: 'Buscar actualizaciones…', click: () => buscarActualizaciones(true) },
+      { label: 'Novedades y actualización…', click: () => abrirNovedades() },
       { type: 'separator' },
       { label: 'TechCare Pruebas  ·  v' + app.getVersion(), enabled: false },
       { label: 'Salir', click: () => app.quit() }
@@ -212,7 +264,18 @@ app.whenReady().then(() => {
   crearVentana();
   crearBandeja();
   configurarActualizaciones();
-  buscarActualizaciones(false);                 // chequeo silencioso al abrir
+  buscarActualizaciones(false);                 // chequeo silencioso de updates al abrir
+
+  // Al abrir, trae las novedades; si el sistema cambió de versión desde la última
+  // vez que el usuario las vio, muestra SOLA la ventana (como "Novedades" al actualizar).
+  obtenerNovedades((versionSistema) => {
+    if (versionSistema && versionSistema !== versionVista()) {
+      crearVentanaActualizador();
+      buscarActualizaciones(true);              // de paso revisa updates y lo muestra
+      guardarVersionVista(versionSistema);
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) crearVentana();
   });

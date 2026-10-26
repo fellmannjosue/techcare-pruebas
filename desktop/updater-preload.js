@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('upd', {
   alCambiar: (cb) => {
     ipcRenderer.on('upd:estado', (_e, datos) => cb(datos));
   },
+  // Recibe las novedades (changelog) desde main.js.
+  alNovedades: (cb) => {
+    ipcRenderer.on('upd:novedades', (_e, datos) => cb(datos));
+  },
   // Reiniciar e instalar ahora.
   instalar: () => ipcRenderer.send('upd:instalar'),
   // Cerrar la ventana (la actualización se aplicará al salir del app).

@@ -1,7 +1,7 @@
 from django.urls import path
 from .views_maintenance import (toggle_mantenimiento, estado_mantenimiento,
                                 modulos_estado, modulos_guardar)
-from .views_version import marcar_version_vista   # <--- hecho por claude code
+from .views_version import marcar_version_vista, novedades_json   # <--- hecho por claude code
 
 # Notificaciones
 from .views_notifications import (
@@ -21,6 +21,9 @@ urlpatterns = [
     # ============================
     # 🔔 NOTIFICACIONES
     # ============================
+    # <--- hecho por claude code (26-oct-2026): novedades en JSON para la app .exe (público)
+    path("api/novedades/", novedades_json, name="novedades_json"),
+
     path("api/notificaciones/", notificaciones_usuario, name="api_notificaciones"),
     path("api/notificaciones/marcar/", marcar_notificaciones_leidas, name="api_notificaciones_marcar"),
 
