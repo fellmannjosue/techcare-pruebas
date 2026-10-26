@@ -1,6 +1,15 @@
 {
-  "version": "7.9.4",
+  "version": "7.9.98",
   "entradas": [
+    {
+      "version": "7.9.98",
+      "fecha": "2026-10-26",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Botón \"Novedades y actualización\" también en la pantalla de inicio de sesión de la app (ver novedades/actualización sin entrar)."
+      ]
+    },
     {
       "version": "7.9.4",
       "fecha": "2026-10-26",

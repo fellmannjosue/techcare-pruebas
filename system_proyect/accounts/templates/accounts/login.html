@@ -15,8 +15,18 @@
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {% endif %}
+  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
+  {% if es_app_escritorio %}<link rel="stylesheet" href="{% static 'css/tc_updater_btn.css' %}?v=2">{% endif %}
 </head>
 <body class="login-bg d-flex align-items-center">
+  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
+  {% if es_app_escritorio %}
+  <div id="tc-upd-wrap-login">
+    <button type="button" class="tc-upd-pill" id="tc-upd-header" title="Novedades y actualización">
+      <i class="ti ti-sparkles me-1"></i><span id="tc-upd-label">Novedades</span>
+    </button>
+  </div>
+  {% endif %}
   <div class="container py-5">
     <div class="row justify-content-center">
       <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
@@ -170,6 +180,8 @@
   <script src="{% static 'accounts/js/login.js' %}?v=3" defer></script>
   {# <--- hecho por claude code (26-oct-2026): recordar usuario+contraseña 1 mes (app de escritorio) #}
   <script src="{% static 'accounts/js/recordar_login.js' %}?v=1" defer></script>
+  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
+  {% if es_app_escritorio %}<script src="{% static 'js/tc_updater_btn.js' %}?v=1" defer></script>{% endif %}
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
