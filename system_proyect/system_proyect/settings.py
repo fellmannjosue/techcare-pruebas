@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     'desarrollo',  # <--- hecho por claude code: Gestión de Desarrollo (requerimientos/proyectos)
     'contabilidad',  # <--- hecho por claude code: Programa de Contabilidad (TC-PRY-0002)
     'red',  # <--- hecho por claude code: ANA Network Manager (IPAM/documentación de red) — Fase 1
+    'asistente',  # <--- hecho por claude code (26-oct-2026): asistente IA (solo app .exe)
 ]
 
 
@@ -169,6 +170,7 @@ TEMPLATES = [
                 'core.context_processors.nav_context',
                 'core.context_processors.version_context',
                 'accounts.suplantar.context',   # <--- hecho por claude code (12-oct-2026): aviso "Estás usando la cuenta de…"   # <--- hecho por claude code: versión + novedades
+                'asistente.context_processors.asistente_context',   # <--- hecho por claude code (26-oct-2026): detectar la app .exe
             ],
         },
     },
@@ -709,3 +711,11 @@ REST_FRAMEWORK = {
     ],
     'UNAUTHENTICATED_USER': None,
 }
+
+
+# ─────────────────────────────────────────────────────────────
+# ASISTENTE IA (solo app .exe) — <--- hecho por claude code (26-oct-2026)
+# La API key va en el .env del servidor (ANTHROPIC_API_KEY); nunca en el .exe ni en git.
+# ─────────────────────────────────────────────────────────────
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+ASISTENTE_MODELO = os.getenv('ASISTENTE_MODELO', 'claude-sonnet-5-5')

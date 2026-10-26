@@ -61,6 +61,7 @@ urlpatterns = [
     path('desarrollo/', include(('desarrollo.urls', 'desarrollo'), namespace='desarrollo')),
     path('contabilidad/', include(('contabilidad.urls', 'contabilidad'), namespace='contabilidad')),
     path('red/', include(('red.urls', 'red'), namespace='red')),  # <--- hecho por claude code: ANA Network Manager
+    path('asistente/', include(('asistente.urls', 'asistente'), namespace='asistente')),  # <--- hecho por claude code (26-oct-2026): asistente IA (solo app .exe)
     # ──────────────────────────────────────────────────────────────────────────
     # 8) Módulo de reloj
     # ──────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,43 @@
+{% load static %}
+{# <--- hecho por claude code (26-oct-2026): widget del asistente IA — SOLO en la app .exe #}
+{% if es_app_escritorio and user.is_authenticated %}
+<link rel="stylesheet" href="{% static 'asistente/css/asistente.css' %}?v=1">
+
+<button id="tc-asis-fab" type="button" title="Asistente de TechCare" aria-label="Asistente">
+  <i class="ti ti-sparkles"></i>
+</button>
+
+<div id="tc-asis-panel" aria-live="polite">
+  <div class="tc-asis-head">
+    <span class="ico"><i class="ti ti-sparkles"></i></span>
+    <div>
+      <h6>{% if user.is_superuser %}Asistente técnico{% else %}Asistente de TechCare{% endif %}</h6>
+      <small>{% if user.is_superuser %}Diagnóstico y recomendaciones{% else %}Guía de uso del sistema{% endif %}</small>
+    </div>
+    <button class="cerrar" id="tc-asis-cerrar" type="button" aria-label="Cerrar">&times;</button>
+  </div>
+
+  <div class="tc-asis-msgs" id="tc-asis-msgs">
+    <div class="tc-asis-saludo">
+      {% if user.is_superuser %}
+      Hola. Pégame un error, log o describe la falla y te digo la causa probable y cómo arreglarla.
+      {% else %}
+      Hola 👋 Pregúntame cómo usar TechCare: dónde está algo, cómo hacer una tarea, etc.
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="tc-asis-foot">
+    <div class="tc-asis-typing" id="tc-asis-typing" style="display:none;">Escribiendo…</div>
+    <form onsubmit="return false;">
+      <textarea id="tc-asis-input" rows="1" placeholder="Escribe tu mensaje…"></textarea>
+      <button id="tc-asis-enviar" type="button" title="Enviar"><i class="ti ti-send"></i></button>
+    </form>
+  </div>
+</div>
+
+<div id="tc-asis-config" hidden
+     data-url="{% url 'asistente:chat' %}"
+     data-super="{% if user.is_superuser %}1{% else %}0{% endif %}"></div>
+<script src="{% static 'asistente/js/asistente.js' %}?v=1" defer></script>
+{% endif %}

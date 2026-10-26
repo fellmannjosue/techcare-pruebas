@@ -1,0 +1,65 @@
+/* <--- hecho por claude code (26-oct-2026): widget del asistente IA (solo app .exe) */
+#tc-asis-fab{
+  position:fixed; right:22px; bottom:22px; z-index:1080;
+  width:56px; height:56px; border:none; border-radius:50%;
+  background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff;
+  font-size:24px; cursor:pointer; box-shadow:0 8px 24px rgba(37,99,235,.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+#tc-asis-fab:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(124,58,237,.45); }
+
+#tc-asis-panel{
+  position:fixed; right:22px; bottom:90px; z-index:1080;
+  width:380px; max-width:calc(100vw - 32px); height:560px; max-height:calc(100vh - 130px);
+  background:#fff; border:1px solid #e3e8f0; border-radius:16px;
+  box-shadow:0 18px 50px rgba(15,23,42,.25);
+  display:none; flex-direction:column; overflow:hidden;
+}
+#tc-asis-panel.abierto{ display:flex; }
+
+.tc-asis-head{
+  background:linear-gradient(120deg,#2563eb,#7c3aed); color:#fff;
+  padding:12px 14px; display:flex; align-items:center; gap:10px; flex:0 0 auto;
+}
+.tc-asis-head .ico{ font-size:20px; }
+.tc-asis-head h6{ margin:0; font-size:14px; font-weight:600; line-height:1.2; }
+.tc-asis-head small{ display:block; font-size:11px; opacity:.85; }
+.tc-asis-head .cerrar{ margin-left:auto; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; opacity:.85; }
+.tc-asis-head .cerrar:hover{ opacity:1; }
+
+.tc-asis-msgs{ flex:1 1 auto; overflow-y:auto; padding:14px; background:#f7f9fc; }
+.tc-asis-msg{ margin-bottom:12px; display:flex; }
+.tc-asis-msg .burbuja{
+  max-width:85%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.5;
+  white-space:normal; word-wrap:break-word;
+}
+.tc-asis-msg.user{ justify-content:flex-end; }
+.tc-asis-msg.user .burbuja{ background:#2563eb; color:#fff; border-bottom-right-radius:4px; }
+.tc-asis-msg.bot .burbuja{ background:#fff; color:#1f2a44; border:1px solid #e3e8f0; border-bottom-left-radius:4px; }
+.tc-asis-msg.bot .burbuja pre{
+  background:#0f1a2e; color:#e7ecf5; border-radius:8px; padding:9px 11px; margin:7px 0;
+  overflow-x:auto; font-size:12px;
+}
+.tc-asis-msg.bot .burbuja code{ background:#eef2f9; padding:1px 5px; border-radius:4px; font-size:12px; }
+.tc-asis-msg.bot .burbuja pre code{ background:none; padding:0; }
+.tc-asis-saludo{ color:#6b7a94; font-size:12.5px; text-align:center; padding:8px 14px; }
+
+.tc-asis-typing{ color:#6b7a94; font-size:12.5px; font-style:italic; padding:0 2px 8px; }
+
+.tc-asis-foot{ flex:0 0 auto; border-top:1px solid #e9eef5; padding:10px; background:#fff; }
+.tc-asis-foot form{ display:flex; gap:8px; align-items:flex-end; }
+.tc-asis-foot textarea{
+  flex:1; resize:none; border:1px solid #d7dfea; border-radius:10px; padding:9px 11px;
+  font-size:13.5px; font-family:inherit; max-height:120px; min-height:40px;
+}
+.tc-asis-foot textarea:focus{ outline:none; border-color:#2563eb; }
+.tc-asis-foot button{
+  border:none; border-radius:10px; width:42px; height:42px; flex:0 0 auto;
+  background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; font-size:17px; cursor:pointer;
+}
+.tc-asis-foot button:disabled{ opacity:.5; cursor:default; }
+
+@media (max-width:480px){
+  #tc-asis-panel{ right:8px; left:8px; width:auto; bottom:84px; height:calc(100vh - 110px); }
+}
