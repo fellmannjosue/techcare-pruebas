@@ -37,6 +37,13 @@ function crearVentana() {
   mainWindow.once('ready-to-show', () => mainWindow.show());
   cargarSitio();
 
+  // En la app .exe NO se muestra el footer del sitio (copyright + versión + Novedades):
+  // eso es solo para la web. Se oculta inyectando CSS en cada página que carga.
+  const CSS_SIN_FOOTER = 'footer.tc-footer{display:none !important;}';
+  mainWindow.webContents.on('dom-ready', () => {
+    mainWindow.webContents.insertCSS(CSS_SIN_FOOTER).catch(() => {});
+  });
+
   // Enlaces a OTROS sitios (http/https externos) se abren en el navegador del sistema;
   // la navegación dentro de TechCare se queda en la app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

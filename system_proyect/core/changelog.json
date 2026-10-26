@@ -1,6 +1,15 @@
 {
-  "version": "7.9.1",
+  "version": "7.9.2",
   "entradas": [
+    {
+      "version": "7.9.2",
+      "fecha": "2026-10-24",
+      "commit": "f1a7e07",
+      "menor": true,
+      "cambios": [
+        "feat(v7.9.2): Control y Servicio Técnico renovado (botón Registrar único, Control de equipo en un solo formulario con pestañas, inventario en ventana) y mejoras de mantenimiento y combustibles"
+      ]
+    },
     {
       "version": "7.9.1",
       "fecha": "2026-10-16",
