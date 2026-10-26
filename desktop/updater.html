@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'">
+  <title>Actualización de TechCare</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f1a2e; --fg:#e7ecf5; --muted:#8aa0c2;
+      --marca1:#2563eb; --marca2:#7c3aed; --ok:#16a34a; --borde:#1e2b45;
+    }
+    *{box-sizing:border-box;}
+    html,body{height:100%;margin:0;}
+    body{
+      background:var(--bg); color:var(--fg);
+      font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+      display:flex; flex-direction:column; user-select:none;
+    }
+    .hero{
+      background:linear-gradient(120deg,var(--marca1),var(--marca2));
+      padding:20px 22px; display:flex; align-items:center; gap:14px;
+    }
+    .hero .ico{
+      width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);
+      display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto;
+    }
+    .hero h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px;}
+    .hero p{margin:2px 0 0;font-size:12px;color:rgba(255,255,255,.82);}
+    .cuerpo{flex:1;padding:22px;display:flex;flex-direction:column;gap:14px;}
+    .estado{font-size:14px;line-height:1.5;}
+    .estado b{color:#fff;}
+    .ver{color:var(--muted);font-size:12px;margin-top:-6px;}
+    .barra{
+      height:10px;border-radius:999px;background:var(--borde);overflow:hidden;position:relative;
+    }
+    .barra > i{
+      display:block;height:100%;width:0%;border-radius:999px;
+      background:linear-gradient(90deg,var(--marca1),var(--marca2));
+      transition:width .25s ease;
+    }
+    .barra.indeterminada > i{
+      width:35% !important;
+      animation:desliza 1.1s ease-in-out infinite;
+    }
+    @keyframes desliza{0%{margin-left:-35%}100%{margin-left:100%}}
+    .pct{font-size:12px;color:var(--muted);text-align:right;}
+    .acciones{margin-top:auto;display:flex;gap:10px;justify-content:flex-end;}
+    button{
+      font:inherit;font-size:13px;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;
+    }
+    .btn-ppal{background:var(--ok);color:#fff;font-weight:600;}
+    .btn-ppal:disabled{opacity:.45;cursor:default;}
+    .btn-sec{background:transparent;color:var(--muted);border:1px solid var(--borde);}
+    .btn-sec:hover{color:var(--fg);}
+    .oculto{display:none !important;}
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="ico">⬆️</div>
+    <div>
+      <h1>Actualización de TechCare</h1>
+      <p>Asociación Nuevo Amanecer</p>
+    </div>
+  </div>
+
+  <div class="cuerpo">
+    <div class="estado" id="titulo">Hay una nueva versión disponible.</div>
+    <div class="ver" id="version"></div>
+
+    <div class="barra indeterminada" id="barra"><i id="relleno"></i></div>
+    <div class="pct" id="pct"></div>
+
+    <div class="acciones">
+      <button class="btn-sec" id="btnDespues">Después</button>
+      <button class="btn-ppal" id="btnInstalar" disabled>Reiniciar e instalar</button>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var titulo   = document.getElementById('titulo');
+      var version  = document.getElementById('version');
+      var barra    = document.getElementById('barra');
+      var relleno  = document.getElementById('relleno');
+      var pct      = document.getElementById('pct');
+      var btnInst  = document.getElementById('btnInstalar');
+      var btnDesp  = document.getElementById('btnDespues');
+
+      btnInst.addEventListener('click', function(){ if(window.upd) window.upd.instalar(); });
+      btnDesp.addEventListener('click', function(){ if(window.upd) window.upd.despues(); });
+
+      function render(d){
+        if(!d) return;
+        if(d.fase === 'descargando'){
+          titulo.textContent = 'Descargando la actualización…';
+          version.textContent = d.version ? ('Versión ' + d.version) : '';
+          if(typeof d.percent === 'number' && d.percent > 0){
+            barra.classList.remove('indeterminada');
+            relleno.style.width = d.percent + '%';
+            pct.textContent = d.percent + '%';
+          }else{
+            barra.classList.add('indeterminada');
+            pct.textContent = '';
+          }
+          btnInst.disabled = true;
+          btnDesp.textContent = 'Ocultar';
+        } else if(d.fase === 'listo'){
+          titulo.innerHTML = 'La actualización está lista. <b>Reinicia para instalarla.</b>';
+          version.textContent = d.version ? ('Versión ' + d.version) : '';
+          barra.classList.remove('indeterminada');
+          relleno.style.width = '100%';
+          pct.textContent = '100%';
+          btnInst.disabled = false;
+          btnDesp.textContent = 'Después';
+        } else if(d.fase === 'error'){
+          titulo.textContent = 'No se pudo completar la actualización.';
+          version.textContent = d.mensaje || '';
+          barra.classList.add('oculto');
+          pct.textContent = '';
+          btnInst.disabled = true;
+          btnDesp.textContent = 'Cerrar';
+        }
+      }
+
+      if(window.upd) window.upd.alCambiar(render);
+    })();
+  </script>
+</body>
+</html>

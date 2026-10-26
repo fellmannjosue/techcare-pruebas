@@ -1,6 +1,6 @@
 {
   "name": "techcare-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "TechCare (pruebas) — aplicación de escritorio (envoltorio Electron del sitio web).",
   "author": "Asociación Nuevo Amanecer (ANA)",
   "license": "UNLICENSED",
@@ -11,6 +11,9 @@
     "icon": "node scripts/make-icon.js",
     "build": "npm run icon && electron-builder --win --publish never"
   },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  },
   "devDependencies": {
     "electron": "31.7.6",
     "electron-builder": "25.1.8",
@@ -20,7 +23,14 @@
     "appId": "org.ana-hn.techcare.pruebas",
     "productName": "TechCare Pruebas",
     "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "offline.html", "build/icon.png"],
+    "files": ["main.js", "preload.js", "updater-preload.js", "offline.html", "updater.html", "build/icon.png", "node_modules/**/*"],
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://192.168.10.6:453/",
+        "channel": "latest"
+      }
+    ],
     "win": {
       "target": ["nsis", "portable", "msi"],
       "icon": "build/icon.ico"

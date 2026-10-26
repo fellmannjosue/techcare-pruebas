@@ -1,13 +1,19 @@
 // TechCare Pruebas — proceso principal de Electron.
 // Es un envoltorio nativo: abre el sitio web de TechCare (pruebas) en una ventana de escritorio.
 // No toca la base de datos ni necesita API: todo lo maneja el backend, igual que el navegador.
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 
 // URL de TechCare PRUEBAS (cámbiala aquí si el servidor cambia de IP/puerto).
 const APP_URL = 'http://192.168.10.6:451/';
 
 let mainWindow = null;
+let updaterWindow = null;
+
+// Estado actual de la actualización; se reenvía a la ventana cuando termina de cargar.
+// fase: 'disponible' | 'descargando' | 'listo' | 'error'
+let estadoUpd = null;
 
 function crearVentana() {
   mainWindow = new BrowserWindow({
@@ -67,8 +73,86 @@ function cargarSitio() {
   });
 }
 
+// ── Ventana de actualización (estilo Docker Desktop) ──────────────────────────
+// Aparece SOLA cuando hay una actualización, aunque no se haya hecho login
+// (es una ventana nativa de Electron, independiente del sitio web).
+function crearVentanaActualizador() {
+  if (updaterWindow && !updaterWindow.isDestroyed()) { updaterWindow.focus(); return; }
+  updaterWindow = new BrowserWindow({
+    width: 480,
+    height: 340,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    title: 'Actualización de TechCare',
+    icon: path.join(__dirname, 'build', 'icon.png'),
+    parent: mainWindow || undefined,
+    autoHideMenuBar: true,
+    backgroundColor: '#0b1220',
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'updater-preload.js')
+    }
+  });
+  updaterWindow.loadFile(path.join(__dirname, 'updater.html')).catch(() => {});
+  updaterWindow.once('ready-to-show', () => updaterWindow.show());
+  // Cuando el HTML termina de cargar, mándale el último estado conocido.
+  updaterWindow.webContents.on('did-finish-load', () => {
+    if (estadoUpd) enviarAlActualizador(estadoUpd);
+  });
+  updaterWindow.on('closed', () => { updaterWindow = null; });
+}
+
+function enviarAlActualizador(datos) {
+  estadoUpd = datos;
+  if (updaterWindow && !updaterWindow.isDestroyed()) {
+    updaterWindow.webContents.send('upd:estado', datos);
+  }
+}
+
+function configurarActualizaciones() {
+  // En desarrollo (no empaquetado) el updater lanza error; no lo activamos.
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;              // descarga sola, como Docker/VSCode
+  autoUpdater.autoInstallOnAppQuit = true;      // si cierran sin instalar, se aplica al salir
+
+  autoUpdater.on('update-available', (info) => {
+    crearVentanaActualizador();
+    enviarAlActualizador({ fase: 'descargando', version: info.version, percent: 0 });
+  });
+  autoUpdater.on('download-progress', (p) => {
+    enviarAlActualizador({ fase: 'descargando', version: (estadoUpd && estadoUpd.version) || '', percent: Math.round(p.percent || 0) });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    crearVentanaActualizador();
+    enviarAlActualizador({ fase: 'listo', version: info.version, percent: 100 });
+  });
+  autoUpdater.on('error', (err) => {
+    // Un error del updater (servidor caído, sin red) NO debe molestar al usuario:
+    // solo se refleja si la ventana ya estaba abierta.
+    if (updaterWindow && !updaterWindow.isDestroyed()) {
+      enviarAlActualizador({ fase: 'error', mensaje: String(err && err.message ? err.message : err) });
+    }
+  });
+
+  autoUpdater.checkForUpdates().catch(() => {});
+}
+
+// Acciones desde la ventana de actualización.
+ipcMain.on('upd:instalar', () => {
+  try { autoUpdater.quitAndInstall(); } catch (e) { /* no-op */ }
+});
+ipcMain.on('upd:despues', () => {
+  if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
+});
+
 app.whenReady().then(() => {
   crearVentana();
+  configurarActualizaciones();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) crearVentana();
   });
