@@ -1,6 +1,18 @@
 {
-  "version": "7.9.2",
+  "version": "7.9.3",
   "entradas": [
+    {
+      "version": "7.9.3",
+      "fecha": "2026-10-26",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Asistente IA en la app de escritorio: guía de uso para los usuarios y diagnóstico para el superusuario.",
+        "Ventana de Novedades y actualización en la app, con actualización automática (electron-updater).",
+        "Opción \"Recordar mis datos\" en el inicio de sesión (1 mes).",
+        "Corrección del ícono de la bandeja del sistema en la app."
+      ]
+    },
     {
       "version": "7.9.2",
       "fecha": "2026-10-24",

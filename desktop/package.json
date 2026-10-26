@@ -1,6 +1,6 @@
 {
   "name": "techcare-desktop",
-  "version": "7.9.2",
+  "version": "7.9.3",
   "description": "TechCare (pruebas) — aplicación de escritorio (envoltorio Electron del sitio web).",
   "author": "Asociación Nuevo Amanecer (ANA)",
   "license": "UNLICENSED",
@@ -23,7 +23,7 @@
     "appId": "org.ana-hn.techcare.pruebas",
     "productName": "TechCare Pruebas",
     "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "updater-preload.js", "offline.html", "updater.html", "build/icon.png", "node_modules/**/*"],
+    "files": ["main.js", "preload.js", "updater-preload.js", "offline.html", "updater.html", "assets/icon.png", "node_modules/**/*"],
     "publish": [
       {
         "provider": "generic",

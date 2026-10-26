@@ -31,7 +31,7 @@ function crearVentana() {
     minWidth: 900,
     minHeight: 600,
     title: 'TechCare Pruebas',
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     autoHideMenuBar: true,            // sin barra de menú visible
     backgroundColor: '#2563eb',
     show: false,
@@ -102,7 +102,7 @@ function crearVentanaActualizador() {
     maximizable: false,
     fullscreenable: false,
     title: 'Novedades y actualización · TechCare',
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     parent: mainWindow || undefined,
     autoHideMenuBar: true,
     backgroundColor: '#0b1220',
@@ -235,7 +235,7 @@ function buscarActualizaciones(manual) {
 // Ícono en la bandeja del sistema (junto al reloj) con "Buscar actualizaciones".
 function crearBandeja() {
   try {
-    const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
+    const img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
     tray = new Tray(img.isEmpty() ? img : img.resize({ width: 16, height: 16 }));
     tray.setToolTip('TechCare Pruebas v' + app.getVersion());
     const menu = Menu.buildFromTemplate([
