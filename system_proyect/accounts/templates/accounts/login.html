@@ -122,6 +122,11 @@
                   <input class="form-check-input" type="checkbox" id="is_maestro" name="is_maestro">
                   <span class="form-check-label">Soy maestro</span>
                 </label>
+                {# <--- hecho por claude code (26-oct-2026): recordar usuario+contraseña 1 mes (para la app de escritorio) #}
+                <label class="form-check cursor-pointer mt-1">
+                  <input class="form-check-input" type="checkbox" id="rec_recordar">
+                  <span class="form-check-label">Recordar mis datos <span class="text-muted small">(1 mes)</span></span>
+                </label>
                 <div class="checkbox-hint" id="checkboxHint">
                   <span class="arrow-icon">☝️</span>
                   <span>Debes marcar <strong>Soy maestro</strong> para continuar</span>
@@ -163,6 +168,8 @@
   <script src="{% static 'accounts/js/login_bloqueo.js' %}?v=2" defer></script>
   {% endif %}
   <script src="{% static 'accounts/js/login.js' %}?v=3" defer></script>
+  {# <--- hecho por claude code (26-oct-2026): recordar usuario+contraseña 1 mes (app de escritorio) #}
+  <script src="{% static 'accounts/js/recordar_login.js' %}?v=1" defer></script>
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
