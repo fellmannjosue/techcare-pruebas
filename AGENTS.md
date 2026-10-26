@@ -150,3 +150,14 @@ Las tablas `tbl_gen_*` / `tbl_spn_*` son de un sistema anterior y van con `manag
 - **SQL Server oculta los objetos sobre los que no tienes permiso.** Un listado vacío de `sys.tables` **no** prueba que la tabla no exista: hay que consultarla y leer el error (`Invalid object name` = no existe; `The SELECT permission was denied` = existe y falta permiso).
 - `git` en este repo se hace **directo a `main`** (flujo del proyecto). Rama principal = `main`.
 - Al terminar código: `manage.py check` verde y, si corresponde, reiniciar Apache.
+
+## App de escritorio (.exe) — Electron (oct-2026, carpeta `desktop/`)
+Este repo contiene **las dos cosas**: `system_proyect/` = la **web** TechCare, y `desktop/` = el **código del .exe** (envoltorio Electron que solo abre `http://192.168.10.6:451/` en una ventana nativa; no PWA, sin API, no toca la BD).
+
+- **LAS DOS REGLAS (modelo mental):** **la web se despliega, el envoltorio se compila.** (1) Cambio en la **web** (`system_proyect/…`, por grande que sea) → **Redeploy en Coolify**; el .exe lo ve solo al recargar (solo abre la URL). (2) Cambio en el **.exe** (`desktop/…`: `main.js`, ventana del updater, ícono, URL, versión) → **Run workflow** (GitHub Actions compila Windows; el server es Linux) + publicar al feed. No es por tamaño, es por QUÉ carpeta cambió. El usuario final **nunca reinstala**: se auto-actualiza desde el feed.
+- **Compila por GitHub Actions** (`.github/workflows/main.yml`): **Run workflow** (corre sobre el último `main`) o tag `desktop-v*`. NO usar "Re-run" (repite un commit viejo). Produce `*.exe` (NSIS+portable) + `*.msi` + `latest.yml` + `*.blockmap`. El token PAT ya tiene scope `workflow`.
+- **Versión del .exe = versión de la web** (`desktop/package.json` `version` sincronizada con `core/changelog.json`; hoy 7.9.2).
+- **Auto-update (electron-updater)**: feed en el Ubuntu `http://192.168.10.6:453/` (servicio systemd `techcare-updates`, dir `/home/admin2/techcare-updates/`). Solo NSIS se auto-actualiza. Ventana `desktop/updater.html` (estilo Docker, sale sola al haber versión nueva, aunque no haya login) + **ícono en la bandeja → "Buscar actualizaciones"** (`Tray` en `main.js`). Publicar: subir `version`, Run workflow, y en el server `~/techcare-updates/publicar.sh <carpeta-descargada>`.
+- **"Recordar mis datos" en el login** (para el .exe): casilla en `accounts/templates/accounts/login.html` + `accounts/static/accounts/js/recordar_login.js` (correo+contraseña 1 mes en localStorage, ofuscación base64).
+- **Footer oculto SOLO en la app**: `main.js` inyecta `footer.tc-footer{display:none}` por `insertCSS` en cada `dom-ready`; la web no se toca.
+- **SmartScreen** (sin firmar): para probar → "Más información → Ejecutar de todos modos" o Propiedades → Desbloquear. Masivo = MSI por GPO/PDQ.
