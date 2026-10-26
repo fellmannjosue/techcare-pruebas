@@ -1,6 +1,15 @@
 {
-  "version": "7.9.3",
+  "version": "7.9.4",
   "entradas": [
+    {
+      "version": "7.9.4",
+      "fecha": "2026-10-26",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Botón \"Novedades y actualización\" en la cabecera de la app de escritorio (abre la ventana sin usar la bandeja)."
+      ]
+    },
     {
       "version": "7.9.3",
       "fecha": "2026-10-26",

@@ -21,6 +21,8 @@ let estadoUpd = null;
 let chequeoManual = false;
 // Últimas novedades (changelog) traídas de la web; se reenvían a la ventana al cargar.
 let ultimasNovedades = null;
+// Último estado de actualización que se le avisa a la WEB (para el botón de la cabecera).
+let estadoUpdWeb = null;
 // Archivo donde recordamos la última versión del sistema que el usuario ya vio.
 const VISTO_PATH = path.join(app.getPath('userData'), 'novedades_visto.json');
 
@@ -51,6 +53,8 @@ function crearVentana() {
   const CSS_SIN_FOOTER = 'footer.tc-footer{display:none !important;}';
   mainWindow.webContents.on('dom-ready', () => {
     mainWindow.webContents.insertCSS(CSS_SIN_FOOTER).catch(() => {});
+    // Reenvía el último estado de actualización al botón de la cabecera tras cada carga.
+    if (estadoUpdWeb) mainWindow.webContents.send('tc:upd-estado', estadoUpdWeb);
   });
 
   // Enlaces a OTROS sitios (http/https externos) se abren en el navegador del sistema;
@@ -127,6 +131,15 @@ function enviarAlActualizador(datos) {
   estadoUpd = datos;
   if (updaterWindow && !updaterWindow.isDestroyed()) {
     updaterWindow.webContents.send('upd:estado', datos);
+  }
+  avisarWeb(datos);                 // también al botón de la cabecera del sitio
+}
+
+// Avisa a la WEB (ventana principal) el estado de la actualización, para el botón de la cabecera.
+function avisarWeb(datos) {
+  estadoUpdWeb = datos;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('tc:upd-estado', datos);
   }
 }
 
@@ -259,6 +272,8 @@ ipcMain.on('upd:despues', () => {
 });
 // Botón "Buscar de nuevo" dentro de la ventana.
 ipcMain.on('upd:reintentar', () => buscarActualizaciones(true));
+// Botón "Novedades y actualización" en la cabecera del sitio (dentro de la app).
+ipcMain.on('tc:abrir-novedades', () => abrirNovedades());
 
 app.whenReady().then(() => {
   crearVentana();

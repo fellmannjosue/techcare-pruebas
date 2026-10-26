@@ -90,6 +90,12 @@
             <div class="btn-list align-items-center">
               {% block back_button %}{% endblock %}
               {% block page_actions %}{% endblock %}
+              {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización SOLO en la app .exe #}
+              {% if es_app_escritorio %}
+              <button type="button" class="btn btn-sm" id="tc-upd-header" title="Novedades y actualización">
+                <i class="ti ti-sparkles me-1"></i><span id="tc-upd-label">Novedades</span>
+              </button>
+              {% endif %}
               {# <--- hecho por claude code: campanita siempre; el dropdown de usuario en el topbar solo para NO superusuarios (el superuser lo tiene al pie del sidebar) #}
               {% include 'accounts/_notificaciones.html' %}
               {% if not request.user.is_superuser %}{% include 'accounts/_user_dropdown.html' %}{% endif %}
@@ -141,6 +147,11 @@
 {% include "accounts/_welcome_overlay.html" %}
 {# <--- hecho por claude code (26-oct-2026): asistente IA, se pinta solo en la app .exe #}
 {% include "_asistente.html" %}
+{# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en la cabecera (app .exe) #}
+{% if es_app_escritorio %}
+<link rel="stylesheet" href="{% static 'css/tc_updater_btn.css' %}?v=1">
+<script src="{% static 'js/tc_updater_btn.js' %}?v=1" defer></script>
+{% endif %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=2"></script>
 </body>
 </html>

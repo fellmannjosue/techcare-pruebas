@@ -1,0 +1,9 @@
+/* <--- hecho por claude code (26-oct-2026): botón "Novedades y actualización" en la cabecera (app .exe) */
+/* El .btn dentro de .tc-hero ya es una píldora de cristal; aquí solo el estado "actualización lista". */
+#tc-upd-header{ white-space:nowrap; }
+#tc-upd-header.tc-upd-ready{
+  background:#ffffff !important;
+  color:#2563eb !important;
+  font-weight:600;
+  box-shadow:0 0 0 2px rgba(255,255,255,.35);
+}
