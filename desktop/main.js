@@ -1,7 +1,7 @@
 // TechCare Pruebas — proceso principal de Electron.
 // Es un envoltorio nativo: abre el sitio web de TechCare (pruebas) en una ventana de escritorio.
 // No toca la base de datos ni necesita API: todo lo maneja el backend, igual que el navegador.
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage, shell, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -10,10 +10,13 @@ const APP_URL = 'http://192.168.10.6:451/';
 
 let mainWindow = null;
 let updaterWindow = null;
+let tray = null;
 
 // Estado actual de la actualización; se reenvía a la ventana cuando termina de cargar.
-// fase: 'disponible' | 'descargando' | 'listo' | 'error'
+// fase: 'buscando' | 'actual' | 'descargando' | 'listo' | 'error' | 'dev'
 let estadoUpd = null;
+// true = el usuario pidió buscar a mano (entonces SÍ mostramos "ya estás al día"/errores).
+let chequeoManual = false;
 
 function crearVentana() {
   mainWindow = new BrowserWindow({
@@ -121,12 +124,10 @@ function enviarAlActualizador(datos) {
 }
 
 function configurarActualizaciones() {
-  // En desarrollo (no empaquetado) el updater lanza error; no lo activamos.
-  if (!app.isPackaged) return;
-
   autoUpdater.autoDownload = true;              // descarga sola, como Docker/VSCode
   autoUpdater.autoInstallOnAppQuit = true;      // si cierran sin instalar, se aplica al salir
 
+  // Hay una versión nueva → siempre se muestra (automático o manual).
   autoUpdater.on('update-available', (info) => {
     crearVentanaActualizador();
     enviarAlActualizador({ fase: 'descargando', version: info.version, percent: 0 });
@@ -138,15 +139,63 @@ function configurarActualizaciones() {
     crearVentanaActualizador();
     enviarAlActualizador({ fase: 'listo', version: info.version, percent: 100 });
   });
+  // Ya está al día → solo se muestra si el usuario lo pidió a mano.
+  autoUpdater.on('update-not-available', () => {
+    if (chequeoManual) {
+      crearVentanaActualizador();
+      enviarAlActualizador({ fase: 'actual', version: app.getVersion() });
+    }
+  });
+  // Error (servidor caído, sin red): molesta solo si fue búsqueda manual o la ventana ya está abierta.
   autoUpdater.on('error', (err) => {
-    // Un error del updater (servidor caído, sin red) NO debe molestar al usuario:
-    // solo se refleja si la ventana ya estaba abierta.
-    if (updaterWindow && !updaterWindow.isDestroyed()) {
+    if (chequeoManual || (updaterWindow && !updaterWindow.isDestroyed())) {
+      crearVentanaActualizador();
       enviarAlActualizador({ fase: 'error', mensaje: String(err && err.message ? err.message : err) });
     }
   });
+}
 
-  autoUpdater.checkForUpdates().catch(() => {});
+// Lanza la búsqueda de actualizaciones.
+//   manual=false → chequeo silencioso al abrir (solo avisa si hay una nueva).
+//   manual=true  → el usuario lo pidió: abre la ventana y muestra SIEMPRE el resultado.
+function buscarActualizaciones(manual) {
+  chequeoManual = !!manual;
+  if (!app.isPackaged) {
+    // En desarrollo (npm start) el updater no funciona; solo avisamos si fue manual.
+    if (manual) {
+      crearVentanaActualizador();
+      enviarAlActualizador({ fase: 'dev' });
+    }
+    return;
+  }
+  if (manual) {
+    crearVentanaActualizador();
+    enviarAlActualizador({ fase: 'buscando' });
+  }
+  autoUpdater.checkForUpdates().catch((e) => {
+    if (manual) {
+      crearVentanaActualizador();
+      enviarAlActualizador({ fase: 'error', mensaje: String(e && e.message ? e.message : e) });
+    }
+  });
+}
+
+// Ícono en la bandeja del sistema (junto al reloj) con "Buscar actualizaciones".
+function crearBandeja() {
+  try {
+    const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
+    tray = new Tray(img.isEmpty() ? img : img.resize({ width: 16, height: 16 }));
+    tray.setToolTip('TechCare Pruebas v' + app.getVersion());
+    const menu = Menu.buildFromTemplate([
+      { label: 'Abrir TechCare', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+      { label: 'Buscar actualizaciones…', click: () => buscarActualizaciones(true) },
+      { type: 'separator' },
+      { label: 'TechCare Pruebas  ·  v' + app.getVersion(), enabled: false },
+      { label: 'Salir', click: () => app.quit() }
+    ]);
+    tray.setContextMenu(menu);
+    tray.on('click', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
+  } catch (e) { /* si no hay bandeja disponible, no pasa nada */ }
 }
 
 // Acciones desde la ventana de actualización.
@@ -156,10 +205,14 @@ ipcMain.on('upd:instalar', () => {
 ipcMain.on('upd:despues', () => {
   if (updaterWindow && !updaterWindow.isDestroyed()) updaterWindow.close();
 });
+// Botón "Buscar de nuevo" dentro de la ventana.
+ipcMain.on('upd:reintentar', () => buscarActualizaciones(true));
 
 app.whenReady().then(() => {
   crearVentana();
+  crearBandeja();
   configurarActualizaciones();
+  buscarActualizaciones(false);                 // chequeo silencioso al abrir
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) crearVentana();
   });

@@ -25,6 +25,11 @@ Al abrir, si hay una versión nueva, sale una **ventana de actualización** (apa
 haya hecho login), descarga sola y ofrece *Reiniciar e instalar*. Si el usuario elige *Después*,
 se instala al cerrar la app.
 
+**Buscar a mano:** ícono de TechCare en la **bandeja del sistema** (junto al reloj) →
+*Buscar actualizaciones…*. Abre la ventana y muestra el resultado: *Buscando…* →
+*Ya tienes la última versión* / *Descargando…* / *Reiniciar e instalar*. (Requiere que el feed
+tenga `latest.yml`; si no, dirá que no pudo buscar.)
+
 - **Feed de actualizaciones (servidor Ubuntu):** `http://192.168.10.6:453/`
   Lo sirve el servicio systemd `techcare-updates` (directorio `/home/admin2/techcare-updates/`,
   puerto 453, ya abierto en el firewall para la LAN). Comandos:

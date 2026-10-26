@@ -10,5 +10,7 @@ contextBridge.exposeInMainWorld('upd', {
   // Reiniciar e instalar ahora.
   instalar: () => ipcRenderer.send('upd:instalar'),
   // Cerrar la ventana (la actualización se aplicará al salir del app).
-  despues: () => ipcRenderer.send('upd:despues')
+  despues: () => ipcRenderer.send('upd:despues'),
+  // Volver a buscar (botón en estados "al día"/"error").
+  reintentar: () => ipcRenderer.send('upd:reintentar')
 });
