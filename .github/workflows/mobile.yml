@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - '.github/workflows/mobile.yml'
     tags:
       - 'mobile-v*'
 
@@ -32,10 +33,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Instalar plataforma Android 34
-        run: yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+      # El runner ubuntu-latest ya trae el Android SDK preinstalado (ANDROID_SDK_ROOT).
+      # Solo aceptamos licencias e instalamos la plataforma/build-tools 34.
+      - name: Aceptar licencias e instalar Android 34
+        run: |
+          set -e
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "Android SDK en: $SDK"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       - name: Generar Gradle wrapper (8.7)
         run: gradle wrapper --gradle-version 8.7
