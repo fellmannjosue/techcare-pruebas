@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TechCare Pruebas</string>
+    <!-- URL que abre la app. Beta = servidor de pruebas (LAN, solo en el WiFi de ANA). -->
+    <string name="app_url">http://192.168.10.6:451/</string>
+</resources>

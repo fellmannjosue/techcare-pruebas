@@ -1,0 +1,12 @@
+# Artefactos de build y wrapper generado en CI
+build/
+.gradle/
+local.properties
+*.apk
+*.aab
+.idea/
+captures/
+# El wrapper de Gradle lo genera el workflow (gradle wrapper)
+gradle/
+gradlew
+gradlew.bat

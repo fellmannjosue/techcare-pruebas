@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.ana.techcare'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "org.ana.techcare.pruebas"
+        minSdk 24
+        targetSdk 34
+        // <--- hecho por claude code: versión sincronizada con la web/.exe (beta).
+        versionCode 79980
+        versionName "7.9.98-beta"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

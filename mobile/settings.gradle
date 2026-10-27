@@ -1,0 +1,19 @@
+// <--- hecho por claude code (27-oct-2026): proyecto Android (APK beta) de TechCare Pruebas.
+// Envoltorio WebView que abre la web de pruebas (LAN). Se compila en GitHub Actions.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "TechCarePruebas"
+include ':app'
