@@ -1,6 +1,18 @@
 {
-  "version": "7.9.98",
+  "version": "7.8.99.50",
   "entradas": [
+    {
+      "version": "7.8.99.50",
+      "fecha": "2026-10-30",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Panel Principal: módulos en tarjetas uniformes (Launcher) con buscador, categorías y nueva categoría Mantenimiento.",
+        "Navegación: menú superior horizontal en lugar del menú lateral.",
+        "Préstamo de equipo: botón para registrar préstamos; Préstamo e Inventario General con navegación propia.",
+        "App de escritorio: shell nativo renovado (barra propia, navegación, splash y pantalla sin conexión)."
+      ]
+    },
     {
       "version": "7.9.98",
       "fecha": "2026-10-26",
