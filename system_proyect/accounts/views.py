@@ -1234,7 +1234,7 @@ _PANEL_CAT = {
     'academico': 'academico', 'notas_mitad_parcial': 'academico', 'enfermeria': 'academico',
     'ruteo': 'academico', 'ingresos_notas': 'academico', 'salidas': 'academico',
     'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin', 'cfp': 'admin',
-    'mantenimiento_mecanico': 'admin',   # <--- hecho por claude code (01-oct-2026)
+    'mantenimiento_mecanico': 'mantenimiento',   # <--- hecho por claude code (30-oct-2026): categoría propia "Mantenimiento"
 }
 
 

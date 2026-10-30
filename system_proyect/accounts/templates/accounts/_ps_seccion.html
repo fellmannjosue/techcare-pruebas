@@ -5,7 +5,7 @@
   <a class="ps-mod ps-mod-solo" style="--tc-accent:{{ g.color }};" data-cat="{{ g.cat|default:'' }}" data-search="{{ g.titulo }} {{ g.desc }} {{ c.t }} {{ c.s }}" href="{{ c.href }}">
     <div class="ps-mod-head">
       <span class="ps-mod-ico"><i class="ti {{ g.icon }}"></i></span>
-      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% endif %}</span>
+      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% elif g.cat == 'mantenimiento' %}Mantenimiento{% endif %}</span>
     </div>
     <div class="ps-mod-ttl">{{ g.titulo }}{% if c.oculto %} <span class="badge bg-secondary-lt text-secondary" title="Oculto para los usuarios (Configuración → Seguridad)">Oculto</span>{% endif %}{% if c.bajo %} <span class="badge bg-red-lt text-red" title="Por debajo del mínimo configurado">Saldo bajo</span>{% endif %}</div>
     <div class="ps-mod-desc">{{ g.desc }}</div>
@@ -16,7 +16,7 @@
   <section class="ps-mod ps-mod-multi" style="--tc-accent:{{ g.color }};" data-cat="{{ g.cat|default:'' }}" data-search="{{ g.titulo }} {{ g.desc }}{% for c in g.cards %} {{ c.t }} {{ c.s }}{% endfor %}" tabindex="0" role="button" aria-expanded="false">
     <div class="ps-mod-head">
       <span class="ps-mod-ico"><i class="ti {{ g.icon }}"></i></span>
-      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% endif %}</span>
+      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% elif g.cat == 'mantenimiento' %}Mantenimiento{% endif %}</span>
     </div>
     <div class="ps-mod-ttl">{{ g.titulo }}</div>
     <div class="ps-mod-desc">{{ g.desc }}</div>
