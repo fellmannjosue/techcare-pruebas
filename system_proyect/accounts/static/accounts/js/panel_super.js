@@ -3,18 +3,55 @@
 (function () {
   'use strict';
 
-  /* ── Pestañas de filtro (Todos / Soporte / Académico / Administración) ── */
+  /* ── Filtro: pestañas de categoría + buscador en vivo ── */
   var tabs = document.getElementById('ps-tabs');
   var grid = document.getElementById('ps-grid');
+  var inputQ = document.getElementById('ps-q');
+  var countEl = document.getElementById('ps-count');
+  var catSel = '', query = '';
+
+  function aplicarFiltro() {
+    if (!grid) return;
+    var visibles = 0;
+    Array.prototype.forEach.call(grid.querySelectorAll('.ps-mod'), function (m) {
+      var okCat = !catSel || m.getAttribute('data-cat') === catSel;
+      var okQ = !query || (m.getAttribute('data-search') || '').toLowerCase().indexOf(query) >= 0;
+      var ok = okCat && okQ;
+      m.classList.toggle('ps-hide', !ok);
+      if (ok) visibles++;
+    });
+    if (countEl) countEl.textContent = visibles + (visibles === 1 ? ' programa' : ' programas');
+  }
+
   if (tabs && grid) {
     tabs.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-cat]');
       if (!b) return;
-      var cat = b.getAttribute('data-cat');
+      catSel = b.getAttribute('data-cat');
       Array.prototype.forEach.call(tabs.querySelectorAll('button'), function (x) { x.classList.toggle('on', x === b); });
-      Array.prototype.forEach.call(grid.querySelectorAll('.ps-mod'), function (m) {
-        m.classList.toggle('ps-hide', !!cat && m.getAttribute('data-cat') !== cat);
-      });
+      aplicarFiltro();
+    });
+  }
+  if (inputQ) {
+    inputQ.addEventListener('input', function () { query = this.value.trim().toLowerCase(); aplicarFiltro(); });
+  }
+
+  /* ── Tiles "Launcher" con varios accesos: desplegar/colapsar al tocarlos ── */
+  if (grid) {
+    grid.addEventListener('click', function (e) {
+      var sec = e.target.closest('.ps-mod-multi');
+      if (!sec) return;
+      if (e.target.closest('.ps-mod-list a')) return;   // dejar pasar el clic al enlace
+      var abierto = sec.classList.toggle('abierto');
+      sec.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    });
+    grid.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var sec = e.target.closest('.ps-mod-multi');
+      if (!sec || e.target !== sec) return;
+      e.preventDefault();
+      var abierto = sec.classList.toggle('abierto');
+      sec.setAttribute('aria-expanded', abierto ? 'true' : 'false');
     });
   }
 

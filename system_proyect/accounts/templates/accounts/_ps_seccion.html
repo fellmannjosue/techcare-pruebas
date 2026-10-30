@@ -1,25 +1,39 @@
-{# <--- hecho por claude code (30-sep-2026): tarjeta de un grupo del Panel Principal (diseño Horizon): franja de color, ícono, título y la lista de accesos #}
-<section class="ps-mod" style="--tc-accent:{{ g.color }};" data-cat="{{ g.cat|default:'' }}">
-  <div class="ps-mod-head">
-    <span class="ps-mod-ico"><i class="ti {{ g.icon }}"></i></span>
-    <div class="ps-mod-txt">
-      <b>{{ g.titulo }}</b>
-      <small>{{ g.desc }}</small>
+{# <--- hecho por claude code (30-oct-2026): tile "Launcher" de un programa del Panel Principal. #}
+{# Un solo acceso → la tarjeta ES el enlace. Varios accesos → se despliega al tocarla. #}
+{% if g.cards|length == 1 %}
+  {% with c=g.cards.0 %}
+  <a class="ps-mod ps-mod-solo" style="--tc-accent:{{ g.color }};" data-cat="{{ g.cat|default:'' }}" data-search="{{ g.titulo }} {{ g.desc }} {{ c.t }} {{ c.s }}" href="{{ c.href }}">
+    <div class="ps-mod-head">
+      <span class="ps-mod-ico"><i class="ti {{ g.icon }}"></i></span>
+      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% endif %}</span>
     </div>
-    <span class="ps-mod-count">{{ g.cards|length }}</span>
-  </div>
-  <ul class="ps-mod-list">
-    {% for c in g.cards %}
-    <li>
-      <a href="{{ c.href }}" style="--tile-c:{{ c.c }};">
-        <span class="ps-mod-item-ico"><i class="ti {{ c.i }}"></i></span>
-        <span class="ps-mod-item-txt">
-          <span class="ps-mod-item-title">{{ c.t }}{% if c.oculto %} <span class="badge bg-secondary-lt text-secondary" title="Oculto para los usuarios (Configuración → Seguridad)">Oculto</span>{% endif %}{% if c.bajo %} <span class="badge bg-red-lt text-red" title="Por debajo del mínimo configurado">Saldo bajo</span>{% endif %}</span>
-          <span class="ps-mod-item-sub">{{ c.s }}</span>
-        </span>
-        <i class="ti ti-chevron-right ps-mod-item-arrow"></i>
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
+    <div class="ps-mod-ttl">{{ g.titulo }}{% if c.oculto %} <span class="badge bg-secondary-lt text-secondary" title="Oculto para los usuarios (Configuración → Seguridad)">Oculto</span>{% endif %}{% if c.bajo %} <span class="badge bg-red-lt text-red" title="Por debajo del mínimo configurado">Saldo bajo</span>{% endif %}</div>
+    <div class="ps-mod-desc">{{ g.desc }}</div>
+    <div class="ps-mod-foot"><span>Abrir</span><i class="ti ti-arrow-right ps-foot-arrow"></i></div>
+  </a>
+  {% endwith %}
+{% else %}
+  <section class="ps-mod ps-mod-multi" style="--tc-accent:{{ g.color }};" data-cat="{{ g.cat|default:'' }}" data-search="{{ g.titulo }} {{ g.desc }}{% for c in g.cards %} {{ c.t }} {{ c.s }}{% endfor %}" tabindex="0" role="button" aria-expanded="false">
+    <div class="ps-mod-head">
+      <span class="ps-mod-ico"><i class="ti {{ g.icon }}"></i></span>
+      <span class="ps-mod-cat">{% if g.cat == 'soporte' %}Soporte{% elif g.cat == 'academico' %}Académico{% elif g.cat == 'admin' %}Administración{% endif %}</span>
+    </div>
+    <div class="ps-mod-ttl">{{ g.titulo }}</div>
+    <div class="ps-mod-desc">{{ g.desc }}</div>
+    <div class="ps-mod-foot"><span class="ps-mod-count">{{ g.cards|length }} accesos</span><i class="ti ti-chevron-right ps-foot-arrow"></i></div>
+    <ul class="ps-mod-list">
+      {% for c in g.cards %}
+      <li>
+        <a href="{{ c.href }}" style="--tile-c:{{ c.c }};">
+          <span class="ps-mod-item-ico"><i class="ti {{ c.i }}"></i></span>
+          <span class="ps-mod-item-txt">
+            <span class="ps-mod-item-title">{{ c.t }}{% if c.oculto %} <span class="badge bg-secondary-lt text-secondary" title="Oculto para los usuarios (Configuración → Seguridad)">Oculto</span>{% endif %}{% if c.bajo %} <span class="badge bg-red-lt text-red" title="Por debajo del mínimo configurado">Saldo bajo</span>{% endif %}</span>
+            <span class="ps-mod-item-sub">{{ c.s }}</span>
+          </span>
+          <i class="ti ti-chevron-right ps-mod-item-arrow"></i>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}

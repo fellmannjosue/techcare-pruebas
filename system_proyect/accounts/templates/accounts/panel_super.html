@@ -5,7 +5,7 @@
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=7">
+<link rel="stylesheet" href="{% static 'accounts/css/panel_super.css' %}?v=9">
 {% endblock %}
 
 {# <--- hecho por claude code (30-sep-2026): cabecera Horizon — saludo + fecha en vez de migas #}
@@ -80,7 +80,11 @@
   {# ===== Módulos del sistema: cuadrícula con pestañas de filtro ===== #}
   <section class="ps-mods">
     <div class="ps-mods-head">
-      <h2>Módulos del sistema <span>{{ grupos_panel|length }} programas</span></h2>
+      <h2>Módulos del sistema <span id="ps-count">{{ grupos_panel|length }} programas</span></h2>
+      <label class="ps-search">
+        <i class="ti ti-search"></i>
+        <input type="text" id="ps-q" placeholder="Buscar programa o acceso…" autocomplete="off">
+      </label>
       <div class="ps-tabs" id="ps-tabs" role="tablist">
         <button type="button" class="on" data-cat="">Todos</button>
         <button type="button" data-cat="soporte">Soporte</button>
@@ -101,5 +105,5 @@
      data-acc-data="{{ acc_data_json }}"
      data-top-labels="{{ top_labels_json }}"
      data-top-data="{{ top_data_json }}"></div>
-<script src="{% static 'accounts/js/panel_super.js' %}?v=3"></script>
+<script src="{% static 'accounts/js/panel_super.js' %}?v=5"></script>
 {% endblock %}
