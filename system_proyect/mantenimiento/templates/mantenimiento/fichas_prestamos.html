@@ -1,6 +1,12 @@
 {% extends 'mantenimiento/base_fichas.html' %}
 {% load static %}
 {# <--- hecho por claude code (16-oct-2026): página individual · Préstamos de equipo (solicitud en PDF con 4 firmas + PDF firmado) #}
+{# <--- hecho por claude code (30-oct-2026): Préstamo de equipo es su propio programa del Panel; botón Nuevo propio y volver al Panel #}
+{% block page_pretitle %}Préstamo de equipo{% endblock %}
+{% block back_button %}<a href="{{ nav_home_url|default:'/' }}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Volver al panel</a>{% endblock %}
+{% block page_actions %}
+<button type="button" class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalNuevoRegistro"><i class="ti ti-plus"></i> Nuevo préstamo</button>
+{% endblock %}
 {% block ficha %}
                 <div class="mant-toolbar">
                   <a href="{% url 'mantenimiento:reporte_tipo_pdf' 'prestamo' %}" target="_blank" class="btn btn-sm btn-orange"><i class="ti ti-file-type-pdf me-1"></i>PDF</a>

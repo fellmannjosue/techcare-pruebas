@@ -4,6 +4,16 @@
 {% block title %}Inventario general{% endblock %}
 {% block page_pretitle %}Inventario general{% endblock %}
 {% block page_title %}Inventario – General{% endblock %}
+{# <--- hecho por claude code (30-oct-2026): Inventario General es su propio programa del Panel, NO va dentro de Control y Servicio Técnico #}
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb breadcrumb-muted mb-1">
+    <li class="breadcrumb-item"><a href="{{ nav_home_url }}"><i class="ti ti-home me-1"></i>Panel</a></li>
+    <li class="breadcrumb-item active">Inventario General</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block back_button %}<a href="{{ nav_home_url|default:'/' }}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Volver al panel</a>{% endblock %}
 {% block vendor_head %}<link rel="stylesheet" href="{% static 'inventario/css/inventario_general.css' %}?v=2">{% endblock %}
 
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}
