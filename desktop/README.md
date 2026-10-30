@@ -4,6 +4,22 @@ Envoltorio **Electron** que abre TechCare de **pruebas** (`http://192.168.10.6:4
 ventana nativa. No es PWA, no toca la base de datos ni usa API: solo muestra el sitio, igual
 que el navegador. Funciona en PCs **dentro de la red de ANA**.
 
+## Shell nativo (no se ve como el navegador)
+La ventana **no usa el marco del sistema** (`frame:false`). La dibuja un shell propio:
+
+- `shell.html` + `shell-preload.js` — **barra superior nativa**: marca ANA, pastilla *Pruebas*,
+  navegación **Atrás / Adelante / Inicio / Recargar**, botón **Novedades** (con punto de aviso) y
+  controles de ventana **min / max / cerrar**. También pinta el **splash** de carga y la pantalla
+  **sin conexión** (con reintento automático).
+- El sitio de TechCare va embebido **debajo** de la barra en una `WebContentsView` (`main.js`), así
+  la barra nunca recarga ni parpadea al navegar.
+- Atajos: **Alt+← / Alt+→** (navegar), **F5 / Ctrl+R** (recargar), **Ctrl + / Ctrl − / Ctrl 0** (zoom).
+- Recuerda **tamaño, posición y zoom** de la ventana entre sesiones (`userData/ventana.json`).
+
+> Al cambiar algo del shell (`shell.html`, `main.js`, etc.) hay que **recompilar** (Run workflow),
+> porque el shell va dentro del `.exe`. El contenido del sitio NO: ese se actualiza con el redeploy
+> de la web (el .exe solo abre la URL).
+
 ## Activar el workflow (una sola vez)
 El YAML del CI está en `desktop/github-workflow.yml`. El token actual no tiene permiso para
 crear workflows por push, así que **créalo desde la web** (una vez):
@@ -43,7 +59,7 @@ tenga `latest.yml`; si no, dirá que no pudo buscar.)
 > El `.msi` que se reparte por **GPO** no se auto-actualiza; para esas PCs, TI vuelve a empujar el MSI.
 
 ## Cambiar la URL / versión
-- URL del servidor: `main.js` (constante `APP_URL`) y `offline.html`.
+- URL del servidor: `main.js` (constante `APP_URL`) y el texto de `shell.html` (splash).
 - URL del feed de updates: `package.json` → `build.publish[0].url`.
 - Versión: `package.json` → `"version"`.
 
