@@ -1,11 +1,12 @@
-/* tc_shell.js — <--- hecho por claude code (30-sep-2026)
-   Shell "Horizon Split": (1) marca el enlace activo del panel y abre su grupo,
-   (2) construye el riel de íconos a partir de los grupos de primer nivel del sidebar,
-   (3) tooltip del riel, (4) buscador del panel. Sin dependencias. */
+/* tc_shell.js — <--- hecho por claude code
+   Shell TechCare. Desde el 30-oct-2026: MENÚ SUPERIOR HORIZONTAL.
+   (1) marca el enlace activo, (2) construye el menú horizontal (#tc-topnav) con
+   desplegables a partir del menú del sidebar (que queda oculto, solo como fuente),
+   (3) botón hamburguesa en móvil, (4) buscador (si existe). Sin dependencias. */
 (function () {
   'use strict';
   var side = document.querySelector('.navbar-vertical');
-  var rail = document.getElementById('tc-rail-nav');
+  var topnav = document.getElementById('tc-topnav');
   var path = location.pathname;
 
   function hrefPath(h) { try { return new URL(h, location.origin).pathname; } catch (e) { return ''; } }
@@ -20,117 +21,122 @@
       if (!p || p === '/') return;
       if (path === p || path.indexOf(p) === 0) { if (p.length > bestLen) { best = a; bestLen = p.length; } }
     });
-    if (best) {
-      best.classList.add('active');
-      var el = best.parentElement;
-      while (el && el !== side) {
-        if (el.classList.contains('collapse') && !el.classList.contains('navbar-collapse') && !el.classList.contains('show')) {
-          el.classList.add('show');
-          var tg = side.querySelector('[href="#' + el.id + '"],[data-bs-target="#' + el.id + '"]');
-          if (tg) { tg.classList.remove('collapsed'); tg.setAttribute('aria-expanded', 'true'); }
-        }
-        el = el.parentElement;
-      }
-    }
+    if (best) best.classList.add('active');
   }
 
-  /* 1b. <--- hecho por claude code (12-oct-2026): ACORDEÓN (pedido del usuario, sidebar de ylagos con todo abierto):
-     los grupos empiezan cerrados, se abren al hacer clic y abrir uno cierra los demás; solo queda abierto el de la página actual. */
-  if (side && side.getAttribute('data-acordeon') === '1') {   // todos menos el superusuario (pedido del usuario)
-    var esTop = function (c) {
-      var p = c.parentElement;
-      while (p && p !== side) { if (p.classList.contains('collapse') && !p.classList.contains('navbar-collapse')) return false; p = p.parentElement; }
-      return true;
-    };
-    var tops = Array.prototype.filter.call(side.querySelectorAll('.collapse:not(.navbar-collapse)'), esTop);
-    var toggler = function (c) { return side.querySelector('[href="#' + c.id + '"],[data-bs-target="#' + c.id + '"]'); };
-    tops.forEach(function (c) {
-      if (c.classList.contains('show') && !(best && c.contains(best))) {
-        c.classList.remove('show');
-        var t = toggler(c); if (t) { t.classList.add('collapsed'); t.setAttribute('aria-expanded', 'false'); }
-      }
-    });
-    side.addEventListener('show.bs.collapse', function (e) {
-      if (tops.indexOf(e.target) < 0 || side.classList.contains('tc-filtering')) return;
-      tops.forEach(function (o) {
-        if (o !== e.target && o.classList.contains('show')) {
-          if (window.bootstrap && bootstrap.Collapse) bootstrap.Collapse.getOrCreateInstance(o, { toggle: false }).hide();
-          else { o.classList.remove('show'); var t = toggler(o); if (t) t.classList.add('collapsed'); }
-        }
-      });
-    });
-  }
-
-  /* 2. Riel: un ícono por grupo de primer nivel del sidebar (+ accesos extra del superusuario) */
-  if (rail && side) {
-    var frag = document.createDocumentFragment();
-    var seen = {};
-    function add(title, iconCls, href, on) {
-      var key = hrefPath(href);
-      if (seen[key]) return; seen[key] = 1;
-      var a = document.createElement('a');
-      a.href = href; a.className = 'tc-rail-item' + (on ? ' on' : '');
-      a.setAttribute('data-tip', title);
-      a.innerHTML = '<i class="' + iconCls + '"></i>';
-      frag.appendChild(a);
-    }
+  /* 2. Menú horizontal: un ítem por grupo de primer nivel del sidebar.
+        Grupo sin submenú → enlace directo. Grupo con submenú → desplegable. */
+  if (topnav && side) {
     var top = side.querySelector('.navbar-nav');
+    var frag = document.createDocumentFragment();
+
+    function iconoDe(link) {
+      var i = link.querySelector('.nav-link-icon i');
+      return i ? i.className.replace(/\btext-[\w-]+/g, '').trim() : 'ti ti-circle';
+    }
+    function tituloDe(link) {
+      var t = link.querySelector('.nav-link-title');
+      return (t || link).textContent.replace(/\s+/g, ' ').trim();
+    }
+
     if (top) {
       Array.prototype.forEach.call(top.children, function (li) {
         if (!li.classList.contains('nav-item') || li.classList.contains('d-none')) return;
         var link = null;
-        for (var i = 0; i < li.children.length; i++) { if (li.children[i].matches('a.nav-link')) { link = li.children[i]; break; } }
+        for (var i = 0; i < li.children.length; i++) { if (li.children[i].matches && li.children[i].matches('a.nav-link')) { link = li.children[i]; break; } }
         if (!link) return;
-        var icon = link.querySelector('.nav-link-icon i');
-        var titleEl = link.querySelector('.nav-link-title');
-        var title = (titleEl || link).textContent.replace(/\s+/g, ' ').trim();
+        var title = tituloDe(link);
+        var icls = iconoDe(link);
         var href = link.getAttribute('href') || '#';
-        if (href.charAt(0) === '#') {
-          var first = li.querySelector('.collapse a.nav-link[href]:not([href^="#"])');
-          href = first ? first.getAttribute('href') : '#';
+        var sub = li.querySelectorAll('.collapse a.nav-link[href]:not([href^="#"])');
+        var activo = !!(best && li.contains(best));
+
+        var item = document.createElement('div');
+        item.className = 'tc-nav-item' + (activo ? ' activo' : '');
+
+        if (href.charAt(0) !== '#' && sub.length === 0) {
+          // Enlace directo (p. ej. Panel Principal, Modo Mantenimiento)
+          var a = document.createElement('a');
+          a.className = 'tc-nav-link'; a.href = href;
+          a.innerHTML = '<i class="' + icls + '"></i><span>' + title + '</span>';
+          item.appendChild(a);
+        } else {
+          // Desplegable
+          var btn = document.createElement('button');
+          btn.type = 'button'; btn.className = 'tc-nav-link tc-nav-toggle';
+          btn.innerHTML = '<i class="' + icls + '"></i><span>' + title + '</span><i class="ti ti-chevron-down tc-nav-car"></i>';
+          var dd = document.createElement('div'); dd.className = 'tc-dd';
+          Array.prototype.forEach.call(sub.length ? sub : [], function (s) {
+            var si = s.querySelector('.nav-link-icon i');
+            var sc = si ? si.className.replace(/\btext-[\w-]+/g, '').trim() : 'ti ti-point';
+            var st = tituloDe(s);
+            var sh = s.getAttribute('href');
+            var da = document.createElement('a'); da.className = 'tc-dd-link'; da.href = sh;
+            if (best && s === best) da.classList.add('on');
+            da.innerHTML = '<i class="' + sc + '"></i><span>' + st + '</span>';
+            dd.appendChild(da);
+          });
+          item.appendChild(btn); item.appendChild(dd);
         }
-        if (href === '#') return;
-        var cls = icon ? icon.className.replace(/\btext-[\w-]+/g, '').trim() : 'ti ti-circle';
-        var on = (best && li.contains(best)) || hrefPath(href) === path;
-        add(title, cls, href, on);
+        frag.appendChild(item);
       });
     }
-    var extra = rail.getAttribute('data-extra');
-    if (extra) {
-      try {
-        JSON.parse(extra).forEach(function (x) {
-          if (!x.h) return;
-          var p = hrefPath(x.h);
-          add(x.t, 'ti ' + x.i, x.h, !!p && p !== '/' && path.indexOf(p) === 0 && !best);
-        });
-      } catch (e) {}
+    topnav.appendChild(frag);
+
+    /* Abrir/cerrar desplegables (clic); cerrar al hacer clic fuera o con Escape */
+    topnav.addEventListener('click', function (e) {
+      var tg = e.target.closest('.tc-nav-toggle');
+      if (!tg) return;
+      var it = tg.parentElement;
+      var abierto = it.classList.contains('abierto');
+      cerrarTodos();
+      if (!abierto) { it.classList.add('abierto'); posicionar(it, tg); }
+      e.stopPropagation();
+    });
+    /* En escritorio el desplegable va position:fixed; lo colocamos bajo su botón, sin salirse */
+    function posicionar(it, tg) {
+      if (window.innerWidth < 992) return;   // en móvil el CSS lo pone estático
+      var dd = it.querySelector('.tc-dd'); if (!dd) return;
+      var r = tg.getBoundingClientRect();
+      dd.style.top = (r.bottom + 6) + 'px';
+      var w = dd.offsetWidth || 258;
+      dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 10)) + 'px';
     }
-    rail.appendChild(frag);
+    function cerrarTodos() {
+      Array.prototype.forEach.call(topnav.querySelectorAll('.tc-nav-item.abierto'), function (x) { x.classList.remove('abierto'); });
+    }
+    document.addEventListener('click', function (e) { if (!e.target.closest('#tc-topnav')) cerrarTodos(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarTodos(); });
   }
 
-  /* 3. Tooltip del riel */
-  var tip = document.createElement('div');
-  tip.className = 'tc-rail-tip';
-  document.body.appendChild(tip);
-  document.addEventListener('mouseover', function (e) {
-    var a = e.target && e.target.closest ? e.target.closest('#tc-rail [data-tip]') : null;
-    if (!a) { tip.classList.remove('show'); return; }
-    var r = a.getBoundingClientRect();
-    tip.textContent = a.getAttribute('data-tip');
-    tip.style.top = (r.top + r.height / 2) + 'px';
-    tip.style.left = (r.right + 10) + 'px';
-    tip.classList.add('show');
-  });
+  /* 3. Hamburguesa (móvil): muestra/oculta el menú horizontal como panel */
+  var burger = document.getElementById('tc-burger');
+  if (burger && topnav) {
+    burger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      topnav.classList.toggle('abierto-movil');
+      burger.classList.toggle('on');
+    });
+    topnav.addEventListener('click', function (e) {
+      if (e.target.closest('.tc-dd-link, .tc-nav-link:not(.tc-nav-toggle)')) {
+        topnav.classList.remove('abierto-movil'); burger.classList.remove('on');
+      }
+    });
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#tc-topnav') && !e.target.closest('#tc-burger')) {
+        topnav.classList.remove('abierto-movil'); burger.classList.remove('on');
+      }
+    });
+  }
 
-  /* 4. Buscador del panel */
+  /* 4. Buscador del menú (si existe): filtra los ítems del menú horizontal */
   var q = document.getElementById('tc-side-q');
-  if (q && side) {
-    var items = side.querySelectorAll('.nav-item');
+  if (q && topnav) {
     q.addEventListener('input', function () {
       var v = q.value.trim().toLowerCase();
-      side.classList.toggle('tc-filtering', !!v);
-      Array.prototype.forEach.call(items, function (li) {
-        li.classList.toggle('tc-hide', !!v && li.textContent.toLowerCase().indexOf(v) < 0);
+      Array.prototype.forEach.call(topnav.querySelectorAll('.tc-nav-item'), function (it) {
+        var txt = it.textContent.toLowerCase();
+        it.style.display = (!v || txt.indexOf(v) >= 0) ? '' : 'none';
       });
     });
   }

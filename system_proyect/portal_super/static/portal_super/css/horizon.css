@@ -212,3 +212,105 @@ body.tc-overlap .page-body { margin-top: -4.2rem !important; position: relative;
   body.tc-overlap .page-body { margin-top: -3.4rem !important; }
 }
 @media print { .tc-rail { display: none !important; } .page-header.tc-hero { background: none !important; color: #000; } }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MENÚ SUPERIOR HORIZONTAL (30-oct-2026) — reemplaza el riel + sidebar vertical.
+   El <aside.navbar-vertical> queda OCULTO y solo sirve de fuente para tc_shell.js.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root { --tc-tb-h: 58px; --tc-tb-bg: #ffffff; --tc-tb-bd: #e3e8f1; }
+html.dark { --tc-tb-bg: #0c1526; --tc-tb-bd: #1b2740; }
+
+/* Ocultar el riel y el sidebar vertical; el contenido ocupa todo el ancho */
+.tc-rail { display: none !important; }
+.navbar-vertical { display: none !important; }
+.navbar-vertical.navbar-expand-lg ~ .page-wrapper,
+.navbar-vertical.navbar-expand-lg ~ .navbar { margin-left: 0 !important; padding-left: 0 !important; }
+.page-wrapper { margin-left: 0 !important; padding-top: var(--tc-tb-h) !important; }
+
+/* ── Barra superior ── */
+.tc-topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--tc-tb-h); z-index: 1035;
+  display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  background: var(--tc-tb-bg); border-bottom: 1px solid var(--tc-tb-bd);
+  box-shadow: 0 1px 3px rgba(16,24,40,.04);
+}
+.tc-tb-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: none; padding-right: 6px; }
+.tc-tb-brand img { height: 32px; width: 32px; object-fit: contain; border-radius: 9px; background: #fff; box-shadow: 0 2px 8px rgba(37,99,235,.28); }
+.tc-tb-brandtxt { display: flex; flex-direction: column; line-height: 1.12; }
+.tc-tb-brandtxt b { font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; color: var(--ps-text); }
+.tc-tb-brandtxt small { font-size: 10.5px; font-weight: 600; color: var(--ps-muted); }
+
+.tc-tb-burger {
+  display: none; width: 40px; height: 40px; border: 1px solid var(--tc-tb-bd); background: transparent;
+  border-radius: 10px; color: var(--ps-muted); font-size: 20px; cursor: pointer; flex: none;
+}
+.tc-tb-burger.on, .tc-tb-burger:hover { color: var(--ps-text); background: var(--ps-surface-2); }
+
+.tc-tb-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+
+/* ── Menú horizontal ── */
+.tc-topnav { display: flex; align-items: center; gap: 2px; margin-left: 6px; flex: 1 1 auto; min-width: 0;
+  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.tc-topnav::-webkit-scrollbar { height: 6px; }
+.tc-topnav::-webkit-scrollbar-thumb { background: var(--ps-border); border-radius: 999px; }
+.tc-nav-item { position: relative; flex: none; }
+.tc-nav-link {
+  display: flex; align-items: center; gap: 7px; font: 650 13.5px Inter, system-ui, sans-serif;
+  color: var(--ps-muted); background: transparent; border: 0; border-radius: 10px;
+  padding: 8px 12px; cursor: pointer; white-space: nowrap; text-decoration: none;
+}
+.tc-nav-link i { font-size: 18px; }
+.tc-nav-car { font-size: 15px !important; margin-left: -3px; opacity: .8; transition: transform .15s; }
+.tc-nav-link:hover { color: var(--ps-text); background: var(--ps-surface-2); }
+.tc-nav-item.abierto > .tc-nav-link { color: var(--ps-text); background: var(--ps-surface-2); }
+.tc-nav-item.abierto .tc-nav-car { transform: rotate(180deg); }
+.tc-nav-item.activo > .tc-nav-link {
+  color: #fff; background: linear-gradient(135deg, var(--tc-p1), var(--tc-p2));
+  box-shadow: 0 4px 12px rgba(79,70,229,.3);
+}
+.tc-nav-item.activo > .tc-nav-link i { color: #fff; }
+
+/* Desplegable (position:fixed en escritorio → no lo recorta el scroll de la barra; tc_shell.js lo posiciona) */
+.tc-dd {
+  position: fixed; top: var(--tc-tb-h); left: 0; min-width: 258px; max-width: 92vw;
+  max-height: 72vh; overflow-y: auto; display: none; z-index: 1080;
+  background: var(--ps-surface); border: 1px solid var(--ps-border); border-radius: 14px; padding: 7px;
+  box-shadow: 0 22px 50px -20px rgba(16,24,40,.45);
+}
+.tc-nav-item.abierto .tc-dd { display: block; }
+.tc-dd-link {
+  display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 10px;
+  text-decoration: none; color: var(--ps-text); font-size: 13.5px; font-weight: 600;
+}
+.tc-dd-link i { font-size: 18px; color: var(--ps-muted); flex: none; }
+.tc-dd-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-dd-link:hover { background: var(--ps-surface-2); }
+.tc-dd-link.on { background: color-mix(in srgb, var(--tc-p1) 12%, transparent); color: var(--tc-p1); }
+.tc-dd-link.on i { color: var(--tc-p1); }
+
+/* Herramientas del topbar (campana + usuario) en superficie clara, no cristal */
+.tc-topbar #userDropdown { color: var(--ps-text); }
+.tc-topbar .dropdown-menu { z-index: 1090; }
+
+/* ── Responsive: hamburguesa < 992 ── */
+@media (max-width: 991.98px) {
+  .tc-tb-burger { display: grid; place-items: center; order: 3; }
+  .tc-tb-tools { order: 2; }
+  .tc-topnav {
+    order: 4; position: fixed; top: var(--tc-tb-h); left: 0; right: 0; margin: 0;
+    max-height: calc(100vh - var(--tc-tb-h)); overflow-y: auto; display: none;
+    flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 2px; padding: 10px;
+    background: var(--tc-tb-bg); border-bottom: 1px solid var(--tc-tb-bd);
+    box-shadow: 0 18px 40px -16px rgba(16,24,40,.4);
+  }
+  .tc-topnav.abierto-movil { display: flex; }
+  .tc-nav-item { position: static; }
+  .tc-nav-link { width: 100%; }
+  .tc-nav-car { margin-left: auto; }
+  .tc-dd {
+    position: static !important; top: auto !important; left: auto !important;
+    display: block; box-shadow: none; border: 0; border-radius: 0;
+    padding: 2px 0 6px 14px; min-width: 0; max-height: none;
+  }
+}
+@media print { .tc-topbar { display: none !important; } .page-wrapper { padding-top: 0 !important; } }

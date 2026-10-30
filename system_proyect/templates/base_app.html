@@ -30,7 +30,7 @@
   {# Sistema de diseño del portal (identidad visual única de TODO el sistema) #}
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) para todo el sistema #}
-  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=4">
 
   <link rel="manifest" href="/static/accounts/manifest.json">
   <meta name="theme-color" content="#0e1424">
@@ -40,9 +40,22 @@
 <body class="antialiased {% block body_class %}{% endblock %}">
 <div class="wrapper">
 
-  {% include '_rail.html' %}
+  {# ── Barra superior horizontal (30-oct-2026) — reemplaza el riel + sidebar vertical ── #}
+  {# <--- hecho por claude code: el menú del sidebar (abajo, oculto) es la FUENTE; tc_shell.js arma los desplegables horizontales #}
+  <header class="tc-topbar d-print-none">
+    <a class="tc-tb-brand" href="{{ nav_home_url|default:'/accounts/menu/' }}">
+      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="ANA">
+      <span class="tc-tb-brandtxt"><b>TechCare</b><small>{% if request.user.is_superuser %}Panel del superusuario{% else %}Asociación Nuevo Amanecer{% endif %}</small></span>
+    </a>
+    <button class="tc-tb-burger" type="button" id="tc-burger" aria-label="Menú"><i class="ti ti-menu-2"></i></button>
+    <nav class="tc-topnav" id="tc-topnav" aria-label="Menú principal"></nav>
+    <div class="tc-tb-tools">
+      {% include 'accounts/_notificaciones.html' %}
+      {% include 'accounts/_user_dropdown.html' %}
+    </div>
+  </header>
 
-  {# ── Sidebar (unificado, por permisos) ──────────────────────────────── #}
+  {# ── Menú FUENTE (oculto): tc_shell.js lee sus grupos para armar el menú superior ── #}
   {# <--- hecho por claude code: sidebar estático (submenús siempre abiertos) para staff/usuarios; el superuser lo deja colapsable porque el suyo es muy largo #}
   <aside class="navbar navbar-vertical navbar-expand-lg"{% if not request.user.is_superuser %} data-acordeon="1"{% endif %} data-bs-theme="dark">{# <--- hecho por claude code (12-oct-2026): sin sidebar-static (dejaba todo abierto); acordeón para todos menos el superusuario (tc_shell.js) #}
     <div class="container-fluid">
@@ -59,12 +72,7 @@
         {# <--- hecho por claude code (30-sep-2026): buscador del menú (filtra los enlaces, tc_shell.js) #}
         <label class="tc-side-search"><i class="ti ti-search"></i><input type="search" id="tc-side-q" placeholder="Buscar en el menú…" autocomplete="off"></label>
         {% include 'accounts/_sidebar.html' %}
-        {# <--- hecho por claude code: dropdown de usuario de vuelta al PIE del sidebar (solo superusuario) #}
-        {% if request.user.is_superuser %}
-        <div class="mt-auto px-2 py-3 border-top border-dark-subtle">
-          {% include 'accounts/_user_dropdown.html' %}
-        </div>
-        {% endif %}
+        {# <--- hecho por claude code (30-oct-2026): el dropdown de usuario se movió a la barra superior (topbar) para todos #}
         <div class="tc-side-foot"><span class="tc-dot"></span>Sistema en línea{% if app_version %} · v{{ app_version }}{% endif %}</div>
       </div>
     </div>
@@ -96,9 +104,7 @@
                 <i class="ti ti-sparkles me-1"></i><span id="tc-upd-label">Novedades</span>
               </button>
               {% endif %}
-              {# <--- hecho por claude code: campanita siempre; el dropdown de usuario en el topbar solo para NO superusuarios (el superuser lo tiene al pie del sidebar) #}
-              {% include 'accounts/_notificaciones.html' %}
-              {% if not request.user.is_superuser %}{% include 'accounts/_user_dropdown.html' %}{% endif %}
+              {# <--- hecho por claude code (30-oct-2026): campana y dropdown de usuario ahora viven en la barra superior (topbar) #}
             </div>
           </div>
         </div>
@@ -130,7 +136,7 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
-<script src="{% static 'js/tc_shell.js' %}?v=3"></script>
+<script src="{% static 'js/tc_shell.js' %}?v=4"></script>
 <script src="{% static 'js/tc_responsive.js' %}?v=1"></script>
 <script src="{% static 'js/tc_camara.js' %}?v=1"></script>
 {# <--- hecho por claude code: evita el salto de scroll al abrir cualquier modal #}
