@@ -1231,8 +1231,8 @@ def _grupos_super_panel_columnas():
 _PANEL_CAT = {
     'soporte': 'soporte', 'desarrollo': 'soporte', 'red': 'soporte',
     'inventario_general': 'soporte', 'prestamo_equipo': 'soporte',   # <--- hecho por claude code (22-oct-2026)
-    'academico': 'academico', 'notas_mitad_parcial': 'academico', 'enfermeria': 'academico',
-    'ruteo': 'academico', 'ingresos_notas': 'academico', 'salidas': 'academico',
+    'academico': 'academico', 'notas_mitad_parcial': 'notas', 'enfermeria': 'academico',
+    'ruteo': 'academico', 'ingresos_notas': 'notas', 'salidas': 'academico',   # <--- hecho por claude code (02-nov-2026): categoría propia "Notas"
     'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin', 'cfp': 'admin',
     'mantenimiento_mecanico': 'mantenimiento',   # <--- hecho por claude code (30-oct-2026): categoría propia "Mantenimiento"
 }

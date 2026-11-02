@@ -190,11 +190,11 @@ def nav_context(request):
         try:
             from accounts.views import (_grupos_super_con_hrefs, _PANEL_CAT,
                                         _PANEL_KEYS_SOLO_SIDEBAR)
-            _labels = {'soporte': 'Soporte y TI', 'academico': 'Académico',
+            _labels = {'soporte': 'Soporte y TI', 'academico': 'Académico', 'notas': 'Notas',
                        'admin': 'Administración', 'mantenimiento': 'Mantenimiento'}
-            _icons = {'soporte': 'ti-headset', 'academico': 'ti-school',
+            _icons = {'soporte': 'ti-headset', 'academico': 'ti-school', 'notas': 'ti-file-certificate',
                       'admin': 'ti-report-money', 'mantenimiento': 'ti-engine'}
-            _order = ['soporte', 'academico', 'admin', 'mantenimiento']
+            _order = ['soporte', 'academico', 'notas', 'admin', 'mantenimiento']
             buckets = {k: [] for k in _order}
             for g in _grupos_super_con_hrefs():
                 if g['key'] in _PANEL_KEYS_SOLO_SIDEBAR:
