@@ -114,7 +114,29 @@ def index(request):
         tiles = []
         for i in Insumo.objects.filter(activo=True):
             r = services.resumen(i)
-            tiles.append({'i': i, 'r': r, 'mes': mes.get(i.pk) or Decimal('0')})
+            # <--- hecho por claude code (02-nov-2026): nivel para el recipiente animado (tanque/barril/bidón)
+            pres = i.presentacion
+            forma = {'tanque': 'tanque', 'barril': 'barril'}.get(pres, 'galon')
+            nivel, llenos = 0, 0
+            if pres == 'tanque':
+                nivel = int(r['pct'] or 0)
+            elif pres == 'barril':
+                b = float(r['barriles'] or 0)
+                llenos = int(b)
+                frac = b - llenos
+                if frac <= 0 and llenos > 0:
+                    nivel, llenos = 100, llenos - 1   # barril lleno + N llenos de respaldo
+                else:
+                    nivel = int(round(frac * 100))
+            else:  # galones (gasolina): sin tope → nivel referido al doble del mínimo de alerta
+                mn = float(i.minimo_alerta or 0)
+                sal = float(r['saldo'] or 0)
+                ref = mn * 2 if mn > 0 else (sal if sal > 0 else 1)
+                nivel = int(round(sal / ref * 100)) if ref else 0
+            nivel = max(0, min(100, nivel))
+            liquid_y = round(16 + (1 - nivel / 100.0) * 88, 1)   # cuerpo del recipiente: y 16..104
+            tiles.append({'i': i, 'r': r, 'mes': mes.get(i.pk) or Decimal('0'),
+                          'nivel': nivel, 'liquid_y': liquid_y, 'forma': forma, 'llenos': llenos})
         ctx.update({'tiles_comb': [t for t in tiles if t['i'].categoria == 'combustible'],
                     'tiles_aceite': [t for t in tiles if t['i'].categoria != 'combustible'],
                     'n_bajos': sum(1 for t in tiles if t['r']['bajo']), 'hoy': hoy})

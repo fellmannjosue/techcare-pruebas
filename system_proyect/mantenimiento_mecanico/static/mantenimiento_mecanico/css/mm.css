@@ -119,6 +119,17 @@ html.dark .mv-est--vencido { color: #fb7185; } html.dark .mv-est--pronto { color
 .mmh-tile-sub { font-size: .74rem; color: var(--ps-muted); font-weight: 600; }
 .mmh-tile-foot { font-size: .74rem; color: var(--ps-muted); border-top: 1px dashed var(--ps-border); padding-top: 6px; margin-top: auto; }
 .mmh-tile-foot b { color: var(--ps-text); }
+
+/* <--- hecho por claude code (02-nov-2026): recipiente animado del hub (tanque/barril/bidón) */
+.mmh-tile-main { display: flex; align-items: center; gap: 14px; margin: 4px 0 2px; }
+.mm-vessel { width: 56px; height: 70px; flex: none; }
+.mm-vessel-bg { fill: color-mix(in srgb, var(--mm) 9%, var(--ps-surface-2)); }
+.mm-vessel-out > * { fill: none; stroke: var(--mm); stroke-width: 3.2; stroke-linejoin: round; stroke-linecap: round; }
+.mm-vessel-out .mm-seam { stroke-width: 2.2; opacity: .4; }
+.mm-liquid-top { opacity: .85; }
+.mmh-tile-figs { min-width: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.mmh-tile-figs .mmh-tile-saldo { margin-top: 0; }
+.mmh-tile-figs .mm-bar { margin-top: 5px; }
 .mmh-kpis { grid-template-columns: repeat(4, 1fr); }
 a.mm-kpi { text-decoration: none !important; color: inherit; }
 .mmh-veh { display: flex; align-items: center; gap: 12px; }
