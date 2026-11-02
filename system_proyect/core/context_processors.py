@@ -183,6 +183,29 @@ def nav_context(request):
         aplicar_ocultos(ctx, ocultos(_cfg))
     except Exception:
         ctx.setdefault('programas_ocultos', {})
+
+    # <--- hecho por claude code (30-oct-2026): menú superior horizontal del superusuario por CATEGORÍAS
+    # (las mismas del Panel Principal). Reutiliza GRUPOS_SUPER; el .js no reconstruye si ya hay items.
+    if user.is_superuser:
+        try:
+            from accounts.views import (_grupos_super_con_hrefs, _PANEL_CAT,
+                                        _PANEL_KEYS_SOLO_SIDEBAR)
+            _labels = {'soporte': 'Soporte y TI', 'academico': 'Académico',
+                       'admin': 'Administración', 'mantenimiento': 'Mantenimiento'}
+            _icons = {'soporte': 'ti-headset', 'academico': 'ti-school',
+                      'admin': 'ti-report-money', 'mantenimiento': 'ti-engine'}
+            _order = ['soporte', 'academico', 'admin', 'mantenimiento']
+            buckets = {k: [] for k in _order}
+            for g in _grupos_super_con_hrefs():
+                if g['key'] in _PANEL_KEYS_SOLO_SIDEBAR:
+                    continue
+                cat = _PANEL_CAT.get(g['key'], 'admin')
+                if cat in buckets:
+                    buckets[cat].extend(g.get('cards', []))
+            ctx['nav_cats_super'] = [{'key': k, 'label': _labels[k], 'icon': _icons[k],
+                                      'accesos': buckets[k]} for k in _order if buckets[k]]
+        except Exception:
+            ctx['nav_cats_super'] = []
     return ctx
 
 

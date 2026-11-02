@@ -282,7 +282,7 @@ html.dark { --tc-tb-bg: #0c1526; --tc-tb-bd: #1b2740; }
   display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 10px;
   text-decoration: none; color: var(--ps-text); font-size: 13.5px; font-weight: 600;
 }
-.tc-dd-link i { font-size: 18px; color: var(--ps-muted); flex: none; }
+.tc-dd-link i { font-size: 18px; color: var(--ia, var(--ps-muted)); flex: none; }
 .tc-dd-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tc-dd-link:hover { background: var(--ps-surface-2); }
 .tc-dd-link.on { background: color-mix(in srgb, var(--tc-p1) 12%, transparent); color: var(--tc-p1); }
