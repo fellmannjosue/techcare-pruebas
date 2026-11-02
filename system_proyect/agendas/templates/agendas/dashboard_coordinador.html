@@ -23,7 +23,9 @@
 <div class="card">
   <div class="card-header d-flex align-items-center">
     <h3 class="card-title mb-0"><i class="ti ti-calendar-week me-2 text-blue"></i>Todas las Agendas</h3>
-    <button type="button" class="btn btn-outline-warning ms-auto" data-bs-toggle="modal" data-bs-target="#modalBloqueo">
+    {# <--- hecho por claude code (28-oct-2026): acceso a la pantalla de Moodle (solo druiz/cvarela/superusuario) #}
+    {% if moodle_pantalla %}<a href="{% url 'moodle_upload:index' %}" class="btn btn-outline-info ms-auto me-2"><i class="ti ti-cloud-upload me-1"></i>Upload Moodle</a>{% endif %}
+    <button type="button" class="btn btn-outline-warning {% if not moodle_pantalla %}ms-auto{% endif %}" data-bs-toggle="modal" data-bs-target="#modalBloqueo">
       <i class="ti ti-lock me-1"></i>Bloqueo por día
       {% if bloqueo_cfg.activo %}<span class="badge bg-warning ms-1">ON</span>{% endif %}
     </button>

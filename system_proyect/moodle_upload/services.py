@@ -46,13 +46,30 @@ def cursos(conexion):
     return sorted(lista, key=lambda c: (c.get('fullname') or '').lower())
 
 
-def publicar(conexion, curso_id, nombre_archivo, contenido, alt):
+def publicar(conexion, curso_id, nombre_archivo, contenido, alt, target_cmid=0):
     # <--- hecho por claude code (15-oct-2026): el plugin v0.2 pone su propio nombre y rechaza nombres/textos con
     # caracteres especiales → se manda un nombre neutro y el texto alternativo sin < > " ni saltos de línea.
+    # <--- 28-oct-2026: target_cmid>0 reemplaza una imagen que ya está en General (plugin v0.3) y la adopta como agenda.
     ext = 'jpg' if str(nombre_archivo).lower().endswith(('.jpg', '.jpeg')) else 'png'
     alt = re.sub(r'[<>"\\\s]+', ' ', alt or '').strip()[:200] or 'Agenda semanal'
+    extra = {}
+    # Solo se manda si se eligió reemplazar: el plugin v0.2 rechaza parámetros que no conoce, así que
+    # las publicaciones normales siguen funcionando aunque todavía no se haya actualizado a v0.3.
+    if int(target_cmid or 0) > 0:
+        extra['targetcmid'] = int(target_cmid)
     return ws(conexion, 'local_techcareagenda_publicar', courseid=int(curso_id), filename=f'agenda.{ext}',
-              filecontent=base64.b64encode(contenido).decode(), alttext=alt)
+              filecontent=base64.b64encode(contenido).decode(), alttext=alt, **extra)
+
+
+def listar_general(conexion, curso_id):
+    """Imágenes que YA hay en la sección General del curso (plugin v0.3), para elegir cuál reemplazar.
+    [{cmid, nombre, modname, archivo, miniatura, reemplazable, esagenda}]. Lista vacía si el plugin es viejo."""
+    try:
+        res = ws(conexion, 'local_techcareagenda_listar', courseid=int(curso_id))
+    except MoodleError:
+        # Plugin anterior a v0.3 (sin la función): no hay nada que listar, se publica normal.
+        return []
+    return res.get('items', []) if isinstance(res, dict) else []
 
 
 # ── Agrupar por grado-sección (hecho por claude code, 15-oct-2026) ──────────────────────────────────────
@@ -92,6 +109,38 @@ def agrupar(cursos):
         lista.append({'key': 'otros', 'anio': '', 'area': 'otros', 'area_nombre': 'Otros cursos', 'grado': '',
                       'seccion': '', 'etiqueta': 'Otros cursos', 'cursos': sorted(otros, key=lambda x: x['clase'].lower())})
     return lista
+
+
+# ── Acceso de coordinadores a la pantalla de Moodle (hecho por claude code, 28-oct-2026) ───────────────
+# Pedido del usuario: habilitar la pantalla /moodle-upload/ (solo Publicar + Historial, SIN la pestaña
+# Conexión, que administra el token) a druiz y cvarela, y que cada uno vea SOLO sus cursos (áreas bilingües):
+#   cvarela → kínder, prepa y primaria 1ro-3ro ;  druiz → primaria 4to-6to y colegio bilingüe (hasta 9no).
+_AREAS_BL = {'PrepaBl', 'KindBl', 'PrimBl', 'ColBl'}
+COORD_CURSOS = {   # username (= correo) -> regla(area, nº de grado) que decide si un grupo de agrupar() es suyo
+    'cvarela@ana-hn.org': lambda area, n: area in ('KindBl', 'PrepaBl') or (area == 'PrimBl' and n <= 3),
+    'druiz@ana-hn.org':   lambda area, n: (area == 'PrimBl' and n >= 4) or area == 'ColBl',
+}
+
+
+def puede_ver_pantalla(user):
+    """¿Puede abrir la pantalla de Moodle? Superusuario siempre; druiz y cvarela también (Publicar + Historial)."""
+    return bool(getattr(user, 'is_authenticated', False)
+                and (getattr(user, 'is_superuser', False) or user.get_username() in COORD_CURSOS))
+
+
+def filtrar_para(grupos, user):
+    """Grupos de agrupar() visibles para el usuario. Superusuario: todos. Coordinador: solo sus cursos BL."""
+    if getattr(user, 'is_superuser', False):
+        return grupos
+    regla = COORD_CURSOS.get(user.get_username())
+    if not regla:
+        return []
+    return [g for g in grupos if g.get('area') in _AREAS_BL and regla(g['area'], _num(g.get('grado')))]
+
+
+def cursos_permitidos_ids(grupos, user):
+    """Conjunto de curso_id (str) que el usuario puede publicar — candado del servidor en 'publicar'."""
+    return {str(c['id']) for g in filtrar_para(grupos, user) for c in g['cursos']}
 
 
 # Grado de Agendas → grupo de Moodle. Colegio: 7mo-9no = Col 1ero-3ero; 10mo-11vo = Bach 1ero-2do.

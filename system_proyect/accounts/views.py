@@ -1064,7 +1064,7 @@ GRUPOS_SUPER = [
         {'t': 'Coordinador BL', 's': 'Bilingüe', 'i': 'ti-chalkboard', 'c': '#0ca678', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}},
         {'t': 'Coordinador Colegio', 's': 'Colegio', 'i': 'ti-user-cog', 'c': '#f08c00', 'url': 'dashboard_coordinador', 'args': {'area': 'colegio'}},
         {'t': 'Agendas', 's': 'Agendas semanales', 'i': 'ti-calendar-week', 'c': '#7048e8', 'url': 'agendas:form_agenda'},
-        {'t': 'Moodle', 's': 'Publicar agendas en los cursos', 'i': 'ti-cloud-upload', 'c': '#f98012', 'url': 'moodle_upload:index'},   # <--- hecho por claude code (15-oct-2026)
+        {'t': 'Upload Moodle', 's': 'Agendas, avisos, temarios, horarios de exámenes', 'i': 'ti-cloud-upload', 'c': '#f98012', 'url': 'moodle_upload:index'},   # <--- hecho por claude code (15-oct-2026; renombrado 28-oct-2026)
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
         # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
@@ -1418,6 +1418,8 @@ def panel_general(request):
         'show_maestro_bl':  _g(user, 'maestros_bilingue'),
         'show_maestro_col': _g(user, 'maestros_colegio'),
         'show_enfermeria':  _g(user, *_GRUPOS_COORD_BL),
+        # <--- hecho por claude code (28-oct-2026): Upload Moodle también como tarjeta del panel (druiz/cvarela/superuser)
+        'show_moodle_upload': __import__('moodle_upload.services', fromlist=['puede_ver_pantalla']).puede_ver_pantalla(user),
         'show_reloj':       user.is_superuser or _g(user, 'reloj'),
         # <--- hecho por claude code (12-oct-2026): Control y Servicio Técnico también en el Panel (estaba solo en el sidebar)
         'show_servicio':    user.is_superuser or _g(user, 'inventario', 'mantenimiento') or user.has_perm('inventario.view_item') or user.has_perm('mantenimiento.view_maintenancerecord'),

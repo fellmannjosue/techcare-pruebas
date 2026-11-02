@@ -1,22 +1,23 @@
 {% extends 'base_app.html' %}
 {% load static %}
 {# <--- hecho por claude code (14-oct-2026): Dashboard Moodle — publicar, historial y conexión en una sola pantalla (solo superusuario) #}
-{% block title %}Moodle{% endblock %}
+{% block title %}Upload Moodle{% endblock %}
 {% block page_pretitle %}Académico · Moodle{% endblock %}
-{% block page_title %}<i class="ti ti-cloud-upload me-2"></i>Moodle · Agendas{% endblock %}
-{% block page_actions %}<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-calendar-week me-1"></i>Dashboard de Agendas</a>{% if conexiones|length > 1 %}<div class="dropdown d-inline-block ms-1">
+{% block page_title %}<i class="ti ti-cloud-upload me-2"></i>Upload Moodle{% endblock %}
+{% block page_actions %}<a href="{% url 'agendas:dashboard_coordinador' %}" class="btn btn-sm"><i class="ti ti-calendar-week me-1"></i>Dashboard de Agendas</a>{% if es_super and conexiones|length > 1 %}<div class="dropdown d-inline-block ms-1">
   <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button"><i class="ti ti-plug-connected me-1"></i>{{ activa.nombre }}</button>
   <div class="dropdown-menu dropdown-menu-end">
     {% for c in conexiones %}{% if c.activa %}<span class="dropdown-item active"><i class="ti ti-check me-2"></i>{{ c.nombre }}</span>{% else %}<form method="post" action="{% url 'moodle_upload:conectar' c.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item" {% if not c.tiene_token %}disabled{% endif %}><i class="ti ti-plug me-2"></i>Conectar a {{ c.nombre }}</button></form>{% endif %}{% endfor %}
   </div>
 </div>{% endif %}{% endblock %}
-{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=3"><link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'moodle_upload/css/moodle_upload.css' %}?v=5"><link rel="stylesheet" href="{% static 'moodle_upload/css/agenda_moodle.css' %}?v=3">{% endblock %}
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}
 
 {% block content %}
+<p class="text-muted mb-2"><i class="ti ti-cloud-upload me-1"></i>Sube a los cursos de Moodle: agendas, avisos, temarios, horarios de exámenes y más.</p>
 <div class="mu-estado {% if estado.ok %}mu-estado--ok{% elif estado %}mu-estado--err{% else %}mu-estado--sin{% endif %}">
   <i class="ti {% if estado.ok %}ti-plug-connected{% elif estado %}ti-plug-x{% else %}ti-plug{% endif %}"></i>
-  <span>{% if estado %}{{ estado.texto }}{% else %}Sin conexión configurada: ve a la pestaña «Conexión».{% endif %}</span>
+  <span>{% if estado %}{{ estado.texto }}{% elif es_super %}Sin conexión configurada: ve a la pestaña «Conexión».{% else %}Sin conexión con Moodle. Avísale al administrador del sistema.{% endif %}</span>
 </div>
 
 <div class="mu-kpis">
@@ -33,7 +34,7 @@
     <ul class="nav nav-tabs card-header-tabs" role="tablist">
       <li class="nav-item"><button class="nav-link {% if tab == 'publicar' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#mu-tab-publicar" type="button"><i class="ti ti-photo-up me-1"></i>Publicar</button></li>
       <li class="nav-item"><button class="nav-link {% if tab == 'historial' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#mu-tab-historial" type="button"><i class="ti ti-history me-1"></i>Historial <span class="badge bg-secondary-lt ms-1">{{ historial|length }}</span></button></li>
-      <li class="nav-item"><button class="nav-link {% if tab == 'conexion' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#mu-tab-conexion" type="button"><i class="ti ti-settings me-1"></i>Conexión</button></li>
+      {% if es_super %}<li class="nav-item"><button class="nav-link {% if tab == 'conexion' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#mu-tab-conexion" type="button"><i class="ti ti-settings me-1"></i>Conexión</button></li>{% endif %}
     </ul>
   </div>
   <div class="tab-content">
@@ -44,6 +45,11 @@
         <div class="mb-3">
           <label class="form-label required">Cursos de Moodle</label>
           {% if cursos %}{% include "moodle_upload/_selector_cursos.html" with sel_id="mu-selector" %}{% else %}<div class="text-muted small">(conecta Moodle para ver los cursos)</div>{% endif %}
+        </div>
+        {# <--- hecho por claude code (28-oct-2026): al elegir UN curso, lo que ya hay en su sección General para reemplazar #}
+        <div class="mb-3 mu-gen" id="mu-general" hidden>
+          <label class="form-label d-block mb-1"><i class="ti ti-replace me-1"></i>¿Reemplazar lo que ya hay en General? <span class="text-muted fw-normal">(opcional)</span></label>
+          <div class="mu-gen-body" id="mu-general-body"></div>
         </div>
         <div class="mb-3">
           <label class="form-label required">Imagen (PNG o JPG, máx. {{ max_mb }} MB)</label>
@@ -82,6 +88,7 @@
       </div>
     </div>
 
+    {% if es_super %}
     <div class="tab-pane fade {% if tab == 'conexion' %}show active{% endif %}" id="mu-tab-conexion">
       {# <--- hecho por claude code (15-oct-2026): conexiones GUARDADAS (pruebas y real): "Conectar" cambia sin pegar el token #}
       <div class="card-body">
@@ -127,9 +134,11 @@
         <a href="{% static 'moodle_upload/local_techcareagenda.zip' %}" class="btn btn-outline-primary btn-sm" download><i class="ti ti-download me-1"></i>Descargar plugin (.zip)</a>
       </div>
     </div>
+    {% endif %}
   </div>
 </div>
 
+{% if es_super %}
 {# <--- hecho por claude code (15-oct-2026): ventana del token nuevo, con cuenta regresiva hasta que venza el actual #}
 <div class="modal modal-blur fade" id="muModalToken" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -153,12 +162,13 @@
   </div>
 </div>
 <div id="mu-con-config" hidden data-abrir="{% if abrir_token %}{{ activa.pk }}{% endif %}" data-aviso-dias="{{ aviso_dias }}"></div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 {{ grupos|json_script:"mu-grupos" }}
-<div id="mu-config" hidden data-csrf="{{ csrf_token }}" data-url-publicar="{% url 'moodle_upload:publicar' %}?ajax=1"></div>
+<div id="mu-config" hidden data-csrf="{{ csrf_token }}" data-url-publicar="{% url 'moodle_upload:publicar' %}?ajax=1" data-url-general="{% url 'moodle_upload:general_json' %}"></div>
 <script src="{% static 'moodle_upload/js/mu_selector.js' %}?v=1"></script>
-<script src="{% static 'moodle_upload/js/mu_publicar.js' %}?v=1"></script>
-<script src="{% static 'moodle_upload/js/mu_conexion.js' %}?v=1"></script>
+<script src="{% static 'moodle_upload/js/mu_publicar.js' %}?v=3"></script>
+{% if es_super %}<script src="{% static 'moodle_upload/js/mu_conexion.js' %}?v=1"></script>{% endif %}
 {% endblock %}

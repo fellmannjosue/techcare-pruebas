@@ -18,7 +18,7 @@ MODULOS = {
     # Académico
     'conducta': ('academico', 'Conducta', 'menu_book'),
     'agendas': ('academico', 'Agendas', 'calendar_month'),
-    'moodle_upload': ('academico', 'Moodle', 'cloud_upload'),
+    'moodle_upload': ('academico', 'Upload Moodle', 'cloud_upload'),
     'notas_parcial': ('academico', 'Notas mitad de parcial', 'grading'),
     'ingresos_notas': ('academico', 'Ingreso de notas', 'edit_note'),
     'salidas_bano': ('academico', 'Salidas al baño', 'wc'),

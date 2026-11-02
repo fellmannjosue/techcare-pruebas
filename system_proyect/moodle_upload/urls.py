@@ -10,5 +10,6 @@ urlpatterns = [
     path('conexion/<int:pk>/conectar/', views.conectar, name='conectar'),
     path('publicar/', views.publicar, name='publicar'),
     path('cursos.json', views.cursos_json, name='cursos_json'),
+    path('general.json', views.general_json, name='general_json'),   # <--- 28-oct-2026: qué hay en General para reemplazar
     path('agenda/<int:pk>/publicar/', views.publicar_agenda, name='publicar_agenda'),
 ]

@@ -36,3 +36,21 @@ html.dark .mu-estado--ok { color: #4ade80; } html.dark .mu-estado--err { color: 
 .mu-reloj-num b { font-size: 2rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .mu-reloj-num small { font-size: .7rem; font-weight: 600; opacity: .8; }
 .mu-reloj-pie { font-size: .8rem; }
+
+/* <--- hecho por claude code (28-oct-2026): panel "elegir qué reemplazar en General" (un solo curso) */
+.mu-gen-opts { display: flex; flex-direction: column; gap: 6px; }
+.mu-gen-op { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 10px; border: 1px solid var(--tblr-border-color, #e6e7e9); border-radius: 8px; cursor: pointer; transition: border-color .12s, background .12s; }
+.mu-gen-op:hover { background: rgba(37, 99, 235, .05); }
+.mu-gen-op:has(input:checked) { border-color: #2563eb; background: rgba(37, 99, 235, .08); }
+.mu-gen-op input[type="radio"] { flex: none; margin: 0; }
+.mu-gen-ico { flex: none; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(0, 0, 0, .04); overflow: hidden; color: #6b7280; }
+.mu-gen-thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; display: block; }
+.mu-gen-sin { font-size: 1.2rem; }
+.mu-gen-txt { min-width: 0; }
+.mu-gen-txt small { word-break: break-word; }
+
+/* <--- hecho por claude code (28-oct-2026): bloque por curso al reemplazar en varios cursos (grado completo) */
+.mu-gen-curso { border: 1px solid var(--tblr-border-color, #e6e7e9); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+.mu-gen-curso-tit { font-weight: 600; font-size: .82rem; color: #4b5563; margin-bottom: 6px; }
+.mu-gen-curso .mu-gen-op { border-color: transparent; padding: 6px 8px; }
+.mu-gen-curso .mu-gen-op:hover { background: rgba(37, 99, 235, .05); }

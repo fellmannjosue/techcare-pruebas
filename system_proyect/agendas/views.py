@@ -571,10 +571,20 @@ def dashboard_coordinador(request):
         'bloqueo_ids':  bloqueo_ids,
         'maestros_bl':  maestros_bl,
         'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026)
+        'moodle_pantalla': _puede_ver_moodle(request.user),   # <--- hecho por claude code (28-oct-2026): acceso a la pantalla de Moodle (druiz/cvarela/super)
         'tab_crear': request.GET.get('tab') == 'crear',   # <--- hecho por claude code (15-oct-2026): pestaña Crear agenda
         **diseno.contexto_crear(request),
         **_rol_ctx(request),
     })
+
+
+def _puede_ver_moodle(user):
+    # <--- hecho por claude code (28-oct-2026): ¿mostrar el acceso a la pantalla /moodle-upload/ en el Dashboard?
+    try:
+        from moodle_upload import services as _mu
+        return _mu.puede_ver_pantalla(user)
+    except Exception:
+        return False
 
 
 def _moodle_publicadas():

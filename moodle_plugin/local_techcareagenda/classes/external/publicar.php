@@ -33,15 +33,20 @@ class publicar extends external_api {
             'filename'    => new external_value(PARAM_FILE, 'Nombre original (solo informativo; el plugin pone el suyo)'),
             'filecontent' => new external_value(PARAM_RAW, 'Imagen PNG o JPG en base64'),
             'alttext'     => new external_value(PARAM_TEXT, 'Texto alternativo', VALUE_DEFAULT, 'Agenda semanal'),
+            // <--- 28-oct-2026: si viene (>0), reemplaza esa actividad existente de General y la adopta como la agenda.
+            'targetcmid'  => new external_value(PARAM_INT, 'cmid de la actividad a reemplazar (0 = la agenda de TechCare)',
+                                                VALUE_DEFAULT, 0),
         ]);
     }
 
-    public static function execute(int $courseid, string $filename, string $filecontent, string $alttext = 'Agenda semanal'): array {
+    public static function execute(int $courseid, string $filename, string $filecontent,
+                                   string $alttext = 'Agenda semanal', int $targetcmid = 0): array {
         global $CFG, $DB;
         require_once($CFG->dirroot . '/course/lib.php');
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        $p = self::validate_parameters(self::execute_parameters(), compact('courseid', 'filename', 'filecontent', 'alttext'));
+        $p = self::validate_parameters(self::execute_parameters(),
+            compact('courseid', 'filename', 'filecontent', 'alttext', 'targetcmid'));
 
         // 1) Interruptor general: el plugin no hace nada hasta que el administrador lo activa.
         if (!get_config('local_techcareagenda', 'enabled')) {
@@ -76,23 +81,44 @@ class publicar extends external_api {
         }
         $nombre = 'agenda_' . date('Ymd_His') . '.' . $ext;   // nombre propio: nunca el del cliente
 
-        // 4) Crear o reemplazar SOLO la etiqueta del plugin, en una transacción.
+        // 4) Elegir la etiqueta destino, en una transacción:
+        //    - con targetcmid: una "Área de texto y medios" existente de General que TechCare adopta como la agenda;
+        //    - sin targetcmid: la etiqueta propia del plugin (idnumber techcare_agenda), que se crea la primera vez.
         $tx = $DB->start_delegated_transaction();
         $labelmod = $DB->get_field('modules', 'id', ['name' => 'label'], MUST_EXIST);
-        $cm = $DB->get_record('course_modules', ['course' => $course->id, 'module' => $labelmod,
-                                                 'idnumber' => self::IDNUMBER, 'deletioninprogress' => 0]);
         $creado = false;
-        if (!$cm) {
-            $info = (object)[
-                'modulename' => 'label', 'module' => $labelmod, 'course' => $course->id, 'section' => 0,
-                'visible' => 1, 'visibleoncoursepage' => 1, 'cmidnumber' => self::IDNUMBER,
-                'name' => 'Agenda semanal',
-                // create_module() exige 'introeditor' (formato del editor; itemid 0 = sin archivos en borrador)
-                'introeditor' => ['text' => '<p>Agenda semanal</p>', 'format' => FORMAT_HTML, 'itemid' => 0],
-            ];
-            $info = create_module($info);
-            $cm = $DB->get_record('course_modules', ['id' => $info->coursemodule], '*', MUST_EXIST);
-            $creado = true;
+        if (!empty($p['targetcmid'])) {
+            $cm = $DB->get_record('course_modules', ['id' => $p['targetcmid'], 'course' => $course->id,
+                                                     'module' => $labelmod, 'deletioninprogress' => 0]);
+            if (!$cm) {
+                throw new \moodle_exception('errortarget', 'local_techcareagenda');
+            }
+            $sec = $DB->get_record('course_sections', ['id' => $cm->section], 'section', MUST_EXIST);
+            if ((int)$sec->section !== 0) {
+                throw new \moodle_exception('errortarget', 'local_techcareagenda');   // solo la sección General
+            }
+            // Mantener UNA sola agenda gestionada: quitar la marca a cualquier otra y marcar la elegida.
+            if ((string)$cm->idnumber !== self::IDNUMBER) {
+                $DB->set_field_select('course_modules', 'idnumber', '',
+                    'course = ? AND idnumber = ? AND id <> ?', [$course->id, self::IDNUMBER, $cm->id]);
+                $DB->set_field('course_modules', 'idnumber', self::IDNUMBER, ['id' => $cm->id]);
+                $cm->idnumber = self::IDNUMBER;
+            }
+        } else {
+            $cm = $DB->get_record('course_modules', ['course' => $course->id, 'module' => $labelmod,
+                                                     'idnumber' => self::IDNUMBER, 'deletioninprogress' => 0]);
+            if (!$cm) {
+                $info = (object)[
+                    'modulename' => 'label', 'module' => $labelmod, 'course' => $course->id, 'section' => 0,
+                    'visible' => 1, 'visibleoncoursepage' => 1, 'cmidnumber' => self::IDNUMBER,
+                    'name' => 'Agenda semanal',
+                    // create_module() exige 'introeditor' (formato del editor; itemid 0 = sin archivos en borrador)
+                    'introeditor' => ['text' => '<p>Agenda semanal</p>', 'format' => FORMAT_HTML, 'itemid' => 0],
+                ];
+                $info = create_module($info);
+                $cm = $DB->get_record('course_modules', ['id' => $info->coursemodule], '*', MUST_EXIST);
+                $creado = true;
+            }
         }
 
         $ctxmod = \context_module::instance($cm->id);

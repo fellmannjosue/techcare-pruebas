@@ -68,6 +68,15 @@
     </a>
   </div>
   {% endif %}
+  {% if show_moodle_upload %}{# <--- hecho por claude code (28-oct-2026): Upload Moodle (agendas, avisos, temarios, horarios de exámenes) #}
+  <div class="col-6 col-md-3">
+    <a href="{% url 'moodle_upload:index' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-cloud-upload" style="font-size:2.2rem;color:#f98012;"></i></div>
+      <div class="fw-semibold text-primary">Upload Moodle</div>
+      <div class="text-muted small">Agendas, avisos, temarios…</div>
+    </a>
+  </div>
+  {% endif %}
   {# <--- hecho por claude code: faltaban Tutorías, Período Escolar y Ruteo en el menú del coordinador #}
   {% if not programas_ocultos.tutorias %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   <div class="col-6 col-md-3">

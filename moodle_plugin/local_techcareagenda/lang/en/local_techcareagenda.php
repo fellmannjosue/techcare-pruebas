@@ -15,3 +15,4 @@ $string['errortoobig'] = 'The image is larger than {$a} MB.';
 $string['errorbadimage'] = 'The file is not a valid PNG or JPG image.';
 $string['errordimensions'] = 'The image is too large in pixels.';
 $string['errornogd'] = 'The Moodle server is missing the PHP GD extension.';
+$string['errortarget'] = 'The activity to replace does not exist, is not a text and media area, or is not in the General section.';
