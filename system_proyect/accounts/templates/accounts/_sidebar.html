@@ -371,9 +371,19 @@
       {% if nav_mm_insumos %}
       <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'gasolina' %}"><span class="nav-link-icon"><i class="ti ti-gas-station"></i></span><span class="nav-link-title">Gasolina</span></a></li>
       <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'diesel' %}"><span class="nav-link-icon"><i class="ti ti-truck"></i></span><span class="nav-link-title">Diésel</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-40' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 40</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-50' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 50</span></a></li>
-      <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-hidraulico' %}"><span class="nav-link-icon"><i class="ti ti-droplet-half-2"></i></span><span class="nav-link-title">Aceite hidráulico</span></a></li>
+      {# <--- hecho por claude code (02-nov-2026): aceites agrupados en sub-acordeón (pedido del usuario) #}
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="#navMMAceites" data-bs-toggle="collapse">
+          <span class="nav-link-icon"><i class="ti ti-droplet"></i></span>
+          <span class="nav-link-title">Aceites</span>
+          <span class="nav-link-arrow"></span>
+        </a>
+        <ul class="navbar-nav collapse ps-3" id="navMMAceites">
+          <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-40' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 40</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-50' %}"><span class="nav-link-icon"><i class="ti ti-droplet"></i></span><span class="nav-link-title">Aceite 50</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'aceite-hidraulico' %}"><span class="nav-link-icon"><i class="ti ti-droplet-half-2"></i></span><span class="nav-link-title">Aceite hidráulico</span></a></li>
+        </ul>
+      </li>
       <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'coolant' %}"><span class="nav-link-icon"><i class="ti ti-snowflake"></i></span><span class="nav-link-title">Coolant</span></a></li>
       {% endif %}
       {# <--- hecho por claude code (12-oct-2026): vehículos unido al módulo (antes enlace suelto) #}

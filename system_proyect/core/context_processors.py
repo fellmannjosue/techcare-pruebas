@@ -222,6 +222,13 @@ def nav_context(request):
                         subs.append({'label': 'Upload', 'icon': 'ti-cloud-upload', 'accesos': sub_upl})
                     entry['accesos'] = directos
                     entry['subgrupos'] = subs
+                elif k == 'mantenimiento':
+                    # <--- hecho por claude code (02-nov-2026): Aceites agrupados (acordeón), como Académico
+                    _MM_ACEITES = ('Aceite 40', 'Aceite 50', 'Aceite hidráulico')
+                    entry['accesos'] = [a for a in acc if a['t'] not in _MM_ACEITES]
+                    sub_ac = [a for a in acc if a['t'] in _MM_ACEITES]
+                    if sub_ac:
+                        entry['subgrupos'] = [{'label': 'Aceites', 'icon': 'ti-droplet', 'accesos': sub_ac}]
                 cats.append(entry)
             ctx['nav_cats_super'] = cats
         except Exception:
