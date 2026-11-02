@@ -1233,7 +1233,8 @@ _PANEL_CAT = {
     'inventario_general': 'soporte', 'prestamo_equipo': 'soporte',   # <--- hecho por claude code (22-oct-2026)
     'academico': 'academico', 'notas_mitad_parcial': 'notas', 'enfermeria': 'academico',
     'ruteo': 'academico', 'ingresos_notas': 'notas', 'salidas': 'academico',   # <--- hecho por claude code (02-nov-2026): categoría propia "Notas"
-    'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin', 'cfp': 'admin',
+    'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin',
+    'cfp': 'cfp',   # <--- hecho por claude code (02-nov-2026): CFP como categoría propia (pedido del usuario)
     'mantenimiento_mecanico': 'mantenimiento',   # <--- hecho por claude code (30-oct-2026): categoría propia "Mantenimiento"
 }
 

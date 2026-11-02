@@ -191,10 +191,10 @@ def nav_context(request):
             from accounts.views import (_grupos_super_con_hrefs, _PANEL_CAT,
                                         _PANEL_KEYS_SOLO_SIDEBAR)
             _labels = {'soporte': 'Soporte y TI', 'academico': 'Académico', 'notas': 'Notas',
-                       'admin': 'Administración', 'mantenimiento': 'Mantenimiento'}
+                       'cfp': 'CFP', 'admin': 'Administración', 'mantenimiento': 'Mantenimiento'}
             _icons = {'soporte': 'ti-headset', 'academico': 'ti-school', 'notas': 'ti-file-certificate',
-                      'admin': 'ti-report-money', 'mantenimiento': 'ti-engine'}
-            _order = ['soporte', 'academico', 'notas', 'admin', 'mantenimiento']
+                      'cfp': 'ti-briefcase', 'admin': 'ti-report-money', 'mantenimiento': 'ti-engine'}
+            _order = ['soporte', 'academico', 'notas', 'cfp', 'admin', 'mantenimiento']
             buckets = {k: [] for k in _order}
             for g in _grupos_super_con_hrefs():
                 if g['key'] in _PANEL_KEYS_SOLO_SIDEBAR:
@@ -233,13 +233,6 @@ def nav_context(request):
                     sub_ac = [a for a in acc if a['t'] in _MM_ACEITES]
                     if sub_ac:
                         entry['subgrupos'] = [{'label': 'Aceites', 'icon': 'ti-droplet', 'accesos': sub_ac}]
-                elif k == 'admin':
-                    # <--- hecho por claude code (02-nov-2026): acordeón "CFP" (Contabilidad CFP + Notas CFP)
-                    _CFP = ('Contabilidad CFP', 'Notas CFP')
-                    entry['accesos'] = [a for a in acc if a['t'] not in _CFP]
-                    sub_cfp = [a for a in acc if a['t'] in _CFP]
-                    if sub_cfp:
-                        entry['subgrupos'] = [{'label': 'CFP', 'icon': 'ti-school', 'accesos': sub_cfp}]
                 cats.append(entry)
             ctx['nav_cats_super'] = cats
         except Exception:
