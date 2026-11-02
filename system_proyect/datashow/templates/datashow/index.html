@@ -1,0 +1,241 @@
+{% extends 'base_app.html' %}
+{% load static %}
+{# <--- hecho por claude code (02-nov-2026): Solicitud de DataShow — calendario de reservas + autorización de Soporte #}
+{% block title %}Solicitud de DataShow{% endblock %}
+{% block page_pretitle %}Soporte y TI{% endblock %}
+{% block page_title %}Solicitud de DataShow{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'datashow/css/datashow.css' %}?v=1">{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaReserva">
+  <i class="ti ti-calendar-plus me-1"></i>Nueva solicitud
+</button>
+{% endblock %}
+
+{% block content %}
+{% include 'ui/messages.html' %}
+
+<div class="ds-wrap" data-hoy="{{ hoy_iso }}">
+
+  {# ===== Calendario ===== #}
+  <div class="card ds-cal-card mb-4">
+    <div class="card-header ds-cal-head">
+      <div class="ds-cal-title">
+        <i class="ti ti-calendar-event me-2"></i><span>{{ mes_nombre }} {{ anio }}</span>
+      </div>
+      <div class="btn-list">
+        <a class="btn btn-sm btn-ghost-secondary" href="?anio={{ nav_prev.anio }}&mes={{ nav_prev.mes }}{% if ver_todas %}&todas=1{% endif %}"><i class="ti ti-chevron-left"></i></a>
+        <a class="btn btn-sm" href="{% url 'datashow:index' %}{% if ver_todas %}?todas=1{% endif %}">Hoy</a>
+        <a class="btn btn-sm btn-ghost-secondary" href="?anio={{ nav_sig.anio }}&mes={{ nav_sig.mes }}{% if ver_todas %}&todas=1{% endif %}"><i class="ti ti-chevron-right"></i></a>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="ds-cal">
+        <div class="ds-cal-row ds-cal-dow">
+          {% for d in dias_cabecera %}<div class="ds-dow">{{ d }}</div>{% endfor %}
+        </div>
+        {% for semana in semanas %}
+        <div class="ds-cal-row">
+          {% for c in semana %}
+          <div class="ds-day{% if not c.en_mes %} ds-out{% endif %}{% if c.es_hoy %} ds-today{% endif %}{% if c.es_pasado %} ds-past{% endif %}"
+               data-fecha="{{ c.iso }}"{% if not c.es_pasado %} role="button" tabindex="0" title="Reservar el {{ c.iso }}"{% endif %}>
+            <div class="ds-day-num">{{ c.dia }}</div>
+            <div class="ds-day-body">
+              {% for r in c.reservas %}
+              <span class="ds-chip bg-{{ r.estado_color }}-lt text-{{ r.estado_color }}"
+                    title="{{ r.datashow.asset_id }} · {{ r.rango_horario }} · {{ r.get_estado_display }} · {{ r.solicitante.get_full_name|default:r.solicitante.username }}{% if r.lugar %} · {{ r.lugar }}{% endif %}">
+                <i class="ti {{ r.estado_icono }}"></i>{{ r.hora_inicio|time:"H:i" }} {{ r.datashow.asset_id }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card-footer ds-legend">
+      <span class="ds-leg"><span class="ds-dot bg-orange"></span>Pendiente</span>
+      <span class="ds-leg"><span class="ds-dot bg-green"></span>Autorizada</span>
+      <span class="ds-cal-hint"><i class="ti ti-click me-1"></i>Toca un día para reservar</span>
+    </div>
+  </div>
+
+  {# ===== Cola de pendientes (solo Soporte) ===== #}
+  {% if es_soporte %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="card-title"><i class="ti ti-clock-hour-4 me-2 text-orange"></i>Pendientes de autorización</h3>
+      <span class="badge bg-orange-lt text-orange ms-2">{{ n_pendientes }}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if pendientes %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr>
+            <th>Solicitante</th><th>DataShow</th><th>Fecha</th><th>Horario</th>
+            <th>Lugar</th><th>Motivo</th><th class="text-end">Acciones</th>
+          </tr></thead>
+          <tbody>
+            {% for r in pendientes %}
+            <tr>
+              <td>{{ r.solicitante.get_full_name|default:r.solicitante.username }}</td>
+              <td><span class="badge bg-blue-lt text-blue">{{ r.datashow.asset_id }}</span><div class="text-secondary small">{{ r.datashow.nombre|default:r.datashow.modelo }}</div></td>
+              <td>{{ r.fecha|date:"d/m/Y" }}</td>
+              <td>{{ r.rango_horario }}</td>
+              <td>{{ r.lugar }}</td>
+              <td class="text-secondary small">{{ r.motivo|default:"—" }}</td>
+              <td class="text-end">
+                <form method="post" action="{% url 'datashow:revisar' r.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="accion" value="autorizar">
+                  <button class="btn btn-sm btn-success"><i class="ti ti-check me-1"></i>Autorizar</button>
+                </form>
+                <button type="button" class="btn btn-sm btn-outline-danger ds-rechazar"
+                        data-url="{% url 'datashow:revisar' r.pk %}"
+                        data-detalle="{{ r.datashow.asset_id }} · {{ r.fecha|date:'d/m/Y' }} · {{ r.rango_horario }}">
+                  <i class="ti ti-x me-1"></i>Rechazar
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty p-4"><p class="empty-title">No hay solicitudes pendientes</p><p class="empty-subtitle text-secondary">Las nuevas solicitudes aparecerán aquí.</p></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ===== Mis solicitudes / Todas ===== #}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i class="ti ti-list-details me-2"></i>{% if ver_todas %}Todas las solicitudes{% else %}Mis solicitudes{% endif %}</h3>
+      {% if es_soporte %}
+      <div class="ms-auto">
+        {% if ver_todas %}<a class="btn btn-sm btn-ghost-secondary" href="{% url 'datashow:index' %}?anio={{ anio }}&mes={{ mes }}">Ver solo las mías</a>
+        {% else %}<a class="btn btn-sm btn-ghost-secondary" href="{% url 'datashow:index' %}?anio={{ anio }}&mes={{ mes }}&todas=1">Ver todas</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="card-body p-0">
+      {% if mis %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr>
+            <th>DataShow</th><th>Fecha</th><th>Horario</th><th>Lugar</th>
+            {% if ver_todas %}<th>Solicitante</th>{% endif %}
+            <th>Estado</th><th>Nota de Soporte</th><th class="text-end"></th>
+          </tr></thead>
+          <tbody>
+            {% for r in mis %}
+            <tr{% if r.es_pasada %} class="ds-row-pasada"{% endif %}>
+              <td><span class="badge bg-blue-lt text-blue">{{ r.datashow.asset_id }}</span></td>
+              <td>{{ r.fecha|date:"d/m/Y" }}</td>
+              <td>{{ r.rango_horario }}</td>
+              <td>{{ r.lugar }}</td>
+              {% if ver_todas %}<td>{{ r.solicitante.get_full_name|default:r.solicitante.username }}</td>{% endif %}
+              <td><span class="badge bg-{{ r.estado_color }}-lt text-{{ r.estado_color }}"><i class="ti {{ r.estado_icono }} me-1"></i>{{ r.get_estado_display }}</span></td>
+              <td class="text-secondary small">{{ r.comentario_soporte|default:"—" }}</td>
+              <td class="text-end">
+                {% if r.puede_cancelar %}
+                <form method="post" action="{% url 'datashow:cancelar' r.pk %}" class="d-inline ds-cancelar">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-ghost-danger"><i class="ti ti-ban me-1"></i>Cancelar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty p-4"><p class="empty-title">Sin solicitudes todavía</p><p class="empty-subtitle text-secondary">Toca “Nueva solicitud” o un día del calendario para reservar un DataShow.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+{# ===== Modal: Nueva solicitud ===== #}
+<div class="modal modal-blur fade" id="modalNuevaReserva" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'datashow:crear' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ti ti-calendar-plus me-2"></i>Nueva solicitud de DataShow</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label required">DataShow</label>
+              {{ form.datashow }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label required">Fecha de uso</label>
+              {{ form.fecha }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label required">Hora de inicio</label>
+              {{ form.hora_inicio }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label required">Hora de fin</label>
+              {{ form.hora_fin }}
+            </div>
+            <div class="col-12">
+              <label class="form-label required">Lugar de uso</label>
+              {{ form.lugar }}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Motivo / actividad</label>
+              {{ form.motivo }}
+            </div>
+          </div>
+          <p class="text-secondary small mt-3 mb-0"><i class="ti ti-info-circle me-1"></i>Soporte revisará tu solicitud y la autorizará. Recibirás un aviso con la respuesta.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-send me-1"></i>Enviar solicitud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ===== Modal: Rechazar (solo Soporte) ===== #}
+{% if es_soporte %}
+<div class="modal modal-blur fade" id="modalRechazar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="formRechazar" action="">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="rechazar">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger"><i class="ti ti-circle-x me-2"></i>Rechazar solicitud</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary mb-2" id="rechazarDetalle"></p>
+          <label class="form-label">Motivo (se le enviará al solicitante)</label>
+          <textarea name="comentario" rows="3" class="form-control" placeholder="Opcional: por qué se rechaza"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger"><i class="ti ti-x me-1"></i>Rechazar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'datashow/js/datashow.js' %}?v=1"></script>{% endblock %}

@@ -253,6 +253,21 @@
           </div>
           {% endif %}
 
+          {# <--- hecho por claude code (02-nov-2026): Solicitud de DataShow (reserva con calendario) #}
+          {% if show_datashow %}
+          <div class="col-6 col-sm-4 col-lg-3">
+            <a href="{% url 'datashow:index' %}" class="text-decoration-none">
+              <div class="card card-link card-link-pop text-center py-3">
+                <div class="card-body">
+                  <div class="mb-2"><i class="ti ti-calendar-plus text-purple" style="font-size:2.5rem;"></i></div>
+                  <div class="fw-bold">Solicitud de DataShow</div>
+                  <div class="text-muted small mt-1">Reserva de uso · autoriza Soporte</div>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
           {% if show_cfp %}
           <div class="col-6 col-sm-4 col-lg-3">
             <a href="{% url 'cfp:programas' %}" class="text-decoration-none">

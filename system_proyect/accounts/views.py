@@ -969,6 +969,7 @@ def menu_view(request):
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
         'show_servicio':    is_admin or can_view_inventory or is_group_inventario or can_view_maintenance,   # <--- hecho por claude code (28-sep-2026)
+        'show_datashow':    user.is_authenticated,   # <--- hecho por claude code (02-nov-2026): cualquier usuario puede reservar DataShow
         'show_mant_mecanico': is_admin or user.groups.filter(name__in=['mantenimiento_mecanico', 'mantenimiento_mecanico_lectura', 'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026): combustibles ∪ vehículos (un solo módulo)
         'show_vehiculos':     is_admin or user.groups.filter(name__in=['vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026)
         'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
@@ -1040,6 +1041,8 @@ GRUPOS_SUPER = [
         # <--- hecho por claude code (28-sep-2026): Inventario + Mantenimiento se unen en un solo hub
         {'t': 'Control y Servicio Técnico', 's': 'Inventario de equipos y fichas de mantenimiento', 'i': 'ti-headset', 'c': '#0ca678', 'url': 'servicio_tecnico:hub'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
+        # <--- hecho por claude code (02-nov-2026): reserva de DataShow (el usuario agenda, Soporte autoriza)
+        {'t': 'Solicitud de DataShow', 's': 'Calendario de reservas · autoriza Soporte', 'i': 'ti-calendar-plus', 'c': '#ae3ec9', 'url': 'datashow:index'},
      ]},
     # <--- hecho por claude code (22-oct-2026): Inventario General y Préstamo de equipo salieron de Control y Servicio Técnico a grupos propios
     {'key': 'inventario_general', 'titulo': 'Inventario General', 'icon': 'ti-package', 'color': '#0ca678',
@@ -1424,6 +1427,7 @@ def panel_general(request):
         'show_reloj':       user.is_superuser or _g(user, 'reloj'),
         # <--- hecho por claude code (12-oct-2026): Control y Servicio Técnico también en el Panel (estaba solo en el sidebar)
         'show_servicio':    user.is_superuser or _g(user, 'inventario', 'mantenimiento') or user.has_perm('inventario.view_item') or user.has_perm('mantenimiento.view_maintenancerecord'),
+        'show_datashow':    user.is_authenticated,   # <--- hecho por claude code (02-nov-2026): reserva de DataShow para todos
         # <--- hecho por claude code (12-oct-2026): CFP y Gestión de Desarrollo también como tarjeta (estaban solo en el sidebar)
         'show_cfp':         user.is_superuser or _g(user, 'director_cfp', 'instructores', 'contabilidad_cfp'),
         'solo_conta_cfp':   _g(user, 'contabilidad_cfp') and not _g(user, 'director_cfp', 'instructores'),

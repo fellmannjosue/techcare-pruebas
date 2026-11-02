@@ -31,6 +31,7 @@ _MODULO_LABEL = {
     # <--- hecho por claude code: si no, el toast mostraba "Notas_parcial"
     'notas_parcial': 'Notas de Parcial',
     'salidas_bano':  'Salidas al Baño',
+    'datashow':      'Solicitud de DataShow',   # <--- hecho por claude code (02-nov-2026)
 }
 
 

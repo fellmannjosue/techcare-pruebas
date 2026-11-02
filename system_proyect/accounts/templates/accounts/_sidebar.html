@@ -266,6 +266,16 @@
   </li>
   {% endif %}
 
+  {# ── Solicitud de DataShow (hecho por claude code, 02-nov-2026: reserva con calendario, autoriza Soporte) ── #}
+  {% if nav_datashow %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'datashow:index' %}">
+      <span class="nav-link-icon"><i class="ti ti-calendar-plus"></i></span>
+      <span class="nav-link-title">Solicitud de DataShow</span>
+    </a>
+  </li>
+  {% endif %}
+
   {# ── Control y Servicio Técnico (hecho por claude code, 28-sep-2026: Inventario + Mantenimiento unidos) ── #}
   {% if nav_servicio %}
   <li class="nav-item">

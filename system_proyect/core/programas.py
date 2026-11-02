@@ -22,6 +22,9 @@ PROGRAMAS = [
     {'key': 'servicio_tecnico', 'label': 'Control y Servicio Técnico', 'icon': 'ti-headset',   # <--- hecho por claude code (28-sep-2026)
      'prefijos': ('/servicio-tecnico/',),
      'flags': ('nav_servicio', 'show_servicio')},
+    {'key': 'datashow', 'label': 'Solicitud de DataShow', 'icon': 'ti-calendar-plus',   # <--- hecho por claude code (02-nov-2026)
+     'prefijos': ('/datashow/',),
+     'flags': ('nav_datashow', 'show_datashow')},
     {'key': 'mantenimiento_mecanico', 'label': 'Mantenimiento Mecánico', 'icon': 'ti-engine',   # <--- hecho por claude code (01-oct-2026; 12-oct-2026 incluye vehículos)
      'prefijos': ('/mantenimiento-mecanico/', '/mantenimiento-vehiculos/'),
      'flags': ('nav_mant_mecanico', 'nav_mm_insumos', 'nav_vehiculos', 'show_mant_mecanico', 'show_vehiculos')},

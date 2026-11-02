@@ -144,6 +144,8 @@ def nav_context(request):
         'nav_maintenance':      is_admin or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
         # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico = Inventario ∪ Mantenimiento
         'nav_servicio':         is_admin or can('inventario.view_item') or grp('inventario') or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
+        # <--- hecho por claude code (02-nov-2026): Solicitud de DataShow — cualquier usuario autenticado puede reservar
+        'nav_datashow':         user.is_authenticated,
         'nav_mm_insumos':       is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura'),   # <--- hecho por claude code (12-oct-2026): combustibles y aceites
         'nav_mant_mecanico':    is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura') or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # módulo completo (hub)
         'nav_vehiculos':        is_admin or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # <--- hecho por claude code (12-oct-2026)   # <--- hecho por claude code (01-oct-2026): combustibles y aceites

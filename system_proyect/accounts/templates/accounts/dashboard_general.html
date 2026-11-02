@@ -331,6 +331,19 @@
 </div>
 {% endif %}
 
+{% if show_datashow %}{# <--- hecho por claude code (02-nov-2026): Solicitud de DataShow (reserva con calendario) #}
+<div class="mb-2 dg-section-title"><i class="ti ti-calendar-plus me-1"></i>Solicitud de DataShow</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'datashow:index' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-plus" style="font-size:2.2rem;color:#ae3ec9;"></i></div>
+      <div class="fw-semibold text-primary">Solicitud de DataShow</div>
+      <div class="text-muted small">Reserva de uso · autoriza Soporte</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
 {# <--- hecho por claude code (30-sep-2026): calculadoras de tiempo para el grupo calculadoras_tiempo #}
 {# <--- hecho por claude code (12-oct-2026): vehículos unido a la tarjeta de Mantenimiento Mecánico #}
 
