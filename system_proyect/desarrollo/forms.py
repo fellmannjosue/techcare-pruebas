@@ -158,9 +158,37 @@ class ProyectoForm(forms.ModelForm):
         if actuales and not self.initial.get('usuarios_beneficiados'):
             self.initial['usuarios_beneficiados'] = [x.strip() for x in actuales.split(',') if x.strip()]
 
+        # <--- hecho por claude code (02-nov-2026): auto-llenar Datos técnicos.
+        # Versión del sistema para "Versión actual" (siempre) y "Versión inicial" (solo al crear).
+        try:
+            from core.version import version_actual as _sys_version
+            _ver = _sys_version() or ''
+        except Exception:
+            _ver = ''
+        _nuevo = not getattr(self.instance, 'pk', None)
+        if _ver:
+            if not (self.initial.get('version_actual') or getattr(self.instance, 'version_actual', '')):
+                self.initial['version_actual'] = _ver
+            if _nuevo and not (self.initial.get('version_inicial') or getattr(self.instance, 'version_inicial', '')):
+                self.initial['version_inicial'] = _ver
+        # Ruta/URL sugeridas desde la app Django (si están vacías) — p. ej. app "desarrollo"
+        _app = (self.initial.get('app_django') or getattr(self.instance, 'app_django', '') or '').strip().strip('/')
+        if _app:
+            if not (self.initial.get('ruta') or getattr(self.instance, 'ruta', '')):
+                self.initial['ruta'] = f'system_proyect/{_app}'
+            if not (self.initial.get('url') or getattr(self.instance, 'url', '')):
+                self.initial['url'] = f'/{_app}/'
+
     def save(self, commit=True):
         obj = super().save(commit=False)
         obj.usuarios_beneficiados = ', '.join(self.cleaned_data.get('usuarios_beneficiados', []))[:200]
+        # <--- hecho por claude code (02-nov-2026): Ruta/URL automáticas desde la app si quedaron vacías
+        _app = (obj.app_django or '').strip().strip('/')
+        if _app:
+            if not (obj.ruta or '').strip():
+                obj.ruta = f'system_proyect/{_app}'
+            if not (obj.url or '').strip():
+                obj.url = f'/{_app}/'
         if commit:
             obj.save()
         return obj
