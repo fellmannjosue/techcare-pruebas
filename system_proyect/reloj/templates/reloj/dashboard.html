@@ -5,188 +5,133 @@
 {% block page_title %}Reloj – Panel de Asistencia{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
+{# <--- hecho por claude code (02-nov-2026): rediseño en secciones + tarjetas modernas #}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'reloj/css/dashboard.css' %}?v=1">{% endblock %}
+
 {% block content %}
-<div class="row row-cards g-4">
+<div class="rl-wrap">
 
-  {% if puede.reporte %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_reporte' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-table text-green" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Generar Reporte</div>
-          <div class="text-muted small mt-1">Consultar asistencias y ausencias</div>
-        </div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_grafica' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-chart-bar text-cyan" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Ver Gráfica</div>
-          <div class="text-muted small mt-1">Visualizar estadísticas de ausencias</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {# ───────── Reportes y consultas ───────── #}
+  {% if puede.reporte or puede.reportes_pdf %}
+  <section class="rl-section">
+    <div class="rl-head"><span class="rl-h-ico"><i class="ti ti-chart-dots"></i></span><h3>Reportes y consultas</h3><span class="rl-line"></span></div>
+    <div class="rl-grid">
+      {% if puede.reporte %}
+      <a href="{% url 'reloj_reporte' %}" class="rl-tile" style="--c:#2fb344">
+        <span class="rl-ico"><i class="ti ti-table"></i></span>
+        <span class="rl-body"><span class="rl-title">Generar Reporte</span><span class="rl-sub">Consultar asistencias y ausencias</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      <a href="{% url 'reloj_grafica' %}" class="rl-tile" style="--c:#17a2b8">
+        <span class="rl-ico"><i class="ti ti-chart-bar"></i></span>
+        <span class="rl-body"><span class="rl-title">Ver Gráfica</span><span class="rl-sub">Visualizar estadísticas de ausencias</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      <a href="{% url 'reloj_permiso_reporte' %}" class="rl-tile" style="--c:#0ca678">
+        <span class="rl-ico"><i class="ti ti-table-filled"></i></span>
+        <span class="rl-body"><span class="rl-title">Reporte Permisos</span><span class="rl-sub">Reporte mensual por empleado</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.reportes_pdf %}
+      <a href="{% url 'reloj_reportes_pdf' %}" class="rl-tile" style="--c:#ae3ec9">
+        <span class="rl-ico"><i class="ti ti-file-download"></i></span>
+        <span class="rl-body"><span class="rl-title">Reportes PDF</span><span class="rl-sub">Vista previa y descarga de reportes</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+    </div>
+  </section>
   {% endif %}
 
-  {% if puede.plantilla %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_plantilla_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-stack text-secondary" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Plantillas de Horario</div>
-          <div class="text-muted small mt-1">Define reglas por día y turnos</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {# ───────── Horarios y calendario ───────── #}
+  {% if puede.plantilla or puede.asignacion or puede.feriado or puede.sabado %}
+  <section class="rl-section">
+    <div class="rl-head"><span class="rl-h-ico"><i class="ti ti-calendar-cog"></i></span><h3>Horarios y calendario</h3><span class="rl-line"></span></div>
+    <div class="rl-grid">
+      {% if puede.plantilla %}
+      <a href="{% url 'reloj_plantilla_list' %}" class="rl-tile" style="--c:#667382">
+        <span class="rl-ico"><i class="ti ti-stack"></i></span>
+        <span class="rl-body"><span class="rl-title">Plantillas de Horario</span><span class="rl-sub">Define reglas por día y turnos</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.asignacion %}
+      <a href="{% url 'horarios_list' %}" class="rl-tile" style="--c:#f59f00">
+        <span class="rl-ico"><i class="ti ti-calendar-user"></i></span>
+        <span class="rl-body"><span class="rl-title">Asignaciones de Horario</span><span class="rl-sub">Empleado ↔ plantilla (con fechas)</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.feriado %}
+      <a href="{% url 'reloj_feriados_list' %}" class="rl-tile" style="--c:#2fb344">
+        <span class="rl-ico"><i class="ti ti-calendar"></i></span>
+        <span class="rl-body"><span class="rl-title">Feriados</span><span class="rl-sub">Gestiona los días feriados del año</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.sabado %}
+      <a href="{% url 'reloj_sabados_list' %}" class="rl-tile" style="--c:#f76707">
+        <span class="rl-ico"><i class="ti ti-calendar-week"></i></span>
+        <span class="rl-body"><span class="rl-title">Sábados Especiales</span><span class="rl-sub">Horarios y control de sábados</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+    </div>
+  </section>
   {% endif %}
 
-  {% if puede.asignacion %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'horarios_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-calendar-user text-yellow" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Asignaciones de Horario</div>
-          <div class="text-muted small mt-1">Empleado ↔ plantilla (con fechas)</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {# ───────── Compensatorio ───────── #}
+  {% if puede.compensatorio or puede.calculo_comp or puede.pruebas_comp %}
+  <section class="rl-section">
+    <div class="rl-head"><span class="rl-h-ico"><i class="ti ti-clock-check"></i></span><h3>Compensatorio</h3><span class="rl-line"></span></div>
+    <div class="rl-grid">
+      {% if puede.compensatorio %}
+      <a href="{% url 'reloj_compensatorio_list' %}" class="rl-tile" style="--c:#0ca678">
+        <span class="rl-ico"><i class="ti ti-clock-check"></i></span>
+        <span class="rl-body"><span class="rl-title">Tiempo Compensatorio</span><span class="rl-sub">Registrar y aprobar compensatorio</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.calculo_comp %}
+      <a href="{% url 'reloj_compensatorio_calculo_list' %}" class="rl-tile" style="--c:#ae3ec9">
+        <span class="rl-ico"><i class="ti ti-calculator"></i></span>
+        <span class="rl-body"><span class="rl-title">Cálculo Compensatorio</span><span class="rl-sub">Fecha fin por empleado asistente</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.pruebas_comp %}
+      <a href="{% url 'reloj_compensatorio_pruebas' %}" class="rl-tile" style="--c:#0ca678">
+        <span class="rl-ico"><i class="ti ti-flask"></i></span>
+        <span class="rl-body"><span class="rl-title">Pruebas</span><span class="rl-sub">Compensatorio 47 min/día · fecha en que termina</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+    </div>
+  </section>
   {% endif %}
 
-  {% if puede.compensatorio %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_compensatorio_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-clock-check text-teal" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Tiempo Compensatorio</div>
-          <div class="text-muted small mt-1">Registrar y aprobar compensatorio</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.feriado %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_feriados_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-calendar text-green" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Feriados</div>
-          <div class="text-muted small mt-1">Gestiona los días feriados del año</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.sabado %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_sabados_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-calendar-week text-orange" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Sábados Especiales</div>
-          <div class="text-muted small mt-1">Horarios y control de sábados</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.reporte %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_permiso_reporte' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-table-filled text-teal" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Reporte Permisos</div>
-          <div class="text-muted small mt-1">Reporte mensual por empleado</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.calculo_comp %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_compensatorio_calculo_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-calculator text-purple" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Cálculo Compensatorio</div>
-          <div class="text-muted small mt-1">Fecha fin por empleado asistente</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {# <--- hecho por claude code (16-sep-2026): botón Pruebas — compensatorio 47 min/día + matrícula, fecha desde hoy #}
-  {% if puede.pruebas_comp %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_compensatorio_pruebas' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-flask text-teal" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Pruebas</div>
-          <div class="text-muted small mt-1">Compensatorio 47 min/día · fecha en que termina</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.vacaciones %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_vacaciones_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-beach text-cyan" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Vacaciones</div>
-          <div class="text-muted small mt-1">Control de días por empleado</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.vigilancia %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_vigilancia_list' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-shield text-yellow" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Vigilancia</div>
-          <div class="text-muted small mt-1">Control de asistencia vigilancia</div>
-        </div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  {% if puede.reportes_pdf %}
-  <div class="col-6 col-sm-4 col-lg-3">
-    <a href="{% url 'reloj_reportes_pdf' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-3">
-        <div class="card-body">
-          <div class="mb-2"><i class="ti ti-file-download text-purple" style="font-size:2.5rem;"></i></div>
-          <div class="fw-bold">Reportes PDF</div>
-          <div class="text-muted small mt-1">Vista previa y descarga de reportes</div>
-        </div>
-      </div>
-    </a>
-  </div>
+  {# ───────── Personal ───────── #}
+  {% if puede.vacaciones or puede.vigilancia %}
+  <section class="rl-section">
+    <div class="rl-head"><span class="rl-h-ico"><i class="ti ti-users"></i></span><h3>Personal</h3><span class="rl-line"></span></div>
+    <div class="rl-grid">
+      {% if puede.vacaciones %}
+      <a href="{% url 'reloj_vacaciones_list' %}" class="rl-tile" style="--c:#17a2b8">
+        <span class="rl-ico"><i class="ti ti-beach"></i></span>
+        <span class="rl-body"><span class="rl-title">Vacaciones</span><span class="rl-sub">Control de días por empleado</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+      {% if puede.vigilancia %}
+      <a href="{% url 'reloj_vigilancia_list' %}" class="rl-tile" style="--c:#f59f00">
+        <span class="rl-ico"><i class="ti ti-shield"></i></span>
+        <span class="rl-body"><span class="rl-title">Vigilancia</span><span class="rl-sub">Control de asistencia vigilancia</span></span>
+        <span class="rl-go">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+      {% endif %}
+    </div>
+  </section>
   {% endif %}
 
 </div>
