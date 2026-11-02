@@ -212,14 +212,18 @@ def nav_context(request):
                     continue
                 entry = {'key': k, 'label': _labels[k], 'icon': _icons[k], 'accesos': acc}
                 if k == 'academico':
-                    directos = [a for a in acc if a['t'] not in _ACAD_CONFIG and a['t'] not in _ACAD_UPLOAD]
+                    _es_sal = lambda a: a['t'].startswith('Salidas al baño')   # <--- 02-nov-2026: acordeón "Salidas al baño"
                     sub_cfg = [a for a in acc if a['t'] in _ACAD_CONFIG]
                     sub_upl = [a for a in acc if a['t'] in _ACAD_UPLOAD]
+                    sub_sal = [a for a in acc if _es_sal(a)]
+                    directos = [a for a in acc if a['t'] not in _ACAD_CONFIG and a['t'] not in _ACAD_UPLOAD and not _es_sal(a)]
                     subs = []
                     if sub_cfg:
                         subs.append({'label': 'Configuración Académica', 'icon': 'ti-settings', 'accesos': sub_cfg})
                     if sub_upl:
                         subs.append({'label': 'Upload', 'icon': 'ti-cloud-upload', 'accesos': sub_upl})
+                    if sub_sal:
+                        subs.append({'label': 'Salidas al baño', 'icon': 'ti-door-exit', 'accesos': sub_sal})
                     entry['accesos'] = directos
                     entry['subgrupos'] = subs
                 elif k == 'mantenimiento':
@@ -229,6 +233,13 @@ def nav_context(request):
                     sub_ac = [a for a in acc if a['t'] in _MM_ACEITES]
                     if sub_ac:
                         entry['subgrupos'] = [{'label': 'Aceites', 'icon': 'ti-droplet', 'accesos': sub_ac}]
+                elif k == 'admin':
+                    # <--- hecho por claude code (02-nov-2026): acordeón "CFP" (Contabilidad CFP + Notas CFP)
+                    _CFP = ('Contabilidad CFP', 'Notas CFP')
+                    entry['accesos'] = [a for a in acc if a['t'] not in _CFP]
+                    sub_cfp = [a for a in acc if a['t'] in _CFP]
+                    if sub_cfp:
+                        entry['subgrupos'] = [{'label': 'CFP', 'icon': 'ti-school', 'accesos': sub_cfp}]
                 cats.append(entry)
             ctx['nav_cats_super'] = cats
         except Exception:
