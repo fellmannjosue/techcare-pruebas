@@ -51,7 +51,7 @@
         <h3 class="card-title"><i class="ti ti-chart-line me-2 text-blue"></i>Progress Report #{{ reporte.pk }}</h3>
       </div>
       <div class="card-body">
-        <form method="post" autocomplete="off">
+        <form method="post" autocomplete="off" id="editProgressForm" action="{% url 'editar_progress_report' reporte.pk %}">
           {% csrf_token %}
 
           <div class="row g-3 mb-4">
@@ -126,7 +126,13 @@
             </table>
           </div>
 
-          {# <--- hecho por claude code: se quitó "Agregar fila Asociada" (Progress = lista fija como Agendas) #}
+          {# <--- hecho por claude code (27-oct-2026): reactivado el botón "Agregar asociada" (máx 5; el JS y el backend ya lo soportan) #}
+          <div class="mb-3">
+            <button type="button" class="btn btn-success btn-sm" id="btnAddAsociada">
+              <i class="ti ti-plus me-1"></i> Agregar asociada
+            </button>
+            <small class="text-muted ms-2">Hasta 5 filas de Asociadas.</small>
+          </div>
 
           <div class="mb-3">
             <label class="form-label fw-bold">Comentario General</label>
@@ -161,13 +167,36 @@
           </div>
           {% endif %}
 
-          <div class="mt-4 d-flex gap-2">
-            <button type="submit" class="btn btn-success">
-              <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
-            </button>
-            <a href="{{ volver_progress_url }}" class="btn btn-ghost-secondary">Cancelar</a>
+          {# <--- hecho por claude code (27-oct-2026): al editar se GUARDA SOLO (sin botón manual para el maestro); solo el borrador muestra "Finalizar y enviar" #}
+          <div class="mt-4 d-flex gap-2 align-items-center flex-wrap">
+            {% if not es_coordinador %}
+              {% if reporte.estado == 'borrador' %}
+                <button type="submit" class="btn btn-success">
+                  <i class="ti ti-send me-1"></i> Finalizar y enviar
+                </button>
+              {% endif %}
+              <span class="badge bg-green-lt text-green py-2">
+                <i class="ti ti-device-floppy me-1"></i> Se guarda automáticamente
+              </span>
+              <span id="tc-autosave-status" class="tc-autosave small ms-1"></span>
+              <a href="{{ volver_progress_url }}" class="btn btn-ghost-secondary ms-auto">Volver</a>
+            {% else %}
+              <button type="submit" class="btn btn-success">
+                <i class="ti ti-device-floppy me-1"></i> Guardar Cambios
+              </button>
+              <a href="{{ volver_progress_url }}" class="btn btn-ghost-secondary">Cancelar</a>
+            {% endif %}
           </div>
         </form>
+
+        {# <--- hecho por claude code (27-oct-2026): auto-guardado solo para maestros (el coordinador guarda manual) #}
+        {% if not es_coordinador %}
+        <div id="tc-progress-autosave" hidden
+             data-modo="editar"
+             data-form="editProgressForm"
+             data-pk="{{ reporte.pk }}"
+             data-url="{% url 'editar_progress_report' reporte.pk %}"></div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -176,4 +205,5 @@
 
 {% block extra_js %}
 <script src="{% static 'conducta/js/editor_progress.js' %}?v=20"></script>
+{% if not es_coordinador %}<script src="{% static 'conducta/js/progress_autosave.js' %}?v=2"></script>{% endif %}
 {% endblock %}

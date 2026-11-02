@@ -68,6 +68,7 @@ urlpatterns = [
         # --- PROGRESS ---
     path('progress-report/<int:pk>/editar/', views.editar_progress_report, name='editar_progress_report'),
     path('progress-report/<int:pk>/pdf/', views.descargar_pdf_progress, name='descargar_pdf_progress'),
+    path('progress-report/fechas/', views.fechas_progress, name='fechas_progress'),  # <--- hecho por claude code (27-oct-2026)
 
 
     path('set-coord/', views.set_coord_reporte, name='set_coord_reporte'),

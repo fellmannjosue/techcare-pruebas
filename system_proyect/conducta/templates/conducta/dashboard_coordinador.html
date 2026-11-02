@@ -84,6 +84,15 @@
     </a>
   </li>
   {% endif %}
+  {# <--- hecho por claude code (27-oct-2026): fechas por parcial del Progress Report (solo bilingüe) #}
+  {% if area == 'bilingue' %}
+  <li class="nav-item">
+    <a class="nav-link" href="{% url 'fechas_progress' %}">
+      <span class="nav-link-icon"><i class="ti ti-calendar-event text-orange"></i></span>
+      <span class="nav-link-title">Fechas Progress</span>
+    </a>
+  </li>
+  {% endif %}
   {% endif %}
 {% endblock %}
 
@@ -554,6 +563,11 @@
                             title="Editar"><i class="ti ti-pencil"></i></button>
                     {% endif %}
                     <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                    {# <--- hecho por claude code (30-oct-2026): WhatsApp al padre/madre también en Progress Report #}
+                    <button class="btn btn-sm btn-success btn-whatsapp"
+                            data-alumno-id="{{ r.alumno_id }}" data-alumno="{{ r.alumno_nombre }}"
+                            data-tipo-txt="Progress Report" data-fecha="{{ r.fecha|date:'d/m/Y' }}" data-grado="{{ r.grado|formato_grado }}"
+                            title="Enviar WhatsApp al padre/madre"><i class="ti ti-brand-whatsapp"></i></button>
                   </div>
                 </td>
               </tr>
@@ -600,6 +614,8 @@
                           <td class="text-end">
                             {% if can_edit_dash %}<button class="btn btn-sm btn-primary btn-editar-inline" data-pk="{{ r.pk }}" data-tipo="progress" data-area="bilingue" title="Editar"><i class="ti ti-pencil"></i></button>{% endif %}
                             <button class="btn btn-sm btn-info btn-historial" data-alumno="{{ r.alumno_id }}" title="Ver Historial"><i class="ti ti-history"></i></button>
+                            {# <--- hecho por claude code (30-oct-2026): WhatsApp al padre/madre también en Progress Report #}
+                            <button class="btn btn-sm btn-success btn-whatsapp" data-alumno-id="{{ r.alumno_id }}" data-alumno="{{ r.alumno_nombre }}" data-tipo-txt="Progress Report" data-fecha="{{ r.fecha|date:'d/m/Y' }}" data-grado="{{ r.grado|formato_grado }}" title="Enviar WhatsApp al padre/madre"><i class="ti ti-brand-whatsapp"></i></button>
                           </td>
                         </tr>
                         {% empty %}

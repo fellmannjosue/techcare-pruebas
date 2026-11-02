@@ -103,8 +103,9 @@ def pdf_solicitud(record):
                         f'durante el período comprendido del <b>{fecha_larga(r.prest_desde)}</b> al '
                         f'<b>{fecha_larga(r.prest_hasta)}</b>. {sale}', st), Spacer(1, 0.25 * cm),
               Paragraph('Me comprometo a hacer buen uso del equipo, a resguardarlo adecuadamente y a devolverlo en las mismas '
-                        'condiciones en que fue entregado en la fecha indicada. En caso de daño o extravío, asumiré la '
-                        'responsabilidad correspondiente según las políticas de la institución.', st), Spacer(1, 0.25 * cm)]
+                        'condiciones en que fue entregado en la fecha indicada. En caso de daño, lo reportaré a Soporte '
+                        'Técnico; en caso de extravío, asumiré la responsabilidad correspondiente según las políticas de la '
+                        'institución.', st), Spacer(1, 0.25 * cm)]
     if (r.observaciones or '').strip():
         story += [Paragraph(f'<b>Observaciones:</b> {e(r.observaciones)}', st), Spacer(1, 0.25 * cm)]
     story += [Paragraph('Agradezco de antemano su atención.', st), Spacer(1, 0.2 * cm), Paragraph('Atentamente,', st_izq),

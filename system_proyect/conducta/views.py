@@ -571,6 +571,7 @@ from .models import (
     EvidenciaReporte,  # <--- hecho por claude code: importar modelo de evidencias para la view subir_evidencia
     ConfiguracionNotificacion,
     ConfiguracionCoordinador,
+    VentanaProgressReport,  # <--- hecho por claude code (27-oct-2026): fechas por parcial del progress
 )
 from tickets.models import Ticket
 
@@ -1126,6 +1127,21 @@ def progress_report_bilingue(request):
             usuario_actual = request.user.get_full_name() or request.user.username
             materias_list = []
             for materia in materias:
+                # <--- hecho por claude code (27-oct-2026): "Asociadas" son varias filas
+                # (name="..._Asociadas[]"); se procesan como lista, hasta 5 con contenido.
+                if materia == 'Asociadas':
+                    asigs = request.POST.getlist('asignacion_Asociadas[]')
+                    coms  = request.POST.getlist('comentario_Asociadas[]')
+                    for i, asg in enumerate(asigs[:5]):
+                        com = coms[i] if i < len(coms) else ''
+                        if asg.strip() or com.strip():
+                            materias_list.append({
+                                'materia': 'Asociadas',
+                                'asignacion': asg,
+                                'comentario': com,
+                                'docente': usuario_actual,
+                            })
+                    continue
                 asignacion = request.POST.get(f"asignacion_{materia}", "")
                 comentario = request.POST.get(f"comentario_{materia}", "")
                 materias_list.append({
@@ -1156,6 +1172,8 @@ def progress_report_bilingue(request):
                 | _Q(semana_inicio__gte=lunes_new, semana_inicio__lte=domingo_new)
             ).exists()
             if existe:
+                if request.POST.get('ajax') == '1':   # <--- hecho por claude code: auto-guardado
+                    return JsonResponse({'ok': False, 'error': 'duplicado'})
                 messages.error(
                     request,
                     f"Ya existe un progress report para {alumno_label} en esa semana. "
@@ -1171,7 +1189,10 @@ def progress_report_bilingue(request):
                 })
 
             # --- CREAR REPORTE ---
-            ProgressReport.objects.create(
+            # <--- hecho por claude code (27-oct-2026): auto-guardado crea BORRADOR sin avisar;
+            # el envío manual ("Finalizar") crea enviado y avisa al coordinador.
+            es_ajax = request.POST.get('ajax') == '1'
+            nuevo = ProgressReport.objects.create(
                 usuario=request.user,
                 alumno_id=alumno_id,
                 alumno_nombre=alumno_label,
@@ -1179,15 +1200,31 @@ def progress_report_bilingue(request):
                 semana_inicio=semana_inicio,
                 semana_fin=semana_fin,
                 comentario_general=comentario_general,
-                materias_json=materias_list
+                materias_json=materias_list,
+                estado='borrador' if es_ajax else 'enviado',
             )
+            if es_ajax:
+                from django.urls import reverse
+                return JsonResponse({
+                    'ok': True, 'pk': nuevo.pk,
+                    'edit_url': reverse('editar_progress_report', args=[nuevo.pk]),
+                })
             _notificar_coordinadores("Progress Report", request.user, alumno_label, grado, "", "bilingue",
                                      subtipo='progress')
             messages.success(request, "¡Progress report registrado correctamente!")
             return redirect('progress_report_bilingue')
+        # <--- hecho por claude code (27-oct-2026): auto-guardado con datos incompletos (sin alumno/semanas)
+        if request.POST.get('ajax') == '1':
+            return JsonResponse({'ok': False, 'error': 'incompleto'})
     else:
         form = ProgressReportForm(alumnos_choices=alumnos_choices)
         materias = MATERIAS_PRIMARIA
+
+    # <--- hecho por claude code (27-oct-2026): ventanas por parcial (solo informan) del año actual
+    _anio = timezone.now().year
+    _hoy = timezone.now().date()
+    ventanas_progress = list(VentanaProgressReport.objects.filter(area='bilingue', anio=_anio).order_by('parcial'))
+    ventana_actual = next((v for v in ventanas_progress if v.fecha_inicio <= _hoy <= v.fecha_fin), None)
 
     return render(request, 'conducta/form_progress.html', {
         'form': form,
@@ -1196,6 +1233,8 @@ def progress_report_bilingue(request):
         'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
         'grado': grado,
         'volver_progress_url': _volver_progress_url(request.user),  # <--- hecho por claude code
+        'ventanas_progress': ventanas_progress,
+        'ventana_actual': ventana_actual,
     })
 
 
@@ -1342,7 +1381,7 @@ def reenviar_reportes_coordinadores(request):
         _notificar_coordinadores("Reporte Conductual", r.usuario, r.alumno_nombre, r.grado, r.materia, r.area,
                                  subtipo='conductual')
         enviados += 1
-    for r in ProgressReport.objects.filter(semana_inicio__lte=fecha, semana_fin__gte=fecha):
+    for r in ProgressReport.objects.filter(semana_inicio__lte=fecha, semana_fin__gte=fecha).exclude(estado='borrador'):  # <--- hecho por claude code: no reenviar borradores
         if not _quiere('progress'):
             continue
         _notificar_coordinadores("Progress Report", r.usuario, r.alumno_nombre, r.grado, "", "bilingue",
@@ -1738,12 +1777,29 @@ def editar_progress_report(request, pk):
         reporte.materias_json     = nuevas_materias
         reporte.comentario_general = request.POST.get('comentario_general', reporte.comentario_general)
 
+        # <--- hecho por claude code (27-oct-2026): auto-guardado (borrador) vs finalizar.
+        es_ajax      = request.POST.get('ajax') == '1'
+        estado_antes = reporte.estado
+
         if es_coord:
             reporte.coordinador_firma      = request.POST.get('coordinador_firma', reporte.coordinador_firma)
             reporte.estado                 = request.POST.get('estado', reporte.estado)
             reporte.comentario_coordinador = request.POST.get('comentario_coordinador', reporte.comentario_coordinador)
+        elif not es_ajax and reporte.estado == 'borrador':
+            # El maestro le dio "Finalizar": el borrador pasa a enviado.
+            reporte.estado = 'enviado'
 
         reporte.save()
+
+        # Auto-guardado: responde JSON y NO avisa al coordinador (sigue borrador).
+        if es_ajax:
+            return JsonResponse({'ok': True, 'pk': reporte.pk, 'estado': reporte.estado})
+
+        # Si el maestro acaba de finalizar un borrador (borrador→enviado), recién ahí se avisa.
+        if (not es_coord) and estado_antes == 'borrador' and reporte.estado == 'enviado':
+            _notificar_coordinadores("Progress Report", request.user, reporte.alumno_nombre,
+                                     reporte.grado, "", "bilingue", subtipo='progress')
+
         messages.success(request, "¡Reporte actualizado correctamente!")
 
         if es_coord:
@@ -2139,6 +2195,46 @@ def descargar_pdf_conductual(request, pk):
     response = HttpResponse(buf, content_type="application/pdf")
     response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
     return response
+
+
+@login_required
+def fechas_progress(request):
+    """Pantalla estilo "Crear agenda": el coordinador BL establece, por parcial, las
+    fechas en que toca llenar el Progress Report. SOLO INFORMA (no bloquea el llenado).
+    <--- hecho por claude code (27-oct-2026)"""
+    if not (request.user.is_superuser or es_coordinador(request.user)):
+        return HttpResponseForbidden("Solo coordinadores.")
+
+    anio_actual = timezone.now().year
+    try:
+        anio = int(request.POST.get('anio') or request.GET.get('anio') or anio_actual)
+    except (TypeError, ValueError):
+        anio = anio_actual
+    PARCIALES = [1, 2, 3, 4]
+
+    if request.method == 'POST':
+        for p in PARCIALES:
+            ini = (request.POST.get(f'inicio_{p}') or '').strip()
+            fin = (request.POST.get(f'fin_{p}') or '').strip()
+            if ini and fin:
+                VentanaProgressReport.objects.update_or_create(
+                    area='bilingue', anio=anio, parcial=p,
+                    defaults={'fecha_inicio': ini, 'fecha_fin': fin},
+                )
+            else:
+                # Si se dejan ambas vacías, se quita la ventana de ese parcial.
+                VentanaProgressReport.objects.filter(area='bilingue', anio=anio, parcial=p).delete()
+        messages.success(request, "Fechas del Progress Report guardadas.")
+        from django.urls import reverse
+        return redirect(f"{reverse('fechas_progress')}?anio={anio}")
+
+    existentes = {v.parcial: v for v in VentanaProgressReport.objects.filter(area='bilingue', anio=anio)}
+    filas = [{'parcial': p, 'v': existentes.get(p)} for p in PARCIALES]
+    return render(request, 'conducta/fechas_progress.html', {
+        'anio':  anio,
+        'filas': filas,
+        'anios': list(range(anio_actual - 1, anio_actual + 2)),
+    })
 
 
 @login_required
@@ -2691,7 +2787,7 @@ def descargar_zip_reportes(request):
                             _pdf_conductual(r).getvalue())
             except Exception:
                 pass
-        for r in qs_prog.order_by('alumno_nombre'):
+        for r in qs_prog.exclude(estado='borrador').order_by('alumno_nombre'):  # <--- hecho por claude code: el ZIP no incluye borradores
             if _prog_activo(r):
                 if not _quiere('progress'):
                     continue
@@ -3141,7 +3237,9 @@ def _dash_querysets(qs_info, qs_cond, qs_prog, area=None):
                .annotate(num_evid=Count('evidenciareporte'))
                .prefetch_related('evidenciareporte_set', 'incisos_leve', 'incisos_grave', 'incisos_muygrave'))
     if hasattr(qs_prog, 'filter'):
+        # <--- hecho por claude code (27-oct-2026): el coordinador NO ve borradores (auto-guardado)
         qs_prog = (_solo_periodo_activo(qs_prog, campo='semana_inicio', area=area)
+                   .exclude(estado='borrador')
                    .annotate(num_evid=Count('evidenciareporte'))
                    .prefetch_related('evidenciareporte_set'))
     return qs_info, qs_cond, qs_prog

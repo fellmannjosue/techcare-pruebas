@@ -101,6 +101,8 @@ $(function () {
 
     // --------- Lógica Asociadas (agregar/eliminar/Enter) -----------
     $('#tabla-materias').on('click', '.add-asociada', function () {
+      // <--- hecho por claude code (27-oct-2026): máximo 5 filas de Asociadas (base + extras)
+      if ($('#fila-asociadas, .asociada-extra').length >= 5) { return; }
       let nuevaFila = `
         <tr class="asociada-extra">
           <td></td>

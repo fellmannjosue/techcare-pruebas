@@ -11,6 +11,7 @@ AREA_CHOICES = (
 )
 
 ESTADO_CHOICES = (
+    ('borrador', 'Borrador'),   # <--- hecho por claude code (27-oct-2026): auto-guardado sin avisar al coordinador
     ('enviado', 'Enviado'),
     ('revisando', 'Revisando'),
     ('revisado', 'Revisado'),
@@ -267,6 +268,29 @@ class ProgressReport(AuditModel):
         verbose_name = "Progress Report"
         verbose_name_plural = "Progress Reports"
         ordering = ['-fecha']
+
+
+# ────────────────
+# Ventana de llenado del Progress Report por parcial  <--- hecho por claude code (27-oct-2026)
+# El coordinador define, por parcial, las fechas en que toca llenar el progress
+# report (pantalla estilo "Crear agenda"). SOLO INFORMA: no bloquea el llenado.
+# ────────────────
+class VentanaProgressReport(AuditModel):
+    area         = models.CharField("Área", max_length=20, default='bilingue')
+    anio         = models.PositiveSmallIntegerField("Año")
+    parcial      = models.PositiveSmallIntegerField("Parcial")
+    fecha_inicio = models.DateField("Desde")
+    fecha_fin    = models.DateField("Hasta")
+
+    class Meta:
+        db_table            = 'conducta_ventana_progress'
+        verbose_name        = 'Ventana de Progress Report'
+        verbose_name_plural = 'Ventanas de Progress Report'
+        unique_together     = ('area', 'anio', 'parcial')
+        ordering            = ['-anio', 'parcial']
+
+    def __str__(self):
+        return f'Parcial {self.parcial} {self.anio} ({self.fecha_inicio} – {self.fecha_fin})'
 
 # ────────────────────────────────────────────────────────────────
 # upload_to dinámico para EvidenciaReporte  <--- hecho por claude code

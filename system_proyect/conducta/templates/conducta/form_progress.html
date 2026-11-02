@@ -58,7 +58,22 @@
         <h3 class="card-title"><i class="ti ti-chart-line me-2 text-blue"></i>Nuevo Progress Report</h3>
       </div>
       <div class="card-body">
-        <form id="progressForm" method="post" autocomplete="off">
+        {# <--- hecho por claude code (27-oct-2026): aviso informativo de las ventanas por parcial (no bloquea) #}
+        {% if ventana_actual %}
+          <div class="alert alert-success py-2">
+            <i class="ti ti-calendar-check me-1"></i>
+            <strong>Parcial {{ ventana_actual.parcial }}:</strong> toca llenar el Progress Report
+            del <strong>{{ ventana_actual.fecha_inicio|date:'d/m/Y' }}</strong> al
+            <strong>{{ ventana_actual.fecha_fin|date:'d/m/Y' }}</strong>.
+          </div>
+        {% elif ventanas_progress %}
+          <div class="alert alert-info py-2">
+            <i class="ti ti-calendar me-1"></i> Fechas para llenar el Progress Report:
+            {% for v in ventanas_progress %}P{{ v.parcial }}: {{ v.fecha_inicio|date:'d/m' }}–{{ v.fecha_fin|date:'d/m' }}{% if not forloop.last %} · {% endif %}{% endfor %}
+          </div>
+        {% endif %}
+
+        <form id="progressForm" method="post" autocomplete="off" action="{% url 'progress_report_bilingue' %}">
           {% csrf_token %}
 
           <div class="row g-3 mb-3">
@@ -115,13 +130,28 @@
             <textarea name="comentario_general" id="id_comentario_general" rows="3" class="form-control" maxlength="80"></textarea>
           </div>
 
-          <div class="d-flex gap-2">
+          {# <--- hecho por claude code (27-oct-2026): al crear también se auto-guarda (borrador) tras elegir alumno + semanas; "Finalizar y enviar" lo manda al coordinador #}
+          <div class="d-flex gap-2 align-items-center flex-wrap">
             <button type="submit" class="btn btn-primary">
-              <i class="ti ti-device-floppy me-1"></i> Guardar Progress Report
+              <i class="ti ti-send me-1"></i> Finalizar y enviar
             </button>
-            <a href="{{ volver_progress_url|default:nav_home_url }}" class="btn btn-ghost-secondary">Cancelar</a>
+            <span class="badge bg-blue-lt text-blue py-2">
+              <i class="ti ti-device-floppy me-1"></i> Se guarda solo como borrador
+            </span>
+            <span id="tc-autosave-status" class="tc-autosave small ms-1"></span>
+            <a href="{{ volver_progress_url|default:nav_home_url }}" class="btn btn-ghost-secondary ms-auto">Cancelar</a>
+          </div>
+          <div class="form-hint mt-1">
+            <i class="ti ti-info-circle me-1"></i>
+            El guardado automático inicia al elegir el estudiante y las dos semanas. El borrador no se envía al coordinador hasta que presionas <strong>Finalizar y enviar</strong>.
           </div>
         </form>
+
+        {# <--- hecho por claude code (27-oct-2026): auto-guardado (crea borrador, no avisa; "Finalizar" avisa) #}
+        <div id="tc-progress-autosave" hidden
+             data-modo="crear"
+             data-form="progressForm"
+             data-url="{% url 'progress_report_bilingue' %}"></div>
       </div>
     </div>
   </div>
@@ -130,5 +160,6 @@
 
 {% block extra_js %}
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="{% static 'conducta/js/formularios.js' %}?v=5"></script>
+  <script src="{% static 'conducta/js/formularios.js' %}?v=6"></script>
+  <script src="{% static 'conducta/js/progress_autosave.js' %}?v=2"></script>
 {% endblock %}
