@@ -1,6 +1,6 @@
 {% load static %}
-{# <--- hecho por claude code (26-oct-2026): widget del asistente IA — SOLO en la app .exe #}
-{% if es_app_escritorio and user.is_authenticated %}
+{# <--- hecho por claude code (26-oct-2026): widget del asistente IA · (02-nov-2026) ahora en web Y en el .exe #}
+{% if user.is_authenticated %}
 <link rel="stylesheet" href="{% static 'asistente/css/asistente.css' %}?v=1">
 
 <button id="tc-asis-fab" type="button" title="Asistente de TechCare" aria-label="Asistente">

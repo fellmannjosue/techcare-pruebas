@@ -37,12 +37,7 @@ def _api_key():
 @login_required
 @require_POST
 def chat(request):
-    # El asistente es exclusivo de la app de escritorio.
-    if not _es_app_escritorio(request):
-        return JsonResponse(
-            {'ok': False, 'error': 'El asistente solo está disponible en la app de escritorio.'},
-            status=403)
-
+    # <--- hecho por claude code (02-nov-2026): el asistente ahora está en web Y en el .exe (pedido del usuario).
     api_key = _api_key()
     if not api_key:
         return JsonResponse(
