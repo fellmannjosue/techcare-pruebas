@@ -10,6 +10,16 @@
     {% for a in cat.accesos %}
     <a class="tc-dd-link" href="{{ a.href }}" style="--ia:{{ a.c }};"><i class="ti {{ a.i }}"></i><span>{{ a.t }}{% if a.oculto %} <span class="badge bg-secondary-lt text-secondary">Oculto</span>{% endif %}</span></a>
     {% endfor %}
+    {% for sg in cat.subgrupos %}
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti {{ sg.icon }}"></i><span>{{ sg.label }}</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        {% for a in sg.accesos %}
+        <a class="tc-dd-link" href="{{ a.href }}" style="--ia:{{ a.c }};"><i class="ti {{ a.i }}"></i><span>{{ a.t }}{% if a.oculto %} <span class="badge bg-secondary-lt text-secondary">Oculto</span>{% endif %}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 {% endfor %}

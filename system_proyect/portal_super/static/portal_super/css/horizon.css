@@ -288,6 +288,21 @@ html.dark { --tc-tb-bg: #0c1526; --tc-tb-bd: #1b2740; }
 .tc-dd-link.on { background: color-mix(in srgb, var(--tc-p1) 12%, transparent); color: var(--tc-p1); }
 .tc-dd-link.on i { color: var(--tc-p1); }
 
+/* Sub-grupo dentro del desplegable (acordeón) */
+.tc-dd-sub { border-top: 1px solid var(--ps-border); margin-top: 4px; padding-top: 4px; }
+.tc-dd-subtog {
+  width: 100%; display: flex; align-items: center; gap: 11px; padding: 8px 10px; border: 0;
+  background: transparent; border-radius: 10px; cursor: pointer; color: var(--ps-text);
+  font: 700 12.5px Inter, system-ui, sans-serif;
+}
+.tc-dd-subtog > i:first-child { font-size: 18px; color: var(--ps-muted); flex: none; }
+.tc-dd-subtog span { flex: 1; text-align: left; }
+.tc-dd-subcar { font-size: 15px; color: var(--ps-muted); transition: transform .15s; }
+.tc-dd-subtog:hover { background: var(--ps-surface-2); }
+.tc-dd-subitems { display: none; padding-left: 12px; }
+.tc-dd-sub.abierto .tc-dd-subitems { display: block; }
+.tc-dd-sub.abierto .tc-dd-subcar { transform: rotate(180deg); }
+
 /* Herramientas del topbar (campana + usuario) en superficie clara, no cristal */
 .tc-topbar #userDropdown { color: var(--ps-text); }
 .tc-topbar .dropdown-menu { z-index: 1090; }

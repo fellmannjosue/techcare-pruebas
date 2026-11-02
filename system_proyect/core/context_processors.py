@@ -202,8 +202,28 @@ def nav_context(request):
                 cat = _PANEL_CAT.get(g['key'], 'admin')
                 if cat in buckets:
                     buckets[cat].extend(g.get('cards', []))
-            ctx['nav_cats_super'] = [{'key': k, 'label': _labels[k], 'icon': _icons[k],
-                                      'accesos': buckets[k]} for k in _order if buckets[k]]
+            # <--- hecho por claude code (02-nov-2026): Académico con sub-grupos (acordeón) pedidos por el usuario
+            _ACAD_CONFIG = ('Directorio', 'Período Escolar', 'Ruteo Reportes BL')
+            _ACAD_UPLOAD = ('Upload Moodle', 'Moodle')
+            cats = []
+            for k in _order:
+                acc = buckets[k]
+                if not acc:
+                    continue
+                entry = {'key': k, 'label': _labels[k], 'icon': _icons[k], 'accesos': acc}
+                if k == 'academico':
+                    directos = [a for a in acc if a['t'] not in _ACAD_CONFIG and a['t'] not in _ACAD_UPLOAD]
+                    sub_cfg = [a for a in acc if a['t'] in _ACAD_CONFIG]
+                    sub_upl = [a for a in acc if a['t'] in _ACAD_UPLOAD]
+                    subs = []
+                    if sub_cfg:
+                        subs.append({'label': 'Configuración Académica', 'icon': 'ti-settings', 'accesos': sub_cfg})
+                    if sub_upl:
+                        subs.append({'label': 'Upload', 'icon': 'ti-cloud-upload', 'accesos': sub_upl})
+                    entry['accesos'] = directos
+                    entry['subgrupos'] = subs
+                cats.append(entry)
+            ctx['nav_cats_super'] = cats
         except Exception:
             ctx['nav_cats_super'] = []
     return ctx

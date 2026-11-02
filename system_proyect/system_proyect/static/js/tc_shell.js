@@ -97,6 +97,9 @@
       dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 10)) + 'px';
     };
     topnav.addEventListener('click', function (e) {
+      // Sub-grupo (acordeón) dentro de un desplegable: no cierra el desplegable padre.
+      var sub = e.target.closest('.tc-dd-subtog');
+      if (sub) { e.stopPropagation(); sub.parentElement.classList.toggle('abierto'); return; }
       var tg = e.target.closest('.tc-nav-toggle');
       if (!tg) return;
       var it = tg.parentElement;
