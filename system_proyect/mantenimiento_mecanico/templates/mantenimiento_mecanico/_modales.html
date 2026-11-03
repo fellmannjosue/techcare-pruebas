@@ -14,10 +14,28 @@
         <div class="row g-3">
           <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" name="fecha" class="form-control" value="{{ hoy|date:'Y-m-d' }}" required></div>
           <div class="col-6 col-md-3"><label class="form-label">Hora</label><input type="time" name="hora" class="form-control"></div>
+          {% if insumo.clave == 'diesel' %}{# <--- hecho por claude code (03-nov-2026): el diésel se registra en galones + décimas (ej. "10 galones 4/10" = 10.4 gal) #}
+          <div class="col-md-6"><label class="form-label">Galones</label>
+            <div class="input-group">
+              <input type="number" step="1" min="0" name="galones_entero" id="mm-gal-ent" class="form-control" placeholder="Galones" required>
+              <span class="input-group-text">gal</span>
+              <select name="galones_decimas" id="mm-gal-dec" class="form-select" style="max-width:6.5rem" aria-label="Décimas de galón">
+                <option value="0">0/10</option><option value="1">1/10</option><option value="2">2/10</option>
+                <option value="3">3/10</option><option value="4">4/10</option><option value="5">5/10</option>
+                <option value="6">6/10</option><option value="7">7/10</option><option value="8">8/10</option>
+                <option value="9">9/10</option>
+              </select>
+            </div>
+            <input type="hidden" name="galones" id="mm-gal-total">
+            <div class="form-hint">Galones enteros y décimas (p. ej. 10 galones 4/10). Total: <b id="mm-gal-muestra">0.0</b> gal</div>
+            <div class="form-hint mm-aviso-saldo d-none text-danger"><i class="ti ti-alert-triangle me-1"></i>Supera el saldo disponible (<span class="mm-saldo-txt"></span> gal). Se guardará igual, pero registra la entrada pendiente.</div>
+          </div>
+          {% else %}
           <div class="col-md-6"><label class="form-label">Galones</label>
             <div class="input-group"><input type="number" step="0.01" min="0.01" name="galones" class="form-control" required><span class="input-group-text">gal</span></div>
             <div class="form-hint mm-aviso-saldo d-none text-danger"><i class="ti ti-alert-triangle me-1"></i>Supera el saldo disponible (<span class="mm-saldo-txt"></span> gal). Se guardará igual, pero registra la entrada pendiente.</div>
           </div>
+          {% endif %}
           {% if insumo.clave == 'diesel' %}{# <--- hecho por claude code (12-oct-2026): el diésel se carga a un vehículo de Mantenimiento de vehículos #}
           <div class="col-md-6"><label class="form-label">Vehículo</label>
             <select name="vehiculo" class="form-select" id="mm-veh" required><option value="">— Elige el vehículo —</option>{% for v in vehiculos_diesel %}<option value="{{ v.id }}" data-km="{{ v.km|default_if_none:'' }}">{{ v.nombre }}{% if v.placa %} · {{ v.placa }}{% endif %}</option>{% endfor %}</select>

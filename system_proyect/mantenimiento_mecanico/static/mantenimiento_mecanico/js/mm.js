@@ -29,6 +29,31 @@
   var aviso = form.querySelector('.mm-aviso-saldo');
   if (aviso) aviso.querySelector('.mm-saldo-txt').textContent = SALDO.toFixed(2);
 
+  // <--- hecho por claude code (03-nov-2026): diésel se registra en galones + décimas (ej. 10 galones 4/10 = 10.4 gal)
+  var galEnt = form.elements.namedItem('galones_entero');
+  var galDec = form.elements.namedItem('galones_decimas');
+  var galMuestra = document.getElementById('mm-gal-muestra');
+  function galTotal() {
+    if (!galEnt) return parseFloat(inpGal.value || '0');
+    var ent = parseInt(galEnt.value || '0', 10) || 0;
+    var dec = parseInt(galDec.value || '0', 10) || 0;
+    var t = ent + dec / 10;
+    inpGal.value = t ? t.toFixed(1) : '';
+    if (galMuestra) galMuestra.textContent = t.toFixed(1);
+    return t;
+  }
+  function ponerGalones(valor) {   // reparte un total (ej. "10.4") en galones enteros + décimas
+    if (!galEnt) { inpGal.value = valor; return; }
+    var v = parseFloat(valor || '0') || 0;
+    var ent = Math.floor(v), dec = Math.round((v - ent) * 10);
+    if (dec >= 10) { ent += 1; dec = 0; }
+    galEnt.value = ent; galDec.value = dec; galTotal();
+  }
+  if (galEnt) {
+    galEnt.addEventListener('input', function () { galTotal(); revisarSaldo(); });
+    galDec.addEventListener('change', function () { galTotal(); revisarSaldo(); });
+  }
+
   function ajustarKm() {
     var opt = selMaq ? selMaq.options[selMaq.selectedIndex] : null;   // en diésel no hay maquinaria (se elige vehículo)
     var maqKm = !!(opt && opt.dataset.km === '1');
@@ -52,7 +77,7 @@
     if (e) {
       titulo.textContent = 'Editar entrega';
       form.setAttribute('action', URL_EDITAR.replace('/0/', '/' + e.id + '/'));
-      F('fecha').value = e.fecha; F('hora').value = e.hora; F('galones').value = e.galones;
+      F('fecha').value = e.fecha; F('hora').value = e.hora; ponerGalones(e.galones);
       if (F('maquinaria')) F('maquinaria').value = e.maquinaria || '';
       if (F('vehiculo')) F('vehiculo').value = e.vehiculo || ''; F('kilometraje').value = e.kilometraje || '';
       F('persona').value = e.persona || ''; F('observaciones').value = e.observaciones || '';
@@ -67,7 +92,7 @@
   }
   function revisarSaldo() {
     if (!aviso) return;
-    var v = parseFloat(inpGal.value || '0');
+    var v = galEnt ? galTotal() : parseFloat(inpGal.value || '0');
     aviso.classList.toggle('d-none', !(v > SALDO));
   }
   inpGal.addEventListener('input', revisarSaldo);

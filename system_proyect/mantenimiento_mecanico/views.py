@@ -226,6 +226,12 @@ def _leer_entrega(request, insumo, obj=None):
     if not fecha:
         err.append('La fecha es obligatoria.')
     gal = _dec(request.POST.get('galones'))
+    # <--- hecho por claude code (03-nov-2026): el diésel se registra en galones + décimas (ej. "10 galones 4/10" = 10.4 gal)
+    if insumo.clave == 'diesel' and request.POST.get('galones_entero') is not None:
+        ent = (request.POST.get('galones_entero') or '').strip()
+        dec = (request.POST.get('galones_decimas') or '0').strip()
+        if ent.isdigit():
+            gal = Decimal(ent) + (Decimal(dec) / Decimal(10) if dec.isdigit() else Decimal(0))
     if gal is None or gal <= 0:
         err.append('Los galones deben ser mayores a cero.')
     maq = veh = None
