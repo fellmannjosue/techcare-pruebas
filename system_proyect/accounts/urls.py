@@ -60,6 +60,7 @@ urlpatterns = [
     path('settings/conducta/notificaciones/',                   views.settings_notificaciones_conducta,  name='settings_notificaciones_conducta'),
     path('settings/conducta/notificaciones/<int:pk>/eliminar/', views.settings_notificacion_eliminar,    name='settings_notificacion_eliminar'),
     path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
+    path('settings/datashow/',                                  views.settings_datashow,                 name='settings_datashow'),  # <--- hecho por claude code (03-nov-2026): asignar grupo "datashow" con checkboxes
     path('settings/reloj/permisos/',                            views.settings_reloj_permisos,           name='settings_reloj_permisos'),
     path('settings/coordinadores/permisos/',                    views.settings_coord_permisos,           name='settings_coord_permisos'),
     path('mantenimiento-modo/',                                 views.mantenimiento_modo,                name='mantenimiento_modo'),

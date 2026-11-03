@@ -84,6 +84,13 @@
             <i class="ti ti-shield-half me-2"></i>Config. Roles
           </a>
         </nav>
+        {# <--- hecho por claude code (03-nov-2026): asignar el grupo de Solicitud de DataShow #}
+        <div class="nav-section">Módulos</div>
+        <nav class="nav flex-column gap-1 mb-2">
+          <a class="nav-link {% if active_tab == 'datashow' %}active{% endif %}" href="{% url 'settings_datashow' %}">
+            <i class="ti ti-calendar-plus me-2"></i>Acceso a DataShow
+          </a>
+        </nav>
         {# <--- hecho por claude code: Permisos Reloj y Permisos Coordinadores viven ahora en el panel (Permisos) #}
         {% endif %}
 

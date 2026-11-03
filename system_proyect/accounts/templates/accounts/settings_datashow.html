@@ -1,0 +1,73 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Acceso a DataShow{% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code (03-nov-2026): asignar el grupo "datashow" (Solicitud de DataShow) con checkboxes #}
+<form method="post" id="form-ds-acceso">
+  {% csrf_token %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i class="ti ti-calendar-plus me-2 text-pink"></i>Acceso a Solicitud de DataShow</h3>
+      <div class="card-options">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="ti ti-search"></i></span>
+          <input type="text" id="ds-buscar" class="form-control" placeholder="Buscar usuario…" style="min-width:200px" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body border-bottom py-2 d-flex flex-wrap align-items-center gap-2">
+      <span class="text-muted small">
+        <i class="ti ti-info-circle me-1"></i>
+        Solo los usuarios marcados (y los superusuarios) verán y podrán usar <strong>Solicitud de DataShow</strong>.
+      </span>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="badge bg-pink-lt text-pink"><span id="ds-contador">{{ ds_total }}</span> seleccionados</span>
+        <button type="button" class="btn btn-sm btn-ghost-secondary" id="ds-todos">Marcar visibles</button>
+        <button type="button" class="btn btn-sm btn-ghost-secondary" id="ds-ninguno">Quitar visibles</button>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-vcenter table-hover card-table" id="ds-tabla">
+          <thead>
+            <tr>
+              <th class="text-center w-1">Acceso</th>
+              <th>Usuario</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in ds_usuarios %}
+            <tr class="ds-fila">
+              <td class="text-center">
+                <label class="form-check m-0 d-inline-flex justify-content-center">
+                  <input type="checkbox" class="form-check-input ds-check" name="usuarios" value="{{ u.pk }}"
+                         {% if u.pk in ds_asignados %}checked{% endif %}>
+                </label>
+              </td>
+              <td class="fw-semibold ds-nombre">{{ u.get_full_name|default:u.username }}
+                <span class="text-muted small ds-user">({{ u.username }})</span></td>
+              <td class="text-muted small ds-email">{{ u.email }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-4">No hay usuarios.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>Guardar acceso</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'accounts/js/settings_datashow.js' %}?v=1"></script>
+{% endblock %}

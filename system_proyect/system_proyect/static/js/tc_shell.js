@@ -40,6 +40,24 @@
         return (t || link).textContent.replace(/\s+/g, ' ').trim();
       };
       if (top) {
+        /* <--- hecho por claude code (03-nov-2026): grupos marcados data-rol-combina se FUSIONAN
+           en un solo menú con acordeón por área (p. ej. Maestro BL + Maestro Colegio → "Maestro BL/COL").
+           Solo se fusiona cuando hay 2+ del mismo tipo; con 1 solo queda como un menú normal. */
+        var COMBINA_TITULO = { maestro: 'Maestro BL/COL' };
+        var COMBINA_ICONO  = { maestro: 'ti ti-school' };
+        var ddLinkDe = function (s) {
+          var si = s.querySelector('.nav-link-icon i');
+          var sc = si ? si.className.replace(/\btext-[\w-]+/g, '').trim() : 'ti ti-point';
+          var da = document.createElement('a'); da.className = 'tc-dd-link'; da.href = s.getAttribute('href');
+          da.innerHTML = '<i class="' + sc + '"></i><span>' + tituloDe(s) + '</span>';
+          return da;
+        };
+        var combinaCount = {}, combinaDD = {};
+        Array.prototype.forEach.call(top.children, function (li) {
+          var k = li.getAttribute && li.getAttribute('data-rol-combina');
+          if (k && li.classList.contains('nav-item') && !li.classList.contains('d-none')) combinaCount[k] = (combinaCount[k] || 0) + 1;
+        });
+
         Array.prototype.forEach.call(top.children, function (li) {
           if (!li.classList.contains('nav-item') || li.classList.contains('d-none')) return;
           var link = null;
@@ -49,6 +67,32 @@
           var icls = iconoDe(link);
           var href = link.getAttribute('href') || '#';
           var sub = li.querySelectorAll('.collapse a.nav-link[href]:not([href^="#"])');
+          var combina = li.getAttribute('data-rol-combina');
+
+          /* Grupo combinable con 2+ presentes → un solo menú con una sección acordeón por área */
+          if (combina && combinaCount[combina] >= 2) {
+            var area = li.getAttribute('data-rol-area') || title;
+            var dd = combinaDD[combina];
+            if (!dd) {
+              var it = document.createElement('div'); it.className = 'tc-nav-item';
+              var bt = document.createElement('button');
+              bt.type = 'button'; bt.className = 'tc-nav-link tc-nav-toggle';
+              bt.innerHTML = '<i class="' + (COMBINA_ICONO[combina] || icls) + '"></i><span>' + (COMBINA_TITULO[combina] || title) + '</span><i class="ti ti-chevron-down tc-nav-car"></i>';
+              dd = document.createElement('div'); dd.className = 'tc-dd';
+              it.appendChild(bt); it.appendChild(dd);
+              frag.appendChild(it);
+              combinaDD[combina] = dd;
+            }
+            var secc = document.createElement('div'); secc.className = 'tc-dd-sub';
+            var stog = document.createElement('button'); stog.type = 'button'; stog.className = 'tc-dd-subtog';
+            stog.innerHTML = '<i class="' + icls + '"></i><span>' + area + '</span><i class="ti ti-chevron-down tc-dd-subcar"></i>';
+            var sit = document.createElement('div'); sit.className = 'tc-dd-subitems';
+            Array.prototype.forEach.call(sub, function (s) { sit.appendChild(ddLinkDe(s)); });
+            secc.appendChild(stog); secc.appendChild(sit);
+            dd.appendChild(secc);
+            return;
+          }
+
           var item = document.createElement('div');
           item.className = 'tc-nav-item';
           if (href.charAt(0) !== '#' && sub.length === 0) {
@@ -60,15 +104,9 @@
             var btn = document.createElement('button');
             btn.type = 'button'; btn.className = 'tc-nav-link tc-nav-toggle';
             btn.innerHTML = '<i class="' + icls + '"></i><span>' + title + '</span><i class="ti ti-chevron-down tc-nav-car"></i>';
-            var dd = document.createElement('div'); dd.className = 'tc-dd';
-            Array.prototype.forEach.call(sub, function (s) {
-              var si = s.querySelector('.nav-link-icon i');
-              var sc = si ? si.className.replace(/\btext-[\w-]+/g, '').trim() : 'ti ti-point';
-              var da = document.createElement('a'); da.className = 'tc-dd-link'; da.href = s.getAttribute('href');
-              da.innerHTML = '<i class="' + sc + '"></i><span>' + tituloDe(s) + '</span>';
-              dd.appendChild(da);
-            });
-            item.appendChild(btn); item.appendChild(dd);
+            var dd2 = document.createElement('div'); dd2.className = 'tc-dd';
+            Array.prototype.forEach.call(sub, function (s) { dd2.appendChild(ddLinkDe(s)); });
+            item.appendChild(btn); item.appendChild(dd2);
           }
           frag.appendChild(item);
         });

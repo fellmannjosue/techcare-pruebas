@@ -969,7 +969,7 @@ def menu_view(request):
         'show_inventory':   is_admin or can_view_inventory or is_group_inventario,
         'show_maintenance': is_admin or can_view_maintenance,
         'show_servicio':    is_admin or can_view_inventory or is_group_inventario or can_view_maintenance,   # <--- hecho por claude code (28-sep-2026)
-        'show_datashow':    user.is_authenticated,   # <--- hecho por claude code (02-nov-2026): cualquier usuario puede reservar DataShow
+        'show_datashow':    is_admin or user.groups.filter(name='datashow').exists(),   # <--- hecho por claude code (03-nov-2026): solo el grupo "datashow" (Config → Acceso a DataShow)
         'show_mant_mecanico': is_admin or user.groups.filter(name__in=['mantenimiento_mecanico', 'mantenimiento_mecanico_lectura', 'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026): combustibles ∪ vehículos (un solo módulo)
         'show_vehiculos':     is_admin or user.groups.filter(name__in=['vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria']).exists(),   # <--- hecho por claude code (12-oct-2026)
         'show_camaras_inv': is_admin or can_view_inventory or can_view_maintenance or is_group_inventario,
@@ -1427,7 +1427,7 @@ def panel_general(request):
         'show_reloj':       user.is_superuser or _g(user, 'reloj'),
         # <--- hecho por claude code (12-oct-2026): Control y Servicio Técnico también en el Panel (estaba solo en el sidebar)
         'show_servicio':    user.is_superuser or _g(user, 'inventario', 'mantenimiento') or user.has_perm('inventario.view_item') or user.has_perm('mantenimiento.view_maintenancerecord'),
-        'show_datashow':    user.is_authenticated,   # <--- hecho por claude code (02-nov-2026): reserva de DataShow para todos
+        'show_datashow':    user.is_superuser or _g(user, 'datashow'),   # <--- hecho por claude code (03-nov-2026): solo el grupo "datashow"
         # <--- hecho por claude code (12-oct-2026): CFP y Gestión de Desarrollo también como tarjeta (estaban solo en el sidebar)
         'show_cfp':         user.is_superuser or _g(user, 'director_cfp', 'instructores', 'contabilidad_cfp'),
         'solo_conta_cfp':   _g(user, 'contabilidad_cfp') and not _g(user, 'director_cfp', 'instructores'),
@@ -2347,6 +2347,42 @@ def settings_roles(request):
         'todos_grupos':   Group.objects.order_by('name'),
     })
     return render(request, 'accounts/settings_roles.html', ctx)
+
+
+# ── Acceso a DataShow (superuser) ─────────────────────────────
+# <--- hecho por claude code (03-nov-2026): ventana para asignar el grupo "datashow"
+# (Solicitud de DataShow) a ciertos usuarios con checkboxes.
+@login_required
+def settings_datashow(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+
+    grupo, _ = Group.objects.get_or_create(name='datashow')
+
+    if request.method == 'POST':
+        ids = request.POST.getlist('usuarios')
+        seleccionados = (User.objects
+                         .filter(pk__in=ids, is_active=True)
+                         .exclude(is_superuser=True))
+        grupo.user_set.set(seleccionados)
+        messages.success(
+            request,
+            f'Acceso a Solicitud de DataShow actualizado: {grupo.user_set.count()} usuario(s).'
+        )
+        return redirect('settings_datashow')
+
+    asignados = set(grupo.user_set.values_list('id', flat=True))
+    usuarios = (User.objects
+                .filter(is_active=True)
+                .exclude(is_superuser=True)
+                .order_by('first_name', 'last_name', 'username'))
+    ctx = _settings_ctx(request, 'datashow')
+    ctx.update({
+        'ds_usuarios':  usuarios,
+        'ds_asignados': asignados,
+        'ds_total':     len(asignados),
+    })
+    return render(request, 'accounts/settings_datashow.html', ctx)
 
 
 @login_required

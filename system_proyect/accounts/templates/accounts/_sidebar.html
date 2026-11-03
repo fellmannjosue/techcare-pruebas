@@ -571,7 +571,8 @@
 
   {# ── Maestro BL ──────────────────────────────────────── #}
   {% if nav_maestro_bl %}
-  <li class="nav-item">
+  {# <--- hecho por claude code (03-nov-2026): data-rol-combina → tc_shell.js fusiona Maestro BL + Maestro Colegio en "Maestro BL/COL" con acordeón por área (solo si tiene las dos) #}
+  <li class="nav-item" data-rol-combina="maestro" data-rol-area="Bilingüe">
     <a class="nav-link collapsed" href="#navMaestroBL" data-bs-toggle="collapse">
       <span class="nav-link-icon"><i class="ti ti-school text-blue"></i></span>
       <span class="nav-link-title">Maestro BL</span>
@@ -625,7 +626,8 @@
 
   {# ── Maestro Colegio ─────────────────────────────────── #}
   {% if nav_maestro_col %}
-  <li class="nav-item">
+  {# <--- hecho por claude code (03-nov-2026): se fusiona con Maestro BL (ver arriba) #}
+  <li class="nav-item" data-rol-combina="maestro" data-rol-area="Colegio">
     <a class="nav-link collapsed" href="#navMaestroCol" data-bs-toggle="collapse">
       <span class="nav-link-icon"><i class="ti ti-book text-orange"></i></span>
       <span class="nav-link-title">Maestro Colegio</span>

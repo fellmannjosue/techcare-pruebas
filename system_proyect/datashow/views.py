@@ -27,6 +27,15 @@ def _es_soporte(user):
     return user.is_superuser
 
 
+# <--- hecho por claude code (03-nov-2026): solicitar DataShow es solo del grupo "datashow" (o superusuario).
+# La membresía se asigna desde Configuración → "Acceso a DataShow".
+GRUPO_SOLICITANTE = 'datashow'
+
+
+def _puede_reservar(user):
+    return bool(user.is_superuser or user.groups.filter(name=GRUPO_SOLICITANTE).exists())
+
+
 def _mes_valido(anio, mes):
     try:
         anio = int(anio); mes = int(mes)
@@ -65,6 +74,9 @@ def _construir_calendario(anio, mes, reservas):
 
 @login_required
 def index(request):
+    if not _puede_reservar(request.user):
+        messages.error(request, 'No tienes acceso a Solicitud de DataShow. Pídelo a Soporte.')
+        return redirect('/')
     hoy = timezone.now().date()
     anio, mes = _mes_valido(request.GET.get('anio'), request.GET.get('mes'))
 
@@ -121,6 +133,9 @@ def index(request):
 @login_required
 @require_POST
 def crear(request):
+    if not _puede_reservar(request.user):
+        messages.error(request, 'No tienes acceso a Solicitud de DataShow.')
+        return redirect('/')
     form = ReservaForm(request.POST)
     if form.is_valid():
         with transaction.atomic():
