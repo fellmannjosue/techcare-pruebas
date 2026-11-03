@@ -25,16 +25,51 @@
 {% endfor %}
 <div class="tc-nav-item">
   <button type="button" class="tc-nav-link tc-nav-toggle"><i class="ti ti-settings"></i><span>Sistema</span><i class="ti ti-chevron-down tc-nav-car"></i></button>
+  {# <--- hecho por claude code (03-nov-2026): menú Sistema organizado en acordeones (tc-dd-sub) + sueltos #}
   <div class="tc-dd">
-    <a class="tc-dd-link" href="{% url 'calculadoras_dashboard' %}" style="--ia:#1098ad;"><i class="ti ti-calculator"></i><span>Calculadoras</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_auditoria' %}" style="--ia:#206bc4;"><i class="ti ti-shield-check"></i><span>Auditoría</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_actividad' %}" style="--ia:#0ca678;"><i class="ti ti-activity"></i><span>Actividad</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_reloj_permisos' %}" style="--ia:#f76707;"><i class="ti ti-clock-cog"></i><span>Permisos Reloj</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_coord_permisos' %}" style="--ia:#7048e8;"><i class="ti ti-users-group"></i><span>Permisos Coordinadores</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_desbloqueos' %}" style="--ia:#2fb344;"><i class="ti ti-lock-open"></i><span>Desbloqueo de accesos</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_usuarios' %}" style="--ia:#206bc4;"><i class="ti ti-users"></i><span>Usuarios</span></a>
-    <a class="tc-dd-link" href="{% url 'settings_correos' %}" style="--ia:#d63939;"><i class="ti ti-mail"></i><span>Correos</span></a>
-    <a class="tc-dd-link" href="{% url 'panel_seguridad' %}" style="--ia:#7048e8;"><i class="ti ti-shield-lock"></i><span>Seguridad</span></a>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-calculator"></i><span>Calculadoras</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'calculadoras_dashboard' %}" style="--ia:#1098ad;"><i class="ti ti-calculator"></i><span>Calculadoras</span></a>
+      </div>
+    </div>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-shield-check"></i><span>Auditoría y Monitoreo</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'settings_auditoria' %}" style="--ia:#206bc4;"><i class="ti ti-shield-check"></i><span>Auditoría</span></a>
+        <a class="tc-dd-link" href="{% url 'settings_actividad' %}" style="--ia:#0ca678;"><i class="ti ti-activity"></i><span>Actividad</span></a>
+      </div>
+    </div>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-key"></i><span>Permisos</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'settings_reloj_permisos' %}" style="--ia:#f76707;"><i class="ti ti-clock-cog"></i><span>Permisos Reloj</span></a>
+        <a class="tc-dd-link" href="{% url 'settings_coord_permisos' %}" style="--ia:#7048e8;"><i class="ti ti-users-group"></i><span>Permisos Coordinadores</span></a>
+      </div>
+    </div>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-users"></i><span>Usuarios y Seguridad</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'settings_usuarios' %}" style="--ia:#206bc4;"><i class="ti ti-users"></i><span>Usuarios</span></a>
+        <a class="tc-dd-link" href="{% url 'panel_seguridad' %}" style="--ia:#7048e8;"><i class="ti ti-shield-lock"></i><span>Seguridad</span></a>
+      </div>
+    </div>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-lock-open"></i><span>Desbloqueo de accesos</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'settings_desbloqueos' %}" style="--ia:#2fb344;"><i class="ti ti-lock-open"></i><span>Desbloqueo de accesos</span></a>
+      </div>
+    </div>
+    <div class="tc-dd-sub">
+      <button type="button" class="tc-dd-subtog"><i class="ti ti-mail"></i><span>Correos</span><i class="ti ti-chevron-down tc-dd-subcar"></i></button>
+      <div class="tc-dd-subitems">
+        <a class="tc-dd-link" href="{% url 'settings_correos' %}" style="--ia:#d63939;"><i class="ti ti-mail"></i><span>Correos</span></a>
+        <a class="tc-dd-link" href="#" id="btnAbrirReenviar" style="--ia:#d63939;"><i class="ti ti-mail-forward"></i><span>Reenviar correo</span></a>
+      </div>
+    </div>
+    {# sueltos (sin acordeón) #}
+    <a class="tc-dd-link" href="{% url 'settings_perfil' %}" style="--ia:#626976; border-top:1px solid var(--ps-border); margin-top:4px; padding-top:8px;"><i class="ti ti-settings"></i><span>Configuración</span></a>
+    <a class="tc-dd-link" href="{% url 'admin:index' %}" target="_blank" rel="noopener noreferrer" style="--ia:#4263eb;"><i class="ti ti-layout-dashboard"></i><span>Ventana Admin <i class="ti ti-external-link ms-1" style="font-size:.7rem;"></i></span></a>
     <a class="tc-dd-link" href="{% url 'mantenimiento_modo' %}" style="--ia:#f59f00;"><i class="ti ti-tool"></i><span>Modo Mantenimiento</span></a>
   </div>
 </div>

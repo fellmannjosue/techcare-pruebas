@@ -36,6 +36,8 @@
       </li>
       <li><hr class="dropdown-divider border-secondary m-0"></li>
 
+      {# <--- hecho por claude code (03-nov-2026): para el superusuario, Configuración/Ventana Admin/Reenviar correo pasaron al menú «Sistema»; aquí quedan solo para los demás #}
+      {% if not request.user.is_superuser %}
       <li>
         <a class="dropdown-item" href="{% url 'settings_perfil' %}">
           <i class="ti ti-settings me-2"></i>Configuración
@@ -50,15 +52,8 @@
       </li>
       {% endif %}
 
-      {% if request.user.is_superuser %}
-      <li>
-        <a class="dropdown-item" href="#" id="btnAbrirReenviar">
-          <i class="ti ti-mail-forward me-2"></i>Reenviar correo
-        </a>
-      </li>
-      {% endif %}
-
       <li><hr class="dropdown-divider border-secondary m-0"></li>
+      {% endif %}
       {# <--- hecho por claude code: modo oscuro como toggle (antes botón flotante) #}
       <li>
         <div class="dropdown-item-text d-flex align-items-center justify-content-between">
