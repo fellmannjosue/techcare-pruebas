@@ -240,6 +240,7 @@
 {% endif %}
 
 {# ───────────── NOTAS MITAD DE PARCIAL (normal) ───────────── #}
+{% if not solo_coord_bl %}{# <--- hecho por claude code (03-nov-2026): druiz ve Notas en la barra superior, no en este panel #}
 {% if not programas_ocultos.notas_parcial %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
 {% if request.user|es_coord_notas or request.user|es_maestro_notas %}
 <div class="mb-2 dg-section-title"><i class="ti ti-file-certificate me-1 text-blue"></i>Notas Mitad de Parcial</div>
@@ -277,6 +278,7 @@
 </div>
 {% endif %}
 {% endif %}
+{% endif %}{# <--- hecho por claude code (03-nov-2026): cierra 'not solo_coord_bl' de la sección Notas #}
 
 {# ───────────── RELOJ ───────────── #}
 {% if show_reloj %}

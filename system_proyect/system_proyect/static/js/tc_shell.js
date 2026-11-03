@@ -43,7 +43,7 @@
         /* <--- hecho por claude code (03-nov-2026): grupos marcados data-rol-combina se FUSIONAN
            en un solo menú con acordeón por área (p. ej. Maestro BL + Maestro Colegio → "Maestro BL/COL").
            Solo se fusiona cuando hay 2+ del mismo tipo; con 1 solo queda como un menú normal. */
-        var COMBINA_TITULO = { maestro: 'Maestro BL/COL' };
+        var COMBINA_TITULO = { maestro: 'Maestros COL/BL' };
         var COMBINA_ICONO  = { maestro: 'ti ti-school' };
         var ddLinkDe = function (s) {
           var si = s.querySelector('.nav-link-icon i');

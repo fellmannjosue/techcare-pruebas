@@ -1447,6 +1447,24 @@ def panel_general(request):
                                  'ok': _g(user, 'maestros_colegio')},
                              ) if a['ok']],
     }
+    # <--- hecho por claude code (03-nov-2026): coord+maestro de DOBLE área (druiz) → su
+    # "Panel Principal" es SU vista de coordinación: deja SOLO las tarjetas del Coordinador BL.
+    # Tickets, Maestro, Notas y Gestión de Desarrollo se acceden desde la barra superior
+    # (en la barra, el grupo de maestro sale combinado como "Maestros COL/BL").
+    try:
+        _ecm = user.perfil.es_coord_maestro
+    except Exception:
+        _ecm = False
+    solo_coord_bl = bool(_ecm and _g(user, 'maestros_bilingue') and _g(user, 'maestros_colegio')
+                         and _g(user, *_GRUPOS_COORD_BL))
+    if solo_coord_bl:
+        ctx['show_tickets']     = False
+        ctx['show_maestro_bl']  = False
+        ctx['show_maestro_col'] = False
+        ctx['show_desarrollo']  = False
+        ctx['toggle_area']      = False
+        ctx['notas_ambitos']    = []
+    ctx['solo_coord_bl'] = solo_coord_bl
     # <--- hecho por claude code (10-sep-2026): programas ocultos a todos (Configuración → Seguridad)
     from constance import config as _cfg_prog
     from core.programas import ocultos as _prog_ocultos, aplicar_ocultos as _aplicar_ocultos

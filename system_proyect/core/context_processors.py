@@ -67,8 +67,11 @@ def nav_context(request):
         # áreas (druiz) ve su coordinación + ambos roles de maestro a la vez (la barra los combina
         # en "Maestro BL/COL"); no depende del interruptor de modo.
         if is_maestro_bl and is_maestro_col:
-            nav_coord_bl  = is_coord_bl
-            nav_coord_col = is_coord_col
+            # <--- hecho por claude code (03-nov-2026): la COORDINACIÓN (druiz) se ve en
+            # "Panel Principal" (panel_general); en la barra superior solo queda
+            # "Maestros COL/BL". Por eso NO mostramos el grupo Coordinador en el menú.
+            nav_coord_bl  = False
+            nav_coord_col = False
             nav_mbl       = True
             nav_mcol      = True
         elif not modo_maestro:
