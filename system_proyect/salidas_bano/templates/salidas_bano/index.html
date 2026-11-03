@@ -16,33 +16,50 @@
   {% if True %}
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
+  {# <--- hecho por claude code (03-nov-2026): shell Horizon (barra superior) igual que el resto del sistema #}
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=6">
   {% endif %}
 </head>
 <body class="antialiased">
 <div class="wrapper">
 
-  {# ── Sidebar ─── #}
-  <aside class="navbar navbar-vertical navbar-expand-lg" data-bs-theme="dark">
+  {# ── Barra superior Horizon (03-nov-2026): tc_shell.js arma el menú desde el sidebar-fuente ── #}
+  <header class="tc-topbar d-print-none">
+    <a class="tc-tb-brand" href="{{ nav_home_url|default:'/accounts/menu/' }}">
+      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="ANA">
+      <span class="tc-tb-brandtxt"><b>TechCare</b><small>{% if request.user.is_superuser %}Panel del superusuario{% else %}Asociación Nuevo Amanecer{% endif %}</small></span>
+    </a>
+    <button class="tc-tb-burger" type="button" id="tc-burger" aria-label="Menú"><i class="ti ti-menu-2"></i></button>
+    <nav class="tc-topnav" id="tc-topnav" aria-label="Menú principal">{% if request.user.is_superuser %}{% include 'accounts/_topnav_super.html' %}{% endif %}</nav>
+    <div class="tc-tb-tools">
+      {% include 'accounts/_notificaciones.html' %}
+      {% include 'accounts/_user_dropdown.html' %}
+    </div>
+  </header>
+
+  {# ── Menú FUENTE (oculto): tc_shell.js lee sus grupos para armar el menú superior ── #}
+  <aside class="navbar navbar-vertical navbar-expand-lg"{% if not request.user.is_superuser %} data-acordeon="1"{% endif %} data-bs-theme="dark">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-sb">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#tc-sidebar">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="navbar-brand">
-        <a href="{{ nav_home_url }}" class="d-flex align-items-center text-decoration-none">
-          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="36" class="me-2">
-          <span class="fw-bold fs-5 text-white">TechCare</span>
+        <a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="d-flex align-items-center text-decoration-none">
+          <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo" height="34" class="me-2">
+          <span class="tc-brand-txt"><b>TechCare</b><small>{% if request.user.is_superuser %}Panel del superusuario{% else %}Asociación Nuevo Amanecer{% endif %}</small></span>
         </a>
       </div>
-      <div class="collapse navbar-collapse" id="sidebar-sb">
+      <div class="collapse navbar-collapse" id="tc-sidebar">
+        <label class="tc-side-search"><i class="ti ti-search"></i><input type="search" id="tc-side-q" placeholder="Buscar en el menú…" autocomplete="off"></label>
         {% include 'accounts/_sidebar.html' %}
-        {% include 'accounts/_user_dropdown.html' %}
+        <div class="tc-side-foot"><span class="tc-dot"></span>Sistema en línea{% if app_version %} · v{{ app_version }}{% endif %}</div>
       </div>
     </div>
   </aside>
 
   <div class="page-wrapper">
     {# ── Header ─── #}
-    <div class="page-header d-print-none">
+    <div class="page-header d-print-none tc-hero">
       <div class="container-fluid">
         <div class="row align-items-center">
           <div class="col">
@@ -593,6 +610,8 @@
 
 <script src="{% static 'salidas_bano/js/index.js' %}?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
+{# <--- hecho por claude code (03-nov-2026): arma la barra superior Horizon desde el sidebar-fuente #}
+<script src="{% static 'js/tc_shell.js' %}?v=8"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=13"></script>
 <script src="{% static 'salidas_bano/js/salidas_alerta.js' %}?v=5"></script>
 {# <--- hecho por claude code: footer unificado #}
