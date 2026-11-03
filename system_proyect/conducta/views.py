@@ -1,4 +1,6 @@
 import io, os, json
+from conducta.richtext import (   # <--- hecho por claude code (03-nov-2026): comentario con formato
+    sanitizar as _san_coment, a_markup_pdf as _coment_pdf, tiene_formato as _coment_formato)
 from accounts.models import CoordPermiso
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
@@ -840,7 +842,7 @@ def reporte_informativo_bilingue(request):
         alumno_id = request.POST.get('alumno')
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
-        comentario = request.POST.get('comentario', "")
+        comentario = _san_coment(request.POST.get('comentario', ""))
         tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
@@ -899,7 +901,7 @@ def reporte_informativo_colegio(request):
         alumno_id = request.POST.get('alumno')
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
-        comentario = request.POST.get('comentario', "")
+        comentario = _san_coment(request.POST.get('comentario', ""))
         tipo_reporte = request.POST.get('tipo_reporte', 'academico')
         alumno_obj = next((a for a in students if a['id'] == alumno_id), None)
         # <--- hecho por claude code (seguridad): el alumno DEBE ser del área de esta vista
@@ -955,7 +957,7 @@ def reporte_conductual_bilingue(request):
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
         fecha_val = request.POST.get('fecha')
-        comentario = request.POST.get('comentario', "")
+        comentario = _san_coment(request.POST.get('comentario', ""))
 
         # Obtén las listas seleccionadas si el checkbox está activo
         ids_leve = request.POST.getlist('inciso_leve[]') if request.POST.get('chk_leve') else []
@@ -1035,7 +1037,7 @@ def reporte_conductual_colegio(request):
         grado = request.POST.get('grado')
         materia_docente_id = request.POST.get('materia_docente')
         fecha_val = request.POST.get('fecha')
-        comentario = request.POST.get('comentario', "")
+        comentario = _san_coment(request.POST.get('comentario', ""))
 
         ids_leve = request.POST.getlist('inciso_leve[]') if request.POST.get('chk_leve') else []
         ids_grave = request.POST.getlist('inciso_grave[]') if request.POST.get('chk_grave') else []
@@ -1415,7 +1417,7 @@ def editar_reporte_conductual(request, pk):
     incisos_muygrave = IncisoConductual.objects.filter(activo=True, tipo='muy_grave').order_by('descripcion')
 
     if request.method == "POST":
-        reporte.comentario            = request.POST.get("comentario", "")
+        reporte.comentario            = _san_coment(request.POST.get("comentario", ""))
         reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
         reporte.estado                = request.POST.get("estado", "enviado")
         reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
@@ -1455,7 +1457,7 @@ def editar_reporte_informativo(request, pk):
         coordinadores = COORDINADORES_COLEGIO
 
     if request.method == "POST":
-        reporte.comentario            = request.POST.get("comentario", "")
+        reporte.comentario            = _san_coment(request.POST.get("comentario", ""))
         reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
         reporte.estado                = request.POST.get("estado", "enviado")
         reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
@@ -1816,10 +1818,41 @@ def editar_progress_report(request, pk):
     })
 
 # -----------  DESCARGA EN PDF  -----------
+def _draw_paragraph_rico(pdf, html, x, y, max_width, font_size=10, italic=False, leading=13, bold=False):
+    """<--- hecho por claude code (03-nov-2026): dibuja un comentario CON formato (negrita + 2 tamaños)
+    usando reportlab Paragraph. Solo se usa cuando el texto trae etiquetas del subconjunto."""
+    from reportlab.platypus import Paragraph
+    from reportlab.lib.styles import ParagraphStyle
+    markup = _coment_pdf(html)          # el HTML ya viene saneado -> marcado válido de Paragraph
+    if italic:
+        markup = '<i>%s</i>' % markup
+    if bold:
+        markup = '<b>%s</b>' % markup
+    estilo = ParagraphStyle('coment_rico', fontName='Helvetica', fontSize=font_size, leading=leading)
+    try:
+        para = Paragraph(markup, estilo)
+        _w, h = para.wrap(max_width, 100000)
+        para.drawOn(pdf, x, y - h + (leading - font_size))
+        return y - h
+    except Exception:
+        # si el marcado falla por algo raro, caer a texto plano
+        from conducta.richtext import a_texto_plano
+        return _draw_paragraph_plano(pdf, a_texto_plano(html) or '-', x, y, max_width,
+                                     font_size=font_size, italic=italic, leading=leading, bold=bold)
+
+
 def draw_paragraph(pdf, text, x, y, max_width, font="Helvetica", font_size=10, bold=False, italic=False, leading=13):
     """
     Dibuja un párrafo con saltos de línea y justificación manual en ReportLab.
     """
+    if text and _coment_formato(text):   # <--- comentario con formato -> reportlab Paragraph
+        return _draw_paragraph_rico(pdf, text, x, y, max_width,
+                                    font_size=font_size, italic=italic, leading=leading, bold=bold)
+    return _draw_paragraph_plano(pdf, text, x, y, max_width, font=font,
+                                 font_size=font_size, bold=bold, italic=italic, leading=leading)
+
+
+def _draw_paragraph_plano(pdf, text, x, y, max_width, font="Helvetica", font_size=10, bold=False, italic=False, leading=13):
     from reportlab.pdfbase.pdfmetrics import stringWidth
     fontname = font
     if bold and italic:

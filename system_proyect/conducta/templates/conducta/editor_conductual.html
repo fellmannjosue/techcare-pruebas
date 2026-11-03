@@ -123,6 +123,7 @@
           <div class="mb-3">
             <label class="form-label fw-bold">Comentario del Docente</label>
             <textarea class="form-control" name="comentario" rows="3"
+                      data-rico data-redactar-url="{% url 'asistente:redactar' %}"
                       style="background:#f8f9fa;">{{ reporte.comentario|default_if_none:"" }}</textarea>
             <div class="form-text">El coordinador puede editar este campo.</div>
           </div>
@@ -168,5 +169,7 @@
 {% endblock %}
 
 {% block extra_js %}
+  <link rel="stylesheet" href="{% static 'conducta/css/comentario_rico.css' %}?v=1">
+  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=1"></script>
   <script src="{% static 'conducta/js/editor_reporte.js' %}?v=20"></script>
 {% endblock %}

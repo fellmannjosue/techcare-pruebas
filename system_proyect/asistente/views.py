@@ -15,9 +15,11 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from .prompts import system_prompt_para
+from .prompts import system_prompt_para, prompt_redactar
 
 log = logging.getLogger('asistente')
+
+MAX_LARGO_REDACTAR = 4000   # recorte del texto a mejorar (caracteres)
 
 MODELO = getattr(settings, 'ASISTENTE_MODELO', 'claude-sonnet-5-5')
 MAX_MENSAJES = 12            # cuántos mensajes recientes se mandan (control de costo)
@@ -90,6 +92,63 @@ def chat(request):
         return JsonResponse({'ok': True, 'reply': texto or '(sin respuesta)'})
     except Exception as e:                                   # noqa: BLE001 - no filtrar detalles al cliente
         log.warning('asistente error: %s', e)
+        return JsonResponse(
+            {'ok': False, 'error': 'No se pudo contactar al asistente. Intenta de nuevo.'},
+            status=502)
+
+
+@login_required
+@require_POST
+def redactar(request):
+    """<--- hecho por claude code (03-nov-2026): corrige/mejora el texto de un comentario.
+    Recibe {accion, texto}; devuelve {ok, texto} con SOLO el texto resultante (sin formato)."""
+    api_key = _api_key()
+    if not api_key:
+        return JsonResponse(
+            {'ok': False, 'error': 'El asistente aún no está configurado en el servidor.'},
+            status=503)
+
+    try:
+        datos = json.loads(request.body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Petición inválida.'}, status=400)
+
+    accion = (datos.get('accion') or '').strip()
+    texto = (datos.get('texto') or '').strip()
+    if not texto:
+        return JsonResponse({'ok': False, 'error': 'No hay texto para procesar.'}, status=400)
+    texto = texto[:MAX_LARGO_REDACTAR]
+
+    system, mensaje = prompt_redactar(accion, texto)
+    if system is None:
+        return JsonResponse({'ok': False, 'error': 'Acción no válida.'}, status=400)
+
+    try:
+        import anthropic
+    except ImportError:
+        return JsonResponse(
+            {'ok': False, 'error': 'El asistente no está instalado en el servidor.'}, status=503)
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model=MODELO,
+            max_tokens=1500,
+            output_config={'effort': 'low'},
+            system=[{'type': 'text', 'text': system}],
+            messages=[{'role': 'user', 'content': mensaje}],
+        )
+        salida = ''.join(
+            getattr(b, 'text', '') for b in resp.content if getattr(b, 'type', '') == 'text'
+        ).strip()
+        # El modelo a veces envuelve en comillas: las quitamos si rodean todo el texto.
+        if len(salida) >= 2 and salida[0] in '"“' and salida[-1] in '"”':
+            salida = salida[1:-1].strip()
+        if not salida:
+            return JsonResponse({'ok': False, 'error': 'No se obtuvo texto.'}, status=502)
+        return JsonResponse({'ok': True, 'texto': salida})
+    except Exception as e:                                   # noqa: BLE001
+        log.warning('asistente redactar error: %s', e)
         return JsonResponse(
             {'ok': False, 'error': 'No se pudo contactar al asistente. Intenta de nuevo.'},
             status=502)

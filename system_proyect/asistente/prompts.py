@@ -47,3 +47,38 @@ def system_prompt_para(user, es_super):
         "Responde en español, breve y amable. Si no sabes algo del sistema, dilo con honestidad "
         "en vez de inventar."
     )
+
+
+# <--- hecho por claude code (03-nov-2026): asistente de REDACCIÓN para los comentarios de reportes.
+# Devuelve SOLO el texto resultante (sin comillas, sin explicaciones). Trabaja en español.
+_REDACTAR_SISTEMA = (
+    "Eres un corrector y editor de textos en ESPAÑOL para reportes escolares de una ONG "
+    "en Honduras (Asociación Nuevo Amanecer). Recibes el comentario de un docente sobre una "
+    "alumna o alumno y lo reescribes según la acción pedida.\n"
+    "REGLAS ESTRICTAS:\n"
+    "- Responde ÚNICAMENTE con el texto resultante, sin comillas, sin encabezados, sin "
+    "explicaciones ni comentarios tuyos.\n"
+    "- Mantén SIEMPRE el idioma español y el sentido original del mensaje.\n"
+    "- No inventes datos, nombres, notas ni hechos que no estén en el texto.\n"
+    "- No agregues etiquetas HTML ni formato; devuelve texto plano.\n"
+    "- Conserva un tono respetuoso y profesional, apropiado para comunicar a padres de familia."
+)
+
+_REDACTAR_ACCIONES = {
+    'corregir': "Corrige la ortografía y la gramática del siguiente comentario SIN cambiar el "
+                "sentido ni el tono. Devuelve solo el texto corregido:\n\n",
+    'mejorar':  "Mejora la redacción del siguiente comentario para que sea más claro y "
+                "profesional, manteniendo la idea y en español. Devuelve solo el texto:\n\n",
+    'formal':   "Reescribe el siguiente comentario en un tono institucional y formal, en "
+                "español, manteniendo la información. Devuelve solo el texto:\n\n",
+    'acortar':  "Reescribe el siguiente comentario de forma más breve y directa, en español, "
+                "sin perder lo esencial. Devuelve solo el texto:\n\n",
+}
+
+
+def prompt_redactar(accion, texto):
+    """Devuelve (system, mensaje_usuario) para la acción de redacción, o (None, None) si inválida."""
+    plantilla = _REDACTAR_ACCIONES.get(accion)
+    if not plantilla:
+        return None, None
+    return _REDACTAR_SISTEMA, plantilla + texto

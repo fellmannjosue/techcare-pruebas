@@ -110,7 +110,9 @@
             <div class="col-12">
               <label class="form-label">Comentario</label>
               <textarea id="id_comentario" name="comentario" rows="4"
-                        class="form-control" required></textarea>
+                        class="form-control"
+                        data-rico data-redactar-url="{% url 'asistente:redactar' %}"
+                        placeholder="Escribe el comentario…"></textarea>
             </div>
           </div>
 
@@ -128,6 +130,8 @@
 {% endblock %}
 
 {% block extra_js %}
+  <link rel="stylesheet" href="{% static 'conducta/css/comentario_rico.css' %}?v=1">
+  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   {# <--- hecho por claude code: materia/docente por grupo del alumno #}
   {# <--- hecho por claude code: datos para formularios.js, sin JS inline #}

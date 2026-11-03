@@ -7,4 +7,5 @@ app_name = 'asistente'
 
 urlpatterns = [
     path('chat/', views.chat, name='chat'),
+    path('redactar/', views.redactar, name='redactar'),   # <--- hecho por claude code (03-nov-2026): mejorar/corregir comentarios
 ]
