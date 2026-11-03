@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
       tr.classList.add('fila-asociada');
       tr.innerHTML =
         '<td><input type="text" class="form-control form-control-sm" value="Asociadas" readonly></td>' +
-        '<td><textarea name="asignacion_Asociadas[]" class="form-control form-control-sm" rows="2" maxlength="80"></textarea></td>' +
+        '<td><textarea name="asignacion_Asociadas[]" class="form-control form-control-sm" rows="2" maxlength="20"></textarea></td>' +
         '<td><textarea name="comentario_Asociadas[]" class="form-control form-control-sm" rows="2" maxlength="80"></textarea></td>';
       tbody.appendChild(tr);
       actualizarBoton();

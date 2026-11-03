@@ -38,7 +38,7 @@ $(function () {
           <tr>
             <td><strong>${mat}</strong></td>
             <td>
-              <textarea name="asignacion_${mat}" class="form-control" rows="2" maxlength="80" autocomplete="off"></textarea>
+              <textarea name="asignacion_${mat}" class="form-control" rows="2" maxlength="20" autocomplete="off"></textarea>
             </td>
             <td>
               <textarea name="comentario_${mat}" class="form-control" rows="2" maxlength="80" autocomplete="off"></textarea>
@@ -50,7 +50,7 @@ $(function () {
           <tr id="fila-asociadas">
             <td><strong>Asociadas</strong></td>
             <td>
-              <textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="80" autocomplete="off"></textarea>
+              <textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="20" autocomplete="off"></textarea>
             </td>
             <td class="d-flex align-items-center gap-2">
               <button type="button" class="btn btn-success btn-sm add-asociada me-2" title="Agregar otra fila">+</button>
@@ -106,7 +106,7 @@ $(function () {
       let nuevaFila = `
         <tr class="asociada-extra">
           <td></td>
-          <td><textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="80" autocomplete="off"></textarea></td>
+          <td><textarea name="asignacion_Asociadas[]" class="form-control input-asociadas" rows="2" maxlength="20" autocomplete="off"></textarea></td>
           <td class="d-flex align-items-center gap-2">
             <button type="button" class="btn btn-danger btn-sm remove-asociada me-2" title="Eliminar fila">&ndash;</button>
             <textarea name="comentario_Asociadas[]" class="form-control input-asociadas flex-grow-1" rows="2" maxlength="80" autocomplete="off"></textarea>

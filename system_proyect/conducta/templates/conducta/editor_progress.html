@@ -95,7 +95,7 @@
                       </td>
                       <td>
                         <textarea name="asignacion_Asociadas[]" rows="2"
-                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
+                               class="form-control form-control-sm" maxlength="20" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
                       </td>
                       <td>
                         <textarea name="comentario_Asociadas[]" rows="2"
@@ -111,7 +111,7 @@
                       </td>
                       <td>
                         <textarea name="asignacion_{{ mat.materia }}" rows="2"
-                               class="form-control form-control-sm" maxlength="80" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
+                               class="form-control form-control-sm" maxlength="20" {% if not mat.editable %}readonly{% endif %}>{{ mat.asignacion }}</textarea>
                       </td>
                       <td>
                         <textarea name="comentario_{{ mat.materia }}" rows="2"
@@ -204,6 +204,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'conducta/js/editor_progress.js' %}?v=20"></script>
+<script src="{% static 'conducta/js/editor_progress.js' %}?v=21"></script>
+<script src="{% static 'conducta/js/progress_asignacion_aviso.js' %}?v=1"></script>
 {% if not es_coordinador %}<script src="{% static 'conducta/js/progress_autosave.js' %}?v=2"></script>{% endif %}
 {% endblock %}
