@@ -60,131 +60,94 @@
 {% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code (03-nov-2026): tarjetas con el diseño nuevo (dg-card), igual que el Panel Principal #}
+<link rel="stylesheet" href="{% static 'accounts/css/dashboard_general.css' %}?v=2">
 <p class="text-muted mb-4">Selecciona una opción para gestionar tus reportes y tickets.</p>
 
-<div class="row row-cards g-4 justify-content-center">
+<div class="mb-2 dg-section-title"><i class="ti ti-school me-1 text-blue"></i>Maestro — {% if area == "bilingue" %}Bilingüe{% else %}Colegio/CFP{% endif %}</div>
+<div class="row g-3 mb-4">
 
-  <div class="col-sm-6 col-lg-4">
-    <a href="/tickets/submit_ticket/" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-ticket text-warning" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Generar Ticket</div>
-          <div class="text-muted small mt-1">Reportar un problema técnico</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="/tickets/submit_ticket/" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-ticket" style="font-size:2.2rem;color:#f76707;"></i></div>
+      <div class="fw-semibold text-primary">Generar Ticket</div>
+      <div class="text-muted small">Reportar un problema técnico</div>
     </a>
   </div>
 
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-info-circle text-cyan" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Reporte Informativo</div>
-          <div class="text-muted small mt-1">Registro de conducta informativa</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% if area == 'bilingue' %}{% url 'reporte_informativo_bilingue' %}{% else %}{% url 'reporte_informativo_colegio' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-info-circle" style="font-size:2.2rem;color:#15aabf;"></i></div>
+      <div class="fw-semibold text-primary">Reporte Informativo</div>
+      <div class="text-muted small">Registro de conducta informativa</div>
     </a>
   </div>
 
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-shield-check text-green" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Reporte Conductual</div>
-          <div class="text-muted small mt-1">Registro de incidencias conductuales</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% if area == 'bilingue' %}{% url 'reporte_conductual_bilingue' %}{% else %}{% url 'reporte_conductual_colegio' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-shield-check" style="font-size:2.2rem;color:#2f9e44;"></i></div>
+      <div class="fw-semibold text-primary">Reporte Conductual</div>
+      <div class="text-muted small">Registro de incidencias conductuales</div>
     </a>
   </div>
 
   {% if area == "bilingue" %}
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'progress_report_bilingue' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-chart-line text-blue" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Progress Report</div>
-          <div class="text-muted small mt-1">Informe de progreso académico</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'progress_report_bilingue' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-chart-line" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Progress Report</div>
+      <div class="text-muted small">Informe de progreso académico</div>
     </a>
   </div>
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'convocatoria_grado' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-school text-orange" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Convocatoria Tutorías</div>
-          <div class="text-muted small mt-1">Convocar alumnos a tutorías</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'convocatoria_grado' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-school" style="font-size:2.2rem;color:#e8590c;"></i></div>
+      <div class="fw-semibold text-primary">Convocatoria Tutorías</div>
+      <div class="text-muted small">Convocar alumnos a tutorías</div>
     </a>
   </div>
   {% endif %}
 
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-history text-secondary" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Ver Historial</div>
-          <div class="text-muted small mt-1">Consulta tus reportes anteriores</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% if area == 'bilingue' %}{% url 'historial_maestro_bilingue' %}{% else %}{% url 'historial_maestro_colegio' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-history" style="font-size:2.2rem;color:#868e96;"></i></div>
+      <div class="fw-semibold text-primary">Ver Historial</div>
+      <div class="text-muted small">Consulta tus reportes anteriores</div>
     </a>
   </div>
 
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'agendas:form_agenda' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-calendar-week text-purple" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Agendas</div>
-          <div class="text-muted small mt-1">Agendas semanales</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'agendas:form_agenda' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-calendar-week" style="font-size:2.2rem;color:#ae3ec9;"></i></div>
+      <div class="fw-semibold text-primary">Agendas</div>
+      <div class="text-muted small">Agendas semanales</div>
     </a>
   </div>
 
   {% if request.user.is_superuser or request.user|es_coord_notas %}
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'notas_parcial_coordinador' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-file-certificate text-blue" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Notas Mitad de Parcial</div>
-          <div class="text-muted small mt-1">Revisión de reportes de notas</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'notas_parcial_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
+      <div class="text-muted small">Revisión de reportes de notas</div>
     </a>
   </div>
   {% elif request.user|es_maestro_notas %}
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'notas_parcial_maestro' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-file-certificate text-blue" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Notas Mitad de Parcial</div>
-          <div class="text-muted small mt-1">Ver y comentar reportes de notas</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'notas_parcial_maestro' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-file-certificate" style="font-size:2.2rem;color:#1971c2;"></i></div>
+      <div class="fw-semibold text-primary">Notas Mitad de Parcial</div>
+      <div class="text-muted small">Ver y comentar reportes de notas</div>
     </a>
   </div>
   {% endif %}
 
   {% if nav_salidas_bano %}
-  <div class="col-sm-6 col-lg-4">
-    <a href="{% url 'salidas_bano:index' %}" class="text-decoration-none">
-      <div class="card card-link card-link-pop text-center py-4">
-        <div class="card-body">
-          <div class="mb-3"><i class="ti ti-door-exit text-teal" style="font-size:2.8rem;"></i></div>
-          <div class="fw-bold fs-5">Salidas Baño</div>
-          <div class="text-muted small mt-1">Control de salidas</div>
-        </div>
-      </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'salidas_bano:index' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+      <div class="mb-2"><i class="ti ti-door-exit" style="font-size:2.2rem;color:#0ca678;"></i></div>
+      <div class="fw-semibold text-primary">Salidas Baño</div>
+      <div class="text-muted small">Control de salidas</div>
     </a>
   </div>
   {% endif %}
