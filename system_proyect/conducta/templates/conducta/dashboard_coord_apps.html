@@ -1,10 +1,12 @@
 {% extends 'conducta/base_conducta.html' %}
 {% load static %}
-{# <--- hecho por claude code (Nivel 2): lanzador de apps del Coordinador. Cada tarjeta
-   abre su app enfocada (?app=...); el dashboard ya no carga todo junto. #}
+{# <--- hecho por claude code (04-nov-2026): lanzador de apps del Coordinador — «Mosaico destacado» (Opción B). #}
+{# La 1.ª app va como tile grande destacado; el resto como rejilla de apoyo. #}
 {% block title %}Coordinador {{ area|title }} — Apps{% endblock %}
 {% block page_pretitle %}Coordinador{% endblock %}
 {% block page_title %}Coordinador ({{ area|title }}){% if coord_titulo %} · {{ coord_titulo }}{% endif %}{% endblock %}
+
+{% block vendor_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'conducta/css/coord_apps.css' %}?v=1">{% endblock %}
 
 {% block page_actions %}
   <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver</a>
@@ -15,21 +17,31 @@
   <p class="text-muted mb-0"><i class="ti ti-apps me-1"></i>Elige una app para abrirla.</p>
 </div>
 
-<div class="row row-cards">
-  {% for c in cards %}
-  <div class="col-sm-6 col-lg-3">
-    <a href="{{ c.href }}" class="text-decoration-none">
-      <div class="card card-link card-link-pop h-100" style="border-top:3px solid {{ c.c }};">
-        <div class="card-body text-center py-4">
-          <span class="d-inline-flex rounded p-3 mb-2" style="background:{{ c.c }}22;color:{{ c.c }};">
-            <i class="ti {{ c.i }} fs-1"></i>
-          </span>
-          <div class="fw-bold">{{ c.t }}</div>
-          <div class="text-muted small">{{ c.s }}</div>
-        </div>
-      </div>
+<div class="cda-wrap">
+  {% if cards %}
+  {% with f=cards.0 %}
+  <a href="{{ f.href }}" class="cda-hero" style="--c:{{ f.c }}">
+    <span class="cda-hero__ic"><i class="ti {{ f.i }}"></i></span>
+    <span class="cda-hero__txt">
+      <span class="cda-badge">Más usado</span>
+      <h2>{{ f.t }}</h2>
+      <p>{{ f.s }}</p>
+    </span>
+    <span class="cda-hero__cta">Abrir <i class="ti ti-arrow-right"></i></span>
+  </a>
+  {% endwith %}
+
+  {% if cards|length > 1 %}
+  <div class="cda-grid">
+    {% for c in cards|slice:"1:" %}
+    <a href="{{ c.href }}" class="cda-card" style="--c:{{ c.c }}">
+      <span class="cda-card__ic"><i class="ti {{ c.i }}"></i></span>
+      <span class="cda-card__t">{{ c.t }}</span>
+      <span class="cda-card__s">{{ c.s }}</span>
     </a>
+    {% endfor %}
   </div>
-  {% endfor %}
+  {% endif %}
+  {% endif %}
 </div>
 {% endblock %}

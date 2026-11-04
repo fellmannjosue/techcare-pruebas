@@ -37,7 +37,14 @@ from .forms  import (
 
 @login_required
 def enfermeria_dashboard(request):
-    return render(request, 'enfermeria/dashboard.html')
+    # <--- hecho por claude code (04-nov-2026): 2 KPIs reales para el tile destacado (Opción B)
+    from django.utils import timezone
+    hoy = timezone.now().date()
+    ctx = {
+        'kpi_atenciones_hoy': AtencionMedica.objects.filter(fecha_hora__date=hoy).count(),
+        'kpi_medicamentos': InventarioMedicamento.objects.count(),
+    }
+    return render(request, 'enfermeria/dashboard.html', ctx)
 
 @login_required
 # <--- hecho por claude code: envía la ficha médica en PDF al correo indicado, con

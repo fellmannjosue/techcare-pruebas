@@ -1,18 +1,51 @@
 {% extends 'base_app.html' %}
 {% load static %}
-{# <--- hecho por claude code: panel de entrada, mismo estilo que el de Inventario #}
+{# <--- hecho por claude code (04-nov-2026): Panel de Ingreso de Notas — «Panel de trabajo» (Opción B) #}
 {% block title %}Ingresos de Notas{% endblock %}
 {% block page_pretitle %}Ingresos de Notas · {{ area_label }}{% endblock %}
 {% block page_title %}<i class="ti ti-list-numbers me-2 text-indigo"></i>Panel de Ingreso de Notas{% endblock %}
 
+{% block vendor_head %}{{ block.super }}<link rel="stylesheet" href="{% static 'ingresos_notas/css/panel.css' %}?v=1">{% endblock %}
+
 {% block content %}
-<div class="tc-grid">
-  {% for clave, titulo, icono, color, subtitulo in formularios %}
-    {% if clave == 'notas' %}{% url 'ingresos_notas:index' as u %}
-    {% elif clave == 'tareas' %}{% url 'ingresos_notas:form_tareas' as u %}
-    {% elif clave == 'asistencias' %}{% url 'ingresos_notas:form_asistencias' as u %}
-    {% else %}{% url 'ingresos_notas:form_habitos' as u %}{% endif %}
-    {% include 'ui/tile.html' with href=u icon=icono color=color title=titulo subtitle=subtitulo %}
-  {% endfor %}
+<div class="in-work">
+
+  {# ── Contexto ── #}
+  <aside class="in-side">
+    <div>
+      <div class="in-side__kicker">Área</div>
+      <div class="in-side__areaname">{{ area_label }}</div>
+      {% if areas|length > 1 %}
+      <div class="in-areas">
+        {% for k, label in areas %}
+        <a href="?area={{ k }}" class="in-area-chip {% if k == area_sel %}on{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="in-meta">
+      <div class="in-metric"><b>{{ anio }}</b><small>Año lectivo</small></div>
+      <div class="in-metric"><b>4</b><small>Formularios</small></div>
+    </div>
+    <div class="in-note"><i class="ti ti-tools"></i><span>Pantalla en construcción: se irá completando con filtros y reportes por formulario.</span></div>
+  </aside>
+
+  {# ── Formularios ── #}
+  <div class="in-main">
+    <div class="in-grid">
+      {% for clave, titulo, icono, color, subtitulo in formularios %}
+        {% if clave == 'notas' %}{% url 'ingresos_notas:index' as u %}
+        {% elif clave == 'tareas' %}{% url 'ingresos_notas:form_tareas' as u %}
+        {% elif clave == 'asistencias' %}{% url 'ingresos_notas:form_asistencias' as u %}
+        {% else %}{% url 'ingresos_notas:form_habitos' as u %}{% endif %}
+        <a href="{{ u }}" class="in-card" style="--c:{{ color }}">
+          <span class="in-card__ic"><i class="ti {{ icono }}"></i></span>
+          <span class="in-card__t">{{ titulo }}</span>
+          <span class="in-card__s">{{ subtitulo }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}

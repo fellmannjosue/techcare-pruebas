@@ -1,0 +1,73 @@
+/* <--- hecho por claude code (04-nov-2026): Panel de Enfermería — «Acción destacada» (Opción B).
+   Tile grande para Atención Médica (con KPIs) + rejilla de apoyo. */
+
+.enf-wrap { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Tile destacado ── */
+.enf-hero {
+  position: relative; display: flex; align-items: center; gap: 22px;
+  padding: 26px 28px; border-radius: 20px; text-decoration: none; overflow: hidden;
+  border: 1px solid color-mix(in srgb, #2563eb 25%, var(--ps-border, #e6e9f0));
+  background:
+    radial-gradient(1200px 200px at 0% 0%, color-mix(in srgb, #2563eb 10%, transparent), transparent 60%),
+    var(--ps-surface, #fff);
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.enf-hero:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, #2563eb 50%, var(--ps-border, #e6e9f0));
+  box-shadow: 0 18px 38px -20px color-mix(in srgb, #2563eb 70%, transparent);
+}
+.enf-hero__ic {
+  width: 74px; height: 74px; border-radius: 20px; flex: none; display: grid; place-items: center;
+  color: #fff; font-size: 2.4rem; background: linear-gradient(135deg, #2563eb, #4f46e5);
+  box-shadow: 0 10px 22px -10px rgba(37,99,235,.7);
+}
+.enf-hero__txt { min-width: 0; flex: 1; }
+.enf-hero__txt h2 { margin: 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; color: var(--ps-text, #1a2233); }
+.enf-hero__txt p { margin: 2px 0 0; font-size: .9rem; color: var(--ps-muted, #667382); }
+.enf-kpis { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.enf-kpi {
+  display: flex; flex-direction: column; line-height: 1.1;
+  padding: 8px 14px; border-radius: 12px; background: color-mix(in srgb, #2563eb 7%, var(--ps-surface, #fff));
+  border: 1px solid color-mix(in srgb, #2563eb 16%, var(--ps-border, #e6e9f0));
+}
+.enf-kpi b { font-size: 1.25rem; font-weight: 800; color: #2563eb; }
+.enf-kpi small { font-size: .72rem; color: var(--ps-muted, #667382); }
+.enf-hero__cta {
+  flex: none; align-self: center; white-space: nowrap; font-weight: 700; font-size: .92rem;
+  color: #fff; background: linear-gradient(100deg, #2563eb, #7c3aed);
+  padding: 11px 18px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 18px -8px rgba(37,99,235,.6); transition: filter .15s ease;
+}
+.enf-hero:hover .enf-hero__cta { filter: brightness(1.06); }
+
+/* ── Rejilla de apoyo ── */
+.enf-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.enf-card {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  padding: 18px; border: 1px solid var(--ps-border, #e6e9f0); border-radius: 16px;
+  background: var(--ps-surface, #fff); text-decoration: none; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.enf-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--c, #2563eb) 50%, var(--ps-border, #e6e9f0));
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--c, #2563eb) 70%, transparent);
+}
+.enf-card__ic {
+  width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center;
+  font-size: 1.6rem; color: var(--c, #2563eb);
+  background: color-mix(in srgb, var(--c, #2563eb) 14%, var(--ps-surface, #fff));
+}
+.enf-card__t { font-weight: 700; font-size: .98rem; letter-spacing: -.01em; color: var(--ps-text, #1a2233); }
+.enf-card__s { font-size: .78rem; color: var(--ps-muted, #667382); line-height: 1.35; }
+
+@media (max-width: 992px) { .enf-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 680px) {
+  .enf-hero { flex-wrap: wrap; gap: 16px; padding: 20px; }
+  .enf-hero__cta { width: 100%; justify-content: center; }
+}
+@media (max-width: 460px) { .enf-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,62 @@
+/* <--- hecho por claude code (04-nov-2026): Panel de Ingreso de Notas — «Panel de trabajo» (Opción B).
+   Columna de contexto a la izquierda + rejilla de 4 tarjetas a la derecha. */
+
+.in-work { display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: start; }
+
+/* ── Columna de contexto ── */
+.in-side {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px; border: 1px solid var(--ps-border, #e6e9f0); border-radius: 18px;
+  background:
+    radial-gradient(600px 160px at 0% 0%, color-mix(in srgb, #4f46e5 9%, transparent), transparent 60%),
+    var(--ps-surface, #fff);
+  box-shadow: 0 1px 2px rgba(16,24,40,.04); position: sticky; top: 16px;
+}
+.in-side__kicker { font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ps-muted, #667382); }
+.in-side__areaname { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--ps-text, #1a2233); margin-top: 2px; }
+.in-areas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.in-area-chip {
+  font-size: .76rem; font-weight: 600; padding: 5px 11px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--ps-border, #e6e9f0); color: var(--ps-muted, #667382); background: var(--ps-surface, #fff);
+}
+.in-area-chip.on { border-color: #4f46e5; color: #4f46e5; background: color-mix(in srgb, #4f46e5 8%, #fff); }
+
+.in-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.in-metric {
+  display: flex; flex-direction: column; line-height: 1.1; padding: 11px 12px; border-radius: 12px;
+  background: var(--ps-bg, #f7f8fc); border: 1px solid var(--ps-border, #e6e9f0);
+}
+.in-metric b { font-size: 1.15rem; font-weight: 800; color: var(--ps-text, #1a2233); }
+.in-metric small { font-size: .7rem; color: var(--ps-muted, #667382); margin-top: 1px; }
+
+.in-note {
+  display: flex; align-items: flex-start; gap: 8px; font-size: .78rem; line-height: 1.4;
+  padding: 11px 12px; border-radius: 12px; color: #92600a;
+  background: color-mix(in srgb, #f59f00 12%, #fff); border: 1px solid color-mix(in srgb, #f59f00 30%, #fff);
+}
+.in-note i { font-size: 1rem; margin-top: 1px; }
+
+/* ── Rejilla de tarjetas ── */
+.in-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.in-card {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  padding: 20px; border: 1px solid var(--ps-border, #e6e9f0); border-radius: 16px;
+  background: var(--ps-surface, #fff); text-decoration: none; overflow: hidden;
+  border-top: 3px solid var(--c, #4f46e5);
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.in-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--c, #4f46e5) 70%, transparent); }
+.in-card__ic {
+  width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center;
+  font-size: 1.7rem; color: var(--c, #4f46e5);
+  background: color-mix(in srgb, var(--c, #4f46e5) 14%, var(--ps-surface, #fff));
+}
+.in-card__t { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; color: var(--ps-text, #1a2233); }
+.in-card__s { font-size: .79rem; color: var(--ps-muted, #667382); line-height: 1.35; }
+
+@media (max-width: 820px) {
+  .in-work { grid-template-columns: 1fr; }
+  .in-side { position: static; }
+}
+@media (max-width: 460px) { .in-grid { grid-template-columns: 1fr; } }

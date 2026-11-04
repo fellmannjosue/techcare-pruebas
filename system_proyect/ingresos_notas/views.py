@@ -498,6 +498,7 @@ def panel(request):
         'area_sel': area_key,
         'area_label': AREAS[area_key]['label'],
         'areas': [(k, AREAS[k]['label']) for k in permitidas],
+        'anio': _anio_actual(),   # <--- hecho por claude code (04-nov-2026): contexto para el panel de trabajo (Opción B)
     })
 
 

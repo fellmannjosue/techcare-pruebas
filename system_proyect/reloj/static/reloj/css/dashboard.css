@@ -1,72 +1,72 @@
-/* <--- hecho por claude code (02-nov-2026): rediseño del Panel de Asistencia del Reloj
-   (secciones + tarjetas con chip de ícono, acento por color y "Abrir →") */
+/* <--- hecho por claude code (04-nov-2026): Panel de Asistencia del Reloj — «Filas compactas» (Opción C)
+   Secciones con filas horizontales densas en 2 columnas: barra de color + chip + título/desc + chevron. */
 
-.rl-wrap { --rl-gap: 14px; }
+.rl-wrap { --rl-gap: 10px; }
 
 /* ── Sección ── */
-.rl-section { margin-bottom: 1.8rem; }
+.rl-section { margin-bottom: 1.7rem; }
 .rl-section:last-child { margin-bottom: 0; }
-.rl-head { display: flex; align-items: center; gap: 10px; margin: 0 0 .85rem; }
+.rl-head { display: flex; align-items: center; gap: 10px; margin: 0 0 .8rem; }
 .rl-head .rl-h-ico {
-  width: 32px; height: 32px; border-radius: 10px; flex: none;
-  display: grid; place-items: center; color: #fff; font-size: 1.05rem;
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  display: grid; place-items: center; color: #fff; font-size: 1rem;
   background: linear-gradient(135deg, var(--tc-p1, #2563eb), var(--tc-p2, #7c3aed));
   box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--tc-p1, #2563eb) 60%, transparent);
 }
 .rl-head h3 {
-  margin: 0; font-size: .82rem; font-weight: 800; letter-spacing: .07em;
+  margin: 0; font-size: .8rem; font-weight: 800; letter-spacing: .07em;
   text-transform: uppercase; color: var(--ps-muted, #667382);
 }
 .rl-head .rl-line { flex: 1; height: 1px; background: var(--ps-border, #e6e9f0); }
 
-/* ── Retícula ── */
+/* ── Retícula: dos columnas de filas ── */
 .rl-grid {
   display: grid; gap: var(--rl-gap);
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* ── Tarjeta ── */
+/* ── Fila compacta ── */
 .rl-tile {
-  position: relative; display: flex; align-items: center; gap: 13px;
-  padding: 15px 16px; border: 1px solid var(--ps-border, #e6e9f0);
-  border-radius: 16px; background: var(--ps-surface, #fff);
+  position: relative; display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px 11px 15px; border: 1px solid var(--ps-border, #e6e9f0);
+  border-radius: 12px; background: var(--ps-surface, #fff);
   text-decoration: none; overflow: hidden;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .rl-tile::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 4px;
-  background: var(--c, #2563eb); opacity: 0; transition: opacity .15s ease;
+  background: var(--c, #2563eb); opacity: .55; transition: opacity .15s ease;
 }
 .rl-tile:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--c, #2563eb) 55%, var(--ps-border, #e6e9f0));
-  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--c, #2563eb) 65%, transparent);
+  border-color: color-mix(in srgb, var(--c, #2563eb) 45%, var(--ps-border, #e6e9f0));
+  background: color-mix(in srgb, var(--c, #2563eb) 4%, var(--ps-surface, #fff));
+  box-shadow: 0 10px 22px -16px color-mix(in srgb, var(--c, #2563eb) 65%, transparent);
 }
 .rl-tile:hover::before { opacity: 1; }
 
 .rl-ico {
-  width: 46px; height: 46px; border-radius: 13px; flex: none;
-  display: grid; place-items: center; font-size: 1.55rem; color: var(--c, #2563eb);
+  width: 40px; height: 40px; border-radius: 11px; flex: none;
+  display: grid; place-items: center; font-size: 1.35rem; color: var(--c, #2563eb);
   background: color-mix(in srgb, var(--c, #2563eb) 14%, var(--ps-surface, #fff));
 }
-.rl-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.rl-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
 .rl-title {
-  font-weight: 700; font-size: .97rem; line-height: 1.2; letter-spacing: -.01em;
+  font-weight: 700; font-size: .92rem; line-height: 1.2; letter-spacing: -.01em;
   color: var(--ps-text, #1a2233);
 }
 .rl-sub {
-  font-size: .78rem; line-height: 1.35; color: var(--ps-muted, #667382);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: .76rem; line-height: 1.3; color: var(--ps-muted, #667382);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* "Abrir →" se vuelve un chevron siempre visible (oculta el texto, deja el ícono) */
 .rl-go {
-  flex: none; align-self: center; font-size: .78rem; font-weight: 700; white-space: nowrap;
-  color: var(--c, #2563eb); opacity: 0; transform: translateX(-4px);
-  transition: opacity .15s ease, transform .15s ease;
+  flex: none; align-self: center; font-size: 0; line-height: 1;
+  color: var(--ps-muted, #9aa4b2); transition: color .15s ease, transform .15s ease;
 }
-.rl-tile:hover .rl-go { opacity: 1; transform: translateX(0); }
+.rl-go i { font-size: 1.15rem; }
+.rl-tile:hover .rl-go { color: var(--c, #2563eb); transform: translateX(3px); }
 
-@media (max-width: 575px) {
+@media (max-width: 680px) {
   .rl-grid { grid-template-columns: 1fr; }
-  .rl-go { display: none; }
 }
