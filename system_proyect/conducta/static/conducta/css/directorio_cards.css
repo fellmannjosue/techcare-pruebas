@@ -1,0 +1,73 @@
+/* <--- hecho por claude code (04-nov-2026): Directorio «Tarjetas por alumno» (Opción B).
+   Grid de tarjetas con buscador y paginación propios (reemplaza DataTables). */
+
+.dir-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.dir-search { flex: 1; min-width: 220px; max-width: 460px; }
+.dir-search .form-control { border-radius: 10px; }
+.dir-pagesize { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--ps-muted, #667382); }
+.dir-pagesize select { width: auto; border-radius: 8px; }
+.dir-count { margin-left: auto; font-size: .82rem; color: var(--ps-muted, #667382); white-space: nowrap; }
+
+.dir-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+
+.dir-card {
+  display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid var(--ps-border, #e6e9f0); border-radius: 16px; background: var(--ps-surface, #fff);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); padding: 15px 16px;
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.dir-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -18px rgba(16, 24, 40, .35); border-color: #d7deea; }
+
+.dir-card__top { display: flex; align-items: center; gap: 11px; }
+.dir-av {
+  width: 42px; height: 42px; border-radius: 12px; flex: none; display: grid; place-items: center;
+  font-weight: 800; font-size: .92rem; letter-spacing: .02em;
+  color: var(--c, #2563eb); background: color-mix(in srgb, var(--c, #2563eb) 15%, #fff);
+}
+.dir-card__id { min-width: 0; flex: 1; }
+.dir-card__name { font-weight: 700; font-size: .95rem; line-height: 1.2; color: var(--ps-text, #1a2233); }
+.dir-chip {
+  display: inline-block; margin-top: 3px; font-size: .72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+  color: var(--c, #2563eb); background: color-mix(in srgb, var(--c, #2563eb) 13%, #fff);
+}
+.dir-num { color: var(--ps-muted, #9aa4b2); font-size: .72rem; font-weight: 700; flex: none; }
+
+.dir-phones { display: flex; flex-direction: column; gap: 7px; }
+.dir-phone {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px;
+  background: var(--ps-bg, #f6f7fb);
+}
+.dir-phone__label {
+  font-size: .68rem; font-weight: 700; text-transform: capitalize; padding: 2px 8px; border-radius: 999px;
+  color: #0b8a5a; background: #d9f6e9; flex: none;
+}
+.dir-phone__num { font-size: .86rem; font-weight: 600; color: var(--ps-text, #1a2233); flex: 1; min-width: 0; }
+.dir-wa {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; text-decoration: none;
+  background: #25d366; color: #fff; font-weight: 700; font-size: .74rem;
+  padding: 5px 11px; border-radius: 999px; transition: filter .15s ease;
+}
+.dir-wa:hover { filter: brightness(1.05); color: #fff; }
+.dir-wa svg { width: 13px; height: 13px; }
+.dir-nophone { font-size: .8rem; color: var(--ps-muted, #9aa4b2); font-style: italic; }
+
+.dir-empty { text-align: center; color: var(--ps-muted, #667382); padding: 40px 10px; }
+
+.dir-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.dir-pager button {
+  appearance: none; border: 1px solid var(--ps-border, #e6e9f0); background: var(--ps-surface, #fff);
+  border-radius: 9px; padding: 7px 13px; font-weight: 600; font-size: .83rem; cursor: pointer; color: var(--ps-text, #1a2233);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.dir-pager button:disabled { opacity: .45; cursor: default; }
+.dir-pager button:not(:disabled):hover { border-color: #c6d0e6; background: var(--ps-bg, #f6f7fb); }
+.dir-pager__info { font-size: .83rem; color: var(--ps-muted, #667382); }
+
+/* colores por programa */
+.dir-prog-colegio { --c: #2563eb; }
+.dir-prog-bachillerato { --c: #4f46e5; }
+.dir-prog-primaria { --c: #0ca678; }
+.dir-prog-preescolar { --c: #f76707; }
+.dir-prog-otro { --c: #6b7689; }
+
+@media (max-width: 480px) { .dir-grid { grid-template-columns: 1fr; } .dir-count { margin-left: 0; } }
