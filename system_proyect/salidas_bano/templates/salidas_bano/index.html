@@ -191,10 +191,11 @@
               {# ── Tabs de grado ─── #}
               {% if grados_display %}
               {# <--- hecho por claude code (04-nov-2026): interruptor Tabla / Tablero (Kanban) #}
-              <div class="px-3 pt-3">
+              <div class="px-3 pt-3 d-flex align-items-center gap-2">
+                <span class="text-muted small fw-semibold">Vista:</span>
                 <div class="btn-group btn-group-sm" id="sb-view-toggle" role="group">
                   <button type="button" class="btn btn-outline-primary active" data-view="tabla"><i class="ti ti-table me-1"></i>Tabla</button>
-                  <button type="button" class="btn btn-outline-primary" data-view="kanban"><i class="ti ti-layout-kanban me-1"></i>Tablero</button>
+                  <button type="button" class="btn btn-outline-primary" data-view="kanban"><i class="ti ti-layout-board me-1"></i>Tablero</button>
                 </div>
               </div>
               <div id="sb-view-tabla">
@@ -635,7 +636,7 @@
 {# <--- hecho por claude code (03-nov-2026): arma la barra superior Horizon desde el sidebar-fuente #}
 <script src="{% static 'js/tc_shell.js' %}?v=8"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=13"></script>
-<script src="{% static 'salidas_bano/js/salidas_kanban.js' %}?v=1"></script>{# <--- hecho por claude code (04-nov-2026): vista Tablero (Kanban) #}
+<script src="{% static 'salidas_bano/js/salidas_kanban.js' %}?v=2"></script>{# <--- hecho por claude code (04-nov-2026): vista Tablero (Kanban) #}
 <script src="{% static 'salidas_bano/js/salidas_alerta.js' %}?v=5"></script>
 {# <--- hecho por claude code: footer unificado #}
 {% include "_footer.html" %}

@@ -6,7 +6,7 @@
 (function () {
   'use strict';
   var SB = window._SB; if (!SB) return;
-  var board = document.getElementById('sbk-board'); if (!board) return;
+  var board = document.getElementById('sbk-board');
   var gradosWrap = document.getElementById('sbk-grados');
   var seccWrap  = document.getElementById('sbk-secciones');
   var secWrapBox = document.getElementById('sbk-sec-wrap');
@@ -122,53 +122,58 @@
       }).catch(function () { alert('Error de red.'); card.style.pointerEvents = ''; });
   }
 
-  // ── clics ──
-  board.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-act]'); if (!btn) return;
-    var card = btn.closest('.sbk-card'); if (!card) return;
-    var act = btn.dataset.act;
-    if (act === 'salir') abrirPicker(card);
-    else if (act === 'regreso') marcarRegreso(card);
-    else if (act === 'cancelar') render();
-    else if (act === 'confirmar') { var sel = card.querySelector('.sbk-pick select'); guardarSalida(card, sel ? sel.value : ''); }
-  });
-
-  // ── arrastrar ──
-  var dragCard = null;
-  board.addEventListener('dragstart', function (e) { var c = e.target.closest('.sbk-card'); if (!c) return; dragCard = c; c.classList.add('dragging'); });
-  board.addEventListener('dragend', function () { if (dragCard) dragCard.classList.remove('dragging'); dragCard = null;
-    board.querySelectorAll('.drag-over').forEach(function (x) { x.classList.remove('drag-over'); }); });
-  board.addEventListener('dragover', function (e) { var col = e.target.closest('.sbk-col'); if (col) { e.preventDefault(); col.classList.add('drag-over'); } });
-  board.addEventListener('dragleave', function (e) { var col = e.target.closest('.sbk-col'); if (col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over'); });
-  board.addEventListener('drop', function (e) {
-    e.preventDefault(); var col = e.target.closest('.sbk-col'); if (!col || !dragCard) return;
-    col.classList.remove('drag-over');
-    var target = col.dataset.col, est = dragCard.dataset.est;
-    if (target === est) return;
-    if (target === 'afuera' && (est === 'clase' || est === 'regreso')) abrirPicker(dragCard);
-    else if (target === 'regreso' && est === 'afuera') marcarRegreso(dragCard);
-  });
-
-  // ── selectores grado / sección ──
-  gradosWrap.addEventListener('click', function (e) { var b = e.target.closest('[data-g]'); if (!b) return;
-    gradoSel = b.dataset.g; seccSel = ''; pintarGrados(); pintarSecciones(); render(); });
-  seccWrap.addEventListener('click', function (e) { var c = e.target.closest('[data-s]'); if (!c) return;
-    seccSel = c.dataset.s; pintarSecciones(); render(); });
-
-  // ── interruptor Tabla / Tablero ──
+  // ── interruptor Tabla / Tablero — SE ENGANCHA PRIMERO para que nada lo rompa ──
   function setView(v) {
     var kb = v === 'kanban';
     if (viewKanban) viewKanban.style.display = kb ? '' : 'none';
     if (viewTabla)  viewTabla.style.display  = kb ? 'none' : '';
     if (toggle) toggle.querySelectorAll('[data-view]').forEach(function (b) { b.classList.toggle('active', b.dataset.view === v); });
     try { localStorage.setItem('sb-view', v); } catch (_) {}
-    if (kb) { pintarGrados(); pintarSecciones(); render(); }
+    if (kb) { try { pintarGrados(); pintarSecciones(); render(); } catch (err) { if (window.console) console.error('[salidas_kanban] render', err); } }
   }
   if (toggle) {
-    toggle.addEventListener('click', function (e) { var b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); });
+    toggle.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-view]'); if (!b) return;
+      e.preventDefault(); setView(b.dataset.view);
+    });
     var saved = 'tabla'; try { saved = localStorage.getItem('sb-view') || 'tabla'; } catch (_) {}
     if (saved === 'kanban') setView('kanban');
   }
 
-  window.SB_KANBAN = { render: render };
+  // ── clics del tablero ──
+  if (board) {
+    board.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]'); if (!btn) return;
+      var card = btn.closest('.sbk-card'); if (!card) return;
+      var act = btn.dataset.act;
+      if (act === 'salir') abrirPicker(card);
+      else if (act === 'regreso') marcarRegreso(card);
+      else if (act === 'cancelar') render();
+      else if (act === 'confirmar') { var sel = card.querySelector('.sbk-pick select'); guardarSalida(card, sel ? sel.value : ''); }
+    });
+
+    // ── arrastrar ──
+    var dragCard = null;
+    board.addEventListener('dragstart', function (e) { var c = e.target.closest('.sbk-card'); if (!c) return; dragCard = c; c.classList.add('dragging'); });
+    board.addEventListener('dragend', function () { if (dragCard) dragCard.classList.remove('dragging'); dragCard = null;
+      board.querySelectorAll('.drag-over').forEach(function (x) { x.classList.remove('drag-over'); }); });
+    board.addEventListener('dragover', function (e) { var col = e.target.closest('.sbk-col'); if (col) { e.preventDefault(); col.classList.add('drag-over'); } });
+    board.addEventListener('dragleave', function (e) { var col = e.target.closest('.sbk-col'); if (col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over'); });
+    board.addEventListener('drop', function (e) {
+      e.preventDefault(); var col = e.target.closest('.sbk-col'); if (!col || !dragCard) return;
+      col.classList.remove('drag-over');
+      var target = col.dataset.col, est = dragCard.dataset.est;
+      if (target === est) return;
+      if (target === 'afuera' && (est === 'clase' || est === 'regreso')) abrirPicker(dragCard);
+      else if (target === 'regreso' && est === 'afuera') marcarRegreso(dragCard);
+    });
+  }
+
+  // ── selectores grado / sección (protegidos) ──
+  if (gradosWrap) gradosWrap.addEventListener('click', function (e) { var b = e.target.closest('[data-g]'); if (!b) return;
+    gradoSel = b.dataset.g; seccSel = ''; pintarGrados(); pintarSecciones(); render(); });
+  if (seccWrap) seccWrap.addEventListener('click', function (e) { var c = e.target.closest('[data-s]'); if (!c) return;
+    seccSel = c.dataset.s; pintarSecciones(); render(); });
+
+  window.SB_KANBAN = { render: render, setView: setView };
 })();
