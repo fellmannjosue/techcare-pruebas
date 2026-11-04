@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record de Hábitos · Plantilla A — Planilla editable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f7; --card:#fff; --ink:#172033; --muted:#6b7689; --line:#e1e6f0;
+  --field:#f7f8fc; --blue:#2563eb; --violet:#7c3aed; --green:#0ca678;
+  --teal:#12b886; --orange:#f76707; --red:#e8590c;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 64px}
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---- cabecera degradada ---- */
+.hero{background:linear-gradient(100deg,#1e40af,#2563eb 45%,#7c3aed);border-radius:16px;color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 10px 24px rgba(37,99,235,.18)}
+.bc{margin:0 0 5px;font-size:12.5px;font-weight:500;color:rgba(255,255,255,.82);letter-spacing:.2px}
+.hero h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.2px}
+.tag{display:inline-flex;margin-top:9px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.38);color:#fff;text-decoration:none;padding:9px 16px;border-radius:999px;font-weight:600;font-size:13px;transition:background .15s}
+.pill:hover{background:rgba(255,255,255,.26)}
+
+/* ---- franja de contexto ---- */
+.ctx{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+.chip{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 13px}
+.chip .ic{width:17px;height:17px;color:var(--blue)}
+.chip small{display:block;font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.chip b{font-size:13px;font-weight:700;white-space:nowrap}
+.nota{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;margin:10px 2px 12px}
+.nota .ic{color:var(--blue)}
+
+/* ---- tarjeta + planilla ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(23,32,51,.04)}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.card-top h2{margin:0;font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-top h2 .ic{color:var(--violet)}
+.hint{font-size:12px;color:var(--muted)}
+.hint kbd{background:var(--field);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font:600 11px 'Inter',sans-serif;color:var(--ink)}
+.table-wrap{overflow:auto;max-height:min(620px,68vh)}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:1060px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line)}
+thead th{position:sticky;top:0;z-index:3;background:#f4f6fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:center}
+thead th.al{text-align:left;z-index:4}
+thead th.cm{text-align:left}
+td.cen{text-align:center}
+tbody tr:nth-child(even){background:#f8fafd}
+tbody tr:hover{background:#f1f5fe}
+.al{position:sticky;left:0;z-index:1;background:var(--card);min-width:235px;max-width:275px}
+tbody tr:nth-child(even) .al{background:#f8fafd}
+tbody tr:hover .al{background:#f1f5fe}
+.nom{font-weight:600;font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idx{color:var(--muted);font-size:11px;font-weight:600;margin-right:7px;font-variant-numeric:tabular-nums}
+
+/* ---- casillas de captura ---- */
+.hab{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--field);font:600 14px 'Inter',sans-serif;font-variant-numeric:tabular-nums;color:var(--ink);transition:background .12s,border-color .12s;appearance:textfield;-moz-appearance:textfield}
+.hab::-webkit-outer-spin-button,.hab::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.hab:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue);background:#fff}
+.hab.low{color:var(--red)}
+.t-hi{background:#e6f7f0;border-color:#b9e7d5}
+.t-mid{background:#fff3e3;border-color:#f6dcb2}
+.t-lo{background:#ffe9df;border-color:#f6c4ab}
+.com{width:100%;min-width:220px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:0 10px;font:400 13px 'Inter',sans-serif;color:var(--ink)}
+.com:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue);background:#fff}
+.prom{font-weight:800;font-variant-numeric:tabular-nums;font-size:14px}
+.prom.low{color:var(--red)}
+
+/* ---- fila de promedios por hábito ---- */
+tfoot td{position:sticky;bottom:0;background:#eef2fb;border-top:1px solid var(--line);border-bottom:0;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;z-index:2}
+tfoot td.al{text-align:left;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#eef2fb;z-index:3}
+tfoot td.low{color:var(--red)}
+tfoot td.fg{color:var(--violet)}
+tfoot td.fll{font-weight:600;color:var(--muted);font-size:12px;text-align:left}
+
+/* ---- aviso "guardado" ---- */
+.toast{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;align-items:center;gap:8px;background:#0f172a;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;transform:translateY(10px);transition:opacity .18s,transform .18s;pointer-events:none;box-shadow:0 8px 20px rgba(15,23,42,.25)}
+.toast .ic{color:var(--teal)}
+.toast.on{opacity:1;transform:none}
+
+@media (max-width:720px){
+  .hero{padding:18px}
+  .hero h1{font-size:19px}
+  .al{min-width:185px}
+}
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <p class="bc">Ingresos de Notas · Primaria Bilingüe</p>
+      <h1>Ingreso de Record de Hábitos</h1>
+      <span class="tag">Plantilla A · Planilla editable</span>
+    </div>
+    <a class="pill" href="/ingresos-notas/plantillas/">&larr; Plantillas</a>
+  </header>
+
+  <section class="ctx">
+    <div class="chip"><svg class="ic"><use href="#i-school"/></svg><div><small>Área</small><b>Primaria Bilingüe</b></div></div>
+    <div class="chip"><svg class="ic"><use href="#i-users"/></svg><div><small>Grado/Grupo</small><b>3ro 1</b></div></div>
+    <div class="chip"><svg class="ic"><use href="#i-book"/></svg><div><small>Clase</small><b>Math</b></div></div>
+    <div class="chip"><svg class="ic"><use href="#i-flag"/></svg><div><small>Parcial</small><b>Parcial 4</b></div></div>
+    <div class="chip"><svg class="ic"><use href="#i-cal"/></svg><div><small>Fecha</small><b>04/11/2026</b></div></div>
+  </section>
+
+  <p class="nota"><svg class="ic"><use href="#i-info"/></svg> Puntos 0 a 10 en cada hábito; se guardan solos al salir de la casilla (demo).</p>
+
+  <section class="card">
+    <div class="card-top">
+      <h2><svg class="ic"><use href="#i-grid"/></svg> Planilla · 3ro 1 — Math · 10 alumnos</h2>
+      <span class="hint"><kbd>Tab</kbd> siguiente casilla &middot; <kbd>Enter</kbd> baja en la misma columna</span>
+    </div>
+    <div class="table-wrap">
+      <table id="planilla">
+        <thead>
+          <tr>
+            <th class="al">Alumno</th>
+            <th>Puntualidad</th>
+            <th>Orden</th>
+            <th>Respeto</th>
+            <th>Participación</th>
+            <th>Responsabilidad</th>
+            <th>Prom.</th>
+            <th class="cm">Comentario</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo"></tbody>
+        <tfoot>
+          <tr>
+            <td class="al">Promedio por hábito</td>
+            <td id="f0">—</td>
+            <td id="f1">—</td>
+            <td id="f2">—</td>
+            <td id="f3">—</td>
+            <td id="f4">—</td>
+            <td id="fg" class="fg">—</td>
+            <td id="fll" class="fll">0/50 casillas</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="status"><svg class="ic"><use href="#i-check"/></svg><span>guardado ✓</span></div>
+
+<script>
+(function(){
+'use strict';
+var HABITOS=["Puntualidad","Orden","Respeto","Participación","Responsabilidad"];
+var ALUMNOS=[
+  {n:"Aalyah Darlene King Valle",h:[9,8,10,9,9],c:"Muy buena semana"},
+  {n:"Adrian Alexandro Aguilera Benítez",h:[7,6,8,7,8],c:""},
+  {n:"Anderson Jafeth Escobar Escobar",h:[5,6,7,4,6],c:"Llegó tarde dos días"},
+  {n:"Ashly Lizeth Velásquez Amador",h:[10,9,10,10,10],c:""},
+  {n:"Ayleen Abigail Zúniga Rodríguez",h:[8,8,9,7,8],c:""},
+  {n:"Dafne Valentina Alonzo Velásquez",h:[6,5,7,6,5],c:"Mejorar el orden del pupitre"},
+  {n:"Edgar Daniel Lazo Varela",h:[null,null,null,null,null],c:""},
+  {n:"Dessyre Monzerrath Ferrera Calero",h:[null,null,null,null,null],c:""},
+  {n:"Kenneth Fabricio Aguilar",h:[null,null,null,null,null],c:""},
+  {n:"Briana Jeraldine Varela",h:[null,null,null,null,null],c:""}
+];
+var R=ALUMNOS.length, C=HABITOS.length;
+
+/* --- armar las filas --- */
+var html='';
+ALUMNOS.forEach(function(a,r){
+  html+='<tr>';
+  html+='<td class="al"><span class="nom" title="'+a.n+'"><span class="idx">'+(r+1<10?'0':'')+(r+1)+'</span>'+a.n+'</span></td>';
+  a.h.forEach(function(v,c){
+    html+='<td class="cen"><input class="hab" type="number" min="0" max="10" step="1" inputmode="numeric" value="'+(v===null?'':v)+'" data-r="'+r+'" data-c="'+c+'" aria-label="'+HABITOS[c]+' de '+a.n+'"></td>';
+  });
+  html+='<td class="cen prom" data-prom="'+r+'">—</td>';
+  html+='<td><input class="com" type="text" maxlength="80" value="'+a.c+'" placeholder="Comentario (opcional)" aria-label="Comentario de '+a.n+'"></td>';
+  html+='</tr>';
+});
+document.getElementById('cuerpo').innerHTML=html;
+
+/* --- micro-aviso "guardado" --- */
+var toastEl=document.getElementById('toast'), toastT=null;
+function toast(){
+  toastEl.classList.add('on');
+  clearTimeout(toastT);
+  toastT=setTimeout(function(){toastEl.classList.remove('on');},900);
+}
+
+/* --- tinte por puntaje y rojo bajo 6 --- */
+function pintar(inp){
+  inp.classList.remove('low','t-hi','t-mid','t-lo');
+  if(inp.value==='')return;
+  var n=+inp.value;
+  if(isNaN(n))return;
+  if(n<6){inp.classList.add('low','t-lo');}
+  else if(n<8){inp.classList.add('t-mid');}
+  else{inp.classList.add('t-hi');}
+}
+
+/* --- recálculo en vivo: promedio por alumno, por hábito y general --- */
+function recalc(){
+  var rs=[],rc=[],cs=[],cc=[],ts=0,tc=0,i;
+  for(i=0;i<R;i++){rs[i]=0;rc[i]=0;}
+  for(i=0;i<C;i++){cs[i]=0;cc[i]=0;}
+  [].forEach.call(document.querySelectorAll('.hab'),function(el){
+    if(el.value==='')return;
+    var n=+el.value;
+    if(isNaN(n))return;
+    var r=+el.getAttribute('data-r'), c=+el.getAttribute('data-c');
+    rs[r]+=n; rc[r]++; cs[c]+=n; cc[c]++; ts+=n; tc++;
+  });
+  for(i=0;i<R;i++){
+    var celda=document.querySelector('[data-prom="'+i+'"]');
+    if(rc[i]){var p=rs[i]/rc[i]; celda.textContent=p.toFixed(1); celda.classList.toggle('low',p<6);}
+    else{celda.textContent='—'; celda.classList.remove('low');}
+  }
+  for(i=0;i<C;i++){
+    var f=document.getElementById('f'+i);
+    if(cc[i]){var q=cs[i]/cc[i]; f.textContent=q.toFixed(1); f.classList.toggle('low',q<6);}
+    else{f.textContent='—'; f.classList.remove('low');}
+  }
+  document.getElementById('fg').textContent=tc?(ts/tc).toFixed(1):'—';
+  document.getElementById('fll').textContent=tc+'/'+(R*C)+' casillas';
+}
+
+/* --- eventos --- */
+document.addEventListener('input',function(e){
+  var el=e.target;
+  if(el.classList&&el.classList.contains('hab')){
+    var n=+el.value;
+    if(el.value!==''&&!isNaN(n)){
+      if(n>10)el.value=10;
+      if(n<0)el.value=0;
+    }
+    pintar(el); recalc();
+  }
+});
+document.addEventListener('change',function(e){
+  var el=e.target;
+  if(el.classList&&el.classList.contains('hab')){
+    if(el.value!==''){
+      var n=+el.value;
+      el.value=Math.max(0,Math.min(10,Math.round(isNaN(n)?0:n)));
+    }
+    pintar(el); recalc(); toast();
+  }else if(el.classList&&el.classList.contains('com')){
+    toast();
+  }
+});
+document.addEventListener('focusin',function(e){
+  if(e.target.classList&&e.target.classList.contains('hab'))e.target.select();
+});
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  var el=e.target;
+  if(!el.classList||!el.classList.contains('hab'))return;
+  e.preventDefault();
+  var r=+el.getAttribute('data-r')+1, c=el.getAttribute('data-c');
+  var sig=document.querySelector('.hab[data-r="'+r+'"][data-c="'+c+'"]');
+  if(sig){sig.focus();}else{el.blur();}
+});
+
+/* --- estado inicial --- */
+[].forEach.call(document.querySelectorAll('.hab'),pintar);
+recalc();
+})();
+</script>
+</body>
+</html>

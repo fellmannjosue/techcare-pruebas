@@ -8,6 +8,8 @@ urlpatterns = [
     # ── Panel de entrada y una pantalla por formulario ───────────────────────
     # <--- hecho por claude code: antes eran tabs de una sola página
     path('',            views.panel, name='panel'),
+    # <--- hecho por claude code (04-nov-2026): Proyecto Notas Fase 1 — galería de 12 plantillas demo
+    path('plantillas/', views.plantillas_index, name='plantillas_index'),
     path('notas/',       views.index, {'form': 'notas'},       name='index'),
     path('tareas/',      views.index, {'form': 'tareas'},      name='form_tareas'),
     path('asistencias/', views.index, {'form': 'asistencias'}, name='form_asistencias'),

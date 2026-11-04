@@ -502,6 +502,35 @@ def panel(request):
     })
 
 
+# <--- hecho por claude code (04-nov-2026): "Proyecto Notas Fase 1" — galería de 12 plantillas DEMO
+# (editables) de los reportes, servidas como estáticos, para validar cuál es más rápida al ingresar.
+_PLANTILLAS_DEMO = [
+    {'rep': 'tareas',      'titulo': 'Tareas',             'i': 'ti-notebook',          'c': '#0ea5e9'},
+    {'rep': 'examenes',    'titulo': 'Exámenes',           'i': 'ti-file-certificate',  'c': '#4f46e5'},
+    {'rep': 'habitos',     'titulo': 'Record de hábitos',  'i': 'ti-star',              'c': '#14b8a6'},
+    {'rep': 'asistencias', 'titulo': 'Asistencias',        'i': 'ti-calendar-x',        'c': '#f97316'},
+]
+_PLANTILLAS_VARS = {
+    'tareas':      [('a', 'Planilla editable'), ('b', 'Por alumno'), ('c', 'Captura + resumen')],
+    'examenes':    [('a', 'Planilla editable'), ('b', 'Por alumno'), ('c', 'Captura + resumen')],
+    'habitos':     [('a', 'Planilla editable'), ('b', 'Por alumno'), ('c', 'Captura + resumen')],
+    'asistencias': [('a', 'Pase de lista rápido'), ('b', 'Matriz por fecha'), ('c', 'Captura + resumen')],
+}
+
+
+@notas_required
+def plantillas_index(request):
+    """Galería de las 12 plantillas demo (Proyecto Notas Fase 1)."""
+    from django.templatetags.static import static
+    grupos = []
+    for g in _PLANTILLAS_DEMO:
+        opciones = [{'v': v, 'label': lbl,
+                     'url': static(f"ingresos_notas/plantillas/{g['rep']}_{v}.html")}
+                    for v, lbl in _PLANTILLAS_VARS[g['rep']]]
+        grupos.append({**g, 'opciones': opciones})
+    return render(request, 'ingresos_notas/plantillas_index.html', {'grupos': grupos})
+
+
 @notas_required
 def index(request, form='notas'):
     # <--- hecho por claude code: solo sus áreas; si pide otra, cae a la primera suya

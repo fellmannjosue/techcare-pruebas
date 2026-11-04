@@ -1,6 +1,15 @@
 {
-  "version": "7.9.91",
+  "version": "7.9.92",
   "entradas": [
+    {
+      "version": "7.9.92",
+      "fecha": "2026-11-04",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Proyecto Notas Fase 1: galería «Plantillas de ingreso (demo)» en Ingresos de Notas con 12 plantillas editables (Tareas, Exámenes, Record de hábitos y Asistencias × 3 opciones) para que los usuarios prueben la rapidez de ingreso y elijan el diseño."
+      ]
+    },
     {
       "version": "7.9.91",
       "fecha": "2026-11-04",

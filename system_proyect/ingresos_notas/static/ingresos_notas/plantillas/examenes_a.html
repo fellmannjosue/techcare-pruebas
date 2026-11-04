@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TechCare · Ingreso de Exámenes — Plantilla A · Planilla editable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef1f7; --card:#fff; --ink:#172033; --muted:#6b7689; --line:#e1e6f0;
+    --field:#f7f8fc; --blue:#2563eb; --violet:#7c3aed; --green:#0ca678;
+    --red:#e8590c; --indigo:#4f46e5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); overflow-x:hidden;
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  .icon{width:18px;height:18px;flex:none}
+
+  /* cabecera degradada */
+  .hero{
+    background:linear-gradient(100deg,#1e40af,#2563eb 45%,#7c3aed);
+    border-radius:16px; color:#fff; padding:20px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    box-shadow:0 10px 28px rgba(37,99,235,.22);
+  }
+  .crumb{margin:0 0 4px;font-size:12.5px;font-weight:500;opacity:.85}
+  .hero h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em}
+  .variante{margin-top:6px;font-size:12px;font-weight:600;opacity:.8}
+  .btn-pill{
+    background:#fff;color:#1e40af;text-decoration:none;font-weight:700;font-size:13.5px;
+    padding:9px 18px;border-radius:999px;white-space:nowrap;
+    box-shadow:0 2px 8px rgba(23,32,51,.18);transition:transform .15s,box-shadow .15s;
+  }
+  .btn-pill:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(23,32,51,.26)}
+
+  /* franja de contexto */
+  .ctx{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    margin-top:14px;padding:12px 18px;
+    display:flex;gap:10px 28px;flex-wrap:wrap;align-items:center;
+  }
+  .ctx-item{display:flex;align-items:center;gap:9px;min-width:0}
+  .ctx-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none}
+  .ctx-ic .icon{width:16px;height:16px}
+  .ic-blue{background:rgba(37,99,235,.1);color:var(--blue)}
+  .ic-violet{background:rgba(124,58,237,.1);color:var(--violet)}
+  .ic-indigo{background:rgba(79,70,229,.1);color:var(--indigo)}
+  .ic-green{background:rgba(12,166,120,.1);color:var(--green)}
+  .ctx-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .ctx-v{font-size:13.5px;font-weight:700;white-space:nowrap}
+  .info-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;margin:12px 2px 0}
+  .info-line .icon{width:15px;height:15px;color:var(--indigo)}
+
+  /* tarjeta con la planilla */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-top:12px;overflow:hidden}
+  .card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 18px;border-bottom:1px solid var(--line)}
+  .card-head h2{margin:0;font-size:15px;font-weight:700}
+  .hint{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  kbd{background:var(--field);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font:600 11px 'Inter',sans-serif;color:var(--ink)}
+
+  .table-wrap{overflow:auto;max-height:600px}
+  table{border-collapse:separate;border-spacing:0;width:100%;min-width:780px}
+  thead th{
+    position:sticky;top:0;z-index:2;background:#f3f5fb;
+    font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+    padding:10px 14px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;
+  }
+  thead th:first-child{text-align:left}
+  tbody td{padding:7px 14px;border-bottom:1px solid var(--line);text-align:center}
+  tbody td:first-child{text-align:left}
+  tbody tr:nth-child(even){background:#fafbfe}
+  tbody tr:hover{background:#f3f6fd}
+  .al{display:flex;align-items:center;gap:10px;min-width:230px}
+  .num{width:20px;font-size:11.5px;font-weight:600;color:var(--muted);text-align:right;flex:none}
+  .al-n{font-weight:600;font-size:13.5px;white-space:nowrap}
+
+  /* casillas de nota */
+  .nota{
+    width:62px;padding:8px 4px;text-align:center;
+    font-family:inherit;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;
+    color:var(--ink);background:var(--field);
+    border:1px solid var(--line);border-radius:9px;
+    transition:border-color .15s,box-shadow .15s,background .15s;
+    -moz-appearance:textfield;appearance:textfield;
+  }
+  .nota::-webkit-outer-spin-button,.nota::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .nota:hover{border-color:#c9d2e4}
+  .nota:focus{outline:none;background:#fff;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+  .nota.baja{color:var(--red);font-weight:700}
+  .nota.saved{border-color:var(--green);box-shadow:0 0 0 3px rgba(12,166,120,.18);background:#fff}
+
+  .prom{font-weight:800;font-variant-numeric:tabular-nums;font-size:14.5px}
+  .prom.baja{color:var(--red)}
+
+  .estado{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .estado .icon{width:13px;height:13px}
+  .estado.ap{background:rgba(12,166,120,.12);color:var(--green)}
+  .estado.rep{background:rgba(232,89,12,.12);color:var(--red)}
+  .estado.nd{background:var(--field);color:var(--muted);border:1px dashed var(--line)}
+
+  /* fila de resumen */
+  tfoot td{
+    position:sticky;bottom:0;z-index:2;background:#f8f9fd;
+    border-top:2px solid var(--line);padding:10px 14px;text-align:center;
+  }
+  .tf-label{text-align:right !important;font-weight:600;color:var(--muted);font-size:12.5px}
+  .tf-sin{font-weight:500;font-size:11.5px}
+  .tf-badges{display:flex;flex-direction:column;gap:4px;align-items:center}
+  .mini{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+  .mini .icon{width:11px;height:11px}
+  .mini.ap{background:rgba(12,166,120,.12);color:var(--green)}
+  .mini.rep{background:rgba(232,89,12,.12);color:var(--red)}
+
+  .foot{text-align:center;color:var(--muted);font-size:11.5px;margin:18px 0 8px}
+
+  /* micro-feedback */
+  .toast{
+    position:fixed;right:18px;bottom:18px;z-index:60;
+    background:var(--ink);color:#fff;border-radius:999px;padding:9px 16px;
+    font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;
+    opacity:0;transform:translateY(10px);transition:opacity .2s,transform .2s;pointer-events:none;
+    box-shadow:0 8px 24px rgba(23,32,51,.35);
+  }
+  .toast.show{opacity:1;transform:none}
+  .toast .icon{width:15px;height:15px;color:#34d399}
+
+  @media (max-width:720px){
+    .wrap{padding:12px}
+    .hero{padding:18px}
+    .hero h1{font-size:20px}
+    .ctx{gap:10px 18px;padding:12px 14px}
+  }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="crumb">Ingresos de Notas · Primaria Bilingüe</p>
+      <h1>Ingreso de Exámenes</h1>
+      <div class="variante">Plantilla A · Planilla editable — digitación rápida</div>
+    </div>
+    <a class="btn-pill" href="/ingresos-notas/plantillas/">← Plantillas</a>
+  </header>
+
+  <section class="ctx" aria-label="Contexto de la clase">
+    <div class="ctx-item"><div class="ctx-ic ic-blue"><svg class="icon"><use href="#i-layers"/></svg></div><div><div class="ctx-l">Área</div><div class="ctx-v">Primaria Bilingüe</div></div></div>
+    <div class="ctx-item"><div class="ctx-ic ic-violet"><svg class="icon"><use href="#i-users"/></svg></div><div><div class="ctx-l">Grado/Grupo</div><div class="ctx-v">3ro 1</div></div></div>
+    <div class="ctx-item"><div class="ctx-ic ic-indigo"><svg class="icon"><use href="#i-book"/></svg></div><div><div class="ctx-l">Clase</div><div class="ctx-v">Math</div></div></div>
+    <div class="ctx-item"><div class="ctx-ic ic-green"><svg class="icon"><use href="#i-cal"/></svg></div><div><div class="ctx-l">Parcial</div><div class="ctx-v">Parcial 4</div></div></div>
+    <div class="ctx-item"><div class="ctx-ic ic-blue"><svg class="icon"><use href="#i-clock"/></svg></div><div><div class="ctx-l">Año</div><div class="ctx-v">2026</div></div></div>
+  </section>
+
+  <p class="info-line"><svg class="icon"><use href="#i-info"/></svg>Las notas se guardan solas al salir de cada casilla (demo).</p>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Planilla de exámenes</h2>
+      <div class="hint">Escala 0–100 · aprueba con 70 · <kbd>Tab</kbd> o <kbd>Enter</kbd> avanza a la siguiente casilla</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Alumno</th><th>Examen 1</th><th>Examen 2</th><th>Examen Final</th><th>Promedio</th><th>Estado</th></tr>
+        </thead>
+        <tbody id="tb"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" class="tf-label">Promedio del grupo <span class="tf-sin" id="g-sin"></span></td>
+            <td class="prom" id="g-prom">—</td>
+            <td><div class="tf-badges"><span class="mini ap" id="g-ap">0 aprobados</span><span class="mini rep" id="g-rep">0 reprobados</span></div></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">TechCare · Demo estática — ningún dato se envía a un servidor.</p>
+</div>
+
+<div class="toast" id="toast" role="status"><svg class="icon"><use href="#i-check"/></svg>guardado ✓</div>
+
+<script>
+(function(){
+  'use strict';
+  var ALUMNOS=[
+    {n:'Aalyah Darlene King Valle',        e:[88,92,85]},
+    {n:'Adrian Alexandro Aguilera Benítez',e:[74,68,null]},
+    {n:'Anderson Jafeth Escobar Escobar',  e:[55,61,58]},
+    {n:'Ashly Lizeth Velásquez Amador',    e:[95,98,100]},
+    {n:'Ayleen Abigail Zúniga Rodríguez',  e:[82,null,null]},
+    {n:'Dafne Valentina Alonzo Velásquez', e:[79,85,90]},
+    {n:'Edgar Daniel Lazo Varela',         e:[null,null,null]},
+    {n:'Dessyre Monzerrath Ferrera Calero',e:[66,72,69]},
+    {n:'Kenneth Fabricio Aguilar',         e:[91,87,null]},
+    {n:'Briana Jeraldine Varela',          e:[70,75,80]}
+  ];
+  var EX=['Examen 1','Examen 2','Examen Final'];
+  var PROMS=ALUMNOS.map(function(){return null;});
+
+  /* pinta las filas */
+  var html='';
+  ALUMNOS.forEach(function(a,i){
+    html+='<tr><td><div class="al"><span class="num">'+(i+1)+'</span><span class="al-n">'+a.n+'</span></div></td>';
+    a.e.forEach(function(v,j){
+      html+='<td><input class="nota" type="number" min="0" max="100" step="1" inputmode="numeric"'
+          +' data-i="'+i+'" aria-label="'+EX[j]+' de '+a.n+'" value="'+(v===null?'':v)+'"></td>';
+    });
+    html+='<td class="prom" id="prom-'+i+'">—</td>'
+        +'<td id="est-'+i+'"><span class="estado nd">Sin notas</span></td></tr>';
+  });
+  document.getElementById('tb').innerHTML=html;
+
+  function valores(i){
+    var out=[];
+    document.querySelectorAll('.nota[data-i="'+i+'"]').forEach(function(inp){
+      var t=inp.value.trim(), v=Number(t);
+      if(t!=='' && !isNaN(v)) out.push(Math.max(0,Math.min(100,v)));
+      inp.classList.toggle('baja', t!=='' && !isNaN(v) && v<70);
+    });
+    return out;
+  }
+
+  function pintar(i){
+    var vs=valores(i);
+    var prom=document.getElementById('prom-'+i);
+    var est=document.getElementById('est-'+i);
+    if(!vs.length){
+      PROMS[i]=null;
+      prom.textContent='—'; prom.classList.remove('baja');
+      est.innerHTML='<span class="estado nd">Sin notas</span>';
+      return;
+    }
+    var p=Math.round(vs.reduce(function(s,v){return s+v;},0)/vs.length);
+    PROMS[i]=p;
+    prom.textContent=p; prom.classList.toggle('baja',p<70);
+    est.innerHTML = p>=70
+      ? '<span class="estado ap"><svg class="icon"><use href="#i-check"/></svg>Aprobado</span>'
+      : '<span class="estado rep"><svg class="icon"><use href="#i-x"/></svg>Reprobado</span>';
+  }
+
+  function resumen(){
+    var con=PROMS.filter(function(p){return p!==null;});
+    var ap=con.filter(function(p){return p>=70;}).length;
+    var rep=con.length-ap;
+    var sin=PROMS.length-con.length;
+    var g=document.getElementById('g-prom');
+    if(con.length){
+      var avg=Math.round(con.reduce(function(s,v){return s+v;},0)/con.length);
+      g.textContent=avg; g.classList.toggle('baja',avg<70);
+    }else{ g.textContent='—'; g.classList.remove('baja'); }
+    document.getElementById('g-ap').textContent=ap+(ap===1?' aprobado':' aprobados');
+    document.getElementById('g-rep').textContent=rep+(rep===1?' reprobado':' reprobados');
+    document.getElementById('g-sin').textContent=sin?('· '+sin+' sin notas'):'';
+  }
+
+  ALUMNOS.forEach(function(_,i){ pintar(i); });
+  resumen();
+
+  /* micro-feedback "guardado" */
+  var toastEl=document.getElementById('toast'), tTimer=null;
+  function toast(){
+    toastEl.classList.add('show');
+    clearTimeout(tTimer);
+    tTimer=setTimeout(function(){ toastEl.classList.remove('show'); },1300);
+  }
+
+  document.addEventListener('input',function(e){
+    if(!e.target.classList || !e.target.classList.contains('nota')) return;
+    pintar(Number(e.target.dataset.i)); resumen();
+  });
+
+  document.addEventListener('change',function(e){
+    var inp=e.target;
+    if(!inp.classList || !inp.classList.contains('nota')) return;
+    if(inp.value.trim()!==''){
+      var v=Math.max(0,Math.min(100,Math.round(Number(inp.value)||0)));
+      inp.value=v;
+    }
+    pintar(Number(inp.dataset.i)); resumen();
+    inp.classList.add('saved');
+    setTimeout(function(){ inp.classList.remove('saved'); },900);
+    toast();
+  });
+
+  /* Enter avanza como Tab; al enfocar se selecciona el valor */
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Enter') return;
+    var t=e.target;
+    if(!t.classList || !t.classList.contains('nota')) return;
+    e.preventDefault();
+    var all=Array.prototype.slice.call(document.querySelectorAll('.nota'));
+    var nx=all[all.indexOf(t)+1];
+    if(nx){ nx.focus(); if(nx.select) nx.select(); }
+  });
+  document.addEventListener('focusin',function(e){
+    var t=e.target;
+    if(t.classList && t.classList.contains('nota') && t.select) t.select();
+  });
+})();
+</script>
+</body>
+</html>

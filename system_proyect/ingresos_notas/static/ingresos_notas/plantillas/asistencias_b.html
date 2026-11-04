@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingreso de Asistencias · Plantilla B — TechCare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f7; --card:#fff; --ink:#172033; --muted:#6b7689; --line:#e1e6f0;
+  --field:#f7f8fc; --blue:#2563eb; --violet:#7c3aed; --green:#0ca678;
+  --orange:#f76707; --red:#e8590c; --amber:#f59f00;
+  --sombra:0 1px 2px rgba(23,32,51,.04),0 12px 32px -20px rgba(23,32,51,.28);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input{font-family:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* cabecera degradada */
+.hero{background:linear-gradient(100deg,#1e40af,#2563eb 45%,#7c3aed);border-radius:16px;color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;box-shadow:var(--sombra)}
+.crumb{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.78)}
+.hero h1{margin:3px 0 4px;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.hero .sub{font-size:13px;font-weight:500;color:rgba(255,255,255,.88);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tagp{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:1px 9px;font-size:10.5px;font-weight:800;letter-spacing:.06em}
+.pill{display:inline-flex;align-items:center;gap:7px;background:#fff;color:#1e40af;font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:999px;text-decoration:none;box-shadow:0 3px 10px rgba(10,20,55,.28);white-space:nowrap}
+.pill:hover{background:#eef3ff}
+
+/* franja de contexto */
+.ctx{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0 4px}
+.ctx .it{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px;display:flex;align-items:center;gap:10px;min-width:0}
+.bx{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none}
+.bx .ic{width:16px;height:16px}
+.bx.b1{background:rgba(37,99,235,.1);color:var(--blue)}
+.bx.b2{background:rgba(124,58,237,.1);color:var(--violet)}
+.bx.b3{background:rgba(12,166,120,.1);color:var(--green)}
+.bx.b4{background:rgba(247,103,7,.1);color:var(--orange)}
+.bx.b5{background:rgba(245,159,0,.16);color:#9a6700}
+.ctx .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ctx .v{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.nota{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin:12px 2px 14px}
+.nota .ic{width:16px;height:16px;color:var(--blue)}
+
+/* tablero */
+.board{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sombra);overflow:hidden}
+.bhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcff,#fff)}
+.counts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hoylbl{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px}
+.cnt{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--field);color:var(--muted)}
+.cnt b{font-size:14px;font-variant-numeric:tabular-nums}
+.cnt.c-pres{color:var(--green);background:rgba(12,166,120,.08);border-color:rgba(12,166,120,.25)}
+.cnt.c-f{color:var(--red);background:rgba(232,89,12,.08);border-color:rgba(232,89,12,.25)}
+.cnt.c-t{color:#9a6700;background:rgba(245,159,0,.12);border-color:rgba(245,159,0,.35)}
+.cnt.c-p{color:var(--blue);background:rgba(37,99,235,.07);border-color:rgba(37,99,235,.25)}
+.leyenda{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;font-weight:600;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.dF{background:var(--red)} .dT{background:var(--amber)} .dP{background:var(--blue)} .dN{background:#d6dce8}
+.hint{padding:8px 16px;font-size:12px;color:#9aa4b6;border-bottom:1px solid var(--line)}
+
+/* matriz */
+.mxwrap{overflow-x:auto;max-width:100%}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:880px}
+.mx th,.mx td{padding:6px 5px;text-align:center;border-bottom:1px solid var(--line)}
+.mx tbody tr:last-child th,.mx tbody tr:last-child td{border-bottom:1px solid var(--line)}
+.mx thead th{background:#fbfcff;font-size:11px;color:var(--muted);font-weight:700;padding:9px 5px;vertical-align:top}
+.mx thead .wd{display:block;text-transform:uppercase;letter-spacing:.06em;font-size:9.5px;color:#a7b1c2}
+.mx thead .dm{display:block;font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.badge-hoy{display:inline-block;background:var(--blue);color:#fff;font-size:9px;font-weight:800;border-radius:999px;padding:1px 7px;margin-top:3px;letter-spacing:.04em}
+.mx .al{position:sticky;left:0;background:var(--card);text-align:left;min-width:205px;max-width:235px;z-index:2;padding-left:16px;padding-right:10px;box-shadow:inset -1px 0 0 var(--line)}
+.mx thead .al{z-index:3;background:#fbfcff}
+.mx tfoot .al{z-index:3;background:#fbfcff}
+.mx tbody .al .nm{font-size:12.5px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mx tbody tr:hover td{background:#f6f8fd}
+.mx tbody tr:hover .al{background:#f6f8fd}
+.mx th.hoy,.mx td.hoy{background:rgba(37,99,235,.06)}
+.mx tbody tr:hover td.hoy{background:rgba(37,99,235,.1)}
+.mx .tot{min-width:120px;text-align:left;padding-right:14px;white-space:nowrap}
+.mx tfoot th,.mx tfoot td{border-bottom:0;border-top:1px solid var(--line);background:#fbfcff;font-size:11px;color:var(--muted);font-weight:700;padding:8px 5px;font-variant-numeric:tabular-nums}
+
+/* celda de marca: clic alterna vacio-F-T-P */
+.cell{width:30px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:#b3bdcf;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;transition:background .1s,color .1s,border-color .1s,transform .05s}
+.cell:hover{border-color:#b9c5dd;color:var(--muted)}
+.cell:active{transform:scale(.9)}
+.cell:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.cell.sF{background:var(--red);border-color:var(--red);color:#fff}
+.cell.sT{background:var(--amber);border-color:var(--amber);color:#4a3200}
+.cell.sP{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.mini{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:1px 7px;margin-right:4px;font-variant-numeric:tabular-nums}
+.mini.mF{background:rgba(232,89,12,.12);color:var(--red)}
+.mini.mT{background:rgba(245,159,0,.16);color:#9a6700}
+.mini.mP{background:rgba(37,99,235,.1);color:var(--blue)}
+.mini.m0{background:transparent;color:#c2cad8;font-weight:600;padding-left:0}
+
+/* burbuja guardado */
+.save-bubble{position:absolute;transform:translate(-50%,-100%);background:var(--green);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .18s;z-index:50;box-shadow:0 4px 10px rgba(12,166,120,.35);white-space:nowrap}
+.save-bubble.show{opacity:1}
+
+.foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#9aa4b6;font-size:12px;margin:12px 4px 24px}
+kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:11px;font-weight:700;color:var(--muted)}
+
+@media(max-width:900px){ .ctx{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:480px){ .ctx{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-grad" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="crumb">Ingresos de Notas · Primaria Bilingüe</div>
+      <h1>Ingreso de Asistencias</h1>
+      <div class="sub"><span class="tagp">PLANTILLA B</span> Matriz por fecha — últimas clases del parcial</div>
+    </div>
+    <a class="pill" href="/ingresos-notas/plantillas/">← Plantillas</a>
+  </header>
+
+  <section class="ctx">
+    <div class="it"><span class="bx b1"><svg class="ic"><use href="#i-users"/></svg></span><div><div class="k">Área</div><div class="v">Primaria Bilingüe</div></div></div>
+    <div class="it"><span class="bx b2"><svg class="ic"><use href="#i-grad"/></svg></span><div><div class="k">Grado/Grupo</div><div class="v">3ro 1</div></div></div>
+    <div class="it"><span class="bx b3"><svg class="ic"><use href="#i-book"/></svg></span><div><div class="k">Clase</div><div class="v">Math</div></div></div>
+    <div class="it"><span class="bx b4"><svg class="ic"><use href="#i-doc"/></svg></span><div><div class="k">Parcial</div><div class="v">Parcial 4</div></div></div>
+    <div class="it"><span class="bx b5"><svg class="ic"><use href="#i-cal"/></svg></span><div><div class="k">Fecha</div><div class="v">04/11/2026</div></div></div>
+  </section>
+
+  <p class="nota"><svg class="ic"><use href="#i-info"/></svg> Solo se registra a quien faltó; deja vacío si asistió (demo).</p>
+
+  <section class="board">
+    <div class="bhead">
+      <div class="counts" aria-live="polite">
+        <span class="hoylbl">Hoy 04/11</span>
+        <span class="cnt c-pres">Presentes <b id="cPres">10</b></span>
+        <span class="cnt c-f">Faltas <b id="cF">0</b></span>
+        <span class="cnt c-t">Tardanzas <b id="cT">0</b></span>
+        <span class="cnt c-p">Permisos <b id="cP">0</b></span>
+      </div>
+      <div class="leyenda">
+        <span><i class="dot dF"></i>F · Falta</span>
+        <span><i class="dot dT"></i>T · Tardanza</span>
+        <span><i class="dot dP"></i>P · Permiso</span>
+        <span><i class="dot dN"></i>— · Asistió</span>
+      </div>
+    </div>
+    <div class="hint">Clic en una celda alterna — → F → T → P · clic derecho limpia · la columna HOY está resaltada</div>
+    <div class="mxwrap">
+      <table class="mx" id="mx" aria-label="Matriz de asistencias por fecha"></table>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span>Atajos con la celda enfocada: <kbd>F</kbd> <kbd>T</kbd> <kbd>P</kbd> · <kbd>X</kbd> borra</span>
+    <span>TechCare · Demo estática — los cambios no se guardan</span>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var ALUMNOS=["Aalyah Darlene King Valle","Adrian Alexandro Aguilera Benítez","Anderson Jafeth Escobar Escobar","Ashly Lizeth Velásquez Amador","Ayleen Abigail Zúniga Rodríguez","Dafne Valentina Alonzo Velásquez","Edgar Daniel Lazo Varela","Dessyre Monzerrath Ferrera Calero","Kenneth Fabricio Aguilar","Briana Jeraldine Varela"];
+var FECHAS=[
+  {wd:'lun',dm:'19/10'},{wd:'mié',dm:'21/10'},{wd:'vie',dm:'23/10'},{wd:'lun',dm:'26/10'},
+  {wd:'mié',dm:'28/10'},{wd:'vie',dm:'30/10'},{wd:'lun',dm:'02/11'},{wd:'mié',dm:'04/11',hoy:true}
+];
+var HOY=7;
+var CICLO=['','F','T','P'];
+var marcas=ALUMNOS.map(function(){return FECHAS.map(function(){return '';});});
+/* historial de ejemplo en fechas pasadas (hoy queda vacío) */
+marcas[2][1]='F';marcas[2][4]='F';
+marcas[3][5]='T';
+marcas[5][2]='P';
+marcas[6][6]='F';
+marcas[7][4]='P';
+marcas[8][0]='T';marcas[8][3]='T';marcas[8][6]='T';
+marcas[9][0]='F';marcas[9][1]='T';
+
+var tabla=document.getElementById('mx');
+var h='<thead><tr><th class="al">Alumno</th>';
+FECHAS.forEach(function(f){
+  h+='<th class="'+(f.hoy?'hoy':'')+'"><span class="wd">'+f.wd+'</span><span class="dm">'+f.dm+'</span>'+(f.hoy?'<span class="badge-hoy">HOY</span>':'')+'</th>';
+});
+h+='<th class="tot">Total ausencias</th></tr></thead><tbody>';
+ALUMNOS.forEach(function(n,i){
+  h+='<tr><th class="al" scope="row"><span class="nm" title="'+n+'">'+n+'</span></th>';
+  FECHAS.forEach(function(f,d){
+    h+='<td class="'+(f.hoy?'hoy':'')+'"><button type="button" class="cell" data-i="'+i+'" data-d="'+d+'" aria-label="'+n+' — '+f.dm+'">—</button></td>';
+  });
+  h+='<td class="tot" id="tot-'+i+'"></td></tr>';
+});
+h+='</tbody><tfoot><tr><th class="al">Ausencias del día</th>';
+FECHAS.forEach(function(f,d){
+  h+='<td id="fcol-'+d+'" class="'+(f.hoy?'hoy':'')+'">—</td>';
+});
+h+='<td class="tot"></td></tr></tfoot>';
+tabla.innerHTML=h;
+
+var burbuja=document.createElement('div');
+burbuja.className='save-bubble';burbuja.textContent='guardado ✓';
+document.body.appendChild(burbuja);
+var burT=null;
+function guardadoOk(el){
+  var r=el.getBoundingClientRect();
+  burbuja.style.left=(r.left+r.width/2+window.scrollX)+'px';
+  burbuja.style.top=(r.top+window.scrollY-6)+'px';
+  burbuja.classList.add('show');
+  if(burT)clearTimeout(burT);
+  burT=setTimeout(function(){burbuja.classList.remove('show');},900);
+}
+
+function pinta(i,d){
+  var c=tabla.querySelector('.cell[data-i="'+i+'"][data-d="'+d+'"]');
+  var m=marcas[i][d];
+  c.className='cell'+(m?' s'+m:'');
+  c.textContent=m||'—';
+}
+function totFila(i){
+  var f=0,t=0,p=0;
+  marcas[i].forEach(function(m){if(m==='F')f++;else if(m==='T')t++;else if(m==='P')p++;});
+  var el=document.getElementById('tot-'+i);
+  if(!f&&!t&&!p){el.innerHTML='<span class="mini m0">sin ausencias</span>';return;}
+  var s='';
+  if(f)s+='<span class="mini mF">'+f+' F</span>';
+  if(t)s+='<span class="mini mT">'+t+' T</span>';
+  if(p)s+='<span class="mini mP">'+p+' P</span>';
+  el.innerHTML=s;
+}
+function totCol(d){
+  var n=0;
+  ALUMNOS.forEach(function(_,i){if(marcas[i][d])n++;});
+  document.getElementById('fcol-'+d).textContent=n?n:'—';
+}
+function cuentaHoy(){
+  var f=0,t=0,p=0;
+  ALUMNOS.forEach(function(_,i){
+    var m=marcas[i][HOY];
+    if(m==='F')f++;else if(m==='T')t++;else if(m==='P')p++;
+  });
+  document.getElementById('cPres').textContent=ALUMNOS.length-f-t-p;
+  document.getElementById('cF').textContent=f;
+  document.getElementById('cT').textContent=t;
+  document.getElementById('cP').textContent=p;
+}
+function refresca(i,d,el){
+  pinta(i,d);totFila(i);totCol(d);cuentaHoy();
+  if(el)guardadoOk(el);
+}
+
+tabla.addEventListener('click',function(e){
+  var c=e.target.closest('.cell');if(!c)return;
+  var i=+c.getAttribute('data-i'),d=+c.getAttribute('data-d');
+  marcas[i][d]=CICLO[(CICLO.indexOf(marcas[i][d])+1)%4];
+  refresca(i,d,c);
+});
+tabla.addEventListener('contextmenu',function(e){
+  var c=e.target.closest('.cell');if(!c)return;
+  e.preventDefault();
+  var i=+c.getAttribute('data-i'),d=+c.getAttribute('data-d');
+  if(marcas[i][d]){marcas[i][d]='';refresca(i,d,c);}
+});
+tabla.addEventListener('keydown',function(e){
+  var c=e.target.closest('.cell');if(!c)return;
+  var k=e.key.toLowerCase();
+  var i=+c.getAttribute('data-i'),d=+c.getAttribute('data-d');
+  if(k==='f'||k==='t'||k==='p'){e.preventDefault();var t=k.toUpperCase();marcas[i][d]=(marcas[i][d]===t)?'':t;refresca(i,d,c);}
+  else if(k==='x'||k==='backspace'||k==='0'){e.preventDefault();if(marcas[i][d]){marcas[i][d]='';refresca(i,d,c);}}
+});
+
+ALUMNOS.forEach(function(_,i){
+  FECHAS.forEach(function(_,d){pinta(i,d);});
+  totFila(i);
+});
+FECHAS.forEach(function(_,d){totCol(d);});
+cuentaHoy();
+})();
+</script>
+</body>
+</html>

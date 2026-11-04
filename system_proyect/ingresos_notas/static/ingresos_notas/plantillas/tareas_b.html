@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingreso de Tareas · Demo B — TechCare</title>
+<!-- hecho por claude code: demo estática EDITABLE (variante B · tarjeta por alumno) para validar rapidez de ingreso; sin Django, sin backend -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f7; --card:#fff; --ink:#172033; --muted:#6b7689; --line:#e1e6f0;
+  --field:#f7f8fc; --blue:#2563eb; --violet:#7c3aed; --green:#0ca678;
+  --orange:#f76707; --red:#e8590c; --indigo:#4f46e5;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:15px; line-height:1.45; padding:16px; overflow-x:hidden;
+}
+.wrap{max-width:1180px;margin:0 auto}
+.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- cabecera degradada ---------- */
+.hero{
+  background:linear-gradient(100deg,#1e40af,#2563eb 45%,#7c3aed);
+  border-radius:16px; color:#fff; padding:20px 22px;
+  display:flex; gap:14px; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; box-shadow:0 12px 28px rgba(37,99,235,.28);
+}
+.crumb{font-size:12px;font-weight:600;letter-spacing:.4px;opacity:.85}
+.hero h1{margin:3px 0 0;font-size:23px;font-weight:800;letter-spacing:-.3px}
+.variant{
+  display:inline-flex;align-items:center;gap:6px;margin-top:9px;
+  font-size:11px;font-weight:700;letter-spacing:.3px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
+  padding:3px 10px;border-radius:999px;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;background:#fff;color:#1e40af;
+  font-weight:700;font-size:13px;text-decoration:none;padding:9px 16px;border-radius:999px;
+  box-shadow:0 3px 10px rgba(14,25,64,.25);transition:transform .15s,box-shadow .15s;white-space:nowrap;
+}
+.pill:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(14,25,64,.32)}
+
+/* ---------- franja de contexto ---------- */
+.ctx{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 10px}
+.chip{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:9px 14px;
+  flex:1 1 150px;min-width:150px;
+}
+.chip .ic{width:18px;height:18px}
+.chip small{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.chip b{display:block;font-size:13.5px;font-weight:700}
+.c-blue{color:var(--blue)} .c-violet{color:var(--violet)} .c-indigo{color:var(--indigo)}
+.c-orange{color:var(--orange)} .c-green{color:var(--green)}
+
+.note{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;margin:0 2px 12px;flex-wrap:wrap}
+.note .ic{width:14px;height:14px}
+
+.sec-h{display:flex;align-items:center;gap:8px;margin:0 2px 10px;font-size:14px;font-weight:700}
+.sec-h .ic{color:var(--indigo)}
+.sec-h small{color:var(--muted);font-weight:600;font-size:12px}
+
+/* ---------- retícula de tarjetas ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:12px}
+.stu{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:10px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.stu:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.stu-h{display:flex;align-items:center;gap:9px}
+.ava{
+  width:34px;height:34px;border-radius:10px;flex:none;
+  background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;
+  font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
+}
+.nm{font-size:12.5px;font-weight:700;line-height:1.25}
+.ts{display:flex;gap:8px}
+.t{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.t small{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px}
+.stu-f{display:flex;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:9px;margin-top:auto}
+.pm small{display:block;font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.pv{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.pv.lo{color:var(--red)} .pv.hi{color:var(--green)}
+.bar{flex:1;height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:999px;background:var(--blue);transition:width .25s ease,background .25s ease}
+.bar i.r{background:var(--red)} .bar i.g{background:var(--green)} .bar i.b{background:var(--blue)}
+
+/* ---------- casillas editables ---------- */
+.cell{
+  width:56px;max-width:100%;height:34px;text-align:center;font:inherit;font-weight:600;font-size:14px;
+  font-variant-numeric:tabular-nums;color:var(--ink);background:var(--field);
+  border:1px solid var(--line);border-radius:8px;outline:none;
+  transition:border-color .12s,box-shadow .12s,background .12s;
+}
+.cell:focus{background:#fff;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+.cell.low{color:var(--red);font-weight:700;border-color:#f0c3ab;background:#fff5ee}
+.cell.low:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(232,89,12,.16)}
+.cell::-webkit-outer-spin-button,.cell::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cell{-moz-appearance:textfield;appearance:textfield}
+
+/* ---------- resumen de promedios por tarea ---------- */
+.sum{
+  margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.sum-l{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.sum-l .ic{color:var(--indigo)}
+.sc{
+  display:inline-flex;align-items:center;gap:7px;background:var(--field);
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px;
+  font-size:12px;font-weight:600;color:var(--muted);
+}
+.sc b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
+.sc.grp{background:#eef2ff;border-color:#d6defa;color:var(--indigo)}
+.sc.grp b{color:var(--indigo)}
+
+/* ---------- micro-feedback "guardado" ---------- */
+#savedTip{
+  position:fixed;left:0;top:0;z-index:60;display:inline-flex;align-items:center;gap:5px;
+  background:#fff;border:1px solid #bfe7d7;color:var(--green);
+  font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;
+  box-shadow:0 6px 18px rgba(12,166,120,.25);opacity:0;pointer-events:none;
+  transform:translate(-50%,calc(-100% - 4px));
+  transition:opacity .22s ease,transform .22s ease;
+}
+#savedTip.on{opacity:1;transform:translate(-50%,calc(-100% - 11px))}
+#savedTip .ic{width:13px;height:13px;stroke-width:3}
+
+.foot-line{color:var(--muted);font-size:11.5px;text-align:center;margin:14px 0 4px}
+
+@media (max-width:720px){
+  body{padding:10px}
+  .hero{padding:16px}
+  .hero h1{font-size:20px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+}
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M22 9 12 4 2 9l10 5 10-5z"/><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"/><path d="M22 9v5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.1 3-5 6.5-5s5.9 1.9 6.5 5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M17.8 15.3c2 .7 3.3 2.3 3.7 4.7"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-cards" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <div class="crumb">Ingresos de Notas · Primaria Bilingüe</div>
+      <h1>Ingreso de Tareas</h1>
+      <span class="variant"><svg class="ic" aria-hidden="true"><use href="#i-cards"></use></svg> Demo B · Por alumno</span>
+    </div>
+    <a class="pill" href="/ingresos-notas/plantillas/">&#8592; Plantillas</a>
+  </header>
+
+  <section class="ctx" aria-label="Contexto">
+    <div class="chip"><svg class="ic c-blue" aria-hidden="true"><use href="#i-school"></use></svg><span><small>Área</small><b>Primaria Bilingüe</b></span></div>
+    <div class="chip"><svg class="ic c-violet" aria-hidden="true"><use href="#i-users"></use></svg><span><small>Grado / Grupo</small><b>3ro 1</b></span></div>
+    <div class="chip"><svg class="ic c-indigo" aria-hidden="true"><use href="#i-book"></use></svg><span><small>Clase</small><b>Math</b></span></div>
+    <div class="chip"><svg class="ic c-orange" aria-hidden="true"><use href="#i-cal"></use></svg><span><small>Parcial</small><b>Parcial 4</b></span></div>
+    <div class="chip"><svg class="ic c-green" aria-hidden="true"><use href="#i-hash"></use></svg><span><small>Año</small><b>2026</b></span></div>
+  </section>
+
+  <p class="note">
+    <svg class="ic" aria-hidden="true"><use href="#i-edit"></use></svg>
+    Las notas se guardan solas al salir de cada casilla (demo).
+  </p>
+
+  <h2 class="sec-h"><svg class="ic" aria-hidden="true"><use href="#i-cards"></use></svg> Alumnos <small>· 10 tarjetas — Tab recorre las casillas en orden</small></h2>
+
+  <section class="grid" id="grid" aria-label="Tarjetas por alumno"></section>
+
+  <section class="sum" aria-label="Promedios por tarea">
+    <span class="sum-l"><svg class="ic" aria-hidden="true"><use href="#i-trend"></use></svg> Promedio por tarea</span>
+    <span class="sc">T1 <b data-colavg="0">—</b></span>
+    <span class="sc">T2 <b data-colavg="1">—</b></span>
+    <span class="sc">T3 <b data-colavg="2">—</b></span>
+    <span class="sc">T4 <b data-colavg="3">—</b></span>
+    <span class="sc grp">Grupo <b data-groupavg>—</b></span>
+  </section>
+
+  <p class="foot-line">TechCare · plantilla de demostración — los datos son de ejemplo y no se envían a ningún servidor.</p>
+</div>
+
+<div id="savedTip" role="status" aria-live="polite">guardado <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg></div>
+
+<script>
+(function(){
+'use strict';
+var DATA=[
+  ['Aalyah Darlene King Valle',9,10,null,9],
+  ['Adrian Alexandro Aguilera Benítez',7,null,8,null],
+  ['Anderson Jafeth Escobar Escobar',5,6,null,4],
+  ['Ashly Lizeth Velásquez Amador',10,9,10,null],
+  ['Ayleen Abigail Zúniga Rodríguez',8,7,null,null],
+  ['Dafne Valentina Alonzo Velásquez',null,10,9,10],
+  ['Edgar Daniel Lazo Varela',6,5,7,null],
+  ['Dessyre Monzerrath Ferrera Calero',4,null,5,6],
+  ['Kenneth Fabricio Aguilar',8,9,null,7],
+  ['Briana Jeraldine Varela',null,null,null,null]
+];
+
+function iniciales(n){
+  var p=n.split(' ');
+  return (p[0]?p[0].charAt(0):'')+(p[1]?p[1].charAt(0):'');
+}
+
+var grid=document.getElementById('grid'), html='';
+DATA.forEach(function(a){
+  html+='<article class="stu" data-row>';
+  html+='<div class="stu-h"><span class="ava" aria-hidden="true">'+iniciales(a[0])+'</span><span class="nm">'+a[0]+'</span></div>';
+  html+='<div class="ts">';
+  for(var c=1;c<=4;c++){
+    var v=(a[c]==null)?'':a[c];
+    html+='<label class="t"><small>T'+c+'</small><input class="cell" type="number" min="0" max="10" step="1" inputmode="numeric" value="'+v+'" aria-label="Tarea '+c+' — '+a[0]+'"></label>';
+  }
+  html+='</div>';
+  html+='<div class="stu-f"><span class="pm"><small>Promedio</small><b class="pv" data-avg>—</b></span><span class="bar" aria-hidden="true"><i data-bar></i></span></div>';
+  html+='</article>';
+});
+grid.innerHTML=html;
+
+var tip=document.getElementById('savedTip'), tipT=null;
+function flash(el){
+  var r=el.getBoundingClientRect();
+  tip.style.left=(r.left+r.width/2)+'px';
+  tip.style.top=r.top+'px';
+  tip.classList.remove('on');
+  void tip.offsetWidth;
+  tip.classList.add('on');
+  clearTimeout(tipT);
+  tipT=setTimeout(function(){tip.classList.remove('on');},950);
+}
+function sane(el){
+  if(el.value==='')return;
+  var n=Number(el.value);
+  if(!isFinite(n)){el.value='';return;}
+  el.value=String(Math.max(0,Math.min(10,Math.round(n))));
+}
+function recalc(){
+  var sums=[0,0,0,0],cnts=[0,0,0,0],rsum=0,rcnt=0;
+  document.querySelectorAll('[data-row]').forEach(function(row){
+    var vals=[];
+    row.querySelectorAll('.cell').forEach(function(c,idx){
+      var raw=c.value.trim(),n=Number(raw),has=(raw!==''&&isFinite(n));
+      c.classList.toggle('low',has&&n<6);
+      if(has){vals.push(n);sums[idx]+=n;cnts[idx]++;}
+    });
+    var out=row.querySelector('[data-avg]');
+    var bar=row.querySelector('[data-bar]');
+    if(vals.length){
+      var a=vals.reduce(function(x,y){return x+y;},0)/vals.length;
+      out.textContent=a.toFixed(1);
+      out.classList.toggle('lo',a<6);
+      out.classList.toggle('hi',a>=9);
+      bar.style.width=(a*10)+'%';
+      bar.className=(a<6)?'r':((a>=9)?'g':'b');
+      rsum+=a;rcnt++;
+    }else{
+      out.textContent='—';out.classList.remove('lo','hi');
+      bar.style.width='0%';bar.className='';
+    }
+  });
+  for(var i=0;i<4;i++){
+    var el=document.querySelector('[data-colavg="'+i+'"]');
+    if(el)el.textContent=cnts[i]?(sums[i]/cnts[i]).toFixed(1):'—';
+  }
+  var g=document.querySelector('[data-groupavg]');
+  if(g)g.textContent=rcnt?(rsum/rcnt).toFixed(1):'—';
+}
+document.addEventListener('input',function(e){
+  if(e.target.classList&&e.target.classList.contains('cell'))recalc();
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.classList&&t.classList.contains('cell')){sane(t);recalc();flash(t);}
+});
+document.addEventListener('focusin',function(e){
+  if(e.target.classList&&e.target.classList.contains('cell'))e.target.select();
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('cell')){
+    e.preventDefault();
+    var all=Array.prototype.slice.call(document.querySelectorAll('.cell'));
+    var nx=all[all.indexOf(e.target)+1];
+    if(nx)nx.focus();
+  }
+});
+recalc();
+})();
+</script>
+</body>
+</html>
