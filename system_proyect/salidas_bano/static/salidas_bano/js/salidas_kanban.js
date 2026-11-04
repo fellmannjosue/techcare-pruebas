@@ -138,6 +138,9 @@
     });
     var saved = 'tabla'; try { saved = localStorage.getItem('sb-view') || 'tabla'; } catch (_) {}
     if (saved === 'kanban') setView('kanban');
+  } else {
+    // <--- hecho por claude code (04-nov-2026): sin interruptor el Tablero es la ÚNICA vista → pintar al cargar
+    try { pintarGrados(); pintarSecciones(); render(); } catch (err) { if (window.console) console.error('[salidas_kanban]', err); }
   }
 
   // ── clics del tablero ──
