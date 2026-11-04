@@ -1,6 +1,18 @@
 {
-  "version": "7.8.99.50",
+  "version": "7.8.99.80",
   "entradas": [
+    {
+      "version": "7.8.99.80",
+      "fecha": "2026-11-04",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Rediseño de pantallas: Dashboard de Red (botón «Explorar módulos»), ficha de Sponsor estilo Access, y los paneles de Reloj, Enfermería, Coordinador (BL/Colegio) e Ingreso de Notas.",
+        "Control de Salidas al Baño: nuevo Tablero (Kanban) por estado; pestañas Períodos y Maestros–Clases modernizadas.",
+        "Directorio de alumnos: vista de tarjetas con buscador y botón de WhatsApp.",
+        "Control y Servicio Técnico: botón «Registrar» unificado (conmutador Inventario/Mantenimiento/Control) y panel estilo Centro de control."
+      ]
+    },
     {
       "version": "7.8.99.50",
       "fecha": "2026-10-30",

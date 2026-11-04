@@ -4,7 +4,7 @@
 {% block title %}Control y Servicio Técnico{% endblock %}
 {% block page_pretitle %}Soporte y TI{% endblock %}
 {% block page_title %}Control y Servicio Técnico{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=5">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=6">{% endblock %}
 {# <--- hecho por claude code (22-oct-2026): el "Registrar" se movió al hero (reemplaza los dos accesos) #}
 {% block page_actions %}{% endblock %}
 {% block content %}
@@ -33,6 +33,41 @@
   {% endfor %}
 </div>
 
+{# <--- hecho por claude code (04-nov-2026): «Centro de control» (Opción C) — atención + actividad al frente #}
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="st-cc st-cc--att h-100">
+      <div class="st-cc__head"><span class="st-cc__ic st-cc__ic--att"><i class="ti ti-alert-triangle"></i></span>Requieren atención<span class="st-cc__count">{{ alertas|length }}</span></div>
+      <div class="st-att__list">
+        {% for a in alertas %}
+        <a href="{{ a.url }}" class="st-att st-att--{{ a.nivel }}">
+          <span class="st-att__ic"><i class="ti {{ a.i }}"></i></span>
+          <span class="st-att__tx"><b>{{ a.t }}</b><small>{{ a.s }}</small></span>
+          <i class="ti ti-chevron-right st-att__go"></i>
+        </a>
+        {% empty %}
+        <div class="st-cc__empty"><i class="ti ti-circle-check text-green"></i> Todo en orden: sin alertas por ahora.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="st-cc h-100">
+      <div class="st-cc__head"><span class="st-cc__ic st-cc__ic--rec"><i class="ti ti-history"></i></span>Actividad reciente{% if ver_mant %}<a href="{{ url_mant }}" class="st-cc__link">Ver todo</a>{% endif %}</div>
+      <div class="st-rec__list">
+        {% for r in recientes %}
+        <div class="st-rec">
+          <span class="st-rec__id">{{ r.record_id }}</span>
+          <span class="st-rec__tx"><b>{% if r.computadora %}{{ r.computadora.asset_id }}{% elif r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</b><small>{{ r.get_tipo_equipo_display }} · {{ r.teacher_name|default:"—" }}</small></span>
+          <span class="st-rec__meta">{% if r.status == 'Completado' %}<span class="st-dot st-dot--ok"></span>{% elif r.status == 'En Proceso' %}<span class="st-dot st-dot--proc"></span>{% else %}<span class="st-dot st-dot--pend"></span>{% endif %}{{ r.date|date:"d/m" }}</span>
+        </div>
+        {% empty %}<div class="st-cc__empty">Sin fichas registradas.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Módulos ── #}
 <div class="row g-4">
   {% if ver_inv %}
   <div class="col-lg-6">
@@ -90,44 +125,7 @@
   {% endif %}
 </div>
 
-<div class="row g-4 mt-1">
-  <div class="col-lg-5">
-    <div class="card st-card h-100">
-      <div class="card-header"><h3 class="card-title"><i class="ti ti-bell-ringing me-2 text-orange"></i>Alertas</h3><span class="badge bg-secondary-lt text-secondary ms-auto">{{ alertas|length }}</span></div>
-      <div class="list-group list-group-flush">
-        {% for a in alertas %}
-        <a href="{{ a.url }}" class="list-group-item list-group-item-action st-alert st-alert--{{ a.nivel }}">
-          <span class="st-alert__icon"><i class="ti {{ a.i }}"></i></span>
-          <span><span class="d-block fw-semibold">{{ a.t }}</span><span class="text-muted small">{{ a.s }}</span></span>
-          <i class="ti ti-chevron-right ms-auto text-muted"></i>
-        </a>
-        {% empty %}
-        <div class="list-group-item text-center text-muted py-4"><i class="ti ti-circle-check fs-2 d-block mb-1 text-green"></i>Sin alertas por ahora.</div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-7">
-    <div class="card st-card h-100">
-      <div class="card-header"><h3 class="card-title"><i class="ti ti-history me-2 text-blue"></i>Actividad reciente</h3>{% if ver_mant %}<a href="{{ url_mant }}" class="ms-auto small">Ver todo</a>{% endif %}</div>
-      <div class="table-responsive"><table class="table table-vcenter card-table st-table">
-        <thead><tr><th>Ficha</th><th>Equipo</th><th>Tipo</th><th>Persona</th><th>Fecha</th><th>Estado</th></tr></thead>
-        <tbody>
-        {% for r in recientes %}
-          <tr>
-            <td><span class="st-id">{{ r.record_id }}</span></td>
-            <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% elif r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
-            <td><span class="badge st-tipo st-tipo--{{ r.tipo_equipo }}">{{ r.get_tipo_equipo_display }}</span></td>
-            <td class="text-muted">{{ r.teacher_name|default:"—" }}</td>
-            <td class="text-nowrap">{{ r.date|date:"d/m/Y" }}</td>
-            <td>{% if r.status == 'Completado' %}<span class="badge bg-green-lt text-green">Completado</span>{% elif r.status == 'En Proceso' %}<span class="badge bg-cyan-lt text-cyan">En proceso</span>{% else %}<span class="badge bg-orange-lt text-orange">Pendiente</span>{% endif %}</td>
-          </tr>
-        {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Sin fichas registradas.</td></tr>{% endfor %}
-        </tbody>
-      </table></div>
-    </div>
-  </div>
-</div>
+{# <--- hecho por claude code (04-nov-2026): alertas y actividad se movieron arriba (Centro de control, Opción C) #}
 
 {# <--- hecho por claude code (04-nov-2026): launcher "Registrar" = conmutador segmentado (Opción A). #}
 {# Una sola pantalla; cada panel reusa los accesos a los formularios de alta que YA existen (reg_inv/reg_mant/reg_control). #}
