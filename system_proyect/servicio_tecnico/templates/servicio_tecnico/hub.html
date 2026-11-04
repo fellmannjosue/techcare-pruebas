@@ -4,7 +4,7 @@
 {% block title %}Control y Servicio Técnico{% endblock %}
 {% block page_pretitle %}Soporte y TI{% endblock %}
 {% block page_title %}Control y Servicio Técnico{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=5">{% endblock %}
 {# <--- hecho por claude code (22-oct-2026): el "Registrar" se movió al hero (reemplaza los dos accesos) #}
 {% block page_actions %}{% endblock %}
 {% block content %}
@@ -129,63 +129,53 @@
   </div>
 </div>
 
-{# <--- hecho por claude code (22-oct-2026): launcher "Registrar" — modal con sub-modales (router a las pantallas de alta) #}
+{# <--- hecho por claude code (04-nov-2026): launcher "Registrar" = conmutador segmentado (Opción A). #}
+{# Una sola pantalla; cada panel reusa los accesos a los formularios de alta que YA existen (reg_inv/reg_mant/reg_control). #}
 <div class="modal modal-blur fade" id="modalRegistrar" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title"><i class="ti ti-plus me-2 text-primary"></i>¿Qué quieres registrar?</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
-        <div class="reg-opts reg-opts--big">
-          {% if ver_inv %}<button type="button" class="reg-opt" style="--rc:#206bc4" data-reg-next="#modalRegInv"><span class="reg-opt__ic"><i class="ti ti-package"></i></span><span class="reg-opt__t">Inventariar equipo</span><span class="reg-opt__s">Alta de un activo</span></button>{% endif %}
-          {% if ver_mant %}<button type="button" class="reg-opt" style="--rc:#0ca678" data-reg-next="#modalRegMant"><span class="reg-opt__ic"><i class="ti ti-tool"></i></span><span class="reg-opt__t">Registrar mantenimiento</span><span class="reg-opt__s">Ficha por tipo de equipo</span></button>{% endif %}
-          {% if ver_mant %}<button type="button" class="reg-opt" style="--rc:#f76707" data-reg-next="#modalRegControl"><span class="reg-opt__ic"><i class="ti ti-clipboard-check"></i></span><span class="reg-opt__t">Control de equipo</span><span class="reg-opt__s">Evaluación y sus variantes</span></button>{% endif %}
+
+        {# Conmutador #}
+        <div class="reg-seg" id="regSeg">
+          {% if ver_inv %}<button type="button" class="on" data-seg="inv"><i class="ti ti-package"></i>Inventario</button>{% endif %}
+          {% if ver_mant %}<button type="button"{% if not ver_inv %} class="on"{% endif %} data-seg="mant"><i class="ti ti-tool"></i>Mantenimiento</button>{% endif %}
+          {% if ver_mant %}<button type="button" data-seg="ctl"><i class="ti ti-clipboard-check"></i>Control de equipo</button>{% endif %}
         </div>
+
+        {# Paneles — cada uno enlaza al formulario de alta real #}
+        {% if ver_inv %}
+        <div class="reg-pane on" data-pane="inv">
+          <p class="reg-pane__note"><i class="ti ti-package me-1"></i>Alta de un activo en el inventario.</p>
+          <div class="reg-opts">
+            {% for o in reg_inv %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if ver_mant %}
+        <div class="reg-pane{% if not ver_inv %} on{% endif %}" data-pane="mant">
+          <p class="reg-pane__note"><i class="ti ti-tool me-1"></i>Ficha de mantenimiento por tipo de equipo.</p>
+          <div class="reg-opts">
+            {% for o in reg_mant %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
+          </div>
+        </div>
+
+        <div class="reg-pane" data-pane="ctl">
+          <p class="reg-pane__note"><i class="ti ti-link me-1"></i>Evaluación del equipo del maestro y sus variantes. Se vincula con el inventario (eliges la computadora).</p>
+          <div class="reg-opts">
+            {% for o in reg_control %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
       </div>
     </div>
   </div>
 </div>
-
-{% if ver_inv %}
-<div class="modal modal-blur fade" id="modalRegInv" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><button type="button" class="btn btn-ghost-secondary btn-icon me-2" data-reg-back="#modalRegistrar" title="Volver"><i class="ti ti-arrow-left"></i></button><h5 class="modal-title"><i class="ti ti-package me-2 text-blue"></i>Inventariar equipo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body"><div class="reg-opts">
-        {% for o in reg_inv %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
-      </div></div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{% if ver_mant %}
-<div class="modal modal-blur fade" id="modalRegMant" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><button type="button" class="btn btn-ghost-secondary btn-icon me-2" data-reg-back="#modalRegistrar" title="Volver"><i class="ti ti-arrow-left"></i></button><h5 class="modal-title"><i class="ti ti-tool me-2 text-green"></i>Registrar mantenimiento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body"><div class="reg-opts">
-        {% for o in reg_mant %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
-      </div></div>
-    </div>
-  </div>
-</div>
-
-<div class="modal modal-blur fade" id="modalRegControl" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header"><button type="button" class="btn btn-ghost-secondary btn-icon me-2" data-reg-back="#modalRegistrar" title="Volver"><i class="ti ti-arrow-left"></i></button><h5 class="modal-title"><i class="ti ti-clipboard-check me-2 text-orange"></i>Control de equipo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p class="text-muted small mb-2"><i class="ti ti-link me-1"></i>Se vincula con el inventario (eliges la computadora).</p>
-        <div class="reg-opts">
-        {% for o in reg_control %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=1"></script>
+<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=2"></script>
 {% endblock %}

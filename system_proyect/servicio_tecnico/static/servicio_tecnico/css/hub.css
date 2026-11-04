@@ -85,3 +85,22 @@
 .st-subhead i { color: #0ca678; font-size: 1.1rem; }
 .st-subhead small { font-weight: 400; color: var(--tblr-secondary, #6c7a91); margin-left: auto; }
 @media (max-width: 420px) { .st-subhead small { display: none; } }
+
+/* <--- hecho por claude code (04-nov-2026): conmutador segmentado del launcher (Opción A) */
+.reg-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px;
+  background: var(--tblr-bg-surface-secondary, #f3f5f9); border: 1px solid var(--tblr-border-color, #e6e9f0);
+  border-radius: 12px; padding: 6px; margin-bottom: 16px; }
+.reg-seg button { appearance: none; border: 0; background: transparent; cursor: pointer; border-radius: 9px;
+  padding: 11px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--tblr-secondary, #6c7a91); font-weight: 600; font-size: .82rem; font-family: inherit; transition: .15s; }
+.reg-seg button i { font-size: 1.3rem; }
+.reg-seg button:hover { color: var(--tblr-body-color, #1f2937); }
+.reg-seg button.on { background: var(--tblr-card-bg, #fff); color: var(--tblr-body-color, #1f2937);
+  box-shadow: 0 1px 2px rgba(20,30,60,.08), 0 4px 12px rgba(20,30,60,.08); }
+.reg-seg button.on[data-seg="inv"] { color: #206bc4; }
+.reg-seg button.on[data-seg="mant"] { color: #0ca678; }
+.reg-seg button.on[data-seg="ctl"] { color: #f76707; }
+.reg-pane { display: none; }
+.reg-pane.on { display: block; animation: regFade .18s ease; }
+@keyframes regFade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.reg-pane__note { color: var(--tblr-secondary, #6c7a91); font-size: .8rem; margin: 0 0 10px; }
