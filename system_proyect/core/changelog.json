@@ -1,6 +1,15 @@
 {
-  "version": "7.9.90",
+  "version": "7.9.91",
   "entradas": [
+    {
+      "version": "7.9.91",
+      "fecha": "2026-11-04",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Mantenimiento Mecánico: «Flota de vehículos» y «Hojas de la flota» agrupadas en un acordeón «Flota» (menú superior y sidebar)."
+      ]
+    },
     {
       "version": "7.9.90",
       "fecha": "2026-11-04",

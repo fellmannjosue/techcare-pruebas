@@ -251,10 +251,18 @@ def nav_context(request):
                 elif k == 'mantenimiento':
                     # <--- hecho por claude code (02-nov-2026): Aceites agrupados (acordeón), como Académico
                     _MM_ACEITES = ('Aceite 40', 'Aceite 50', 'Aceite hidráulico')
-                    entry['accesos'] = [a for a in acc if a['t'] not in _MM_ACEITES]
+                    # <--- hecho por claude code (04-nov-2026): Flota de vehículos + Hojas de la flota en su propio acordeón
+                    _MM_FLOTA = ('Flota de vehículos', 'Hojas de la flota')
+                    entry['accesos'] = [a for a in acc if a['t'] not in _MM_ACEITES and a['t'] not in _MM_FLOTA]
+                    subs = []
                     sub_ac = [a for a in acc if a['t'] in _MM_ACEITES]
                     if sub_ac:
-                        entry['subgrupos'] = [{'label': 'Aceites', 'icon': 'ti-droplet', 'accesos': sub_ac}]
+                        subs.append({'label': 'Aceites', 'icon': 'ti-droplet', 'accesos': sub_ac})
+                    sub_fl = [a for a in acc if a['t'] in _MM_FLOTA]
+                    if sub_fl:
+                        subs.append({'label': 'Flota', 'icon': 'ti-car', 'accesos': sub_fl})
+                    if subs:
+                        entry['subgrupos'] = subs
                 cats.append(entry)
             ctx['nav_cats_super'] = cats
         except Exception:

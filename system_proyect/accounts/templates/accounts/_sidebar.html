@@ -397,7 +397,20 @@
       <li class="nav-item"><a class="nav-link" href="{% url 'mantenimiento_mecanico:pagina' 'coolant' %}"><span class="nav-link-icon"><i class="ti ti-snowflake"></i></span><span class="nav-link-title">Coolant</span></a></li>
       {% endif %}
       {# <--- hecho por claude code (12-oct-2026): vehículos unido al módulo (antes enlace suelto) #}
-      {% if nav_vehiculos %}<li class="nav-item"><a class="nav-link" href="{% url 'vehiculos:flota' %}"><span class="nav-link-icon"><i class="ti ti-car"></i></span><span class="nav-link-title">Flota de vehículos</span></a></li>{% endif %}
+      {# <--- hecho por claude code (04-nov-2026): Flota + Hojas agrupados en sub-acordeón (pedido del usuario) #}
+      {% if nav_vehiculos %}
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="#navMMFlota" data-bs-toggle="collapse">
+          <span class="nav-link-icon"><i class="ti ti-car"></i></span>
+          <span class="nav-link-title">Flota</span>
+          <span class="nav-link-arrow"></span>
+        </a>
+        <ul class="navbar-nav collapse ps-3" id="navMMFlota">
+          <li class="nav-item"><a class="nav-link" href="{% url 'vehiculos:flota' %}"><span class="nav-link-icon"><i class="ti ti-car"></i></span><span class="nav-link-title">Flota de vehículos</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'vehiculos:hojas' %}"><span class="nav-link-icon"><i class="ti ti-printer"></i></span><span class="nav-link-title">Hojas de la flota</span></a></li>
+        </ul>
+      </li>
+      {% endif %}
     </ul>
   </li>
   {% endif %}
