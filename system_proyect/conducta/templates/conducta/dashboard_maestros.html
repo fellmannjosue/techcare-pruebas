@@ -142,7 +142,8 @@
   </div>
   {% endif %}
 
-  {% if nav_salidas_bano %}
+  {# <--- hecho por claude code (04-nov-2026): Salidas al Baño es SOLO de Colegio; no va en el dashboard de maestro Bilingüe #}
+  {% if nav_salidas_bano and area != "bilingue" %}
   <div class="col-6 col-md-3">
     <a href="{% url 'salidas_bano:index' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
       <div class="mb-2"><i class="ti ti-door-exit" style="font-size:2.2rem;color:#0ca678;"></i></div>

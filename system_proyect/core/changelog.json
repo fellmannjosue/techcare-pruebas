@@ -1,6 +1,17 @@
 {
-  "version": "7.8.99.80",
+  "version": "7.9.90",
   "entradas": [
+    {
+      "version": "7.9.90",
+      "fecha": "2026-11-04",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Coordinador-maestro de doble área (druiz): «Coordinador BL» sale de la barra superior (la coordinación ya está en el Panel Principal); en la barra solo queda «Maestros COL/BL».",
+        "Dashboard de Maestro Bilingüe: se quita «Salidas al Baño» (es solo de Colegio).",
+        "Notas Mitad de Parcial: al elegir «Mis notas · Colegio» ahora se resalta Colegio (y no Bilingüe) — el menú detecta el área por el parámetro de la URL."
+      ]
+    },
     {
       "version": "7.8.99.80",
       "fecha": "2026-11-04",

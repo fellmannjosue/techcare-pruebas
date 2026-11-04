@@ -11,13 +11,20 @@
 
   function hrefPath(h) { try { return new URL(h, location.origin).pathname; } catch (e) { return ''; } }
 
-  /* 1. Enlace activo: el href con el prefijo más largo que coincida con la ruta actual */
+  /* 1. Enlace activo: el href con el prefijo más largo que coincida con la ruta actual.
+     <--- hecho por claude code (04-nov-2026): si dos enlaces comparten path y solo cambian por el
+     query (p. ej. "Mis notas · Bilingüe/Colegio" con ?ambito=), el que COINCIDE EXACTO con
+     path+query gana, para que se resalte el área realmente abierta. */
+  var fullHere = path + location.search;
+  function hrefFull(h) { try { var u = new URL(h, location.origin); return { p: u.pathname, full: u.pathname + u.search, q: !!u.search }; } catch (e) { return { p: '', full: '', q: false }; } }
   var best = null, bestLen = 0;
   if (side) {
     Array.prototype.forEach.call(side.querySelectorAll('a.nav-link[href]'), function (a) {
       var h = a.getAttribute('href') || '';
       if (!h || h.charAt(0) === '#') return;
-      var p = hrefPath(h);
+      var hf = hrefFull(h);
+      if (hf.q && hf.full === fullHere) { best = a; bestLen = 1e9; return; }   // coincidencia exacta con query
+      var p = hf.p;
       if (!p || p === '/') return;
       if (path === p || path.indexOf(p) === 0) { if (p.length > bestLen) { best = a; bestLen = p.length; } }
     });
@@ -114,10 +121,13 @@
       topnav.appendChild(frag);
     }
 
-    /* Resaltar el enlace activo del menú superior (server-side o construido) */
+    /* Resaltar el enlace activo del menú superior (server-side o construido).
+       <--- hecho por claude code (04-nov-2026): misma lógica query-aware que el sidebar (?ambito=). */
     var bestT = null, bestTL = 0;
     Array.prototype.forEach.call(topnav.querySelectorAll('a.tc-dd-link[href], a.tc-nav-link[href]'), function (a) {
-      var p = hrefPath(a.getAttribute('href') || ''); if (!p || p === '/') return;
+      var hf = hrefFull(a.getAttribute('href') || '');
+      if (hf.q && hf.full === fullHere) { bestT = a; bestTL = 1e9; return; }
+      var p = hf.p; if (!p || p === '/') return;
       if (path === p || path.indexOf(p) === 0) { if (p.length > bestTL) { bestT = a; bestTL = p.length; } }
     });
     if (bestT) { bestT.classList.add('on'); var itA = bestT.closest('.tc-nav-item'); if (itA) itA.classList.add('activo'); }

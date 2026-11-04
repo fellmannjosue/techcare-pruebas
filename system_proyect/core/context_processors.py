@@ -62,7 +62,16 @@ def nav_context(request):
     area_maestro = request.session.get('agenda_area_maestro', 'bilingue')
 
     # Para coord-maestros: mostrar solo el nav del rol activo en sesión
-    if es_coord_maestro:
+    # <--- hecho por claude code (04-nov-2026): druiz es COORDINADOR BL + MAESTRO en AMBAS áreas,
+    # pero tenía perfil.es_coord_maestro en False, así que "Coordinador BL" se colaba en la barra.
+    # Su coordinación se ve en el "Panel Principal"; la barra superior solo debe mostrar "Maestros COL/BL".
+    # Esto va ANTES del flag es_coord_maestro para no depender de que esté bien marcado.
+    if (is_coord_bl or is_coord_col) and is_maestro_bl and is_maestro_col:
+        nav_coord_bl  = False
+        nav_coord_col = False
+        nav_mbl       = True
+        nav_mcol      = True
+    elif es_coord_maestro:
         # <--- hecho por claude code (03-nov-2026): coordinador(a) que ADEMÁS es maestro en las DOS
         # áreas (druiz) ve su coordinación + ambos roles de maestro a la vez (la barra los combina
         # en "Maestro BL/COL"); no depende del interruptor de modo.
