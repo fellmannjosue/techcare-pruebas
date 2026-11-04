@@ -1,0 +1,62 @@
+/* <--- hecho por claude code (04-nov-2026): modernizar las pestañas Períodos Escolares y
+   Maestros – Clases al estilo del Tablero (tarjetas, cabeceras limpias, degradado).
+   Solo presentación: no cambia los formularios ni el POST. Scope por #tab-periodos / #tab-maestros. */
+
+#tab-periodos > .row,
+#tab-maestros > .row { padding: 18px; row-gap: 14px; }
+
+/* separar las dos columnas sin el borde divisorio plano */
+#tab-periodos .col-lg-4,
+#tab-maestros .col-lg-4 { border-right: 0 !important; }
+@media (min-width: 992px) {
+  #tab-periodos .col-lg-4, #tab-maestros .col-lg-4 { padding-right: 9px; }
+  #tab-periodos .col-lg-8, #tab-maestros .col-lg-8 { padding-left: 9px; }
+}
+
+/* tarjeta del formulario */
+#tab-periodos .col-lg-4 > .p-4,
+#tab-maestros .col-lg-4 > .p-4 {
+  background: var(--ps-surface, #fff);
+  border: 1px solid var(--ps-border, #e6e9f0);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  padding: 20px !important;
+}
+#tab-periodos .col-lg-4 h4,
+#tab-maestros .col-lg-4 h4 { font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
+
+/* tarjeta de la lista */
+#tab-periodos .col-lg-8 > .table-responsive,
+#tab-maestros .col-lg-8 > .table-responsive {
+  background: var(--ps-surface, #fff);
+  border: 1px solid var(--ps-border, #e6e9f0);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  overflow: hidden;
+}
+#tab-periodos .col-lg-8 thead th,
+#tab-maestros .col-lg-8 thead th {
+  background: var(--ps-bg, #f6f7fb) !important;
+  font-size: .7rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ps-muted, #667382); border-bottom: 1px solid var(--ps-border, #e6e9f0);
+  padding-top: 11px; padding-bottom: 11px;
+}
+#tab-periodos .col-lg-8 tbody td,
+#tab-maestros .col-lg-8 tbody td { padding-top: 11px; padding-bottom: 11px; }
+
+/* campos redondeados */
+#tab-periodos .form-control, #tab-periodos .form-select,
+#tab-maestros .form-control, #tab-maestros .form-select { border-radius: 10px; }
+
+/* botón Guardar en degradado (reemplaza el teal plano) */
+#tab-periodos .btn-teal,
+#tab-maestros .btn-teal {
+  background: linear-gradient(100deg, #0ca678, #12b886);
+  border: 0; color: #fff; border-radius: 11px; font-weight: 600;
+  box-shadow: 0 8px 18px -10px rgba(12, 166, 120, .6);
+}
+#tab-periodos .btn-teal:hover,
+#tab-maestros .btn-teal:hover { filter: brightness(1.05); color: #fff; }
+
+/* nota informativa alineada al nuevo look */
+#tab-maestros .alert-info { border-radius: 12px; border: 1px solid color-mix(in srgb, #4263eb 20%, #fff); }

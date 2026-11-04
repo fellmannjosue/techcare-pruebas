@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=7">
 <link rel="stylesheet" href="{% static 'salidas_bano/css/index.css' %}?v=2">
 <link rel="stylesheet" href="{% static 'salidas_bano/css/kanban.css' %}?v=1">{# <--- hecho por claude code (04-nov-2026): vista Tablero #}
+<link rel="stylesheet" href="{% static 'salidas_bano/css/tabs.css' %}?v=1">{# <--- hecho por claude code (04-nov-2026): pestañas Períodos / Maestros #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
   {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
   {% if True %}
@@ -431,7 +432,7 @@
                     </form>
                     <div class="alert alert-info mt-4 small">
                       <i class="ti ti-info-circle me-1"></i>
-                      Estas asignaciones llenan el select <strong>Clase / Maestro</strong> en la tabla de salidas.
+                      Estas asignaciones llenan la <strong>clase / maestro</strong> al registrar una salida en el <strong>Tablero</strong>.
                     </div>
                   </div>
                 </div>
