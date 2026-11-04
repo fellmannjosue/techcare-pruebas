@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=7">
 <link rel="stylesheet" href="{% static 'salidas_bano/css/index.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'salidas_bano/css/kanban.css' %}?v=1">{# <--- hecho por claude code (04-nov-2026): vista Tablero #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=6">
   {# <--- hecho por claude code: tema del portal nuevo (solo si el superuser lo activó) #}
   {% if True %}
@@ -189,6 +190,14 @@
 
               {# ── Tabs de grado ─── #}
               {% if grados_display %}
+              {# <--- hecho por claude code (04-nov-2026): interruptor Tabla / Tablero (Kanban) #}
+              <div class="px-3 pt-3">
+                <div class="btn-group btn-group-sm" id="sb-view-toggle" role="group">
+                  <button type="button" class="btn btn-outline-primary active" data-view="tabla"><i class="ti ti-table me-1"></i>Tabla</button>
+                  <button type="button" class="btn btn-outline-primary" data-view="kanban"><i class="ti ti-layout-kanban me-1"></i>Tablero</button>
+                </div>
+              </div>
+              <div id="sb-view-tabla">
               <div class="nav-grados d-flex flex-wrap">
                 <ul class="nav" id="tabs-grados" role="tablist">
                   {% for g,g_label in grados_display %}
@@ -239,6 +248,19 @@
                   </div>
                 </div>
                 {% endfor %}
+              </div>
+              </div>{# /#sb-view-tabla #}
+
+              {# <--- hecho por claude code (04-nov-2026): vista Tablero (Kanban) — misma data y endpoints #}
+              <div id="sb-view-kanban" style="display:none">
+                <div class="px-3 py-2 border-bottom bg-light d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fw-semibold me-1">{{ label_grado }}:</span>
+                  <div class="btn-group btn-group-sm" id="sbk-grados" role="group"></div>
+                  <span class="ms-2 small d-flex align-items-center gap-1" id="sbk-sec-wrap">
+                    <span class="text-muted">{{ label_grupo }}:</span><span id="sbk-secciones"></span>
+                  </span>
+                </div>
+                <div id="sbk-board" class="sbk-board"></div>
               </div>
               {% elif not error %}
               <div class="alert alert-info m-3">
@@ -613,6 +635,7 @@
 {# <--- hecho por claude code (03-nov-2026): arma la barra superior Horizon desde el sidebar-fuente #}
 <script src="{% static 'js/tc_shell.js' %}?v=8"></script>
 <script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=13"></script>
+<script src="{% static 'salidas_bano/js/salidas_kanban.js' %}?v=1"></script>{# <--- hecho por claude code (04-nov-2026): vista Tablero (Kanban) #}
 <script src="{% static 'salidas_bano/js/salidas_alerta.js' %}?v=5"></script>
 {# <--- hecho por claude code: footer unificado #}
 {% include "_footer.html" %}
