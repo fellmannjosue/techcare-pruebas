@@ -69,23 +69,31 @@ def dashboard(request):
     dispositivos_tipo = list(Device.objects.values('tipo').annotate(n=Count('id')).order_by('-n'))
     ctx = {
         'nav_home_url': '/',
-        # <--- hecho por claude code: navegación del módulo desde el dashboard
-        'modulos': [
-            {'t': 'Panel avanzado', 'i': 'ti-chart-histogram', 'c': '#2fb344', 'url': reverse('red:panel')},
-            {'t': 'VLANs',       'i': 'ti-router',    'c': '#206bc4', 'url': reverse('red:vlan_list')},
-            {'t': 'IPs actuales', 'i': 'ti-list-numbers', 'c': '#0ca678', 'url': reverse('red:ips_actuales')},   # <--- hecho por claude code (16-sep-2026)
-            {'t': 'Ubicaciones', 'i': 'ti-building',  'c': '#f76707', 'url': reverse('red:ubicaciones')},
-            {'t': 'Dispositivos','i': 'ti-devices',   'c': '#ae3ec9', 'url': reverse('red:device_list')},
-            {'t': 'Switches',    'i': 'ti-switch-3',  'c': '#4263eb', 'url': reverse('red:switch_list')},
-            {'t': 'Racks',       'i': 'ti-server-2',  'c': '#495057', 'url': reverse('red:racks_list')},
-            {'t': 'Enlaces',     'i': 'ti-link',      'c': '#d6336c', 'url': reverse('red:link_list')},
-            {'t': 'Mapa campus', 'i': 'ti-map-2',     'c': '#12b886', 'url': reverse('red:planos_list')},
-            {'t': 'Topología',   'i': 'ti-topology-star-3', 'c': '#e8590c', 'url': reverse('red:topologia')},
-            {'t': 'Pruebas de red', 'i': 'ti-plug-connected', 'c': '#2fb344', 'url': reverse('red:pruebas')},
-            {'t': 'Migración VLAN', 'i': 'ti-arrows-exchange', 'c': '#f76707', 'url': reverse('red:migracion')},
-            {'t': 'Buscar',      'i': 'ti-search',    'c': '#4263eb', 'url': reverse('red:buscar')},
-            {'t': 'Exportar Excel', 'i': 'ti-file-spreadsheet', 'c': '#12b886', 'url': reverse('red:export_excel')},
-            {'t': 'Auditoría',   'i': 'ti-history',   'c': '#7048e8', 'url': reverse('red:auditoria')},
+        # <--- hecho por claude code (04-nov-2026): accesos del módulo AGRUPADOS para el launcher «Explorar módulos» (un solo botón)
+        'modulos_grupos': [
+            {'label': 'Inventario', 'items': [
+                {'t': 'VLANs',        'i': 'ti-router',       'c': '#206bc4', 'url': reverse('red:vlan_list')},
+                {'t': 'IPs actuales', 'i': 'ti-list-numbers', 'c': '#0ca678', 'url': reverse('red:ips_actuales')},
+                {'t': 'Dispositivos', 'i': 'ti-devices',      'c': '#ae3ec9', 'url': reverse('red:device_list')},
+                {'t': 'Switches',     'i': 'ti-switch-3',     'c': '#4263eb', 'url': reverse('red:switch_list')},
+                {'t': 'Racks',        'i': 'ti-server-2',     'c': '#495057', 'url': reverse('red:racks_list')},
+                {'t': 'Enlaces',      'i': 'ti-link',         'c': '#d6336c', 'url': reverse('red:link_list')},
+            ]},
+            {'label': 'Mapas y topología', 'items': [
+                {'t': 'Ubicaciones',  'i': 'ti-building',        'c': '#f76707', 'url': reverse('red:ubicaciones')},
+                {'t': 'Mapa campus',  'i': 'ti-map-2',          'c': '#12b886', 'url': reverse('red:planos_list')},
+                {'t': 'Topología',    'i': 'ti-topology-star-3', 'c': '#e8590c', 'url': reverse('red:topologia')},
+            ]},
+            {'label': 'Operación', 'items': [
+                {'t': 'Pruebas de red', 'i': 'ti-plug-connected', 'c': '#2fb344', 'url': reverse('red:pruebas')},
+                {'t': 'Migración VLAN', 'i': 'ti-arrows-exchange', 'c': '#f76707', 'url': reverse('red:migracion')},
+            ]},
+            {'label': 'Análisis', 'items': [
+                {'t': 'Panel avanzado',  'i': 'ti-chart-histogram',  'c': '#2fb344', 'url': reverse('red:panel')},
+                {'t': 'Buscar',          'i': 'ti-search',           'c': '#4263eb', 'url': reverse('red:buscar')},
+                {'t': 'Exportar Excel',  'i': 'ti-file-spreadsheet', 'c': '#12b886', 'url': reverse('red:export_excel')},
+                {'t': 'Auditoría',       'i': 'ti-history',          'c': '#7048e8', 'url': reverse('red:auditoria')},
+            ]},
         ],
         'total_vlans': len(vlans),
         'vlans_produccion': sum(1 for v in vlans if v.estado == 'produccion'),
