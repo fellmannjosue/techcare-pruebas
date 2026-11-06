@@ -1,6 +1,18 @@
 {
-  "version": "7.9.92",
+  "version": "7.9.96",
   "entradas": [
+    {
+      "version": "7.9.96",
+      "fecha": "2026-11-06",
+      "commit": "b9b34e0",
+      "menor": true,
+      "cambios": [
+        "Convocatoria a reforzamiento: tabla por grado con alumnos y clases reales, nota opcional, máximo 8 asignaturas, docente de grado y carta PDF",
+        "Sub-dashboard «Tutorías y Reforzamiento» y acordeón «Convocatoria» en el menú",
+        "Gestión de Desarrollo: descripción, problema actual y resultado esperado obligatorios",
+        "Pantalla de inicio con la barra superior nueva y Panel del superusuario en 4 columnas"
+      ]
+    },
     {
       "version": "7.9.92",
       "fecha": "2026-11-04",
