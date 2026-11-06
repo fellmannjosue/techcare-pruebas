@@ -10,6 +10,23 @@
   }
   function aviso(txt) { alert(txt); }   // los errores son raros (máximo 8, sesión caducada)
 
+  /* <--- hecho por claude code (06-nov-2026): el panel «Convocados» y su número se refrescan solos tras cada marca (antes había que recargar) */
+  var tPanel = null;
+  function refrescarPanel() {
+    clearTimeout(tPanel);
+    tPanel = setTimeout(function () {
+      var url = location.pathname + '?parcial=' + encodeURIComponent(RZ.parcial) + '&anio=' + encodeURIComponent(RZ.anio) + '&tab=panel';
+      fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : null; }).then(function (html) {
+        if (!html) return;
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var nuevo = doc.querySelector('[data-pane="panel"]'), viejo = document.querySelector('[data-pane="panel"]');
+        if (nuevo && viejo) viejo.innerHTML = nuevo.innerHTML;
+        var bn = doc.querySelector('#rz-tabs [data-tab="panel"] .badge'), bv = document.querySelector('#rz-tabs [data-tab="panel"] .badge');
+        if (bn && bv) bv.textContent = bn.textContent;
+      }).catch(function () {});
+    }, 350);
+  }
+
   /* pestañas */
   var tabs = document.querySelectorAll('#rz-tabs .nav-link');
   function tab(t) {
@@ -17,7 +34,7 @@
     document.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== t; });
     var h = document.getElementById('rz-f-tab'); if (h) h.value = t;
   }
-  tabs.forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); tab(a.dataset.tab); }); });
+  tabs.forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); tab(a.dataset.tab); if (a.dataset.tab === 'panel') refrescarPanel(); }); });
   tab(RZ.tab || 'grado');
 
   /* filtros: parcial y grado van a campos ocultos */
@@ -44,7 +61,7 @@
       post(RZ.marcar, { g: RZ.g, s: RZ.s, alumno_id: tr.dataset.alumno, asignatura: mk.dataset.asig, accion: on ? 'on' : 'off' }).then(function (r) {
         mk.disabled = false;
         if (!r.ok) { mk.checked = !on; aviso(r.error || 'No se pudo guardar.'); }
-        else { nota.hidden = !mk.checked; if (!mk.checked) nota.value = ''; else nota.focus(); }
+        else { nota.hidden = !mk.checked; if (!mk.checked) nota.value = ''; else nota.focus(); refrescarPanel(); }
         contar(tr);
       });
       return;
