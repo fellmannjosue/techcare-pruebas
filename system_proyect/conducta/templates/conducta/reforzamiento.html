@@ -90,7 +90,7 @@
       {% if request.GET.ok %}<div class="alert alert-success">Fechas guardadas.</div>{% endif %}
       <div class="row g-3">
         <div class="col-md-3"><label class="form-label">Fecha de la carta</label><input type="date" name="fecha_carta" class="form-control" value="{{ cfg.fecha_carta|date:'Y-m-d' }}"></div>
-        <div class="col-md-3"><label class="form-label">Inicio de exámenes</label><input type="date" name="fecha_examenes" class="form-control" value="{{ cfg.fecha_examenes|date:'Y-m-d' }}"></div>
+        <div class="col-md-3"><label class="form-label">Inicio de exámenes de recuperación</label><input type="date" name="fecha_examenes" class="form-control" value="{{ cfg.fecha_examenes|date:'Y-m-d' }}"></div>
         <div class="col-md-3"><label class="form-label">Reforzamiento desde</label><input type="date" name="refuerzo_desde" class="form-control" value="{{ cfg.refuerzo_desde|date:'Y-m-d' }}"></div>
         <div class="col-md-3"><label class="form-label">Reforzamiento hasta</label><input type="date" name="refuerzo_hasta" class="form-control" value="{{ cfg.refuerzo_hasta|date:'Y-m-d' }}"></div>
       </div>
