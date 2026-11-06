@@ -2,20 +2,20 @@
 {% load static %}
 {# <--- hecho por claude code (04-nov-2026): ficha densa estilo Access (Opción 1). Renderiza los 56 campos por nombre #}
 {# agrupados en 3 columnas; NINGÚN campo del form puede faltar o al guardar se borraría. #}
-{% block title %}{% if edit_mode %}Editar Sponsor{% else %}Nuevo Sponsor{% endif %}{% endblock %}
+{% block title %}{% if edit_mode %}Editar Sponsor{% elif buscar %}Buscar Sponsor{% else %}Nuevo Sponsor{% endif %}{% endblock %}
 {% block page_pretitle %}Sponsors{% endblock %}
 {% block page_title %}
-  {% if edit_mode %}Ficha: {{ sponsor.first_name_1|default:"" }} {{ sponsor.last_name_1|default:"" }}{% else %}Nuevo Sponsor{% endif %}
+  {% if edit_mode %}Ficha: {{ sponsor.first_name_1|default:"" }} {{ sponsor.last_name_1|default:"" }}{% elif buscar %}Buscar Sponsor{% else %}Nuevo Sponsor{% endif %}
 {% endblock %}
 
 {% block vendor_head %}
-  <link rel="stylesheet" href="{% static 'sponsors/css/ficha_densa.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'sponsors/css/ficha_densa.css' %}?v=2">
 {% endblock %}
 
 {% block page_actions %}
 <div class="col-auto ms-auto d-print-none">
-  <button type="button" class="btn btn-outline-secondary" onclick="window.print()"><i class="ti ti-printer me-1"></i>Imprimir</button>
-  <a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Volver a la lista</a>
+  {% if edit_mode %}<button type="button" class="btn btn-outline-secondary" id="btn-imprimir"><i class="ti ti-printer me-1"></i>Imprimir</button>{% endif %}
+  <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Volver al panel</a>
 </div>
 {% endblock %}
 
@@ -25,6 +25,18 @@
   <i class="ti ti-alert-triangle me-2"></i>Revisa los campos marcados: hay {{ form.errors|length }} error(es).
 </div>
 {% endif %}
+
+{# <--- hecho por claude code (06-nov-2026): buscador de la ficha como en Access (Buscar Apellido / Nombre / ID): al elegir se abre la ficha de ese sponsor #}
+<div class="spn-buscar{% if buscar %} is-foco{% endif %}" id="spn-buscar" data-url="{% url 'sponsors:buscar_ficha' %}" data-ficha="{% url 'sponsors:edit_sponsor' 0 %}" data-auto="{% if buscar %}1{% endif %}">
+  <div class="spn-buscar__t"><i class="ti ti-search"></i> Buscar</div>
+  <div class="spn-buscar__c">
+    <label class="spn-bq"><span>Apellido</span><input type="search" class="form-control form-control-sm" data-campo="last_name_1" autocomplete="off" placeholder="Escribe un apellido…"></label>
+    <label class="spn-bq"><span>Nombre</span><input type="search" class="form-control form-control-sm" data-campo="first_name_1" autocomplete="off" placeholder="Escribe un nombre…"></label>
+    <label class="spn-bq spn-bq--id"><span>ID</span><input type="search" inputmode="numeric" class="form-control form-control-sm" data-campo="id" autocomplete="off" placeholder="N°"></label>
+  </div>
+  <div class="spn-res" id="spn-res" hidden></div>
+  <a href="{% url 'sponsors:sponsor_list' %}" class="spn-buscar__lista"><i class="ti ti-list"></i> Lista completa</a>
+</div>
 
 <form method="post" id="form-sponsor" class="spn-ficha">
   {% csrf_token %}
@@ -137,22 +149,28 @@
     </div>
   </div>
 
-  {# ════ Barra de acciones ════ #}
+  {# <--- hecho por claude code (06-nov-2026): barra de botones de la ficha, como Access: siempre visible (nuevo, buscar y editar); reemplaza las tarjetas de Gestión y Catálogos del panel #}
   <div class="spn-foot">
-    <button type="submit" class="btn btn-primary">
-      <i class="ti ti-device-floppy me-1"></i>{% if edit_mode %}Guardar cambios{% else %}Agregar sponsor{% endif %}
-    </button>
-    {% if edit_mode %}
-    <a href="{% url 'sponsors:add_godfather' %}" class="btn btn-outline-secondary"><i class="ti ti-heart-handshake me-1"></i>Padrinazgo</a>
-    <a href="{% url 'sponsors:add_income' %}" class="btn btn-outline-secondary"><i class="ti ti-coin me-1"></i>Pagos</a>
-    <a href="{% url 'sponsors:add_correspondence' %}" class="btn btn-outline-secondary"><i class="ti ti-mail me-1"></i>Correspondencia</a>
-    <a href="{% url 'sponsors:add_city' %}" class="btn btn-outline-secondary"><i class="ti ti-building me-1"></i>Def. Ciudad</a>
-    <a href="{% url 'sponsors:add_directed' %}" class="btn btn-outline-secondary"><i class="ti ti-id me-1"></i>Def. Dirigido</a>
-    <a href="{% url 'sponsors:add_title' %}" class="btn btn-outline-secondary"><i class="ti ti-tag me-1"></i>Def. Título</a>
-    <button type="button" class="btn btn-outline-danger ms-auto" id="btn-eliminar"><i class="ti ti-trash me-1"></i>Eliminar</button>
-    {% else %}
-    <a href="{% url 'sponsors:sponsor_list' %}" class="btn btn-outline-secondary">Cancelar</a>
-    {% endif %}
+    <div class="spn-foot__save">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>{% if edit_mode %}Guardar cambios{% else %}Agregar sponsor{% endif %}</button>
+      {% if edit_mode %}<a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-outline-primary"><i class="ti ti-user-plus me-1"></i>Nuevo</a>{% endif %}
+    </div>
+    <div class="spn-foot__grp">
+      <span class="spn-foot__lbl">Gestión</span>
+      <a href="{% url 'sponsors:add_godfather' %}" class="spn-btn" style="--c:#ae3ec9"><i class="ti ti-users"></i>Padrinazgo</a>
+      <a href="{% url 'sponsors:add_sponsored' %}" class="spn-btn" style="--c:#2fb344"><i class="ti ti-user-heart"></i>Apadrinados</a>
+      <a href="{% url 'sponsors:add_income' %}" class="spn-btn" style="--c:#f76707"><i class="ti ti-cash"></i>Pagos</a>
+      <a href="{% url 'sponsors:add_correspondence' %}" class="spn-btn" style="--c:#1098ad"><i class="ti ti-mail"></i>Corresp.</a>
+    </div>
+    <div class="spn-foot__grp">
+      <span class="spn-foot__lbl">Catálogos</span>
+      <a href="{% url 'sponsors:add_city' %}" class="spn-btn" style="--c:#0ca678"><i class="ti ti-building-community"></i>Def. Ciudad</a>
+      <a href="{% url 'sponsors:add_country' %}" class="spn-btn" style="--c:#206bc4"><i class="ti ti-world"></i>Def. País</a>
+      <a href="{% url 'sponsors:add_directed' %}" class="spn-btn" style="--c:#4263eb"><i class="ti ti-mail-forward"></i>Def. Dirigido</a>
+      <a href="{% url 'sponsors:add_title' %}" class="spn-btn" style="--c:#f59f00"><i class="ti ti-id-badge"></i>Def. Título</a>
+      <a href="{% url 'sponsors:add_descr_godfather' %}" class="spn-btn" style="--c:#ae3ec9"><i class="ti ti-file-description"></i>Descr. Padrino</a>
+    </div>
+    {% if edit_mode %}<button type="button" class="btn btn-outline-danger spn-foot__del" id="btn-eliminar"><i class="ti ti-trash me-1"></i>Eliminar</button>{% endif %}
   </div>
 </form>
 
@@ -165,5 +183,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'sponsors/js/form_sponsor.js' %}?v=2"></script>
+<script src="{% static 'sponsors/js/form_sponsor.js' %}?v=3"></script>
 {% endblock %}

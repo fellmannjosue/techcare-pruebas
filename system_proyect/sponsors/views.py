@@ -157,7 +157,9 @@ def add_sponsor(request):
         messages.error(request, "Error al agregar el sponsor. Revisa los campos.")
     else:
         form = SponsorForm()
-    return render(request, "sponsors/form_sponsor.html", {'form': form, 'edit_mode': False})
+    # <--- hecho por claude code (06-nov-2026): «Buscar sponsor» abre la MISMA ficha (como Access) con el buscador enfocado
+    return render(request, "sponsors/form_sponsor.html",
+                  {'form': form, 'edit_mode': False, 'buscar': request.GET.get('buscar') == '1'})
 
 
 @login_required
@@ -264,6 +266,37 @@ def _sugerencias(campo, query):
     qs = (Sponsor.objects.filter(**{f'{campo}__icontains': query})
           .values_list(campo, flat=True).distinct()[:_SEARCH_LIMIT])
     return [v for v in qs if v]
+
+
+@login_required
+def buscar_ficha(request):
+    """<--- hecho por claude code (06-nov-2026): buscador de la ficha (Buscar Apellido / Nombre / ID, como Access).
+    Devuelve id + nombre completo + ciudad para abrir la ficha del sponsor elegido."""
+    campo = request.GET.get('campo', '')
+    q = (request.GET.get('q') or '').strip()
+    if not q:
+        return JsonResponse([], safe=False)
+    qs = Sponsor.objects.select_related('city', 'city__country')
+    if campo == 'id':
+        if not q.isdecimal():
+            return JsonResponse([], safe=False)
+        qs = qs.filter(id__startswith=q).order_by('id')
+    elif campo in ('last_name_1', 'first_name_1'):
+        qs = qs.filter(**{f'{campo}__icontains': q}).order_by('last_name_1', 'first_name_1')
+    else:
+        return JsonResponse([], safe=False)
+    datos = []
+    for s in qs[:15]:
+        ap = ' '.join(x for x in (s.last_name_1, s.last_name_2) if x)
+        no = ' '.join(x for x in (s.first_name_1, s.first_name_2) if x)
+        lugar = ''
+        if s.city:
+            lugar = s.city.name or ''
+            if s.city.country:
+                lugar += (' · ' if lugar else '') + (s.city.country.name or '')
+        datos.append({'id': s.id, 'nombre': (ap + (', ' if ap and no else '') + no) or '(sin nombre)',
+                      'lugar': lugar, 'off': bool(s.deactivated or s.deceased)})
+    return JsonResponse(datos, safe=False)
 
 
 @login_required

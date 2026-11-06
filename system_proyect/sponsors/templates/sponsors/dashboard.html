@@ -14,7 +14,7 @@
 </div>
 {% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'sponsors/css/dashboard.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'sponsors/css/dashboard.css' %}?v=2">{% endblock %}
 {% block content %}
 {# <--- hecho por claude code (06-nov-2026): Panel de Sponsors — «Acción destacada» (Opción B, mismo lenguaje que Enfermería): tile grande con KPIs + mosaico + catálogos compactos #}
 <div class="spb-wrap">
@@ -32,25 +32,12 @@
     </div>
     <div class="spb-hero__acts">
       <a href="{% url 'sponsors:add_sponsor' %}" class="spb-cta"><i class="ti ti-user-plus"></i> Nuevo Sponsor</a>
-      <a href="{% url 'sponsors:sponsor_list' %}" class="spb-cta spb-cta--sec"><i class="ti ti-search"></i> Buscar sponsor</a>
+      <a href="{% url 'sponsors:add_sponsor' %}?buscar=1" class="spb-cta spb-cta--sec"><i class="ti ti-search"></i> Buscar sponsor</a>
+      <a href="{% url 'sponsors:sponsor_list' %}" class="spb-link"><i class="ti ti-list"></i> Lista completa</a>
     </div>
   </div>
 
-  <div class="spb-sec"><i class="ti ti-layout-grid"></i> Gestión</div>
-  <div class="spb-grid">
-    <a href="{% url 'sponsors:add_godfather' %}" class="spb-card" style="--c:#ae3ec9"><span class="spb-card__ic"><i class="ti ti-users"></i></span><span class="spb-card__t">Padrinazgos</span><span class="spb-card__s">Godfather</span><i class="ti ti-arrow-right spb-card__go"></i></a>
-    <a href="{% url 'sponsors:add_sponsored' %}" class="spb-card" style="--c:#2fb344"><span class="spb-card__ic"><i class="ti ti-user-heart"></i></span><span class="spb-card__t">Apadrinados</span><span class="spb-card__s">Sponsored</span><i class="ti ti-arrow-right spb-card__go"></i></a>
-    <a href="{% url 'sponsors:add_income' %}" class="spb-card" style="--c:#f76707"><span class="spb-card__ic"><i class="ti ti-cash"></i></span><span class="spb-card__t">Ingresos</span><span class="spb-card__s">Donaciones</span><i class="ti ti-arrow-right spb-card__go"></i></a>
-    <a href="{% url 'sponsors:add_correspondence' %}" class="spb-card" style="--c:#1098ad"><span class="spb-card__ic"><i class="ti ti-mail"></i></span><span class="spb-card__t">Correspondencia</span><span class="spb-card__s">Envíos</span><i class="ti ti-arrow-right spb-card__go"></i></a>
-  </div>
-
-  <div class="spb-sec"><i class="ti ti-settings"></i> Catálogos</div>
-  <div class="spb-cats">
-    <a href="{% url 'sponsors:add_country' %}" class="spb-cat" style="--c:#206bc4"><i class="ti ti-world"></i>Países</a>
-    <a href="{% url 'sponsors:add_city' %}" class="spb-cat" style="--c:#0ca678"><i class="ti ti-building-community"></i>Ciudades</a>
-    <a href="{% url 'sponsors:add_title' %}" class="spb-cat" style="--c:#f59f00"><i class="ti ti-id-badge"></i>Títulos</a>
-    <a href="{% url 'sponsors:add_directed' %}" class="spb-cat" style="--c:#4263eb"><i class="ti ti-mail-forward"></i>Dirigido a</a>
-    <a href="{% url 'sponsors:add_descr_godfather' %}" class="spb-cat" style="--c:#ae3ec9"><i class="ti ti-file-description"></i>Descr. Padrino</a>
-  </div>
+  {# <--- hecho por claude code (06-nov-2026): Gestión y Catálogos pasaron a la barra de botones de la ficha (como Access) #}
+  <p class="spb-nota"><i class="ti ti-info-circle"></i> Padrinazgo, Apadrinados, Pagos, Correspondencia y los catálogos (Ciudad, País, Dirigido, Título, Descr. Padrino) están en los botones de la ficha del sponsor.</p>
 </div>
 {% endblock %}

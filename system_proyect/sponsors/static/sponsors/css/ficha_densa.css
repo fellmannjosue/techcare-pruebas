@@ -33,3 +33,38 @@
   .spn-ficha .fld,.spn-ficha .fld.col3{grid-template-columns:1fr}
   .spn-ficha .fld>label{text-align:left}
 }
+
+/* <--- hecho por claude code (06-nov-2026): buscador de la ficha (como Access) */
+.spn-buscar{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;border:1px solid var(--tblr-border-color,#e6e9f0);
+  border-radius:12px;background:var(--tblr-card-bg,#fff);box-shadow:0 1px 2px rgba(20,30,60,.04);padding:10px 14px;margin-bottom:14px}
+.spn-buscar.is-foco{border-color:#d6336c;box-shadow:0 0 0 3px color-mix(in srgb,#d6336c 14%,transparent)}
+.spn-buscar__t{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tblr-secondary,#6b7689);display:flex;align-items:center;gap:6px}
+.spn-buscar__t i{color:#d6336c;font-size:15px}
+.spn-buscar__c{display:flex;flex-wrap:wrap;gap:8px 14px;flex:1 1 420px}
+.spn-bq{display:flex;align-items:center;gap:8px;margin:0;flex:1 1 180px}
+.spn-bq--id{flex:0 1 130px}
+.spn-bq span{font-size:12px;font-weight:600;color:var(--tblr-secondary,#6b7689);white-space:nowrap}
+.spn-bq .form-control{font-size:13px}
+.spn-buscar__lista{font-size:12.5px;font-weight:600;color:var(--tblr-secondary,#6b7689);text-decoration:none;display:flex;align-items:center;gap:5px}
+.spn-buscar__lista:hover{color:#d6336c;text-decoration:none}
+.spn-res{position:absolute;left:14px;right:14px;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;border:1px solid var(--tblr-border-color,#e6e9f0);
+  border-radius:10px;background:var(--tblr-card-bg,#fff);box-shadow:0 12px 30px rgba(20,30,60,.16)}
+.spn-res a{display:flex;align-items:center;gap:10px;padding:8px 12px;color:var(--tblr-body-color,#172033);text-decoration:none;border-bottom:1px solid var(--tblr-border-color,#f0f2f6)}
+.spn-res a:last-child{border-bottom:0}
+.spn-res a:hover,.spn-res a.is-sel{background:color-mix(in srgb,#d6336c 8%,transparent);text-decoration:none}
+.spn-res .id{font-family:var(--tblr-font-monospace,monospace);font-size:12px;color:var(--tblr-secondary,#6b7689);min-width:44px}
+.spn-res .n{font-weight:600;font-size:13px;flex:1;min-width:0}
+.spn-res .l{font-size:12px;color:var(--tblr-secondary,#6b7689)}
+.spn-res .off{font-size:10.5px;font-weight:700;color:#d63939;text-transform:uppercase}
+.spn-res .vacio{padding:10px 12px;font-size:13px;color:var(--tblr-secondary,#6b7689)}
+
+/* barra de botones (como la fila de botones de Access) */
+.spn-foot{gap:10px 18px}
+.spn-foot__save,.spn-foot__grp{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.spn-foot__lbl{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tblr-secondary,#6b7689);margin-right:2px}
+.spn-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:8px;font-size:12.5px;font-weight:600;
+  border:1px solid var(--tblr-border-color,#e6e9f0);background:var(--tblr-card-bg,#fff);color:var(--tblr-body-color,#172033);text-decoration:none}
+.spn-btn i{color:var(--c);font-size:15px}
+.spn-btn:hover{border-color:var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);color:var(--tblr-body-color,#172033);text-decoration:none}
+.spn-foot__del{margin-left:auto}
+@media print{.spn-buscar,.spn-foot{display:none!important}}

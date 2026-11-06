@@ -24,6 +24,7 @@ urlpatterns = [
     path('add-income/', views.add_income, name='add_income'),
     path('add-sponsored/', views.add_sponsored, name='add_sponsored'),
 
+    path('buscar-ficha/', views.buscar_ficha, name='buscar_ficha'),   # <--- hecho por claude code (06-nov-2026)
     path('search-name/', views.search_name, name='search_name'),
     path('search-lastname/', views.search_lastname, name='search_lastname'),
     path('search-id/', views.search_id, name='search_id'),

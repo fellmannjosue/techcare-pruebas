@@ -37,3 +37,7 @@
 .spb-cat:hover{text-decoration:none;color:var(--ps-text,#1a2233);border-color:color-mix(in srgb,var(--c) 50%,var(--ps-border,#e6e9f0));background:color-mix(in srgb,var(--c) 6%,var(--ps-surface,#fff))}
 @media (max-width:991px){.spb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spb-hero{flex-wrap:wrap}.spb-hero__acts{flex-direction:row;width:100%}.spb-cta{flex:1}}
 @media (max-width:575px){.spb-grid{grid-template-columns:1fr}.spb-hero{padding:20px}.spb-hero__ic{width:58px;height:58px;font-size:1.9rem}}
+/* <--- hecho por claude code (06-nov-2026): enlace a la lista y nota (Gestión/Catálogos ahora en la ficha) */
+.spb-link{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600;color:var(--ps-muted,#6b7689);text-decoration:none;justify-content:center}
+.spb-link:hover{color:#d6336c;text-decoration:none}
+.spb-nota{margin:0;display:flex;align-items:center;gap:8px;font-size:.86rem;color:var(--ps-muted,#6b7689)}
