@@ -97,9 +97,10 @@
       {% endif %}
       {% if request.user.is_superuser %}
       <details class="cfg-acc" style="--c:#495057">
-        <summary><span class="cfg-gi"><i class="ti ti-tool"></i></span>Sistema<span class="cfg-n">3</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <summary><span class="cfg-gi"><i class="ti ti-tool"></i></span>Sistema<span class="cfg-n">4</span><i class="ti ti-chevron-down cfg-car"></i></summary>
         <div class="cfg-in">
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_codigo' or active_tab == 'codigo' %} active{% endif %}" href="{% url 'settings_codigo' %}" style="--c:#495057"><i class="ti ti-code"></i>Código del sistema</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_entorno' %} active{% endif %}" href="{% url 'settings_entorno' %}" style="--c:#495057"><i class="ti ti-variable"></i>Variables del sistema</a>
           <a class="cfg-link{% if request.resolver_match.url_name == 'mantenimiento_modo' %} active{% endif %}" href="{% url 'mantenimiento_modo' %}" style="--c:#495057"><i class="ti ti-tool"></i>Modo Mantenimiento</a>
           <a class="cfg-link" href="{% url 'admin:index' %}" target="_blank" rel="noopener" style="--c:#495057"><i class="ti ti-layout-dashboard"></i>Ventana Admin <i class="ti ti-external-link ms-auto cfg-ext"></i></a>
         </div>

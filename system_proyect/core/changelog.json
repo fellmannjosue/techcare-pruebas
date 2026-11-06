@@ -8,7 +8,8 @@
       "menor": true,
       "cambios": [
         "Configuración: menú en acordeón con todos los accesos (Mi cuenta, Usuarios y acceso, Permisos, Auditoría, Correos, Conducta, Sistema) y buscador",
-        "Seguridad, Desbloqueos, Permisos Reloj/Coordinadores, Auditoría, Actividad, Correos y Modo Mantenimiento ahora se abren dentro de Configuración"
+        "Seguridad, Desbloqueos, Permisos Reloj/Coordinadores, Auditoría, Actividad, Correos y Modo Mantenimiento ahora se abren dentro de Configuración",
+        "Configuración → Variables del sistema (.env), solo superusuario: valores ocultos que se ven o se cambian confirmando la contraseña; editar, agregar, deshabilitar y habilitar con respaldo; «Probar conexión»; marca las que no usa el código; bitácora sin valores"
       ]
     },
     {

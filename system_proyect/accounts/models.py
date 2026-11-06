@@ -174,3 +174,25 @@ class Suplantacion(models.Model):
 
     def __str__(self):
         return f'{self.super_username} → {self.username} ({self.inicio:%d/%m/%Y %H:%M})'
+
+
+class BitacoraEntorno(models.Model):
+    """<--- hecho por claude code (06-nov-2026): bitácora de Configuración → Variables del sistema. NUNCA guarda valores."""
+    ACCIONES = [('desbloqueo', 'Desbloqueó con su contraseña'), ('fallo', 'Contraseña incorrecta'),
+                ('ver', 'Vio un valor'), ('editar', 'Editó'), ('agregar', 'Agregó'),
+                ('deshabilitar', 'Deshabilitó'), ('habilitar', 'Habilitó'), ('probar', 'Probó conexión')]
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='+')
+    accion = models.CharField(max_length=15, choices=ACCIONES)
+    variable = models.CharField(max_length=64, blank=True)
+    resultado = models.CharField(max_length=200, blank=True)
+    ip = models.CharField(max_length=45, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_bitacora_entorno'
+        ordering = ['-fecha']
+        verbose_name = 'Bitácora de variables del sistema'
+        verbose_name_plural = 'Bitácora de variables del sistema'
+
+    def __str__(self):
+        return f'{self.fecha:%Y-%m-%d %H:%M} {self.usuario} {self.accion} {self.variable}'

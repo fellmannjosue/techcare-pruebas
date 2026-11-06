@@ -1,0 +1,34 @@
+/* <--- hecho por claude code (06-nov-2026): Configuración → Variables del sistema */
+.env-head-top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between}
+.env-tit{font-size:1.15rem;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.env-sub{margin:0;color:var(--tblr-secondary,#6b7689);max-width:62ch;font-size:.88rem}
+.env-lock{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:999px;background:var(--tblr-bg-surface-secondary,#f1f3f8);font-weight:600;font-size:.85rem}
+.env-lock.is-open{background:color-mix(in srgb,#2fb344 14%,transparent);color:#2b8a3e}
+.env-lock.is-open .env-lock-estado{padding-right:8px}
+.env-kpis{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:.85rem;color:var(--tblr-secondary,#6b7689)}
+.env-kpis b{color:var(--tblr-body-color,#1a2233);font-variant-numeric:tabular-nums}
+.env-kpis .k-sec b{color:#d63939}.env-kpis .k-off b{color:#868e96}.env-kpis .k-sin b{color:#ae3ec9}.env-kpis .k-pend b{color:#2563eb}
+.env-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.env-q{display:flex;align-items:center;gap:8px;border:1.5px solid var(--tblr-border-color,#e4e8f1);background:var(--tblr-bg-surface,#fff);border-radius:10px;padding:6px 10px;min-width:220px;flex:1 1 220px;max-width:340px;color:var(--tblr-secondary,#6b7689)}
+.env-q input{border:0;background:none;outline:0;width:100%;color:var(--tblr-body-color,#1a2233)}
+.env-filtros{display:flex;flex-wrap:wrap;gap:4px}
+.env-filtros button{border:1px solid var(--tblr-border-color,#e4e8f1);background:var(--tblr-bg-surface,#fff);color:var(--tblr-body-color,#1a2233);border-radius:999px;padding:4px 12px;font-size:.8rem}
+.env-filtros button.on{background:var(--tblr-dark,#1a2233);color:#fff;border-color:transparent}
+.env-gh{display:flex;align-items:center;gap:10px}
+.env-gi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);font-size:1.05rem}
+.env-gn{font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--tblr-bg-surface-secondary,#f1f3f8);color:var(--tblr-secondary,#6b7689)}
+.env-res{padding:8px 16px;border-bottom:1px solid var(--tblr-border-color,#e4e8f1);color:var(--tblr-secondary,#6b7689)}
+.env-res.ok{color:#2b8a3e;background:color-mix(in srgb,#2fb344 8%,transparent)}
+.env-res.mal{color:#c92a2a;background:color-mix(in srgb,#d63939 8%,transparent)}
+.env-fila{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:12px;align-items:center}
+.env-fila.is-off .env-nom code{text-decoration:line-through;opacity:.6}
+.env-nom{min-width:0}
+.env-nom code{font-size:.84rem;font-weight:600;color:var(--c);background:none;padding:0;word-break:break-all}
+.env-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.env-badges .badge{font-size:.68rem;font-weight:600}
+.env-ayuda{font-size:.78rem;color:var(--tblr-secondary,#6b7689);margin-top:3px}
+.env-val{min-width:0}
+.env-mask{font-family:var(--tblr-font-monospace,monospace);font-size:.82rem;color:var(--tblr-secondary,#98a2b3);letter-spacing:.1em;word-break:break-all}
+.env-mask.is-visto{letter-spacing:0;color:var(--tblr-body-color,#1a2233);background:color-mix(in srgb,#f59f00 12%,transparent);padding:2px 6px;border-radius:6px;user-select:all}
+.env-acc{display:flex;gap:2px;justify-content:flex-end;white-space:nowrap}
+@media (max-width:767.98px){.env-fila{grid-template-columns:1fr;gap:6px}.env-acc{justify-content:flex-start}}

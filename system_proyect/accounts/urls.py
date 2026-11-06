@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, suplantar
+from . import views, suplantar, views_entorno
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -45,6 +45,12 @@ urlpatterns = [
     path('settings/usuarios/asignar-grupos/',          views.settings_usuarios_asignar_grupos, name='settings_usuarios_asignar_grupos'),
     path('settings/actividad/',                        views.settings_actividad,        name='settings_actividad'),
     path('settings/logs/',                             views.settings_logs,             name='settings_logs'),
+    # <--- hecho por claude code (06-nov-2026): Configuración → Variables del sistema (.env), solo superusuario
+    path('settings/variables/',                        views_entorno.settings_entorno,     name='settings_entorno'),
+    path('settings/variables/desbloquear/',            views_entorno.entorno_desbloquear,  name='entorno_desbloquear'),
+    path('settings/variables/ver/',                    views_entorno.entorno_ver,          name='entorno_ver'),
+    path('settings/variables/guardar/',                views_entorno.entorno_guardar,      name='entorno_guardar'),
+    path('settings/variables/probar/',                 views_entorno.entorno_probar,       name='entorno_probar'),
     path('settings/codigo/',                           views.settings_codigo,           name='settings_codigo'),   # <--- hecho por claude code (16-oct-2026)
     path('settings/logs/api/',                         views.settings_logs_api,         name='settings_logs_api'),
     path('settings/auditoria/',                        views.settings_auditoria,        name='settings_auditoria'),
