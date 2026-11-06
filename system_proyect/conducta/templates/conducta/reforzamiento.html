@@ -16,20 +16,21 @@
 
 <form method="get" class="card card-body mb-3 rz-filtros">
   <div class="row g-2 align-items-end">
-    <div class="col-sm-4"><label class="form-label">Parcial</label>
+    <div class="col-sm-5"><label class="form-label">Parcial</label>
       <select name="pa" class="form-select" id="rz-periodo">
         {% for p in periodos %}<option value="{{ p.parcial }}|{{ p.anio }}" {% if p.parcial == parcial and p.anio == anio %}selected{% endif %}>Parcial {{ p.parcial }} · {{ p.anio }}</option>{% endfor %}
         {% if not periodos %}<option value="{{ parcial }}|{{ anio }}" selected>Parcial {{ parcial }} · {{ anio }}</option>{% endif %}
       </select></div>
-    <div class="col-sm-5"><label class="form-label">Grado y sección</label>
+    <div class="col-sm-7"><label class="form-label">Grado y sección</label>
       <select class="form-select" id="rz-grado">
         <option value="">— Elegir grado —</option>
         {% for x in grados %}<option value="{{ x.g }}|{{ x.s }}" {% if x.g == sel_g and x.s == sel_s %}selected{% endif %}>{{ x.label }} ({{ x.n }} alumnos)</option>{% endfor %}
       </select></div>
     <input type="hidden" name="parcial" id="rz-f-parcial" value="{{ parcial }}"><input type="hidden" name="anio" id="rz-f-anio" value="{{ anio }}">
     <input type="hidden" name="g" id="rz-f-g" value="{{ sel_g|default:'' }}"><input type="hidden" name="s" id="rz-f-s" value="{{ sel_s }}"><input type="hidden" name="tab" id="rz-f-tab" value="{{ tab }}">
-    <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit"><i class="ti ti-search me-1"></i>Ver</button></div>
   </div>
+  {# <--- hecho por claude code (06-nov-2026): sin botón «Ver» (confundía): al elegir parcial o grado la tabla se carga sola y las marcas se guardan solas #}
+  <div class="small text-secondary mt-2"><i class="ti ti-device-floppy me-1"></i>Al elegir el grado se carga la tabla. Cada casilla y cada nota se guardan solas al momento: no hay que pulsar «Guardar».</div>
 </form>
 
 <ul class="nav nav-tabs mb-3" id="rz-tabs">
