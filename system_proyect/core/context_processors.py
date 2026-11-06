@@ -227,8 +227,12 @@ def nav_context(request):
                       'cfp': 'ti-briefcase', 'admin': 'ti-report-money', 'mantenimiento': 'ti-engine'}
             _order = ['soporte', 'academico', 'notas', 'cfp', 'admin', 'mantenimiento']
             buckets = {k: [] for k in _order}
+            sub_conv = []   # <--- hecho por claude code (06-nov-2026): acordeón "Convocatoria" = grupo Tutorías y Reforzamiento
             for g in _grupos_super_con_hrefs():
                 if g['key'] in _PANEL_KEYS_SOLO_SIDEBAR:
+                    continue
+                if g['key'] == 'tutorias_refuerzo':
+                    sub_conv.extend(g.get('cards', []))
                     continue
                 cat = _PANEL_CAT.get(g['key'], 'admin')
                 if cat in buckets:
@@ -249,6 +253,8 @@ def nav_context(request):
                     sub_sal = [a for a in acc if _es_sal(a)]
                     directos = [a for a in acc if a['t'] not in _ACAD_CONFIG and a['t'] not in _ACAD_UPLOAD and not _es_sal(a)]
                     subs = []
+                    if sub_conv:
+                        subs.append({'label': 'Convocatoria', 'icon': 'ti-school', 'accesos': sub_conv})
                     if sub_cfg:
                         subs.append({'label': 'Configuración Académica', 'icon': 'ti-settings', 'accesos': sub_cfg})
                     if sub_upl:
