@@ -1121,7 +1121,7 @@ GRUPOS_SUPER = [
     {'key': 'sponsors', 'titulo': 'Sponsors', 'icon': 'ti-heart-handshake', 'color': '#FF00FF',
      'desc': 'Gestión de patrocinadores',
      'cards': [
-        {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:sponsors_dashboard'},
+        {'t': 'Sponsors', 's': 'Gestión de patrocinadores', 'i': 'ti-heart-handshake', 'c': '#d6336c', 'url': 'sponsors:ficha'},
      ]},
     # <--- hecho por claude code: Calculadoras en su propio grupo (antes iba con Reloj)
     {'key': 'calculadoras', 'titulo': 'Calculadoras', 'icon': 'ti-calculator', 'color': '#000080',

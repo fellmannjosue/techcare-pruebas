@@ -5,6 +5,8 @@ from accounts.views import menu_view  # Importa correctamente la vista de `accou
 app_name = "sponsors"
 
 urlpatterns = [
+    # <--- hecho por claude code (06-nov-2026): la ENTRADA de Sponsors es la ficha estilo Access (sin panel). /dashboard/ queda solo como redirección para enlaces viejos
+    path('', views.add_sponsor, name='ficha'),
     path('dashboard/', views.sponsors_dashboard, name='sponsors_dashboard'),
     path('add/', views.add_sponsor, name='add_sponsor'),
     path('get-sponsor-data/', views.get_sponsor_data, name='get_sponsor_data'),

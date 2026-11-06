@@ -12,10 +12,12 @@
   <link rel="stylesheet" href="{% static 'sponsors/css/ficha_densa.css' %}?v=2">
 {% endblock %}
 
+{# <--- hecho por claude code (06-nov-2026): la ficha ES la entrada del módulo → el botón de regreso va al inicio del sistema #}
+{% block back_button %}<a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Volver al inicio</a>{% endblock %}
+
 {% block page_actions %}
 <div class="col-auto ms-auto d-print-none">
   {% if edit_mode %}<button type="button" class="btn btn-outline-secondary" id="btn-imprimir"><i class="ti ti-printer me-1"></i>Imprimir</button>{% endif %}
-  <a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Volver al panel</a>
 </div>
 {% endblock %}
 

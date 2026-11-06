@@ -425,19 +425,17 @@
     </a>
     <ul class="navbar-nav collapse ps-4" id="navSponsors">
       <li class="nav-item">
-        <a class="nav-link collapsed" href="{% url 'sponsors:sponsors_dashboard' %}" data-bs-toggle="collapse" data-bs-target="#navSponsorsModulos">
-          <span class="nav-link-icon"><i class="ti ti-layout-dashboard"></i></span>
-          <span class="nav-link-title">Dashboard</span>
-          <span class="nav-link-arrow"></span>
+        {# <--- hecho por claude code (06-nov-2026): sin panel; la entrada es la ficha (buscar / registrar) #}
+        <a class="nav-link" href="{% url 'sponsors:ficha' %}">
+          <span class="nav-link-icon"><i class="ti ti-id"></i></span>
+          <span class="nav-link-title">Ficha de Sponsors</span>
         </a>
-        <ul class="navbar-nav collapse ps-3" id="navSponsorsModulos">
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'sponsors:sponsor_list' %}">
-              <span class="nav-link-icon"><i class="ti ti-list"></i></span>
-              <span class="nav-link-title">Lista de Sponsors</span>
-            </a>
-          </li>
-        </ul>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'sponsors:sponsor_list' %}">
+          <span class="nav-link-icon"><i class="ti ti-list"></i></span>
+          <span class="nav-link-title">Lista de Sponsors</span>
+        </a>
       </li>
     </ul>
   </li>

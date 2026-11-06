@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.urls import reverse
 from django.contrib import messages
 # <--- hecho por claude code: el módulo manejaba datos de donantes SIN autenticación
 from django.contrib.auth.decorators import login_required
@@ -20,14 +21,9 @@ _PER_PAGE = 50
 
 @login_required
 def sponsors_dashboard(request):
-    """Panel principal del módulo con accesos y conteos."""
-    stats = {
-        'sponsors':   Sponsor.objects.count(),
-        'godfathers': Godfather.objects.count(),
-        'sponsored':  Sponsored.objects.count(),
-        'incomes':    Income.objects.count(),
-    }
-    return render(request, 'sponsors/dashboard.html', {'stats': stats})
+    """<--- hecho por claude code (06-nov-2026): ya NO hay panel (pedido del usuario: «un solo diseño»). La entrada a
+    Sponsors es directamente la ficha estilo Access en modo búsqueda; se conserva la URL para todos los enlaces."""
+    return redirect('sponsors:ficha')
 
 
 # ══════════════════════ Catálogos simples ══════════════════════
@@ -151,15 +147,16 @@ def add_sponsor(request):
         form = SponsorForm(request.POST)
         if form.is_valid():
             # 'city' ahora viene en el form; antes se excluía y quedaba NULL → IntegrityError
-            form.save()
+            nuevo = form.save()   # <--- hecho por claude code (06-nov-2026): se queda en la ficha (como Access), ya no salta a la lista
             messages.success(request, "Sponsor agregado correctamente.")
-            return redirect("sponsors:sponsor_list")
+            return redirect("sponsors:edit_sponsor", sponsor_id=nuevo.id)
         messages.error(request, "Error al agregar el sponsor. Revisa los campos.")
     else:
         form = SponsorForm()
     # <--- hecho por claude code (06-nov-2026): «Buscar sponsor» abre la MISMA ficha (como Access) con el buscador enfocado
     return render(request, "sponsors/form_sponsor.html",
-                  {'form': form, 'edit_mode': False, 'buscar': request.GET.get('buscar') == '1'})
+                  {'form': form, 'edit_mode': False,
+                   'buscar': request.GET.get('buscar') == '1' or request.resolver_match.url_name == 'ficha'})
 
 
 @login_required
@@ -170,7 +167,7 @@ def edit_sponsor(request, sponsor_id):
         if form.is_valid():
             form.save()
             messages.success(request, "Sponsor actualizado correctamente.")
-            return redirect("sponsors:sponsor_list")
+            return redirect("sponsors:edit_sponsor", sponsor_id=sponsor.id)
         messages.error(request, "Error al actualizar el sponsor.")
     else:
         form = SponsorForm(instance=sponsor)

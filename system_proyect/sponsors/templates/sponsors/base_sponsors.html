@@ -11,15 +11,15 @@
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb breadcrumb-muted mb-1">
-    <li class="breadcrumb-item"><a href="{% url 'sponsors:sponsors_dashboard' %}"><i class="ti ti-heart-handshake me-1"></i>Sponsors</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'sponsors:ficha' %}"><i class="ti ti-heart-handshake me-1"></i>Sponsors</a></li>
     <li class="breadcrumb-item active">{% block page_pretitle %}{% endblock %}</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block back_button %}
-<a href="{% url 'sponsors:sponsors_dashboard' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
-  <i class="ti ti-arrow-left"></i> Volver al panel
+<a href="{% url 'sponsors:ficha' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+  <i class="ti ti-arrow-left"></i> Volver a la ficha
 </a>
 {% endblock %}
 
