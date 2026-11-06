@@ -1,6 +1,15 @@
 {
-  "version": "7.9.96",
+  "version": "7.9.97",
   "entradas": [
+    {
+      "version": "7.9.97",
+      "fecha": "2026-11-06",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Control y Servicio Técnico: la ventana «Registrar» con el diseño C (selector a la izquierda y panel en vivo a la derecha); abre el formulario ya preseleccionado"
+      ]
+    },
     {
       "version": "7.9.96",
       "fecha": "2026-11-06",

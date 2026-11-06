@@ -4,7 +4,7 @@
 {% block title %}Control y Servicio Técnico{% endblock %}
 {% block page_pretitle %}Soporte y TI{% endblock %}
 {% block page_title %}Control y Servicio Técnico{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=6">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=6"><link rel="stylesheet" href="{% static 'servicio_tecnico/css/registrar_c.css' %}?v=1">{% endblock %}
 {# <--- hecho por claude code (22-oct-2026): el "Registrar" se movió al hero (reemplaza los dos accesos) #}
 {% block page_actions %}{% endblock %}
 {% block content %}
@@ -129,45 +129,82 @@
 
 {# <--- hecho por claude code (04-nov-2026): launcher "Registrar" = conmutador segmentado (Opción A). #}
 {# Una sola pantalla; cada panel reusa los accesos a los formularios de alta que YA existen (reg_inv/reg_mant/reg_control). #}
+{# <--- hecho por claude code (06-nov-2026): «Registrar» = Opción C «Panel maestro-detalle» (selector a la izquierda, panel en vivo a la derecha). El botón abre el formulario REAL ya preseleccionado (no se duplican formularios) #}
 <div class="modal modal-blur fade" id="modalRegistrar" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="ti ti-plus me-2 text-primary"></i>¿Qué quieres registrar?</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-
-        {# Conmutador #}
-        <div class="reg-seg" id="regSeg">
-          {% if ver_inv %}<button type="button" class="on" data-seg="inv"><i class="ti ti-package"></i>Inventario</button>{% endif %}
-          {% if ver_mant %}<button type="button"{% if not ver_inv %} class="on"{% endif %} data-seg="mant"><i class="ti ti-tool"></i>Mantenimiento</button>{% endif %}
-          {% if ver_mant %}<button type="button" data-seg="ctl"><i class="ti ti-clipboard-check"></i>Control de equipo</button>{% endif %}
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content rgc">
+      <div class="rgc-hero">
+        <div class="rgc-crumb"><i class="ti ti-clipboard-check"></i> Inicio · Soporte y TI</div>
+        <h2>Registrar</h2>
+        <button type="button" class="btn-close btn-close-white rgc-x" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="rgc-shell">
+        <div class="rgc-side" id="rgcSide">
+          <div class="rgc-lbl">¿Qué vas a registrar?</div>
+          {% if ver_inv %}<button type="button" class="rgc-optn rgc-inv on" data-k="inv"><span class="rgc-ico"><i class="ti ti-package"></i></span><span><b>Inventario</b><small>Activos del centro</small></span><i class="ti ti-check rgc-chk"></i></button>{% endif %}
+          {% if ver_mant %}<button type="button" class="rgc-optn rgc-man{% if not ver_inv %} on{% endif %}" data-k="man"><span class="rgc-ico"><i class="ti ti-tool"></i></span><span><b>Mantenimiento</b><small>Reparaciones y fichas</small></span><i class="ti ti-check rgc-chk"></i></button>
+          <button type="button" class="rgc-optn rgc-ctl" data-k="ctl"><span class="rgc-ico"><i class="ti ti-clipboard-check"></i></span><span><b>Control de equipo</b><small>Evaluación del maestro</small></span><i class="ti ti-check rgc-chk"></i></button>{% endif %}
         </div>
 
-        {# Paneles — cada uno enlaza al formulario de alta real #}
-        {% if ver_inv %}
-        <div class="reg-pane on" data-pane="inv">
-          <p class="reg-pane__note"><i class="ti ti-package me-1"></i>Alta de un activo en el inventario.</p>
-          <div class="reg-opts">
-            {% for o in reg_inv %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
+        <div class="rgc-main">
+          <div class="rgc-head">
+            <span class="rgc-tag" id="rgcTag"><i class="ti ti-package"></i></span>
+            <div><h3 id="rgcTitle">Inventario</h3><p id="rgcSub">Alta de un activo con su foto e historial</p></div>
+          </div>
+          <div class="rgc-body">
+            {% if ver_inv %}
+            <div class="rgc-pane on" data-pane="inv">
+              <div class="rgc-sec">Tipo de activo</div>
+              <div class="rgc-chips" data-grupo="inv">
+                {% for o in reg_inv %}<button type="button" class="rgc-chip{% if forloop.first %} on{% endif %}" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endfor %}
+              </div>
+              <div class="rgc-sec mt">Lo que vas a llenar</div>
+              <div class="rgc-prev">
+                <div class="rgc-f"><span>Asset ID</span><em>IDANA-0000</em></div><div class="rgc-f"><span>Estado</span><em>Bueno · Regular · Malo</em></div>
+                <div class="rgc-f"><span>Modelo</span><em>Ej. Dell OptiPlex 3080</em></div><div class="rgc-f"><span>Serie</span><em>SN-…</em></div>
+                <div class="rgc-f"><span>Asignado a</span><em>Responsable</em></div><div class="rgc-f"><span>Área</span><em>Administración · Bilingüe · Colegio · Vocacional</em></div>
+                <div class="rgc-f full rgc-drop"><i class="ti ti-photo"></i> Foto del equipo</div>
+              </div>
+            </div>
+            {% endif %}
+            {% if ver_mant %}
+            <div class="rgc-pane{% if not ver_inv %} on{% endif %}" data-pane="man">
+              <div class="rgc-sec">Tipo de equipo</div>
+              <div class="rgc-chips" data-grupo="man">
+                {% for o in reg_mant %}<button type="button" class="rgc-chip g-man{% if forloop.first %} on{% endif %}" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endfor %}
+              </div>
+              <div class="rgc-sec mt">Lo que vas a llenar</div>
+              <div class="rgc-prev">
+                <div class="rgc-f"><span>Equipo (Asset ID)</span><em>Se elige del inventario</em></div><div class="rgc-f"><span>Tipo de falla</span><em>Falla reportada</em></div>
+                <div class="rgc-f full"><span>Solución aplicada</span><em>Qué se hizo</em></div>
+                <div class="rgc-f full"><span>Observaciones</span><em>Notas del técnico</em></div>
+                <div class="rgc-f full rgc-drop"><i class="ti ti-signature"></i> Fotos y ficha firmada (al publicarla pasa a «Completado»)</div>
+              </div>
+            </div>
+            <div class="rgc-pane" data-pane="ctl">
+              <div class="rgc-sec">Acción</div>
+              <div class="rgc-chips" data-grupo="ctl-accion">
+                {% for o in reg_control %}{% if forloop.counter <= 4 %}<button type="button" class="rgc-chip g-ctl{% if forloop.first %} on{% endif %}" data-url="{{ o.url }}" data-t="{{ o.t }}" data-accion="{% if forloop.first %}control{% endif %}"><i class="ti {{ o.i }}"></i>{% if forloop.first %}Control{% else %}{{ o.t }}{% endif %}</button>{% endif %}{% endfor %}
+              </div>
+              <div class="rgc-sec mt">Variante <small>(solo con «Control»; opcional)</small></div>
+              <div class="rgc-chips" data-grupo="ctl-variante">
+                {% for o in reg_control %}{% if forloop.counter > 4 %}<button type="button" class="rgc-chip g-ctl" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endif %}{% endfor %}
+              </div>
+              <div class="rgc-sec mt">Lo que vas a llenar</div>
+              <div class="rgc-prev">
+                <div class="rgc-f"><span>Computadora</span><em>Asset ID del maestro (del inventario)</em></div><div class="rgc-f"><span>Estado del equipo</span><em>Bueno · Regular · Malo</em></div>
+                <div class="rgc-f full rgc-q"><span>Evaluación</span><em>¿Enciende correctamente? · ¿Antivirus actualizado? · ¿Accesorios completos? — Sí / No</em></div>
+                <div class="rgc-f full rgc-drop"><i class="ti ti-signature"></i> Firmas: técnico, auditora y maestro</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+          <div class="rgc-foot">
+            <span class="rgc-hint" id="rgcHint"></span>
+            <button type="button" class="btn rgc-btn" data-bs-dismiss="modal">Cancelar</button>
+            <a href="#" class="btn rgc-btn rgc-primary" id="rgcGo"><i class="ti ti-arrow-right"></i>Continuar al formulario</a>
           </div>
         </div>
-        {% endif %}
-
-        {% if ver_mant %}
-        <div class="reg-pane{% if not ver_inv %} on{% endif %}" data-pane="mant">
-          <p class="reg-pane__note"><i class="ti ti-tool me-1"></i>Ficha de mantenimiento por tipo de equipo.</p>
-          <div class="reg-opts">
-            {% for o in reg_mant %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
-          </div>
-        </div>
-
-        <div class="reg-pane" data-pane="ctl">
-          <p class="reg-pane__note"><i class="ti ti-link me-1"></i>Evaluación del equipo del maestro y sus variantes. Se vincula con el inventario (eliges la computadora).</p>
-          <div class="reg-opts">
-            {% for o in reg_control %}<a href="{{ o.url }}" class="reg-opt" style="--rc:{{ o.c }}"><span class="reg-opt__ic"><i class="ti {{ o.i }}"></i></span><span class="reg-opt__t">{{ o.t }}</span></a>{% endfor %}
-          </div>
-        </div>
-        {% endif %}
-
       </div>
     </div>
   </div>
@@ -175,5 +212,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=2"></script>
+<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=3"></script>
 {% endblock %}
