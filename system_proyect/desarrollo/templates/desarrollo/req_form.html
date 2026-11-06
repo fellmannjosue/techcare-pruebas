@@ -67,9 +67,9 @@
       <div class="row g-3">
         <div class="col-md-8"><label class="form-label">Título <span class="text-danger">*</span></label>{{ form.titulo }}</div>
         <div class="col-md-4"><label class="form-label">Tipo</label>{{ form.tipo }}</div>
-        <div class="col-12"><label class="form-label">Descripción</label>{{ form.descripcion }}</div>
-        <div class="col-md-6"><label class="form-label">Problema actual</label>{{ form.problema_actual }}</div>
-        <div class="col-md-6"><label class="form-label">Resultado esperado</label>{{ form.resultado_esperado }}</div>
+        <div class="col-12"><label class="form-label">Descripción <span class="text-danger">*</span></label>{{ form.descripcion }}{% for e in form.descripcion.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}</div>
+        <div class="col-md-6"><label class="form-label">Problema actual <span class="text-danger">*</span></label>{{ form.problema_actual }}{% for e in form.problema_actual.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}</div>
+        <div class="col-md-6"><label class="form-label">Resultado esperado <span class="text-danger">*</span></label>{{ form.resultado_esperado }}{% for e in form.resultado_esperado.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}</div>
       </div>
     </div>
   </div>

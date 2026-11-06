@@ -1,0 +1,11 @@
+/* <--- hecho por claude code (06-nov-2026): sub-dashboard Tutorías y Reforzamiento */
+.th-wrap{display:grid;gap:1.25rem}
+.th-sec{background:var(--tblr-bg-surface,#fff);border:1px solid var(--tblr-border-color,#e6e8ee);border-radius:12px;padding:1.1rem}
+.th-head{display:flex;gap:.75rem;align-items:center;margin-bottom:.9rem}
+.th-head>i{font-size:1.6rem;color:#e8590c;background:rgba(232,89,12,.1);border-radius:10px;padding:.45rem}
+.th-head.rf>i{color:#7048e8;background:rgba(112,72,232,.1)}
+.th-head h3{margin:0;font-size:1.05rem}.th-head p{margin:0;color:var(--tblr-secondary,#667085);font-size:.85rem}
+.th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem}
+.th-tile{display:flex;flex-direction:column;gap:.15rem;padding:.9rem 1rem;border:1px solid var(--tblr-border-color,#e6e8ee);border-radius:10px;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s}
+.th-tile:hover{box-shadow:0 6px 18px rgba(0,0,0,.08);transform:translateY(-1px);text-decoration:none}
+.th-tile i{font-size:1.5rem;margin-bottom:.25rem}.th-tile span{color:var(--tblr-secondary,#667085);font-size:.82rem}

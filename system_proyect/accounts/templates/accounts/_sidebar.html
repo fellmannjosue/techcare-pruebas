@@ -511,9 +511,9 @@
           {# <--- hecho por claude code: consistencia con el Panel General (Tutorías, Período, Ruteo) #}
           {% if not programas_ocultos.tutorias %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'convocatorias_coordinador' %}">
+            <a class="nav-link" href="{% if nav_reforzamiento %}{% url 'tutorias_reforzamiento_hub' %}{% else %}{% url 'convocatorias_coordinador' %}{% endif %}">{# <--- hecho por claude code (06-nov-2026): con Reforzamiento va al sub-dashboard #}
               <span class="nav-link-icon"><i class="ti ti-school text-orange"></i></span>
-              <span class="nav-link-title">Tutorías</span>
+              <span class="nav-link-title">{% if nav_reforzamiento %}Tutorías y Reforzamiento{% else %}Tutorías{% endif %}</span>
             </a>
           </li>
           {% endif %}

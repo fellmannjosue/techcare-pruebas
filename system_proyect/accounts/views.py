@@ -1071,9 +1071,16 @@ GRUPOS_SUPER = [
         {'t': 'Directorio', 's': 'Teléfonos de alumnos', 'i': 'ti-address-book', 'c': '#2fb344', 'url': 'directorio_telefonos'},
         # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
         # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
-        {'t': 'Tutorías', 's': 'Convocatorias y cartas', 'i': 'ti-school', 'c': '#e8590c', 'url': 'convocatorias_coordinador'},
         # <--- hecho por claude code: Período Escolar abre la pestaña de configuración de parciales (?app=periodo)
         {'t': 'Período Escolar', 's': 'Parciales de conducta', 'i': 'ti-calendar-stats', 'c': '#2f9e44', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}, 'query': 'app=periodo'},
+     ]},
+    # <--- hecho por claude code (06-nov-2026): Tutorías sale de Académico a su propio grupo con Reforzamiento (TC-PRY-0005)
+    {'key': 'tutorias_refuerzo', 'titulo': 'Tutorías y Reforzamiento', 'icon': 'ti-school', 'color': '#e8590c',
+     'desc': 'Convocatorias a tutoría y a reforzamiento',
+     'cards': [
+        {'t': 'Panel del módulo', 's': 'Tutorías y reforzamiento', 'i': 'ti-layout-grid', 'c': '#e8590c', 'url': 'tutorias_reforzamiento_hub'},
+        {'t': 'Tutorías', 's': 'Convocatorias y cartas', 'i': 'ti-school', 'c': '#e8590c', 'url': 'convocatorias_coordinador'},
+        {'t': 'Convocatoria a reforzamiento', 's': 'Recuperación · cartas a padres', 'i': 'ti-file-certificate', 'c': '#7048e8', 'url': 'reforzamiento'},
      ]},
     # <--- hecho por claude code: 3 grupos propios extraídos de Académico (columna 2 del panel)
     {'key': 'notas_mitad_parcial', 'titulo': 'Notas Mitad de Parcial', 'icon': 'ti-file-certificate', 'color': '#206bc4',
@@ -1219,7 +1226,7 @@ def _grupos_super_panel():
 
 # <--- hecho por claude code: distribución del Panel Principal en 2 columnas
 _PANEL_COL1 = ['soporte', 'inventario_general', 'prestamo_equipo', 'desarrollo', 'reloj', 'sponsors', 'contabilidad', 'mantenimiento_mecanico', 'red']   # <--- hecho por claude code (22-oct-2026): 2 grupos nuevos
-_PANEL_COL2 = ['academico', 'notas_mitad_parcial', 'enfermeria', 'ruteo', 'ingresos_notas', 'salidas', 'cfp']
+_PANEL_COL2 = ['academico', 'tutorias_refuerzo', 'notas_mitad_parcial', 'enfermeria', 'ruteo', 'ingresos_notas', 'salidas', 'cfp']
 
 
 def _grupos_super_panel_columnas():
@@ -1234,7 +1241,7 @@ def _grupos_super_panel_columnas():
 _PANEL_CAT = {
     'soporte': 'soporte', 'desarrollo': 'soporte', 'red': 'soporte',
     'inventario_general': 'soporte', 'prestamo_equipo': 'soporte',   # <--- hecho por claude code (22-oct-2026)
-    'academico': 'academico', 'notas_mitad_parcial': 'notas', 'enfermeria': 'academico',
+    'academico': 'academico', 'tutorias_refuerzo': 'academico', 'notas_mitad_parcial': 'notas', 'enfermeria': 'academico',
     'ruteo': 'academico', 'ingresos_notas': 'notas', 'salidas': 'academico',   # <--- hecho por claude code (02-nov-2026): categoría propia "Notas"
     'reloj': 'admin', 'sponsors': 'admin', 'contabilidad': 'admin',
     'cfp': 'cfp',   # <--- hecho por claude code (02-nov-2026): CFP como categoría propia (pedido del usuario)

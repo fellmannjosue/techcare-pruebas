@@ -4885,3 +4885,30 @@ def grupos_bl_guardar(request):
             filas.append(cs)
         coords[key] = filas
     return JsonResponse({'ok': True, 'actualizado': cfg['actualizado'], 'coords': coords})
+
+
+def _es_coord_bl_tutorias(user):
+    """<--- hecho por claude code (06-nov-2026, portado de producción): coordinación de tutorías BL = superusuario, grupo coordinador BL o ConfiguracionCoordinador bilingüe activo."""
+    from .models import ConfiguracionCoordinador
+    if user.is_superuser or _es_coord_area(user, 'bilingue'):
+        return True
+    return ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=user, activo=True).exists()
+
+
+# <--- hecho por claude code (06-nov-2026, portado de producción): TC-PRY-0005 Convocatoria a reforzamiento; por ahora solo druiz y el superusuario
+_REFORZAMIENTO_DEMO_USUARIOS = {'druiz@ana-hn.org'}
+
+
+def puede_ver_reforzamiento(user):
+    return bool(getattr(user, 'is_authenticated', False) and (
+        user.is_superuser or (user.username or '').lower() in _REFORZAMIENTO_DEMO_USUARIOS))
+
+
+@login_required
+def tutorias_reforzamiento_hub(request):
+    """<--- hecho por claude code (06-nov-2026): sub-dashboard «Tutorías y Reforzamiento» (Bilingüe)."""
+    _exigir_area_conducta(request.user, 'bilingue')
+    return render(request, 'conducta/tutorias_reforzamiento_hub.html', {
+        'es_coord': _es_coord_bl_tutorias(request.user),
+        'ver_reforzamiento': puede_ver_reforzamiento(request.user),
+    })

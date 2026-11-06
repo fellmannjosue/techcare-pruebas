@@ -1,0 +1,21 @@
+{% load static %}<!DOCTYPE html>
+{# <--- hecho por claude code (06-nov-2026): cartas de Convocatoria a reforzamiento (una por hoja carta); el CSS lo carga la vista desde el disco #}
+<html lang="es"><head><meta charset="utf-8"><title>Convocatoria a reforzamiento</title></head><body>
+{% for c in cartas %}<div class="carta">
+<h1>NUEVO AMANECER SCHOOL</h1>
+<div class="der">La Venta, D.C., {{ fecha_carta|default:"____ de __________ de ____" }}</div>
+<p>Estimados Padres de Familia:</p>
+<p>Por este medio enviamos un afectuoso saludo acompañado por nuestros deseos de bienestar en cada área de sus vidas.</p>
+<p>Como ya es de su conocimiento, desde el día {{ fecha_examenes|default:"__________" }} iniciamos exámenes del {{ parcial_rom }} Parcial. Por lo tanto, como institución ya recibimos los lineamientos a seguir, máxime para aquellos alumnos que deberán someterse al proceso de recuperación anual. Previo a la única recuperación que se aplicará, los alumnos recibirán el debido proceso de reforzamiento el cual será del {{ desde|default:"__________" }} al {{ hasta|default:"__________" }} del año en curso. Esta convocatoria a reforzamiento se hace en base a los siguientes aspectos:</p>
+<ul class="b"><li><b>Alumnos ya reprobados:</b> Deberán ser integrados al proceso de reforzamiento de forma obligatoria. Aplica alumnos que a este momento ya no alcanzan a pasar la asignatura.</li>
+<li><b>Casos condicionados:</b> Aquellos estudiantes que dependan de la nota del examen para aprobar deberán ser convocados preventivamente.</li>
+<li><b>Casos imprevistos:</b> Alumnos que reprueben a última hora por no alcanzar el 70% mínimo en el {{ parcial_rom }} parcial.</li></ul>
+<p>Por lo anterior, se le notifica que su hijo (a): <span class="u">{{ c.alumno }}</span> ha sido convocado a reforzamiento en la (s) siguiente (s) asignatura (s):</p>
+<table><tr><th>N°</th><th>Asignatura</th>{% if c.con_nota %}<th>Resultado</th>{% endif %}</tr>
+{% for f in c.filas %}<tr><td>{{ f.n }}</td><td>{{ f.asig }}</td>{% if c.con_nota %}<td>{{ f.nota }}</td>{% endif %}</tr>{% endfor %}</table>
+<p class="cc">Cualquier duda, no dude en comunicarse con la coordinación académica de área a:</p>
+<ul class="chk"><li>área inglés de primer a tercer grado: <a>cvarela@ana-hn.org</a></li><li>área de inglés de cuarto a noveno grado: <a>druiz@ana-hn.org</a></li><li>área de matemáticas: <a>jmartinez@ana-hn.org</a></li><li>área de idioma español: <a>ialcerro@ana-hn.org</a>.</li></ul>
+<p>Sin otro particular, me despido de ustedes.</p><p>¡Bendiciones!</p>
+<div class="firmas"><div class="f f1"><span class="nom">{{ c.docente }}</span><span class="lb">Docente de grado</span></div><div class="f f2"><span class="nom">{{ c.coord }}</span><span class="lb">Coordinación Académica</span></div><div class="f f3"><span class="nom">{{ direccion }}</span><span class="lb">V° B° Dirección</span></div></div>
+</div>{% endfor %}
+</body></html>

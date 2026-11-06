@@ -80,10 +80,10 @@
   {# <--- hecho por claude code: faltaban Tutorías, Período Escolar y Ruteo en el menú del coordinador #}
   {% if not programas_ocultos.tutorias %}{# <--- hecho por claude code (10-sep-2026): programa ocultable #}
   <div class="col-6 col-md-3">
-    <a href="{% url 'convocatorias_coordinador' %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">
+    <a href="{% if nav_reforzamiento %}{% url 'tutorias_reforzamiento_hub' %}{% else %}{% url 'convocatorias_coordinador' %}{% endif %}" class="card card-link dg-card text-decoration-none h-100 text-center p-3">{# <--- hecho por claude code (06-nov-2026): con Reforzamiento va al sub-dashboard #}
       <div class="mb-2"><i class="ti ti-school" style="font-size:2.2rem;color:#e8590c;"></i></div>
-      <div class="fw-semibold text-primary">Tutorías</div>
-      <div class="text-muted small">Convocatorias</div>
+      <div class="fw-semibold text-primary">{% if nav_reforzamiento %}Tutorías y Reforzamiento{% else %}Tutorías{% endif %}</div>
+      <div class="text-muted small">{% if nav_reforzamiento %}Convocatorias y recuperación{% else %}Convocatorias{% endif %}</div>
     </a>
   </div>
   {% endif %}

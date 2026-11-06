@@ -1,0 +1,23 @@
+/* <--- hecho por claude code (06-nov-2026): carta de Convocatoria a reforzamiento, formato aprobado por el usuario (Carlito = métrica de Calibri) */
+
+@page{size:letter;margin:0.28in 0.5in 0.5in 0.5in}
+body{font-family:Carlito,Calibri,sans-serif;font-size:11pt;line-height:1.16;color:#000;margin:0}
+h1{text-align:center;font-size:13pt;font-weight:bold;margin:0;border-bottom:0.8px solid #000;padding-bottom:0;letter-spacing:.2pt}
+.der{text-align:right;margin:14pt 0 14pt}
+p{margin:0 0 13pt;text-align:justify}
+ul.b{list-style:none;margin:0 0 13pt 0;padding-left:50pt} ul.b li{text-align:justify;font-size:10.5pt;margin:0;position:relative} ul.b li:before{content:"•";position:absolute;left:-14pt}
+.u{display:inline-block;border-bottom:0.8px solid #000;width:208pt;text-align:center}
+table{width:425pt;margin:0 0 13pt 58pt;border-collapse:collapse}
+th,td{border:0.8px solid #000;padding:0 3pt;font-size:10.5pt;height:15pt;line-height:1.1}
+th{text-align:center;font-weight:bold} th:first-child,td:first-child{width:27pt;text-align:left} th:nth-child(2),td:nth-child(2){width:199pt}
+td:nth-child(3){text-align:center}
+.cc{margin-bottom:0} ul.chk{list-style:none;margin:0 0 13pt 0;padding-left:34pt} ul.chk li{margin:0;text-indent:-16pt;padding-left:16pt} ul.chk li:before{content:"✓";display:inline-block;width:16pt;text-indent:0}
+a{color:#0563c1;text-decoration:underline}
+.firmas{position:relative;margin-top:62pt;height:30pt}
+.f{position:absolute;top:0;border-top:0.8px solid #000;padding-top:4pt;font-weight:bold;white-space:nowrap}
+.f1{left:-3pt;width:118pt} .f2{left:207pt;width:150pt} .f3{right:-10pt;width:120pt}
+.f1 .lb{position:relative;left:3pt} .f2 .lb{position:relative;left:6pt} .f3 .lb{position:absolute;right:10pt}
+
+.carta{page-break-after:always}.carta:last-child{page-break-after:auto}
+.firmas .f .nom{position:absolute;top:-16pt;left:0;right:0;font-weight:normal;white-space:nowrap}
+.f1 .nom{text-align:left;left:3pt}.f2 .nom{text-align:center}.f3 .nom{text-align:right;right:10pt}

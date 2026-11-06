@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_reforzamiento  # <--- hecho por claude code (06-nov-2026): TC-PRY-0005
 
 urlpatterns = [
     # <--- hecho por claude code: config de ruteo BILINGÜE (solo superusuario)
@@ -25,6 +26,13 @@ urlpatterns = [
     path('tutorias/coordinador/', views.convocatorias_coordinador, name='convocatorias_coordinador'),
     path('tutorias/firma/', views.convocatoria_firma_guardar, name='convocatoria_firma_guardar'),
     path('tutorias/horario/', views.tutoria_horario_config, name='tutoria_horario_config'),
+    path('tutorias/inicio/', views.tutorias_reforzamiento_hub, name='tutorias_reforzamiento_hub'),  # <--- hecho por claude code (06-nov-2026)
+    # <--- hecho por claude code (06-nov-2026): TC-PRY-0005 Convocatoria a reforzamiento (datos reales)
+    path('reforzamiento/', views_reforzamiento.reforzamiento, name='reforzamiento'),
+    path('reforzamiento/marcar/', views_reforzamiento.reforzamiento_marcar, name='reforzamiento_marcar'),
+    path('reforzamiento/docente/', views_reforzamiento.reforzamiento_docente, name='reforzamiento_docente'),
+    path('reforzamiento/fechas/', views_reforzamiento.reforzamiento_config, name='reforzamiento_config'),
+    path('reforzamiento/cartas.pdf', views_reforzamiento.reforzamiento_pdf, name='reforzamiento_pdf'),
 
     # Dashboards
     path('dashboard/maestro/', views.dashboard_maestro, name='dashboard_maestro'),

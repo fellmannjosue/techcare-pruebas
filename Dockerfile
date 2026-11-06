@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates apt-transport-https \
         build-essential pkg-config default-libmysqlclient-dev \
         libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev libcairo2 \
-        shared-mime-info fonts-liberation fonts-dejavu-core \
+        shared-mime-info fonts-liberation fonts-dejavu-core fonts-crosextra-carlito \
         unixodbc unixodbc-dev \
         locales tzdata \
     && curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \

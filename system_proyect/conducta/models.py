@@ -615,3 +615,70 @@ class ConvocatoriaFirma(models.Model):
 
     def __str__(self):
         return f"Firma {self.grado_num}.{self.seccion} P{self.parcial} → {self.coordinador_firma}"
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# <--- hecho por claude code (06-nov-2026): TC-PRY-0005 Convocatoria a reforzamiento (Bilingüe, como Tutorías)
+# ────────────────────────────────────────────────────────────────────────────
+class ReforzamientoConfig(AuditModel):
+    """Fechas que salen en todas las cartas de un parcial."""
+    area            = models.CharField(max_length=10, default='bilingue')
+    parcial         = models.PositiveSmallIntegerField("Parcial")
+    anio            = models.PositiveSmallIntegerField("Año")
+    fecha_carta     = models.DateField("Fecha de la carta", null=True, blank=True)
+    fecha_examenes  = models.DateField("Inicio de exámenes", null=True, blank=True)
+    refuerzo_desde  = models.DateField("Reforzamiento desde", null=True, blank=True)
+    refuerzo_hasta  = models.DateField("Reforzamiento hasta", null=True, blank=True)
+
+    class Meta:
+        db_table        = 'conducta_reforzamiento_config'
+        unique_together = ('area', 'parcial', 'anio')
+        verbose_name    = 'Fechas de reforzamiento'
+        verbose_name_plural = 'Fechas de reforzamiento'
+
+    def __str__(self):
+        return f"Reforzamiento P{self.parcial} {self.anio}"
+
+
+class ReforzamientoMarca(AuditModel):
+    """Un alumno convocado a reforzamiento en UNA asignatura (máximo 8 por alumno y parcial); la nota es opcional."""
+    area          = models.CharField(max_length=10, default='bilingue')
+    parcial       = models.PositiveSmallIntegerField("Parcial")
+    anio          = models.PositiveSmallIntegerField("Año")
+    grado_num     = models.PositiveSmallIntegerField("Grado #")
+    seccion       = models.CharField("Sección", max_length=20, blank=True, default='')
+    alumno_id     = models.CharField("ID alumno", max_length=30)
+    alumno_nombre = models.CharField("Alumno", max_length=200)
+    asignatura    = models.CharField("Asignatura", max_length=80)
+    nota          = models.PositiveSmallIntegerField("Nota", null=True, blank=True)
+    marcado_por   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='reforzamiento_marcas')
+
+    class Meta:
+        db_table        = 'conducta_reforzamiento_marca'
+        unique_together = ('area', 'parcial', 'anio', 'alumno_id', 'asignatura')
+        ordering        = ['grado_num', 'seccion', 'alumno_nombre', 'pk']
+        verbose_name    = 'Convocado a reforzamiento'
+        verbose_name_plural = 'Convocados a reforzamiento'
+
+    def __str__(self):
+        return f"{self.alumno_nombre} · {self.asignatura} (P{self.parcial} {self.anio})"
+
+
+class ReforzamientoDocenteGrado(AuditModel):
+    """Docente de grado que firma las cartas de un grado-sección en un parcial."""
+    area      = models.CharField(max_length=10, default='bilingue')
+    parcial   = models.PositiveSmallIntegerField("Parcial")
+    anio      = models.PositiveSmallIntegerField("Año")
+    grado_num = models.PositiveSmallIntegerField("Grado #")
+    seccion   = models.CharField("Sección", max_length=20, blank=True, default='')
+    docente   = models.CharField("Docente de grado", max_length=120, blank=True, default='')
+
+    class Meta:
+        db_table        = 'conducta_reforzamiento_docente'
+        unique_together = ('area', 'parcial', 'anio', 'grado_num', 'seccion')
+        verbose_name    = 'Docente de grado (reforzamiento)'
+        verbose_name_plural = 'Docentes de grado (reforzamiento)'
+
+    def __str__(self):
+        return f"{self.grado_num}.{self.seccion} P{self.parcial} → {self.docente}"

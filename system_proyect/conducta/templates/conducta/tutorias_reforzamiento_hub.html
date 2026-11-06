@@ -1,0 +1,31 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code (06-nov-2026): sub-dashboard Tutorías y Reforzamiento (Bilingüe); Reforzamiento solo druiz y superusuario #}
+{% block title %}Tutorías y Reforzamiento{% endblock %}
+{% block page_pretitle %}Bilingüe{% endblock %}
+{% block page_title %}Tutorías y Reforzamiento{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'conducta/css/tutorias_hub.css' %}?v=1">{% endblock %}
+{% block content %}
+<div class="th-wrap">
+  <div class="th-sec">
+    <div class="th-head"><i class="ti ti-school"></i><div><h3>Tutorías</h3><p>Convocatoria a tutorías por parcial y cartas a padres</p></div></div>
+    <div class="th-grid">
+      <a class="th-tile" href="{% url 'convocatoria_grado' %}"><i class="ti ti-table" style="color:#e8590c"></i><b>Marcar alumnos por grado</b><span>Tabla alumnos × asignaturas</span></a>
+      {% if es_coord %}
+      <a class="th-tile" href="{% url 'convocatorias_coordinador' %}"><i class="ti ti-mail" style="color:#e8590c"></i><b>Convocatorias y cartas</b><span>Revisión y PDF</span></a>
+      <a class="th-tile" href="{% url 'tutoria_horario_config' %}"><i class="ti ti-calendar-week" style="color:#e8590c"></i><b>Horario de tutorías</b><span>Grado × día × asignatura</span></a>
+      {% endif %}
+    </div>
+  </div>
+  {% if ver_reforzamiento %}
+  <div class="th-sec">
+    <div class="th-head rf"><i class="ti ti-file-certificate"></i><div><h3>Reforzamiento</h3><p>Convocatoria a reforzamiento previo a la recuperación anual</p></div></div>
+    <div class="th-grid">
+      <a class="th-tile" href="{% url 'reforzamiento' %}?tab=grado"><i class="ti ti-table" style="color:#7048e8"></i><b>Marcar alumnos por grado</b><span>Clases y nota (opcional)</span></a>
+      <a class="th-tile" href="{% url 'reforzamiento' %}?tab=panel"><i class="ti ti-users" style="color:#7048e8"></i><b>Convocados y cartas</b><span>Docente de grado y PDF</span></a>
+      <a class="th-tile" href="{% url 'reforzamiento' %}?tab=config"><i class="ti ti-calendar" style="color:#7048e8"></i><b>Fechas del parcial</b><span>Salen en todas las cartas</span></a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

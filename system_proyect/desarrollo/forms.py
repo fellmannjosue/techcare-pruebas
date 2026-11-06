@@ -46,6 +46,11 @@ class RequerimientoNuevoForm(forms.ModelForm):
         self.fields['solicitante_cat'].queryset = SolicitanteCatalogo.objects.filter(activo=True)
         self.fields['solicitante_cat'].required = False
         self.fields['solicitante_cat'].empty_label = '— Seleccionar —'
+        # <--- hecho por claude code (05-nov-2026, pedido del usuario): descripción, problema actual y resultado esperado son obligatorios (había requerimientos vacíos); el campo quita espacios, así que «   » tampoco pasa
+        for campo in ('descripcion', 'problema_actual', 'resultado_esperado'):
+            self.fields[campo].required = True
+            self.fields[campo].widget.attrs['required'] = 'required'
+            self.fields[campo].error_messages['required'] = 'Este campo es obligatorio.'
         if not self.initial.get('solicitante_cat'):
             dflt = SolicitanteCatalogo.objects.filter(activo=True, nombre__iexact='Soporte Técnico').first()
             if dflt:
