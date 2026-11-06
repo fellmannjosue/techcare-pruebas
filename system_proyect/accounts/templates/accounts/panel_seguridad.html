@@ -1,11 +1,11 @@
-{% extends 'base_app.html' %}
+{% extends 'accounts/settings_base.html' %}{# <--- hecho por claude code (06-nov-2026): dentro de Configuración (acordeón) #}
 {% load static %}
 {# <--- hecho por claude code (seguridad): panel único de seguridad (superusuario) #}
 {% block title %}Seguridad{% endblock %}
 {% block page_pretitle %}Configuración{% endblock %}
 {% block page_title %}<i class="ti ti-shield-lock me-2 text-indigo"></i>Seguridad{% endblock %}
 
-{% block content %}
+{% block settings_content %}
 <div class="row g-3">
 
   {# ── Interruptores ── #}

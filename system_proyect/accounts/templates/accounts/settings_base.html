@@ -5,11 +5,11 @@
 {% block title %}Configuración{% endblock %}
 
 {% block vendor_head %}
-  <link rel="stylesheet" href="{% static 'accounts/css/settings_base.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/css/settings_base.css' %}?v=2">
 {% endblock %}
 
 {% block head_js %}
-  <script src="{% static 'accounts/js/settings_base.js' %}?v=3"></script>
+  <script src="{% static 'accounts/js/settings_base.js' %}?v=4"></script>
 {% endblock %}
 
 {% block breadcrumb %}
@@ -28,75 +28,89 @@
 {% block content %}
 <div class="row g-4">
 
-  {# ── Panel izquierdo de navegación settings ── #}
-  <div class="col-12 col-md-3 col-lg-2">
-    <div class="card">
-      <div class="card-body p-2 settings-nav">
-
-        <div class="nav-section">Mi cuenta</div>
-        <nav class="nav flex-column gap-1 mb-2">
-          <a class="nav-link {% if active_tab == 'perfil' %}active{% endif %}" href="{% url 'settings_perfil' %}">
-            <i class="ti ti-user-circle me-2"></i>Mi Perfil
-          </a>
-          <a class="nav-link {% if active_tab == 'notificaciones' %}active{% endif %}" href="{% url 'settings_notificaciones' %}">
-            <i class="ti ti-bell me-2"></i>Mis Notificaciones
-          </a>
-        </nav>
-
-        {% if can_manage_users %}
-        <div class="nav-section">Administración</div>
-        <nav class="nav flex-column gap-1 mb-2">
-          <a class="nav-link {% if active_tab == 'usuarios' %}active{% endif %}" href="{% url 'settings_usuarios' %}">
-            <i class="ti ti-users me-2"></i>Usuarios
-          </a>
-          <a class="nav-link {% if active_tab == 'grupos' %}active{% endif %}" href="{% url 'settings_grupos' %}">
-            <i class="ti ti-users-group me-2"></i>Grupos
-          </a>
-        </nav>
-        {% endif %}
-
-        {% if can_see_activity %}
-        {# <--- hecho por claude code: Actividad, Auditoria y Correos viven ahora en el panel (Monitoreo / Configuracion) #}
-        <div class="nav-section">Sistema</div>
-        <nav class="nav flex-column gap-1 mb-2">
-          <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{% url 'settings_logs' %}">
-            <i class="ti ti-terminal-2 me-2"></i>Logs del Sistema
-          </a>
-          <a class="nav-link {% if active_tab == 'codigo' %}active{% endif %}" href="{% url 'settings_codigo' %}">{# <--- hecho por claude code (16-oct-2026) #}
-            <i class="ti ti-code me-2"></i>Código del sistema
-          </a>
-        </nav>
-        {% endif %}
-
-        {% if request.user.is_superuser %}
-        <div class="nav-section">Conducta</div>
-        <nav class="nav flex-column gap-1 mb-2">
-          <a class="nav-link {% if active_tab == 'coordinadores' %}active{% endif %}" href="{% url 'settings_coordinadores' %}">
-            <i class="ti ti-user-cog me-2"></i>Config. Coordinadores
-          </a>
-          <a class="nav-link {% if active_tab == 'notificaciones_conducta' %}active{% endif %}" href="{% url 'settings_notificaciones_conducta' %}">
-            <i class="ti ti-bell-ringing me-2"></i>Config. Notificaciones
-          </a>
-          <a class="nav-link {% if active_tab == 'roles' %}active{% endif %}" href="{% url 'settings_roles' %}">
-            <i class="ti ti-shield-half me-2"></i>Config. Roles
-          </a>
-        </nav>
-        {# <--- hecho por claude code (03-nov-2026): asignar el grupo de Solicitud de DataShow #}
-        <div class="nav-section">Módulos</div>
-        <nav class="nav flex-column gap-1 mb-2">
-          <a class="nav-link {% if active_tab == 'datashow' %}active{% endif %}" href="{% url 'settings_datashow' %}">
-            <i class="ti ti-calendar-plus me-2"></i>Acceso a DataShow
-          </a>
-        </nav>
-        {# <--- hecho por claude code: Permisos Reloj y Permisos Coordinadores viven ahora en el panel (Permisos) #}
-        {% endif %}
-
+  {# <--- hecho por claude code (06-nov-2026): menú de Configuración en ACORDEÓN (Opción 2): los 20 accesos de configuración en 7 secciones, cada usuario ve solo lo que puede abrir #}
+  <div class="col-12 col-md-4 col-lg-3 col-xxl-2">
+    <div class="card cfg-nav">
+      <div class="card-body p-2">
+      <label class="cfg-srch"><i class="ti ti-search"></i><input type="search" id="cfg-q" placeholder="Buscar en configuración…" autocomplete="off"></label>
+      <details class="cfg-acc" style="--c:#2563eb">
+        <summary><span class="cfg-gi"><i class="ti ti-user-circle"></i></span>Mi cuenta<span class="cfg-n">2</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_perfil' or active_tab == 'perfil' %} active{% endif %}" href="{% url 'settings_perfil' %}" style="--c:#2563eb"><i class="ti ti-user-circle"></i>Mi Perfil</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_notificaciones' or active_tab == 'notificaciones' %} active{% endif %}" href="{% url 'settings_notificaciones' %}" style="--c:#2563eb"><i class="ti ti-bell"></i>Mis Notificaciones</a>
+        </div>
+      </details>
+      {% if can_manage_users or request.user.is_superuser %}
+      <details class="cfg-acc" style="--c:#0ca678">
+        <summary><span class="cfg-gi"><i class="ti ti-users"></i></span>Usuarios y acceso<span class="cfg-n">{% if request.user.is_superuser %}4{% else %}2{% endif %}</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_usuarios' or active_tab == 'usuarios' %} active{% endif %}" href="{% url 'settings_usuarios' %}" style="--c:#0ca678"><i class="ti ti-users"></i>Usuarios</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_grupos' or active_tab == 'grupos' %} active{% endif %}" href="{% url 'settings_grupos' %}" style="--c:#0ca678"><i class="ti ti-users-group"></i>Grupos</a>
+          {% if request.user.is_superuser %}
+          <a class="cfg-link{% if request.resolver_match.url_name == 'panel_seguridad' %} active{% endif %}" href="{% url 'panel_seguridad' %}" style="--c:#0ca678"><i class="ti ti-shield-lock"></i>Seguridad</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_desbloqueos' %} active{% endif %}" href="{% url 'settings_desbloqueos' %}" style="--c:#0ca678"><i class="ti ti-lock-open"></i>Desbloqueo de accesos</a>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      <details class="cfg-acc" style="--c:#e8590c">
+        <summary><span class="cfg-gi"><i class="ti ti-key"></i></span>Permisos<span class="cfg-n">4</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_reloj_permisos' %} active{% endif %}" href="{% url 'settings_reloj_permisos' %}" style="--c:#e8590c"><i class="ti ti-clock"></i>Permisos Reloj</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_coord_permisos' %} active{% endif %}" href="{% url 'settings_coord_permisos' %}" style="--c:#e8590c"><i class="ti ti-user-shield"></i>Permisos Coordinadores</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_roles' or active_tab == 'roles' %} active{% endif %}" href="{% url 'settings_roles' %}" style="--c:#e8590c"><i class="ti ti-shield-half"></i>Config. Roles</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_datashow' or active_tab == 'datashow' %} active{% endif %}" href="{% url 'settings_datashow' %}" style="--c:#e8590c"><i class="ti ti-calendar-plus"></i>Acceso a DataShow</a>
+        </div>
+      </details>
+      {% endif %}
+      {% if cfg_monitoreo %}
+      <details class="cfg-acc" style="--c:#7048e8">
+        <summary><span class="cfg-gi"><i class="ti ti-eye"></i></span>Auditoría y monitoreo<span class="cfg-n">{% if request.user.is_superuser %}3{% else %}2{% endif %}</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_auditoria' %} active{% endif %}" href="{% url 'settings_auditoria' %}" style="--c:#7048e8"><i class="ti ti-eye"></i>Auditoría</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_actividad' %} active{% endif %}" href="{% url 'settings_actividad' %}" style="--c:#7048e8"><i class="ti ti-activity"></i>Actividad</a>
+          {% if request.user.is_superuser %}
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_logs' or active_tab == 'logs' %} active{% endif %}" href="{% url 'settings_logs' %}" style="--c:#7048e8"><i class="ti ti-terminal-2"></i>Logs del Sistema</a>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      <details class="cfg-acc" style="--c:#d63939">
+        <summary><span class="cfg-gi"><i class="ti ti-mail"></i></span>Correos<span class="cfg-n">3</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_correos' %} active{% endif %}" href="{% url 'settings_correos' %}" style="--c:#d63939"><i class="ti ti-mail"></i>Correos</a>
+          <a class="cfg-link js-abrir-reenviar" href="#" style="--c:#d63939"><i class="ti ti-mail-forward"></i>Reenviar correo</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_envio_login' %} active{% endif %}" href="{% url 'settings_envio_login' %}" style="--c:#d63939"><i class="ti ti-send"></i>Enviar instrucciones</a>
+        </div>
+      </details>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      <details class="cfg-acc" style="--c:#1098ad">
+        <summary><span class="cfg-gi"><i class="ti ti-user-cog"></i></span>Conducta<span class="cfg-n">2</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_coordinadores' or active_tab == 'coordinadores' %} active{% endif %}" href="{% url 'settings_coordinadores' %}" style="--c:#1098ad"><i class="ti ti-user-cog"></i>Config. Coordinadores</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_notificaciones_conducta' or active_tab == 'notificaciones_conducta' %} active{% endif %}" href="{% url 'settings_notificaciones_conducta' %}" style="--c:#1098ad"><i class="ti ti-bell-ringing"></i>Config. Notificaciones</a>
+        </div>
+      </details>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      <details class="cfg-acc" style="--c:#495057">
+        <summary><span class="cfg-gi"><i class="ti ti-tool"></i></span>Sistema<span class="cfg-n">3</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_codigo' or active_tab == 'codigo' %} active{% endif %}" href="{% url 'settings_codigo' %}" style="--c:#495057"><i class="ti ti-code"></i>Código del sistema</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'mantenimiento_modo' %} active{% endif %}" href="{% url 'mantenimiento_modo' %}" style="--c:#495057"><i class="ti ti-tool"></i>Modo Mantenimiento</a>
+          <a class="cfg-link" href="{% url 'admin:index' %}" target="_blank" rel="noopener" style="--c:#495057"><i class="ti ti-layout-dashboard"></i>Ventana Admin <i class="ti ti-external-link ms-auto cfg-ext"></i></a>
+        </div>
+      </details>
+      {% endif %}
       </div>
     </div>
   </div>
 
   {# ── Contenido principal ── #}
-  <div class="col-12 col-md-9 col-lg-10">
+  <div class="col-12 col-md-8 col-lg-9 col-xxl-10">
     {% block settings_content %}{% endblock %}
   </div>
 

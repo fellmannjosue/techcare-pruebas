@@ -1,4 +1,4 @@
-{% extends 'tickets/base_tickets_user.html' %}
+{% extends 'accounts/settings_base.html' %}{# <--- hecho por claude code (06-nov-2026): dentro de Configuración (acordeón) #}
 {% load static %}
 {% block title %}Permisos Coordinadores{% endblock %}
 {% block page_pretitle %}Permisos{% endblock %}
@@ -7,7 +7,7 @@
   <a href="{% url 'panel_grupo' grupo='permisos' %}" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Volver a Permisos</a>
 {% endblock %}
 
-{% block content %}
+{% block settings_content %}
 <link rel="stylesheet" href="{% static 'accounts/css/settings_coord_permisos.css' %}?v=1">
 
 <div class="card">

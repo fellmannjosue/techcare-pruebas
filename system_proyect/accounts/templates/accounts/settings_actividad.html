@@ -1,4 +1,4 @@
-{% extends 'tickets/base_tickets_user.html' %}
+{% extends 'accounts/settings_base.html' %}{# <--- hecho por claude code (06-nov-2026): dentro de Configuración (acordeón) #}
 {% load static %}
 {% block title %}Actividad{% endblock %}
 {% block page_pretitle %}Monitoreo{% endblock %}
@@ -10,7 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
-{% block content %}
+{% block settings_content %}
 {# <--- hecho por claude code: actividad standalone (estilo tc) #}
 
 {# ── Tarjetas de resumen ── #}

@@ -1,4 +1,4 @@
-{% extends 'tickets/base_tickets_user.html' %}
+{% extends 'accounts/settings_base.html' %}{# <--- hecho por claude code (06-nov-2026): dentro de Configuración (acordeón) #}
 {% load static %}
 {# <--- hecho por claude code: página standalone (sacada del shell de Configuración de cuenta) #}
 
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="{% static 'accounts/css/settings_correos.css' %}">
 {% endblock %}
 
-{% block content %}
+{% block settings_content %}
 
 {# ══════════ STATS CARDS ══════════ #}
 <div class="row g-3 mb-4">

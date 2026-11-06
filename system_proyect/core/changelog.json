@@ -1,6 +1,16 @@
 {
-  "version": "7.9.98",
+  "version": "7.9.99",
   "entradas": [
+    {
+      "version": "7.9.99",
+      "fecha": "2026-11-06",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Configuración: menú en acordeón con todos los accesos (Mi cuenta, Usuarios y acceso, Permisos, Auditoría, Correos, Conducta, Sistema) y buscador",
+        "Seguridad, Desbloqueos, Permisos Reloj/Coordinadores, Auditoría, Actividad, Correos y Modo Mantenimiento ahora se abren dentro de Configuración"
+      ]
+    },
     {
       "version": "7.9.98",
       "fecha": "2026-11-06",

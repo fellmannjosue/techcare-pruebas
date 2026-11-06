@@ -2,3 +2,22 @@
 .settings-nav .nav-link:hover { background: var(--ps-surface-2); color: var(--ps-marca); }
 .settings-nav .nav-link.active { background: #e8f0fe; color: var(--ps-marca); font-weight: 600; }
 .settings-nav .nav-section { font-size: .7rem; letter-spacing: .08em; color: var(--ps-muted); font-weight: 700; padding: .5rem .75rem .2rem; text-transform: uppercase; }
+
+/* <--- hecho por claude code (06-nov-2026): menú de Configuración en acordeón (Opción 2) */
+.cfg-nav .card-body{display:flex;flex-direction:column;gap:2px}
+.cfg-srch{display:flex;align-items:center;gap:8px;border:1.5px solid var(--tblr-border-color,#e4e8f1);background:var(--tblr-bg-surface-secondary,#f7f8fc);border-radius:10px;padding:7px 10px;margin:2px 2px 8px;color:var(--tblr-secondary,#6b7689)}
+.cfg-srch input{border:0;background:none;outline:0;font:inherit;color:inherit;width:100%}
+.cfg-acc{border-radius:10px}
+.cfg-acc>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.9rem;user-select:none}
+.cfg-acc>summary::-webkit-details-marker{display:none}
+.cfg-acc>summary:hover{background:var(--tblr-bg-surface-secondary,#f5f7fb)}
+.cfg-gi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:1.05rem;color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--tblr-bg-surface,#fff))}
+.cfg-n{margin-left:auto;font-size:.7rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--tblr-bg-surface-secondary,#f1f3f8);color:var(--tblr-secondary,#6b7689)}
+.cfg-car{color:var(--tblr-secondary,#98a2b3);transition:transform .15s}
+.cfg-acc[open]>summary .cfg-car{transform:rotate(180deg)}
+.cfg-in{display:flex;flex-direction:column;gap:1px;padding:2px 0 8px 38px}
+.cfg-link{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:var(--tblr-body-color,#1a2233);text-decoration:none;font-size:.88rem}
+.cfg-link i{color:var(--c);font-size:1rem}
+.cfg-link:hover{background:var(--tblr-bg-surface-secondary,#f5f7fb);text-decoration:none;color:var(--tblr-body-color,#1a2233)}
+.cfg-link.active{background:color-mix(in srgb,var(--c) 12%,var(--tblr-bg-surface,#fff));color:var(--c);font-weight:600}
+.cfg-ext{font-size:.8rem!important;color:var(--tblr-secondary,#98a2b3)!important}
