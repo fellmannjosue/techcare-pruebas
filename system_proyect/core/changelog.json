@@ -1,6 +1,15 @@
 {
-  "version": "7.9.97",
+  "version": "7.9.98",
   "entradas": [
+    {
+      "version": "7.9.98",
+      "fecha": "2026-11-06",
+      "commit": "",
+      "menor": true,
+      "cambios": [
+        "Sponsors: panel renovado con «acción destacada» (Nuevo Sponsor y Buscar, con los indicadores), mosaico de gestión y catálogos compactos"
+      ]
+    },
     {
       "version": "7.9.97",
       "fecha": "2026-11-06",

@@ -1,1 +1,39 @@
-/* dashboard.css – sponsors module */
+/* <--- hecho por claude code (06-nov-2026): Panel de Sponsors — «Acción destacada» (Opción B), mismo lenguaje que Enfermería */
+.spb-wrap{display:flex;flex-direction:column;gap:16px}
+.spb-hero{position:relative;display:flex;align-items:center;gap:22px;padding:26px 28px;border-radius:20px;overflow:hidden;
+  border:1px solid color-mix(in srgb,#d6336c 22%,var(--ps-border,#e6e9f0));
+  background:radial-gradient(1200px 200px at 0% 0%,color-mix(in srgb,#d6336c 9%,transparent),transparent 60%),var(--ps-surface,#fff);
+  box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.spb-hero__ic{width:74px;height:74px;border-radius:20px;flex:none;display:grid;place-items:center;color:#fff;font-size:2.4rem;
+  background:linear-gradient(135deg,#d6336c,#7c3aed);box-shadow:0 10px 22px -10px rgba(214,51,108,.7)}
+.spb-hero__txt{min-width:0;flex:1}
+.spb-hero__txt h2{margin:0;font-size:1.35rem;font-weight:800;letter-spacing:-.02em;color:var(--ps-text,#1a2233)}
+.spb-hero__txt p{margin:2px 0 0;font-size:.9rem;color:var(--ps-muted,#667382)}
+.spb-kpis{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.spb-kpi{display:flex;flex-direction:column;line-height:1.1;padding:8px 14px;border-radius:12px;
+  background:color-mix(in srgb,var(--c) 7%,var(--ps-surface,#fff));border:1px solid color-mix(in srgb,var(--c) 18%,var(--ps-border,#e6e9f0))}
+.spb-kpi b{font-size:1.25rem;font-weight:800;color:var(--c);font-variant-numeric:tabular-nums}
+.spb-kpi small{font-size:.72rem;color:var(--ps-muted,#667382)}
+.spb-hero__acts{flex:none;display:flex;flex-direction:column;gap:8px}
+.spb-cta{white-space:nowrap;font-weight:700;font-size:.92rem;color:#fff;background:linear-gradient(100deg,#2563eb,#7c3aed);padding:11px 18px;border-radius:12px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:0 8px 18px -8px rgba(37,99,235,.6);transition:filter .15s}
+.spb-cta:hover{color:#fff;filter:brightness(1.06);text-decoration:none}
+.spb-cta--sec{background:var(--ps-surface,#fff);color:#2563eb;border:1.5px solid color-mix(in srgb,#2563eb 35%,var(--ps-border,#e6e9f0));box-shadow:none}
+.spb-cta--sec:hover{color:#2563eb;background:color-mix(in srgb,#2563eb 6%,var(--ps-surface,#fff))}
+.spb-sec{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ps-muted,#667382);margin-top:4px}
+.spb-grid{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.spb-card{position:relative;display:flex;flex-direction:column;gap:6px;padding:18px;border:1px solid var(--ps-border,#e6e9f0);border-radius:16px;
+  background:var(--ps-surface,#fff);text-decoration:none;box-shadow:0 1px 2px rgba(16,24,40,.04);transition:transform .15s,border-color .15s,box-shadow .15s}
+.spb-card:hover{transform:translateY(-3px);text-decoration:none;border-color:color-mix(in srgb,var(--c) 50%,var(--ps-border,#e6e9f0));
+  box-shadow:0 14px 30px -18px color-mix(in srgb,var(--c) 70%,transparent)}
+.spb-card__ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:1.4rem;color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--ps-surface,#fff));margin-bottom:4px}
+.spb-card__t{font-weight:700;color:var(--ps-text,#1a2233)}.spb-card__s{font-size:.82rem;color:var(--ps-muted,#667382)}
+.spb-card__go{position:absolute;right:16px;top:20px;color:var(--ps-muted,#98a2b3);transition:transform .15s,color .15s}
+.spb-card:hover .spb-card__go{color:var(--c);transform:translateX(3px)}
+.spb-cats{display:flex;flex-wrap:wrap;gap:10px}
+.spb-cat{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid var(--ps-border,#e6e9f0);background:var(--ps-surface,#fff);
+  color:var(--ps-text,#1a2233);font-weight:600;font-size:.9rem;text-decoration:none;transition:border-color .15s,background .15s}
+.spb-cat i{color:var(--c);font-size:1.1rem}
+.spb-cat:hover{text-decoration:none;color:var(--ps-text,#1a2233);border-color:color-mix(in srgb,var(--c) 50%,var(--ps-border,#e6e9f0));background:color-mix(in srgb,var(--c) 6%,var(--ps-surface,#fff))}
+@media (max-width:991px){.spb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spb-hero{flex-wrap:wrap}.spb-hero__acts{flex-direction:row;width:100%}.spb-cta{flex:1}}
+@media (max-width:575px){.spb-grid{grid-template-columns:1fr}.spb-hero{padding:20px}.spb-hero__ic{width:58px;height:58px;font-size:1.9rem}}
