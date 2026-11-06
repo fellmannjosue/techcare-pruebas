@@ -26,13 +26,25 @@
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) #}
-  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=6">
   {% endif %}
 </head>
 <body class="antialiased tc-overlap">
 <div class="wrapper">
 
-  {% include '_rail.html' %}
+  {# <--- hecho por claude code (06-nov-2026): la misma barra superior que base_app (antes quedaba el riel viejo y el hueco del sidebar oculto) #}
+  <header class="tc-topbar d-print-none">
+    <a class="tc-tb-brand" href="{{ nav_home_url|default:'/accounts/menu/' }}">
+      <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="ANA">
+      <span class="tc-tb-brandtxt"><b>TechCare</b><small>{% if request.user.is_superuser %}Panel del superusuario{% else %}Asociación Nuevo Amanecer{% endif %}</small></span>
+    </a>
+    <button class="tc-tb-burger" type="button" id="tc-burger" aria-label="Menú"><i class="ti ti-menu-2"></i></button>
+    <nav class="tc-topnav" id="tc-topnav" aria-label="Menú principal">{% if request.user.is_superuser %}{% include 'accounts/_topnav_super.html' %}{% endif %}</nav>
+    <div class="tc-tb-tools">
+      {% include 'accounts/_notificaciones.html' %}
+      {% include 'accounts/_user_dropdown.html' %}
+    </div>
+  </header>
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="navbar navbar-vertical navbar-expand-lg"{% if not request.user.is_superuser %} data-acordeon="1"{% endif %} data-bs-theme="dark">{# <--- hecho por claude code (12-oct-2026): acordeón menos el superusuario #}
@@ -71,8 +83,6 @@
             <h2 class="page-title">Panel Principal</h2>
           </div>
           <div class="col-auto ms-auto d-flex align-items-center gap-3">
-            {# <--- hecho por claude code: campanita en el topbar del menú (superuser) #}
-            {% include 'accounts/_notificaciones.html' %}
             {% if request.user.is_superuser %}
             <div class="d-flex align-items-center gap-2">
               <button class="btn btn-sm btn-ghost-secondary" id="mant-open-btn"
@@ -85,8 +95,6 @@
               </span>
             </div>
             {% endif %}
-            {# <--- hecho por claude code: usuario junto a la campana (antes al pie del sidebar) #}
-            {% include 'accounts/_user_dropdown.html' %}
           </div>
         </div>
       </div>
