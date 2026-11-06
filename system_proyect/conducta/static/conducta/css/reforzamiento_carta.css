@@ -21,3 +21,11 @@ a{color:#0563c1;text-decoration:underline}
 .carta{page-break-after:always}.carta:last-child{page-break-after:auto}
 .firmas .f .nom{position:absolute;top:-16pt;left:0;right:0;font-weight:normal;white-space:nowrap}
 .f1 .nom{text-align:left;left:3pt}.f2 .nom{text-align:center}.f3 .nom{text-align:right;right:10pt}
+
+/* firmas centradas (06-nov-2026) */
+/* <--- hecho por claude code (06-nov-2026, pedido del usuario): tres bloques del mismo ancho; nombre y etiqueta centrados sobre/bajo su línea */
+.firmas{position:relative;margin-top:62pt;height:34pt}
+.firmas .f{position:absolute;top:0;width:165pt;border-top:0.8px solid #000;padding-top:4pt;text-align:center;white-space:nowrap}
+.firmas .f1{left:0;right:auto}.firmas .f2{left:187.5pt;right:auto}.firmas .f3{left:375pt;right:auto}
+.firmas .f .lb{position:static;display:block;text-align:center;font-weight:bold}
+.firmas .f .nom{position:absolute;top:-16pt;left:0;right:0;text-align:center;font-weight:normal}
