@@ -1,7 +1,7 @@
 {
   "name": "techcare-desktop",
-  "version": "7.9.99",
-  "description": "TechCare (pruebas) — aplicación de escritorio (envoltorio Electron del sitio web).",
+  "version": "7.80.1",
+  "description": "TechCare — aplicación de escritorio (envoltorio Electron del sitio web de producción).",
   "author": "Asociación Nuevo Amanecer (ANA)",
   "license": "UNLICENSED",
   "private": true,

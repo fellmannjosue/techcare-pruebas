@@ -11,8 +11,8 @@ android {
         minSdk 24
         targetSdk 34
         // <--- hecho por claude code: versión sincronizada con la web/.exe (beta).
-        versionCode 79980
-        versionName "7.9.98-beta"
+        versionCode 80001
+        versionName "7.80.1"
     }
 
     buildTypes {
