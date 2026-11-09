@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">TechCare</string>
-    <!-- URL que abre la app. Desde v7.80.1 = PRODUCCIÓN (HTTPS). Antes: pruebas http://192.168.10.6:451/ -->
-    <string name="app_url">https://servicios.ana-hn.org:437/</string>
+    <string name="app_name">TechCare Pruebas</string>
+    <!-- URL que abre la app. Beta = servidor de pruebas (LAN, solo en el WiFi de ANA). -->
+    <string name="app_url">http://192.168.10.6:451/</string>
 </resources>

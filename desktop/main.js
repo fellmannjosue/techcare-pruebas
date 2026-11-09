@@ -1,4 +1,4 @@
-// TechCare — proceso principal de Electron (desde v7.80.1 abre PRODUCCIÓN).
+// TechCare Pruebas — proceso principal de Electron.
 //
 // A diferencia de la versión anterior (una sola BrowserWindow que cargaba el sitio y se
 // veía idéntica al navegador), esta app tiene un SHELL NATIVO propio:
@@ -15,12 +15,11 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');   // <--- v7.80.1: producción va por HTTPS
+const http = require('http');
 const { autoUpdater } = require('electron-updater');
 
-// URL de TechCare PRODUCCIÓN (v7.80.1, pedido del usuario: Fase 3.2). Antes: pruebas http://192.168.10.6:451/
-// Qué programas se ven en la app se configura en la web: Configuración → Programas por aplicación.
-const APP_URL = 'https://servicios.ana-hn.org:437/';
+// URL de TechCare PRUEBAS (cámbiala aquí si el servidor cambia de IP/puerto).
+const APP_URL = 'http://192.168.10.6:451/';
 // Alto (px) de la barra superior nativa. Debe coincidir con --barra-h de shell.html.
 const TOPBAR = 46;
 
@@ -86,7 +85,7 @@ function crearVentana() {
     minWidth: 940,
     minHeight: 620,
     frame: false,                 // sin marco del sistema: el shell dibuja el suyo
-    title: 'TechCare',
+    title: 'TechCare Pruebas',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     backgroundColor: '#0b1220',
     show: false
@@ -113,8 +112,6 @@ function crearVentana() {
       preload: path.join(__dirname, 'preload.js')
     }
   });
-  // Marca propia en el User-Agent: el servidor reconoce la app de escritorio (core/canales.py).
-  siteView.webContents.setUserAgent(siteView.webContents.getUserAgent() + ' TechCareDesktop/' + app.getVersion());
   siteView.setBackgroundColor('#ffffff');
   win.contentView.addChildView(siteView);
   siteView.setVisible(false);     // oculto hasta que el sitio cargue (se ve el splash)
@@ -300,7 +297,7 @@ function enviarNovedades(datos) {
 // Lee las novedades (changelog) desde la WEB (proceso principal → sin CORS/CSP).
 function obtenerNovedades(cb) {
   const url = APP_URL.replace(/\/+$/, '') + '/core/api/novedades/?limite=20';
-  const req = https.get(url, { timeout: 8000 }, (res) => {
+  const req = http.get(url, { timeout: 8000 }, (res) => {
     let data = '';
     res.on('data', (c) => { data += c; });
     res.on('end', () => {
@@ -370,12 +367,12 @@ function crearBandeja() {
   try {
     const img = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
     tray = new Tray(img.isEmpty() ? img : img.resize({ width: 16, height: 16 }));
-    tray.setToolTip('TechCare v' + app.getVersion());
+    tray.setToolTip('TechCare Pruebas v' + app.getVersion());
     const menu = Menu.buildFromTemplate([
       { label: 'Abrir TechCare', click: () => { if (win) { win.show(); win.focus(); } } },
       { label: 'Novedades y actualización…', click: () => abrirNovedades() },
       { type: 'separator' },
-      { label: 'TechCare  ·  v' + app.getVersion(), enabled: false },
+      { label: 'TechCare Pruebas  ·  v' + app.getVersion(), enabled: false },
       { label: 'Salir', click: () => app.quit() }
     ]);
     tray.setContextMenu(menu);

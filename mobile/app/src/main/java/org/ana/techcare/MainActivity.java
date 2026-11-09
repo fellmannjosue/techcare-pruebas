@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Envoltorio WebView de TechCare (desde v7.80.1 abre PRODUCCIÓN).
+ * Envoltorio WebView de TechCare Pruebas.
  * Solo abre la web (LAN) en pantalla completa; toda la lógica vive en el sitio.
  */
 public class MainActivity extends Activity {
@@ -41,8 +41,6 @@ public class MainActivity extends Activity {
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        // <--- v7.80.1: marca propia en el User-Agent; el servidor reconoce la app móvil (Configuración → Programas por aplicación)
-        s.setUserAgentString(s.getUserAgentString() + " TechCareAndroid/7.80.1");
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(true);
