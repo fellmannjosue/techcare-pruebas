@@ -597,17 +597,35 @@ def verificar_2fa(request):
     correo = request.user.email
 
     def _enviar_codigo():
-        codigo = f'{random.randint(0, 999999):06d}'
+        import secrets as _secrets   # <--- hecho por claude code (10-nov-2026): código con generador criptográfico (como producción)
+        codigo = f'{_secrets.randbelow(1000000):06d}'
         v.codigo = codigo
         v.codigo_expira = timezone.now() + timedelta(minutes=CODIGO_VIGENCIA_MIN)
         v.intentos = 0
         v.save(update_fields=['codigo', 'codigo_expira', 'intentos'])
         try:
+            # <--- hecho por claude code (10-nov-2026): correo HTML con el mismo estilo que la pantalla (+ texto plano de respaldo)
+            from django.template.loader import render_to_string
+            _ctx = {'codigo': codigo, 'minutos': CODIGO_VIGENCIA_MIN,
+                    'nombre': request.user.first_name or '',
+                    'cuando': timezone.localtime(timezone.now()).strftime('%d/%m/%Y a las %H:%M') if _st.USE_TZ else timezone.now().strftime('%d/%m/%Y a las %H:%M'),
+                    'ip': request.META.get('REMOTE_ADDR', '')}
+            try:   # la IP interna (casi siempre el gateway 192.168.10.1) no le dice nada a quien lee el correo
+                import ipaddress as _ipa
+                if _ipa.ip_address(_ctx['ip']).is_private:
+                    _ctx['ip'] = ''
+            except Exception:
+                _ctx['ip'] = ''
             send_mail(
-                'Tu código de verificación — TechCare',
-                f'Tu código de verificación es: {codigo}\n\n'
-                f'Caduca en {CODIGO_VIGENCIA_MIN} minutos. Si no intentaste iniciar sesión, ignora este correo.',
-                _st.DEFAULT_FROM_EMAIL, [correo], fail_silently=False)
+                f'{codigo} es tu código de verificación — TechCare',
+                f'Verificación en dos pasos — TechCare\n\n'
+                f'Tu código de verificación es: {codigo}\n'
+                f'Caduca en {CODIGO_VIGENCIA_MIN} minutos y solo sirve una vez.\n\n'
+                f'¿No fuiste tú? Ignora este correo y avisa a Soporte con un ticket. '
+                f'Solicitado el {_ctx["cuando"]}' + (f' desde la dirección {_ctx["ip"]}' if _ctx['ip'] else '') + '.\n\n'
+                f'Soporte de TechCare nunca te pedirá este código ni tu contraseña.',
+                _st.DEFAULT_FROM_EMAIL, [correo], fail_silently=False,
+                html_message=render_to_string('accounts/email/codigo_2fa.html', _ctx))
             return True
         except Exception as e:
             print('[2FA] no se pudo enviar el código:', e)
