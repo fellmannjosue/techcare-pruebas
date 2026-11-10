@@ -2747,8 +2747,14 @@ def _dias_habiles_periodo(fi, ff, feriados):
 
 # <--- hecho por claude code (10-nov-2026): AÑO LABORAL (aniversario de ingreso → día antes del siguiente)
 # en vez del año escolar. El derecho a días es el que corresponde al ARRANCAR ese año laboral y los cierres
-# ANA (días no laborables) cuentan si su fecha cae dentro de él. PRUEBA solo con Nancy Alvarado (75).
-_ANIO_LABORAL_EMP = {'75'}
+# ANA (días no laborables) cuentan si su fecha cae dentro de él. Primero se probó con Nancy (75);
+# desde el 10-nov-2026 aplica a TODOS los empleados (pedido del usuario).
+_ANIO_LABORAL_TODOS = True
+_ANIO_LABORAL_EMP = {'75'}   # se usa solo si _ANIO_LABORAL_TODOS es False
+
+
+def _usa_anio_laboral(ec):
+    return _ANIO_LABORAL_TODOS or ec in _ANIO_LABORAL_EMP
 
 
 def _anio_laboral_de(ingreso, fecha):
@@ -2795,7 +2801,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         dias_fijos = vc.dias_fijos if vc else None
         derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
         al_tramos = None   # año laboral (prueba): tramos por año laboral de los cierres de `anio`
-        if ingreso and ec in _ANIO_LABORAL_EMP:
+        if ingreso and _usa_anio_laboral(ec):
             derecho = _dias_vacacion(es_doc, ingreso, _anio_laboral_de(ingreso, hoy)[0], dias_fijos=dias_fijos)
         # días usados (vacaciones) del año, para la acumulada calculada
         from django.db.models import Sum as _Sum
@@ -2819,7 +2825,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             return (float(x.dias) if getattr(x, 'dias', None) is not None
                     else _dias_de_feriado(x.descripcion, x.horas))
         _dnl = list(cc.dias_no_laborables.all())
-        if ingreso and ec in _ANIO_LABORAL_EMP:
+        if ingreso and _usa_anio_laboral(ec):
             # <--- hecho por claude code (10-nov-2026): regla del usuario — los días que necesita son los
             # cierres ANA del AÑO LABORAL que arranca en `anio` (desde el aniversario hasta el día antes del
             # siguiente). Nancy 2026 = 17/04/26–16/04/27 = Trimestral + Morazánico + Diciembre + Semana Santa 2027.
