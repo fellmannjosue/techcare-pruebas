@@ -475,11 +475,13 @@ CONSTANCE_CONFIG_FIELDSETS = {
 # 13. CORREO ELECTRÓNICO (SMTP)
 # ─────────────────────────────────────────────────────────────
 # <--- hecho por claude code (PRUEBAS): con datos copiados de producción, un envío real
-# le llegaría a usuarios REALES. Default: consola. Poner EMAILS_REALES=true para SMTP.
+# le llegaría a usuarios REALES. Default: LISTA BLANCA (10-nov-2026) — se envía por SMTP solo a
+# EMAILS_PRUEBA_PERMITIDOS (coma; default jfellmann@ana-hn.org); a los demás se escribe en el log.
+# EMAILS_REALES=true = SMTP a todos (como producción).
 if os.getenv('EMAILS_REALES', 'false') == 'true':
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = 'core.email_backend_pruebas.ListaBlancaBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'

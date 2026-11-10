@@ -38,8 +38,12 @@ def _make_connection(cfg: dict, fail_silently: bool = False):
     password = cfg.get('PASSWORD', '').strip()
     if not user or not password:
         return None
+    # <--- hecho por claude code (10-nov-2026): en PRUEBAS esta conexión propia también pasa por la lista blanca
+    # (antes forzaba SMTP y desde pruebas les llegaba el correo a personas reales)
+    _backend = settings.EMAIL_BACKEND if settings.EMAIL_BACKEND.endswith('ListaBlancaBackend') \
+        else 'django.core.mail.backends.smtp.EmailBackend'
     return get_connection(
-        backend='django.core.mail.backends.smtp.EmailBackend',
+        backend=_backend,
         host=cfg.get('HOST', 'mail.ana-hn.org'),
         port=int(cfg.get('PORT', 587)),
         username=user,
