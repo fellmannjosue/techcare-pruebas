@@ -24,7 +24,7 @@
 
   function toast(msg, ok){
     const el = document.createElement('div');
-    el.className = `alert alert-${ok?'success':'danger'} alert-dismissible position-fixed bottom-0 end-0 m-3`;
+    el.className = `alert alert-${ok?'success':'danger'} alert-dismissible tc-toast-solido`;
     el.style.zIndex = 9999;
     el.innerHTML = `<i class="ti ti-${ok?'check':'x'} me-1"></i>${msg}<button class="btn-close" data-bs-dismiss="alert"></button>`;
     document.body.appendChild(el);

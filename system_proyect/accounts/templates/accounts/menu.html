@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'accounts/css/menu.css' %}">
   <!-- Responsive global -->
-  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=7">
+  <link rel="stylesheet" href="{% static 'css/responsive_global.css' %}?v=8">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v=2"> {# responsive global - claude code #}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=8"> {# tema: tokens + claro/oscuro - claude code #}
   <link rel="manifest" href="/static/accounts/manifest.json"> {# PWA - claude code #}
@@ -531,7 +531,7 @@
 <div id="bienvenida-config" hidden
      data-url-reenviar="{% url 'reenviar_bienvenida' %}"
      data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'accounts/js/menu_bienvenida.js' %}?v=20"></script>
+<script src="{% static 'accounts/js/menu_bienvenida.js' %}?v=21"></script>
 {% endif %}
 
 {% if request.user.is_superuser %}
