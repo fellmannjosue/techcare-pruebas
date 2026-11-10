@@ -2745,6 +2745,20 @@ def _dias_habiles_periodo(fi, ff, feriados):
     return n
 
 
+# <--- hecho por claude code (10-nov-2026): AÑO LABORAL (aniversario de ingreso → día antes del siguiente)
+# en vez del año escolar. El derecho a días es el que corresponde al ARRANCAR ese año laboral y los cierres
+# ANA (días no laborables) cuentan si su fecha cae dentro de él. PRUEBA solo con Nancy Alvarado (75).
+_ANIO_LABORAL_EMP = {'75'}
+
+
+def _anio_laboral(ingreso, anio):
+    """(inicio, fin) del año laboral que arranca en el aniversario de `ingreso` dentro de `anio`."""
+    from datetime import timedelta as _tda
+    ini = _add_years(ingreso, anio - ingreso.year)
+    fin = _add_years(ingreso, anio - ingreso.year + 1) - _tda(days=1)
+    return ini, fin
+
+
 def _compensatorio_rediseno_rows(anio, feriados, hoy):
     """Filas de los tabs "Compensatorio por vacaciones" / "Tiempo diario".
     · Saldo para gastar = Derecho a días − Vacación acumulada
@@ -2772,6 +2786,10 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         es_doc  = bool(vc and vc.es_docente)
         dias_fijos = vc.dias_fijos if vc else None
         derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
+        al_ini = al_fin = None
+        if ingreso and ec in _ANIO_LABORAL_EMP and anio >= ingreso.year:
+            al_ini, al_fin = _anio_laboral(ingreso, anio)
+            derecho = _dias_vacacion(es_doc, ingreso, al_ini, dias_fijos=dias_fijos)
         # días usados (vacaciones) del año, para la acumulada calculada
         from django.db.models import Sum as _Sum
         usados = float(PermisoReporte.objects.filter(
@@ -2793,7 +2811,8 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         dias_necesita = round(sum(
             (float(x.dias) if getattr(x, 'dias', None) is not None
              else _dias_de_feriado(x.descripcion, x.horas))
-            for x in cc.dias_no_laborables.all()), 2)
+            for x in cc.dias_no_laborables.all()
+            if not al_ini or x.fecha is None or al_ini <= x.fecha <= al_fin), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
         # Días que debe compensar = Total − Saldo
@@ -2808,6 +2827,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         rows.append({
             'pk': cc.pk, 'emp_code': ec, 'nombre': cc.nombre_empleado,
             'ingreso': ingreso, 'derecho': derecho, 'acumulada': acumulada,
+            'al_ini': al_ini, 'al_fin': al_fin,
             'acumulada_es_manual': acumulada_es_manual, 'saldo': saldo,
             'dias_necesita': dias_necesita, 'permisos_dias': permisos_dias,
             'total_necesita': total_necesita, 'debe_compensar': debe_compensar,

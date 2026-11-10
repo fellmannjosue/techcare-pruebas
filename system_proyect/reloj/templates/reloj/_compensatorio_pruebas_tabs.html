@@ -24,7 +24,7 @@
         {% for r in p_rows %}
         <tr>
           <td><div class="fw-semibold">{{ r.nombre }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
-          <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}{% if r.al_ini %}<div class="small text-muted" title="Derecho y cierres ANA de este año laboral">Año laboral {{ r.al_ini|date:"d/m/Y" }} – {{ r.al_fin|date:"d/m/Y" }}</div>{% endif %}</td>{# <--- hecho por claude code (10-nov-2026): año laboral (prueba con Nancy) #}
           <td class="text-center">{{ r.derecho }}</td>
           <td class="text-center">{{ r.acumulada }}{% if r.acumulada_es_manual %} <span class="badge bg-blue-lt text-blue" title="Valor manual">m</span>{% endif %}
             {% if can_edit %}<button class="btn btn-sm btn-ghost-secondary btn-edit-acum px-1 py-0 ms-1" data-emp="{{ r.emp_code }}" data-nombre="{{ r.nombre }}" data-valor="{{ r.acumulada|unlocalize }}" title="Editar vacación acumulada"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>{% endif %}
