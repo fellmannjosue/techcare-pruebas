@@ -2759,22 +2759,6 @@ def _anio_laboral_de(ingreso, fecha):
     return _anio_laboral(ingreso, ingreso.year + max(0, n))
 
 
-def _al_debe(tramos, saldo_actual):
-    """Días que debe compensar con varios años laborales: cada cierre se paga con el saldo del año
-    laboral en que cae. Lo ya usado por cierres de años anteriores del calendario sale del disponible.
-    Rellena saldo/disponible/debe de cada tramo y devuelve el total."""
-    total = 0.0
-    for t in tramos:
-        t['saldo'] = round(saldo_actual if t['actual'] else t['saldo_auto'], 2)
-        disp = t['saldo'] - t['previos']
-        if t['previos'] > 0:
-            disp = max(0.0, disp)
-        t['disponible'] = round(disp, 2)
-        t['debe'] = round(t['cierres'] - disp, 2)
-        total += t['debe']
-    return round(total, 2)
-
-
 def _anio_laboral(ingreso, anio):
     """(inicio, fin) del año laboral que arranca en el aniversario de `ingreso` dentro de `anio`."""
     from datetime import timedelta as _tda
@@ -2836,37 +2820,22 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
                     else _dias_de_feriado(x.descripcion, x.horas))
         _dnl = list(cc.dias_no_laborables.all())
         if ingreso and ec in _ANIO_LABORAL_EMP:
-            # <--- hecho por claude code (10-nov-2026): cierres del AÑO DEL CALENDARIO, cada uno
-            # cobrado al año laboral en que cae (Semana Santa 2027 → año laboral 17/04/26–16/04/27).
-            _act = _anio_laboral_de(ingreso, hoy)
-            _tr = {}
-            for x in _dnl:
-                if x.fecha is not None and x.fecha.year != anio:
-                    continue
-                al = _anio_laboral_de(ingreso, x.fecha) if x.fecha else _act
-                _tr.setdefault(al, 0.0)
-                _tr[al] += _dd(x)
-            al_tramos = []
-            for (t_ini, t_fin), cierres in sorted(_tr.items()):
-                prev = sum(_dd(x) for x in _dnl
-                           if x.fecha and t_ini <= x.fecha <= t_fin and x.fecha.year < anio)
-                t_der = _dias_vacacion(es_doc, ingreso, t_ini, dias_fijos=dias_fijos)
-                t_usados = float(PermisoReporte.objects.filter(
-                    tipo='vacaciones_dias', emp_code=ec, fecha__gte=t_ini, fecha__lte=t_fin,
-                ).aggregate(t=_Sum('dias'))['t'] or 0)
-                al_tramos.append({'ini': t_ini, 'fin': t_fin, 'derecho': t_der,
-                                  'cierres': round(cierres, 2), 'previos': round(prev, 2),
-                                  'actual': (t_ini, t_fin) == _act,
-                                  'saldo_auto': round(t_der - t_usados, 2)})
-            dias_necesita = round(sum(t['cierres'] for t in al_tramos), 2)
+            # <--- hecho por claude code (10-nov-2026): regla del usuario — los días que necesita son los
+            # cierres ANA del AÑO LABORAL que arranca en `anio` (desde el aniversario hasta el día antes del
+            # siguiente). Nancy 2026 = 17/04/26–16/04/27 = Trimestral + Morazánico + Diciembre + Semana Santa 2027.
+            t_ini, t_fin = _anio_laboral(ingreso, max(anio, ingreso.year))
+            _en = [x for x in _dnl if x.fecha is None or t_ini <= x.fecha <= t_fin]
+            derecho = _dias_vacacion(es_doc, ingreso, t_ini, dias_fijos=dias_fijos)
+            al_tramos = {'ini': t_ini, 'fin': t_fin, 'n': len(_en)}
+            dias_necesita = round(sum(_dd(x) for x in _en), 2)
         else:
             dias_necesita = round(sum(_dd(x) for x in _dnl), 2)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
         # Días que debe compensar = Total − Saldo
         debe_compensar = round(total_necesita - float(saldo), 2)
-        if al_tramos is not None:
-            debe_compensar = round(_al_debe([dict(t) for t in al_tramos], float(saldo)) + permisos_dias, 2)
+        if al_tramos is not None and not al_tramos['n']:
+            debe_compensar = 0.0   # año laboral sin cierres registrados: no hay deuda (antes salía −saldo)
         horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
         if dias_hab > 0 and debe_compensar > 0:
             min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
@@ -3215,9 +3184,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _saldo_m = _saldo_over.get(str(_rd0['emp_code']))
         _saldo = round(_saldo_m, 2) if _saldo_m is not None else float(_rd0['saldo'])
         _debe_d = round(float(_rd0['dias_necesita']) - _saldo, 2)
-        if _rd0.get('al_tramos') is not None:   # año laboral (prueba con Nancy)
-            _rd0 = {**_rd0, 'al_tramos': [dict(t) for t in _rd0['al_tramos']]}
-            _debe_d = _al_debe(_rd0['al_tramos'], _saldo)
+        if _rd0.get('al_tramos') is not None and not _rd0['al_tramos']['n']:   # año laboral sin cierres
+            _debe_d = 0.0
         p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
                        'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _JORNADA_COMP_H, 2)})
     _p_by_pk = {x['pk']: x for x in p_rows}
