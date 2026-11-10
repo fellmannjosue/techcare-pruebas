@@ -26,6 +26,11 @@
     const el = document.createElement('div');
     el.className = `alert alert-${ok?'success':'danger'} alert-dismissible tc-toast-solido`;
     el.style.zIndex = 9999;
+    // <--- hecho por claude code (10-nov-2026): fondo SÓLIDO y por encima del botón del asistente, aunque el navegador tenga el CSS viejo en caché
+    Object.assign(el.style, {position: 'fixed', right: '16px', bottom: '88px', margin: '0', opacity: '1',
+      maxWidth: 'min(420px, calc(100vw - 32px))', background: ok ? '#ebfbee' : '#fff5f5', color: '#1d2433',
+      border: '1px solid ' + (ok ? '#b2f2bb' : '#ffc9c9'), borderLeft: '5px solid ' + (ok ? '#2fb344' : '#d63939'),
+      borderRadius: '10px', boxShadow: '0 10px 28px rgba(15,23,42,.25)', fontWeight: '600', backdropFilter: 'none'});
     el.innerHTML = `<i class="ti ti-${ok?'check':'x'} me-1"></i>${msg}<button class="btn-close" data-bs-dismiss="alert"></button>`;
     document.body.appendChild(el);
     setTimeout(()=>el.remove(), 4000);
