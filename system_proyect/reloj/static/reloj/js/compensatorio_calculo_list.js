@@ -446,8 +446,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const dias = (totalDias != null) ? totalDias : (totalHrs > 0 ? +(totalHrs / 8.8).toFixed(2) : 0);
     document.getElementById('dnl-total-hrs').textContent = totalHrs;
     document.getElementById('dnl-total-dias').textContent = dias;
-    const badge = document.querySelector(`.dias-no-lab-badge-${dnlPk}`);
-    if (badge) badge.innerHTML = `<i class="ti ti-edit me-1"></i>${dias > 0 ? dias + ' días' : '—'}`;
+    // <--- hecho por claude code (11-nov-2026): NO se reescribe la etiqueta de la fila: con el año laboral, la fila
+    // cuenta solo los cierres de ESE año y este total es de todos (Lidia 2027 decía «10 días» y calculaba 0).
+    // Al cerrar la ventana, compensatorio_pruebas.js recarga la página si hubo cambios.
   }
   async function reloadDNL() {
     const d = await (await fetch(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/`)).json();
