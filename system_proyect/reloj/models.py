@@ -456,7 +456,7 @@ class DiaNoLaborableANA(models.Model):
     # <--- hecho por claude code: días reales del feriado (NO se derivan de las horas: cada
     # feriado tiene su propio conteo, p.ej. Semana Santa 2.5, Trimestral 5.5, Morazánico 2,
     # Cierre Diciembre 8 ó 7). Es lo que se muestra en la columna "Días no lab. ANA".
-    dias        = models.DecimalField("Días", max_digits=5, decimal_places=2, null=True, blank=True)
+    dias        = models.DecimalField("Días", max_digits=6, decimal_places=3, null=True, blank=True)   # <--- hecho por claude code (11-nov-2026): 3 decimales (2.625)
 
     @property
     def total_horas(self):
@@ -495,7 +495,7 @@ class CompensatorioSaldoManual(models.Model):
     """<--- hecho por claude code (16-sep-2026): override de "Saldo para gastar" (pantalla Pruebas, tab 1).
     Si existe sustituye a Derecho − Acumulada; de él sale "Días que debe compensar"."""
     emp_code = models.CharField(max_length=20, unique=True)
-    saldo = models.DecimalField(max_digits=6, decimal_places=2)
+    saldo = models.DecimalField(max_digits=7, decimal_places=3)   # <--- hecho por claude code (11-nov-2026): 3 decimales (2.875)
 
     class Meta:
         db_table = 'reloj_compensatorio_saldo_manual'
@@ -523,7 +523,7 @@ class CompensatorioPermisoTomadoManual(models.Model):
 class CompensatorioVacacionManual(models.Model):
     """Override manual de 'Vacación acumulada' por empleado (reemplaza el valor calculado)."""
     emp_code  = models.CharField("Código empleado", max_length=20, unique=True, db_index=True)
-    acumulada = models.DecimalField("Vacación acumulada (manual)", max_digits=7, decimal_places=2)
+    acumulada = models.DecimalField("Vacación acumulada (manual)", max_digits=8, decimal_places=3)   # <--- hecho por claude code (11-nov-2026): 3 decimales (16.125)
 
     class Meta:
         db_table  = "reloj_compensatorio_vacacion_manual"

@@ -2818,12 +2818,12 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         ).aggregate(t=_Sum('dias'))['t'] or 0) + float(vc.dias_usados_manual or 0 if vc else 0)
         # Vacación acumulada: del módulo o el override manual
         _prop, acum_bruto = _vac_accrual(es_doc, ingreso, hoy, dias_fijos, derecho)
-        acumulada = round(acum_bruto - usados, 2)
+        acumulada = round(acum_bruto - usados, 3)
         acumulada_es_manual = ec in acum_manual
         if acumulada_es_manual:
-            acumulada = round(acum_manual[ec], 2)
+            acumulada = round(acum_manual[ec], 3)
         # Saldo para gastar = Derecho − Acumulada
-        saldo = round(float(derecho) - acumulada, 2)
+        saldo = round(float(derecho) - acumulada, 3)   # <--- hecho por claude code (11-nov-2026): regla del usuario: sin redondear a 2 (2.875, no 2.88)
         # Periodo efectivo del empleado y días hábiles
         emp_fi = ingreso if (ingreso and ingreso > fi) else fi
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
@@ -2839,9 +2839,9 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             t_ini, t_fin = _anio_laboral(ingreso, max(anio, ingreso.year))
             _en = [x for x in _dnl if x.fecha is None or t_ini <= x.fecha <= t_fin]
             al_tramos = {'ini': t_ini, 'fin': t_fin, 'n': len(_en)}
-            dias_necesita = round(sum(_dd(x) for x in _en), 2)
+            dias_necesita = round(sum(_dd(x) for x in _en), 3)
         else:
-            dias_necesita = round(sum(_dd(x) for x in _dnl), 2)
+            dias_necesita = round(sum(_dd(x) for x in _dnl), 3)
         permisos_dias = round(float(cc.permisos_extras_horas or 0) / _JORNADA_COMP_H, 2)
         total_necesita = round(dias_necesita + permisos_dias, 2)
         # Días que debe compensar = Total − Saldo
@@ -3194,8 +3194,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
     p_rows = []
     for _rd0 in redis_rows:
         _saldo_m = _saldo_over.get(str(_rd0['emp_code']))
-        _saldo = round(_saldo_m, 2) if _saldo_m is not None else float(_rd0['saldo'])
-        _debe_d = round(float(_rd0['dias_necesita']) - _saldo, 2)
+        _saldo = round(_saldo_m, 3) if _saldo_m is not None else float(_rd0['saldo'])
+        _debe_d = round(float(_rd0['dias_necesita']) - _saldo, 3)
         if _rd0.get('al_tramos') is not None and not _rd0['al_tramos']['n']:   # año laboral sin cierres
             _debe_d = 0.0
         p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
@@ -3325,7 +3325,7 @@ def compensatorio_saldo_manual_save(request):
         CompensatorioSaldoManual.objects.filter(emp_code=emp).delete()
         return JsonResponse({'ok': True, 'manual': False})
     try:
-        val = round(float(raw), 2)
+        val = round(float(raw), 3)
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'Valor inválido'}, status=400)
     CompensatorioSaldoManual.objects.update_or_create(emp_code=emp, defaults={'saldo': val})
@@ -3415,7 +3415,7 @@ def compensatorio_vac_acumulada_save(request):
     val = None
     if raw not in (None, ''):
         try:
-            val = round(float(raw), 2)
+            val = round(float(raw), 3)
         except (ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'Valor inválido'})
     try:
@@ -3937,7 +3937,7 @@ def compensatorio_dias_no_lab_add(request, pk):
     dias_raw = body.get('dias')
     if dias_raw not in (None, ''):
         try:
-            dias_val = round(float(dias_raw), 2)
+            dias_val = round(float(dias_raw), 3)
             if dias_val < 0:
                 raise ValueError
         except (ValueError, TypeError):
