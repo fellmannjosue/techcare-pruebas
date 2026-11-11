@@ -3243,6 +3243,9 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
             'p_perm_sobran_h': round(max(0.0, max(0.0, _hecho - _tot) - _perm_h), 2) if _perm_d > 0 else 0.0,
             'p_min_diario': _MIN_COMP_DIA,
             'p_hecho_h': round(min(_hecho, _tot), 2) if _tot > 0 else round(_hecho, 2),   # tab 3: topado en lo que debe
+            # <--- hecho por claude code (11-nov-2026): regla del usuario — SALDO A FAVOR = horas trabajadas (hasta lo que
+            # debe, p.ej. 105) − tiempo aplicado. Antes restaba del total hecho (164.9) y daba de más.
+            'p_saldo_favor': round((min(_hecho, _tot) if _tot > 0 else _hecho) - _p_tomado_h, 2),
             'p_hecho_real_h': round(_hecho, 2), 'p_pendiente_h': _pend,
             'p_dias_total': _teo['dias_47'], 'p_dias_pend': _real['dias_47'],
             'p_fecha': _real['fecha'], 'p_alcanza': _real['alcanza'],

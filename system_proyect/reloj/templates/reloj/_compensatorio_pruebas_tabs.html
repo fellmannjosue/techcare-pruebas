@@ -99,7 +99,7 @@
             </button>
             {% if item.p_perm_tomado_h > 0 %}<div class="text-muted small" title="Horas de permiso tomadas de los 3 días; se ven en el tab 3">sin {{ item.p_perm_tomado_h }} h de permiso</div>{% endif %}
           </td>
-          <td class="text-center">{% if item.saldo == 0 %}<span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>{% else %}<span class="fw-semibold font-monospace saldo-badge-{{ r.pk }}">{{ item.horas_saldo }} h</span>{% endif %}</td>
+          <td class="text-center"><span class="fw-semibold font-monospace{% if item.p_saldo_favor < 0 %} text-danger{% endif %}">{{ item.p_saldo_favor }} h</span></td>{# <--- hecho por claude code (11-nov-2026): horas trabajadas − tiempo aplicado #}
           <td class="text-center table-warning">
             {% if item.p_debe_h <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
             {% elif item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Completado</span>
