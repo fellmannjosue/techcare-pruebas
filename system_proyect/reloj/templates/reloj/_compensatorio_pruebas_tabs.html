@@ -73,9 +73,9 @@
         <th class="text-center d-none">Compensado hasta hoy</th>
         <th class="text-center d-none">Tiempo extra</th>
         <th class="text-center">Horas trabajadas</th>
+        <th class="text-center table-warning">Falta compensar</th>
         <th class="text-center">Tiempo tomado</th>
         <th class="text-center">Saldo hasta la fecha</th>
-        <th class="text-center table-warning">Falta compensar</th>
         <th class="text-center table-warning">Días de {{ min_dia }} min</th>
         <th class="text-center table-warning">Termina el</th>
       </tr></thead>
@@ -93,6 +93,7 @@
             </button>
           </td>
           <td class="text-center font-monospace fw-semibold" title="Total hecho: {{ item.comp_mas_te_hrs }} h">{{ item.p_hecho_h }} h{% if item.p_permisos_dias > 0 and item.p_horas_hechas_h > 0 %}<div class="text-muted small fw-normal" title="Lo hecho por encima de lo que debe va a los 3 días de permiso (tab 3)">+{{ item.p_horas_hechas_h }} h a los 3 días</div>{% elif item.p_de_mas > 0 and item.p_debe_h > 0 %}<div class="text-muted small fw-normal">+{{ item.p_de_mas }} h de más</div>{% endif %}</td>{# <--- hecho por claude code (11-nov-2026): muestra lo hecho HASTA lo que debe (164.9 − 59.9 → 105); lo de más va abajo #}
+          <td class="text-center table-warning">{% if item.p_debe_h <= 0 or item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>0 h</span>{% else %}<span class="badge bg-red-lt text-red font-monospace">{{ item.p_pendiente_h }} h</span>{% endif %}</td>
           <td class="text-center">
             <button class="btn btn-sm btn-ghost-secondary btn-set-tomado px-2 py-0" data-pk="{{ r.pk }}" data-nombre="{{ r.nombre_empleado }}" data-valor="{% if item.tomado_es_override %}{{ item.tomado_hrs|unlocalize }}{% endif %}" title="{% if request.user.is_superuser %}Editar tiempo tomado{% else %}Ver detalle del tiempo tomado{% endif %}">
               <span class="badge {% if item.tomado_es_override %}bg-yellow-lt text-yellow{% else %}bg-pink-lt text-pink{% endif %} tomado-badge-{{ r.pk }}"><i class="ti ti-calendar-minus me-1"></i>{% if item.p_tomado_h > 0 %}{{ item.p_tomado_h }} h{% else %}—{% endif %}</span>
@@ -100,7 +101,6 @@
             {% if item.p_perm_tomado_h > 0 %}<div class="text-muted small" title="Horas de permiso tomadas de los 3 días; se ven en el tab 3">sin {{ item.p_perm_tomado_h }} h de permiso</div>{% endif %}
           </td>
           <td class="text-center">{% if item.saldo == 0 %}<span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>{% else %}<span class="fw-semibold font-monospace saldo-badge-{{ r.pk }}">{{ item.horas_saldo }} h</span>{% endif %}</td>
-          <td class="text-center table-warning">{% if item.p_debe_h <= 0 or item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>0 h</span>{% else %}<span class="badge bg-red-lt text-red font-monospace">{{ item.p_pendiente_h }} h</span>{% endif %}</td>
           <td class="text-center table-warning">{% if item.p_dias_pend > 0 %}<span class="fw-bold font-monospace">{{ item.p_dias_pend }}</span><div class="text-muted small">de {{ item.p_dias_total }} en total</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
           <td class="text-center table-warning">
             {% if item.p_debe_h <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
