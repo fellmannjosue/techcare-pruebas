@@ -116,7 +116,7 @@
 {# ── Tab 3 (antes 4): solo empleados con permisos extras (3 días) ── #}
 <div class="tab-pane fade" id="ptab-permisos">
   <div class="alert alert-info py-2 small mb-3">
-    <i class="ti ti-info-circle me-1"></i>Solo los empleados que tienen <strong>permisos extras</strong> (los 3 días). Es un dato <strong>aparte</strong>: no entra en los tabs 1, 2 y 3. Aquí se ve cuánto equivale en horas, <strong>cuánto ya tomó</strong> de esos 3 días (permisos registrados en fechas que no son feriado ANA) y las <strong>horas hechas</strong> para esos 3 días (lo hecho por encima de lo que debe, tab 3), cuánto ya tomó, y <strong>le restan por tomar</strong> = horas hechas − tomado.
+    <i class="ti ti-info-circle me-1"></i>Solo los empleados que tienen <strong>permisos extras</strong> (los 3 días). Es un dato <strong>aparte</strong>: no entra en los tabs 1 y 2. Aquí se ve cuánto equivalen en horas (días × 8), las <strong>horas hechas</strong> para esos 3 días (lo trabajado por encima de lo que debe, tab 2), las <strong>horas tomadas</strong> de esos 3 días (permisos registrados en fechas que no son feriado ANA) y el <strong>saldo</strong> = horas hechas − horas tomadas.
   </div>
   <div class="card"><div class="table-responsive">
     <table class="table table-vcenter card-table table-sm mb-0">
@@ -124,8 +124,8 @@
         <th>Empleado</th>
         <th class="text-center table-primary">Equivale en horas (× 8)</th>
         <th class="text-center table-success">Horas hechas</th>
-        <th class="text-center table-warning">Tomado de los 3 días</th>
-        <th class="text-center table-warning">Le restan por tomar</th>
+        <th class="text-center table-warning">Horas tomadas</th>
+        <th class="text-center table-warning">Saldo</th>
       </tr></thead>
       <tbody>
         {% for item in con_permisos %}{% with r=item.r %}
