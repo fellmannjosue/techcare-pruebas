@@ -61,7 +61,7 @@
         <div class="col-auto"><div class="text-muted small">Máximo compensable</div><div class="fw-bold fs-3 text-green">{{ p_max_h }} h</div></div>
       </div>
       <div class="text-muted small mt-2">
-        <strong>Horas trabajadas</strong> = compensado + tiempo extra (según las marcas), hasta lo que debe · <strong>Saldo hasta la fecha</strong> = horas trabajadas − tomado · <strong>Falta compensar</strong> = horas que debe (tab 1, sin los 3 días de permiso) − horas trabajadas; en 0 cuando ya cubrió (las horas de más se ven en el tab 3). Con lo que falta, a <strong>{{ min_dia }} min</strong> por día hábil, se calcula <strong>en qué fecha termina contando desde hoy</strong>; si no alcanza antes de la matrícula sigue a {{ min_matricula }} min/día. El <strong>tiempo tomado</strong> no incluye las horas de permiso de los 3 días.
+        <strong>Horas trabajadas</strong> = compensado + tiempo extra (según las marcas), hasta lo que debe · <strong>Saldo hasta la fecha</strong> = horas trabajadas − tiempo aplicado · <strong>Falta compensar</strong> = horas que debe (tab 1, sin los 3 días de permiso) − horas trabajadas; en 0 cuando ya cubrió (las horas de más se ven en el tab 3). Con lo que falta, a <strong>{{ min_dia }} min</strong> por día hábil, se calcula <strong>en qué fecha termina contando desde hoy</strong>; si no alcanza antes de la matrícula sigue a {{ min_matricula }} min/día. El <strong>tiempo aplicado</strong> (tiempo tomado) no incluye las horas de permiso de los 3 días.
       </div>
     </div>
   </div>
@@ -74,7 +74,7 @@
         <th class="text-center d-none">Tiempo extra</th>
         <th class="text-center">Horas trabajadas</th>
         <th class="text-center table-warning">Falta compensar</th>
-        <th class="text-center">Tiempo tomado</th>
+        <th class="text-center">Tiempo aplicado <i class="ti ti-info-circle text-blue al-info" tabindex="0" role="button" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Tiempo tomado" title="Tiempo tomado"></i></th>{# <--- hecho por claude code (11-nov-2026): «Tiempo tomado» pasa a «Tiempo aplicado»; la «i» lo aclara #}
         <th class="text-center">Saldo hasta la fecha</th>
         <th class="text-center table-warning">Termina el</th>
       </tr></thead>
