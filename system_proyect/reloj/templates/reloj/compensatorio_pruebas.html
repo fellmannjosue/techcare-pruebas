@@ -16,7 +16,7 @@
 {% block content %}
 <ul class="nav nav-tabs mb-3" id="pruebas-tabs" role="tablist">
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptab-vac" type="button"><i class="ti ti-beach me-1 text-orange"></i>1 · Días a compensar</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Tiempo hecho, deuda y cierre</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Control de deudas compensatorio {{ anio_sel }}</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-permisos" type="button"><i class="ti ti-license me-1 text-purple"></i>3 · Con 3 días de permiso <span class="badge bg-purple-lt text-purple ms-1">{{ con_permisos|length }}</span></button></li>
   <li class="nav-item ms-auto"><span class="nav-link disabled text-muted">Año {{ anio_sel }} · hoy {{ hoy|date:"d/m/Y" }}</span></li>
 </ul>
