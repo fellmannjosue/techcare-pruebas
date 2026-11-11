@@ -2805,7 +2805,11 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         derecho = _dias_vacacion(es_doc, ingreso, hoy, dias_fijos=dias_fijos) if ingreso else 0
         al_tramos = None   # año laboral (prueba): tramos por año laboral de los cierres de `anio`
         if ingreso and _usa_anio_laboral(ec):
-            derecho = _dias_vacacion(es_doc, ingreso, _anio_laboral_de(ingreso, hoy)[0], dias_fijos=dias_fijos)
+            # <--- hecho por claude code (11-nov-2026): bug — el saldo se calculaba con el derecho del año laboral
+            # de HOY y la columna mostraba el del año elegido (Ana 2027: derecho 20, saldo 15). Ahora ambos usan el
+            # año laboral que arranca en `anio`.
+            derecho = _dias_vacacion(es_doc, ingreso, _anio_laboral(ingreso, max(anio, ingreso.year))[0],
+                                     dias_fijos=dias_fijos)
         # días usados (vacaciones) del año, para la acumulada calculada
         from django.db.models import Sum as _Sum
         usados = float(PermisoReporte.objects.filter(
@@ -2834,7 +2838,6 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
             # siguiente). Nancy 2026 = 17/04/26–16/04/27 = Trimestral + Morazánico + Diciembre + Semana Santa 2027.
             t_ini, t_fin = _anio_laboral(ingreso, max(anio, ingreso.year))
             _en = [x for x in _dnl if x.fecha is None or t_ini <= x.fecha <= t_fin]
-            derecho = _dias_vacacion(es_doc, ingreso, t_ini, dias_fijos=dias_fijos)
             al_tramos = {'ini': t_ini, 'fin': t_fin, 'n': len(_en)}
             dias_necesita = round(sum(_dd(x) for x in _en), 2)
         else:
