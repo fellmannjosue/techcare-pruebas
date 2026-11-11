@@ -6,7 +6,7 @@
 {# <--- hecho por claude code (16-sep-2026): sin "show active" — en Cálculo Compensatorio ya hay un panel activo (dos activos = bug al cambiar de tab); en Pruebas lo activa el JS #}
 <div class="tab-pane fade" id="ptab-vac">
   <div class="alert alert-info py-2 small mb-3">
-    <i class="ti ti-info-circle me-1"></i><strong>Saldo para gastar</strong> = Derecho a días − Vacación acumulada (o el valor fijado con el lápiz) · <strong>Días que debe compensar</strong> = Días que necesita − Saldo · <strong>Horas</strong> = días × 8,8. Los <strong>permisos extras (3 días)</strong> van aparte, en el tab 4, y no entran aquí. La <strong>vacación acumulada</strong> (lápiz) y los <strong>días que necesita</strong> (días no laborables ANA) se editan aquí mismo y son los mismos datos de Cálculo Compensatorio. Los datos se editan en Cálculo Compensatorio → Compensatorio por vacaciones.
+    <i class="ti ti-info-circle me-1"></i><strong>Saldo para gastar</strong> = Derecho a días − Deuda vacación (o el valor fijado con el lápiz) · <strong>Días que debe compensar</strong> = Días que necesita − Saldo · <strong>Horas</strong> = días × 8,8. Los <strong>permisos extras (3 días)</strong> van aparte, en el tab 4, y no entran aquí. La <strong>deuda vacación</strong> (lápiz) y los <strong>días que necesita</strong> (días no laborables ANA) se editan aquí mismo y son los mismos datos de Cálculo Compensatorio. Los datos se editan en Cálculo Compensatorio → Compensatorio por vacaciones.
   </div>
   <div class="card"><div class="table-responsive">
     <table class="table table-vcenter card-table table-sm mb-0">
@@ -14,7 +14,7 @@
         <th>Empleado</th>
         <th class="text-center">Fecha de ingreso</th>
         <th class="text-center">Derecho a días</th>
-        <th class="text-center">Vacación acumulada</th>
+        <th class="text-center">Deuda vacación</th>
         <th class="text-center">Saldo para gastar</th>
         <th class="text-center">Días que necesita</th>
         <th class="text-center table-warning">Días que debe compensar</th>
@@ -27,7 +27,7 @@
           <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}{% if r.al_tramos %} <i class="ti ti-info-circle text-blue al-info" tabindex="0" role="button" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Año laboral" title="Año laboral {{ r.al_tramos.ini|date:'d/m/Y' }} – {{ r.al_tramos.fin|date:'d/m/Y' }}{% if not r.al_tramos.n %} · sin cierres registrados{% endif %}"></i>{% if not r.al_tramos.n %} <i class="ti ti-alert-triangle text-warning" title="Sin cierres registrados en este año laboral"></i>{% endif %}{% endif %}</td>{# <--- hecho por claude code (11-nov-2026): año laboral en la «i» de información (pedido del usuario) #}{# <--- hecho por claude code (10-nov-2026): año laboral (prueba con Nancy) #}
           <td class="text-center">{{ r.derecho }}</td>
           <td class="text-center">{{ r.acumulada }}{% if r.acumulada_es_manual %} <span class="badge bg-blue-lt text-blue" title="Valor manual">m</span>{% endif %}
-            {% if can_edit %}<button class="btn btn-sm btn-ghost-secondary btn-edit-acum px-1 py-0 ms-1" data-emp="{{ r.emp_code }}" data-nombre="{{ r.nombre }}" data-valor="{{ r.acumulada|unlocalize }}" title="Editar vacación acumulada"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>{% endif %}
+            {% if can_edit %}<button class="btn btn-sm btn-ghost-secondary btn-edit-acum px-1 py-0 ms-1" data-emp="{{ r.emp_code }}" data-nombre="{{ r.nombre }}" data-valor="{{ r.acumulada|unlocalize }}" title="Editar deuda vacación"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>{% endif %}
           </td>
           <td class="text-center fw-semibold">{{ r.p_saldo }}
             {% if r.p_saldo_manual %}<span class="badge bg-blue-lt text-blue ms-1" title="Valor fijado a mano (calculado: {{ r.p_saldo_auto }})">m</span>{% endif %}

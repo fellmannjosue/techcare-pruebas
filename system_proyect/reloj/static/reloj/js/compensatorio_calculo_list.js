@@ -909,7 +909,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
   document.querySelectorAll('.btn-edit-acum').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       var emp = this.dataset.emp, nombre = this.dataset.nombre || '', actual = this.dataset.valor || '';
-      var val = window.prompt('Vacación acumulada de ' + nombre + '\n(deja vacío para volver al valor calculado):', actual);
+      var val = window.prompt('Deuda vacación de ' + nombre + '\n(deja vacío para volver al valor calculado):', actual);
       if (val === null) return;
       val = val.trim().replace(',', '.');
       if (val !== '' && isNaN(parseFloat(val))) { alert('Número inválido.'); return; }
