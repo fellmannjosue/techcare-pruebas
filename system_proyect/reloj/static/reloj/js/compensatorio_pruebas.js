@@ -63,3 +63,15 @@
     }
   } catch (e) {}
 })();
+
+/* <--- hecho por claude code (11-nov-2026): tooltip de la «i» de Año laboral (tab 1 · Vacaciones); clic/toque también lo muestra */
+(function () {
+  function iniciarAlInfo() {
+    if (!window.bootstrap || !bootstrap.Tooltip) return;
+    document.querySelectorAll('.al-info[data-bs-toggle="tooltip"]').forEach(function (el) {
+      bootstrap.Tooltip.getOrCreateInstance(el, { trigger: 'hover focus click' });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarAlInfo);
+  else iniciarAlInfo();
+})();
