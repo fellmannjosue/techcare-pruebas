@@ -2619,6 +2619,9 @@ def _receso_compute(desde, hasta):
 # sobre los días hábiles del periodo del año escolar (1-feb → 26-nov, configurable por año).
 # ══════════════════════════════════════════════════════════════════════════════
 _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → horas
+# <--- hecho por claude code (11-nov-2026): pedido del usuario — las HORAS QUE DEBE COMPENSAR (tab 1 · Días a
+# compensar, y de ahí la deuda de los tabs 2-3) se calculan a 8 h por día, no a 8.8.
+_HORAS_DIA_DEUDA = 8.0
 # <--- hecho por claude code (16-sep-2026): botón "Pruebas" del Reloj — compensatorio DIARIO FIJO del
 # horario asistente (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS hacen para cubrir los 18
 # días de cierre, en el periodo 1-feb → 30-nov; en MATRÍCULA (día siguiente al fin → 18-dic y
@@ -2842,7 +2845,7 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         debe_compensar = round(total_necesita - float(saldo), 2)
         if al_tramos is not None and not al_tramos['n']:
             debe_compensar = 0.0   # año laboral sin cierres registrados: no hay deuda (antes salía −saldo)
-        horas_totales = round(debe_compensar * _JORNADA_COMP_H, 2)
+        horas_totales = round(debe_compensar * _HORAS_DIA_DEUDA, 2)
         if dias_hab > 0 and debe_compensar > 0:
             min_diario = round(debe_compensar * _JORNADA_COMP_H * 60 / dias_hab, 1)
         else:
@@ -3193,7 +3196,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         if _rd0.get('al_tramos') is not None and not _rd0['al_tramos']['n']:   # año laboral sin cierres
             _debe_d = 0.0
         p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
-                       'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _JORNADA_COMP_H, 2)})
+                       'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _HORAS_DIA_DEUDA, 2)})
     _p_by_pk = {x['pk']: x for x in p_rows}
     for _it in registros_data:
         _rd = _p_by_pk.get(_it['r'].pk)
