@@ -100,6 +100,11 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/tomado-manual/add/', views.compensatorio_tomado_manual_add, name='reloj_compensatorio_tomado_manual_add'),
     path('compensatorio-tomado-manual/<int:tm_pk>/delete/', views.compensatorio_tomado_manual_del, name='reloj_compensatorio_tomado_manual_del'),
     path('compensatorio-tomado-manual/<int:tm_pk>/edit/', views.compensatorio_tomado_manual_edit, name='reloj_compensatorio_tomado_manual_edit'),
+    # <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos)
+    path('compensatorio-calculo/<int:pk>/trabajadas/', views.compensatorio_trabajadas_list, name='reloj_comp_trabajadas_list'),
+    path('compensatorio-calculo/<int:pk>/trabajadas/add/', views.compensatorio_trabajadas_add, name='reloj_comp_trabajadas_add'),
+    path('compensatorio-trabajadas/<int:tm_pk>/edit/', views.compensatorio_trabajadas_edit, name='reloj_comp_trabajadas_edit'),
+    path('compensatorio-trabajadas/<int:tm_pk>/delete/', views.compensatorio_trabajadas_del, name='reloj_comp_trabajadas_del'),
     path('compensatorio/emp-buscar/', views.compensatorio_emp_buscar, name='reloj_compensatorio_emp_buscar'),
     path('compensatorio-mensual/add/', views.compensatorio_mensual_add, name='reloj_compensatorio_mensual_add'),
     path('compensatorio-mensual/cell/', views.compensatorio_mensual_cell, name='reloj_compensatorio_mensual_cell'),

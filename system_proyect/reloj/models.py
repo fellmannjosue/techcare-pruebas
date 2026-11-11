@@ -423,6 +423,28 @@ class CompensatorioCalculo(models.Model):
         return f"{self.nombre_empleado} → {self.fecha_fin}"
 
 
+class CompensatorioTrabajadasManual(models.Model):
+    """<--- hecho por claude code (11-nov-2026): HORAS TRABAJADAS registradas a mano (pedido del usuario, por ahora solo
+    Santos Bentacourth, emp 8). Para quien está en `reloj.views._TRABAJADAS_MANUAL_EMP`, la columna «Horas trabajadas»
+    del tab 2 es la SUMA de estas entradas (no sale de las marcas)."""
+    calculo    = models.ForeignKey(
+        'CompensatorioCalculo', on_delete=models.CASCADE, related_name='trabajadas_manual')
+    fecha      = models.DateField("Fecha")
+    horas      = models.DecimalField("Horas", max_digits=7, decimal_places=3, default=0)
+    razon      = models.CharField("Razón / comentario", max_length=300, blank=True)
+    registrado_por = models.CharField("Registrado por", max_length=150, blank=True)
+    creado_en  = models.DateTimeField("Creado en", auto_now_add=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_trabajadas_manual"
+        verbose_name = "Horas trabajadas manual"
+        verbose_name_plural = "Horas trabajadas manuales"
+        ordering = ['fecha', 'pk']
+
+    def __str__(self):
+        return f"{self.calculo_id} · {self.fecha} · {self.horas} h"
+
+
 class CompensatorioTomadoManual(models.Model):
     """Entradas manuales de tiempo tomado para un CompensatorioCalculo (tab Adeudados 2).
     Se suman al permiso compensatorio para el 'Tiempo tomado' total."""

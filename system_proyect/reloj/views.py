@@ -2622,6 +2622,9 @@ _JORNADA_COMP_H = 8.8   # jornada real (horas/día) para convertir días → hor
 # <--- hecho por claude code (11-nov-2026): pedido del usuario — las HORAS QUE DEBE COMPENSAR (tab 1 · Días a
 # compensar, y de ahí la deuda de los tabs 2-3) se calculan a 8 h por día, no a 8.8.
 _HORAS_DIA_DEUDA = 8.0
+# <--- hecho por claude code (11-nov-2026): empleados cuyas HORAS TRABAJADAS (tab 2) se registran a mano
+# (CompensatorioTrabajadasManual) en vez de salir de las marcas. Pedido del usuario: solo Santos Bentacourth.
+_TRABAJADAS_MANUAL_EMP = {'8'}
 # <--- hecho por claude code (16-sep-2026): botón "Pruebas" del Reloj — compensatorio DIARIO FIJO del
 # horario asistente (7:00–15:48 → se queda hasta 16:35 = 47 min) que TODOS hacen para cubrir los 18
 # días de cierre, en el periodo 1-feb → 30-nov; en MATRÍCULA (día siguiente al fin → 18-dic y
@@ -3210,6 +3213,11 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         # ya no va en el tiempo aplicado (tomado): se RESTA de las horas trabajadas.
         _receso_h = round(float(receso_extra_map.get(str(_it['r'].emp_code), 0) or 0), 2)
         _hecho = round(float(_it.get('comp_mas_te_hrs') or 0) - _receso_h, 2)
+        # <--- hecho por claude code (11-nov-2026): pedido del usuario — a quien está en _TRABAJADAS_MANUAL_EMP (Santos)
+        # las horas trabajadas se registran A MANO (ventana del tab 2); no salen de las marcas.
+        _trab_manual = str(_it['r'].emp_code) in _TRABAJADAS_MANUAL_EMP
+        if _trab_manual:
+            _hecho = round(sum(float(t.horas) for t in _it['r'].trabajadas_manual.all()), 3)
         _pend = round(max(0.0, _tot - _hecho), 2)
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
         _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
@@ -3224,7 +3232,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _tom_base = float(_it.get('tomado_hrs') or 0)
         _p_tomado_h = round(max(0.0, _tom_base - _perm_tom_h - _receso_h), 2)   # sin los 3 días ni el receso (el receso resta de las trabajadas)
         _it.update({
-            'p_receso_h': _receso_h,                          # tiempo de receso restado de las horas trabajadas
+            'p_trab_manual': _trab_manual,                    # horas trabajadas registradas a mano (Santos)
+            'p_receso_h': 0.0 if _trab_manual else _receso_h,  # tiempo de receso restado de las horas trabajadas
             'p_trabajadas_total_h': _hecho,                   # compensado + T. extra − receso
             'p_permisos_dias': _perm_d,                       # tab 4 (aparte): días de permiso extra
             'p_permisos_h': _perm_h,
@@ -4056,6 +4065,85 @@ def _recalc_calculo(obj, feriados=None):
 
 
 # <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo `reloj` (no solo superuser)
+# ── <--- hecho por claude code (11-nov-2026): HORAS TRABAJADAS MANUALES (solo _TRABAJADAS_MANUAL_EMP) ──
+def _trabajadas_payload(obj):
+    filas = [{'pk': t.pk, 'fecha': t.fecha.strftime('%d/%m/%Y'), 'fecha_iso': t.fecha.isoformat(),
+              'horas': float(t.horas), 'razon': t.razon or '', 'por': t.registrado_por or ''}
+             for t in obj.trabajadas_manual.all()]
+    return {'ok': True, 'filas': filas, 'total': round(sum(f['horas'] for f in filas), 3)}
+
+
+def _trabajadas_datos(request):
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        body = {}
+    fecha = parse_date(str(body.get('fecha') or ''))
+    try:
+        horas = round(float(str(body.get('horas') or '').replace(',', '.')), 3)
+    except ValueError:
+        horas = None
+    razon = str(body.get('razon') or '').strip()[:300]
+    if not fecha:
+        return None, 'Fecha requerida.'
+    if horas is None or horas <= 0 or horas > 999:
+        return None, 'Horas inválidas (mayor que 0).'
+    return {'fecha': fecha, 'horas': horas, 'razon': razon}, None
+
+
+@login_required
+def compensatorio_trabajadas_list(request, pk):
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    if not _reloj_can_ver(request.user, 'calculo_comp'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    return JsonResponse(_trabajadas_payload(obj))
+
+
+@login_required
+@require_POST
+def compensatorio_trabajadas_add(request, pk):
+    obj = get_object_or_404(CompensatorioCalculo, pk=pk)
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
+    if str(obj.emp_code) not in _TRABAJADAS_MANUAL_EMP:
+        return JsonResponse({'ok': False, 'error': 'Este empleado no lleva horas trabajadas manuales.'}, status=400)
+    datos, err = _trabajadas_datos(request)
+    if err:
+        return JsonResponse({'ok': False, 'error': err}, status=400)
+    from .models import CompensatorioTrabajadasManual
+    CompensatorioTrabajadasManual.objects.create(
+        calculo=obj, registrado_por=request.user.get_full_name() or request.user.username, **datos)
+    return JsonResponse(_trabajadas_payload(obj))
+
+
+@login_required
+@require_POST
+def compensatorio_trabajadas_edit(request, tm_pk):
+    from .models import CompensatorioTrabajadasManual
+    t = get_object_or_404(CompensatorioTrabajadasManual, pk=tm_pk)
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
+    datos, err = _trabajadas_datos(request)
+    if err:
+        return JsonResponse({'ok': False, 'error': err}, status=400)
+    for k, v in datos.items():
+        setattr(t, k, v)
+    t.save()
+    return JsonResponse(_trabajadas_payload(t.calculo))
+
+
+@login_required
+@require_POST
+def compensatorio_trabajadas_del(request, tm_pk):
+    from .models import CompensatorioTrabajadasManual
+    t = get_object_or_404(CompensatorioTrabajadasManual, pk=tm_pk)
+    if not _puede_tomado_manual(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso (grupo reloj)'}, status=403)
+    obj = t.calculo
+    t.delete()
+    return JsonResponse(_trabajadas_payload(obj))
+
+
 def _puede_tomado_manual(user):
     return user.is_superuser or user.groups.filter(name='reloj').exists()
 
