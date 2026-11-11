@@ -3214,7 +3214,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
         _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
         _perm_d = float(_rd['permisos_dias']) if _rd else 0.0
-        _perm_h = round(_perm_d * _JORNADA_COMP_H, 2)
+        _perm_h = round(_perm_d * _HORAS_DIA_DEUDA, 2)   # <--- hecho por claude code (11-nov-2026): regla del usuario: 3 días × 8 h (antes × 8.8)
         # horas ya tomadas de los 3 días (solo quien tiene permisos extras); salen del "tomado" de tabs 1-3
         _perm_tom_h, _perm_tom_f = _permiso_dias_tomado(_it['r']) if _perm_d > 0 else (0.0, [])
         _perm_tom_manual = _perm_tom_over.get(str(_it['r'].emp_code)) if _perm_d > 0 else None
