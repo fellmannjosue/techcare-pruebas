@@ -3218,6 +3218,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _trab_manual = str(_it['r'].emp_code) in _TRABAJADAS_MANUAL_EMP
         if _trab_manual:
             _hecho = round(sum(float(t.horas) for t in _it['r'].trabajadas_manual.all()), 3)
+        # <--- hecho por claude code (11-nov-2026): decisión del usuario — los permisos registrados como «Compensatorio»
+        # (Reporte de Permisos) SIGUEN en el tiempo aplicado y ADEMÁS se suman a las horas trabajadas (todos).
+        _perm_comp_h = round(float(permiso_comp_map.get(str(_it['r'].emp_code), 0) or 0), 2)
+        _hecho = round(_hecho + _perm_comp_h, 3)
         _pend = round(max(0.0, _tot - _hecho), 2)
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
         _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
@@ -3233,6 +3237,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _p_tomado_h = round(max(0.0, _tom_base - _perm_tom_h - _receso_h), 2)   # sin los 3 días ni el receso (el receso resta de las trabajadas)
         _it.update({
             'p_trab_manual': _trab_manual,                    # horas trabajadas registradas a mano (Santos)
+            'p_perm_comp_h': _perm_comp_h,                    # permisos «Compensatorio» sumados a las horas trabajadas
             'p_receso_h': 0.0 if _trab_manual else _receso_h,  # tiempo de receso restado de las horas trabajadas
             'p_trabajadas_total_h': _hecho,                   # compensado + T. extra − receso
             'p_permisos_dias': _perm_d,                       # tab 4 (aparte): días de permiso extra
