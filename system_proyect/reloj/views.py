@@ -2832,8 +2832,8 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
         dias_hab = _dias_habiles_periodo(emp_fi, ff, feriados)
         # Días que necesita = suma de los días no laborables ANA (usa el campo `dias`, o los deriva)
         def _dd(x):
-            return (float(x.dias) if getattr(x, 'dias', None) is not None
-                    else _dias_de_feriado(x.descripcion, x.horas))
+            # <--- hecho por claude code (11-nov-2026): regla del usuario — días del cierre = HORAS ÷ 8 (no el campo `dias`)
+            return float(x.horas or 0) / _HORAS_DIA_DEUDA
         _dnl = list(cc.dias_no_laborables.all())
         if ingreso and _usa_anio_laboral(ec):
             # <--- hecho por claude code (10-nov-2026): regla del usuario — los días que necesita son los
@@ -3922,7 +3922,7 @@ def compensatorio_dias_no_lab_get(request, pk):
     dias = [
         # <--- hecho por claude code: fecha + flag "pendiente" (feriado aún no ocurrido) + días reales
         {'id': d.pk, 'descripcion': d.descripcion, 'horas': float(d.horas),
-         'dias': float(d.dias) if d.dias is not None else None,
+         'dias': round(float(d.horas) / _HORAS_DIA_DEUDA, 3),   # <--- hecho por claude code (11-nov-2026): días = horas ÷ 8
          'fecha': d.fecha.strftime('%d/%m/%Y') if d.fecha else '',
          'fecha_iso': d.fecha.isoformat() if d.fecha else '',
          'pendiente': bool(d.fecha and d.fecha > hoy)}
@@ -3930,8 +3930,7 @@ def compensatorio_dias_no_lab_get(request, pk):
     ]
     total_hrs  = round(sum(d['horas'] for d in dias), 2)
     # <--- hecho por claude code: total de días = suma del campo `dias` (respaldo horas/8.8)
-    total_dias = round(sum((d['dias'] if d['dias'] is not None else round(d['horas'] / 8.8, 2))
-                           for d in dias), 2)
+    total_dias = round(sum(d['horas'] for d in dias) / _HORAS_DIA_DEUDA, 3)   # <--- hecho por claude code (11-nov-2026): horas ÷ 8
     # total que YA se refleja en Tiempo tomado (solo las que pasaron)
     total_tomado = _dnl_tomado(list(obj.dias_no_laborables.all()), hoy)[1]
     return JsonResponse({'ok': True, 'dias': dias, 'total_hrs': total_hrs,
