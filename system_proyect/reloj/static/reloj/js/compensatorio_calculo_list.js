@@ -450,6 +450,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // cuenta solo los cierres de ESE año y este total es de todos (Lidia 2027 decía «10 días» y calculaba 0).
     // Al cerrar la ventana, compensatorio_pruebas.js recarga la página si hubo cambios.
   }
+  // <--- hecho por claude code (11-nov-2026): pedido del usuario — al escribir los DÍAS, las HORAS = días × 8
+  // (la Semana Santa de 2.6 días quedaba con 8 h en vez de 20.8). Las horas siguen siendo editables.
+  (function () {
+    const di = document.getElementById('dnl-dias'), ho = document.getElementById('dnl-horas');
+    if (!di || !ho) return;
+    di.addEventListener('input', function () {
+      const v = parseFloat(this.value);
+      if (!isNaN(v) && v > 0) ho.value = (Math.round(v * 8 * 100) / 100).toString();
+    });
+  })();
   async function reloadDNL() {
     const d = await (await fetch(`/reloj/compensatorio-calculo/${dnlPk}/dias-no-lab/`)).json();
     if (d.ok) { renderDNL(d.dias); updateDNLTotals(d.total_hrs, d.total_dias); }
