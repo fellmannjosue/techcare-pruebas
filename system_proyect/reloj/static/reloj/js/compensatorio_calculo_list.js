@@ -304,6 +304,8 @@ document.addEventListener('DOMContentLoaded', function () {
         renderReceso(d.receso || []);
         document.getElementById('tom-total-permiso').textContent = d.total_permiso;
         document.getElementById('tom-total-tomado').textContent = d.total_tomado;
+        const tl = document.getElementById('tom-total-label');   // <--- hecho por claude code (11-nov-2026): en Pruebas sin receso
+        if (tl) tl.textContent = d.sin_receso ? 'Tiempo aplicado (permiso + manual)' : 'Tomado total (permiso + manual + receso)';
         // <--- hecho por claude code: empleado especial → detalle = FERIADOS ANA, sin manual.
         // El receso (minutos de más) SÍ se muestra y suma al tomado también en este caso.
         const soloFer = !!d.solo_feriados;

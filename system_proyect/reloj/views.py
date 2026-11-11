@@ -4122,8 +4122,13 @@ def compensatorio_calculo_get_tomado(request, pk):
     manual, total_manual = _tomado_manual_payload(obj)
     # <--- hecho por claude code: receso (minutos de más) como tiempo tomado extra
     receso, receso_min, receso_hrs = _receso_tomado_emp(obj)
+    # <--- hecho por claude code (11-nov-2026): en Pruebas el receso NO es tiempo aplicado: se resta de las horas
+    # trabajadas (tab 2, «i»), así que aquí no se muestra ni se suma.
+    sin_receso = request.GET.get('pruebas') == '1'
+    if sin_receso:
+        receso, receso_min, receso_hrs = [], 0, 0
     return JsonResponse({
-        'ok': True, 'entries': entries, 'total_permiso': total_permiso,
+        'ok': True, 'entries': entries, 'total_permiso': total_permiso, 'sin_receso': sin_receso,
         'manual': manual, 'total_manual': total_manual,
         'receso': receso, 'receso_min': receso_min, 'receso_hrs': receso_hrs,
         'total_tomado': round(total_permiso + total_manual + receso_hrs, 2),
