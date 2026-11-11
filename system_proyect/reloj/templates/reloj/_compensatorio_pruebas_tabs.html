@@ -122,7 +122,6 @@
     <table class="table table-vcenter card-table table-sm mb-0">
       <thead><tr>
         <th>Empleado</th>
-        <th class="text-center table-primary">Permisos extras (días)</th>
         <th class="text-center table-primary">Equivale en horas (× 8,8)</th>
         <th class="text-center table-success">Horas hechas</th>
         <th class="text-center table-warning">Tomado de los 3 días</th>
@@ -132,7 +131,6 @@
         {% for item in con_permisos %}{% with r=item.r %}
         <tr>
           <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
-          <td class="text-center fw-bold table-primary">{{ item.p_permisos_dias }}</td>
           <td class="text-center fw-bold table-primary font-monospace">{{ item.p_permisos_h }} h</td>
           {# <--- hecho por claude code (16-sep-2026): horas hechas = lo hecho por encima de lo que debe (tab 3); restan = hechas − tomado #}
           <td class="text-center table-success">{% if item.p_horas_hechas_h > 0 %}<span class="fw-bold font-monospace text-green">{{ item.p_horas_hechas_h }} h</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
@@ -144,7 +142,7 @@
           </td>
           <td class="text-center table-warning"><span class="fw-bold font-monospace {% if item.p_perm_restan_h < 0 %}text-danger{% elif item.p_perm_restan_h == 0 %}text-muted{% else %}text-green{% endif %}">{{ item.p_perm_restan_h }} h</span>{% if item.p_perm_restan_h < 0 %}<div class="text-muted small">tomó más de lo hecho</div>{% endif %}</td>
         </tr>
-        {% endwith %}{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Nadie tiene permisos extras registrados.</td></tr>{% endfor %}
+        {% endwith %}{% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Nadie tiene permisos extras registrados.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div></div>
