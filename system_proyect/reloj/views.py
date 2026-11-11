@@ -2652,7 +2652,9 @@ def _permiso_dias_tomado(cc):
     3 DÍAS DE PERMISO del empleado: las entradas de PermisoReporte (compensatorio_dias) cuya fecha
     NO coincide con un feriado ANA registrado (las que coinciden, p. ej. 13/07 = 44 h trimestral,
     son feriado). Solo tiene sentido para quien tiene permisos extras. Devuelve (horas, fechas)."""
-    fechas_dnl = {d.fecha for d in cc.dias_no_laborables.all() if d.fecha}
+    # <--- hecho por claude code (11-nov-2026): un permiso en CUALQUIER fecha de cierre ANA es el cierre, no uno de los 3
+    # días (con el año laboral, a Lidia se le quitó el Trimestral 13/07 y su permiso de 44 h contaba aquí).
+    fechas_dnl = set(DiaNoLaborableANA.objects.exclude(fecha__isnull=True).values_list('fecha', flat=True))
     total, fechas = 0.0, []
     for p in PermisoReporte.objects.filter(emp_code=cc.emp_code, tipo='compensatorio_dias').order_by('fecha'):
         if p.fecha in fechas_dnl:
