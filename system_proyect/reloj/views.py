@@ -3204,6 +3204,16 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
                        'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _HORAS_DIA_DEUDA, 2)})
     _p_by_pk = {x['pk']: x for x in p_rows}
+    # <--- hecho por claude code (11-nov-2026): permisos «Compensatorio» ingresados por persona = los que NO caen en
+    # una fecha de cierre ANA (unión de las fechas de cierre registradas a cualquier empleado).
+    _fechas_cierre = set(DiaNoLaborableANA.objects.exclude(fecha__isnull=True).values_list('fecha', flat=True))
+    _perm_ingresado_map = {}
+    for _pp in PermisoReporte.objects.filter(tipo__in=_TIPOS_PERMISO_COMP,
+                                            emp_code__in=[str(x['r'].emp_code) for x in registros_data]):
+        if _pp.fecha in _fechas_cierre:
+            continue
+        _k = str(_pp.emp_code)
+        _perm_ingresado_map[_k] = _perm_ingresado_map.get(_k, 0.0) + float(_permiso_horas_val(_pp.horas, _pp.dias) or 0)
     for _it in registros_data:
         _rd = _p_by_pk.get(_it['r'].pk)
         _tot = float(_rd['p_debe_h']) if _rd else 0.0
@@ -3218,9 +3228,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _trab_manual = str(_it['r'].emp_code) in _TRABAJADAS_MANUAL_EMP
         if _trab_manual:
             _hecho = round(sum(float(t.horas) for t in _it['r'].trabajadas_manual.all()), 3)
-        # <--- hecho por claude code (11-nov-2026): decisión del usuario — los permisos registrados como «Compensatorio»
-        # (Reporte de Permisos) SIGUEN en el tiempo aplicado y ADEMÁS se suman a las horas trabajadas (todos).
-        _perm_comp_h = round(float(permiso_comp_map.get(str(_it['r'].emp_code), 0) or 0), 2)
+        # <--- hecho por claude code (11-nov-2026): decisión del usuario — los permisos «Compensatorio» INGRESADOS al
+        # empleado (los que NO caen en una fecha de cierre ANA: 13/07, 05/10…) SIGUEN en el tiempo aplicado y ADEMÁS se
+        # suman a las horas trabajadas. Sin permisos así, no cambia nada.
+        _perm_comp_h = round(_perm_ingresado_map.get(str(_it['r'].emp_code), 0.0), 2)
         _hecho = round(_hecho + _perm_comp_h, 3)
         _pend = round(max(0.0, _tot - _hecho), 2)
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
