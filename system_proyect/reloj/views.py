@@ -3206,7 +3206,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _tot = float(_rd['p_debe_h']) if _rd else 0.0
         _ing = _rd['ingreso'] if _rd else None
         _emp_fi = _ing if (_ing and _ing > periodo_inicio) else periodo_inicio
-        _hecho = float(_it.get('comp_mas_te_hrs') or 0)
+        # <--- hecho por claude code (11-nov-2026): regla del usuario — el TIEMPO DE RECESO (minutos de más en el receso)
+        # ya no va en el tiempo aplicado (tomado): se RESTA de las horas trabajadas.
+        _receso_h = round(float(receso_extra_map.get(str(_it['r'].emp_code), 0) or 0), 2)
+        _hecho = round(float(_it.get('comp_mas_te_hrs') or 0) - _receso_h, 2)
         _pend = round(max(0.0, _tot - _hecho), 2)
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
         _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
@@ -3219,8 +3222,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         if _perm_tom_manual is not None:          # override (tab 4, lápiz)
             _perm_tom_h = round(float(_perm_tom_manual), 2)
         _tom_base = float(_it.get('tomado_hrs') or 0)
-        _p_tomado_h = round(max(0.0, _tom_base - _perm_tom_h), 2)   # también si el tomado es manual (el total incluye esas horas)
+        _p_tomado_h = round(max(0.0, _tom_base - _perm_tom_h - _receso_h), 2)   # sin los 3 días ni el receso (el receso resta de las trabajadas)
         _it.update({
+            'p_receso_h': _receso_h,                          # tiempo de receso restado de las horas trabajadas
+            'p_trabajadas_total_h': _hecho,                   # compensado + T. extra − receso
             'p_permisos_dias': _perm_d,                       # tab 4 (aparte): días de permiso extra
             'p_permisos_h': _perm_h,
             # <--- hecho por claude code (16-sep-2026): regla del usuario — lo hecho por encima de lo que
