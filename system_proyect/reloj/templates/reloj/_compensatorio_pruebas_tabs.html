@@ -61,7 +61,7 @@
         <div class="col-auto"><div class="text-muted small">Máximo compensable</div><div class="fw-bold fs-3 text-green">{{ p_max_h }} h</div></div>
       </div>
       <div class="text-muted small mt-2">
-        <strong>Horas trabajadas</strong> = compensado + tiempo extra (según las marcas), hasta lo que debe · <strong>Saldo hasta la fecha</strong> = horas trabajadas − tomado · <strong>Falta compensar</strong> = horas que debe (tab 1, sin los 3 días de permiso) − horas trabajadas; en 0 cuando ya cubrió (las horas de más se ven en el tab 3). Con lo que falta se calcula cuántos días de <strong>{{ min_dia }} min</strong> necesita y <strong>en qué fecha termina contando desde hoy</strong>; si no alcanza antes de la matrícula sigue a {{ min_matricula }} min/día. El <strong>tiempo tomado</strong> no incluye las horas de permiso de los 3 días.
+        <strong>Horas trabajadas</strong> = compensado + tiempo extra (según las marcas), hasta lo que debe · <strong>Saldo hasta la fecha</strong> = horas trabajadas − tomado · <strong>Falta compensar</strong> = horas que debe (tab 1, sin los 3 días de permiso) − horas trabajadas; en 0 cuando ya cubrió (las horas de más se ven en el tab 3). Con lo que falta, a <strong>{{ min_dia }} min</strong> por día hábil, se calcula <strong>en qué fecha termina contando desde hoy</strong>; si no alcanza antes de la matrícula sigue a {{ min_matricula }} min/día. El <strong>tiempo tomado</strong> no incluye las horas de permiso de los 3 días.
       </div>
     </div>
   </div>
@@ -76,7 +76,6 @@
         <th class="text-center table-warning">Falta compensar</th>
         <th class="text-center">Tiempo tomado</th>
         <th class="text-center">Saldo hasta la fecha</th>
-        <th class="text-center table-warning">Días de {{ min_dia }} min</th>
         <th class="text-center table-warning">Termina el</th>
       </tr></thead>
       <tbody>
@@ -101,7 +100,6 @@
             {% if item.p_perm_tomado_h > 0 %}<div class="text-muted small" title="Horas de permiso tomadas de los 3 días; se ven en el tab 3">sin {{ item.p_perm_tomado_h }} h de permiso</div>{% endif %}
           </td>
           <td class="text-center">{% if item.saldo == 0 %}<span class="badge bg-green-lt text-green saldo-badge-{{ r.pk }}"><i class="ti ti-circle-check me-1"></i>Completado</span>{% else %}<span class="fw-semibold font-monospace saldo-badge-{{ r.pk }}">{{ item.horas_saldo }} h</span>{% endif %}</td>
-          <td class="text-center table-warning">{% if item.p_dias_pend > 0 %}<span class="fw-bold font-monospace">{{ item.p_dias_pend }}</span><div class="text-muted small">de {{ item.p_dias_total }} en total</div>{% else %}<span class="text-muted">—</span>{% endif %}</td>
           <td class="text-center table-warning">
             {% if item.p_debe_h <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
             {% elif item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Completado</span>
@@ -110,7 +108,7 @@
             {% else %}<span class="badge bg-red-lt text-red" title="Con {{ min_dia }} min/día (y {{ min_matricula }} en matrícula) no alcanza"><i class="ti ti-alert-triangle me-1"></i>No alcanza · faltan {{ item.p_faltan_h }} h</span><div class="text-muted small">máx. {{ item.p_disponible_h }} h desde hoy</div>{% endif %}
           </td>
         </tr>
-        {% endwith %}{% empty %}<tr><td colspan="10" class="text-center text-muted py-4">Sin registros.</td></tr>{% endfor %}
+        {% endwith %}{% empty %}<tr><td colspan="9" class="text-center text-muted py-4">Sin registros.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div></div>
