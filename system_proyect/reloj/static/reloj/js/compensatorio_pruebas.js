@@ -43,7 +43,7 @@
   }
   if (pc) {
     editorManual('.btn-edit-permtom', pc.dataset.permtom, 'horas', 'Horas tomadas de los 3 días de permiso');
-    editorManual('.btn-edit-saldo', pc.dataset.saldo, 'saldo', 'Saldo para gastar (días)');
+    editorManual('.btn-edit-saldo', pc.dataset.saldo, 'saldo', 'Saldo de vacación acumulada (días)');
   }
 
   // Recordar el tab activo entre recargas
