@@ -212,7 +212,7 @@
             </a>
           </li>
           {# <--- hecho por claude code (16-sep-2026): botón Pruebas (compensatorio 47 min + matrícula), solo con permiso pruebas_comp #}
-          {% if nav_reloj_pruebas %}
+          {% if False and nav_reloj_pruebas %}{# <--- hecho por claude code (12-nov-2026): «Pruebas» oculto del menú a pedido del usuario #}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_compensatorio_pruebas' %}">
               <span class="nav-link-icon"><i class="ti ti-flask"></i></span>
