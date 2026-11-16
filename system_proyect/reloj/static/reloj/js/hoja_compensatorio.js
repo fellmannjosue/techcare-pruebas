@@ -51,6 +51,10 @@
     var debe = (hayDias ? totDias : 0) - (saldoAnt - perm);
     hoja.querySelector('[data-k=dias_compensar]').value = fmt(debe);
     hoja.querySelector('[data-k=horas_compensar]').value = fmt(debe * 8);
+    // Total trabajado = Horas compensada + Disponible extra; Saldo final disponible = Total trabajado − Horas a compensar
+    var total = num(hoja.querySelector('[data-k=horas_compensada]').value) + num(hoja.querySelector('[data-k=disponible_extra]').value);
+    hoja.querySelector('[data-k=total_trabajado]').value = fmt(total);
+    hoja.querySelector('[data-k=saldo_final]').value = fmt(total - debe * 8);
     pintarMenu(hoja);
     ['dias', 'horas'].forEach(function (k) {
       var t = 0, hay = false;

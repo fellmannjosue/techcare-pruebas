@@ -50,8 +50,8 @@
           <td class="hc-yel" title="Fórmula: Días que debe compensar × 8"><input class="hc-in hc-num hc-calc" data-k="horas_compensar" readonly tabindex="-1" value="{{ h.v.horas_compensar }}"></td>
           <td title="Viene de «Horas trabajadas» (Reloj → Pruebas → Control de deudas)"><input class="hc-in hc-num hc-calc" data-k="horas_compensada" readonly tabindex="-1" value="{{ h.v.horas_compensada }}"></td>
           <td><input class="hc-in hc-num" data-k="disponible_extra" value="{{ h.v.disponible_extra }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="total_trabajado" value="{{ h.v.total_trabajado }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_final" value="{{ h.v.saldo_final }}"></td>
+          <td class="hc-yel" title="Fórmula: Horas compensada + Disponible extra"><input class="hc-in hc-num hc-calc" data-k="total_trabajado" readonly tabindex="-1" value="{{ h.v.total_trabajado }}"></td>
+          <td class="hc-yel" title="Fórmula: Total trabajado − Horas a compensar"><input class="hc-in hc-num hc-calc" data-k="saldo_final" readonly tabindex="-1" value="{{ h.v.saldo_final }}"></td>
         </tr>
       </tbody>
     </table>
