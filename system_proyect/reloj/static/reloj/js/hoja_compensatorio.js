@@ -51,6 +51,21 @@
     var debe = (hayDias ? totDias : 0) - (saldoAnt - perm);
     hoja.querySelector('[data-k=dias_compensar]').value = fmt(debe);
     hoja.querySelector('[data-k=horas_compensar]').value = fmt(debe * 8);
+    // Extra 3 días (solo con «Tiene derecho»): Pendiente = Debe tomar − Tomadas; Saldo = Hechas − Debe tomar;
+    // Disponible extra = ese saldo (0 sin el derecho)
+    var on = hoja.querySelector('.hc-3dias-chk') && hoja.querySelector('.hc-3dias-chk').checked;
+    var tabla3 = hoja.querySelector('.hc-extra');
+    if (tabla3) tabla3.classList.toggle('hc-off', !on);
+    var ex = {};
+    ['ex_hechas', 'ex_debe_tomar', 'ex_tomadas'].forEach(function (k) {
+      var inp = hoja.querySelector('[data-k=' + k + ']');
+      ex[k] = on ? num(inp.dataset.orig) : 0;
+      inp.value = fmt(ex[k]);
+    });
+    hoja.querySelector('[data-k=ex_pendiente]').value = fmt(ex.ex_debe_tomar - ex.ex_tomadas);
+    var saldo3 = ex.ex_hechas - ex.ex_debe_tomar;
+    hoja.querySelector('[data-k=ex_saldo]').value = fmt(saldo3);
+    hoja.querySelector('[data-k=disponible_extra]').value = fmt(on ? saldo3 : 0);
     // Total trabajado = Horas compensada + Disponible extra; Saldo final disponible = Total trabajado − Horas a compensar
     var total = num(hoja.querySelector('[data-k=horas_compensada]').value) + num(hoja.querySelector('[data-k=disponible_extra]').value);
     hoja.querySelector('[data-k=total_trabajado]').value = fmt(total);
@@ -127,6 +142,15 @@
   }
 
   document.querySelectorAll('.hc-hoja').forEach(function (hoja) {
+    var chk3 = hoja.querySelector('.hc-3dias-chk');
+    if (chk3) {
+      chk3.disabled = !EDITA;
+      chk3.addEventListener('change', function () {
+        hoja.querySelector('[data-k=tiene_3dias]').value = chk3.checked ? '1' : '0';
+        recalcular(hoja);
+        guardar(hoja, chk3);
+      });
+    }
     var selTxt = (hoja.querySelector('.hc-perm-sel') || {}).textContent || '';
     hoja._sel = selTxt.split(',').filter(function (x) { return x.trim() !== ''; }).map(Number);
     recalcular(hoja);

@@ -2719,7 +2719,7 @@ _HOJA_EMPLEADOS = ['75', '30', '55', '79', '80', '83', '14', '56', '24', '3', '5
 _HOJA_CAMPOS = ['fecha_ingreso', 'fecha_corte', 'deuda', 'saldo_ant', 'permiso_vac', 'saldo_act',
                 'dias_necesita', 'dias_compensar', 'horas_compensar', 'horas_compensada',
                 'disponible_extra', 'total_trabajado', 'saldo_final',
-                'ex_hechas', 'ex_debe_tomar', 'ex_tomadas', 'ex_pendiente', 'ex_saldo']
+                'ex_hechas', 'ex_debe_tomar', 'ex_tomadas', 'ex_pendiente', 'ex_saldo', 'tiene_3dias']
 _HOJA_DETALLE_DEF = ['Semana trimestral', 'Semana morazánica', 'Cierre diciembre', 'Enero año {sig}', 'Semana santa {sig}']
 
 
@@ -2741,7 +2741,22 @@ def _hoja_fecha(v):
         return None
 
 
-def _hojas_compensatorio(anio, compensada=None):
+def _tres_hoja(registros_data):
+    """<--- hecho por claude code (16-nov-2026): por empleado, lo del tab 3 (horas hechas, que debe tomar = 3 días × 8, tomadas)."""
+    out = {}
+    for it in registros_data:
+        r = it.get('r')
+        if r is None:
+            continue
+        dias = float(it.get('p_permisos_dias') or 0)
+        debe_tomar = float(it.get('p_permisos_h') or 0) if dias > 0 else 3 * _HORAS_DIA_DEUDA
+        hechas = it.get('p_horas_hechas_h') if dias > 0 else max(0.0, float(it.get('p_trabajadas_total_h') or 0) - float(it.get('p_debe_h') or 0))
+        out[str(r.emp_code)] = {'default': dias > 0, 'ex_hechas': round(float(hechas or 0), 2),
+                                'ex_debe_tomar': round(debe_tomar, 2), 'ex_tomadas': round(float(it.get('p_perm_tomado_h') or 0), 2)}
+    return out
+
+
+def _hojas_compensatorio(anio, compensada=None, tres=None):
     """Lista de hojas (una por empleado, en el orden del Excel) con los valores guardados o los de arranque."""
     from .models import CompensatorioHoja
     nombres = {str(r.emp_code): r.nombre_empleado for r in CompensatorioCalculo.objects.all()}
@@ -2771,6 +2786,14 @@ def _hojas_compensatorio(anio, compensada=None):
         # <--- hecho por claude code (16-nov-2026): Horas compensada = «Horas trabajadas» del tab Control de deudas (Pruebas); con registro manual (Santos) = el total registrado
         if compensada and compensada.get(ec) is not None:
             vals['horas_compensada'] = f"{float(compensada[ec]):g}"
+        # <--- hecho por claude code (16-nov-2026): Extra 3 días = datos del tab «3 · Control 3 días de permiso» (Pruebas);
+        # casilla «tiene derecho» por empleado (sin elegir = activa si tiene permisos extras en el sistema)
+        t3 = (tres or {}).get(ec, {})
+        if vals.get('tiene_3dias') not in ('1', '0'):
+            vals['tiene_3dias'] = '1' if t3.get('default') else '0'
+        for _k in ('ex_hechas', 'ex_debe_tomar', 'ex_tomadas'):
+            if t3.get(_k) is not None:
+                vals[_k] = f"{float(t3[_k]):g}"
         sel = [i for i in (d.get('permiso_sel') or []) if isinstance(i, int)]
         hojas.append({'emp_code': ec, 'nombre': nombres.get(ec, ec), 'v': vals, 'permiso_sel': sel,
                       'ingreso': ing, 'corte': corte,
@@ -3447,7 +3470,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         "puede_tomado":     _puede_tomado_manual(request.user),
         # <--- hecho por claude code (16-nov-2026): tab «Cálculo compensatorio <año>» (hoja por empleado)
         "hoja_anio":        hoy.year,
-        "hojas":            _hojas_compensatorio(hoy.year, {str(_it['r'].emp_code): (_it.get('p_trabajadas_total_h') if _it.get('p_trab_manual') else _it.get('p_hecho_h')) for _it in registros_data if _it.get('r') is not None}),
+        "hojas":            _hojas_compensatorio(hoy.year, {str(_it['r'].emp_code): (_it.get('p_trabajadas_total_h') if _it.get('p_trab_manual') else _it.get('p_hecho_h')) for _it in registros_data if _it.get('r') is not None},
+                                                 _tres_hoja(registros_data)),
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')

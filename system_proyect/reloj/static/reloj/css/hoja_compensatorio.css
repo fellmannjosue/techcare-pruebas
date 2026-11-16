@@ -31,3 +31,6 @@
 .hc-perm-btn { display: flex; align-items: center; justify-content: flex-end; cursor: pointer; }
 .hc-perm-menu { min-width: 16rem; }
 .hc-perm-menu .dropdown-item { cursor: pointer; white-space: nowrap; }
+/* <--- hecho por claude code (16-nov-2026): Extra 3 días apagado cuando el empleado no tiene el derecho */
+.hc-extra.hc-off tbody { opacity: .4; }
+.hc-3dias .form-check-input { float: none; }

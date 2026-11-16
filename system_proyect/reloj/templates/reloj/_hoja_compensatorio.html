@@ -1,7 +1,7 @@
 {% load static %}
 {# <--- hecho por claude code (16-nov-2026): Fase 1 · tab «Cálculo compensatorio año» con una sub-pestaña por empleado (formato del Excel del usuario) #}
 <div class="tab-pane fade" id="tab-hoja">
-  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=4">
   <div id="hoja-config" hidden data-url="{% url 'reloj_compensatorio_hoja_save' %}" data-csrf="{{ csrf_token }}"
        data-anio="{{ hoja_anio }}" data-edit="{{ can_edit_extra|yesno:'1,0' }}"></div>
 
@@ -49,7 +49,7 @@
           <td class="hc-yel" title="Fórmula: Días que necesita − Saldo vacación"><input class="hc-in hc-num hc-calc" data-k="dias_compensar" readonly tabindex="-1" value="{{ h.v.dias_compensar }}"></td>
           <td class="hc-yel" title="Fórmula: Días que debe compensar × 8"><input class="hc-in hc-num hc-calc" data-k="horas_compensar" readonly tabindex="-1" value="{{ h.v.horas_compensar }}"></td>
           <td title="Viene de «Horas trabajadas» (Reloj → Pruebas → Control de deudas)"><input class="hc-in hc-num hc-calc" data-k="horas_compensada" readonly tabindex="-1" value="{{ h.v.horas_compensada }}"></td>
-          <td><input class="hc-in hc-num" data-k="disponible_extra" value="{{ h.v.disponible_extra }}"></td>
+          <td title="Igual al Saldo disponible de compensado (Extra 3 días); 0 si no tiene el derecho"><input class="hc-in hc-num hc-calc" data-k="disponible_extra" readonly tabindex="-1" value="{{ h.v.disponible_extra }}"></td>
           <td class="hc-yel" title="Fórmula: Horas compensada + Disponible extra"><input class="hc-in hc-num hc-calc" data-k="total_trabajado" readonly tabindex="-1" value="{{ h.v.total_trabajado }}"></td>
           <td class="hc-yel" title="Fórmula: Total trabajado − Horas a compensar"><input class="hc-in hc-num hc-calc" data-k="saldo_final" readonly tabindex="-1" value="{{ h.v.saldo_final }}"></td>
         </tr>
@@ -80,18 +80,18 @@
       </div>
 
       <div class="hc-scroll">
-      <table class="hc-tabla hc-extra">
+      <table class="hc-tabla hc-extra{% if h.v.tiene_3dias != "1" %} hc-off{% endif %}">
         <thead>
-          <tr><th colspan="5" class="hc-titulo text-center">Extra 3 días</th></tr>
+          <tr><th colspan="5" class="hc-titulo text-center">Extra 3 días <label class="hc-3dias form-check form-switch d-inline-flex align-items-center gap-2 ms-3 mb-0 fw-normal small"><input type="checkbox" class="form-check-input m-0 hc-3dias-chk"{% if h.v.tiene_3dias == "1" %} checked{% endif %}> Tiene derecho</label><input type="hidden" data-k="tiene_3dias" value="{{ h.v.tiene_3dias }}"></th></tr>
           <tr><th>Horas hechas</th><th>Horas que debe tomar</th><th>Horas tomadas</th><th>Pendiente por tomar</th><th>Saldo disponible de compensado</th></tr>
         </thead>
         <tbody>
           <tr>
-            <td><input class="hc-in hc-num" data-k="ex_hechas" value="{{ h.v.ex_hechas }}"></td>
-            <td><input class="hc-in hc-num" data-k="ex_debe_tomar" value="{{ h.v.ex_debe_tomar }}"></td>
-            <td><input class="hc-in hc-num" data-k="ex_tomadas" value="{{ h.v.ex_tomadas }}"></td>
-            <td><input class="hc-in hc-num" data-k="ex_pendiente" value="{{ h.v.ex_pendiente }}"></td>
-            <td class="hc-yel"><input class="hc-in hc-num" data-k="ex_saldo" value="{{ h.v.ex_saldo }}"></td>
+            <td title="Viene de «Horas hechas» del tab 3 · Control 3 días de permiso"><input class="hc-in hc-num hc-calc" data-k="ex_hechas" data-orig="{{ h.v.ex_hechas }}" readonly tabindex="-1" value="{{ h.v.ex_hechas }}"></td>
+            <td title="Viene de «Equivale en horas (× 8)» del tab 3"><input class="hc-in hc-num hc-calc" data-k="ex_debe_tomar" data-orig="{{ h.v.ex_debe_tomar }}" readonly tabindex="-1" value="{{ h.v.ex_debe_tomar }}"></td>
+            <td title="Viene de «Horas tomadas» del tab 3"><input class="hc-in hc-num hc-calc" data-k="ex_tomadas" data-orig="{{ h.v.ex_tomadas }}" readonly tabindex="-1" value="{{ h.v.ex_tomadas }}"></td>
+            <td title="Fórmula: Horas que debe tomar − Horas tomadas"><input class="hc-in hc-num hc-calc" data-k="ex_pendiente" readonly tabindex="-1" value="{{ h.v.ex_pendiente }}"></td>
+            <td class="hc-yel" title="Fórmula: Horas hechas − Horas que debe tomar"><input class="hc-in hc-num hc-calc" data-k="ex_saldo" readonly tabindex="-1" value="{{ h.v.ex_saldo }}"></td>
           </tr>
         </tbody>
       </table>
