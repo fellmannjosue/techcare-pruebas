@@ -2720,7 +2720,9 @@ _HOJA_CAMPOS = ['fecha_ingreso', 'fecha_corte', 'deuda', 'saldo_ant', 'permiso_v
                 'dias_necesita', 'dias_compensar', 'horas_compensar', 'horas_compensada',
                 'disponible_extra', 'total_trabajado', 'saldo_final',
                 'ex_hechas', 'ex_debe_tomar', 'ex_tomadas', 'ex_pendiente', 'ex_saldo', 'tiene_3dias']
-_HOJA_DETALLE_DEF = ['Semana trimestral', 'Semana morazánica', 'Cierre diciembre', 'Enero año {sig}', 'Semana santa {sig}']
+# <--- hecho por claude code (16-nov-2026): días por defecto del detalle (cierre ANA), iguales para todos (pedido del usuario)
+_HOJA_DETALLE_DEF = [('Semana trimestral', '5.5'), ('Semana morazánica', '2.5'), ('Cierre diciembre', '7.5'),
+                     ('Enero año {sig}', '0.5'), ('Semana santa {sig}', '2.625')]
 
 
 def _hoja_derecho_dias(ingreso, corte):
@@ -2779,7 +2781,7 @@ def _hojas_compensatorio(anio, compensada=None, tres=None):
                 corte = date(anio, 2, 28)
         detalle = d.get('detalle')
         if not isinstance(detalle, list) or not detalle:
-            detalle = [{'concepto': c.format(sig=anio + 1), 'dias': '', 'horas': ''} for c in _HOJA_DETALLE_DEF]
+            detalle = [{'concepto': c.format(sig=anio + 1), 'dias': dd, 'horas': f"{float(dd) * 8:g}"} for c, dd in _HOJA_DETALLE_DEF]
         vals = {k: d.get(k, '') for k in _HOJA_CAMPOS}
         vals['fecha_ingreso'] = ing.isoformat() if ing else ''
         vals['fecha_corte'] = corte.isoformat() if corte else ''
