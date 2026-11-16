@@ -47,6 +47,10 @@
     hoja.querySelector('[data-k=permiso_vac]').value = hoja._sel.length ? fmt(perm) : '';
     hoja.querySelector('.hc-perm-val').textContent = hoja._sel.length ? fmt(perm) : '—';
     hoja.querySelector('[data-k=saldo_act]').value = fmt(saldoAnt - perm);
+    // Días que debe compensar = Días que necesita − Saldo vacación; Horas a compensar = días × 8
+    var debe = (hayDias ? totDias : 0) - (saldoAnt - perm);
+    hoja.querySelector('[data-k=dias_compensar]').value = fmt(debe);
+    hoja.querySelector('[data-k=horas_compensar]').value = fmt(debe * 8);
     pintarMenu(hoja);
     ['dias', 'horas'].forEach(function (k) {
       var t = 0, hay = false;

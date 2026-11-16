@@ -46,9 +46,9 @@
           </td>
           <td class="hc-yel" title="Fórmula: Saldo de vacación − Permiso a cuenta a vacación"><input class="hc-in hc-num hc-calc" data-k="saldo_act" readonly tabindex="-1" value="{{ h.v.saldo_act }}"></td>
           <td title="Fórmula: suma de los días del detalle (cierre ANA)"><input class="hc-in hc-num hc-calc" data-k="dias_necesita" readonly tabindex="-1" value="{{ h.v.dias_necesita }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="dias_compensar" value="{{ h.v.dias_compensar }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="horas_compensar" value="{{ h.v.horas_compensar }}"></td>
-          <td><input class="hc-in hc-num" data-k="horas_compensada" value="{{ h.v.horas_compensada }}"></td>
+          <td class="hc-yel" title="Fórmula: Días que necesita − Saldo vacación"><input class="hc-in hc-num hc-calc" data-k="dias_compensar" readonly tabindex="-1" value="{{ h.v.dias_compensar }}"></td>
+          <td class="hc-yel" title="Fórmula: Días que debe compensar × 8"><input class="hc-in hc-num hc-calc" data-k="horas_compensar" readonly tabindex="-1" value="{{ h.v.horas_compensar }}"></td>
+          <td title="Viene de «Horas trabajadas» (Reloj → Pruebas → Control de deudas)"><input class="hc-in hc-num hc-calc" data-k="horas_compensada" readonly tabindex="-1" value="{{ h.v.horas_compensada }}"></td>
           <td><input class="hc-in hc-num" data-k="disponible_extra" value="{{ h.v.disponible_extra }}"></td>
           <td class="hc-yel"><input class="hc-in hc-num" data-k="total_trabajado" value="{{ h.v.total_trabajado }}"></td>
           <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_final" value="{{ h.v.saldo_final }}"></td>

@@ -2741,7 +2741,7 @@ def _hoja_fecha(v):
         return None
 
 
-def _hojas_compensatorio(anio):
+def _hojas_compensatorio(anio, compensada=None):
     """Lista de hojas (una por empleado, en el orden del Excel) con los valores guardados o los de arranque."""
     from .models import CompensatorioHoja
     nombres = {str(r.emp_code): r.nombre_empleado for r in CompensatorioCalculo.objects.all()}
@@ -2768,6 +2768,9 @@ def _hojas_compensatorio(anio):
         vals = {k: d.get(k, '') for k in _HOJA_CAMPOS}
         vals['fecha_ingreso'] = ing.isoformat() if ing else ''
         vals['fecha_corte'] = corte.isoformat() if corte else ''
+        # <--- hecho por claude code (16-nov-2026): Horas compensada = «Horas trabajadas» del tab Control de deudas (Pruebas)
+        if compensada and compensada.get(ec) is not None:
+            vals['horas_compensada'] = f"{float(compensada[ec]):g}"
         sel = [i for i in (d.get('permiso_sel') or []) if isinstance(i, int)]
         hojas.append({'emp_code': ec, 'nombre': nombres.get(ec, ec), 'v': vals, 'permiso_sel': sel,
                       'ingreso': ing, 'corte': corte,
@@ -3444,7 +3447,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         "puede_tomado":     _puede_tomado_manual(request.user),
         # <--- hecho por claude code (16-nov-2026): tab «Cálculo compensatorio <año>» (hoja por empleado)
         "hoja_anio":        hoy.year,
-        "hojas":            _hojas_compensatorio(hoy.year),
+        "hojas":            _hojas_compensatorio(hoy.year, {str(_it['r'].emp_code): _it.get('p_hecho_h') for _it in registros_data if _it.get('r') is not None}),
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')
