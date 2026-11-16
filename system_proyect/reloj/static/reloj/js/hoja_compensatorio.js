@@ -141,6 +141,18 @@
     });
   }
 
+  // Recordar el empleado abierto (al cambiar el «Año» la página se recarga)
+  try {
+    var ultimo = sessionStorage.getItem('hc_emp');
+    var btnU = ultimo && document.querySelector('.hc-emp-tabs [data-bs-target="#hoja-' + ultimo + '"]');
+    if (btnU && window.bootstrap) bootstrap.Tab.getOrCreateInstance(btnU).show();
+  } catch (e) {}
+  document.querySelectorAll('.hc-emp-tabs [data-bs-toggle=tab]').forEach(function (b) {
+    b.addEventListener('shown.bs.tab', function () {
+      try { sessionStorage.setItem('hc_emp', b.dataset.bsTarget.replace('#hoja-', '')); } catch (e) {}
+    });
+  });
+
   document.querySelectorAll('.hc-hoja').forEach(function (hoja) {
     var chk3 = hoja.querySelector('.hc-3dias-chk');
     if (chk3) {
