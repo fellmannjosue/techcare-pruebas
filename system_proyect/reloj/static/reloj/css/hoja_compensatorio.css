@@ -26,3 +26,8 @@
 .hc-ok { outline: 2px solid #2fb344 !important; }
 .hc-err { outline: 2px solid #d63939 !important; }
 @media (max-width: 768px) { .hc-abajo { gap: 1.5rem; margin-top: 1.5rem; } }
+/* <--- hecho por claude code (16-nov-2026): celdas con fórmula y lista de selección múltiple del permiso */
+.hc-calc { cursor: default; }
+.hc-perm-btn { display: flex; align-items: center; justify-content: flex-end; cursor: pointer; }
+.hc-perm-menu { min-width: 16rem; }
+.hc-perm-menu .dropdown-item { cursor: pointer; white-space: nowrap; }

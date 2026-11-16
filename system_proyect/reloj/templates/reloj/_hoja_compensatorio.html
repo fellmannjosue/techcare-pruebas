@@ -1,7 +1,7 @@
 {% load static %}
 {# <--- hecho por claude code (16-nov-2026): Fase 1 · tab «Cálculo compensatorio año» con una sub-pestaña por empleado (formato del Excel del usuario) #}
 <div class="tab-pane fade" id="tab-hoja">
-  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=3">
   <div id="hoja-config" hidden data-url="{% url 'reloj_compensatorio_hoja_save' %}" data-csrf="{{ csrf_token }}"
        data-anio="{{ hoja_anio }}" data-edit="{{ can_edit_extra|yesno:'1,0' }}"></div>
 
@@ -35,10 +35,17 @@
           <td><input type="date" class="hc-in" data-k="fecha_corte" min="2000-01-01" max="2100-12-31" value="{{ h.v.fecha_corte }}"></td>
           <td class="hc-auto" title="Automático: 1 año = 10 · 2 = 12 · 3 = 15 · 4 o más = 20"><span class="hc-derecho">{{ h.derecho }}</span></td>
           <td><input class="hc-in hc-num" data-k="deuda" value="{{ h.v.deuda }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_ant" value="{{ h.v.saldo_ant }}"></td>
-          <td><input class="hc-in hc-num" data-k="permiso_vac" value="{{ h.v.permiso_vac }}"></td>
-          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_act" value="{{ h.v.saldo_act }}"></td>
-          <td><input class="hc-in hc-num" data-k="dias_necesita" value="{{ h.v.dias_necesita }}"></td>
+          <td class="hc-yel" title="Fórmula: Derecho a días − Deuda de vacación"><input class="hc-in hc-num hc-calc" data-k="saldo_ant" readonly tabindex="-1" value="{{ h.v.saldo_ant }}"></td>
+          <td class="hc-permiso" title="Suma de los días elegidos del detalle">{# <--- hecho por claude code (16-nov-2026): selección múltiple del detalle; suma los días elegidos #}
+            <div class="dropdown">
+              <button type="button" class="hc-in hc-num hc-perm-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"><span class="hc-perm-val"></span><i class="ti ti-chevron-down ms-1 small text-muted"></i></button>
+              <div class="dropdown-menu hc-perm-menu p-2"></div>
+            </div>
+            <input type="hidden" data-k="permiso_vac" value="{{ h.v.permiso_vac }}">
+            <span class="hc-perm-sel" hidden>{{ h.permiso_sel|join:"," }}</span>
+          </td>
+          <td class="hc-yel" title="Fórmula: Saldo de vacación − Permiso a cuenta a vacación"><input class="hc-in hc-num hc-calc" data-k="saldo_act" readonly tabindex="-1" value="{{ h.v.saldo_act }}"></td>
+          <td title="Fórmula: suma de los días del detalle (cierre ANA)"><input class="hc-in hc-num hc-calc" data-k="dias_necesita" readonly tabindex="-1" value="{{ h.v.dias_necesita }}"></td>
           <td class="hc-yel"><input class="hc-in hc-num" data-k="dias_compensar" value="{{ h.v.dias_compensar }}"></td>
           <td class="hc-yel"><input class="hc-in hc-num" data-k="horas_compensar" value="{{ h.v.horas_compensar }}"></td>
           <td><input class="hc-in hc-num" data-k="horas_compensada" value="{{ h.v.horas_compensada }}"></td>
@@ -62,7 +69,7 @@
           <tr class="hc-det-fila">
             <td><input class="hc-in hc-txt" data-d="concepto" value="{{ f.concepto }}"></td>
             <td><input class="hc-in hc-num" data-d="dias" value="{{ f.dias }}"></td>
-            <td><input class="hc-in hc-num" data-d="horas" value="{{ f.horas }}"></td>
+            <td title="Fórmula: días × 8"><input class="hc-in hc-num hc-calc" data-d="horas" readonly tabindex="-1" value="{{ f.horas }}"></td>
           </tr>
           {% endfor %}
         </tbody>

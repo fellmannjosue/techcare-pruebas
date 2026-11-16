@@ -2768,7 +2768,8 @@ def _hojas_compensatorio(anio):
         vals = {k: d.get(k, '') for k in _HOJA_CAMPOS}
         vals['fecha_ingreso'] = ing.isoformat() if ing else ''
         vals['fecha_corte'] = corte.isoformat() if corte else ''
-        hojas.append({'emp_code': ec, 'nombre': nombres.get(ec, ec), 'v': vals,
+        sel = [i for i in (d.get('permiso_sel') or []) if isinstance(i, int)]
+        hojas.append({'emp_code': ec, 'nombre': nombres.get(ec, ec), 'v': vals, 'permiso_sel': sel,
                       'ingreso': ing, 'corte': corte,
                       'derecho': _hoja_derecho_dias(ing, corte), 'detalle': detalle})
     return hojas
@@ -2807,6 +2808,16 @@ def compensatorio_hoja_save(request):
                         'dias': str(fila.get('dias', '') or '').strip()[:20],
                         'horas': str(fila.get('horas', '') or '').strip()[:20]})
     datos['detalle'] = det
+    # <--- hecho por claude code (16-nov-2026): filas del detalle elegidas para «Permiso a cuenta a vacación»
+    sel = []
+    for i in (datos_in.get('permiso_sel') or [])[:20]:
+        try:
+            i = int(i)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= i < len(det) and i not in sel:
+            sel.append(i)
+    datos['permiso_sel'] = sel
     from .models import CompensatorioHoja
     _ensure_model_table(CompensatorioHoja)
     try:
