@@ -1,0 +1,99 @@
+{% load static %}
+{# <--- hecho por claude code (16-nov-2026): Fase 1 · tab «Cálculo compensatorio año» con una sub-pestaña por empleado (formato del Excel del usuario) #}
+<div class="tab-pane fade" id="tab-hoja">
+  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=1">
+  <div id="hoja-config" hidden data-url="{% url 'reloj_compensatorio_hoja_save' %}" data-csrf="{{ csrf_token }}"
+       data-anio="{{ hoja_anio }}" data-edit="{{ can_edit_extra|yesno:'1,0' }}"></div>
+
+  <ul class="nav nav-tabs hc-emp-tabs mb-3" role="tablist">
+    {% for h in hojas %}
+    <li class="nav-item"><button class="nav-link{% if forloop.first %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#hoja-{{ h.emp_code }}" type="button">{{ h.nombre }}</button></li>
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content">
+  {% for h in hojas %}
+  <div class="tab-pane fade{% if forloop.first %} show active{% endif %} hc-hoja" id="hoja-{{ h.emp_code }}" data-emp="{{ h.emp_code }}">
+    <div class="hc-scroll">
+    <table class="hc-tabla hc-principal">
+      <thead>
+        <tr><th colspan="14" class="hc-nombre">{{ h.nombre }}</th></tr>
+        <tr class="hc-anios">
+          <th></th><th></th><th></th><th></th><th>año {{ hoja_anio|add:"-1" }}</th><th></th><th>año {{ hoja_anio }}</th>
+          <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+        </tr>
+        <tr>
+          <th>Fecha de ingreso</th><th>Fecha de corte</th><th>Derecho a días</th><th>Deuda de vacación</th>
+          <th>Saldo de vacación</th><th>Permiso a cuenta a vacación</th><th>Saldo vacación</th><th>Días que necesita</th>
+          <th>Días que debe compensar</th><th>Horas a compensar</th><th>Horas compensada</th><th>Disponible extra</th>
+          <th>Total trabajado</th><th>Saldo final disponible</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="date" class="hc-in" data-k="fecha_ingreso" min="2000-01-01" max="2100-12-31" value="{{ h.v.fecha_ingreso }}"></td>
+          <td><input type="date" class="hc-in" data-k="fecha_corte" min="2000-01-01" max="2100-12-31" value="{{ h.v.fecha_corte }}"></td>
+          <td class="hc-auto" title="Automático: 1 año = 10 · 2 = 12 · 3 = 15 · 4 o más = 20"><span class="hc-derecho">{{ h.derecho }}</span></td>
+          <td><input class="hc-in hc-num" data-k="deuda" value="{{ h.v.deuda }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_ant" value="{{ h.v.saldo_ant }}"></td>
+          <td><input class="hc-in hc-num" data-k="permiso_vac" value="{{ h.v.permiso_vac }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_act" value="{{ h.v.saldo_act }}"></td>
+          <td><input class="hc-in hc-num" data-k="dias_necesita" value="{{ h.v.dias_necesita }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="dias_compensar" value="{{ h.v.dias_compensar }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="horas_compensar" value="{{ h.v.horas_compensar }}"></td>
+          <td><input class="hc-in hc-num" data-k="horas_compensada" value="{{ h.v.horas_compensada }}"></td>
+          <td><input class="hc-in hc-num" data-k="disponible_extra" value="{{ h.v.disponible_extra }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="total_trabajado" value="{{ h.v.total_trabajado }}"></td>
+          <td class="hc-yel"><input class="hc-in hc-num" data-k="saldo_final" value="{{ h.v.saldo_final }}"></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="hc-abajo">
+      <div class="hc-scroll">
+      <table class="hc-tabla hc-detalle">
+        <thead>
+          <tr><th colspan="3" class="hc-titulo">Detalle días que necesita <span class="hc-rango">{{ h.ingreso|date:"d/m/y"|default:"—" }} - {{ h.corte|date:"d/m/y"|default:"—" }}</span></th></tr>
+          <tr><th>Cierre ANA</th><th>Días</th><th>Horas</th></tr>
+        </thead>
+        <tbody>
+          {% for f in h.detalle %}
+          <tr class="hc-det-fila">
+            <td><input class="hc-in hc-txt" data-d="concepto" value="{{ f.concepto }}"></td>
+            <td><input class="hc-in hc-num" data-d="dias" value="{{ f.dias }}"></td>
+            <td><input class="hc-in hc-num" data-d="horas" value="{{ f.horas }}"></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><td class="hc-sin-borde"></td><td class="hc-yel hc-tot" data-tot="dias"></td><td class="hc-yel hc-tot" data-tot="horas"></td></tr>
+        </tfoot>
+      </table>
+      </div>
+
+      <div class="hc-scroll">
+      <table class="hc-tabla hc-extra">
+        <thead>
+          <tr><th colspan="5" class="hc-titulo text-center">Extra 3 días</th></tr>
+          <tr><th>Horas hechas</th><th>Horas que debe tomar</th><th>Horas tomadas</th><th>Pendiente por tomar</th><th>Saldo disponible de compensado</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input class="hc-in hc-num" data-k="ex_hechas" value="{{ h.v.ex_hechas }}"></td>
+            <td><input class="hc-in hc-num" data-k="ex_debe_tomar" value="{{ h.v.ex_debe_tomar }}"></td>
+            <td><input class="hc-in hc-num" data-k="ex_tomadas" value="{{ h.v.ex_tomadas }}"></td>
+            <td><input class="hc-in hc-num" data-k="ex_pendiente" value="{{ h.v.ex_pendiente }}"></td>
+            <td class="hc-yel"><input class="hc-in hc-num" data-k="ex_saldo" value="{{ h.v.ex_saldo }}"></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="hc-estado text-muted small mt-2"></div>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No hay empleados en el Cálculo Compensatorio.</div>
+  {% endfor %}
+  </div>
+</div>

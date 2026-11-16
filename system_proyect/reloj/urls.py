@@ -76,6 +76,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('compensatorio-calculo/', views.compensatorio_calculo_list, name='reloj_compensatorio_calculo_list'),
     path('compensatorio-calculo/pruebas/', views.compensatorio_pruebas, name='reloj_compensatorio_pruebas'),  # <--- hecho por claude code (16-sep-2026)
+    path('compensatorio-calculo/hoja/', views.compensatorio_hoja_save, name='reloj_compensatorio_hoja_save'),  # <--- hecho por claude code (16-nov-2026): hoja por empleado
     path('compensatorio-calculo/pruebas/permiso-tomado/', views.compensatorio_permiso_tomado_save, name='reloj_compensatorio_permiso_tomado_save'),  # <--- hecho por claude code (16-sep-2026)
     path('compensatorio-calculo/pruebas/saldo/', views.compensatorio_saldo_manual_save, name='reloj_compensatorio_saldo_manual_save'),  # <--- hecho por claude code (16-sep-2026)
     # <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario"

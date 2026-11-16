@@ -2714,6 +2714,109 @@ def _ensure_model_table(model):
         print(f"[compensatorio] _ensure_model_table({model.__name__}): {_ex}")
 
 
+# <--- hecho por claude code (16-nov-2026): Fase 1 · «Cálculo compensatorio 2026» = una hoja por empleado con el formato del Excel
+_HOJA_EMPLEADOS = ['75', '30', '55', '79', '80', '83', '14', '56', '24', '3', '5', '6', '17', '8']   # orden de las pestañas del Excel
+_HOJA_CAMPOS = ['fecha_ingreso', 'fecha_corte', 'deuda', 'saldo_ant', 'permiso_vac', 'saldo_act',
+                'dias_necesita', 'dias_compensar', 'horas_compensar', 'horas_compensada',
+                'disponible_extra', 'total_trabajado', 'saldo_final',
+                'ex_hechas', 'ex_debe_tomar', 'ex_tomadas', 'ex_pendiente', 'ex_saldo']
+_HOJA_DETALLE_DEF = ['Semana trimestral', 'Semana morazánica', 'Cierre diciembre', 'Enero año {sig}', 'Semana santa {sig}']
+
+
+def _hoja_derecho_dias(ingreso, corte):
+    """Fórmula 1 (usuario): años cumplidos entre ingreso y corte → 1=10, 2=12, 3=15, 4 o más=20 (menos de 1 año = 0)."""
+    if not ingreso or not corte or corte < ingreso:
+        return 0
+    anios = corte.year - ingreso.year - ((corte.month, corte.day) < (ingreso.month, ingreso.day))
+    if anios < 1:
+        return 0
+    return {1: 10, 2: 12, 3: 15}.get(anios, 20)
+
+
+def _hoja_fecha(v):
+    try:
+        d = date.fromisoformat(str(v)[:10])
+        return d if 2000 <= d.year <= 2100 else None
+    except Exception:
+        return None
+
+
+def _hojas_compensatorio(anio):
+    """Lista de hojas (una por empleado, en el orden del Excel) con los valores guardados o los de arranque."""
+    from .models import CompensatorioHoja
+    nombres = {str(r.emp_code): r.nombre_empleado for r in CompensatorioCalculo.objects.all()}
+    ingresos = {str(v.emp_code): v.fecha_inicio_labores for v in VacacionConfig.objects.all()}
+    guardadas = {}
+    try:
+        guardadas = {h.emp_code: (h.datos or {}) for h in CompensatorioHoja.objects.filter(anio=anio)}
+    except Exception as _ex:   # la tabla aún no existe en esta base
+        print(f"[hoja compensatorio] {_ex}")
+    codigos = [c for c in _HOJA_EMPLEADOS if c in nombres] + sorted(c for c in nombres if c not in _HOJA_EMPLEADOS)
+    hojas = []
+    for ec in codigos:
+        d = dict(guardadas.get(ec, {}))
+        ing = _hoja_fecha(d.get('fecha_ingreso')) or ingresos.get(ec)
+        corte = _hoja_fecha(d.get('fecha_corte'))
+        if not corte and ing:
+            try:
+                corte = ing.replace(year=anio)
+            except ValueError:          # 29-feb
+                corte = date(anio, 2, 28)
+        detalle = d.get('detalle')
+        if not isinstance(detalle, list) or not detalle:
+            detalle = [{'concepto': c.format(sig=anio + 1), 'dias': '', 'horas': ''} for c in _HOJA_DETALLE_DEF]
+        vals = {k: d.get(k, '') for k in _HOJA_CAMPOS}
+        vals['fecha_ingreso'] = ing.isoformat() if ing else ''
+        vals['fecha_corte'] = corte.isoformat() if corte else ''
+        hojas.append({'emp_code': ec, 'nombre': nombres.get(ec, ec), 'v': vals,
+                      'ingreso': ing, 'corte': corte,
+                      'derecho': _hoja_derecho_dias(ing, corte), 'detalle': detalle})
+    return hojas
+
+
+@login_required
+@require_POST
+def compensatorio_hoja_save(request):
+    """Guarda una hoja completa (JSON {emp_code, anio, datos}). Solo quien edita el Cálculo Compensatorio."""
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para editar.'}, status=403)
+    try:
+        body = json.loads(request.body or '{}')
+        ec = str(body.get('emp_code', '')).strip()[:20]
+        anio = int(body.get('anio'))
+        datos_in = body.get('datos') or {}
+        if not ec or not (2000 <= anio <= 2100) or not isinstance(datos_in, dict):
+            raise ValueError
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)
+    if not CompensatorioCalculo.objects.filter(emp_code=ec).exists():
+        return JsonResponse({'ok': False, 'error': 'Empleado no encontrado.'}, status=404)
+    datos = {}
+    for k in _HOJA_CAMPOS:
+        v = str(datos_in.get(k, '') or '').strip()[:40]
+        if k.startswith('fecha_') and v:
+            f = _hoja_fecha(v)
+            if not f:
+                return JsonResponse({'ok': False, 'error': 'Fecha inválida (año 2000 en adelante).'}, status=400)
+            v = f.isoformat()
+        datos[k] = v
+    det = []
+    for fila in (datos_in.get('detalle') or [])[:20]:
+        if isinstance(fila, dict):
+            det.append({'concepto': str(fila.get('concepto', '') or '').strip()[:60],
+                        'dias': str(fila.get('dias', '') or '').strip()[:20],
+                        'horas': str(fila.get('horas', '') or '').strip()[:20]})
+    datos['detalle'] = det
+    from .models import CompensatorioHoja
+    _ensure_model_table(CompensatorioHoja)
+    try:
+        CompensatorioHoja.objects.update_or_create(emp_code=ec, anio=anio, defaults={'datos': datos})
+    except Exception as ex:
+        return JsonResponse({'ok': False, 'error': f'No se pudo guardar: {ex}'}, status=500)
+    return JsonResponse({'ok': True, 'derecho': _hoja_derecho_dias(_hoja_fecha(datos['fecha_ingreso']),
+                                                                   _hoja_fecha(datos['fecha_corte']))})
+
+
 def _periodo_comp_anual(anio):
     """(fecha_inicio, fecha_fin) del periodo del año escolar. Default 1-feb → 26-nov."""
     default = (date(anio, 2, 1), date(anio, 11, 26))
@@ -3328,6 +3431,9 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         "can_delete_extra": can_delete_extra,
         # <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo reloj
         "puede_tomado":     _puede_tomado_manual(request.user),
+        # <--- hecho por claude code (16-nov-2026): tab «Cálculo compensatorio <año>» (hoja por empleado)
+        "hoja_anio":        hoy.year,
+        "hojas":            _hojas_compensatorio(hoy.year),
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')

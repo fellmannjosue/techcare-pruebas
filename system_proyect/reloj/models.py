@@ -1096,3 +1096,21 @@ class RelojConfigGlobal(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+# <--- hecho por claude code (16-nov-2026): Fase 1 · hoja «Cálculo compensatorio 2026» por empleado (formato del Excel)
+class CompensatorioHoja(models.Model):
+    """Una hoja por empleado y año: los valores de las celdas van en `datos` (JSON)."""
+    emp_code = models.CharField("Código empleado", max_length=20, db_index=True)
+    anio     = models.PositiveIntegerField("Año")
+    datos    = models.JSONField("Celdas", default=dict, blank=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reloj_compensatorio_hoja"
+        unique_together = ("emp_code", "anio")
+        verbose_name = "Hoja de cálculo compensatorio"
+        verbose_name_plural = "Hojas de cálculo compensatorio"
+
+    def __str__(self):
+        return f"{self.emp_code} · {self.anio}"

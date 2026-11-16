@@ -30,11 +30,8 @@
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab3" type="button">Tiempo compensatorio general</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab5" type="button">Instructores</button></li>
   <li class="nav-item"><button class="nav-link" id="tab-gilma-btn" data-bs-toggle="tab" data-bs-target="#tab-gilma" type="button"><i class="ti ti-user-shield me-1 text-pink"></i>{{ gilma.nombre }}</button></li>
-  {# <--- hecho por claude code: 2 tabs nuevos (rediseño por vacaciones) #}
-  {# <--- hecho por claude code (16-sep-2026): 4 tabs nuevos (reemplazan a "Compensatorio por vacaciones" y "Tiempo diario") #}
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-vac" type="button"><i class="ti ti-beach me-1 text-orange"></i>1 · Días a compensar</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Control de deudas compensatorio {{ anio_sel }}</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-permisos" type="button"><i class="ti ti-license me-1 text-purple"></i>3 · Control 3 días de permiso {{ anio_sel }} <span class="badge bg-purple-lt text-purple ms-1">{{ con_permisos|length }}</span></button></li>
+  {# <--- hecho por claude code (16-nov-2026): los tabs 1·2·3 se movieron a Reloj → Pruebas; nuevo tab con la hoja por empleado (formato del Excel) #}
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-hoja" type="button"><i class="ti ti-table me-1 text-green"></i>Cálculo compensatorio {{ hoja_anio }}</button></li>
   <li class="nav-item ms-auto d-flex align-items-center gap-2">
     <span class="text-muted small">Año:</span>
     <select id="anio-sel" class="form-select form-select-sm" style="width:auto;">
@@ -211,7 +208,7 @@
 
 {# ══════════════════ TAB NUEVO — COMPENSATORIO POR VACACIONES ══════════════════ #}
 {# <--- hecho por claude code: días que debe compensar (vacaciones + días no laborables ANA) #}
-{% include 'reloj/_compensatorio_pruebas_tabs.html' %}
+{% include 'reloj/_hoja_compensatorio.html' %}
 
 </div>{# /tab-content #}
 
@@ -234,7 +231,7 @@
 {% include 'reloj/_compensatorio_modales.html' %}
 
 <script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=43"></script>
-<script src="{% static 'reloj/js/compensatorio_pruebas.js' %}?v=8"></script>
+<script src="{% static 'reloj/js/hoja_compensatorio.js' %}?v=1"></script>
 <script src="{% static 'reloj/js/trabajadas_manual.js' %}?v=1"></script>{# <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos) #}{# <--- hecho por claude code (16-sep-2026): lápices de saldo / 3 días + recarga al cerrar modales #}
 
 {% endblock %}
