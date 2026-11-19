@@ -32,37 +32,25 @@
               <p class="form-control-plaintext">{{ atencion.estudiante }}</p>
             </div>
           </div>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): solo los correos REGISTRADOS del alumno de esta atención (antes el padrón completo de alumnos con correos y teléfonos); asunto y mensaje los fija el servidor #}
           <div class="mb-3">
-            <label class="form-label">Selecciona el correo del estudiante</label>
+            <label class="form-label">Selecciona el correo del padre / acudiente</label>
             <select id="email" name="email" class="form-select select2" required>
               <option value="">-- Elige un correo --</option>
-              {% for p in personas %}
-                {% with nombre=p.Nombre1|default:'' nombre2=p.Nombre2|default:'' ap1=p.Apellido1|default:'' ap2=p.Apellido2|default:'' tel="" %}
-                  {% with tel_txt=p.Tel1|default:p.Tel2|default:"Sin teléfono" %}
-                    {% if p.Email %}
-                      <option value="{{ p.Email }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email }} | Tel: {{ tel_txt }}</option>
-                    {% endif %}
-                    {% if p.Email2 %}
-                      <option value="{{ p.Email2 }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email2 }} | Tel: {{ tel_txt }}</option>
-                    {% endif %}
-                    {% if p.Email3 %}
-                      <option value="{{ p.Email3 }}">{{ ap1 }}{% if ap2 %} {{ ap2 }}{% endif %} {{ nombre }}{% if nombre2 %} {{ nombre2 }}{% endif %} — {{ p.Email3 }} | Tel: {{ tel_txt }}</option>
-                    {% endif %}
-                  {% endwith %}
-                {% endwith %}
+              {% for c in correos %}
+                <option value="{{ c }}">{{ c }}</option>
               {% empty %}
-                <option value="">No se encontraron registros</option>
+                <option value="" disabled>El alumno no tiene correos registrados en el sistema académico</option>
               {% endfor %}
             </select>
           </div>
           <div class="mb-3">
             <label class="form-label">Asunto</label>
-            <input type="text" id="asunto" name="asunto" class="form-control"
-                   value="Ficha médica de {{ atencion.estudiante }}" required>
+            <p class="form-control-plaintext">{{ asunto }}</p>
           </div>
           <div class="mb-3">
             <label class="form-label">Mensaje</label>
-            <textarea id="mensaje" name="mensaje" class="form-control" rows="6" required>{{ mensaje }}</textarea>
+            <p class="form-control-plaintext">{{ mensaje|linebreaksbr }}</p>
           </div>
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-success">

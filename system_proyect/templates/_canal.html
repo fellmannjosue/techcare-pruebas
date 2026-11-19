@@ -1,0 +1,5 @@
+{% load static %}{# <--- hecho por claude code (09-nov-2026): programas por canal (Web/.exe/APK): mapa para tc_canal.js y aviso «Probar como» #}
+{% if tc_canal_mapa %}{{ tc_canal_mapa|json_script:"tc-canal-mapa" }}<script src="{% static 'js/tc_canal.js' %}?v=1"></script>{% endif %}
+{% if tc_canal_prueba %}<link rel="stylesheet" href="{% static 'css/tc_canal.css' %}?v=1">
+<div class="tc-canal-pill"><i class="ti ti-eye"></i><span>Probando como: {{ tc_canal_label }}</span>
+  <form method="post" action="{% url 'settings_canales_probar' %}">{% csrf_token %}<input type="hidden" name="canal" value=""><input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit">Salir</button></form></div>{% endif %}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>{{ titulo }}</title></head>
+<body>
+{# <--- hecho por claude code (10-nov-2026): PDF de Configuración → Documentación; CSS en accounts/css/documentacion_pdf.css (cargado del disco) #}
+<div class="encabezado">
+  {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
+  <div class="enc-txt"><div class="org">Asociación Nuevo Amanecer · TechCare</div><div class="enc-tit">{% if varios %}{{ titulo }}{% else %}Documentación de TechCare{% endif %}</div></div>
+  <div class="enc-fecha">Generado el {{ fecha }}</div>
+</div>
+{% if varios %}
+<div class="indice"><h2>Contenido</h2><ol>{% for s in secciones %}<li><a href="#{{ s.ancla }}">{{ s.titulo }}</a></li>{% endfor %}</ol></div>
+{% endif %}
+{% for s in secciones %}
+<section class="doc{% if varios %} salto{% endif %}" id="{{ s.ancla }}">
+  <div class="ruta">docs/{{ s.rel }}</div>
+  {{ s.html|safe }}{# <--- html de markdown-it con html=False #}
+</section>
+{% endfor %}
+</body></html>

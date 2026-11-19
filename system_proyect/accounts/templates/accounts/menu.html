@@ -26,7 +26,7 @@
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) #}
-  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=7">
   {% endif %}
 </head>
 <body class="antialiased tc-overlap">
@@ -261,7 +261,7 @@
           </div>
           {% endif %}
 
-          {# <--- hecho por claude code (02-nov-2026): Solicitud de DataShow (reserva con calendario) #}
+          {# <--- hecho por claude code (03-nov-2026): Solicitud de DataShow (reserva con calendario) #}
           {% if show_datashow %}
           <div class="col-6 col-sm-4 col-lg-3">
             <a href="{% url 'datashow:index' %}" class="text-decoration-none">
@@ -376,7 +376,7 @@
 
           {% if show_directorio %}
           <div class="col-6 col-sm-4 col-lg-3">
-            <a href="{% url 'enfermeria:directorio_telefonos' %}" class="text-decoration-none">
+            <a href="{% url 'directorio_telefonos' %}" class="text-decoration-none">
               <div class="card card-link card-link-pop text-center py-3">
                 <div class="card-body">
                   <div class="mb-2"><i class="ti ti-address-book text-green" style="font-size:2.5rem;"></i></div>
@@ -465,7 +465,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
-<script src="{% static 'accounts/js/dashboard_summary.js' %}?v=21"></script>
+<script src="{% static 'accounts/js/dashboard_summary.js' %}?v=23"></script>{# <--- hecho por claude code (seguridad 05-nov-2026): v23 escapa el modal y va en IIFE #}
 
 {% if False %}{# Modal movido a _user_dropdown.html #}
 <div class="modal fade" id="__modal_placeholder__" tabindex="-1" aria-hidden="true">
@@ -531,7 +531,7 @@
 <div id="bienvenida-config" hidden
      data-url-reenviar="{% url 'reenviar_bienvenida' %}"
      data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'accounts/js/menu_bienvenida.js' %}?v=22"></script>
+<script src="{% static 'accounts/js/menu_bienvenida.js' %}?v=20"></script>
 {% endif %}
 
 {% if request.user.is_superuser %}
@@ -686,6 +686,7 @@
      data-url-estado-mantenimiento="{% url 'estado_mantenimiento' %}"
      data-url-toggle-mantenimiento="{% url 'toggle_mantenimiento' %}"></div>
 <script src="{% static 'accounts/js/menu.js' %}?v=21"></script>
+{% if tc_offline_beta %}<link rel="stylesheet" href="{% static 'css/tc_offline_beta.css' %}?v=1"><script src="{% static 'js/tc_offline_beta.js' %}?v=1"></script>{% endif %}{# <--- hecho por claude code (12-nov-2026): modo sin conexión (beta), solo superusuario #}
 {% endif %}
 
 {# Toast container global — usado por notifications.js y notif_notas_toast.js #}
@@ -697,7 +698,8 @@
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=2"></script>
 {% endif %}
-<script src="{% static 'js/tc_shell.js' %}?v=9"></script>
+<script src="{% static 'js/tc_shell.js' %}?v=10"></script>
+{% include '_canal.html' %}
 <script src="{% static 'js/tc_responsive.js' %}?v=1"></script>
 </body>
 </html>

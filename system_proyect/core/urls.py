@@ -21,9 +21,6 @@ urlpatterns = [
     # ============================
     # 🔔 NOTIFICACIONES
     # ============================
-    # <--- hecho por claude code (26-oct-2026): novedades en JSON para la app .exe (público)
-    path("api/novedades/", novedades_json, name="novedades_json"),
-
     path("api/notificaciones/", notificaciones_usuario, name="api_notificaciones"),
     path("api/notificaciones/marcar/", marcar_notificaciones_leidas, name="api_notificaciones_marcar"),
 
@@ -47,4 +44,5 @@ urlpatterns = [
     # 🆕 VERSIÓN / NOVEDADES   <--- hecho por claude code
     # ============================
     path("api/version/visto/", marcar_version_vista, name="marcar_version_vista"),
+    path("api/novedades/", novedades_json, name="novedades_json"),   # <--- hecho por claude code (09-nov-2026): para la app .exe (público)
 ]

@@ -6,7 +6,7 @@
 {% block nav_tickets %}active{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'tickets/css/technician_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'tickets/css/technician_dashboard.css' %}?v=2">
 {% endblock %}
 
 {% block content %}
@@ -42,10 +42,10 @@
             <td>{{ ticket.name }}</td>
             <td>{{ ticket.email }}</td>
             {# <--- hecho por claude code: descripción compacta con hover que muestra el texto completo #}
+            {# <--- hecho por claude code (seguridad 05-nov-2026): la descripción la escribe quien manda el ticket (también anónimos): va como TEXTO en data-desc (no es data-bs-*, Bootstrap no la decodifica) y el JS crea el popover con html:false #}
             <td style="max-width:200px;">
-              <span class="td-desc" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus"
-                    data-bs-placement="top" data-bs-html="true" onclick="event.stopPropagation();"
-                    data-bs-content="{{ ticket.description|escape|linebreaksbr }}">
+              <span class="td-desc" tabindex="0" onclick="event.stopPropagation();"
+                    data-desc="{{ ticket.description }}">
                 {{ ticket.description|truncatechars:55 }} <i class="ti ti-info-circle text-muted"></i></span>
             </td>
             {# <--- hecho por claude code: badge de urgencia #}
@@ -80,7 +80,8 @@
             </td>
             <td>
               {% if ticket.attachment %}
-                <a href="{{ ticket.attachment.url }}" target="_blank"
+                {# <--- hecho por claude code (seguridad 05-nov-2026): el adjunto sale por la vista con permiso del ticket, no por /media/ #}
+                <a href="{% url 'ticket_adjunto' ticket.id %}" target="_blank"
                    class="btn btn-sm btn-ghost-secondary" onclick="event.stopPropagation();">
                   <i class="ti ti-paperclip me-1"></i>Ver
                 </a>
@@ -94,11 +95,13 @@
                    onclick="event.stopPropagation();" title="Abrir chat">
                   <i class="ti ti-message-circle"></i>
                 </a>
+                {% if perms.tickets.delete_ticket %}{# <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que ticket_eliminar_ajax #}
                 <button class="btn btn-sm btn-ghost-danger btn-eliminar-ticket"
                         data-id="{{ ticket.id }}" data-tid="{{ ticket.ticket_id }}"
                         onclick="event.stopPropagation();" title="Eliminar ticket">
                   <i class="ti ti-trash"></i>
                 </button>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -188,7 +191,7 @@
 {% block extra_js %}
 <div id="technician_dashboard-config" hidden
      data-v0="{{ csrf_token }}"></div>
-<script src="{% static 'tickets/js/technician_dashboard.js' %}?v=12"></script>
+<script src="{% static 'tickets/js/technician_dashboard.js' %}?v=14"></script>
 {# <--- hecho por claude code: alerta cada 10 min de tickets sin atender #}
 <div id="tickets-alerta-cfg" hidden
      data-url="{% url 'tickets_sin_atender_ajax' %}"

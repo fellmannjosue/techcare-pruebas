@@ -42,9 +42,15 @@
         {# Correo #}
         <div class="col-md-6">
           <label class="form-label fw-semibold">Correo electrónico</label>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): el correo de una cuenta existente solo lo cambia el superusuario (con el correo se recupera la contraseña) #}
+          {% if modo == 'crear' or request.user.is_superuser %}
           <input type="email" class="form-control" name="email"
                  value="{{ edit_user.email|default:'' }}"
                  placeholder="usuario@ana-hn.org">
+          {% else %}
+          <input type="email" class="form-control bg-light" value="{{ edit_user.email|default:'' }}" disabled>
+          <div class="form-hint">Solo el superusuario puede cambiar el correo.</div>
+          {% endif %}
         </div>
 
         {# Nombre y apellido #}
@@ -60,19 +66,23 @@
         </div>
 
         {# Contraseña #}
+        {# <--- hecho por claude code (seguridad 05-nov-2026): la contraseña de otra cuenta solo la cambia el superusuario; se valida con las reglas del sistema #}
+        {% if modo == 'crear' or request.user.is_superuser %}
         <div class="col-md-6">
           <label class="form-label fw-semibold">
             Contraseña
             {% if modo == 'crear' %}<span class="text-red">*</span>{% endif %}
           </label>
           <input type="password" class="form-control" name="password"
-                 {% if modo == 'crear' %}required{% endif %}
+                 {% if modo == 'crear' %}required minlength="8"{% endif %}
                  autocomplete="new-password"
                  placeholder="{% if modo == 'editar' %}Dejar vacío para no cambiar{% endif %}">
           {% if modo == 'editar' %}
             <div class="form-hint">Deja vacío para mantener la contraseña actual.</div>
           {% endif %}
+          <div class="form-hint">Mínimo 8 caracteres, no solo números, ni común ni parecida al usuario o al nombre.</div>
         </div>
+        {% endif %}
 
         {# Grupos #}
         <div class="col-md-6">
@@ -87,35 +97,48 @@
               </label>
             {% endfor %}
           </div>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): grupos que solo el superusuario asigna; se conservan al guardar #}
+          {% if grupos_fijos %}
+          <div class="form-hint mt-2"><i class="ti ti-lock me-1"></i>Otros grupos (solo el superusuario los cambia):
+            {% for n in grupos_fijos %}<span class="badge bg-muted-lt text-muted me-1">{{ n }}</span>{% endfor %}
+          </div>
+          {% endif %}
           <div class="form-hint"><i class="ti ti-info-circle me-1"></i>Pasa el cursor sobre un grupo para ver qué permite. Marca los que quieras.</div>
         </div>
 
         {# Flags ── acceso y tipo #}
         <div class="col-12">
           <label class="form-label fw-semibold d-block mb-2">Estado y tipo</label>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): staff y superusuario solo los da el superusuario; activo en cuentas existentes también; en su propia cuenta el superusuario no se los quita #}
           <div class="d-flex gap-4 flex-wrap">
+            {% if modo == 'crear' or request.user.is_superuser %}
             <label class="form-check form-switch">
               <input class="form-check-input" type="checkbox" name="is_active"
-                     {% if edit_user.is_active or modo == 'crear' %}checked{% endif %}>
+                     {% if edit_user.is_active or modo == 'crear' %}checked{% endif %}
+                     {% if edit_user and edit_user.pk == request.user.pk %}disabled{% endif %}>
               <span class="form-check-label">Activo</span>
             </label>
+            {% endif %}
+            {% if request.user.is_superuser %}
             <label class="form-check form-switch">
               <input class="form-check-input" type="checkbox" name="is_staff"
-                     {% if edit_user.is_staff %}checked{% endif %}>
+                     {% if edit_user.is_staff %}checked{% endif %}
+                     {% if edit_user and edit_user.pk == request.user.pk %}disabled{% endif %}>
               <span class="form-check-label">
                 <i class="ti ti-user-star text-orange me-1"></i>Staff
               </span>
             </label>
-            {% if request.user.is_superuser %}
             <label class="form-check form-switch">
               <input class="form-check-input" type="checkbox" name="is_superuser"
-                     {% if edit_user.is_superuser %}checked{% endif %}>
+                     {% if edit_user.is_superuser %}checked{% endif %}
+                     {% if edit_user and edit_user.pk == request.user.pk %}disabled{% endif %}>
               <span class="form-check-label text-red">
                 <i class="ti ti-crown text-red me-1"></i>Superusuario
               </span>
             </label>
             {% endif %}
           </div>
+          {% if edit_user and edit_user.pk == request.user.pk %}<div class="form-hint">En tu propia cuenta no puedes quitarte superusuario, staff ni activo.</div>{% endif %}
         </div>
 
         {% if modo == 'crear' %}

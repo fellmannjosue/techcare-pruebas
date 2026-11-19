@@ -44,6 +44,20 @@
   if (pc) {
     editorManual('.btn-edit-permtom', pc.dataset.permtom, 'horas', 'Horas tomadas de los 3 días de permiso');
     editorManual('.btn-edit-saldo', pc.dataset.saldo, 'saldo', 'Saldo de vacación acumulada (días)');
+    // <--- hecho por claude code (16-nov-2026): columna «Fecha» del tab Vacaciones — se guarda sola al cambiarla (sin recargar)
+    document.querySelectorAll('.p-fecha-corte').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        inp.classList.remove('is-valid', 'is-invalid');
+        // Mientras se escribe el año (0002, 0020, 0201…) el navegador ya dispara «change»: solo se guarda desde el año 2000
+        if (inp.value && parseInt(inp.value.slice(0, 4), 10) < 2000) return;
+        fetch(pc.dataset.fecha, { method: 'POST', credentials: 'same-origin',
+                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': pc.dataset.csrf },
+                     body: JSON.stringify({ emp_code: inp.dataset.emp, fecha: inp.value }) })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { inp.classList.add(d.ok ? 'is-valid' : 'is-invalid'); if (!d.ok) alert(d.error || 'Error'); })
+          .catch(function () { inp.classList.add('is-invalid'); });
+      });
+    });
   }
 
   // Recordar el tab activo entre recargas

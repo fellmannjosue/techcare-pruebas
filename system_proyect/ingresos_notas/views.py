@@ -20,16 +20,32 @@ que ingresar una nota es un UPDATE de una sola columna. El legacy audita con
 `EscrituraNota` (MySQL). Nunca se hace DELETE.
 """
 import json
+import logging
+import time
+import uuid
 from datetime import date
 from functools import wraps
 
 from django.conf import settings
-from django.db import connections
+from django.core.cache import cache
+from django.db import connections, transaction
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import EscrituraNota
+
+# <--- hecho por claude code (seguridad 05-nov-2026): los errores de la base van al log del servidor, no al navegador
+logger = logging.getLogger(__name__)
+
+# <--- hecho por claude code (seguridad 05-nov-2026): largos reales de las columnas del legacy (INFORMATION_SCHEMA de Test2)
+MAX_COMENTARIO = 100   # tblEdcRecordHabitos*.Comentario varchar(100)
+MAX_OTROS = 50         # tblEdcAusencias*.Otros varchar(50) (antes se cortaba a 255 y el legacy lo rechazaba)
+# <--- hecho por claude code (seguridad 05-nov-2026): EscrituraNota.valor_antes/valor_nuevo son de 30 (sin migración se recorta aquí)
+MAX_BITACORA = 30
+# <--- hecho por claude code (seguridad 05-nov-2026): tope de escrituras por usuario y minuto (una persona capturando no pasa de ~60)
+LIMITE_ESCRITURAS_MIN = 240
+MSG_AJENO = 'Ese alumno no pertenece a esta área o ya no está vigente este año.'
 
 # ── Ramas del legacy (mismas columnas en las dos) ────────────────────────────
 RAMAS = {
@@ -75,6 +91,8 @@ HABITOS_RECORD = [
 # alumnos tienen la misma cantidad, así que la posición N es la misma tarea
 # para todos. Por eso se llena una tarea completa antes de crear la siguiente.
 PUNTOS_MAX = 10
+PUNTOS_MIN = 1      # <--- hecho por claude code (06-nov-2026): tareas y hábitos de 1 a 10, enteros
+NOTA_MIN = 1        # <--- hecho por claude code (06-nov-2026): exámenes de 1 a 100, enteros
 
 # `descr` es el texto exacto de tblEdcDescripAreaEdc.Descripcion.
 # <--- hecho por claude code: `grupo` = quién puede ingresar notas de esa área.
@@ -204,9 +222,87 @@ def _area_valida(request, area):
     return area in AREAS and area in areas_permitidas(request.user)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico con referencia; el detalle (tablas, driver ODBC) solo al log
+def _falla(contexto, escribiendo=False):
+    """Registra la excepción en curso en el log del servidor y devuelve un mensaje
+    genérico con una referencia corta para encontrarla. Llamar SIEMPRE dentro de un `except`."""
+    ref = uuid.uuid4().hex[:8]
+    logger.exception('ingresos_notas: %s (ref %s)', contexto, ref)
+    if escribiendo:
+        return (f'No se pudo guardar en el sistema académico (ref. {ref}). '
+                'Intenta de nuevo; si sigue fallando, avisa a Sistemas.')
+    return f'No se pudo leer el sistema académico (ref. {ref}). Intenta de nuevo en un momento.'
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): recorte para la bitácora (si no, MySQL estricto revienta DESPUÉS de escribir)
+def _corto(valor, n=MAX_BITACORA):
+    s = '' if valor is None else str(valor)
+    return s if len(s) <= n else s[:n - 1] + '…'
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): límite de tasa en las 4 APIs que escriben en el legacy
+def limite_escrituras(view):
+    """Tope de escrituras por usuario y minuto, con el caché compartido (BD) como contador."""
+    @wraps(view)
+    def _w(request, *args, **kwargs):
+        clave = f'ingresos_notas:esc:{request.user.pk}:{int(time.time() // 60)}'
+        try:
+            n = (cache.get(clave) or 0) + 1
+            cache.set(clave, n, 120)
+        except Exception:
+            n = 0          # si el caché falla no se frena el trabajo de nadie
+        if n > LIMITE_ESCRITURAS_MIN:
+            return JsonResponse({'ok': False, 'error': 'Demasiados cambios seguidos. '
+                                 'Espera un minuto y vuelve a intentar.'}, status=429)
+        return view(request, *args, **kwargs)
+    return _w
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): bitácora única; se llama DENTRO de la transacción del legacy
+def _bitacora(request, area, tabla, materia_id, eval_id, parcial, columna, antes, nuevo, accion, alumno):
+    """Si este INSERT falla, la excepción deshace también la escritura en SQL Server:
+    nunca queda un cambio en el legacy sin su rastro en TechCare."""
+    EscrituraNota.objects.create(
+        usuario=request.user, area=area, rama=AREAS[area]['rama'], tabla=tabla,
+        materia_id=materia_id, eval_id=eval_id, parcial=parcial, columna=columna[:80],
+        valor_antes=_corto(antes), valor_nuevo=_corto(nuevo),
+        accion=accion, alumno=(alumno or '')[:200])
+
+
 # ── Consultas al legacy ──────────────────────────────────────────────────────
 def _anio_actual():
     return date.today().year
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): IDOR — toda escritura valida la matrícula con la MISMA cadena y filtros de las lecturas
+def _alumno_de_materia(area_key, materia_id):
+    """Nombre del alumno si `materia_id` (su matrícula en UNA clase) es de esta área,
+    del año en curso y no desertor; None si no lo es.
+
+    Antes `materia_id` llegaba del navegador y entraba directo al UPDATE/INSERT/DELETE:
+    se podía escribir en años anteriores, en desertores o en áreas que el módulo no
+    maneja (PreescolarBL). El nombre que va a la bitácora sale de aquí, no del navegador.
+    """
+    cfg, rama = AREAS[area_key], RAMAS[AREAS[area_key]['rama']]
+    sql = f"""
+        SELECT TOP 1 LTRIM(RTRIM(ISNULL(d.Nombre1,'') + ' ' + ISNULL(d.Nombre2,'') + ' ' +
+                                 ISNULL(d.Apellido1,'') + ' ' + ISNULL(d.Apellido2,'')))
+        FROM dbo.{rama['materias']} m
+          JOIN dbo.tblEdcEjecCrso ec        ON ec.EjecCrsoID = m.EjecCrsoID
+          JOIN dbo.tblEdcArea a             ON a.AreaID = ec.AreaID
+          JOIN dbo.tblEdcDescripAreaEdc da  ON da.DescrAreaEdcID = a.DescrAreaEdcID
+          JOIN dbo.tblEdcCrso cr            ON cr.CrsoID = ec.CrsoID
+          JOIN dbo.tblPrsTipo t             ON t.IngrEgrID = a.IngrEgrID
+          JOIN dbo.tblPrsDtosGen d          ON d.PersonaID = t.PersonaID
+        WHERE m.{rama['pk_materia']} = %s AND da.Descripcion = %s
+          AND DATEPART(yy, cr.FechaInicio) = %s AND ec.Desertor = 0
+    """
+    with connections['padres_sqlserver'].cursor() as c:
+        c.execute(sql, [materia_id, cfg['descr'], _anio_actual()])
+        fila = c.fetchone()
+    if not fila:
+        return None
+    return ' '.join((fila[0] or '').split())
 
 
 def _grados(area_key, anio):
@@ -557,9 +653,9 @@ def index(request, form='notas'):
     }
     try:
         ctx['grados'] = _grados(area_key, ctx['anio'])
-    except Exception as e:
+    except Exception:
         ctx['grados'] = []
-        ctx['error'] = f'No se pudo leer el sistema académico: {e}'
+        ctx['error'] = _falla('index: grados')   # <--- hecho por claude code (seguridad 05-nov-2026): antes mostraba el error crudo de la base
     return render(request, 'ingresos_notas/notas.html', ctx)
 
 
@@ -573,8 +669,9 @@ def api_clases(request):
         clases = _clases(area, _anio_actual(),
                          request.GET.get('grado', ''), request.GET.get('grupo', ''))
         return JsonResponse({'ok': True, 'clases': clases})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico + log, y 500 en vez de 200
+        return JsonResponse({'ok': False, 'error': _falla('api_clases')}, status=500)
 
 
 @notas_required
@@ -605,12 +702,14 @@ def api_alumnos(request):
                              'n_cuadros': n_cuadros, 'n_cuadros_auto': auto,
                              'columnas': [{'key': k, 'label': l}
                                           for k, l in _columnas(area, n_cuadros)]})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico + log, y 500 en vez de 200
+        return JsonResponse({'ok': False, 'error': _falla('api_alumnos')}, status=500)
 
 
 @notas_required
 @require_POST
+@limite_escrituras
 def api_guardar(request):
     """Escribe UNA celda. UPDATE si la fila del parcial existe; si no, la crea.
 
@@ -619,73 +718,89 @@ def api_guardar(request):
     """
     try:
         body = json.loads(request.body or b'{}')
-        area       = body.get('area', '')
+        area       = str(body.get('area') or '')
         materia_id = int(body.get('materia_id'))
         parcial    = int(body.get('parcial'))
         columna    = (body.get('columna') or '').strip()
         crudo      = (body.get('valor') or '').strip()
-        alumno     = (body.get('alumno') or '')[:200]
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except (TypeError, ValueError, AttributeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
 
     if not _area_valida(request, area):
         return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
     if parcial not in PARCIALES:
         return JsonResponse({'ok': False, 'error': 'Parcial inválido'}, status=400)
+    if _parcial_cerrado(area, parcial):
+        return JsonResponse({'ok': False, 'error': f'El Parcial {parcial} está cerrado por coordinación. '
+                             'Para corregir una nota, coordinación debe reabrirlo en Notas Mitad de Parcial.'}, status=409)
     if columna not in _columnas_escribibles(area):
-        return JsonResponse({'ok': False, 'error': f'Columna no permitida: {columna}'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'Columna no permitida'}, status=400)
 
     # Celda vacía = borrar el valor (NULL), no poner un cero.
     if crudo == '':
         valor = None
     else:
-        try:
-            valor = round(float(crudo.replace(',', '')), 2)
-        except ValueError:
-            return JsonResponse({'ok': False, 'error': 'La nota debe ser un número'}, status=400)
-        if not (0 <= valor <= 100):
-            return JsonResponse({'ok': False, 'error': 'La nota debe estar entre 0 y 100'}, status=400)
+        # <--- hecho por claude code (06-nov-2026): regla del usuario — exámenes solo ENTEROS de 1 a 100
+        if not crudo.isdecimal():
+            return JsonResponse({'ok': False, 'error': 'La nota debe ser un número entero (sin decimales)'}, status=400)
+        valor = int(crudo)
+        if not (NOTA_MIN <= valor <= 100):
+            return JsonResponse({'ok': False, 'error': f'La nota va de {NOTA_MIN} a 100'}, status=400)
 
-    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    rama = RAMAS[AREAS[area]['rama']]
     usuario = (request.user.get_username() or '')[:50]
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): la matrícula tiene que ser del área, del año y no desertor; el nombre lo pone el servidor
     try:
-        with connections['padres_sqlserver'].cursor() as c:
-            c.execute(f"""SELECT {rama['pk_eval']}, {columna} FROM dbo.{rama['eval']}
-                          WHERE {rama['pk_materia']} = %s AND Parcial = %s""",
-                      [materia_id, parcial])
-            fila = c.fetchone()
+        alumno = _alumno_de_materia(area, materia_id)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_guardar: validar matrícula', True)}, status=500)
+    if alumno is None:
+        return JsonResponse({'ok': False, 'error': MSG_AJENO}, status=403)
 
-            if fila:
-                eval_id, antes = fila
-                c.execute(f"""UPDATE dbo.{rama['eval']}
-                              SET {columna} = %s, Usuario = %s, FchaReg = GETDATE()
-                              WHERE {rama['pk_eval']} = %s""",
-                          [valor, usuario, eval_id])
-                accion = 'update'
-            else:
-                antes = None
-                c.execute(f"""INSERT INTO dbo.{rama['eval']}
-                              ({rama['pk_materia']}, Parcial, {columna}, Usuario, FchaReg, Fecha)
-                              VALUES (%s, %s, %s, %s, GETDATE(), GETDATE())""",
-                          [materia_id, parcial, valor, usuario])
-                c.execute(f"""SELECT {rama['pk_eval']} FROM dbo.{rama['eval']}
-                              WHERE {rama['pk_materia']} = %s AND Parcial = %s""",
+    # <--- hecho por claude code (seguridad 05-nov-2026): escritura + bitácora en UNA transacción del legacy (si la bitácora falla, se deshace)
+    try:
+        with transaction.atomic(using='padres_sqlserver'):
+            with connections['padres_sqlserver'].cursor() as c:
+                # <--- hecho por claude code (seguridad 05-nov-2026): orden fijo; si hay dos filas del mismo parcial no se adivina cuál tocar
+                c.execute(f"""SELECT TOP 2 {rama['pk_eval']}, {columna} FROM dbo.{rama['eval']}
+                              WHERE {rama['pk_materia']} = %s AND Parcial = %s
+                              ORDER BY {rama['pk_eval']} DESC""",
                           [materia_id, parcial])
-                r = c.fetchone()
-                eval_id = r[0] if r else None
-                accion = 'insert'
-    except Exception as e:
-        return JsonResponse({'ok': False,
-                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+                filas = c.fetchall()
+                if len(filas) > 1:
+                    return JsonResponse({'ok': False, 'error': 'Este alumno tiene dos filas del mismo '
+                                         'parcial en el sistema académico. Avisa a Sistemas.'}, status=409)
 
-    # Bitácora del lado de TechCare (el trigger del legacy solo cubre UPDATE)
-    EscrituraNota.objects.create(
-        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['eval'],
-        materia_id=materia_id, eval_id=eval_id, parcial=parcial, columna=columna,
-        valor_antes='' if antes is None else str(antes),
-        valor_nuevo='' if valor is None else str(valor),
-        accion=accion, alumno=alumno)
+                if filas:
+                    eval_id, antes = filas[0]
+                    c.execute(f"""UPDATE dbo.{rama['eval']}
+                                  SET {columna} = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_eval']} = %s""",
+                              [valor, usuario, eval_id])
+                    accion = 'update'
+                else:
+                    antes = None
+                    c.execute(f"""INSERT INTO dbo.{rama['eval']}
+                                  ({rama['pk_materia']}, Parcial, {columna}, Usuario, FchaReg, Fecha)
+                                  VALUES (%s, %s, %s, %s, GETDATE(),
+                                          DATEADD(minute, DATEDIFF(minute, 0, GETDATE()), 0))""",
+                              # <--- hecho por claude code (06-nov-2026): Fecha es smalldatetime y redondea al minuto: con GETDATE() a los :30 s o más quedaba en el minuto SIGUIENTE y chocaba con el CHECK fecha<=getdate() (falla intermitente). Se trunca al minuto.
+                              [materia_id, parcial, valor, usuario])
+                    # <--- hecho por claude code (seguridad 05-nov-2026): READPAST = no esperar bloqueos ajenos mientras se tiene la fila nueva (la propia sí se ve)
+                    c.execute(f"""SELECT TOP 1 {rama['pk_eval']} FROM dbo.{rama['eval']} WITH (READPAST)
+                                  WHERE {rama['pk_materia']} = %s AND Parcial = %s
+                                  ORDER BY {rama['pk_eval']} DESC""",
+                              [materia_id, parcial])
+                    r = c.fetchone()
+                    eval_id = r[0] if r else None
+                    accion = 'insert'
+
+            # Bitácora del lado de TechCare (el trigger del legacy solo cubre UPDATE)
+            _bitacora(request, area, rama['eval'], materia_id, eval_id, parcial, columna,
+                      antes, valor, accion, alumno)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_guardar', True)}, status=500)
 
     return JsonResponse({'ok': True, 'eval_id': eval_id, 'accion': accion,
                          'valor': '' if valor is None else valor})
@@ -696,8 +811,39 @@ def _fecha_valida(texto):
     """'2026-07-30' -> date, o None si no sirve."""
     try:
         return date.fromisoformat((texto or '').strip())
-    except ValueError:
+    except (ValueError, TypeError, AttributeError):
         return None
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): para ESCRIBIR la fecha va acotada al año escolar en curso y no futura
+TIPO_TRAJO_EXCUSA = 5   # <--- hecho por claude code (05-nov-2026): tblEdcDescripAusencias «Trajo Excusa»
+# <--- hecho por claude code (05-nov-2026, decisión del usuario): un parcial cerrado en Notas Mitad de Parcial queda cerrado aquí también. Notas llama 'bl' a Primaria BL.
+_AREA_CIERRE_NOTAS = {'primaria_bl': 'bl'}
+
+
+def _parcial_cerrado(area, parcial, anio=None):
+    from notas_parcial.models import CierreNotas
+    return CierreNotas.objects.filter(area=_AREA_CIERRE_NOTAS.get(area, area), parcial=parcial,
+                                      anio=anio or date.today().year, parcial_cerrado=True,
+                                      grado='', seccion='').exists()
+
+
+def _fecha_escritura(texto, permitir_futura=False):
+    """(fecha, None) si sirve para escribir; (None, motivo) si no.
+
+    Antes se aceptaba cualquier fecha ISO (otro año, el futuro). En el legacy no hay
+    registros con fecha de un año anterior al de su captura y los futuros son errores
+    de digitación (0,1 %).
+    """
+    f = _fecha_valida(texto)
+    if f is None:
+        return None, 'Fecha inválida'
+    hoy = date.today()
+    if f.year != hoy.year:
+        return None, f'Solo se pueden registrar fechas del año escolar {hoy.year}.'
+    if f > hoy and not permitir_futura:   # <--- hecho por claude code (05-nov-2026): «Trajo Excusa» sí se registra por adelantado (decisión del usuario)
+        return None, 'No se pueden registrar fechas futuras.'
+    return f, None
 
 
 @notas_required
@@ -740,12 +886,14 @@ def api_tareas(request):
         return JsonResponse({'ok': True, 'alumnos': alumnos, 'tarea': tarea,
                              'n_tareas': n_tareas, 'desiguales': desiguales,
                              'puntos_max': PUNTOS_MAX})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico + log, y 500 en vez de 200
+        return JsonResponse({'ok': False, 'error': _falla('api_tareas')}, status=500)
 
 
 @notas_required
 @require_POST
+@limite_escrituras
 def api_tarea_guardar(request):
     """Guarda los puntos o el comentario de UNA tarea de UN alumno.
 
@@ -756,90 +904,102 @@ def api_tarea_guardar(request):
     """
     try:
         body = json.loads(request.body or b'{}')
-        area       = body.get('area', '')
+        area       = str(body.get('area') or '')
         materia_id = int(body.get('materia_id'))
         tarea      = int(body.get('tarea'))
         campo      = (body.get('campo') or '').strip()
         crudo      = (body.get('valor') or '').strip()
-        alumno     = (body.get('alumno') or '')[:200]
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except (TypeError, ValueError, AttributeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
 
-    fecha = _fecha_valida(body.get('fecha'))
     if not _area_valida(request, area):
         return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    fecha, motivo = _fecha_escritura(body.get('fecha'))
     if not fecha:
-        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+        return JsonResponse({'ok': False, 'error': motivo}, status=400)
     if tarea < 1:
         return JsonResponse({'ok': False, 'error': 'Tarea inválida'}, status=400)
     if campo not in ('puntos', 'comentario'):
         return JsonResponse({'ok': False, 'error': 'Campo no permitido'}, status=400)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el legacy guarda 100 caracteres; antes respondía con su error crudo
+    if campo == 'comentario' and len(crudo) > MAX_COMENTARIO:
+        return JsonResponse({'ok': False, 'error': f'El comentario admite hasta {MAX_COMENTARIO} '
+                             'caracteres.'}, status=400)
 
     puntos = None
     if campo == 'puntos':
         if crudo == '':
             return JsonResponse({'ok': False,
                                  'error': 'Los puntos no pueden quedar vacíos'}, status=400)
-        try:
-            puntos = int(round(float(crudo)))
-        except ValueError:
-            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número'}, status=400)
-        if not (0 <= puntos <= PUNTOS_MAX):
+        # <--- hecho por claude code (06-nov-2026): regla del usuario — tareas y hábitos solo ENTEROS de 1 a 10
+        if not crudo.isdecimal():
+            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número entero (sin decimales)'}, status=400)
+        puntos = int(crudo)
+        if not (PUNTOS_MIN <= puntos <= PUNTOS_MAX):
             return JsonResponse({'ok': False,
-                                 'error': f'Los puntos van de 0 a {PUNTOS_MAX}'}, status=400)
+                                 'error': f'Los puntos van de {PUNTOS_MIN} a {PUNTOS_MAX}'}, status=400)
 
-    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    rama = RAMAS[AREAS[area]['rama']]
     usuario = (request.user.get_username() or '')[:50]
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): la matrícula tiene que ser del área, del año y no desertor; el nombre lo pone el servidor
     try:
-        filas = _registros_del_dia(area, [materia_id], fecha, HABITO_TAREAS).get(materia_id, [])
-        with connections['padres_sqlserver'].cursor() as c:
-            if len(filas) >= tarea:
-                actual = filas[tarea - 1]
-                rec_id = actual['rec_id']
-                if campo == 'puntos':
-                    antes, nuevo = actual['puntos'], puntos
-                    c.execute(f"""UPDATE dbo.{rama['record']}
-                                  SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
-                                  WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
-                else:
-                    antes, nuevo = actual['comentario'], crudo
-                    c.execute(f"""UPDATE dbo.{rama['record']}
-                                  SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
-                                  WHERE {rama['pk_record']} = %s""",
-                              [crudo or None, usuario, rec_id])
-                accion = 'update'
-            else:
-                if len(filas) != tarea - 1:
-                    return JsonResponse(
-                        {'ok': False, 'error': f'A este alumno le faltan tareas anteriores '
-                                               f'(tiene {len(filas)}). Llena primero la '
-                                               f'tarea {len(filas) + 1}.'}, status=200)
-                if campo == 'comentario':
-                    return JsonResponse(
-                        {'ok': False,
-                         'error': 'Pon primero los puntos y luego el comentario.'}, status=200)
-                antes, nuevo = None, puntos
-                c.execute(f"""INSERT INTO dbo.{rama['record']}
-                              ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
-                               Usuario, FchaReg)
-                              VALUES (%s, %s, %s, %s, %s, GETDATE())""",
-                          [materia_id, HABITO_TAREAS, fecha, puntos, usuario])
-                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
-                r = c.fetchone()
-                rec_id = r[0] if r else None
-                accion = 'insert'
-    except Exception as e:
-        return JsonResponse({'ok': False,
-                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+        alumno = _alumno_de_materia(area, materia_id)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_tarea_guardar: validar matrícula', True)}, status=500)
+    if alumno is None:
+        return JsonResponse({'ok': False, 'error': MSG_AJENO}, status=403)
 
-    EscrituraNota.objects.create(
-        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['record'],
-        materia_id=materia_id, eval_id=rec_id, parcial=0,
-        columna=f'Tarea{tarea}@{fecha:%Y-%m-%d}·{campo}'[:80],
-        valor_antes='' if antes is None else str(antes),
-        valor_nuevo='' if nuevo is None else str(nuevo),
-        accion=accion, alumno=alumno)
+    # <--- hecho por claude code (seguridad 05-nov-2026): escritura + bitácora en UNA transacción del legacy (si la bitácora falla, se deshace)
+    try:
+        with transaction.atomic(using='padres_sqlserver'):
+            filas = _registros_del_dia(area, [materia_id], fecha, HABITO_TAREAS).get(materia_id, [])
+            with connections['padres_sqlserver'].cursor() as c:
+                if len(filas) >= tarea:
+                    actual = filas[tarea - 1]
+                    rec_id = actual['rec_id']
+                    if campo == 'puntos':
+                        antes, nuevo = actual['puntos'], puntos
+                        c.execute(f"""UPDATE dbo.{rama['record']}
+                                      SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
+                                      WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
+                    else:
+                        antes, nuevo = actual['comentario'], crudo
+                        c.execute(f"""UPDATE dbo.{rama['record']}
+                                      SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
+                                      WHERE {rama['pk_record']} = %s""",
+                                  [crudo or None, usuario, rec_id])
+                    accion = 'update'
+                else:
+                    if len(filas) != tarea - 1:
+                        return JsonResponse(
+                            {'ok': False, 'error': f'A este alumno le faltan tareas anteriores '
+                                                   f'(tiene {len(filas)}). Llena primero la '
+                                                   f'tarea {len(filas) + 1}.'}, status=409)
+                    if campo == 'comentario':
+                        return JsonResponse(
+                            {'ok': False,
+                             'error': 'Pon primero los puntos y luego el comentario.'}, status=409)
+                    antes, nuevo = None, puntos
+                    c.execute(f"""INSERT INTO dbo.{rama['record']}
+                                  ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
+                                   Usuario, FchaReg)
+                                  VALUES (%s, %s, %s, %s, %s, GETDATE())""",
+                              [materia_id, HABITO_TAREAS, fecha, puntos, usuario])
+                    # <--- hecho por claude code (seguridad 05-nov-2026): SCOPE_IDENTITY() en otra llamada daba NULL (pyodbc parametriza en otro ámbito): 71 de 71 inserts sin ID en la bitácora
+                    c.execute(f"""SELECT TOP 1 {rama['pk_record']} FROM dbo.{rama['record']} WITH (READPAST)
+                                  WHERE {rama['pk_materia']} = %s AND EdcDescrHabitosID = %s
+                                    AND CAST(Fecha AS date) = %s AND Usuario = %s
+                                  ORDER BY {rama['pk_record']} DESC""",
+                              [materia_id, HABITO_TAREAS, fecha, usuario])
+                    r = c.fetchone()
+                    rec_id = r[0] if r else None
+                    accion = 'insert'
+
+            _bitacora(request, area, rama['record'], materia_id, rec_id, 0,
+                      f'Tarea{tarea}@{fecha:%Y-%m-%d}·{campo}', antes, nuevo, accion, alumno)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_tarea_guardar', True)}, status=500)
 
     return JsonResponse({'ok': True, 'rec_id': rec_id, 'accion': accion})
 
@@ -874,99 +1034,113 @@ def api_habitos(request):
         return JsonResponse({'ok': True, 'alumnos': alumnos,
                              'habitos': [{'id': h, 'label': l} for h, l in HABITOS_RECORD],
                              'puntos_max': PUNTOS_MAX, 'con_datos': con_datos})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico + log, y 500 en vez de 200
+        return JsonResponse({'ok': False, 'error': _falla('api_habitos')}, status=500)
 
 
 @notas_required
 @require_POST
+@limite_escrituras
 def api_habito_guardar(request):
     """Guarda los puntos de UN hábito, o el comentario de todo el día del alumno."""
     try:
         body = json.loads(request.body or b'{}')
-        area       = body.get('area', '')
+        area       = str(body.get('area') or '')
         materia_id = int(body.get('materia_id'))
         campo      = (body.get('campo') or 'puntos').strip()
         crudo      = (body.get('valor') or '').strip()
-        alumno     = (body.get('alumno') or '')[:200]
         habito     = int(body.get('habito')) if body.get('habito') else None
-    except (TypeError, ValueError, json.JSONDecodeError):
+    except (TypeError, ValueError, AttributeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
 
-    fecha = _fecha_valida(body.get('fecha'))
     if not _area_valida(request, area):
         return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    fecha, motivo = _fecha_escritura(body.get('fecha'))
     if not fecha:
-        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+        return JsonResponse({'ok': False, 'error': motivo}, status=400)
     if campo not in ('puntos', 'comentario'):
         return JsonResponse({'ok': False, 'error': 'Campo no permitido'}, status=400)
     if campo == 'puntos' and habito not in {h for h, _ in HABITOS_RECORD}:
         return JsonResponse({'ok': False, 'error': 'Hábito fuera del catálogo'}, status=400)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el legacy guarda 100 caracteres; antes respondía con su error crudo
+    if campo == 'comentario' and len(crudo) > MAX_COMENTARIO:
+        return JsonResponse({'ok': False, 'error': f'El comentario admite hasta {MAX_COMENTARIO} '
+                             'caracteres.'}, status=400)
 
     puntos = None
     if campo == 'puntos':
         if crudo == '':
             return JsonResponse({'ok': False,
                                  'error': 'Los puntos no pueden quedar vacíos'}, status=400)
-        try:
-            puntos = int(round(float(crudo)))
-        except ValueError:
-            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número'}, status=400)
-        if not (0 <= puntos <= PUNTOS_MAX):
+        # <--- hecho por claude code (06-nov-2026): regla del usuario — tareas y hábitos solo ENTEROS de 1 a 10
+        if not crudo.isdecimal():
+            return JsonResponse({'ok': False, 'error': 'Los puntos deben ser un número entero (sin decimales)'}, status=400)
+        puntos = int(crudo)
+        if not (PUNTOS_MIN <= puntos <= PUNTOS_MAX):
             return JsonResponse({'ok': False,
-                                 'error': f'Los puntos van de 0 a {PUNTOS_MAX}'}, status=400)
+                                 'error': f'Los puntos van de {PUNTOS_MIN} a {PUNTOS_MAX}'}, status=400)
 
-    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    rama = RAMAS[AREAS[area]['rama']]
     usuario = (request.user.get_username() or '')[:50]
-    actuales = _habitos_del_dia(area, [materia_id], fecha).get(materia_id, {})
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): la matrícula tiene que ser del área, del año y no desertor; el nombre lo pone el servidor
     try:
-        with connections['padres_sqlserver'].cursor() as c:
-            if campo == 'comentario':
-                # <--- hecho por claude code: el comentario se aplica a los hábitos que
-                # el alumno ya tenga ese día (así lo usan: "III PARCIAL" en todos).
-                if not actuales:
-                    return JsonResponse(
-                        {'ok': False,
-                         'error': 'Pon primero los puntos y luego el comentario.'}, status=200)
-                ids = [v['rec_id'] for v in actuales.values()]
-                marcas = ','.join(['%s'] * len(ids))
-                c.execute(f"""UPDATE dbo.{rama['record']}
-                              SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
-                              WHERE {rama['pk_record']} IN ({marcas})""",
-                          [crudo or None, usuario] + ids)
-                antes = next((v['comentario'] for v in actuales.values() if v['comentario']), '')
-                rec_id, nuevo, accion = ids[0], crudo, 'update'
-            elif habito in actuales:
-                rec_id = actuales[habito]['rec_id']
-                antes, nuevo = actuales[habito]['puntos'], puntos
-                c.execute(f"""UPDATE dbo.{rama['record']}
-                              SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
-                              WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
-                accion = 'update'
-            else:
-                coment = next((v['comentario'] for v in actuales.values() if v['comentario']), None)
-                c.execute(f"""INSERT INTO dbo.{rama['record']}
-                              ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
-                               Comentario, Usuario, FchaReg)
-                              VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
-                          [materia_id, habito, fecha, puntos, coment, usuario])
-                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
-                r = c.fetchone()
-                antes, nuevo = None, puntos
-                rec_id, accion = (r[0] if r else None), 'insert'
-    except Exception as e:
-        return JsonResponse({'ok': False,
-                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+        alumno = _alumno_de_materia(area, materia_id)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_habito_guardar: validar matrícula', True)}, status=500)
+    if alumno is None:
+        return JsonResponse({'ok': False, 'error': MSG_AJENO}, status=403)
 
-    etiqueta = dict(HABITOS_RECORD).get(habito, campo)
-    EscrituraNota.objects.create(
-        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['record'],
-        materia_id=materia_id, eval_id=rec_id, parcial=0,
-        columna=f'Habito:{etiqueta}@{fecha:%Y-%m-%d}'[:80],
-        valor_antes='' if antes is None else str(antes),
-        valor_nuevo='' if nuevo is None else str(nuevo),
-        accion=accion, alumno=alumno)
+    # <--- hecho por claude code (seguridad 05-nov-2026): escritura + bitácora en UNA transacción del legacy (si la bitácora falla, se deshace)
+    try:
+        with transaction.atomic(using='padres_sqlserver'):
+            actuales = _habitos_del_dia(area, [materia_id], fecha).get(materia_id, {})
+            with connections['padres_sqlserver'].cursor() as c:
+                if campo == 'comentario':
+                    # <--- hecho por claude code: el comentario se aplica a los hábitos que
+                    # el alumno ya tenga ese día (así lo usan: "III PARCIAL" en todos).
+                    if not actuales:
+                        return JsonResponse(
+                            {'ok': False,
+                             'error': 'Pon primero los puntos y luego el comentario.'}, status=409)
+                    ids = [v['rec_id'] for v in actuales.values()]
+                    marcas = ','.join(['%s'] * len(ids))
+                    c.execute(f"""UPDATE dbo.{rama['record']}
+                                  SET Comentario = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_record']} IN ({marcas})""",
+                              [crudo or None, usuario] + ids)
+                    antes = next((v['comentario'] for v in actuales.values() if v['comentario']), '')
+                    rec_id, nuevo, accion = ids[0], crudo, 'update'
+                elif habito in actuales:
+                    rec_id = actuales[habito]['rec_id']
+                    antes, nuevo = actuales[habito]['puntos'], puntos
+                    c.execute(f"""UPDATE dbo.{rama['record']}
+                                  SET Puntos = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_record']} = %s""", [puntos, usuario, rec_id])
+                    accion = 'update'
+                else:
+                    coment = next((v['comentario'] for v in actuales.values() if v['comentario']), None)
+                    c.execute(f"""INSERT INTO dbo.{rama['record']}
+                                  ({rama['pk_materia']}, EdcDescrHabitosID, Fecha, Puntos,
+                                   Comentario, Usuario, FchaReg)
+                                  VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
+                              [materia_id, habito, fecha, puntos, coment, usuario])
+                    # <--- hecho por claude code (seguridad 05-nov-2026): SCOPE_IDENTITY() en otra llamada daba NULL; se relee la fila recién creada
+                    c.execute(f"""SELECT TOP 1 {rama['pk_record']} FROM dbo.{rama['record']} WITH (READPAST)
+                                  WHERE {rama['pk_materia']} = %s AND EdcDescrHabitosID = %s
+                                    AND CAST(Fecha AS date) = %s AND Usuario = %s
+                                  ORDER BY {rama['pk_record']} DESC""",
+                              [materia_id, habito, fecha, usuario])
+                    r = c.fetchone()
+                    antes, nuevo = None, puntos
+                    rec_id, accion = (r[0] if r else None), 'insert'
+
+            etiqueta = dict(HABITOS_RECORD).get(habito, campo)
+            _bitacora(request, area, rama['record'], materia_id, rec_id, 0,
+                      f'Habito:{etiqueta}@{fecha:%Y-%m-%d}', antes, nuevo, accion, alumno)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_habito_guardar', True)}, status=500)
 
     return JsonResponse({'ok': True, 'rec_id': rec_id, 'accion': accion})
 
@@ -1001,12 +1175,14 @@ def api_ausencias(request):
                              'razon_pendiente': RAZON_PENDIENTE,
                              'tipo_defecto': AUSENCIA_TIPO_DEFECTO,
                              'ausentes': sum(1 for a in alumnos if a['tipo'])})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=200)
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): mensaje genérico + log, y 500 en vez de 200
+        return JsonResponse({'ok': False, 'error': _falla('api_ausencias')}, status=500)
 
 
 @notas_required
 @require_POST
+@limite_escrituras
 def api_ausencia_guardar(request):
     """Crea, actualiza o quita la ausencia de UN alumno en UNA fecha.
 
@@ -1017,25 +1193,33 @@ def api_ausencia_guardar(request):
     """
     try:
         body = json.loads(request.body or b'{}')
-        area       = body.get('area', '')
+        area       = str(body.get('area') or '')
         materia_id = int(body.get('materia_id'))
-        alumno     = (body.get('alumno') or '')[:200]
         tipo_txt   = (body.get('tipo') or '').strip()
         razon_txt  = (body.get('razon') or '').strip()
-        otros      = (body.get('otros') or '').strip()[:255]
-    except (TypeError, ValueError, json.JSONDecodeError):
+        otros      = (body.get('otros') or '').strip()
+        # <--- hecho por claude code (seguridad 05-nov-2026): el borrado exige la confirmación explícita del usuario (antes bastaba tipo vacío o ausente)
+        quitar     = body.get('quitar') is True
+    except (TypeError, ValueError, AttributeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
 
-    fecha = _fecha_valida(body.get('fecha'))
     if not _area_valida(request, area):
         return JsonResponse({'ok': False, 'error': 'Área no permitida'}, status=403)
+    fecha, motivo = _fecha_escritura(body.get('fecha'), permitir_futura=(tipo_txt == str(TIPO_TRAJO_EXCUSA) or quitar))
     if not fecha:
-        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+        return JsonResponse({'ok': False, 'error': motivo}, status=400)
+    # <--- hecho por claude code (seguridad 05-nov-2026): Otros es varchar(50) en el legacy (antes se cortaba a 255 y lo rechazaba)
+    if len(otros) > MAX_OTROS:
+        return JsonResponse({'ok': False, 'error': f'El detalle (Otros) admite hasta {MAX_OTROS} '
+                             'caracteres.'}, status=400)
 
     # El tipo y la razón se validan contra el catálogo: van al SQL como enteros,
     # pero aun así no se acepta cualquiera.
-    tipos_ok   = {t['id'] for t in _tipos_ausencia()}
-    razones_ok = {r['id'] for r in _razones_ausencia()}
+    try:
+        tipos_ok   = {t['id'] for t in _tipos_ausencia()}
+        razones_ok = {r['id'] for r in _razones_ausencia()}
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_ausencia_guardar: catálogos', True)}, status=500)
     tipo = None
     if tipo_txt:
         try:
@@ -1053,48 +1237,66 @@ def api_ausencia_guardar(request):
         if razon not in razones_ok:
             return JsonResponse({'ok': False, 'error': 'Razón fuera del catálogo'}, status=400)
 
-    cfg, rama = AREAS[area], RAMAS[AREAS[area]['rama']]
+    rama = RAMAS[AREAS[area]['rama']]
     usuario = (request.user.get_username() or '')[:50]
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): la matrícula tiene que ser del área, del año y no desertor; el nombre lo pone el servidor
     try:
-        actual = _ausencias_del_dia(area, [materia_id], fecha).get(materia_id)
-        with connections['padres_sqlserver'].cursor() as c:
-            if tipo is None:
-                if not actual:
-                    return JsonResponse({'ok': True, 'accion': 'sin_cambio', 'aus_id': None})
-                c.execute(f"""DELETE FROM dbo.{rama['ausencias']}
-                              WHERE {rama['pk_ausencia']} = %s""", [actual['aus_id']])
-                antes  = f"tipo={actual['tipo']} razon={actual['razon']}"
-                nuevo  = ''
-                aus_id, accion = None, 'delete'
-            elif actual:
-                c.execute(f"""UPDATE dbo.{rama['ausencias']}
-                              SET DescrAusenciasID = %s, EdcDescrAusenciasRazonID = %s,
-                                  Otros = %s, Usuario = %s, FchaReg = GETDATE()
-                              WHERE {rama['pk_ausencia']} = %s""",
-                          [tipo, razon, otros or None, usuario, actual['aus_id']])
-                antes  = f"tipo={actual['tipo']} razon={actual['razon']}"
-                nuevo  = f"tipo={tipo} razon={razon}"
-                aus_id, accion = actual['aus_id'], 'update'
-            else:
-                c.execute(f"""INSERT INTO dbo.{rama['ausencias']}
-                              ({rama['pk_materia']}, DescrAusenciasID,
-                               EdcDescrAusenciasRazonID, Fecha, Otros, Usuario, FchaReg)
-                              VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
-                          [materia_id, tipo, razon, fecha, otros or None, usuario])
-                c.execute('SELECT CAST(SCOPE_IDENTITY() AS int)')
-                r = c.fetchone()
-                antes  = ''
-                nuevo  = f"tipo={tipo} razon={razon}"
-                aus_id, accion = (r[0] if r else None), 'insert'
-    except Exception as e:
-        return JsonResponse({'ok': False,
-                             'error': f'El sistema académico rechazó el cambio: {e}'}, status=200)
+        alumno = _alumno_de_materia(area, materia_id)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_ausencia_guardar: validar matrícula', True)}, status=500)
+    if alumno is None:
+        return JsonResponse({'ok': False, 'error': MSG_AJENO}, status=403)
 
-    EscrituraNota.objects.create(
-        usuario=request.user, area=area, rama=cfg['rama'], tabla=rama['ausencias'],
-        materia_id=materia_id, eval_id=aus_id, parcial=0,
-        columna=f'Ausencia@{fecha:%Y-%m-%d}'[:80],
-        valor_antes=antes, valor_nuevo=nuevo, accion=accion, alumno=alumno)
+    # <--- hecho por claude code (seguridad 05-nov-2026): escritura + bitácora en UNA transacción del legacy (si la bitácora falla, se deshace)
+    try:
+        with transaction.atomic(using='padres_sqlserver'):
+            actual = _ausencias_del_dia(area, [materia_id], fecha).get(materia_id)
+            with connections['padres_sqlserver'].cursor() as c:
+                if tipo is None:
+                    if not actual:
+                        return JsonResponse({'ok': True, 'accion': 'sin_cambio', 'aus_id': None})
+                    # <--- hecho por claude code (seguridad 05-nov-2026): sin la confirmación del usuario no se borra (409 y la pantalla se recarga)
+                    if not quitar:
+                        return JsonResponse({'ok': False, 'error': 'Este alumno tiene una falta registrada '
+                                             'ese día. Para quitarla hay que confirmarlo.'}, status=409)
+                    c.execute(f"""DELETE FROM dbo.{rama['ausencias']}
+                                  WHERE {rama['pk_ausencia']} = %s""", [actual['aus_id']])
+                    # <--- hecho por claude code (seguridad 05-nov-2026): la bitácora guarda el ID borrado y lo esencial de la fila (antes eval_id=None)
+                    antes  = f"tipo={actual['tipo']} razon={actual['razon']}" + \
+                             (f" {actual['otros']}" if actual['otros'] else '')
+                    nuevo  = ''
+                    aus_id, accion = actual['aus_id'], 'delete'
+                elif actual:
+                    c.execute(f"""UPDATE dbo.{rama['ausencias']}
+                                  SET DescrAusenciasID = %s, EdcDescrAusenciasRazonID = %s,
+                                      Otros = %s, Usuario = %s, FchaReg = GETDATE()
+                                  WHERE {rama['pk_ausencia']} = %s""",
+                              [tipo, razon, otros or None, usuario, actual['aus_id']])
+                    antes  = f"tipo={actual['tipo']} razon={actual['razon']}"
+                    nuevo  = f"tipo={tipo} razon={razon}"
+                    aus_id, accion = actual['aus_id'], 'update'
+                else:
+                    c.execute(f"""INSERT INTO dbo.{rama['ausencias']}
+                                  ({rama['pk_materia']}, DescrAusenciasID,
+                                   EdcDescrAusenciasRazonID, Fecha, Otros, Usuario, FchaReg)
+                                  VALUES (%s, %s, %s, %s, %s, %s, GETDATE())""",
+                              [materia_id, tipo, razon, fecha, otros or None, usuario])
+                    # <--- hecho por claude code (seguridad 05-nov-2026): SCOPE_IDENTITY() en otra llamada daba NULL; se relee la fila recién creada
+                    c.execute(f"""SELECT TOP 1 {rama['pk_ausencia']} FROM dbo.{rama['ausencias']} WITH (READPAST)
+                                  WHERE {rama['pk_materia']} = %s AND CAST(Fecha AS date) = %s
+                                    AND DescrAusenciasID = %s AND Usuario = %s
+                                  ORDER BY {rama['pk_ausencia']} DESC""",
+                              [materia_id, fecha, tipo, usuario])
+                    r = c.fetchone()
+                    antes  = ''
+                    nuevo  = f"tipo={tipo} razon={razon}"
+                    aus_id, accion = (r[0] if r else None), 'insert'
 
-    return JsonResponse({'ok': True, 'aus_id': aus_id, 'accion': accion})
+            _bitacora(request, area, rama['ausencias'], materia_id, aus_id, 0,
+                      f'Ausencia@{fecha:%Y-%m-%d}', antes, nuevo, accion, alumno)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': _falla('api_ausencia_guardar', True)}, status=500)
+
+    return JsonResponse({'ok': True, 'aus_id': None if accion == 'delete' else aus_id,
+                         'accion': accion})

@@ -1,5 +1,7 @@
 from django.contrib import admin
-from core.audit_admin import AuditAdminMixin
+from django.urls import reverse              # <--- hecho por claude code (seguridad 05-nov-2026)
+from django.utils.html import format_html    # <--- hecho por claude code (seguridad 05-nov-2026)
+from core.audit_admin import AuditAdminMixin, _AdminBase   # <--- hecho por claude code (seguridad 05-nov-2026): _AdminBase = Unfold (mismo aspecto)
 from .models import (
     Servidor, NVR, Componente, Gabinete, Camara,
     TipoFallaCamara, MantenimientoCamara, FotoMantenimientoCamara,
@@ -55,6 +57,35 @@ class TipoFallaCamaraAdmin(AuditAdminMixin):
 class FotoMantenimientoCamaraInline(admin.TabularInline):
     model = FotoMantenimientoCamara
     extra = 0
+    # <--- hecho por claude code (seguridad 05-nov-2026): el widget enlazaba a /media/inventario_camaras/ (Apache lo bloquea) y dejaba subir cualquier archivo sin validar; ahora se ve por la vista con candado y se sube solo desde la ficha
+    fields = ('ver_foto', 'orden')
+    readonly_fields = ('ver_foto',)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description='Foto')
+    def ver_foto(self, obj):
+        if not obj.pk or not obj.imagen:
+            return '—'
+        return format_html('<a href="{}" target="_blank" rel="noopener">Ver foto {}</a>',
+                           reverse('inventario_camaras:foto_ver', args=[obj.pk]), obj.pk)
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): sin esto core/admin_auto registraba las fotos con un admin genérico (enlace roto a /media/ y subida sin validar)
+@admin.register(FotoMantenimientoCamara)
+class FotoMantenimientoCamaraAdmin(_AdminBase):
+    list_display = ('id', 'registro', 'ver_foto', 'orden')
+    fields = ('registro', 'ver_foto', 'orden')
+    readonly_fields = ('registro', 'ver_foto')
+    list_per_page = 50
+
+    def has_add_permission(self, request):
+        return False
+
+    @admin.display(description='Foto')
+    def ver_foto(self, obj):
+        return FotoMantenimientoCamaraInline.ver_foto(self, obj)
 
 
 @admin.register(MantenimientoCamara)

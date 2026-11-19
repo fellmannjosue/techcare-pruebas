@@ -35,11 +35,10 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://servicios.ana-hn.org:437',
     'https://192.168.10.6:437',
-    # <--- hecho por claude code (PRUEBAS): el contenedor Coolify sirve por HTTP en :451
+    # <--- hecho por claude code (PRUEBAS): Coolify sirve por HTTP en :451; pruebas directo (sin Coolify) en :455
     'http://192.168.10.6:451',
     'http://localhost:451',
     'http://localhost:8001',
-    # <--- hecho por claude code (19-nov-2026): pruebas DIRECTO en el servidor (sin Coolify) por HTTP en :455
     'http://192.168.10.6:455',
     'http://localhost:455',
 ]
@@ -84,14 +83,13 @@ INSTALLED_APPS = [
     'inventario',
     'mantenimiento',
     'servicio_tecnico',
-    'datashow',   # <--- hecho por claude code (02-nov-2026): Solicitud/reserva de DataShow con calendario y autorización
-    'moodle_upload',   # <--- hecho por claude code (14-oct-2026): SOLO pruebas — publicar imágenes en Moodle
     'mantenimiento_mecanico',   # <--- hecho por claude code (01-oct-2026): control de combustibles y aceites   # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico (Inventario + Mantenimiento)
     'sponsors',
     'enfermeria',
 
     'conducta',
     'agendas',
+    'moodle_upload',   # <--- hecho por claude code (15-oct-2026): publicar las agendas en Moodle (plugin local_techcareagenda)
     'core.apps.CoreConfig',
     'rest_framework',   # <--- hecho por claude code: API del frontend de cámaras
     'rest_framework.authtoken',  # <--- hecho por claude code: tokens para la API REST de Red (scripts/integraciones)
@@ -109,7 +107,8 @@ INSTALLED_APPS = [
     'desarrollo',  # <--- hecho por claude code: Gestión de Desarrollo (requerimientos/proyectos)
     'contabilidad',  # <--- hecho por claude code: Programa de Contabilidad (TC-PRY-0002)
     'red',  # <--- hecho por claude code: ANA Network Manager (IPAM/documentación de red) — Fase 1
-    'asistente',  # <--- hecho por claude code (26-oct-2026): asistente IA (solo app .exe)
+    'datashow',   # <--- hecho por claude code (03-nov-2026): Solicitud/reserva de DataShow con calendario y autorización
+    'asistente',  # <--- hecho por claude code (26-oct-2026; producción 06-nov-2026): asistente IA (Claude)
 ]
 
 
@@ -118,23 +117,28 @@ INSTALLED_APPS = [
 # ─────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'core.middleware.DescargasPrivadasMiddleware',   # <--- hecho por claude code (09-nov-2026): PDF/Excel/ZIP con Cache-Control: private, no-store
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.TechCareLoginRequiredMiddleware',   # <--- hecho por claude code (seguridad 05-nov-2026): todo pide sesión salvo @login_not_required
     'core.middleware.SesionInactividadMiddleware',   # <--- hecho por claude code (28-sep-2026): caducidad deslizante por inactividad
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.MaintenanceModeMiddleware',
+    'core.auditoria.AuditoriaMiddleware',   # <--- hecho por claude code (10-nov-2026): rol Auditoría (ve como superusuario, solo lectura; GET siempre en rollback)
+    'core.middleware.EmbedVentanaMiddleware',   # <--- hecho por claude code (09-nov-2026): formularios dentro de la ventana «Registrar» (?embed=1)
+    'core.middleware.CanalAppMiddleware',   # <--- hecho por claude code (09-nov-2026): programas por canal (Web/.exe/APK)
     'simple_history.middleware.HistoryRequestMiddleware',
     # <--- hecho por claude code (seguridad): 2FA periódico por correo. Inactivo mientras
     # DOSFA_ACTIVO (constance) esté apagado; va al final, tras autenticación y sesión.
     'accounts.dosfa.Dosfa2FAMiddleware',
     'accounts.suplantar.SuplantacionMiddleware',   # <--- hecho por claude code (12-oct-2026): "Iniciar sesión como" (solo superusuario)
+    'core.offline_beta.OfflineBetaMiddleware',   # <--- hecho por claude code (12-nov-2026): modo sin conexión (beta), solo superusuario
 ]
 
-# <--- hecho por claude code (PRUEBAS): en el contenedor no hay Apache para estáticos;
-# WhiteNoise los sirve desde gunicorn. Gated por USE_WHITENOISE (default false).
+# <--- hecho por claude code (PRUEBAS): sin Apache para estáticos, WhiteNoise los sirve desde gunicorn (USE_WHITENOISE).
 if os.getenv('USE_WHITENOISE', 'false') == 'true':
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
     STORAGES = {
@@ -172,9 +176,11 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.current_year',
                 'core.context_processors.nav_context',
+                'asistente.context_processors.asistente_context',   # <--- hecho por claude code: asistente IA (se muestra solo si hay ANTHROPIC_API_KEY)
                 'core.context_processors.version_context',
+                'core.auditoria.context',   # <--- hecho por claude code (10-nov-2026): aviso «Modo auditoría»
+                'core.offline_beta.context',   # <--- hecho por claude code (12-nov-2026): modo sin conexión (beta), solo superusuario
                 'accounts.suplantar.context',   # <--- hecho por claude code (12-oct-2026): aviso "Estás usando la cuenta de…"   # <--- hecho por claude code: versión + novedades
-                'asistente.context_processors.asistente_context',   # <--- hecho por claude code (26-oct-2026): detectar la app .exe
             ],
         },
     },
@@ -195,41 +201,49 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT', '3306'),
     },
 
+    # Conexión al SQL Server remoto (Test2)
+    'padres_sqlserver': {
+    'ENGINE': 'mssql',
+    'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
+    'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+    'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+    'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+    'OPTIONS': {
+        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+    },
+},
+
+# <--- hecho por claude code: base ACADÉMICA REAL (AdmonANASQL), mismo servidor y
+# credenciales que Test2 — solo cambia el nombre de la base. Hoy `admin2` NO tiene
+# permisos ahí; hasta que se los den, `NOTAS_PARCIAL_DB` sigue apuntando a Test2.
+'academico_real': {
+    'ENGINE': 'mssql',
+    'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
+    'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
+    'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
+    'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
+    'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
+    'OPTIONS': {
+        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+    },
+},
+
+# Conexión al SQL Server remoto (zkbiotime)
+'zkbio_sqlserver': {
+    'ENGINE': 'mssql',
+    'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
+    'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
+    'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
+    'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
+    'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
+    'OPTIONS': {
+        'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server'),
+    },
 }
 
-# <--- hecho por claude code (PRUEBAS): las conexiones a SQL Server (Test2, AdmonANASQL,
-# zkbiotime) se activan SOLO si USE_SQLSERVER=true (default true). En el contenedor de
-# pruebas se pone USE_SQLSERVER=false y los módulos que dependen de ellas (Notas de
-# Parcial, Ingreso de Notas, reloj biométrico, enfermería-padres) no consultan nada.
-if os.getenv('USE_SQLSERVER', 'true') == 'true':
-    DATABASES['padres_sqlserver'] = {
-        'ENGINE': 'mssql',
-        'NAME': os.getenv('MSSQL_TEST2_DB_NAME', 'Test2'),
-        'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-        'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
-        'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
-        'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
-    }
-    DATABASES['academico_real'] = {
-        'ENGINE': 'mssql',
-        'NAME': os.getenv('MSSQL_REAL_DB_NAME', 'AdmonANASQL'),
-        'USER': os.getenv('MSSQL_TEST2_DB_USER', 'admin2'),
-        'PASSWORD': os.getenv('MSSQL_TEST2_DB_PASSWORD'),
-        'HOST': os.getenv('MSSQL_TEST2_DB_HOST', '192.168.10.2'),
-        'PORT': os.getenv('MSSQL_TEST2_DB_PORT', '1433'),
-        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
-    }
-    DATABASES['zkbio_sqlserver'] = {
-        'ENGINE': 'mssql',
-        'NAME': os.getenv('MSSQL_ZKBIO_DB_NAME', 'zkbiotime'),
-        'USER': os.getenv('MSSQL_ZKBIO_DB_USER', 'sa'),
-        'PASSWORD': os.getenv('MSSQL_ZKBIO_DB_PASSWORD'),
-        'HOST': os.getenv('MSSQL_ZKBIO_DB_HOST', '192.168.10.2'),
-        'PORT': os.getenv('MSSQL_ZKBIO_DB_PORT', '14332'),
-        'OPTIONS': {'driver': os.getenv('MSSQL_ODBC_DRIVER', 'ODBC Driver 17 for SQL Server')},
-    }
 
+}
 
 # <--- hecho por claude code: alias INDEPENDIENTE para el Inventario institucional en
 # SQL Server (base Test2). Es SOLO LECTURA; su capa de acceso vive en
@@ -256,10 +270,6 @@ DATABASES['inventario_test2'] = {
         'extra_params': _inv_extra_params,
     },
 }
-
-# <--- hecho por claude code (PRUEBAS): el alias del inventario también respeta USE_SQLSERVER
-if os.getenv('USE_SQLSERVER', 'true') != 'true':
-    DATABASES.pop('inventario_test2', None)
 
 # <--- hecho por claude code: router que BLINDA el alias inventario_test2 contra migraciones
 # (jamás se crean/alteran objetos Django ni institucionales dbo.tblInv* en Test2).
@@ -364,7 +374,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # *:437 con SSLEngine on; no hay vhost por HTTP). El navegador siempre conecta por https,
 # así que la cookie con flag Secure viaja bien. Antes iban sin él y podían filtrarse si
 # alguna vez se accedía por http plano.
-# <--- hecho por claude code (PRUEBAS): por HTTP las cookies no pueden ser solo-HTTPS
+# <--- hecho por claude code (PRUEBAS): por HTTP las cookies no pueden ser solo-HTTPS (COOKIES_SECURE=true para volverlas seguras)
 SESSION_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
 CSRF_COOKIE_SECURE = (os.getenv('COOKIES_SECURE', 'false') == 'true')
 SESSION_COOKIE_HTTPONLY = True          # ya lo estaba de facto; se fija explícito
@@ -379,6 +389,52 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
+
+# <--- hecho por claude code (09-nov-2026, revisión ISO 27001/COBIT) ─────────────────────────
+# Recuperación de contraseña: el correo dice "válido por 24 horas"; el valor por defecto de Django son 3 días.
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
+
+# Apache sirve con mod_wsgi DIRECTO (sin proxy inverso): la cabecera X-Forwarded-For la escribe el
+# cliente y no sirve para saber la IP. Solo poner True si algún día se pone un proxy propio delante.
+TECHCARE_CONFIAR_XFF = False
+
+# Bitácora de seguridad y de errores en archivo (logs/). Antes NO había LOGGING: con DEBUG=False los
+# errores 500 no quedaban en ningún lado. El handler es tolerante: si www-data no puede escribir en la
+# carpeta, la app arranca igual (ver docs/seguridad/04_guia_configuracion_despliegue.md).
+TECHCARE_LOG_DIR = os.getenv('TECHCARE_LOG_DIR', str(BASE_DIR / 'logs'))
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'linea': {'format': '%(asctime)s %(levelname)s %(name)s %(message)s'},
+    },
+    'filters': {
+        'require_debug_true': {'()': 'django.utils.log.RequireDebugTrue'},
+    },
+    'handlers': {
+        'seguridad': {
+            'class': 'core.seguridad_eventos.ArchivoTolerante',
+            'filename': os.path.join(TECHCARE_LOG_DIR, 'seguridad.log'),
+            'formatter': 'linea',
+        },
+        'errores': {
+            'class': 'core.seguridad_eventos.ArchivoTolerante',
+            'filename': os.path.join(TECHCARE_LOG_DIR, 'errores.log'),
+            'formatter': 'linea',
+            'level': 'WARNING',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'filters': ['require_debug_true'],
+        },
+    },
+    'loggers': {
+        'techcare.seguridad': {'handlers': ['seguridad'], 'level': 'INFO', 'propagate': False},
+        'django.security': {'handlers': ['seguridad', 'errores'], 'level': 'WARNING', 'propagate': False},
+        'django.request': {'handlers': ['errores'], 'level': 'ERROR', 'propagate': False},
+        'django': {'handlers': ['console'], 'level': 'INFO'},
+    },
+}
 
 # Motor de sesiones: solo BD (más estable frente a reinicios de Apache)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -454,6 +510,21 @@ CONSTANCE_CONFIG = {
         'Programas desactivados/ocultos para todos los usuarios, en JSON. Ej: ["sponsors","reloj"]. Vacío = todos visibles.',
         str,
     ),
+    # <--- hecho por claude code (09-nov-2026): programas OCULTOS por canal, JSON {"web":[...],"exe":[...],"apk":[...]}.
+    # Se maneja desde Configuración → Programas por aplicación (core/canales.py).
+    # <--- hecho por claude code (10-nov-2026): programas donde el rol Auditoría puede EDITAR (JSON lista de claves)
+    'AUDITORIA_EDITAR': (
+        '',
+        'Rol Auditoría: programas donde puede editar, en JSON. Ej: ["reloj"]. Vacío = solo lectura en todo.',
+        str,
+    ),
+    'PROGRAMAS_POR_CANAL': (
+        '',
+        'Programas ocultos por canal (web / exe / apk), en JSON. Vacío = todo visible en todos.',
+        str,
+    ),
+    # <--- hecho por claude code (13-nov-2026): modo sin conexión (beta), solo superusuario — Configuración → Sistema → Modo sin conexión
+    'OFFLINE_BETA': (True, 'Modo sin conexión (beta) para el superusuario: guarda las páginas que abre para verlas sin red.', bool),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     'Modo Mantenimiento': {
@@ -469,7 +540,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
     },
     # <--- hecho por claude code (seguridad): interruptores de seguridad
     'Seguridad': {
-        'fields': ('REGISTRO_USUARIOS_ACTIVO', 'SESION_INACTIVIDAD_MIN', 'DOSFA_ACTIVO', 'PROGRAMAS_OCULTOS'),
+        'fields': ('REGISTRO_USUARIOS_ACTIVO', 'SESION_INACTIVIDAD_MIN', 'DOSFA_ACTIVO', 'PROGRAMAS_OCULTOS', 'PROGRAMAS_POR_CANAL', 'AUDITORIA_EDITAR', 'OFFLINE_BETA'),
         'collapse': False,
     },
 }
@@ -477,10 +548,8 @@ CONSTANCE_CONFIG_FIELDSETS = {
 # ─────────────────────────────────────────────────────────────
 # 13. CORREO ELECTRÓNICO (SMTP)
 # ─────────────────────────────────────────────────────────────
-# <--- hecho por claude code (PRUEBAS): con datos copiados de producción, un envío real
-# le llegaría a usuarios REALES. Default: LISTA BLANCA (10-nov-2026) — se envía por SMTP solo a
-# EMAILS_PRUEBA_PERMITIDOS (coma; default jfellmann@ana-hn.org); a los demás se escribe en el log.
-# EMAILS_REALES=true = SMTP a todos (como producción).
+# <--- hecho por claude code (PRUEBAS): con datos copiados de producción, un envío real le llegaría a usuarios REALES.
+# Default: LISTA BLANCA — SMTP solo a EMAILS_PRUEBA_PERMITIDOS; a los demás se escribe en el log. EMAILS_REALES=true = como producción.
 if os.getenv('EMAILS_REALES', 'false') == 'true':
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
@@ -530,7 +599,6 @@ EMAIL_COORD_COL = {
 
 
 
-GOOGLE_FORMS_SHARED_TOKEN = os.getenv("GOOGLE_FORMS_SHARED_TOKEN", "")
 
 
 
@@ -551,7 +619,10 @@ ADMIN_SITE_URL = '/accounts/login/'
 # 16. INTEGRACIÓN OPENAI / IA
 # ─────────────────────────────────────────────────────────────
 
-# <--- hecho por claude code (PRUEBAS): aquí la IA SÍ está activa (chat de tickets + sandbox /tickets/ia/)
+# <--- hecho por claude code (03-sep-2026): IA desactivada en PRODUCCIÓN a pedido del usuario.
+# El experimento del chat IA se moverá a techcare-pruebas. Para reactivar: descomentar
+# estas 4 líneas y las OPENAI_* del .env (validado 03-sep-2026: la clave funciona).
+# <--- hecho por claude code (PRUEBAS): aquí la IA SÍ está activa (sandbox /tickets/ia/)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_MODEL_DEFAULT = os.getenv('OPENAI_MODEL_DEFAULT', 'gpt-4o')
 OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '500'))
@@ -581,19 +652,20 @@ UNFOLD = {
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
     "DASHBOARD_CALLBACK": "core.admin_dashboard.dashboard_callback",
+    # <--- hecho por claude code (16-oct-2026): paleta de TechCare (índigo, entre el azul #2563eb y el violeta #7c3aed); antes naranja
     "COLORS": {
         "primary": {
-            "50":  "oklch(98.1% 0.019 75)",
-            "100": "oklch(95.4% 0.050 76)",
-            "200": "oklch(90.1% 0.100 75)",
-            "300": "oklch(83.7% 0.152 69)",
-            "400": "oklch(75.6% 0.183 55)",
-            "500": "oklch(67.6% 0.189 43)",
-            "600": "oklch(60.1% 0.176 38)",
-            "700": "oklch(50.3% 0.150 35)",
-            "800": "oklch(41.5% 0.122 34)",
-            "900": "oklch(34.7% 0.102 33)",
-            "950": "oklch(25.7% 0.083 33)",
+            "50":  "oklch(96.2% 0.018 272.314)",
+            "100": "oklch(93.0% 0.034 272.788)",
+            "200": "oklch(87.0% 0.065 274.039)",
+            "300": "oklch(78.5% 0.115 274.713)",
+            "400": "oklch(67.3% 0.182 276.935)",
+            "500": "oklch(58.5% 0.233 277.117)",
+            "600": "oklch(51.1% 0.262 276.966)",
+            "700": "oklch(45.7% 0.240 277.023)",
+            "800": "oklch(39.8% 0.195 277.366)",
+            "900": "oklch(35.9% 0.144 278.697)",
+            "950": "oklch(25.7% 0.090 281.288)",
         },
     },
     "ENVIRONMENT": None,
@@ -604,93 +676,8 @@ UNFOLD = {
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": True,
-        "navigation": [
-            {
-                "title": _("Usuarios"),
-                "separator": True,
-                "items": [
-                    {
-                        "title": _("Usuarios"),
-                        "icon": "person",
-                        "link": reverse_lazy("admin:auth_user_changelist"),
-                        "permission": lambda request: request.user.is_superuser,
-                    },
-                    {
-                        "title": _("Grupos"),
-                        "icon": "group",
-                        "link": reverse_lazy("admin:auth_group_changelist"),
-                        "permission": lambda request: request.user.is_superuser,
-                    },
-                ],
-            },
-            {
-                "title": _("Tickets"),
-                "separator": True,
-                "items": [
-                    {"title": _("Tickets"), "icon": "confirmation_number", "link": reverse_lazy("admin:tickets_ticket_changelist")},
-                    {"title": _("Comentarios"), "icon": "chat", "link": reverse_lazy("admin:tickets_ticketcomment_changelist")},
-                ],
-            },
-            {
-                "title": _("Conducta"),
-                "separator": True,
-                "items": [
-                    {"title": _("Incisos"), "icon": "menu_book", "link": reverse_lazy("admin:conducta_incisoconductual_changelist")},
-                    {"title": _("Reportes Conductuales"), "icon": "report", "link": reverse_lazy("admin:conducta_reporteconductual_changelist")},
-                    {"title": _("Reportes Informativos"), "icon": "info", "link": reverse_lazy("admin:conducta_reporteinformativo_changelist")},
-                    {"title": _("Progress Reports"), "icon": "bar_chart", "link": reverse_lazy("admin:conducta_progressreport_changelist")},
-                    {"title": _("Evidencias"), "icon": "photo_camera", "link": reverse_lazy("admin:conducta_evidenciareporte_changelist")},
-                ],
-            },
-            {
-                "title": _("Agendas"),
-                "separator": True,
-                "items": [
-                    {"title": _("Dashboard Agendas"), "icon": "dashboard", "link": "/agendas/coordinador/"},
-                    {"title": _("Grados (Agenda)"), "icon": "grade", "link": reverse_lazy("admin:agendas_gradoagenda_changelist")},
-                    {"title": _("Agendas"), "icon": "calendar_month", "link": reverse_lazy("admin:agendas_agenda_changelist")},
-                    {"title": _("Imágenes Agenda"), "icon": "photo_library", "link": reverse_lazy("admin:agendas_imagenagenda_changelist")},
-                ],
-            },
-            {
-                "title": _("Enfermería"),
-                "separator": True,
-                "items": [
-                    {"title": _("Atenciones"), "icon": "medical_services", "link": reverse_lazy("admin:enfermeria_atencionmedica_changelist")},
-                    {"title": _("Inventario Medicamentos"), "icon": "medication", "link": reverse_lazy("admin:enfermeria_inventariomedicamento_changelist")},
-                ],
-            },
-            {
-                "title": _("Inventario"),
-                "separator": True,
-                "items": [
-                    {"title": _("Inventario"), "icon": "inventory_2", "link": reverse_lazy("admin:inventario_inventoryitem_changelist")},
-                    {"title": _("Computadoras"), "icon": "computer", "link": reverse_lazy("admin:inventario_computadora_changelist")},
-                ],
-            },
-            {
-                "title": _("Mantenimiento"),
-                "separator": True,
-                "items": [
-                    {"title": _("Registros"), "icon": "build", "link": reverse_lazy("admin:mantenimiento_maintenancerecord_changelist")},
-                ],
-            },
-
-            {
-                "title": _("Control de Accesos"),
-                "separator": True,
-                "items": [
-                    {"title": _("Registros de Acceso"), "icon": "manage_accounts", "link": reverse_lazy("admin:accounts_registroacceso_changelist")},
-                ],
-            },
-            {
-                "title": _("Configuración del Sistema"),
-                "separator": True,
-                "items": [
-                    {"title": _("Ajustes Generales"), "icon": "tune", "link": reverse_lazy("admin:constance_config_changelist")},
-                ],
-            },
-        ],
+        # <--- hecho por claude code (16-oct-2026): menú por PROGRAMA armado desde los modelos registrados (core/admin_nav.py)
+        "navigation": "core.admin_nav.navegacion",
     },
 }
 
@@ -720,11 +707,13 @@ REST_FRAMEWORK = {
 
 
 # ─────────────────────────────────────────────────────────────
-# ASISTENTE IA (solo app .exe) — <--- hecho por claude code (26-oct-2026)
+# ASISTENTE IA — <--- hecho por claude code (26-oct-2026; producción 06-nov-2026)
 # La API key va en el .env del servidor (ANTHROPIC_API_KEY); nunca en el .exe ni en git.
+# ASISTENTE_LIMITE_DIA = consultas por usuario y día (chat + redactar); el superusuario no tiene tope.
 # ─────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 ASISTENTE_MODELO = os.getenv('ASISTENTE_MODELO', 'claude-sonnet-5-5')
+ASISTENTE_LIMITE_DIA = int(os.getenv('ASISTENTE_LIMITE_DIA', '30') or 30)
 
 
 # <--- hecho por claude code (19-nov-2026): PRUEBAS DIRECTO (sin Coolify, servicio techcare-pruebas-directo en :455).

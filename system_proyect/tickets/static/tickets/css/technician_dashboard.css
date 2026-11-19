@@ -18,3 +18,5 @@
 .td-desc { cursor: help; border-bottom: 1px dotted #adb5bd; }
 .td-desc .ti-info-circle { font-size: .8em; vertical-align: middle; }
 .popover .popover-body { font-size: .85rem; max-width: 320px; }
+/* <--- hecho por claude code (seguridad 05-nov-2026): el popover de la descripción va como texto plano; los saltos de línea se respetan aquí (antes linebreaksbr + html:true) */
+.td-desc-pop .popover-body { white-space: pre-line; word-break: break-word; }

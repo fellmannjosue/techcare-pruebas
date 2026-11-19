@@ -6,6 +6,7 @@
 {% block page_title %}Historial de Reportes{% endblock %}
 {% block logout_url %}{% url 'maestro_logout' %}{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'conducta/css/historial_linea.css' %}?v=1">{% endblock %}
 {% block page_actions %}
   {# <--- hecho por claude code: si la vista no fija back_url, se usa el inicio del usuario #}
   <a href="{{ back_url|default:nav_home_url }}" class="btn btn-ghost-secondary">
@@ -49,9 +50,44 @@
 {% endblock %}
 
 {% block content %}
+{# <--- hecho por claude code (06-nov-2026): diseño B — LÍNEA DE TIEMPO de todo lo registrado, con filtro por tipo #}
+<div class="hm-wrap">
+  <div class="hm-chips" id="hm-chips">
+    <button type="button" class="hm-chip on" data-t="">Todo <b>{{ linea_total }}</b></button>
+    <button type="button" class="hm-chip" data-t="inf"><i class="ti ti-info-circle"></i>Informativos <b>{{ linea_conteo.inf }}</b></button>
+    <button type="button" class="hm-chip" data-t="con"><i class="ti ti-shield-check"></i>Conductuales <b>{{ linea_conteo.con }}</b></button>
+    {% if area == "bilingue" %}
+    <button type="button" class="hm-chip" data-t="pro"><i class="ti ti-chart-line"></i>Progress <b>{{ linea_conteo.pro }}</b></button>
+    <button type="button" class="hm-chip" data-t="tut"><i class="ti ti-school"></i>Tutorías <b>{{ linea_conteo.tut }}</b></button>
+    {% endif %}
+    <button type="button" class="hm-chip" data-t="age"><i class="ti ti-calendar-week"></i>Agendas <b>{{ linea_conteo.age }}</b></button>
+    <button type="button" class="hm-chip" data-t="tic"><i class="ti ti-ticket"></i>Tickets <b>{{ linea_conteo.tic }}</b></button>
+    <label class="hm-q"><i class="ti ti-search"></i><input type="search" id="hm-q" placeholder="Buscar alumno, materia…" autocomplete="off"></label>
+  </div>
 
+  <div class="hm-feed" id="hm-feed">
+    {% for d in linea %}
+    <div class="hm-dia" data-dia>
+      <div class="hm-dia__t">{% if d.dia %}{{ d.dia|date:"l d \d\e F \d\e Y"|capfirst }}{% else %}Sin fecha{% endif %}</div>
+      {% for x in d.items %}
+      <div class="hm-it hm-it--{{ x.tipo }}" data-t="{{ x.tipo }}" data-q="{{ x.titulo|lower }} {{ x.sub|lower }}">
+        <span class="hm-it__tipo">{{ x.tipo_txt }}</span>
+        <div class="hm-it__x"><b>{{ x.titulo }}</b><small>{{ x.sub }}{% if x.cuando %} · {{ x.cuando|date:"H:i" }}{% endif %}</small></div>
+        {% if x.evid %}<span class="hm-it__ev">{% for ev in x.evid %}<img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover" width="30" height="30" title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}" alt="">{% endfor %}</span>{% endif %}
+        {% if x.est_txt %}<span class="hm-est hm-est--{{ x.est }}">{{ x.est_txt }}</span>{% endif %}
+        <span class="hm-it__acc">{% for etq, url, ico, nueva in x.acc %}<a href="{{ url }}" class="btn btn-sm btn-ghost-secondary"{% if nueva %} target="_blank" rel="noopener"{% endif %}><i class="ti {{ ico }} me-1"></i>{{ etq }}</a>{% endfor %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% empty %}
+    <div class="hm-vacio"><i class="ti ti-inbox"></i>Todavía no has registrado nada.</div>
+    {% endfor %}
+    <div class="hm-vacio" id="hm-sin" hidden><i class="ti ti-filter-off"></i>Nada con ese filtro.</div>
+  </div>
+  {% if area == "bilingue" %}<div class="hm-nota" id="hm-nota-pro" hidden><i class="ti ti-info-circle"></i> Arriba, los Progress que llenaste tú. Abajo, los <b>Progress de todo el grado</b> (se llenan entre varios maestros), con su buscador.</div>{% endif %}
+</div>
 
-<div class="card">
+<div class="card" id="hm-clasico" hidden>{# <--- las pestañas de antes: el acordeón de Progress del grado se muestra con el filtro «Progress» #}
   <div class="card-header">
     <ul class="nav nav-tabs card-header-tabs" id="reportTabs" role="tablist">
       <li class="nav-item" role="presentation">
@@ -115,7 +151,7 @@
                 <td><span class="text-truncate d-inline-block" style="max-width:150px;">{{ t.description|truncatechars:30 }}</span></td>
                 <td>
                   {% if t.attachment %}
-                  <a href="{{ t.attachment.url }}" target="_blank" class="btn btn-sm btn-ghost-secondary">Ver</a>
+                  <a href="{% url 'ticket_adjunto' t.id %}" target="_blank" class="btn btn-sm btn-ghost-secondary">Ver</a>{# <--- hecho por claude code (seguridad 05-nov-2026): el adjunto se sirve por la vista con permiso del ticket; /media/attachments/ queda cerrado #}
                   {% else %}
                   <span class="text-muted">—</span>
                   {% endif %}
@@ -179,7 +215,7 @@
                 </td>
                 <td>
                   {% for ev in r.evidenciareporte_set.all %}
-                  <img src="{{ ev.imagen.url }}" class="img-evidencia-hover me-1"
+                  <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover me-1"
                        width="40" height="40"
                        title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                        style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
@@ -238,7 +274,7 @@
                 </td>
                 <td>
                   {% for ev in r.evidenciareporte_set.all %}
-                  <img src="{{ ev.imagen.url }}" class="img-evidencia-hover me-1"
+                  <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover me-1"
                        width="40" height="40"
                        title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                        style="object-fit:cover; border-radius:4px; cursor:zoom-in;">
@@ -313,7 +349,7 @@
                         </td>
                         <td>
                           {% for ev in r.evidenciareporte_set.all %}
-                          <img src="{{ ev.imagen.url }}" class="img-evidencia-hover me-1" width="36" height="36"
+                          <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover me-1" width="36" height="36"
                                title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                                style="object-fit:cover;border-radius:4px;cursor:zoom-in;">
                           {% empty %}<span class="text-muted">—</span>{% endfor %}
@@ -413,4 +449,5 @@
 {% block extra_js %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="{% static 'conducta/js/historial.js' %}?v=22"></script>
+  <script src="{% static 'conducta/js/historial_linea.js' %}?v=1"></script>{# <--- hecho por claude code (06-nov-2026): diseño B #}
 {% endblock %}

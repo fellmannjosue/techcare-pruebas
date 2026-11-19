@@ -101,7 +101,11 @@ def index(request):
     mis = ReservaDataShow.objects.select_related('datashow', 'solicitante', 'revisado_por')
     if not ver_todas:
         mis = mis.filter(solicitante=request.user)
-    mis = mis.order_by('-fecha', 'hora_inicio')[:100]
+    mis = list(mis.order_by('-fecha', 'hora_inicio')[:100])
+    # <--- hecho por claude code (seguridad 05-nov-2026): la plantilla llamaba r.puede_cancelar SIN el usuario (Django no pasa
+    # argumentos) → siempre vacío y el botón Cancelar nunca salía. Se calcula aquí con el MISMO criterio que valida la vista cancelar.
+    for r in mis:
+        r.cancelable = r.puede_cancelar(request.user)
 
     # Cola de pendientes (solo soporte)
     pendientes = []

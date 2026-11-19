@@ -12,6 +12,25 @@ _INPUT  = {'class': 'form-control'}
 _AREA   = {'class': 'form-control', 'rows': 3}
 
 
+# <--- hecho por claude code (06-nov-2026, pedido del usuario): ayuda de cada campo (la «i» junto a la etiqueta) y
+# aviso de obligatorio = «Por favor llena este campo.» + la indicación breve. `ayuda` = texto largo, `breve` = el del aviso.
+AYUDA_REQ = {
+    'titulo': ('Un nombre corto que resuma lo que necesitas. Ejemplo: «Reporte de asistencia por grado en Excel».',
+               'Escribe un nombre corto para el requerimiento.'),
+    'tipo': ('Elige qué clase de trabajo es: una función o módulo nuevo, una mejora a algo que ya existe, '
+             'corregir algo que falla, un reporte, un dashboard, una automatización, etc.', ''),
+    'descripcion': ('Explica qué necesitas, en qué pantalla o módulo y quién lo va a usar. '
+                    'Entre más detalle, más rápido se entiende.',
+                    'Explica qué necesitas y en qué pantalla o módulo.'),
+    'problema_actual': ('Cuenta qué pasa hoy: qué falla, qué se hace a mano o qué tarda demasiado. '
+                        'Si hay un error, copia el mensaje que aparece.',
+                        'Cuenta qué pasa hoy o qué falla.'),
+    'resultado_esperado': ('Describe cómo debería quedar cuando esté listo: qué vas a poder hacer y qué cambia para ti '
+                           'o para tu área.',
+                           'Describe cómo debería quedar cuando esté listo.'),
+}
+
+
 class RequerimientoNuevoForm(forms.ModelForm):
     """Registrar un requerimiento nuevo (secciones: general, requerimiento, clasificación)."""
     class Meta:
@@ -50,7 +69,12 @@ class RequerimientoNuevoForm(forms.ModelForm):
         for campo in ('descripcion', 'problema_actual', 'resultado_esperado'):
             self.fields[campo].required = True
             self.fields[campo].widget.attrs['required'] = 'required'
-            self.fields[campo].error_messages['required'] = 'Este campo es obligatorio.'
+        # <--- hecho por claude code (06-nov-2026): mismo aviso en el servidor y en el navegador (data-msg lo usa desarrollo_form.js)
+        self.ayuda = {k: v[0] for k, v in AYUDA_REQ.items()}
+        for campo in ('titulo', 'descripcion', 'problema_actual', 'resultado_esperado'):
+            msg = 'Por favor llena este campo. ' + AYUDA_REQ[campo][1]
+            self.fields[campo].error_messages['required'] = msg
+            self.fields[campo].widget.attrs['data-msg'] = msg
         if not self.initial.get('solicitante_cat'):
             dflt = SolicitanteCatalogo.objects.filter(activo=True, nombre__iexact='Soporte Técnico').first()
             if dflt:
@@ -95,7 +119,10 @@ class RequerimientoEditForm(forms.ModelForm):
         from django.contrib.auth.models import User
         self.fields['proyecto'].queryset = ProyectoDesarrollo.objects.order_by('nombre')
         self.fields['proyecto'].required = False
-        self.fields['responsable'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'username')
+        # <--- hecho por claude code (seguridad 05-nov-2026): responsable = solo quien puede entrar al módulo (si no, el candado le daría 403 en su propio requerimiento); se conserva el actual
+        from .utils import usuarios_desarrollo
+        self.fields['responsable'].queryset = usuarios_desarrollo(
+            getattr(self.instance, 'responsable_id', None)).order_by('first_name', 'username')
         self.fields['responsable'].required = False
 
 

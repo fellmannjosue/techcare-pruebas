@@ -1,5 +1,13 @@
 $(document).ready(function () {
 
+    // <--- hecho por claude code (seguridad 05-nov-2026): token CSRF para el borrado (ahora solo POST; sin token el servidor ya lo rechazaba con 403): del formulario "Agregar" o de la cookie.
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+
     // ABRIR MODAL
     $(document).on("click", ".editar-impresora", function () {
         let id = $(this).data("id");
@@ -52,10 +60,12 @@ $(document).ready(function () {
         }).then((r) => {
 
             if (r.isConfirmed) {
-                $.post(`/inventario/impresora/delete/${id}/`, function () {
+                $.post(`/inventario/impresora/delete/${id}/`, { csrfmiddlewaretoken: csrfToken() }, function () {
 
                     Swal.fire("Eliminada", "La impresora fue eliminada.", "success")
                         .then(() => location.reload());
+                }).fail((xhr) => {
+                    Swal.fire({ title: "Error", text: (xhr.responseJSON && xhr.responseJSON.error) || "No se pudo eliminar la impresora.", icon: "error" });
                 });
             }
 

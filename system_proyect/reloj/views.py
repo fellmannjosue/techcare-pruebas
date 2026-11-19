@@ -9,6 +9,8 @@ from django import forms
 from datetime import datetime, time, date
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.core.exceptions import PermissionDenied  # <--- hecho por claude code (seguridad 05-nov-2026)
+import re as _re_seg  # <--- hecho por claude code (seguridad 05-nov-2026): validación de emp_code en los IN (...) de SQL
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
@@ -95,11 +97,68 @@ def _reloj_ver_required(modulo):
         @_wraps(viewfunc)
         def wrapper(request, *args, **kwargs):
             if not _reloj_can_ver(request.user, modulo):
+                # <--- hecho por claude code (seguridad 05-nov-2026): quien no es del Reloj recibe 403 (antes 302 al dashboard, que abría para cualquiera)
+                if not _reloj_acceso(request.user):
+                    raise PermissionDenied('No tiene acceso al Reloj.')
                 messages.error(request, 'No tiene permiso para ver este módulo.')
                 return redirect('reloj_dashboard')
             return viewfunc(request, *args, **kwargs)
         return wrapper
     return deco
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): helpers de candado del Reloj (ver informe de seguridad).
+_RELOJ_MODULOS = ('reporte', 'plantilla', 'asignacion', 'compensatorio', 'feriado', 'sabado',
+                  'calculo_comp', 'pruebas_comp', 'comp_mensual', 'vacaciones', 'permisos',
+                  'vigilancia', 'cfp', 'reportes_pdf', 'bono_ajuste')
+
+
+def _reloj_acceso(user):
+    """Entrada al programa Reloj. Mismo criterio que el menú (nav_reloj = superusuario o grupo
+    'reloj') + quien tenga algún módulo visible en RelojPermiso (la matriz de Permisos Reloj)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser or user.groups.filter(name='reloj').exists():
+        return True
+    return any(_reloj_can_ver(user, m) for m in _RELOJ_MODULOS)
+
+
+def _reloj_json_403(msg='Sin permiso'):
+    """Respuesta 403 uniforme para los endpoints AJAX/JSON del Reloj."""
+    return JsonResponse({'ok': False, 'success': False, 'error': msg}, status=403)
+
+
+def _reloj_puede_ver_alguno(user, *modulos):
+    """True si puede VER al menos uno de los módulos (endpoints compartidos por dos pantallas)."""
+    return any(_reloj_can_ver(user, m) for m in modulos)
+
+
+def _reloj_exigir(request, modulo, accion):
+    """None si el usuario tiene el permiso RelojPermiso (accion: 'ver' | 'editar' | 'eliminar').
+    Si no: JsonResponse 403 para AJAX, o PermissionDenied (página 403 del sistema)."""
+    if accion == 'ver':
+        ok = _reloj_can_ver(request.user, modulo)
+    else:
+        ok = _reloj_can(request.user, modulo, accion)
+    if ok:
+        return None
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return _reloj_json_403()
+    raise PermissionDenied('No tiene permiso para esta acción del Reloj.')
+
+
+_RE_EMP_CODE_SQL = _re_seg.compile(r'^[0-9A-Za-z_.\-]{1,20}$')
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): _sql_codigos filtra los emp_code antes de armar un IN (...) hacia ZKBio (inyección SQL de segundo orden)
+def _sql_codigos(codigos):
+    """Lista "'a', 'b'" para un IN (...) de SQL armado
+    con f-string. Solo deja pasar códigos de empleado con formato válido (letras, dígitos, . _ -):
+    algunos emp_code vienen de campos de texto libre (CompensatorioCalculo, CompensatorioInstructor)
+    y una comilla permitía inyección SQL de segundo orden en ZKBio. Sin códigos válidos → "''"."""
+    vals = [str(c).strip() for c in codigos]
+    vals = [c for c in vals if _RE_EMP_CODE_SQL.match(c)]
+    return ', '.join(f"'{c}'" for c in vals) if vals else "''"
 
 
 def _es_pdf(request):
@@ -229,6 +288,9 @@ def _safe_date(value: str, default: str) -> str:
 
 @login_required
 def exportar_pdf(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): devolvía las marcas de TODO el personal con solo login; ahora exige ver Reporte o Reportes PDF (las dos pantallas que lo enlazan)
+    if not _reloj_puede_ver_alguno(request.user, 'reporte', 'reportes_pdf'):
+        raise PermissionDenied('No tiene permiso para el reporte de asistencia.')
     # Lee filtros GET igual que tu view de reporte
     hoy = datetime.today()
     _fi_def = hoy.replace(day=1).strftime('%Y-%m-%d')
@@ -296,7 +358,8 @@ def exportar_pdf(request):
                     continue
                 datos.append(row)
     except Exception as e:
-        return HttpResponse(f"Error al generar PDF: {str(e)}")
+        print(f"[reloj.exportar_pdf] error SQL: {e}")  # <--- hecho por claude code (seguridad 05-nov-2026): el detalle va al log, no al navegador
+        return HttpResponse("Error al generar PDF: no se pudo consultar el reloj (ZKBio).")
 
     # Cargar comentarios del rango para incluir en PDF
     from datetime import date as date_type
@@ -585,6 +648,9 @@ def get_empleados_zkbiotime():
 def dashboard(request):
     """Renderiza el panel principal del módulo Reloj.
     Los cards se muestran según el permiso de visualización por módulo."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): candado del programa (mismo criterio que el menú nav_reloj + RelojPermiso)
+    if not _reloj_acceso(request.user):
+        raise PermissionDenied('No tiene acceso al Reloj.')
     mods = ['reporte', 'plantilla', 'asignacion', 'compensatorio',
             'feriado', 'sabado', 'calculo_comp', 'vacaciones', 'reportes_pdf',
             'vigilancia', 'pruebas_comp']   # <--- hecho por claude code (16-sep-2026): botón Pruebas
@@ -604,6 +670,9 @@ def grafica_detalle(request):
     - fecha_inicio, fecha_fin: 'YYYY-MM-DD'
     Respuesta: {"success": bool, "error": str|None, "rows": [{emp_code, empleado, fecha, marcas}, ...]}
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): marcas de todo el personal con solo login → exige ver Reporte (como la pantalla Gráfica)
+    if not _reloj_can_ver(request.user, 'reporte'):
+        return _reloj_json_403()
     estado = (request.GET.get('estado') or 'PRESENTE').upper()
     hoy = datetime.today()
     fi_def = hoy.replace(day=1).strftime('%Y-%m-%d')
@@ -868,9 +937,13 @@ OPTION (MAXRECURSION 0);
                 fi_d = ff_d = hoy.date()
 
             comentarios_map = {}
+            # <--- hecho por claude code (seguridad 05-nov-2026): la X de borrar solo donde comentario_delete_ajax lo permite (Reporte – Editar y ser el autor, o Reporte – Eliminar)
+            _cmt_editar = _reloj_can(request.user, 'reporte', 'editar')
+            _cmt_ajenos = _cmt_editar and _reloj_can(request.user, 'reporte', 'eliminar')
             for c in ReporteComentario.objects.filter(fecha__range=(fi_d, ff_d)):
                 comentarios_map.setdefault((c.emp_code, c.fecha), []).append(
-                    {'pk': c.pk, 'texto': c.texto}
+                    {'pk': c.pk, 'texto': c.texto,
+                     'puede_borrar': _cmt_ajenos or (_cmt_editar and c.creado_por_id == request.user.pk)}
                 )
 
             # Mapa de feriados: (emp_code, date) -> descripcion
@@ -1057,7 +1130,8 @@ OPTION (MAXRECURSION 0);
         'empleados_opts': get_empleado_options(),
         'emp_code_f': emp_code_f,
         'campos_permiso': CAMPOS_PERMISO,
-        'permisos_json': _json.dumps(permisos_json),
+        # <--- hecho por claude code (seguridad 05-nov-2026): la plantilla lo imprime con |safe dentro de <script>; se escapan < > & (como json_script) para que una razón/comentario con "</script>" no inyecte HTML
+        'permisos_json': _json.dumps(permisos_json).replace('<', '\\u003C').replace('>', '\\u003E').replace('&', '\\u0026'),
         'can_edit_permisos':   can_edit_permisos,
         'can_delete_permisos': can_delete_permisos,
         'razones': list(RazonPermiso.objects.filter(activo=True).values_list('texto', flat=True)),
@@ -1072,9 +1146,12 @@ OPTION (MAXRECURSION 0);
 @login_required
 def comentario_add_ajax(request):
     from datetime import date as date_type
-    emp_code  = request.POST.get('emp_code', '').strip()
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes cualquier usuario con sesión comentaba; ahora Reporte – Editar (glorenzo, yzavala, ylagos lo tienen)
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
+    emp_code  = request.POST.get('emp_code', '').strip()[:20]
     fecha_str = request.POST.get('fecha', '').strip()
-    texto     = request.POST.get('texto', '').strip()
+    texto     = request.POST.get('texto', '').strip()[:1000]
 
     if not emp_code or not fecha_str or not texto:
         return JsonResponse({'ok': False, 'error': 'Datos incompletos'}, status=400)
@@ -1096,7 +1173,12 @@ def comentario_add_ajax(request):
 @require_POST
 @login_required
 def comentario_delete_ajax(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): borraba por pk el comentario de cualquiera; ahora Reporte – Editar y ser el autor, o Reporte – Eliminar para los ajenos
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
     obj = get_object_or_404(ReporteComentario, pk=pk)
+    if obj.creado_por_id != request.user.pk and not _reloj_can(request.user, 'reporte', 'eliminar'):
+        return _reloj_json_403('Solo puede eliminar sus propios comentarios.')
     obj.delete()
     return JsonResponse({'ok': True})
 
@@ -1129,6 +1211,10 @@ def plantilla_edit(request, pk=None):
     """
     Crear/editar una plantilla. Si existe, muestra sus reglas.
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login escribía plantillas; crear/guardar = Plantilla – Editar, ver una existente = Plantilla – Ver
+    _r = _reloj_exigir(request, 'plantilla', 'editar' if (request.method == 'POST' or not pk) else 'ver')
+    if _r:
+        return _r
     plantilla = get_object_or_404(ScheduleTemplate, pk=pk) if pk else None
     if request.method == "POST":
         form = ScheduleTemplateForm(request.POST, instance=plantilla)
@@ -1150,6 +1236,10 @@ def regla_add(request, template_pk):
     - Si ya existe la regla (template, weekday), se actualiza.
     - Si no existe, se crea.
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): crea/actualiza reglas en lote → Plantilla – Editar
+    _r = _reloj_exigir(request, 'plantilla', 'editar')
+    if _r:
+        return _r
     plantilla = get_object_or_404(ScheduleTemplate, pk=template_pk)
 
     if request.method == "POST":
@@ -1202,6 +1292,10 @@ def regla_edit(request, pk):
     """
     Edición individual de una regla existente (un solo día).
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): guardar = Plantilla – Editar; ver la regla = Plantilla – Ver
+    _r = _reloj_exigir(request, 'plantilla', 'editar' if request.method == 'POST' else 'ver')
+    if _r:
+        return _r
     regla = get_object_or_404(ScheduleRule, pk=pk)
     if request.method == "POST":
         form = ScheduleRuleForm(request.POST, instance=regla)
@@ -1261,6 +1355,10 @@ def horarios_add(request):
     """
     Alta de asignación de plantilla a empleado (modal o página completa).
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login creaba asignaciones de horario → Asignación – Editar
+    _r = _reloj_exigir(request, 'asignacion', 'editar')
+    if _r:
+        return _r
     empleados = get_empleados_zkbiotime()
     EMPLEADOS_CHOICES = [('', '--- Selecciona ---')] + [
         (str(e[0]), f"{e[0]} - {e[1]}") for e in empleados
@@ -1302,6 +1400,10 @@ def horarios_edit(request, pk):
     """
     Edición de una asignación existente (modal o página completa).
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): guardar = Asignación – Editar; abrir el modal (la lista lo enlaza a quien ve) = Asignación – Ver
+    _r = _reloj_exigir(request, 'asignacion', 'editar' if request.method == 'POST' else 'ver')
+    if _r:
+        return _r
     asignacion = get_object_or_404(EmployeeScheduleAssignment, pk=pk)
 
     empleados = get_empleados_zkbiotime()
@@ -1362,6 +1464,9 @@ def test_sqlserver_connection(request):
     Ejecuta una consulta mínima en ZKBioTime para validar la conexión.
     Muestra un mensaje en pantalla sobre el estado (OK / ERROR).
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): diagnóstico con datos de un empleado y el error crudo de conexión → solo superusuario
+    if not request.user.is_superuser:
+        raise PermissionDenied('Solo el superusuario.')
     try:
         with connections['zkbio_sqlserver'].cursor() as cursor:
             cursor.execute("SELECT TOP 1 emp_code, first_name FROM dbo.personnel_employee")
@@ -1400,6 +1505,9 @@ def overtime_authorize(request):
       { "emp_code":"0001", "fecha":"YYYY-MM-DD", "minutos": 30, "status":"APPR"|"REJC", "comentario": "opc" }
     Devuelve JSON: { success, msg }
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff (cualquier coordinador); ahora Tiempo Compensatorio – Editar. Sin pantalla que lo use hoy.
+    if not _reloj_can(request.user, 'compensatorio', 'editar'):
+        return _reloj_json_403()
     try:
         data = request.POST or {}
         # Soporta JSON en body
@@ -1428,139 +1536,12 @@ def overtime_authorize(request):
         ot.save()
         return JsonResponse({"success": True, "msg": "Actualizado."})
     except Exception as e:
-        return JsonResponse({"success": False, "msg": str(e)}, status=500)
+        print(f"[reloj.overtime_authorize] {e}")  # <--- hecho por claude code (seguridad 05-nov-2026): sin error crudo al cliente
+        return JsonResponse({"success": False, "msg": "No se pudo guardar."}, status=500)
 
 
-# ─────────────────────────────────────────────────────────────
-# GOOGLE FORMS HOOK · Tiempo compensatorio
-# ─────────────────────────────────────────────────────────────
-
-def _parse_date_flexible(s: str):
-    """Acepta 'YYYY-MM-DD', 'DD/MM/YYYY' o 'MM/DD/YYYY' y retorna date (o None)."""
-    if not s:
-        return None
-    s = s.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except Exception:
-            pass
-    return None
-
-@require_GET
-def compensatorio_employees_list(request):
-    # Auth por el mismo token compartido
-    token = request.headers.get("X-Forms-Token") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    if token != getattr(settings, "GOOGLE_FORMS_SHARED_TOKEN", ""):
-        return JsonResponse({"ok": False, "error": "Forbidden"}, status=403)
-
-    rows = []
-    try:
-        with connections['zkbio_sqlserver'].cursor() as c:
-            c.execute("""
-                SELECT CAST(emp_code AS VARCHAR(20)) AS code,
-                       (first_name + ' ' + last_name) AS nombre
-                FROM dbo.personnel_employee
-                ORDER BY first_name, last_name
-            """)
-            rows = c.fetchall()
-    except Exception as ex:
-        return JsonResponse({"ok": False, "error": f"SQL error: {ex}"}, status=500)
-
-    choices = [{"code": (code or "").strip(),
-                "label": f"{(code or '').strip()} — {(nombre or '').strip()}"} for code, nombre in rows]
-
-    return JsonResponse({"ok": True, "choices": choices})
-
-@csrf_exempt
-@require_POST
-def compensatorio_google_hook(request):
-    """
-    Endpoint para Google Forms (Apps Script).
-    - Auth: Authorization: Bearer <TOKEN>  (y fallbacks X-Forms-Token, ?token=)
-    - JSON: {emp_code, fecha, minutos_registrados, motivo, ...}
-    - Resuelve nombre_empleado oficial desde ZKBioTime.
-    """
-    # --- Auth robusto por token compartido ---
-    expected = getattr(settings, "GOOGLE_FORMS_SHARED_TOKEN", "")
-    raw = (
-        request.headers.get("Authorization")
-        or request.META.get("HTTP_AUTHORIZATION")
-        or request.headers.get("X-Forms-Token")
-        or request.GET.get("token")
-    )
-    token = ""
-    if raw:
-        token = raw.split(" ", 1)[1].strip() if str(raw).startswith("Bearer ") else str(raw).strip()
-
-    if not token:
-        return JsonResponse({"success": False, "error": "Falta token"}, status=401)
-    if token != expected:
-        return JsonResponse({"success": False, "error": "Token inválido"}, status=403)
-
-    # --- Parse body ---
-    try:
-        data = json.loads(request.body.decode("utf-8") or "{}")
-    except Exception as ex:
-        return JsonResponse({"success": False, "error": f"JSON inválido: {ex}"}, status=400)
-
-    emp_code = (data.get("emp_code") or "").strip()
-    if not emp_code:
-        return JsonResponse({"success": False, "error": "emp_code requerido"}, status=400)
-
-    fecha = _parse_date_flexible((data.get("fecha") or "").strip())
-    if not fecha:
-        return JsonResponse({"success": False, "error": "fecha inválida"}, status=400)
-
-    try:
-        minutos = int(data.get("minutos_registrados") or 0)
-        if minutos < 0:
-            minutos = 0
-    except Exception:
-        return JsonResponse({"success": False, "error": "minutos_registrados inválido"}, status=400)
-
-    motivo = (data.get("motivo") or "").strip()
-
-    # --- Resolver nombre oficial desde ZKBioTime ---
-    try:
-        with connections["zkbio_sqlserver"].cursor() as c:
-            c.execute(
-                """
-                SELECT (first_name + ' ' + last_name) AS nombre
-                FROM dbo.personnel_employee
-                WHERE CAST(emp_code AS VARCHAR(20)) = %s
-                """,
-                [emp_code],
-            )
-            row = c.fetchone()
-    except Exception as ex:
-        return JsonResponse({"success": False, "error": f"Error SQLServer: {ex}"}, status=500)
-
-    if not row:
-        return JsonResponse({"success": False, "error": "emp_code no existe en ZKBioTime"}, status=400)
-
-    nombre_oficial = (row[0] or "").strip()
-
-    # --- Crear/actualizar registro (clave emp_code+fecha) ---
-    obj = TiempoCompensatorio.objects.create(
-        emp_code=emp_code,
-        nombre_empleado=nombre_oficial,
-        fecha=fecha,
-     minutos_registrados=minutos,
-        motivo=motivo,
-    )
-    created = True
-
-
-    return JsonResponse({
-        "success": True,
-        "created": created,
-        "id": obj.id,
-        "emp_code": emp_code,
-        "nombre": nombre_oficial,
-        "fecha": fecha.isoformat(),
-        "minutos": minutos,
-    })
+# <--- hecho por claude code (06-nov-2026, pedido del usuario): se quitó el enlace de Google Forms del compensatorio
+# (compensatorio_google_hook y compensatorio_employees_list, públicos con token). Ya no se usaba: 0 registros.
 
 # ─────────────────────────────────────────────────────────────
 # CRUD · Feriados
@@ -1580,6 +1561,10 @@ def feriados_list(request):
 
 @staff_required
 def feriado_new(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff (cualquier coordinador) → Feriados – Editar (glorenzo, yzavala)
+    _r = _reloj_exigir(request, 'feriado', 'editar')
+    if _r:
+        return _r
     if request.method == "POST":
         form = FeriadoForm(request.POST)
         if form.is_valid():
@@ -1595,6 +1580,10 @@ def feriado_new(request):
 
 @staff_required
 def feriado_edit(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): guardar = Feriados – Editar; ver = Feriados – Ver (antes bastaba is_staff)
+    _r = _reloj_exigir(request, 'feriado', 'editar' if request.method == 'POST' else 'ver')
+    if _r:
+        return _r
     obj = get_object_or_404(Feriado, pk=pk)
     if request.method == "POST":
         form = FeriadoForm(request.POST, instance=obj)
@@ -1625,6 +1614,10 @@ def feriado_edit(request, pk):
 
 @staff_required
 def feriado_delete(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Feriados – Eliminar
+    _r = _reloj_exigir(request, 'feriado', 'eliminar')
+    if _r:
+        return _r
     obj = get_object_or_404(Feriado, pk=pk)
     if request.method == "POST":
         obj.delete()
@@ -1637,6 +1630,9 @@ def feriado_delete(request, pk):
 @require_POST
 def feriado_asignacion_bulk(request, pk):
     """Guarda la selección completa de checkboxes: agrega los nuevos, quita los desmarcados."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Feriados – Editar (JSON 403: lo llama fetch)
+    if not _reloj_can(request.user, 'feriado', 'editar'):
+        return _reloj_json_403()
     feriado = get_object_or_404(Feriado, pk=pk)
     selected = set(filter(None, (c.strip() for c in request.POST.getlist("emp_codes"))))
     existing = set(FeriadoAsignacion.objects.filter(feriado=feriado).values_list("emp_code", flat=True))
@@ -1700,6 +1696,10 @@ def sabados_list(request):
 
 @staff_required
 def sabado_new(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Sábados – Editar
+    _r = _reloj_exigir(request, 'sabado', 'editar')
+    if _r:
+        return _r
     if request.method == "POST":
         form = SabadoEspecialForm(request.POST)
         if form.is_valid():
@@ -1715,6 +1715,10 @@ def sabado_new(request):
 
 @staff_required
 def sabado_edit(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): guardar = Sábados – Editar; ver = Sábados – Ver (antes bastaba is_staff)
+    _r = _reloj_exigir(request, 'sabado', 'editar' if request.method == 'POST' else 'ver')
+    if _r:
+        return _r
     obj = get_object_or_404(SabadoEspecial, pk=pk)
     if request.method == "POST":
         form = SabadoEspecialForm(request.POST, instance=obj)
@@ -1744,6 +1748,10 @@ def sabado_edit(request, pk):
 
 @staff_required
 def sabado_delete(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Sábados – Eliminar
+    _r = _reloj_exigir(request, 'sabado', 'eliminar')
+    if _r:
+        return _r
     obj = get_object_or_404(SabadoEspecial, pk=pk)
     if request.method == "POST":
         obj.delete()
@@ -1756,6 +1764,9 @@ def sabado_delete(request, pk):
 @require_POST
 def sabado_asignacion_bulk(request, pk):
     """Guarda la selección completa de empleados para un sábado especial."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Sábados – Editar (JSON 403: lo llama fetch)
+    if not _reloj_can(request.user, 'sabado', 'editar'):
+        return _reloj_json_403()
     sabado = get_object_or_404(SabadoEspecial, pk=pk)
     selected = set(filter(None, (c.strip() for c in request.POST.getlist("emp_codes"))))
     existing = set(SabadoAsignacion.objects.filter(sabado=sabado).values_list("emp_code", flat=True))
@@ -1913,7 +1924,7 @@ def compensatorio_list(request):
     error = None
 
     if codigos:
-        codigos_sql = ", ".join(f"'{c}'" for c in codigos)
+        codigos_sql = _sql_codigos(codigos)  # <--- hecho por claude code (seguridad 05-nov-2026): solo códigos con formato válido en el SQL
         query = f"""
         DECLARE @fi DATE = '{fecha_inicio_str}';
         DECLARE @ff DATE = '{fecha_fin_str}';
@@ -2092,6 +2103,10 @@ def compensatorio_list_set_extra(request):
 
 @staff_required
 def compensatorio_authorize(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Tiempo Compensatorio – Editar (CRUD legado, sin enlaces hoy)
+    _r = _reloj_exigir(request, 'compensatorio', 'editar')
+    if _r:
+        return _r
     obj = get_object_or_404(TiempoCompensatorio, pk=pk)
     if request.method == "POST":
         estado = request.POST.get("estado")
@@ -2111,6 +2126,10 @@ def compensatorio_authorize(request, pk):
 
 @login_required
 def compensatorio_new(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login creaba registros → Tiempo Compensatorio – Editar
+    _r = _reloj_exigir(request, 'compensatorio', 'editar')
+    if _r:
+        return _r
     if request.method == "POST":
         form = TiempoCompensatorioForm(request.POST)
         if form.is_valid():
@@ -2127,6 +2146,10 @@ def compensatorio_new(request):
 
 @staff_required
 def compensatorio_edit(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Tiempo Compensatorio – Editar
+    _r = _reloj_exigir(request, 'compensatorio', 'editar')
+    if _r:
+        return _r
     obj = get_object_or_404(TiempoCompensatorio, pk=pk)
     if request.method == "POST":
         form = TiempoCompensatorioForm(request.POST, instance=obj)
@@ -2141,6 +2164,10 @@ def compensatorio_edit(request, pk):
 
 @staff_required
 def compensatorio_delete(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Tiempo Compensatorio – Eliminar
+    _r = _reloj_exigir(request, 'compensatorio', 'eliminar')
+    if _r:
+        return _r
     obj = get_object_or_404(TiempoCompensatorio, pk=pk)
     if request.method == "POST":
         obj.delete()
@@ -2153,7 +2180,21 @@ def compensatorio_delete(request, pk):
 # CRUD · Permisos
 # ─────────────────────────────────────────────────────────────
 
+# <--- hecho por claude code (seguridad 05-nov-2026): _puede_permiso_emp es el candado de Permisos de Empleados (ver con permisos_ver; escribir con Reporte – Editar/Eliminar)
+def _puede_permiso_emp(user, accion='ver'):
+    """Permisos de Empleados (PermisoEmpleado, legado).
+    La matriz de Permisos Reloj solo tiene "Permisos – Ver"; para escribir se exige además el permiso del
+    Reporte de Permisos (Editar / Eliminar), que es donde hoy se registran los permisos. Antes: ver/crear
+    con solo login y aprobar/editar/eliminar con is_staff (cualquier coordinador)."""
+    if not _reloj_can_ver(user, 'permisos'):
+        return False
+    if accion == 'ver':
+        return True
+    return _reloj_can(user, 'reporte', accion)
+
+
 @login_required
+@_reloj_ver_required('permisos')   # <--- hecho por claude code (seguridad 05-nov-2026): permisos_ver no se consultaba en ninguna vista
 def permisos_list(request):
     qs = PermisoEmpleado.objects.all().order_by("-fecha_inicio", "emp_code")
     emp_code_f = (request.GET.get("emp_code") or "").strip()
@@ -2162,11 +2203,19 @@ def permisos_list(request):
     paginator = Paginator(qs, 25)
     page = request.GET.get("page")
     items = paginator.get_page(page)
-    return render(request, "reloj/permisos_list.html", {"items": items, "emp_code_f": emp_code_f})
+    return render(request, "reloj/permisos_list.html", {
+        "items": items, "emp_code_f": emp_code_f,
+        # <--- hecho por claude code (seguridad 05-nov-2026): los botones salían con is_staff; ahora con el mismo criterio que el servidor
+        "can_edit": _puede_permiso_emp(request.user, 'editar'),
+        "can_delete": _puede_permiso_emp(request.user, 'eliminar'),
+    })
 
 
 @login_required
 def permiso_new(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login creaba permisos → Permisos – Ver + Reporte – Editar
+    if not _puede_permiso_emp(request.user, 'editar'):
+        raise PermissionDenied('No tiene permiso para registrar permisos.')
     if request.method == "POST":
         form = PermisoEmpleadoForm(request.POST)
         if form.is_valid():
@@ -2182,6 +2231,9 @@ def permiso_new(request):
 
 @staff_required
 def permiso_edit(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Permisos – Ver + Reporte – Editar
+    if not _puede_permiso_emp(request.user, 'editar'):
+        raise PermissionDenied('No tiene permiso para editar permisos.')
     obj = get_object_or_404(PermisoEmpleado, pk=pk)
     if request.method == "POST":
         form = PermisoEmpleadoForm(request.POST, instance=obj)
@@ -2198,6 +2250,11 @@ def permiso_edit(request, pk):
 @require_POST
 def permiso_approve(request, pk):
     """Aprobar/rechazar permiso rápido (AJAX o POST normal)."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Permisos – Ver + Reporte – Editar
+    if not _puede_permiso_emp(request.user, 'editar'):
+        if _is_ajax(request):
+            return _reloj_json_403()
+        raise PermissionDenied('No tiene permiso para aprobar permisos.')
     obj = get_object_or_404(PermisoEmpleado, pk=pk)
     action = (request.POST.get("action") or "").lower()
     comentario = (request.POST.get("comentario") or "").strip()
@@ -2216,6 +2273,9 @@ def permiso_approve(request, pk):
 
 @staff_required
 def permiso_delete(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff → Permisos – Ver + Reporte – Eliminar
+    if not _puede_permiso_emp(request.user, 'eliminar'):
+        raise PermissionDenied('No tiene permiso para eliminar permisos.')
     obj = get_object_or_404(PermisoEmpleado, pk=pk)
     if request.method == "POST":
         obj.delete()
@@ -2382,7 +2442,7 @@ def _compensado_real_map(emp_codes, fi, ff, tope=47, inicio_map=None):
     out = {}
     if not emp_codes:
         return out
-    codigos_sql = ', '.join(f"'{c}'" for c in emp_codes)
+    codigos_sql = _sql_codigos(emp_codes)  # <--- hecho por claude code (seguridad 05-nov-2026): emp_code de CompensatorioInstructor es texto libre
     try:
         with connections['zkbio_sqlserver'].cursor() as cur:
             cur.execute(f"""
@@ -2536,7 +2596,7 @@ def _receso_compute(desde, hasta):
     codes -= {str(c) for c in CompensatorioInstructor.objects.values_list('emp_code', flat=True)}
     nombres, marcas = {}, {}
     if codes:
-        _in = ",".join(f"'{c}'" for c in sorted(codes))
+        _in = _sql_codigos(sorted(codes))  # <--- hecho por claude code (seguridad 05-nov-2026)
         try:
             with connections['zkbio_sqlserver'].cursor() as cur:
                 cur.execute(f"""
@@ -3021,6 +3081,9 @@ def _compensatorio_rediseno_rows(anio, feriados, hoy):
 def compensatorio_calculo_list(request, modo_pruebas=False):
     # <--- hecho por claude code (16-sep-2026): modo_pruebas=True → botón "Pruebas" del Reloj
     # (mismos datos, permiso propio `pruebas_comp`, plantilla aparte de solo lectura).
+    # <--- hecho por claude code (seguridad 05-nov-2026): quien no es del Reloj → 403 (no 302 al dashboard)
+    if not _reloj_acceso(request.user):
+        raise PermissionDenied('No tiene acceso al Reloj.')
     if modo_pruebas and not _reloj_can_ver(request.user, 'pruebas_comp'):
         messages.error(request, 'No tiene permiso para ver Pruebas del compensatorio.')
         return redirect('reloj_dashboard')
@@ -3050,7 +3113,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         fechas_inicio_map = {str(r.emp_code): r.fecha_inicio for r in todos_registros}
         topes_map         = {str(r.emp_code): r.minutos_autorizados_dia for r in todos_registros}
         min_fecha         = min(fechas_inicio_map.values())
-        codigos_sql       = ', '.join(f"'{c}'" for c in fechas_inicio_map.keys())
+        codigos_sql       = _sql_codigos(fechas_inicio_map.keys())  # <--- hecho por claude code (seguridad 05-nov-2026): CompensatorioCalculo.emp_code no se valida contra la lista
         try:
             with connections['zkbio_sqlserver'].cursor() as cur:
                 cur.execute(f"""
@@ -3338,6 +3401,12 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _saldo_over = {m.emp_code: float(m.saldo) for m in CompensatorioSaldoManual.objects.all()}
     except Exception:
         _saldo_over = {}
+    # <--- hecho por claude code (16-nov-2026): columna «Fecha» editable del tab Vacaciones
+    from .models import CompensatorioFechaCorte
+    try:
+        _fecha_corte = {m.emp_code: m.fecha for m in CompensatorioFechaCorte.objects.all()}
+    except Exception:
+        _fecha_corte = {}
     p_rows = []
     for _rd0 in redis_rows:
         _saldo_m = _saldo_over.get(str(_rd0['emp_code']))
@@ -3345,7 +3414,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _debe_d = round(float(_rd0['dias_necesita']) - _saldo, 3)
         if _rd0.get('al_tramos') is not None and not _rd0['al_tramos']['n']:   # año laboral sin cierres
             _debe_d = 0.0
-        p_rows.append({**_rd0, 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
+        p_rows.append({**_rd0, 'p_fecha': _fecha_corte.get(str(_rd0['emp_code'])), 'p_saldo': _saldo, 'p_saldo_manual': _saldo_m is not None, 'p_saldo_auto': _rd0['saldo'],
                        'p_debe_dias': _debe_d, 'p_debe_h': round(_debe_d * _HORAS_DIA_DEUDA, 2)})
     _p_by_pk = {x['pk']: x for x in p_rows}
     # <--- hecho por claude code (11-nov-2026): permisos «Compensatorio» ingresados por persona = los que NO caen en
@@ -3440,7 +3509,7 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
     if modo_pruebas:
         return render(request, 'reloj/compensatorio_pruebas.html', {
             **_ctx_p, 'registros_data': registros_data, 'anio_sel': anio_sel,
-            # <--- hecho por claude code (19-nov-2026): la hoja «Cálculo compensatorio <año>» se movió a Pruebas
+            # <--- hecho por claude code (19-nov-2026): la hoja «Cálculo compensatorio <año>» vive en Pruebas
             'hoja_anio': anio_sel,
             'hojas': _hojas_compensatorio(anio_sel, {str(_it['r'].emp_code): (_it.get('p_trabajadas_total_h') if _it.get('p_trab_manual') else _it.get('p_hecho_h')) for _it in registros_data if _it.get('r') is not None},
                                           _tres_hoja(registros_data)),
@@ -3474,7 +3543,6 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         "can_delete_extra": can_delete_extra,
         # <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo reloj
         "puede_tomado":     _puede_tomado_manual(request.user),
-        # <--- hecho por claude code (16-nov-2026): tab «Cálculo compensatorio <año>» (hoja por empleado)
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')
@@ -3512,6 +3580,36 @@ def compensatorio_saldo_manual_save(request):
         return JsonResponse({'ok': False, 'error': 'Valor inválido'}, status=400)
     CompensatorioSaldoManual.objects.update_or_create(emp_code=emp, defaults={'saldo': val})
     return JsonResponse({'ok': True, 'manual': True, 'saldo': val})
+
+
+@login_required
+def compensatorio_fecha_corte_save(request):
+    """<--- hecho por claude code (16-nov-2026): guarda la «Fecha» del tab Vacaciones (vacía = quitarla)."""
+    import datetime as _dt
+    from .models import CompensatorioFechaCorte
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    if not _reloj_can(request.user, 'calculo_comp', 'editar'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    try:
+        d = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    emp = str(d.get('emp_code') or '').strip()[:20]
+    if not emp:
+        return JsonResponse({'ok': False, 'error': 'emp_code requerido'}, status=400)
+    raw = str(d.get('fecha') or '').strip()
+    if raw == '':
+        CompensatorioFechaCorte.objects.filter(emp_code=emp).delete()
+        return JsonResponse({'ok': True, 'fecha': ''})
+    try:
+        f = _dt.date.fromisoformat(raw)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Fecha inválida'}, status=400)
+    if not (2000 <= f.year <= 2100):
+        return JsonResponse({'ok': False, 'error': 'Fecha fuera de rango'}, status=400)
+    CompensatorioFechaCorte.objects.update_or_create(emp_code=emp, defaults={'fecha': f})
+    return JsonResponse({'ok': True, 'fecha': f.isoformat()})
 
 
 @login_required
@@ -3846,6 +3944,9 @@ def compensatorio_calculo_get_tiempo_extra(request, pk):
     AJAX GET: devuelve las entradas TiempoExtraDia del empleado en el calculo.
     <--- hecho por claude code
     """
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login → ver Control Compensatorio o Pruebas (las dos pantallas que lo llaman)
+    if not _reloj_puede_ver_alguno(request.user, 'calculo_comp', 'pruebas_comp'):
+        return _reloj_json_403()
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
     qs = TiempoExtraDia.objects.filter(emp_code=obj.emp_code).order_by('fecha')
     total_te = sum(t.minutos for t in qs)
@@ -4066,6 +4167,9 @@ def compensatorio_set_factor(request, pk):
 @login_required
 def compensatorio_dias_no_lab_get(request, pk):
     """AJAX GET: devuelve lista de días no laborables ANA de un CompensatorioCalculo."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login → ver Control Compensatorio o Pruebas
+    if not _reloj_puede_ver_alguno(request.user, 'calculo_comp', 'pruebas_comp'):
+        return _reloj_json_403()
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
     hoy = date.today()
     dias = [
@@ -4353,6 +4457,9 @@ def _receso_tomado_emp(obj):
 @login_required
 def compensatorio_calculo_get_tomado(request, pk):
     """AJAX GET: detalle del permiso compensatorio + tomado manual de un empleado."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): permisos (fecha/razón) de un empleado con solo login → ver Control Compensatorio o Pruebas
+    if not _reloj_puede_ver_alguno(request.user, 'calculo_comp', 'pruebas_comp'):
+        return _reloj_json_403()
     obj = get_object_or_404(CompensatorioCalculo, pk=pk)
     # <--- hecho por claude code (pedido del usuario): el detalle SIEMPRE es permiso compensatorio
     # + tomado manual + receso (se quitó la rama de días no laborables ANA como tomado).
@@ -5112,7 +5219,7 @@ def permiso_reporte_list(request):
     vigil_codes = {e['emp_code'] for e in empleados if 'vigilan' in (e['cargo'] or '').lower()}
     vigil_entrada_map = {}
     if vigil_codes:
-        _vin = ",".join(f"'{c}'" for c in vigil_codes)
+        _vin = _sql_codigos(vigil_codes)  # <--- hecho por claude code (seguridad 05-nov-2026)
         try:
             with connections['zkbio_sqlserver'].cursor() as cursor:
                 cursor.execute(f"""
@@ -5725,6 +5832,9 @@ def maestro_dia_set(request):
 def permiso_rebaja_toggle(request):
     """AJAX: activa/desactiva horas_rebaja para un empleado en un mes."""
     from datetime import date as _d
+    # <--- hecho por claude code (seguridad 05-nov-2026): cualquier usuario con sesión activaba la REBAJA salarial → Reporte – Editar
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
     emp_code = request.POST.get('emp_code', '').strip()
     mes_str  = request.POST.get('mes', '').strip()
     activa   = request.POST.get('activa') == '1'
@@ -5735,6 +5845,9 @@ def permiso_rebaja_toggle(request):
         mes = _d(year, month, 1)
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Mes inválido'})
+    # <--- hecho por claude code (seguridad 05-nov-2026): respeta el cierre del mes (como los permisos)
+    if _permiso_mes_cerrado(mes, request.user):
+        return JsonResponse({'ok': False, 'error': 'Este mes ya está cerrado (último día hábil a las 4:35 PM).'})
     obj = _mensual_get_or_create(emp_code, mes)
     obj.rebaja_activa = activa
     obj.save(update_fields=['rebaja_activa'])
@@ -5746,6 +5859,9 @@ def permiso_reporte_set_campo(request):
     """AJAX: guarda el valor de un campo de permiso para un empleado/mes."""
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
+    # <--- hecho por claude code (seguridad 05-nov-2026): cualquier usuario con sesión cambiaba permisos/ausencias y pierde_bono → Reporte – Editar
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
 
     from datetime import date as _date
 
@@ -5763,6 +5879,9 @@ def permiso_reporte_set_campo(request):
         mes = _date(year, month, 1)
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Mes inválido'})
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo cierre de mes que permiso_reporte_save (antes se saltaba por aquí)
+    if _permiso_mes_cerrado(mes, request.user):
+        return JsonResponse({'ok': False, 'error': 'Los permisos de este mes ya están cerrados (último día hábil a las 4:35 PM).'})
 
     try:
         if campo == 'pierde_bono':
@@ -5844,6 +5963,9 @@ def _sync_permiso_mensual(emp_code, fecha, tipo, nombre=''):
 def permiso_reporte_save(request):
     """AJAX: crea o actualiza un PermisoReporte y sincroniza el resumen mensual."""
     from datetime import date as _d
+    # <--- hecho por claude code (seguridad 05-nov-2026): cualquier usuario con sesión registraba/editaba permisos de cualquier emp_code → Reporte – Editar
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
 
     pk_str       = request.POST.get('pk', '').strip()
     emp_code     = request.POST.get('emp_code', '').strip()
@@ -5923,6 +6045,8 @@ def permiso_reporte_save(request):
     if pk_str:
         try:
             obj = PermisoReporte.objects.get(pk=int(pk_str))
+            # <--- hecho por claude code (seguridad 05-nov-2026): el resumen se sincroniza con el empleado DEL permiso, no con el emp_code que mande el navegador
+            emp_code  = (obj.emp_code or emp_code)
             old_tipo  = obj.tipo
             old_fecha = obj.fecha
             obj.fecha = fecha; obj.fecha_fin = fecha_fin
@@ -5931,7 +6055,7 @@ def permiso_reporte_save(request):
             obj.save()
             if old_tipo != tipo or old_fecha != fecha:
                 _sync_permiso_mensual(emp_code, old_fecha, old_tipo, nombre)
-        except PermisoReporte.DoesNotExist:
+        except (PermisoReporte.DoesNotExist, ValueError):
             return JsonResponse({'ok': False, 'error': 'Permiso no encontrado'})
     else:
         obj, _ = PermisoReporte.objects.update_or_create(
@@ -5975,6 +6099,9 @@ def permiso_list_mes(request):
     """AJAX GET: devuelve todos los PermisoReporte de un empleado en un mes."""
     from datetime import date as _date
     import calendar as _cal
+    # <--- hecho por claude code (seguridad 05-nov-2026): permisos (fechas, razones) de cualquier emp_code con solo login → ver Reporte
+    if not _reloj_can_ver(request.user, 'reporte'):
+        return _reloj_json_403()
 
     emp_code = (request.GET.get('emp_code') or '').strip()
     mes_str  = (request.GET.get('mes') or '').strip()
@@ -6322,6 +6449,9 @@ def vacacion_config_save(request):
 def vacacion_balance(request):
     """AJAX GET: devuelve balance de vacaciones de un empleado para el período activo."""
     from django.db.models import Sum as _Sum
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo login → ver Reporte (Generar Reporte / Reporte de Permisos lo usan) o Vacaciones
+    if not _reloj_puede_ver_alguno(request.user, 'reporte', 'vacaciones'):
+        return _reloj_json_403()
     emp_code = (request.GET.get('emp_code') or '').strip()
     if not emp_code:
         return JsonResponse({'ok': False, 'error': 'emp_code requerido'})
@@ -6448,9 +6578,9 @@ def vacacion_editar_dias_usados(request):
 
 @login_required
 def vacaciones_importar(request):
-    if not request.user.is_staff:
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden()
+    # <--- hecho por claude code (seguridad 05-nov-2026): bastaba is_staff (cualquier coordinador sobrescribía fechas de ingreso) → Vacaciones – Editar (glorenzo, ylagos)
+    if not _reloj_can(request.user, 'vacaciones', 'editar'):
+        raise PermissionDenied('No tiene permiso para importar vacaciones.')
 
     resultados = None
 
@@ -6552,9 +6682,8 @@ def vacaciones_importar(request):
 # ──────────────────────────────────────────────────────────────────────────────
 @login_required
 def vigilancia_list(request):
-    rp = getattr(request.user, 'reloj_permiso', None)
-    if not (request.user.is_superuser or request.user.is_staff or (rp and rp.vigilancia_ver)):
-        from django.core.exceptions import PermissionDenied
+    # <--- hecho por claude code (seguridad 05-nov-2026): is_staff no es rol (cualquier coordinador veía las marcas de los vigilantes) → Vigilancia – Ver, como la tarjeta del dashboard
+    if not _reloj_can_ver(request.user, 'vigilancia'):
         raise PermissionDenied
 
     from datetime import date as _date, timedelta as _td
@@ -6687,9 +6816,8 @@ def vigilancia_list(request):
 # ──────────────────────────────────────────────────────────────────────────────
 @login_required
 def cfp_list(request):
-    rp = getattr(request.user, 'reloj_permiso', None)
-    if not (request.user.is_superuser or request.user.is_staff or (rp and rp.cfp_ver)):
-        from django.core.exceptions import PermissionDenied
+    # <--- hecho por claude code (seguridad 05-nov-2026): is_staff no es rol → quien entra al Reloj (mismo criterio que el menú, que la enlaza) o Instructores CFP – Ver. Página "en construcción", sin datos.
+    if not (_reloj_acceso(request.user) or _reloj_can_ver(request.user, 'cfp')):
         raise PermissionDenied
     return render(request, 'reloj/cfp_list.html', {})
 
@@ -6701,6 +6829,9 @@ def cfp_list(request):
 @require_POST
 def permiso_reporte_set_horas_diarias(request):
     from datetime import date as _date
+    # <--- hecho por claude code (seguridad 05-nov-2026): cualquier usuario con sesión cambiaba la jornada (divisor horas→días) → Reporte – Editar
+    if not _reloj_can(request.user, 'reporte', 'editar'):
+        return _reloj_json_403()
     emp_code  = (request.POST.get('emp_code') or '').strip()
     mes_str   = (request.POST.get('mes') or '').strip()
     valor_str = (request.POST.get('valor') or '8.0').strip().replace(',', '.')

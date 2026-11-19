@@ -133,14 +133,28 @@
         </form>
         <div id="add-msg" class="small mt-2"></div>
       </div>
+      {# <--- hecho por claude code (17-nov-2026): filtro por área de la lista blanca #}
+      <div class="card-body border-bottom py-2 d-flex flex-wrap align-items-center gap-2" id="areas-filtro">
+        <span class="small fw-semibold text-muted me-1">Área:</span>
+        <button type="button" class="btn btn-sm btn-primary a-filtro" data-area="">Todos <span class="badge bg-white text-primary ms-1">{{ correos|length }}</span></button>
+        {% for k, n, cnt in areas_correo %}
+        <button type="button" class="btn btn-sm btn-outline-secondary a-filtro" data-area="{{ k }}">{{ n }} <span class="badge bg-secondary-lt ms-1 a-cnt" data-area="{{ k }}">{{ cnt }}</span></button>
+        {% endfor %}
+      </div>
       <div class="table-responsive">
         <table class="table table-vcenter table-sm mb-0">
-          <thead><tr><th>Correo</th><th>Nombre</th><th class="text-center">Estado</th><th class="text-center">Cuenta</th><th></th></tr></thead>
+          <thead><tr><th>Correo</th><th>Nombre</th><th class="text-center">Área</th><th class="text-center">Estado</th><th class="text-center">Cuenta</th><th class="text-end"><label class="form-check form-switch d-inline-flex align-items-center gap-2 mb-0 fw-normal text-nowrap" title="Habilita o deshabilita todos los correos que se ven en la tabla (respeta el filtro de área)"><span class="small">Todos</span><input type="checkbox" class="form-check-input m-0" id="c-todos"></label></th></tr></thead>
           <tbody id="tabla-correos">
             {% for c in correos %}
-            <tr data-id="{{ c.id }}">
+            <tr data-id="{{ c.id }}" data-area="{{ c.area_ef }}">
               <td class="font-monospace">{{ c.correo }}</td>
               <td>{{ c.nombre|default:"—" }}</td>
+              <td class="text-center">
+                <select class="form-select form-select-sm c-area w-auto mx-auto" title="{% if c.area %}Elegida a mano{% else %}Automática por los grupos de la cuenta{% endif %}">
+                  <option value=""{% if not c.area %} selected{% endif %}>Auto ({% for k, n, cnt in areas_correo %}{% if k == c.area_auto %}{{ n }}{% endif %}{% endfor %})</option>
+                  {% for k, n, cnt in areas_correo %}<option value="{{ k }}"{% if c.area == k %} selected{% endif %}>{{ n }}</option>{% endfor %}
+                </select>
+              </td>
               <td class="text-center">
                 <span class="badge {% if c.activo %}bg-green-lt text-green{% else %}bg-secondary-lt text-secondary{% endif %} c-estado">
                   {% if c.activo %}Habilitado{% else %}Deshabilitado{% endif %}
@@ -156,7 +170,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted py-4">La lista está vacía.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">La lista está vacía.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -171,11 +185,14 @@
      data-ptoggle="{% url 'seguridad_programa_toggle' %}"
      data-add="{% url 'seguridad_correo_add' %}"
      data-ctoggle="{% url 'seguridad_correo_toggle' %}"
+     data-carea="{% url 'seguridad_correo_area' %}"
+     data-cmasivo="{% url 'seguridad_correo_masivo' %}"
      data-cdel="{% url 'seguridad_correo_del' %}"
      data-import="{% url 'seguridad_correos_import' %}"
      data-csrf="{{ csrf_token }}"></div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'accounts/js/panel_seguridad.js' %}?v=3"></script>
+<script src="{% static 'accounts/js/panel_seguridad.js' %}?v=4"></script>
+<script src="{% static 'accounts/js/seguridad_areas.js' %}?v=2"></script>
 {% endblock %}

@@ -59,8 +59,14 @@
         </div>
         <div class="col-md-8">
           <label class="form-label fw-semibold">Correo electrónico</label>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): el correo es la identidad de acceso y la llave de varios permisos; solo lo cambia el superusuario #}
+          {% if request.user.is_superuser %}
           <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
           <div class="form-hint">Este correo es tu usuario de acceso al sistema.</div>
+          {% else %}
+          <input type="email" class="form-control bg-light" value="{{ request.user.email }}" disabled>
+          <div class="form-hint">Este correo es tu usuario de acceso al sistema. Si hay que cambiarlo, pídeselo al administrador.</div>
+          {% endif %}
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Usuario (login)</label>
@@ -137,7 +143,7 @@
         <div class="col-md-6">
           <label class="form-label fw-semibold">Nueva contraseña <span class="text-red">*</span></label>
           <input type="password" class="form-control" name="new_password" required minlength="8" autocomplete="new-password">
-          <div class="form-hint">Mínimo 8 caracteres.</div>
+          <div class="form-hint">Mínimo 8 caracteres, no solo números, ni común ni parecida a tu usuario o nombre.</div>{# <--- hecho por claude code (seguridad 05-nov-2026): reglas de AUTH_PASSWORD_VALIDATORS #}
         </div>
         <div class="col-md-6">
           <label class="form-label fw-semibold">Confirmar nueva contraseña <span class="text-red">*</span></label>

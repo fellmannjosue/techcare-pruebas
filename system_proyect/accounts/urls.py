@@ -1,5 +1,8 @@
 from django.urls import path
 from . import views, suplantar, views_entorno
+from . import views_documentacion   # <--- hecho por claude code (09-nov-2026): Configuración → Documentación
+from . import views_auditoria_rol   # <--- hecho por claude code (10-nov-2026): Configuración → Rol Auditoría
+from . import recuperacion   # <--- hecho por claude code (09-nov-2026): recuperación de contraseña con límite y bitácora
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -18,6 +21,8 @@ urlpatterns = [
     path('seguridad/programa/toggle/', views.seguridad_programa_toggle, name='seguridad_programa_toggle'),  # <--- hecho por claude code (10-sep-2026)
     path('seguridad/correo/add/',      views.seguridad_correo_add,   name='seguridad_correo_add'),
     path('seguridad/correo/toggle/',   views.seguridad_correo_toggle,name='seguridad_correo_toggle'),
+    path('seguridad/correo/area/',     views.seguridad_correo_area, name='seguridad_correo_area'),  # <--- hecho por claude code (17-nov-2026)
+    path('seguridad/correo/masivo/',   views.seguridad_correo_masivo, name='seguridad_correo_masivo'),  # <--- hecho por claude code (17-nov-2026)
     path('seguridad/correo/del/',      views.seguridad_correo_del,   name='seguridad_correo_del'),
     path('seguridad/correos/export/<str:fmt>/', views.seguridad_correos_export, name='seguridad_correos_export'),
     path('seguridad/correos/import/',           views.seguridad_correos_import, name='seguridad_correos_import'),
@@ -52,6 +57,9 @@ urlpatterns = [
     path('settings/variables/guardar/',                views_entorno.entorno_guardar,      name='entorno_guardar'),
     path('settings/variables/probar/',                 views_entorno.entorno_probar,       name='entorno_probar'),
     path('settings/codigo/',                           views.settings_codigo,           name='settings_codigo'),   # <--- hecho por claude code (16-oct-2026)
+    path('settings/sin-conexion/',                     views.settings_offline,          name='settings_offline'),   # <--- hecho por claude code (13-nov-2026): modo sin conexión (beta)
+    path('settings/limpieza/',                         views.settings_limpieza,         name='settings_limpieza'),   # <--- hecho por claude code (13-nov-2026): respaldo JSON general + limpieza de módulos
+    path('settings/limpieza/descargar/',               views.settings_limpieza_descargar, name='settings_limpieza_descargar'),
     path('settings/logs/api/',                         views.settings_logs_api,         name='settings_logs_api'),
     path('settings/auditoria/',                        views.settings_auditoria,        name='settings_auditoria'),
     path('settings/correos/',                          views.settings_correos,          name='settings_correos'),
@@ -66,6 +74,13 @@ urlpatterns = [
     path('settings/conducta/notificaciones/',                   views.settings_notificaciones_conducta,  name='settings_notificaciones_conducta'),
     path('settings/conducta/notificaciones/<int:pk>/eliminar/', views.settings_notificacion_eliminar,    name='settings_notificacion_eliminar'),
     path('settings/conducta/roles/',                            views.settings_roles,                    name='settings_roles'),
+    # <--- hecho por claude code (09-nov-2026): programas por aplicación (Web / .exe / APK)
+    path('settings/canales/',          views.settings_canales,        name='settings_canales'),
+    path('settings/auditoria-rol/', views_auditoria_rol.settings_auditoria_rol, name='settings_auditoria_rol'),   # <--- hecho por claude code (10-nov-2026)
+    path('settings/documentacion/',    views_documentacion.settings_documentacion, name='settings_documentacion'),   # <--- hecho por claude code (09-nov-2026)
+    path('settings/documentacion/pdf/', views_documentacion.settings_documentacion_pdf, name='settings_documentacion_pdf'),   # <--- hecho por claude code (10-nov-2026)
+    path('settings/canales/toggle/',   views.settings_canales_toggle, name='settings_canales_toggle'),
+    path('settings/canales/probar/',   views.settings_canales_probar, name='settings_canales_probar'),
     path('settings/datashow/',                                  views.settings_datashow,                 name='settings_datashow'),  # <--- hecho por claude code (03-nov-2026): asignar grupo "datashow" con checkboxes
     path('settings/reloj/permisos/',                            views.settings_reloj_permisos,           name='settings_reloj_permisos'),
     path('settings/coordinadores/permisos/',                    views.settings_coord_permisos,           name='settings_coord_permisos'),
@@ -74,7 +89,7 @@ urlpatterns = [
     path('settings/desbloqueos/desbloquear/',                   views.desbloquear_usuario,               name='desbloquear_usuario'),
 
     # Recuperación de contraseña (vistas estándar de Django)
-    path('password_reset/', auth_views.PasswordResetView.as_view(
+    path('password_reset/', recuperacion.PasswordResetLimitadoView.as_view(
         template_name='accounts/password_reset_form.html',
         email_template_name='accounts/password_reset_email.txt',
         subject_template_name='accounts/password_reset_subject.txt',
@@ -82,7 +97,7 @@ urlpatterns = [
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(
         template_name='accounts/password_reset_done.html',
     ), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+    path('reset/<uidb64>/<token>/', recuperacion.PasswordResetConfirmRegistradoView.as_view(
         template_name='accounts/password_reset_confirm.html',
     ), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(

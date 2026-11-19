@@ -45,3 +45,20 @@
   var botones = document.querySelectorAll('.tc-add-catalog');
   for (var i = 0; i < botones.length; i++) { wire(botones[i]); }
 })();
+
+/* <--- hecho por claude code (06-nov-2026): ayuda («i») con tooltip y aviso propio de campo obligatorio:
+   «Por favor llena este campo.» + la indicación breve (data-msg, la misma que da el servidor). */
+(function () {
+  'use strict';
+  if (window.bootstrap && bootstrap.Tooltip) {
+    document.querySelectorAll('.ds-info[data-bs-toggle="tooltip"]').forEach(function (el) {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  }
+  document.querySelectorAll('[data-msg]').forEach(function (campo) {
+    campo.addEventListener('invalid', function () {
+      if (campo.validity.valueMissing) campo.setCustomValidity(campo.dataset.msg);
+    });
+    campo.addEventListener('input', function () { campo.setCustomValidity(''); });
+  });
+})();

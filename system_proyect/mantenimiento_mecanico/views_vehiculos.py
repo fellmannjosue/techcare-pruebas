@@ -18,7 +18,8 @@ from django.core.exceptions import PermissionDenied
 from . import vehiculos_db as VS
 from .models import (Comentario, FIRMA_AUDITORA, GRUPO_VEH_ALERTAS, GRUPO_VEH_AUDITORIA, GRUPO_VEH_KM,
                      GRUPO_VEH_REGISTRO)
-from .views import _encabezado, _fecha, _logo_file, _pdf, _wb, _xlsx_response
+from .views import _encabezado, _entero, _fecha, _logo_file, _pdf, _wb, _xlsx_response
+from .views import puede_ver as _puede_ver_insumos   # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que el menú (nav_mm_insumos), sin nombres de grupo escritos a mano
 
 
 def _g(user, *grupos):
@@ -133,7 +134,7 @@ def detalle(request, vid):
     from .models import Entrega
     cargas = list(Entrega.objects.filter(vehiculo_id=vid, insumo__clave='diesel').order_by('-fecha', '-hora', '-id')[:30])
     ctx = _perms(request.user)
-    ctx.update({'cargas_diesel': cargas, 'puede_diesel': request.user.is_superuser or _g(request.user, 'mantenimiento_mecanico', 'mantenimiento_mecanico_lectura')})
+    ctx.update({'cargas_diesel': cargas, 'puede_diesel': _puede_ver_insumos(request.user)})   # <--- hecho por claude code (seguridad 05-nov-2026): ver el import de _puede_ver_insumos
     ctx.update({'v': v, 'tareas': tareas, 'hist': hist, 'lecturas': VS.lecturas(vid),
                 'personas': VS.personas(), 'hoy': datetime.date.today(),
                 'n_toca': sum(1 for t in tareas if t['toca']),
@@ -143,7 +144,7 @@ def detalle(request, vid):
 
 def _valor(request):
     raw = (request.POST.get('valor') or '').strip().replace(',', '').replace('.', '')
-    return int(raw) if raw.isdigit() else None
+    return _entero(raw)   # <--- hecho por claude code (seguridad 05-nov-2026): cifras ASCII, hasta 9 (con isdigit() un '²' o un número enorme daban 500)
 
 
 @login_required
@@ -175,16 +176,16 @@ def mant_crear(request, vid):
     _gate(request, puede_mant)
     v = _veh(vid)
     valor, fecha = _valor(request), _fecha(request.POST.get('fecha'))
-    persona = (request.POST.get('persona') or '').strip()
+    persona = _entero(request.POST.get('persona'))   # <--- hecho por claude code (seguridad 05-nov-2026): ver _entero
     tareas = VS.tareas_para(v)
     ids_validos = {t['id'] for t in tareas}
-    hechas = {int(x) for x in request.POST.getlist('hecho') if x.isdigit() and int(x) in ids_validos}
+    hechas = {n for n in (_entero(x) for x in request.POST.getlist('hecho')) if n in ids_validos}   # <--- hecho por claude code (seguridad 05-nov-2026): ver _entero
     err = []
     if valor is None:
         err.append('Escribe el km/horas del mantenimiento.')
     if not fecha or fecha > datetime.date.today():
         err.append('La fecha es obligatoria y no puede ser futura.')
-    if not persona.isdigit() or int(persona) not in {p['id'] for p in VS.personas()}:
+    if persona is None or persona not in {p['id'] for p in VS.personas()}:
         err.append('Elige quién hizo el mantenimiento.')
     if valor is not None and v['KmUltMant'] is not None and valor < v['KmUltMant'] and not v.get('SinTacometro'):
         err.append(f'El valor ({valor:,}) es menor al del último mantenimiento ({v["KmUltMant"]:,}).'.replace(',', '.'))
@@ -194,7 +195,7 @@ def mant_crear(request, vid):
         for e in err:
             messages.error(request, e)
         return redirect('vehiculos:detalle', vid=vid)
-    mid = VS.registrar_mantenimiento(vid, valor, fecha, int(persona), hechas, [t['id'] for t in tareas], request.user)
+    mid = VS.registrar_mantenimiento(vid, valor, fecha, persona, hechas, [t['id'] for t in tareas], request.user)
     prox = valor + v['intervalo'] if v['intervalo'] else None
     messages.success(request, f'Mantenimiento registrado ({len(hechas)} de {len(tareas)} tareas hechas).'
                      + (f' Próximo a los {prox:,} {v["unidad"]}.'.replace(',', '.') if prox else ''))
@@ -309,7 +310,7 @@ def _leer_vehiculo(request, obj):
         obj.anio = None
     try:
         obj.intervalo = int((P.get('intervalo') or '').replace('.', '').replace(',', ''))
-        if obj.intervalo <= 0:
+        if not 0 < obj.intervalo <= 1_000_000:   # <--- hecho por claude code (seguridad 05-nov-2026): tope (un número enorme reventaba con 500 al guardar)
             raise ValueError
     except ValueError:
         errores.append('El intervalo de mantenimiento es obligatorio (km, horas o millas entre cada mantenimiento).')
@@ -326,7 +327,7 @@ def _leer_vehiculo(request, obj):
     if li:
         try:
             lectura = int(li)
-            if lectura < 0:
+            if not 0 <= lectura <= 999_999_999:   # <--- hecho por claude code (seguridad 05-nov-2026): tope (ver intervalo)
                 raise ValueError
         except ValueError:
             errores.append('La lectura inicial debe ser un número entero.')

@@ -212,7 +212,7 @@
             </a>
           </li>
           {# <--- hecho por claude code (16-sep-2026): botón Pruebas (compensatorio 47 min + matrícula), solo con permiso pruebas_comp #}
-          {% if nav_reloj_pruebas %}{# <--- hecho por claude code (16-nov-2026): «Pruebas» visible otra vez: ahí quedan los tabs 1·2·3 del compensatorio #}
+          {% if nav_reloj_pruebas %}{# <--- hecho por claude code (16-nov-2026, PRUEBAS): «Pruebas» visible: ahí vive el compensatorio en rediseño #}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'reloj_compensatorio_pruebas' %}">
               <span class="nav-link-icon"><i class="ti ti-flask"></i></span>
@@ -266,7 +266,7 @@
   </li>
   {% endif %}
 
-  {# ── Solicitud de DataShow (hecho por claude code, 02-nov-2026: reserva con calendario, autoriza Soporte) ── #}
+  {# ── Solicitud de DataShow (hecho por claude code, 03-nov-2026: reserva con calendario, autoriza Soporte) ── #}
   {% if nav_datashow %}
   <li class="nav-item">
     <a class="nav-link" href="{% url 'datashow:index' %}">
@@ -458,7 +458,7 @@
         </a>
         <ul class="navbar-nav ps-3" id="navEnfermeriaModulos">
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'enfermeria:directorio_telefonos' %}">
+            <a class="nav-link" href="{% url 'directorio_telefonos' %}">
               <span class="nav-link-icon"><i class="ti ti-address-book text-green"></i></span>
               <span class="nav-link-title">Directorio</span>
             </a>

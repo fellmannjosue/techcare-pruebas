@@ -104,9 +104,11 @@
                         data-iid="{{ c.ingr_egr_id }}" title="Editar">
                   <i class="ti ti-pencil"></i>
                 </button>
+                {% if puede_eliminar %}{# <--- hecho por claude code (seguridad 05-nov-2026): coord_revision no elimina (el servidor da 403) #}
                 <button class="btn btn-sm btn-outline-danger btn-eliminar" data-id="{{ c.pk }}" title="Eliminar">
                   <i class="ti ti-trash"></i>
                 </button>
+                {% endif %}
               </div>
               <div class="d-flex gap-1 d-none" id="acciones-edit-{{ c.pk }}">
                 <button class="btn btn-sm btn-success btn-guardar-edit"

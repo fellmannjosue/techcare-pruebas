@@ -43,6 +43,11 @@ def validar_vlan(vlan):
     if red is None:
         errores.append('La subred (CIDR) no es válida. Ej: 192.168.60.0/24')
         return errores  # sin red no se puede validar el resto
+    # <--- hecho por claude code (seguridad 05-nov-2026): tope /16. Al guardar se crea una fila por IP del rango: un /8 por error
+    # eran ~16,7 millones de filas y objetos en memoria (tumbaba el proceso de Apache). Las VLAN reales son /24.
+    if red.version != 4 or red.num_addresses > 65536:
+        errores.append('La subred es demasiado grande o no es IPv4: el máximo es una /16 (65.534 direcciones).')
+        return errores
 
     net, bcast = red.network_address, red.broadcast_address
 

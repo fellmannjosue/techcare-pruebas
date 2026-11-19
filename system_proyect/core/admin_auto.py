@@ -55,7 +55,8 @@ def registrar_faltantes(sitio=admin.site):
         for modelo in app.get_models():
             meta = modelo._meta
             if (sitio.is_registered(modelo) or not meta.managed or meta.proxy
-                    or modelo.__name__.startswith('Historical')):
+                    or modelo.__name__.startswith('Historical')
+                    or getattr(modelo, 'SIN_ADMIN', False)):   # <--- hecho por claude code (06-nov-2026): modelos retirados a propósito
                 continue
             try:
                 sitio.register(modelo, _admin_para(modelo))

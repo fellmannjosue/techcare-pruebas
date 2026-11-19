@@ -123,6 +123,10 @@ class CorreoInstitucional(models.Model):
     correo = models.EmailField('Correo institucional', unique=True)
     nombre = models.CharField('Nombre (referencia)', max_length=120, blank=True, default='')
     activo = models.BooleanField('Habilitado para registro', default=True)
+    # <--- hecho por claude code (17-nov-2026): área para clasificar la lista en Seguridad (vacío = automático por grupos)
+    AREAS = [('dir', 'Dirección'), ('coord_bl', 'Coordinación BL'), ('coord_col', 'Coordinación Col'),
+             ('bl', 'BL'), ('col', 'Col'), ('cfp', 'CFP'), ('admin', 'Admin'), ('pruebas', 'Pruebas'), ('otros', 'Otros')]
+    area = models.CharField('Área', max_length=10, choices=AREAS, blank=True, default='')
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:

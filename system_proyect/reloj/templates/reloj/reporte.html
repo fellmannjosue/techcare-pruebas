@@ -134,7 +134,8 @@
                   {% for c in row.Comentarios %}
                   <li data-pk="{{ c.pk }}">
                     <span>{{ c.texto }}</span>
-                    <button class="btn-del-cmt" title="Eliminar"><i class="ti ti-x" style="font-size:.75rem;"></i></button>
+                    {# <--- hecho por claude code (seguridad 05-nov-2026): la X solo si el servidor deja borrarlo (autor, o Reporte – Eliminar para los ajenos) #}
+                    {% if c.puede_borrar %}<button class="btn-del-cmt" title="Eliminar"><i class="ti ti-x" style="font-size:.75rem;"></i></button>{% endif %}
                   </li>
                   {% endfor %}
                 </ul>
@@ -190,5 +191,5 @@
 }
 </script>
 <script src="{% static 'reloj/js/reporte_page.js' %}?v=2"></script>
-<script src="{% static 'reloj/js/reporte.js' %}?v=5"></script>
+<script src="{% static 'reloj/js/reporte.js' %}?v=6"></script>{# <--- hecho por claude code (seguridad 05-nov-2026): v6 avisa si no se pudo borrar un comentario #}
 {% endblock %}

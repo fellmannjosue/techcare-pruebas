@@ -10,12 +10,16 @@ class AccountsConfig(AppConfig):
         from django.dispatch import receiver
         from .models import RegistroAcceso
 
-        @receiver(user_logged_in)
+        # <--- hecho por claude code (09-nov-2026): weak=False — al ser una función interna de ready(), con la referencia
+        # débil por defecto Python la descartaba y la señal NUNCA registraba nada (solo registraba la vista de login).
+        @receiver(user_logged_in, weak=False, dispatch_uid='tc_registro_acceso')
         def registrar_acceso(sender, request, user, **kwargs):
-            ip = (
-                request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-                or request.META.get('REMOTE_ADDR')
-            )
+            # <--- hecho por claude code (09-nov-2026): IP = REMOTE_ADDR (sin proxy, X-Forwarded-For lo inventa el cliente).
+            # Al "Iniciar sesión como" / "Volver" no se registra un acceso: queda en la bitácora Suplantacion.
+            if request is None or getattr(request, '_tc_suplantacion', False):
+                return
+            from core.seguridad_eventos import ip_cliente
+            ip = ip_cliente(request)
             RegistroAcceso.objects.create(
                 usuario=user,
                 username=user.get_username(),

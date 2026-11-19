@@ -1,7 +1,7 @@
 {% load static %}
 {# <--- hecho por claude code: overlay de bienvenida universal — se incluye en todos los base templates #}
 <link rel="stylesheet" href="{% static 'accounts/css/welcome_overlay.css' %}?v=3">
-{% include 'accounts/_suplantacion_banner.html' %}
+{% include 'accounts/_suplantacion_banner.html' %}{% include 'accounts/_auditoria_banner.html' %}
 
 <div id="tcWelcomeOverlay">
 

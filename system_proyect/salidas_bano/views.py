@@ -4,17 +4,22 @@ from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import connections
+from django.db.models import Q
+from django.utils.html import escape
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.views.decorators.http import require_POST, require_GET
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 
-from .models import PeriodoEscolar, MaestroClase, SalidaBano, NotificacionSalida
-from .forms import PeriodoEscolarForm, MaestroClaseForm
+from .models import MaestroClase, SalidaBano, NotificacionSalida
+from conducta.models import PeriodoEscolarConducta   # <--- hecho por claude code (06-nov-2026): Período Escolar GENERAL
+from .forms import MaestroClaseForm
 
 User = get_user_model()
 
@@ -138,10 +143,20 @@ def _display_grados(area):
 def _get_periodo_activo(area):
     """Retorna el periodo activo para el área dada (o None)."""
     # Busca periodo activo que aplique al área o sea 'ambos'
-    q = PeriodoEscolar.objects.filter(activo=True)
-    # Filtra por area: exacto o 'ambos'
-    periodo = q.filter(area=area).first() or q.filter(area='ambos').first()
-    return periodo
+    # <--- hecho por claude code (06-nov-2026, pedido del usuario): el período sale del Período Escolar GENERAL
+    # (Configuración Académica, solo superusuario). Colegio y Bachillerato usan el de 'colegio' o 'ambas'; CFP solo 'cfp'.
+    p = _periodos_del_area(area).filter(activo=True).order_by('-anio', '-parcial').first()
+    # <--- hecho por claude code (06-nov-2026): con «Salidas al Baño» cerrado en el período, no hay período para registrar
+    return p if (p and p.modulo_abierto('sal')) else None
+
+
+def _areas_periodo(area):
+    """Áreas del Período Escolar general que le sirven a un área de Salidas."""
+    return ['cfp'] if area == 'cfp' else ['colegio', 'ambas']
+
+
+def _periodos_del_area(area):
+    return PeriodoEscolarConducta.objects.filter(area__in=_areas_periodo(area))
 
 
 def _alumnos_sqlserver(area):
@@ -200,13 +215,39 @@ def _notif_no_leidas(user):
 GRP_MAESTRO = 'control baños col'
 GRP_COORD   = 'control baño coord'
 
+# <--- hecho por claude code (seguridad 05-nov-2026): únicas áreas que existen en SalidaBano; lo que mande el navegador fuera de esta lista se rechaza.
+_AREAS_VALIDAS = ('colegio', 'bachillerato', 'cfp')
+
+
+def _pk(valor):
+    """<--- hecho por claude code (seguridad 05-nov-2026): id del navegador como entero (antes 'abc' en ?editar= u obj_id daba 500)."""
+    try:
+        return int(str(valor).strip())
+    except (TypeError, ValueError):
+        return None
+
 
 def _puede_acceder(user, ambito='colegio'):
-    """Superuser, staff o los grupos del ámbito (colegio y CFP son independientes)."""
-    if user.is_superuser or user.is_staff:
+    """Superusuario o los grupos del ámbito (colegio y CFP son independientes)."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): sin is_staff — es el MISMO criterio del menú (nav_salidas_bano / nav_salidas_bano_cfp en core/context_processors.py). Antes cualquier staff de otro módulo veía la nómina de menores de los dos ámbitos y el coordinador de un ámbito operaba en el otro.
+    if user.is_superuser:
         return True
+    if ambito == 'cfp':
+        # <--- hecho por claude code (05-nov-2026): con «Salidas al baño CFP» oculto en Programas activos, tampoco pasan las rutas compartidas (guardar, regreso, pendientes) con área CFP.
+        from constance import config as _cfg
+        from core.programas import ocultos
+        if 'salidas_cfp' in ocultos(_cfg):
+            return False
     cfg = AMBITOS.get(ambito, AMBITOS['colegio'])
     return user.groups.filter(name__in=[cfg['grp_maestro'], cfg['grp_coord']]).exists()
+
+
+def _cursos_cfp_permitidos(user, es_coord):
+    """<--- hecho por claude code (seguridad 05-nov-2026): cursos CFP que puede tocar el usuario (None = todos), la MISMA regla con la que index filtra la nómina: coordinador de salidas CFP, director CFP y superusuario ven todo; el instructor, solo sus InstructorCurso."""
+    if es_coord:
+        return None
+    from cfp.views import _cursos_instructor          # importado aquí para no acoplar al importar el módulo
+    return _cursos_instructor(user)
 
 
 def _es_coordinador_sb(user, ambito='colegio'):
@@ -223,7 +264,7 @@ def _puede_editar_salidas(user):
         return True
     try:
         return user.coord_permiso.salidas_editar
-    except Exception:
+    except ObjectDoesNotExist:   # <--- hecho por claude code (seguridad 05-nov-2026): solo "sin fila" conserva la compatibilidad; antes CUALQUIER error daba permiso
         return True  # sin registro = sin restricción (compatibilidad)
 
 
@@ -236,7 +277,7 @@ def _puede_eliminar_salidas(user):
         if p.salidas_eliminar_hasta and p.salidas_eliminar_hasta < timezone.now():
             return False
         return p.salidas_eliminar
-    except Exception:
+    except ObjectDoesNotExist:   # <--- hecho por claude code (seguridad 05-nov-2026): solo "sin fila" conserva la compatibilidad; antes CUALQUIER error daba permiso
         return True  # sin registro = sin restricción
 
 
@@ -253,7 +294,10 @@ def index(request, ambito='colegio'):
         return HttpResponseForbidden()
 
     es_coord   = _es_coordinador_sb(request.user, ambito)
-    tab_activo = request.GET.get('tab', 'salidas')   # salidas | periodos | maestros
+    # <--- hecho por claude code (seguridad 05-nov-2026): las pestañas Períodos / Maestros-Clases solo las opera la coordinación del ámbito; antes el POST de un maestro se ignoraba con un 200 silencioso (y además consultaba SQL Server).
+    if request.method == 'POST' and not es_coord:
+        return HttpResponseForbidden()
+    tab_activo = request.GET.get('tab', 'salidas')   # salidas | maestros | historial
 
     # Áreas que existen en este ámbito (Colegio+Bachillerato, o solo CFP)
     areas       = cfg['areas']
@@ -275,33 +319,20 @@ def index(request, ambito='colegio'):
     # <--- hecho por claude code: el ámbito acota tanto las áreas elegibles como los
     # objetos editables ('ambos' = Colegio+Bachillerato, no existe en CFP).
     areas_admin  = areas_claves + ([] if ambito == 'cfp' else ['ambos'])
-    area_choices = [(a, l) for a, l in PeriodoEscolar.AREA_CHOICES if a in areas_admin]
+    area_choices = [(a, l) for a, l in MaestroClase.AREA_CHOICES if a in areas_admin]
 
-    periodo_form = PeriodoEscolarForm(area_choices=area_choices)
     mc_form      = MaestroClaseForm(grado_choices=grados_para_mc, area_choices=area_choices)
 
     if request.method == 'POST' and es_coord:
         accion = request.POST.get('accion', '')
 
-        if accion == 'guardar_periodo':
-            edit_pid = request.POST.get('edit_id')
-            inst = (PeriodoEscolar.objects.filter(pk=edit_pid, area__in=areas_admin).first()
-                    if edit_pid else None)
-            periodo_form = PeriodoEscolarForm(request.POST, instance=inst, area_choices=area_choices)
-            if periodo_form.is_valid():
-                periodo_form.save()
-                messages.success(request, 'Período guardado.')
-                return redirect(f'{request.path}?tab=periodos')
-            tab_activo = 'periodos'
+        # <--- hecho por claude code (06-nov-2026): los períodos ya no se administran aquí (Período Escolar general, solo superusuario)
+        if accion == 'eliminar_mc' and not _puede_eliminar_salidas(request.user):
+            messages.error(request, 'Permiso de eliminación no activo o expirado.')
+            return redirect(f"{request.path}?tab=maestros")
 
-        elif accion == 'eliminar_periodo':
-            PeriodoEscolar.objects.filter(pk=request.POST.get('obj_id'),
-                                          area__in=areas_admin).delete()
-            messages.success(request, 'Período eliminado.')
-            return redirect(f'{request.path}?tab=periodos')
-
-        elif accion == 'guardar_mc':
-            edit_mid = request.POST.get('edit_id')
+        if accion == 'guardar_mc':
+            edit_mid = _pk(request.POST.get('edit_id'))   # <--- hecho por claude code (seguridad 05-nov-2026): id no numérico ya no da 500
             inst = (MaestroClase.objects.filter(pk=edit_mid, area__in=areas_admin).first()
                     if edit_mid else None)
             mc_form = MaestroClaseForm(request.POST, instance=inst,
@@ -313,21 +344,14 @@ def index(request, ambito='colegio'):
             tab_activo = 'maestros'
 
         elif accion == 'eliminar_mc':
-            MaestroClase.objects.filter(pk=request.POST.get('obj_id'),
+            MaestroClase.objects.filter(pk=_pk(request.POST.get('obj_id')),
                                         area__in=areas_admin).delete()
             messages.success(request, 'Asignación eliminada.')
             return redirect(f'{request.path}?tab=maestros')
 
     # Editar desde GET
-    if request.GET.get('editar_periodo') and es_coord:
-        inst = PeriodoEscolar.objects.filter(pk=request.GET['editar_periodo'],
-                                             area__in=areas_admin).first()
-        if inst:
-            periodo_form = PeriodoEscolarForm(instance=inst, area_choices=area_choices)
-        tab_activo = 'periodos'
-
     if request.GET.get('editar_mc') and es_coord:
-        inst = MaestroClase.objects.filter(pk=request.GET['editar_mc'],
+        inst = MaestroClase.objects.filter(pk=_pk(request.GET['editar_mc']),
                                            area__in=areas_admin).first()
         if inst:
             mc_form = MaestroClaseForm(instance=inst, grado_choices=grados_para_mc,
@@ -351,17 +375,20 @@ def index(request, ambito='colegio'):
 
     periodo = _get_periodo_activo(area)
     if not periodo:
-        error = f'No hay período activo para {dict(areas).get(area, area)}. Configúralo en la pestaña Períodos.'
+        # <--- hecho por claude code (06-nov-2026): el período es el general (o el módulo está cerrado en él)
+        from conducta.periodo_modulos import periodo_que_cierra, mensaje_cerrado
+        _pc = periodo_que_cierra('sal', 'colegio') if area != 'cfp' else None
+        error = (mensaje_cerrado('sal', _pc) if _pc else
+                 f'No hay Período Escolar activo para {dict(areas).get(area, area)}.')
 
     todos = _alumnos_area(area)
     # <--- hecho por claude code: en CFP un instructor ve SOLO sus cursos asignados
     # (InstructorCurso). El coordinador de salidas, el director CFP y el superusuario
     # siguen viendo todos los cursos. Antes las instructoras veían los 5 cursos.
-    if area == 'cfp' and not es_coord:
-        from cfp.views import _cursos_instructor
-        _mis_cursos = _cursos_instructor(request.user)   # None = ve todos (director/superuser)
-        if _mis_cursos is not None:
-            todos = [a for a in todos if a['grado'] in _mis_cursos]
+    # <--- hecho por claude code (seguridad 05-nov-2026): la regla se calcula UNA vez con _cursos_cfp_permitidos (la misma de guardar, pendientes, regreso e historial) y se aplica a la nómina y a salidas_hoy (abajo).
+    _mis_cursos = _cursos_cfp_permitidos(request.user, es_coord) if area == 'cfp' else None   # None = ve todos
+    if _mis_cursos is not None:
+        todos = [a for a in todos if a['grado'] in _mis_cursos]
     for a in todos:
         g = a['grado']
         if g not in alumnos_por_grado:
@@ -373,9 +400,12 @@ def index(request, ambito='colegio'):
 
     if periodo:
         # Agrupar todas las salidas de hoy por alumno; key = str(ingr_egr_id)
+        _hoy_qs = SalidaBano.objects.filter(periodo=periodo, area=area, fecha=date.today())
+        # <--- hecho por claude code (seguridad 05-nov-2026): en CFP el instructor recibe solo las salidas de hoy de SUS cursos, como su nómina; antes data-v11 traía la clase, el comentario, el maestro y el id de la última salida de hoy de TODOS los participantes del CFP.
+        if _mis_cursos is not None:
+            _hoy_qs = _hoy_qs.filter(grado__in=_mis_cursos)
         _raw = {}
-        for s in (SalidaBano.objects
-                  .filter(periodo=periodo, area=area, fecha=date.today())
+        for s in (_hoy_qs
                   .select_related('maestro')
                   .order_by('id')):
             _raw.setdefault(s.ingr_egr_id, []).append(s)
@@ -417,8 +447,6 @@ def index(request, ambito='colegio'):
 
     # ── Datos para tabs de coordinador ─────────────────────────────────────────
     # <--- hecho por claude code: cada ámbito solo administra SUS áreas (ver areas_admin)
-    periodos_lista = (PeriodoEscolar.objects.filter(area__in=areas_admin)
-                      .order_by('-anio', '-parcial') if es_coord else [])
     mc_lista       = (MaestroClase.objects.filter(area__in=areas_admin)
                       .select_related('maestro')
                       .order_by('area', 'grado', 'maestro__first_name') if es_coord else [])
@@ -448,11 +476,8 @@ def index(request, ambito='colegio'):
         'label_grupo':       cfg['label_grupo'],
         'es_cfp':            ambito == 'cfp',
         # Coordinador
-        'periodo_form':      periodo_form,
         'mc_form':           mc_form,
-        'periodos_lista':    periodos_lista,
         'mc_lista':          mc_lista,
-        'editar_periodo_id': request.GET.get('editar_periodo', ''),
         'editar_mc_id':      request.GET.get('editar_mc', ''),
     }
     # <--- hecho por claude code (13-oct-2026): pestaña Historial (todas las salidas con filtros)
@@ -472,28 +497,50 @@ def guardar_salida(request):
         data = json.loads(request.body)
     except Exception:
         data = request.POST
+    if not hasattr(data, 'get'):   # <--- hecho por claude code (seguridad 05-nov-2026): un JSON que no es objeto daba 500
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)
 
-    periodo_id  = data.get('periodo_id')
-    ingr_egr_id = data.get('ingr_egr_id')
-    alumno      = data.get('alumno', '')
-    grado       = data.get('grado', '')
-    grupo       = data.get('grupo', '')
-    area        = data.get('area', '')
-    clase        = data.get('clase', '')
-    hora_salida  = data.get('hora_salida', '')
-    hora_regreso = data.get('hora_regreso', '').strip()
-    comentario   = data.get('comentario', '')
+    # <--- hecho por claude code (seguridad 05-nov-2026): todo llega como texto y acotado al largo de la columna (un número o un texto enorme daban 500)
+    def _txt(clave, largo=None):
+        v = data.get(clave)
+        v = '' if v is None else str(v).strip()
+        return v[:largo] if largo else v
+
+    periodo_id   = _pk(data.get('periodo_id'))
+    ingr_egr_id  = _pk(data.get('ingr_egr_id'))
+    alumno       = _txt('alumno', 120)
+    grado        = _txt('grado', 160)
+    grupo        = _txt('grupo', 20)
+    area         = _txt('area', 20)
+    clase        = _txt('clase', 80)
+    hora_salida  = _txt('hora_salida')
+    hora_regreso = _txt('hora_regreso')
+    comentario   = _txt('comentario')
 
     if not all([periodo_id, ingr_egr_id, alumno, area, clase, hora_salida]):
         return JsonResponse({'ok': False, 'error': 'Faltan campos requeridos.'}, status=400)
+    if not 0 < ingr_egr_id < 2 ** 31:   # <--- hecho por claude code (seguridad 05-nov-2026): fuera del rango de la columna INT daba 500
+        return JsonResponse({'ok': False, 'error': 'Alumno inválido.'}, status=400)
 
     # <--- hecho por claude code: el área viene del navegador, así que hay que
     # comprobar que el usuario pertenezca a ESE ámbito (antes no se validaba).
+    # <--- hecho por claude code (seguridad 05-nov-2026): y que sea un área real (un área inventada caía en el ámbito Colegio y se guardaba igual).
+    if area not in _AREAS_VALIDAS:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.'}, status=403)
     ambito = _ambito_de_area(area)
     if not _puede_acceder(request.user, ambito):
         return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.'}, status=403)
 
-    periodo = get_object_or_404(PeriodoEscolar, pk=periodo_id)
+    # <--- hecho por claude code (seguridad 05-nov-2026): en CFP el instructor registra solo en SUS cursos (la misma regla con la que index le arma la nómina).
+    if area == 'cfp':
+        _mis_cursos = _cursos_cfp_permitidos(request.user, _es_coordinador_sb(request.user, ambito))
+        if _mis_cursos is not None and grado not in _mis_cursos:
+            return JsonResponse({'ok': False, 'error': 'Este curso no está asignado a tu usuario.'}, status=403)
+
+    periodo = get_object_or_404(PeriodoEscolarConducta, pk=periodo_id)
+    # <--- hecho por claude code (seguridad 05-nov-2026; 06-nov-2026 período general): el período tiene que servirle a ESA área (Colegio/Bachillerato = 'colegio'/'ambas'; CFP = 'cfp').
+    if periodo.area not in _areas_periodo(area) or not periodo.modulo_abierto('sal'):   # <--- + módulo cerrado (06-nov-2026)
+        return JsonResponse({'ok': False, 'error': 'El período no corresponde a esta área.'}, status=403)
 
     # Parsear hora
     try:
@@ -575,6 +622,9 @@ def salidas_pendientes(request):
     aunque el regreso lo haya registrado otro maestro desde otra pantalla.
     """
     area = request.GET.get('area', '')
+    # <--- hecho por claude code (seguridad 05-nov-2026): el área tiene que ser real (antes un área vacía o inventada caía en el ámbito Colegio)
+    if area not in _AREAS_VALIDAS:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     ambito = _ambito_de_area(area)
     if not _puede_acceder(request.user, ambito):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
@@ -588,9 +638,14 @@ def salidas_pendientes(request):
     ahora = datetime.now()
     ahora_min = ahora.hour * 60 + ahora.minute
     items = []
-    for s in (SalidaBano.objects
-              .filter(periodo=periodo, area=area, fecha=date.today(),
-                      hora_regreso__isnull=True)
+    _qs = SalidaBano.objects.filter(periodo=periodo, area=area, fecha=date.today(),
+                                    hora_regreso__isnull=True)
+    # <--- hecho por claude code (seguridad 05-nov-2026): en CFP la instructora recibe el aviso solo de SUS cursos, como su nómina en index (antes le sonaba y le salía el nombre de alumnos de otros cursos). En Colegio el aviso sigue siendo de toda el área: cualquier maestro cierra el regreso de otro.
+    if area == 'cfp':
+        _mis_cursos = _cursos_cfp_permitidos(request.user, _es_coordinador_sb(request.user, ambito))
+        if _mis_cursos is not None:
+            _qs = _qs.filter(grado__in=_mis_cursos)
+    for s in (_qs
               .select_related('maestro')
               .order_by('hora_salida')):
         if not s.hora_salida:
@@ -624,14 +679,30 @@ def salidas_pendientes(request):
 @login_required
 @require_POST
 def marcar_regreso(request, pk):
+    # <--- hecho por claude code (seguridad 05-nov-2026): quien no es de ningún ámbito recibe 403 ANTES de buscar el registro (antes 404/403 delataba qué ids existen).
+    if not (_puede_acceder(request.user, 'colegio') or _puede_acceder(request.user, 'cfp')):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.'}, status=403)
     salida = get_object_or_404(SalidaBano, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el ámbito sale del REGISTRO (salida.area) y se exige el grupo de ese ámbito; antes cualquier usuario con sesión marcaba el regreso de cualquier salida de Colegio o CFP. No se exige autoría: el historial muestra maestros del ámbito marcando regresos de salidas ajenas (la alerta de pendientes lo permite).
+    if not _puede_acceder(request.user, _ambito_de_area(salida.area)):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.'}, status=403)
+    # <--- hecho por claude code (seguridad 05-nov-2026): en CFP, solo salidas de los cursos del instructor (la misma regla de su nómina y de su aviso de pendientes).
+    if salida.area == 'cfp':
+        _mis_cursos = _cursos_cfp_permitidos(request.user, _es_coordinador_sb(request.user, 'cfp'))
+        if _mis_cursos is not None and salida.grado not in _mis_cursos:
+            return JsonResponse({'ok': False, 'error': 'Este curso no está asignado a tu usuario.'}, status=403)
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo el regreso de salidas de HOY (la pantalla y el aviso solo muestran las de hoy); antes se podía reescribir la hora de cualquier salida vieja. El historial no tiene ningún regreso marcado otro día.
+    if salida.fecha != date.today():
+        return JsonResponse({'ok': False, 'error': 'Solo se registra el regreso de las salidas de hoy.'}, status=403)
     try:
         data = json.loads(request.body)
     except Exception:
         data = request.POST
-    hora_regreso = data.get('hora_regreso', '')
+    if not hasattr(data, 'get'):   # <--- hecho por claude code (seguridad 05-nov-2026): un JSON que no es objeto daba 500
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)
+    hora_regreso = data.get('hora_regreso') or ''
     try:
-        hr = datetime.strptime(hora_regreso.strip(), '%H:%M').time()
+        hr = datetime.strptime(str(hora_regreso).strip(), '%H:%M').time()
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'Formato de hora inválido.'}, status=400)
     salida.hora_regreso = hr
@@ -648,6 +719,9 @@ def marcar_regreso(request, pk):
 @require_POST
 def eliminar_salida(request, pk):
     """Elimina una salida registrada. Solo coordinadores con permiso activo."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): quien no coordina ningún ámbito recibe 403 ANTES de buscar el registro (antes 404/403 delataba qué ids existen).
+    if not (_es_coordinador_sb(request.user, 'colegio') or _es_coordinador_sb(request.user, 'cfp')):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
     # <--- hecho por claude code: el coordinador de un ámbito no borra salidas del otro
     salida = get_object_or_404(SalidaBano, pk=pk)
     if not _es_coordinador_sb(request.user, _ambito_de_area(salida.area)):
@@ -752,15 +826,27 @@ def notif_leer_todas(request):
 def historial_alumno(request, ingr_egr_id):
     """Retorna el historial de salidas de un alumno en el período activo."""
     area     = request.GET.get('area', '')
-    periodo  = _get_periodo_activo(area) if area else None
+    # <--- hecho por claude code (seguridad 05-nov-2026): el área es OBLIGATORIA y se exige el grupo de su ámbito. Antes cualquier usuario con sesión leía el historial de cualquier menor y, sin ?area=, mezclaba CFP (PersonaID) con Colegio (IngrEgrID). El JS siempre manda ?area=.
+    if area not in _AREAS_VALIDAS:
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.', 'salidas': []}, status=403)
+    ambito = _ambito_de_area(area)
+    if not _puede_acceder(request.user, ambito):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso para esta área.', 'salidas': []}, status=403)
+    periodo  = _get_periodo_activo(area)
 
     qs = SalidaBano.objects.filter(ingr_egr_id=ingr_egr_id)
     # <--- hecho por claude code: hay que filtrar por área — en CFP este ID es el
     # PersonaID y en el colegio el IngrEgrID: son espacios distintos y pueden chocar.
-    if area:
-        qs = qs.filter(area=area)
+    qs = qs.filter(area=area)
     if periodo:
         qs = qs.filter(periodo=periodo)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el maestro ve lo que registró él (la regla de la pestaña Historial) + las salidas de HOY del alumno, que ya comparte la pantalla (semáforo del día, aviso de pendientes); la coordinación del ámbito ve todo. En CFP, además, solo los cursos del instructor.
+    if not _es_coordinador_sb(request.user, ambito):
+        qs = qs.filter(Q(maestro=request.user) | Q(fecha=date.today()))
+        if area == 'cfp':
+            _mis_cursos = _cursos_cfp_permitidos(request.user, False)
+            if _mis_cursos is not None:
+                qs = qs.filter(grado__in=_mis_cursos)
     qs = qs.select_related('maestro').order_by('-fecha', '-hora_salida')
 
     items = []
@@ -822,14 +908,15 @@ def _enviar_email_negro(salida, request):
         from_email = settings.DEFAULT_FROM_EMAIL
 
         # <--- hecho por claude code: en CFP el eje es el curso y no hay grupo
+        # <--- hecho por claude code (seguridad 05-nov-2026): en la parte HTML todo dato va escapado (alumno, grado, grupo, clase y comentario llegan del navegador; antes se podía inyectar HTML/enlaces en el correo a coordinación).
         if salida.area == 'cfp':
             etiqueta_ubic = 'Curso'
             ubicacion     = f'{area_label} · {salida.grado}'
-            ubicacion_html = f'{area_label} · <strong>{salida.grado}</strong>'
+            ubicacion_html = f'{escape(area_label)} · <strong>{escape(salida.grado)}</strong>'
         else:
             etiqueta_ubic = 'Grado / Grupo'
             ubicacion     = f'{area_label} {salida.grado} — Grupo {salida.grupo}'
-            ubicacion_html = f'{area_label} <strong>{salida.grado}</strong> — Grupo {salida.grupo}'
+            ubicacion_html = f'{escape(area_label)} <strong>{escape(salida.grado)}</strong> — Grupo {escape(salida.grupo)}'
 
         asunto = f'⚫ ALERTA NEGRA — {salida.alumno}  |  {ubicacion}'
 
@@ -861,12 +948,12 @@ def _enviar_email_negro(salida, request):
             )
 
         tabla_rows = (
-            row('👤', 'Alumno/a',       f'<strong style="font-size:15px;">{salida.alumno}</strong>', shade=True)
+            row('👤', 'Alumno/a',       f'<strong style="font-size:15px;">{escape(salida.alumno)}</strong>', shade=True)
           + row('🏫', etiqueta_ubic,    ubicacion_html)
-          + row('📖', 'Clase / Maestro', salida.clase,          shade=True)
-          + row('🕐', 'Hora de salida', hora_str)
-          + row('👩‍🏫', 'Registrado por', maestro_str,            shade=True)
-          + row('💬', 'Comentario',     comentario)
+          + row('📖', 'Clase / Maestro', escape(salida.clase),  shade=True)
+          + row('🕐', 'Hora de salida', escape(hora_str))
+          + row('👩‍🏫', 'Registrado por', escape(maestro_str),    shade=True)
+          + row('💬', 'Comentario',     escape(comentario))
         )
 
         html = f"""<!DOCTYPE html>
@@ -962,58 +1049,23 @@ def _enviar_email_negro(salida, request):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Vistas de coordinador: Períodos Escolares
+# Vistas de coordinador
 # ══════════════════════════════════════════════════════════════════════════════
 
-@login_required
-def periodos_view(request):
-    if not _es_coordinador_sb(request.user):
-        return HttpResponseForbidden()
-
-    edit_id = request.GET.get('editar')
-    instancia = get_object_or_404(PeriodoEscolar, pk=edit_id) if edit_id else None
-
-    if request.method == 'POST':
-        accion = request.POST.get('accion', '')
-
-        if accion == 'eliminar':
-            if not _puede_eliminar_salidas(request.user):
-                messages.error(request, 'Permiso de eliminación no activo o expirado.')
-                return redirect('salidas_bano:periodos')
-            pid = request.POST.get('periodo_id')
-            PeriodoEscolar.objects.filter(pk=pid).delete()
-            messages.success(request, 'Período eliminado.')
-            return redirect('salidas_bano:periodos')
-
-        if not _puede_editar_salidas(request.user):
-            messages.error(request, 'No tienes permiso de edición en Salidas Baño.')
-            return redirect('salidas_bano:periodos')
-        form = PeriodoEscolarForm(request.POST, instance=instancia)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Período guardado correctamente.')
-            return redirect('salidas_bano:periodos')
-    else:
-        form = PeriodoEscolarForm(instance=instancia)
-
-    periodos = PeriodoEscolar.objects.all().order_by('-anio', '-parcial')
-    return render(request, 'salidas_bano/periodos.html', {
-        'form':        form,
-        'periodos':    periodos,
-        'instancia':   instancia,
-        'nav_home_url': '/',
-        'es_coordinador': True,
-    })
+# <--- hecho por claude code (seguridad 05-nov-2026): las pantallas sueltas Períodos y Maestros-Clases son del ámbito COLEGIO (no tienen ruta CFP; CFP usa las pestañas de su index). Solo ven, crean, editan y borran registros de Colegio/Bachillerato/Ambos; antes el coordinador de Colegio tocaba los de CFP.
+_AMBITO_PANTALLAS_SUELTAS = 'colegio'
+_AREAS_ADMIN_COLEGIO      = ['colegio', 'bachillerato', 'ambos']
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Vistas de coordinador: Maestros – Clases
-# ══════════════════════════════════════════════════════════════════════════════
+def _area_choices_colegio():
+    return [(a, l) for a, l in MaestroClase.AREA_CHOICES if a in _AREAS_ADMIN_COLEGIO]
+
 
 @login_required
 def maestros_clases_view(request):
-    if not _es_coordinador_sb(request.user):
+    if not _es_coordinador_sb(request.user, _AMBITO_PANTALLAS_SUELTAS):
         return HttpResponseForbidden()
+    area_choices = _area_choices_colegio()   # <--- hecho por claude code (seguridad 05-nov-2026): sin CFP en el desplegable de Área
 
     # Construir opciones de grado con etiquetas modernas (7mo–11vo)
     _AREA_LABELS = [('colegio', 'Colegio'), ('bachillerato', 'Bachillerato')]
@@ -1028,7 +1080,9 @@ def maestros_clases_view(request):
             grados_para_mc[_alabel] = [(_g, _dm.get(_g, _g)) for _g in _gs]
 
     edit_id = request.GET.get('editar')
-    instancia = get_object_or_404(MaestroClase, pk=edit_id) if edit_id else None
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo asignaciones del ámbito (una de CFP da 404) y un id no numérico ya no da 500
+    instancia = (get_object_or_404(MaestroClase, pk=_pk(edit_id), area__in=_AREAS_ADMIN_COLEGIO)
+                 if edit_id else None)
 
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
@@ -1037,21 +1091,22 @@ def maestros_clases_view(request):
             if not _puede_eliminar_salidas(request.user):
                 messages.error(request, 'Permiso de eliminación no activo o expirado.')
                 return redirect('salidas_bano:maestros_clases')
-            mid = request.POST.get('mc_id')
-            MaestroClase.objects.filter(pk=mid).delete()
+            mid = _pk(request.POST.get('mc_id'))
+            MaestroClase.objects.filter(pk=mid, area__in=_AREAS_ADMIN_COLEGIO).delete()
             messages.success(request, 'Asignación eliminada.')
             return redirect('salidas_bano:maestros_clases')
 
         if not _puede_editar_salidas(request.user):
             messages.error(request, 'No tienes permiso de edición en Salidas Baño.')
             return redirect('salidas_bano:maestros_clases')
-        form = MaestroClaseForm(request.POST, instance=instancia, grado_choices=grados_para_mc)
+        form = MaestroClaseForm(request.POST, instance=instancia, grado_choices=grados_para_mc,
+                                area_choices=area_choices)
         if form.is_valid():
             form.save()
             messages.success(request, 'Asignación guardada correctamente.')
             return redirect('salidas_bano:maestros_clases')
     else:
-        form = MaestroClaseForm(instance=instancia, grado_choices=grados_para_mc)
+        form = MaestroClaseForm(instance=instancia, grado_choices=grados_para_mc, area_choices=area_choices)
 
     # Mapeo combinado para mostrar etiquetas en la tabla
     _display_all = {}
@@ -1059,7 +1114,8 @@ def maestros_clases_view(request):
         _display_all.update(GRADO_DISPLAY.get(_ak, {}))
 
     asignaciones = list(
-        MaestroClase.objects.select_related('maestro').order_by('area', 'grado', 'maestro__first_name')
+        MaestroClase.objects.filter(area__in=_AREAS_ADMIN_COLEGIO)   # <--- hecho por claude code (seguridad 05-nov-2026): sin las de CFP
+        .select_related('maestro').order_by('area', 'grado', 'maestro__first_name')
     )
     for mc in asignaciones:
         parts = [g.strip() for g in mc.grado.split(',')]
@@ -1106,7 +1162,10 @@ def _historial_qs(request, ambito, areas):
         f['area'] = ''
     if f['grado']:   # valor "area|grado": en Colegio y Bachillerato los grados se llaman igual
         _a, _, _g = f['grado'].partition('|')
-        qs = qs.filter(area=_a, grado=_g) if _g else qs.filter(grado=_a)
+        if _g and _a not in claves:   # <--- hecho por claude code (seguridad 05-nov-2026): el área del filtro tiene que ser del ámbito
+            f['grado'] = ''
+        else:
+            qs = qs.filter(area=_a, grado=_g) if _g else qs.filter(grado=_a)
     if f['semaforo'] in dict(_SEMAFOROS):
         qs = qs.filter(semaforo=f['semaforo'])
     if f['q']:
@@ -1155,7 +1214,7 @@ def _historial_datos(request, ambito, areas):
         'h_promedio':   round(sum(duraciones) / len(duraciones)) if duraciones else None,
         'h_semaforos':  [(k, l, por_sem.get(k, 0)) for k, l in _SEMAFOROS],
         'h_top':        top,
-        'h_periodos':   PeriodoEscolar.objects.filter(area__in=claves + ([] if ambito == 'cfp' else ['ambos'])).order_by('-anio', '-parcial'),
+        'h_periodos':   PeriodoEscolarConducta.objects.filter(area__in=(['cfp'] if ambito == 'cfp' else ['colegio', 'ambas'])).order_by('-anio', '-parcial'),   # <--- período general (06-nov-2026)
         'h_grados':     [(f'{a}|{g}', _grado_label(a, g) + (f' · {dict(areas).get(a, a)}' if len(areas) > 1 else '')) for a, g in grados],
         'h_maestros':   maestros,
         'h_semaforo_choices': _SEMAFOROS,
@@ -1188,6 +1247,10 @@ def historial_exportar(request, ambito='colegio'):
         ws.append([s.fecha, s.hora_salida.strftime('%H:%M') if s.hora_salida else '', s.hora_regreso.strftime('%H:%M') if s.hora_regreso else '',
                    s.duracion_minutos, s.alumno, _grado_label(s.area, s.grado), s.grupo, s.get_area_display(), s.clase,
                    s.get_semaforo_display(), (s.maestro.get_full_name() or s.maestro.username) if s.maestro else '', s.comentario])
+        # <--- hecho por claude code (seguridad 05-nov-2026): openpyxl convierte en FÓRMULA todo texto que empieza con "=" (un comentario "=HYPERLINK(...)" se ejecutaba al abrir el Excel de coordinación); se fuerza a texto.
+        for _c in ws[ws.max_row]:
+            if _c.data_type == 'f':
+                _c.data_type = 's'
         ws.cell(row=ws.max_row, column=1).number_format = 'DD/MM/YYYY'
     for col, ancho in zip('ABCDEFGHIJKL', (12, 8, 8, 9, 34, 12, 10, 13, 22, 11, 24, 40)):
         ws.column_dimensions[col].width = ancho

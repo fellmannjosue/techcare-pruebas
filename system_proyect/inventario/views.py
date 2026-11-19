@@ -16,21 +16,77 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from functools import wraps as _wraps
+import re as _re_inv   # <--- hecho por claude code (seguridad 05-nov-2026): validar Asset ID, ids en lote y nombres de archivo
+from django.views.decorators.http import require_POST   # <--- hecho por claude code (seguridad 05-nov-2026): las escrituras solo por POST (con CSRF)
+from django.core.exceptions import ValidationError as _ValidationError   # <--- hecho por claude code (seguridad 05-nov-2026)
+from django.core.validators import validate_ipv46_address as _validar_ip   # <--- hecho por claude code (seguridad 05-nov-2026)
+from django.db import IntegrityError as _IntegrityError, transaction as _tx_inv   # <--- hecho por claude code (seguridad 05-nov-2026)
+from django.db.models import ProtectedError as _ProtectedError   # <--- hecho por claude code (seguridad 05-nov-2026): DataShow con reservas
+from .permisos import puede_inventario   # <--- hecho por claude code (seguridad 05-nov-2026): criterio único (el permiso view_item no existía)
 
 
 # <--- hecho por claude code (seguridad): las vistas solo tenían @login_required, así que
 # CUALQUIER usuario autenticado (p. ej. un maestro) entraba a /inventario/ por URL directa
 # aunque el menú no se lo mostrara. Este candado usa el MISMO criterio que `nav_inventory`
-# del context processor: superusuario, permiso inventario.view_item, o grupo 'inventario'.
+# del context processor: superusuario, permiso de Inventario, o grupo 'inventario'.
 def _inventario_required(view):
     @_wraps(view)
     @login_required
     def _w(request, *args, **kwargs):
-        u = request.user
-        if u.is_superuser or u.has_perm('inventario.view_item') or u.groups.filter(name='inventario').exists():
+        if puede_inventario(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): antes 'inventario.view_item' (inexistente)
             return view(request, *args, **kwargs)
         raise PermissionDenied('No tiene acceso al módulo de Inventario.')
     return _w
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): validaciones compartidas por las vistas de abajo (antes llegaba texto crudo del POST a la BD).
+_MAX_BULK = 500   # tope de equipos por operación en lote (hoy la tabla más grande, Computadoras, tiene 155)
+
+
+def _es_pk(valor):
+    """True si el texto es un id numérico ASCII razonable (str.isdigit() acepta '²' y int() revienta)."""
+    return bool(_re_inv.fullmatch(r'[0-9]{1,10}', (valor or '').strip()))
+
+
+def _ids_validos(valores):
+    """Lista de pks (solo dígitos ASCII, sin repetir) o None si viene algo raro o son más de _MAX_BULK."""
+    ids = []
+    for v in valores:
+        v = (v or '').strip()
+        if not _re_inv.fullmatch(r'[0-9]{1,10}', v):
+            return None
+        if int(v) not in ids:
+            ids.append(int(v))
+    return ids if len(ids) <= _MAX_BULK else None
+
+
+def _categorias_validas():
+    """Categorías aceptadas: las del modelo (CATEGORY_CHOICES) + las del catálogo del admin (CategoriaInventario)."""
+    from .models import CategoriaInventario
+    return {k for k, _ in InventoryItem.CATEGORY_CHOICES} | set(CategoriaInventario.objects.values_list('nombre', flat=True))
+
+
+def _grupo_de_post(request):
+    """(ok, grupo): '' -> (True, None); '0'..'999999' -> (True, n); otra cosa -> (False, None). ('²'.isdigit() es True y int() reventaba)."""
+    valor = (request.POST.get('grupo') or '').strip()
+    if not valor:
+        return True, None
+    if _re_inv.fullmatch(r'[0-9]{1,6}', valor):
+        return True, int(valor)
+    return False, None
+
+
+def _nombre_archivo(texto):
+    """Nombre seguro para Content-Disposition (el Asset ID de routers/monitores/DataShow es texto libre)."""
+    return _re_inv.sub(r'[^A-Za-z0-9._-]+', '_', str(texto or ''))[:80] or 'archivo'
+
+
+def _xl_sin_formulas(ws, desde_fila=2):
+    """openpyxl convierte en FÓRMULA todo texto que empieza con '=': las celdas de datos se guardan como texto."""
+    for fila in ws.iter_rows(min_row=desde_fila):
+        for celda in fila:
+            if celda.data_type == 'f':
+                celda.data_type = 's'
 
 
 from reportlab.pdfgen import canvas
@@ -82,8 +138,16 @@ def _get_asset_id(tipo, pk):
     return f"{tipo.upper()}-{pk}"
 
 
+@_inventario_required  # <--- hecho por claude code (seguridad 05-nov-2026): respondía sin sesión
 def descargar_qr(request, tipo, pk):
     from PIL import ImageDraw, ImageFont
+
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo tipos y equipos que existen (antes armaba un QR de cualquier texto)
+    _mapa_qr = {'computadora': Computadora, 'televisor': Televisor, 'impresora': Impresora,
+                'router': Router, 'datashow': DataShow, 'monitor': Monitor}
+    if tipo.lower() not in _mapa_qr:
+        return HttpResponse("Tipo inválido", status=404)
+    get_object_or_404(_mapa_qr[tipo.lower()], pk=pk)
 
     path    = reverse("inventario:download_model_pdf", args=[tipo.lower(), pk])
     pdf_url = f"https://servicios.ana-hn.org:437{path}"
@@ -117,7 +181,7 @@ def descargar_qr(request, tipo, pk):
     return HttpResponse(
         buffer.read(),
         content_type="image/jpeg",
-        headers={"Content-Disposition": f'attachment; filename="qr_{asset_id}.jpg"'}
+        headers={"Content-Disposition": f'attachment; filename="qr_{_nombre_archivo(asset_id)}.jpg"'}   # <--- hecho por claude code (seguridad 05-nov-2026): Asset ID libre en la cabecera
     )
 
 # ==============================================================
@@ -140,8 +204,7 @@ def inventario_por_categoria(request):
 
     if request.method == "POST":
         form = CategoryUpdateForm(request.POST)
-        if form.is_valid():
-            form.save()
+        if form.is_valid() and form.save():   # <--- hecho por claude code (seguridad 05-nov-2026): save() da False si el equipo no existe (antes 500)
             messages.success(request, "Categoría actualizada con éxito.")
             return redirect("inventario:inventario_por_categoria")
         messages.error(request, "Error al actualizar la categoría.")
@@ -191,6 +254,25 @@ _PREFIJOS_COMP = {
     'lab_col':  'IDANALABCOL',
     'informatica': 'IDCFPLAB',
 }
+# <--- hecho por claude code (seguridad 05-nov-2026): Asset ID válido de computadora = prefijo conocido + número (el prefijo define el laboratorio en Mantenimiento). Las 155 de hoy cumplen.
+_RE_ASSET_COMP = _re_inv.compile(r'(?:%s)[0-9]{1,6}' % '|'.join(sorted(_PREFIJOS_COMP.values(), key=len, reverse=True)))
+
+
+def _errores_campos_computadora(comp):
+    """<--- hecho por claude code (seguridad 05-nov-2026): valida los campos que la vista copia a mano del POST (no pasan por el ModelForm)."""
+    errores = {}
+    if comp.ip:
+        try:
+            _validar_ip(comp.ip)
+        except _ValidationError:
+            errores['ip'] = ['La IP no es válida (ej. 192.168.10.25).']
+    if len(comp.serie or '') > 100:
+        errores['serie'] = ['La serie admite hasta 100 caracteres.']
+    if len(comp.edificio or '') > 100:
+        errores['edificio'] = ['El edificio admite hasta 100 caracteres.']
+    if len(comp.grado or '') > 50:
+        errores['grado'] = ['El sub-tipo del grado es demasiado largo.']
+    return errores
 
 def _siguiente_asset_id_computadora(prefijo_key='estandar'):
     prefix = _PREFIJOS_COMP.get(prefijo_key, 'IDANACOMP')
@@ -228,8 +310,17 @@ def inventario_computadoras(request):
             grado_subtipo = request.POST.get('grado_subtipo', '').strip()
             if comp.grado == 'Otros' and grado_subtipo:
                 comp.grado = f'Otros/{grado_subtipo}'
-            comp.save()
-            return redirect("inventario:inventario_computadoras")
+            # <--- hecho por claude code (seguridad 05-nov-2026): IP/serie/edificio/sub-tipo llegaban crudos del POST (IP inválida guardada o 500 por largo)
+            errores = _errores_campos_computadora(comp)
+            for e in errores.values():
+                form.add_error(None, e[0])
+            if not errores:
+                try:
+                    with _tx_inv.atomic():   # savepoint: dos altas a la vez pueden chocar en el Asset ID (UNIQUE)
+                        comp.save()
+                    return redirect("inventario:inventario_computadoras")
+                except _IntegrityError:
+                    form.add_error(None, 'Otro usuario registró una computadora al mismo tiempo; vuelve a guardar.')
     else:
         form = ComputadoraForm()
 
@@ -466,97 +557,87 @@ def inventario_registros(request):
 # Asignar / cambiar grupo de computadora(s)
 # ==============================================================
 
+# <--- hecho por claude code (seguridad 05-nov-2026): asignar grupo/categoría solo por POST (el GET solo devolvía el valor y nadie lo usa), con el valor validado
+# y guardando UNO POR UNO: QuerySet.update() no pasa por simple_history, así que los cambios en lote no quedaban en la bitácora ni con su autor.
 @_inventario_required
+@require_POST
 def asignar_grupo_computadora(request, pk):
     comp = get_object_or_404(Computadora, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('grupo', '').strip()
-        comp.grupo = int(valor) if valor.isdigit() else None
-        comp.save(update_fields=['grupo'])
-        return JsonResponse({'ok': True, 'grupo': comp.grupo})
+    ok, grupo = _grupo_de_post(request)
+    if not ok:
+        return JsonResponse({'ok': False, 'error': 'El grupo debe ser un número.'}, status=400)
+    comp.grupo = grupo
+    comp.save(update_fields=['grupo', 'fecha_modificado'])
     return JsonResponse({'ok': True, 'grupo': comp.grupo})
 
 
 @_inventario_required
+@require_POST
 def asignar_grupo_bulk(request):
-    if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
-    ids   = request.POST.getlist('ids')
-    valor = request.POST.get('grupo', '').strip()
-    grupo = int(valor) if valor.isdigit() else None
-    updated = Computadora.objects.filter(pk__in=ids).update(grupo=grupo)
+    ids = _ids_validos(request.POST.getlist('ids'))
+    if not ids:
+        return JsonResponse({'ok': False, 'error': f'Selecciona entre 1 y {_MAX_BULK} equipos.'}, status=400)
+    ok, grupo = _grupo_de_post(request)
+    if not ok:
+        return JsonResponse({'ok': False, 'error': 'El grupo debe ser un número.'}, status=400)
+    updated = 0
+    with _tx_inv.atomic():
+        for comp in Computadora.objects.filter(pk__in=ids):
+            comp.grupo = grupo
+            comp.save(update_fields=['grupo', 'fecha_modificado'])
+            updated += 1
     return JsonResponse({'ok': True, 'grupo': grupo, 'count': updated})
 
 
+def _asignar_categoria(request, Model, pk):
+    """Las 5 vistas de categoría hacían lo mismo sin validar el valor (cualquier texto; > 100 caracteres daba 500)."""
+    obj = get_object_or_404(Model, pk=pk)
+    valor = (request.POST.get('categoria') or '').strip()
+    if valor and valor not in _categorias_validas():
+        return JsonResponse({'ok': False, 'error': 'Categoría no válida.'}, status=400)
+    obj.category = valor or None
+    obj.save(update_fields=['category', 'fecha_modificado'])
+    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+
+
 @_inventario_required
+@require_POST
 def asignar_categoria_televisor(request, pk):
-    from .models import Televisor
-    tv = get_object_or_404(Televisor, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('categoria', '').strip()
-        tv.category = valor if valor else None
-        tv.save(update_fields=['category'])
-        return JsonResponse({'ok': True, 'categoria': tv.category or ''})
-    return JsonResponse({'ok': True, 'categoria': tv.category or ''})
+    return _asignar_categoria(request, Televisor, pk)
 
 
 @_inventario_required
+@require_POST
 def asignar_categoria_router(request, pk):
-    from .models import Router
-    rt = get_object_or_404(Router, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('categoria', '').strip()
-        rt.category = valor if valor else None
-        rt.save(update_fields=['category'])
-        return JsonResponse({'ok': True, 'categoria': rt.category or ''})
-    return JsonResponse({'ok': True, 'categoria': rt.category or ''})
+    return _asignar_categoria(request, Router, pk)
 
 
 @_inventario_required
+@require_POST
 def asignar_categoria_impresora(request, pk):
-    from .models import Impresora
-    obj = get_object_or_404(Impresora, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('categoria', '').strip()
-        obj.category = valor if valor else None
-        obj.save(update_fields=['category'])
-        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
-    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return _asignar_categoria(request, Impresora, pk)
 
 
 @_inventario_required
+@require_POST
 def asignar_categoria_datashow(request, pk):
-    from .models import DataShow
-    obj = get_object_or_404(DataShow, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('categoria', '').strip()
-        obj.category = valor if valor else None
-        obj.save(update_fields=['category'])
-        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
-    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return _asignar_categoria(request, DataShow, pk)
 
 
 @_inventario_required
+@require_POST
 def asignar_categoria_monitor(request, pk):
-    from .models import Monitor
-    obj = get_object_or_404(Monitor, pk=pk)
-    if request.method == 'POST':
-        valor = request.POST.get('categoria', '').strip()
-        obj.category = valor if valor else None
-        obj.save(update_fields=['category'])
-        return JsonResponse({'ok': True, 'categoria': obj.category or ''})
-    return JsonResponse({'ok': True, 'categoria': obj.category or ''})
+    return _asignar_categoria(request, Monitor, pk)
 
 
 @_inventario_required
+@require_POST
 def asignar_categoria_bulk(request):
-    if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
     tipo = request.POST.get('tipo', '').strip()
     categoria = request.POST.get('categoria', '').strip()
-    ids = request.POST.getlist('ids')
+    ids = _ids_validos(request.POST.getlist('ids'))   # <--- hecho por claude code (seguridad 05-nov-2026): ids validados y con tope
     if not ids:
-        return JsonResponse({'ok': False, 'error': 'Sin IDs'})
+        return JsonResponse({'ok': False, 'error': f'Selecciona entre 1 y {_MAX_BULK} equipos.'}, status=400)
     mapa = {
         'computadora': Computadora,
         'televisor':   Televisor,
@@ -568,7 +649,12 @@ def asignar_categoria_bulk(request):
     modelo = mapa.get(tipo)
     if not modelo:
         return JsonResponse({'ok': False, 'error': 'Tipo inválido'})
-    modelo.objects.filter(pk__in=ids).update(category=categoria or None)
+    if categoria and categoria not in _categorias_validas():
+        return JsonResponse({'ok': False, 'error': 'Categoría no válida.'}, status=400)
+    with _tx_inv.atomic():
+        for obj in modelo.objects.filter(pk__in=ids):
+            obj.category = categoria or None
+            obj.save(update_fields=['category', 'fecha_modificado'])
     return JsonResponse({'ok': True, 'categoria': categoria})
 
 
@@ -650,8 +736,10 @@ def get_monitor(request, pk):
 # ==============================================================
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_computadora(request, pk):
     obj = get_object_or_404(Computadora, pk=pk)
+    asset_original = obj.asset_id   # <--- hecho por claude code (seguridad 05-nov-2026): form.save(commit=False) devuelve la MISMA instancia
     form = ComputadoraForm(request.POST, instance=obj)
     if form.is_valid():
         comp = form.save(commit=False)
@@ -661,19 +749,35 @@ def update_computadora(request, pk):
         new_serie = request.POST.get('serie', '').strip()
         if new_serie:
             comp.serie = new_serie
-        new_asset_id = request.POST.get('asset_id', '').strip()
-        if new_asset_id:
-            comp.asset_id = new_asset_id
+        # <--- hecho por claude code (seguridad 05-nov-2026): el Asset ID se copiaba CRUDO del POST: uno repetido daba IntegrityError (500) y uno
+        # inventado reetiquetaba el equipo (el prefijo define el laboratorio en Mantenimiento). Ahora: prefijo conocido + número, y que no exista en otra.
+        errores = {}
+        new_asset_id = request.POST.get('asset_id', '').strip().upper()
+        if new_asset_id and new_asset_id != asset_original:
+            if not _RE_ASSET_COMP.fullmatch(new_asset_id):
+                errores['asset_id'] = ['Asset ID no válido: debe ser IDANACOMP, IDANALABBL, IDANALABCOL o IDCFPLAB seguido del número (ej. IDANACOMP045).']
+            elif Computadora.objects.filter(asset_id=new_asset_id).exclude(pk=obj.pk).exists():
+                errores['asset_id'] = [f'Ya existe otra computadora con el Asset ID {new_asset_id}.']
+            else:
+                comp.asset_id = new_asset_id
         comp.edificio = request.POST.get('edificio', '').strip() or None
         grado_subtipo = request.POST.get('grado_subtipo', '').strip()
         if comp.grado == 'Otros' and grado_subtipo:
             comp.grado = f'Otros/{grado_subtipo}'
-        comp.save()
+        errores.update(_errores_campos_computadora(comp))   # <--- hecho por claude code (seguridad 05-nov-2026): IP válida y largos dentro del límite
+        if errores:
+            return JsonResponse({"ok": False, "errors": errores})
+        try:
+            with _tx_inv.atomic():   # savepoint: si choca el UNIQUE no deja la transacción rota
+                comp.save()
+        except _IntegrityError:
+            return JsonResponse({"ok": False, "errors": {"asset_id": ['Ese Asset ID ya está en uso.']}})
         return JsonResponse({"ok": True})
     return JsonResponse({"ok": False, "errors": form.errors})
 
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_televisor(request, pk):
     obj = get_object_or_404(Televisor, pk=pk)
     form = TelevisorForm(request.POST, instance=obj)
@@ -684,6 +788,7 @@ def update_televisor(request, pk):
 
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_impresora(request, pk):
     obj = get_object_or_404(Impresora, pk=pk)
     form = ImpresoraForm(request.POST, instance=obj)
@@ -694,6 +799,7 @@ def update_impresora(request, pk):
 
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_router(request, pk):
     obj = get_object_or_404(Router, pk=pk)
     form = RouterForm(request.POST, instance=obj)
@@ -704,6 +810,7 @@ def update_router(request, pk):
 
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_datashow(request, pk):
     obj = get_object_or_404(DataShow, pk=pk)
     form = DataShowForm(request.POST, instance=obj)
@@ -714,6 +821,7 @@ def update_datashow(request, pk):
 
 
 @_inventario_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026)
 def update_monitor(request, pk):
     obj = get_object_or_404(Monitor, pk=pk)
     form = MonitorForm(request.POST, instance=obj)
@@ -726,41 +834,57 @@ def update_monitor(request, pk):
 # DELETE (JSON)
 # ==============================================================
 
+# <--- hecho por claude code (seguridad 05-nov-2026): los 6 borrados aceptaban GET, así que un enlace o una navegación a /inventario/<tipo>/delete/<pk>/ borraba el equipo SIN token CSRF.
+# Ahora solo POST (el middleware exige el CSRF) y los JS mandan el token. Un DataShow con reservas (PROTECT) daba 500: ahora 409 con el motivo.
+def _eliminar(Model, pk):
+    obj = get_object_or_404(Model, pk=pk)
+    try:
+        with _tx_inv.atomic():
+            obj.delete()
+    except _ProtectedError:
+        return JsonResponse({"ok": False, "error": "No se puede eliminar: el equipo tiene registros asociados (por ejemplo, reservas de DataShow)."}, status=409)
+    return JsonResponse({"ok": True})
+
+
 @_inventario_required
+@require_POST
 def eliminar_computadora(request, pk):
-    get_object_or_404(Computadora, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(Computadora, pk)
 
 @_inventario_required
+@require_POST
 def eliminar_televisor(request, pk):
-    get_object_or_404(Televisor, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(Televisor, pk)
 
 @_inventario_required
+@require_POST
 def eliminar_impresora(request, pk):
-    get_object_or_404(Impresora, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(Impresora, pk)
 
 @_inventario_required
+@require_POST
 def eliminar_router(request, pk):
-    get_object_or_404(Router, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(Router, pk)
 
 @_inventario_required
+@require_POST
 def eliminar_datashow(request, pk):
-    get_object_or_404(DataShow, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(DataShow, pk)
 
 @_inventario_required
+@require_POST
 def eliminar_monitor(request, pk):
-    get_object_or_404(Monitor, pk=pk).delete()
-    return JsonResponse({"ok": True})
+    return _eliminar(Monitor, pk)
 
 
 # ==============================================================
 # PDF GENERATOR
 # ==============================================================
 
+# <--- hecho por claude code (seguridad 05-nov-2026): respondía SIN SESIÓN y el PDF del router traía la
+# clave WiFi. Ahora pide iniciar sesión (cualquier cuenta: el QR pegado en el equipo sigue sirviendo,
+# solo que pide login) y la clave solo la ve el personal de Inventario.
+@login_required
 def download_model_pdf(request, tipo, pk):
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.utils import ImageReader
@@ -865,6 +989,10 @@ def download_model_pdf(request, tipo, pk):
     Model  = model_map[tipo]
     campos = fields_map[tipo]
     obj    = get_object_or_404(Model, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): la clave WiFi, solo para Inventario
+    # (mismo criterio que _inventario_required).
+    if not puede_inventario(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que _inventario_required (permisos.py)
+        campos = [c for c in campos if c[1] != 'clave_router']
 
     accent_hex = color_map.get(tipo, "#0056b3")
     accent     = colors.HexColor(accent_hex)
@@ -1081,13 +1209,14 @@ def download_model_pdf(request, tipo, pk):
     pdf.save()
     buffer.seek(0)
 
-    filename = f"Ficha_{tipo.capitalize()}_{asset_id}.pdf"
+    filename = f"Ficha_{tipo.capitalize()}_{_nombre_archivo(asset_id)}.pdf"   # <--- hecho por claude code (seguridad 05-nov-2026): Asset ID libre en la cabecera
     response = HttpResponse(buffer.read(), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 
 
 # ===================== EXPORTAR EXCEL =====================
+# <--- hecho por claude code (seguridad 05-nov-2026): ALCANCE DOCUMENTADO. Excel y PDF exportan TODO el inventario de la pestaña (el inventario de equipos no se divide por área: lo administra un solo equipo); por eso los custodia _inventario_required = superusuario o grupo `inventario` (hoy admin, glorenzo, ylagos), el mismo criterio que nav_inventory. La clave WiFi de los routers NO se exporta. Las celdas que empiezan con '=' se guardan como texto, no como fórmula.
 @_inventario_required
 def exportar_excel_inventario(request, categoria):
     import openpyxl
@@ -1154,6 +1283,8 @@ def exportar_excel_inventario(request, categoria):
                         m.laboratorio or '', m.asignado_a or '', m.observaciones or ''])
     else:
         return HttpResponse("Categoría no válida", status=400)
+
+    _xl_sin_formulas(ws)   # <--- hecho por claude code (seguridad 05-nov-2026): observaciones '=...' no se ejecutan como fórmula al abrir el Excel
 
     # Ajustar anchos de columna automáticamente
     for col in ws.columns:
@@ -1309,9 +1440,10 @@ def _reducir_foto(f):
 
 @_inventario_required
 def inventario_general(request):
-    edit = ItemGeneral.objects.filter(pk=request.GET.get('editar')).first() if request.GET.get('editar', '').isdigit() else None
+    # <--- hecho por claude code (seguridad 05-nov-2026): '²'.isdigit() es True y el filtro reventaba con 500; ahora solo dígitos ASCII (_es_pk)
+    edit = ItemGeneral.objects.filter(pk=request.GET.get('editar')).first() if _es_pk(request.GET.get('editar', '')) else None
     if request.method == 'POST':
-        edit = ItemGeneral.objects.filter(pk=request.POST.get('edit_id')).first() if request.POST.get('edit_id', '').isdigit() else None
+        edit = ItemGeneral.objects.filter(pk=request.POST.get('edit_id')).first() if _es_pk(request.POST.get('edit_id', '')) else None
         form = ItemGeneralForm(request.POST, request.FILES, instance=edit)
         if form.is_valid():
             obj = form.save(commit=False)
@@ -1327,6 +1459,20 @@ def inventario_general(request):
     else:
         form = ItemGeneralForm(instance=edit)
     items, f_area, f_cat = _items_general_filtrados(request)
+    # <--- hecho por claude code (12-nov-2026): pestañas por tipo con su conteo (respetan el filtro de área/categoría)
+    _sin_tipo = request.GET.copy(); _sin_tipo.pop('f_tipo', None)
+    _base_req = type('R', (), {'GET': _sin_tipo})()
+    _base = _items_general_filtrados(_base_req)[0]
+    _cnt = {}
+    for t in _base.values_list('tipo', flat=True):
+        _cnt[t] = _cnt.get(t, 0) + 1
+    f_tipo = request.GET.get('f_tipo', '')
+    _qs_tab = _sin_tipo.urlencode()
+    tabs_tipo = [{'k': '', 'l': 'Todos', 'n': sum(_cnt.values()), 'icon': 'ti-list'}] + [
+        {'k': k, 'l': l, 'n': _cnt.get(k, 0), 'icon': {'mobiliario': 'ti-armchair', 'maquina': 'ti-settings-cog', 'herramienta': 'ti-tool',
+                                                       'vehiculo': 'ti-car', 'inmueble': 'ti-building', 'bien': 'ti-package'}[k]} for k, l in ItemGeneral.TIPOS]
+    if _cnt.get(''):
+        tabs_tipo.append({'k': 'sin', 'l': 'Sin clasificar', 'n': _cnt.get('', 0), 'icon': 'ti-help-circle'})
     por_estado = {k: 0 for k, _ in ItemGeneral.ESTADOS}
     for e in items.values_list('estado', flat=True):
         por_estado[e] = por_estado.get(e, 0) + 1
@@ -1341,6 +1487,8 @@ def inventario_general(request):
         'areas': AREAS_GENERAL,
         'categorias': CategoriaGeneral.objects.all(),
         'f_area': f_area, 'f_cat': f_cat,
+        'tabs_tipo': tabs_tipo, 'f_tipo': f_tipo, 'qs_tab': _qs_tab, 'tipos': ItemGeneral.TIPOS,
+        'tipo_sel': (form['tipo'].value() or '') if form is not None else '',
         'filtro_qs': request.GET.urlencode(),
         'cat_sel': (form['categoria'].value() or '') if form is not None else '',
     })
@@ -1349,12 +1497,18 @@ def inventario_general(request):
 def _items_general_filtrados(request):
     """Filtro por ÁREA y luego por SU categoría (?f_area=&f_cat=). Lo usan la página, el PDF y el Excel."""
     f_area = request.GET.get('f_area', '') if request.GET.get('f_area', '') in dict(AREAS_GENERAL) else ''
-    f_cat = request.GET.get('f_cat', '') if request.GET.get('f_cat', '').isdigit() else ''
+    f_cat = request.GET.get('f_cat', '') if _es_pk(request.GET.get('f_cat', '')) else ''   # <--- hecho por claude code (seguridad 05-nov-2026): antes .isdigit() ('²' daba 500)
     qs = ItemGeneral.objects.select_related('creado_por', 'categoria').order_by('-id')
     if f_area:
         qs = qs.filter(area=f_area)
     if f_cat:
         qs = qs.filter(categoria_id=int(f_cat))
+    # <--- hecho por claude code (12-nov-2026): pestañas por TIPO (?f_tipo=; 'sin' = sin clasificar). Lo usan también PDF y Excel.
+    f_tipo = request.GET.get('f_tipo', '')
+    if f_tipo in dict(ItemGeneral.TIPOS):
+        qs = qs.filter(tipo=f_tipo)
+    elif f_tipo == 'sin':
+        qs = qs.filter(tipo='')
     return qs, f_area, f_cat
 
 
@@ -1392,6 +1546,30 @@ def item_general_comentario(request, pk):
 
 @_inventario_required
 @_require_POST
+def item_general_tipo_lote(request):
+    """<--- hecho por claude code (12-nov-2026): asignar el TIPO (pestaña) a varios artículos marcados a la vez."""
+    tipo = request.POST.get('tipo', '')
+    ids = [i for i in request.POST.getlist('ids') if i.isdecimal()][:2000]
+    volver = request.POST.get('volver', '')
+    destino = reverse('inventario:inventario_general') + (volver if volver.startswith('?') else '')
+    if tipo not in dict(ItemGeneral.TIPOS):
+        _msg.error(request, 'Elige el tipo que quieres asignar.')
+        return redirect(destino)
+    if not ids:
+        _msg.error(request, 'Marca al menos un artículo.')
+        return redirect(destino)
+    n = 0
+    for it in ItemGeneral.objects.filter(pk__in=ids):
+        if it.tipo != tipo:
+            it.tipo = tipo
+            it.save(update_fields=['tipo'])   # save (no update) para que quede en el historial
+        n += 1
+    _msg.success(request, f'{n} artículo(s) quedaron como «{dict(ItemGeneral.TIPOS)[tipo]}».')
+    return redirect(destino)
+
+
+@_inventario_required
+@_require_POST
 def item_general_eliminar(request, pk):
     obj = get_object_or_404(ItemGeneral, pk=pk)
     cod = obj.codigo
@@ -1400,6 +1578,27 @@ def item_general_eliminar(request, pk):
     obj.delete()
     _msg.success(request, f'{cod} eliminado.')
     return redirect('inventario:inventario_general')
+
+
+@_inventario_required
+def item_general_foto(request, pk):
+    """<--- hecho por claude code (seguridad 05-nov-2026): la foto del artículo se enlazaba por /media/inventario/general/ y Apache la servía SIN sesión; ahora solo la ve quien tiene Inventario."""
+    import mimetypes
+    from django.http import FileResponse, Http404
+    it = get_object_or_404(ItemGeneral, pk=pk)
+    if not it.foto:
+        raise Http404('Sin foto')
+    ctype = mimetypes.guess_type(it.foto.name)[0] or ''
+    if not ctype.startswith('image/') or 'svg' in ctype:   # nunca SVG inline (puede llevar script)
+        raise Http404('Sin foto')
+    try:
+        fh = it.foto.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404('Sin foto')
+    resp = FileResponse(fh, content_type=ctype)
+    resp['Content-Disposition'] = 'inline'
+    resp['Cache-Control'] = 'private, max-age=3600'
+    return resp
 
 
 def _pdf_item_general(pdf, it, w, h):
@@ -1473,17 +1672,161 @@ def item_general_excel(request):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     wb = Workbook(); ws = wb.active; ws.title = 'Inventario general'
-    ws.append(['Código', 'Área', 'Categoría', 'Descripción', 'Ubicación', 'Estado', 'Comentario de la auditora', 'Registrado por', 'Fecha'])
+    ws.append(['Código', 'Tipo', 'Área', 'Categoría', 'Descripción', 'Ubicación', 'Estado', 'Comentario de la auditora', 'Registrado por', 'Fecha'])
     for c in ws[1]:
         c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='206BC4')
     for it in _items_general_filtrados(request)[0].order_by('codigo'):
-        ws.append([it.codigo, it.get_area_display(), it.categoria.nombre if it.categoria_id else '', it.descripcion, it.ubicacion, it.get_estado_display(), it.comentario_auditora,
+        ws.append([it.codigo, it.get_tipo_display() if it.tipo else '', it.get_area_display(), it.categoria.nombre if it.categoria_id else '', it.descripcion, it.ubicacion, it.get_estado_display(), it.comentario_auditora,
                    (it.creado_por.get_full_name() or it.creado_por.username) if it.creado_por else '', it.fecha_creado.date()])
-        ws.cell(row=ws.max_row, column=9).number_format = 'DD/MM/YYYY'
-    for col, an in zip('ABCDEFGHI', (13, 16, 20, 40, 24, 14, 45, 24, 12)):
+        ws.cell(row=ws.max_row, column=10).number_format = 'DD/MM/YYYY'
+    for col, an in zip('ABCDEFGHIJ', (13, 14, 16, 20, 40, 24, 14, 45, 24, 12)):
         ws.column_dimensions[col].width = an
     ws.freeze_panes = 'A2'
+    _xl_sin_formulas(ws)   # <--- hecho por claude code (seguridad 05-nov-2026): descripción/comentario '=...' quedan como texto
     resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="inventario_general_{datetime.date.today():%Y%m%d}.xlsx"'
+    wb.save(resp)
+    return resp
+
+
+# <--- hecho por claude code (13-nov-2026): REPORTE GENERAL del Inventario General agrupado por TIPO (pedido del usuario, mismo estilo que Recogidas)
+_TIPO_COLOR_INV = {'mobiliario': '#206bc4', 'maquina': '#f76707', 'herramienta': '#2fb344', 'vehiculo': '#ae3ec9',
+                   'inmueble': '#d63939', 'bien': '#0ca678', '': '#667382'}
+
+
+def _reporte_general_grupos(request):
+    """[(clave, etiqueta, [items])] en el orden de ItemGeneral.TIPOS (+ 'Sin clasificar'); respeta los filtros de la página."""
+    qs = list(_items_general_filtrados(request)[0].order_by('codigo'))
+    grupos = []
+    for k, l in list(ItemGeneral.TIPOS) + [('', 'Sin clasificar')]:
+        its = [it for it in qs if (it.tipo or '') == k]
+        if its or k:
+            grupos.append((k, l, its))
+    return grupos, len(qs)
+
+
+@_inventario_required
+def item_general_reporte_pdf(request):
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, KeepTogether, Image as RLImage
+    from xml.sax.saxutils import escape as _esc
+    from django.contrib.staticfiles import finders
+    grupos, total = _reporte_general_grupos(request)
+    estados = ItemGeneral.ESTADOS
+    AZUL = colors.HexColor('#206bc4'); GRIS = colors.HexColor('#eeeeee')
+    st_t = ParagraphStyle('t', fontSize=15, leading=18, fontName='Helvetica-Bold', textColor=AZUL, spaceAfter=5)
+    st_s = ParagraphStyle('s', fontSize=9, fontName='Helvetica', textColor=colors.gray)
+    st_b = ParagraphStyle('b', fontSize=9, fontName='Helvetica-Bold')
+    st_c = ParagraphStyle('c', fontSize=7.5, fontName='Helvetica', leading=9)
+    st_h = ParagraphStyle('h', fontSize=7.5, fontName='Helvetica-Bold', leading=9, textColor=colors.white)
+    st_g = ParagraphStyle('g', fontSize=11, fontName='Helvetica-Bold', leading=14)
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(letter), leftMargin=1.2*cm, rightMargin=1.2*cm,
+                            topMargin=1.2*cm, bottomMargin=1.2*cm, title='Reporte General de Inventario')
+    logo = finders.find('mantenimiento_mecanico/logo_ana.png')
+    filtros = []
+    f_area = request.GET.get('f_area', '')
+    if f_area in dict(AREAS_GENERAL):
+        filtros.append('Área: ' + dict(AREAS_GENERAL)[f_area])
+    if _es_pk(request.GET.get('f_cat', '')):
+        cat = CategoriaGeneral.objects.filter(pk=int(request.GET['f_cat'])).first()
+        if cat:
+            filtros.append('Categoría: ' + cat.nombre)
+    sub = 'Asociación Nuevo Amanecer – Sistema TechCare · Generado el ' + datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+    if filtros:
+        sub += ' · ' + ' · '.join(filtros)
+    head = Table([[RLImage(logo, width=1.9*cm, height=1.9*cm) if logo else '',
+                   [Paragraph('Reporte General de Inventario', st_t), Paragraph(_esc(sub), st_s)]]], colWidths=[2.3*cm, 22.3*cm])
+    head.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+    story = [head, Spacer(1, 0.3*cm), Paragraph(f'Total de artículos: {total}', st_b), Spacer(1, 0.25*cm)]
+
+    # Resumen por tipo y estado
+    enc = ['Tipo', 'Artículos'] + [l for _, l in estados]
+    data = [[Paragraph(x, st_h) for x in enc]]
+    tot_est = {k: 0 for k, _ in estados}
+    for k, l, its in grupos:
+        fila = [Paragraph(f'<b>{l}</b>', st_c), Paragraph(str(len(its)), st_c)]
+        for ke, _ in estados:
+            n = sum(1 for it in its if it.estado == ke); tot_est[ke] += n
+            fila.append(Paragraph(str(n) if n else '—', st_c))
+        data.append(fila)
+    data.append([Paragraph('<b>Total</b>', st_c), Paragraph(f'<b>{total}</b>', st_c)] + [Paragraph(f'<b>{tot_est[k]}</b>', st_c) for k, _ in estados])
+    res = Table(data, colWidths=[5*cm, 2.6*cm] + [2.6*cm] * len(estados), repeatRows=1, hAlign='LEFT')
+    res.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), AZUL), ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, GRIS]),
+                             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#dbe7f8')),
+                             ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')), ('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    story += [Paragraph('Resumen por tipo', st_g), Spacer(1, 0.15*cm), res, Spacer(1, 0.5*cm)]
+
+    # Una tabla por tipo
+    enc = ['Código', 'Área', 'Categoría', 'Descripción', 'Ubicación', 'Estado', 'Comentario de la auditora']
+    anchos = [2.4, 2.4, 3.0, 6.0, 3.6, 2.0, 6.2]
+    for k, l, its in grupos:
+        if not its:
+            continue
+        col = colors.HexColor(_TIPO_COLOR_INV.get(k, '#667382'))
+        titulo = Paragraph(f'<font color="{_TIPO_COLOR_INV.get(k, "#667382")}">{l}</font> <font size="9" color="#667382">· {len(its)} artículo{"s" if len(its) != 1 else ""}</font>', st_g)
+        data = [[Paragraph(x, st_h) for x in enc]]
+        for it in its:
+            data.append([Paragraph(_esc(v or '—'), st_c) for v in (
+                it.codigo, it.get_area_display(), it.categoria.nombre if it.categoria_id else '',
+                it.descripcion, it.ubicacion, it.get_estado_display(), it.comentario_auditora)])
+        t = Table(data, colWidths=[a*cm for a in anchos], repeatRows=1)
+        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), col), ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, GRIS]),
+                               ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                               ('LEFTPADDING', (0, 0), (-1, -1), 4), ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                               ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3)]))
+        story += [titulo, Spacer(1, 0.12*cm), t, Spacer(1, 0.45*cm)]
+    if not total:
+        story.append(Paragraph('No hay artículos con este filtro.', st_s))
+
+    # Firma fija de la auditora (misma de las fichas)
+    st_f = ParagraphStyle('f', fontSize=11, fontName='Helvetica-BoldOblique', alignment=TA_CENTER)
+    st_fl = ParagraphStyle('fl', fontSize=8, fontName='Helvetica-Bold', alignment=TA_CENTER)
+    firma = [Paragraph(FIRMA_AUDITORA_INV[0], st_f), Spacer(1, 0.12*cm),
+             HRFlowable(width='70%', thickness=0.8, color=colors.gray, hAlign='CENTER'), Spacer(1, 0.08*cm),
+             Paragraph('Firma de la ' + FIRMA_AUDITORA_INV[1], st_fl)]
+    ft = Table([[firma]], colWidths=[12*cm])
+    story += [Spacer(1, 0.8*cm), KeepTogether(ft)]
+    doc.build(story)
+    resp = HttpResponse(buf.getvalue(), content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="reporte_general_inventario_{datetime.date.today():%Y%m%d}.pdf"'
+    return resp
+
+
+@_inventario_required
+def item_general_reporte_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    grupos, total = _reporte_general_grupos(request)
+    estados = ItemGeneral.ESTADOS
+    wb = Workbook(); ws = wb.active; ws.title = 'Resumen'
+    ws.append(['Tipo', 'Artículos'] + [l for _, l in estados])
+    for k, l, its in grupos:
+        ws.append([l, len(its)] + [sum(1 for it in its if it.estado == ke) for ke, _ in estados])
+    ws.append(['Total', total] + [sum(1 for _, _, its in grupos for it in its if it.estado == ke) for ke, _ in estados])
+    for c in ws[1]:
+        c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='206BC4')
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+    ws.column_dimensions['A'].width = 18
+    for k, l, its in grupos:
+        if not its:
+            continue
+        sh = wb.create_sheet(l[:31])
+        sh.append(['Código', 'Área', 'Categoría', 'Descripción', 'Ubicación', 'Estado', 'Comentario de la auditora', 'Registrado por', 'Fecha'])
+        for c in sh[1]:
+            c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor=_TIPO_COLOR_INV.get(k, '#667382')[1:].upper())
+        for it in its:
+            sh.append([it.codigo, it.get_area_display(), it.categoria.nombre if it.categoria_id else '', it.descripcion, it.ubicacion,
+                       it.get_estado_display(), it.comentario_auditora,
+                       (it.creado_por.get_full_name() or it.creado_por.username) if it.creado_por else '', it.fecha_creado.date()])
+            sh.cell(row=sh.max_row, column=9).number_format = 'DD/MM/YYYY'
+        for col, an in zip('ABCDEFGHI', (13, 16, 20, 40, 24, 14, 45, 24, 12)):
+            sh.column_dimensions[col].width = an
+        sh.freeze_panes = 'A2'
+        _xl_sin_formulas(sh)
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="reporte_general_inventario_{datetime.date.today():%Y%m%d}.xlsx"'
     wb.save(resp)
     return resp

@@ -1,0 +1,19 @@
+/* <--- hecho por claude code (09-nov-2026): página dentro de la ventana «Registrar» (?embed=1): solo el formulario */
+body.tc-embed { background: var(--ps-surface, #fff) !important; overflow-x: hidden; }
+body.tc-embed .tc-topbar, body.tc-embed .navbar-vertical, body.tc-embed .page-header, body.tc-embed footer,
+body.tc-embed #tc-asis-fab, body.tc-embed #tc-asis-panel, body.tc-embed .tc-canal-pill { display: none !important; }
+body.tc-embed .page-wrapper { padding-top: 0 !important; margin: 0 !important; }
+body.tc-embed .page-body { visibility: hidden; }
+body.tc-embed .modal { visibility: visible; position: absolute; }
+body.tc-embed .modal-backdrop { display: none !important; }
+body.tc-embed .modal-dialog { max-width: 100% !important; width: 100% !important; margin: 0 !important; min-height: 0 !important; transform: none !important; }
+body.tc-embed .modal-content { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+body.tc-embed .modal-header .btn-close { display: none; }
+/* <--- hecho por claude code (13-nov-2026): la ventana mide lo mismo que el marco → el pie (Cancelar / Registrar) siempre visible y solo el cuerpo hace scroll */
+body.tc-embed .modal.show { position: fixed !important; inset: 0 !important; overflow: hidden !important; padding: 0 !important; }
+body.tc-embed .modal-dialog { height: 100vh !important; max-height: 100vh !important; display: flex !important; align-items: stretch !important; }
+body.tc-embed .modal-content { height: 100% !important; max-height: 100% !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+body.tc-embed .modal-content > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+body.tc-embed .modal-body { flex: 1 1 auto; min-height: 0; max-height: none !important; overflow-y: auto !important; }
+body.tc-embed .modal-header, body.tc-embed .modal-footer { flex: 0 0 auto; }
+body.tc-embed .modal-footer { padding: .75rem 1rem !important; background: var(--ps-surface, #fff); border-top: 1px solid var(--tblr-border-color, #e6e7e9); }

@@ -1,14 +1,22 @@
 import io, os, re
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
+from django.views.decorators.http import require_POST
 
 from django.contrib.auth.models import User
+from accounts.panel_roles import _GRUPOS_COORD_BL, _GRUPOS_COORD_COL   # <--- hecho por claude code (seguridad 05-nov-2026): mismos grupos de coordinador que el menú (nav_coord_bl / nav_coord_col)
 from .models import GradoAgenda, Agenda, ImagenAgenda, AgendaBloqueoConfig
 from . import diseno
+
+
+def _area_periodo(area_agenda):
+    """<--- hecho por claude code (06-nov-2026): área de Agendas → área del Período Escolar general."""
+    return 'bilingue' if area_agenda in _AREAS_BL else 'colegio'
 
 
 def _agenda_bloqueado(request):
@@ -17,6 +25,12 @@ def _agenda_bloqueado(request):
     Coordinadores nunca se bloquean."""
     if _es_coordinador(request.user):
         return None
+    # <--- hecho por claude code (06-nov-2026): Agendas cerrado en el Período Escolar activo (si TODAS sus áreas lo tienen cerrado)
+    from conducta.periodo_modulos import periodo_que_cierra, mensaje_cerrado
+    _areas = {_area_periodo(a) for a in (_areas_para_usuario(request.user, request) or ['primaria', 'colegio'])}
+    _cierres = [periodo_que_cierra('age', a, request.user) for a in _areas]
+    if _cierres and all(_cierres):
+        return mensaje_cerrado('age', _cierres[0])
     cfg = AgendaBloqueoConfig.get()
     if not cfg.activo:
         return None
@@ -128,36 +142,81 @@ def _clases_core(grado_obj):
     return {m for m in _materias_para_grado(grado_obj) if m != 'Asociadas'}
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): el área de Agendas se deriva SIEMPRE de los GRUPOS reales del usuario (mismo criterio que el menú).
+_AREAS_BL = ('primaria', 'colegio_bl')
+_AREAS_COL = ('colegio',)
+_ORDEN_AREAS = ('primaria', 'colegio_bl', 'colegio')
+
+
+def _grupos_de(user):
+    return set(user.groups.values_list('name', flat=True))
+
+
+def _areas_coordina(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): áreas que el usuario COORDINA por sus grupos (None = superusuario: todas; [] = ninguna)."""
+    if user.is_superuser:
+        return None
+    g = _grupos_de(user)
+    return (list(_AREAS_BL) if g & set(_GRUPOS_COORD_BL) else []) + (list(_AREAS_COL) if g & set(_GRUPOS_COORD_COL) else [])
+
+
+def _areas_maestro(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): áreas en las que el usuario da clases (grupos maestros_bilingue / maestros_colegio)."""
+    g = _grupos_de(user)
+    return (list(_AREAS_BL) if 'maestros_bilingue' in g else []) + (list(_AREAS_COL) if 'maestros_colegio' in g else [])
+
+
+def _areas_reales(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): TODAS las áreas a las que el usuario tiene derecho por grupo (coordina + da clases). None = superusuario."""
+    if user.is_superuser:
+        return None
+    tiene = set(_areas_coordina(user)) | set(_areas_maestro(user))
+    return [a for a in _ORDEN_AREAS if a in tiene]
+
+
+def _puede_agendas(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): entrar a Agendas = superusuario, coordinador o maestro de alguna área (show_agendas / nav_coord_* / nav_maestro_* del menú)."""
+    return user.is_superuser or bool(_areas_reales(user))
+
+
+def _puede_ver_agenda(user, agenda):
+    """<--- hecho por claude code (seguridad 05-nov-2026): abrir/llenar UNA agenda = su área es del usuario (la coordina o da clases en ella)."""
+    reales = _areas_reales(user)
+    return reales is None or agenda.grado.area in reales
+
+
+def _coordina_agenda(user, agenda):
+    """<--- hecho por claude code (seguridad 05-nov-2026): acciones de coordinación sobre UNA agenda (editar todo, diseño, PPTX/Word, imagen final, eliminar, publicar) = solo quien coordina ESA área."""
+    coord = _areas_coordina(user)
+    return coord is None or agenda.grado.area in coord
+
+
 def _areas_para_usuario(user, request=None):
     """Devuelve la lista de areas que el usuario puede ver, o None si ve todo."""
     if user.is_superuser:
         return None
-    # Cualquier usuario con área seleccionada explícitamente en sesión
+    # <--- hecho por claude code (seguridad 05-nov-2026): la sesión (que el navegador fija con ?modo=maestro&area= o /accounts/aplicar-rol/) solo ELIGE entre las áreas reales del usuario; antes mandaba sola y un coordinador de Colegio veía, diseñaba y creaba agendas BL.
     if request and request.session.get("agenda_modo_maestro"):
         area = request.session.get("agenda_area_maestro", "bilingue")
-        if area == "colegio":
-            return ["colegio"]
-        return ["primaria", "colegio_bl"]
+        pedidas = list(_AREAS_COL) if area == "colegio" else list(_AREAS_BL)
+        reales = _areas_reales(user)
+        if all(a in reales for a in pedidas):
+            return pedidas
     # <--- hecho por claude code (15-oct-2026): las áreas se SUMAN (antes ganaba el primer grupo y quien da clases en BL
     # y en Colegio —p. ej. ngonzales— solo veía BL). Un coordinador ve SOLO las áreas que coordina (druiz coordina BL:
     # aunque también sea maestra de Colegio, como coordinadora no ve Colegio; en su modo maestra elige el área).
-    grupos = set(user.groups.values_list('name', flat=True))
-    coord_bl = bool(grupos & {'coordinador_bilingue', 'coord_progress_bl'})
-    coord_col = bool(grupos & {'coordinadores_colegio', 'coordinador_colegio', 'coordinadores'})
-    if coord_bl or coord_col:
-        return (['primaria', 'colegio_bl'] if coord_bl else []) + (['colegio'] if coord_col else [])
-    areas = (['primaria', 'colegio_bl'] if 'maestros_bilingue' in grupos else []) + \
-            (['colegio'] if 'maestros_colegio' in grupos else [])
-    return areas or None
+    coord = _areas_coordina(user)
+    if coord:
+        return coord
+    # <--- hecho por claude code (seguridad 05-nov-2026): sin grupo de maestro/coordinador = NINGUNA área (antes devolvía None = veía TODAS).
+    return _areas_maestro(user)
 
 
 def _es_coordinador(user):
     # <--- hecho por claude code (15-oct-2026): faltaba 'coordinador_colegio' (singular, el que usa el resto del sistema):
     # fvalladares, coordinador de Colegio, recibía 403 en el Dashboard de Agendas.
-    return user.is_superuser or user.groups.filter(
-        name__in=['coordinador_bilingue', 'coord_progress_bl',
-                  'coordinadores_colegio', 'coordinador_colegio', 'coordinador_col', 'coordinadores']
-    ).exists()
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismos grupos que el menú (accounts.panel_roles), ya no una lista propia.
+    return user.is_superuser or user.groups.filter(name__in=(*_GRUPOS_COORD_BL, *_GRUPOS_COORD_COL)).exists()
 
 
 # Coordinadores que también son maestros y pueden alternar rol en Agendas
@@ -206,7 +265,10 @@ def _aplicar_modo_get(request):
     if modo == 'maestro' and _es_coord_maestro(request.user):
         request.session['agenda_modo_maestro'] = True
         area = request.GET.get('area')
-        if area in ('bilingue', 'colegio'):
+        # <--- hecho por claude code (seguridad 05-nov-2026): solo se guarda un área que el usuario tiene de verdad por grupo
+        reales = _areas_reales(request.user)
+        if area in ('bilingue', 'colegio') and (
+                reales is None or all(a in reales for a in (_AREAS_COL if area == 'colegio' else _AREAS_BL))):
             request.session['agenda_area_maestro'] = area
     elif modo == 'coord' and _es_coordinador(request.user):
         request.session['agenda_modo_maestro'] = False
@@ -227,6 +289,9 @@ def toggle_modo_maestro(request):
 # ── FORMULARIO MAESTRO ────────────────────────────────────────────────────────
 @login_required
 def form_agenda(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): candado por grupo; antes cualquier usuario con sesión y sin grupo veía y creaba agendas de TODOS los grados
+    if not _puede_agendas(request.user):
+        return HttpResponseForbidden('No tienes acceso a Agendas.')
     _aplicar_modo_get(request)   # <--- hecho por claude code (16-sep-2026)
     if _es_coord_efectivo(request):
         return redirect('agendas:dashboard_coordinador')
@@ -249,13 +314,20 @@ def form_agenda(request):
     semana_fin = ''
 
     if request.method == 'POST':
-        grado_id   = request.POST.get('grado_id')
+        grado_id   = request.POST.get('grado_id') or ''
         semana_ini = request.POST.get('semana_inicio', '')
         semana_fin = request.POST.get('semana_fin', '')
-        grado_obj  = GradoAgenda.objects.filter(pk=grado_id, activo=True).first()
+        # <--- hecho por claude code (seguridad 05-nov-2026): el grado debe ser de las áreas del usuario (antes se aceptaba cualquier grado_id por POST)
+        grado_obj  = grados_qs.filter(pk=grado_id).first() if grado_id.isdecimal() else None
 
         if not grado_obj:
             messages.error(request, "Selecciona un grado válido.")
+            return render(request, 'agendas/form_agenda.html', {'grados': grados, **_rol_ctx(request)})
+        # <--- hecho por claude code (06-nov-2026): el área de ese grado puede tener Agendas cerrado en el período
+        from conducta.periodo_modulos import periodo_que_cierra, mensaje_cerrado
+        _p = periodo_que_cierra('age', _area_periodo(grado_obj.area), request.user) if not _es_coordinador(request.user) else None
+        if _p:
+            messages.error(request, mensaje_cerrado('age', _p))
             return render(request, 'agendas/form_agenda.html', {'grados': grados, **_rol_ctx(request)})
 
         materias = _clases_orden(grado_obj)
@@ -310,6 +382,15 @@ def form_agenda(request):
                 'clases_asociadas': _clases_asociadas_para_grado(grado_obj),
                 **_rol_ctx(request),
             })
+
+        # <--- hecho por claude code (04-nov-2026): BLINDAJE — una agenda es SIEMPRE una semana (lun–vie).
+        # Se ancla al lunes de semana_inicio y el fin al viernes, aunque el POST traiga otra fecha,
+        # para no volver a guardar rangos corruptos (caso real pk=237: 02/11 → 04/12).
+        from datetime import timedelta as _td0
+        ini_d = ini_d - _td0(days=ini_d.weekday())
+        fin_d = ini_d + _td0(days=4)
+        semana_ini = ini_d.isoformat()
+        semana_fin = fin_d.isoformat()
 
         # La fecha final no puede ser anterior a la de inicio
         if fin_d < ini_d:
@@ -369,14 +450,36 @@ def form_agenda(request):
 
 
 # ── EDITAR AGENDA ─────────────────────────────────────────────────────────────
+_DIAS_EDITAR = ('lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'nota')
+
+
+def _fila_editable(prev, usuario_actual, es_coord):
+    """<--- hecho por claude code (seguridad 05-nov-2026): regla única de "¿puede tocar esta clase?" (pantalla Editar y subir_imagen):
+    el coordinador del área todo; el maestro, las clases vacías o las que llenó él."""
+    dg = ((prev.get('docente') or '').strip() if prev else '')
+    prev_tiene = any((prev.get(d) or '').strip() for d in _DIAS_EDITAR) if prev else False
+    return es_coord or (prev is None) or (dg == usuario_actual) or (not dg and not prev_tiene)
+
+
+def _clases_de_agenda(agenda):
+    """<--- hecho por claude code (seguridad 05-nov-2026): (guardadas por nombre, orden total) igual que la pantalla Editar: catálogo + clases de legado."""
+    saved = {m.get('materia', ''): m for m in (agenda.materias_json or [])}
+    orden = _clases_orden(agenda.grado)
+    return saved, orden + [n for n in saved if n and n not in orden]
+
+
 @login_required
 def editar_agenda(request, pk):
+    agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): IDOR — antes cualquiera con sesión abría y guardaba la agenda de CUALQUIER área; ahora solo quien coordina o da clases en el área de la agenda
+    if not _puede_ver_agenda(request.user, agenda):
+        return HttpResponseForbidden('No tienes acceso a las agendas de esta área.')
     _msg_bloqueo = _agenda_bloqueado(request)
     if _msg_bloqueo:
         return render(request, 'agendas/bloqueado.html',
                       {'mensaje': _msg_bloqueo, **_rol_ctx(request)})
-    agenda = get_object_or_404(Agenda, pk=pk)
-    es_coord       = _es_coord_efectivo(request)
+    # <--- hecho por claude code (seguridad 05-nov-2026): "editar todo" (celdas de otros maestros) solo el coordinador de ESA área; en otra área edita como maestro
+    es_coord       = _es_coord_efectivo(request) and _coordina_agenda(request.user, agenda)
     usuario_actual = request.user.get_full_name() or request.user.username
 
     # URL de regreso para maestros: su Historial (según el área de la agenda)
@@ -398,9 +501,7 @@ def editar_agenda(request, pk):
     orden_total = orden + legado
 
     def _editable(prev):
-        dg = (prev.get('docente', '').strip() if prev else '')
-        prev_tiene = any(prev.get(d, '').strip() for d in DIAS) if prev else False
-        return es_coord or (prev is None) or (dg == usuario_actual) or (not dg and not prev_tiene)
+        return _fila_editable(prev, usuario_actual, es_coord)   # <--- hecho por claude code (seguridad 05-nov-2026): misma regla que valida subir_imagen
 
     if request.method == 'POST':
         nuevas_materias = []
@@ -470,6 +571,7 @@ def editar_agenda(request, pk):
         'filas':  filas,
         'volver_url': volver_url,
         **_rol_ctx(request),
+        'es_coord': es_coord,   # <--- hecho por claude code (seguridad 05-nov-2026): el botón PPTX y el "Volver" siguen la misma regla del servidor
     })
 
 
@@ -550,7 +652,8 @@ def dashboard_coordinador(request):
     _aplicar_modo_get(request)   # <--- hecho por claude code (16-sep-2026)
     if not _es_coordinador(request.user):
         return HttpResponseForbidden()
-    areas = _areas_para_usuario(request.user, request)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el tablero del coordinador lista SOLO las áreas que coordina por grupo (antes salía de la sesión, que el navegador puede fijar)
+    areas = _areas_coordina(request.user)
     agendas_qs = Agenda.objects.select_related('grado', 'usuario').order_by('-semana_inicio', 'grado__nombre')
     if areas is not None:
         agendas_qs = agendas_qs.filter(grado__area__in=areas)
@@ -570,7 +673,7 @@ def dashboard_coordinador(request):
         'bloqueo_cfg':  bcfg,
         'bloqueo_ids':  bloqueo_ids,
         'maestros_bl':  maestros_bl,
-        'moodle_publicadas': _moodle_publicadas(),   # <--- hecho por claude code (14-oct-2026)
+        'moodle_publicadas': _moodle_publicadas(areas),   # <--- hecho por claude code (14-oct-2026); (seguridad 05-nov-2026) solo las de sus áreas
         'moodle_pantalla': _puede_ver_moodle(request.user),   # <--- hecho por claude code (28-oct-2026): acceso a la pantalla de Moodle (druiz/cvarela/super)
         'tab_crear': request.GET.get('tab') == 'crear',   # <--- hecho por claude code (15-oct-2026): pestaña Crear agenda
         **diseno.contexto_crear(request),
@@ -587,14 +690,17 @@ def _puede_ver_moodle(user):
         return False
 
 
-def _moodle_publicadas():
+def _moodle_publicadas(areas=None):
     """{agenda_id: {fecha, curso, n}} de la última publicación OK en Moodle (app moodle_upload)."""
     try:
         from moodle_upload.models import PublicacionMoodle
     except Exception:
         return {}
     out, cursos = {}, {}
-    for p in PublicacionMoodle.objects.filter(ok=True, agenda__isnull=False).order_by('fecha'):
+    pubs = PublicacionMoodle.objects.filter(ok=True, agenda__isnull=False)
+    if areas is not None:   # <--- hecho por claude code (seguridad 05-nov-2026): solo las agendas de las áreas que se listan
+        pubs = pubs.filter(agenda__grado__area__in=areas)
+    for p in pubs.order_by('fecha'):
         d = out.setdefault(str(p.agenda_id), {'n': 0})
         d.update({'fecha': p.fecha.strftime('%d/%m/%Y %H:%M'), 'curso': p.curso_nombre or str(p.curso_id)})
         d['n'] += 1
@@ -611,39 +717,107 @@ def bloqueo_config_guardar(request):
         return HttpResponseForbidden()
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
+    # <--- hecho por claude code (seguridad 05-nov-2026): se valida la hora y los ids ANTES de tocar nada (un valor raro daba 500)
+    from datetime import datetime as _dtb
+    hora = (request.POST.get('jueves_limite') or '').strip()
+    hora_ok = None
+    if hora:
+        for _fmt in ('%H:%M', '%H:%M:%S'):
+            try:
+                hora_ok = _dtb.strptime(hora, _fmt).time()
+                break
+            except ValueError:
+                continue
+        if hora_ok is None:
+            return JsonResponse({'error': 'Hora de cierre inválida.'}, status=400)
+    ids = [i for i in request.POST.getlist('maestros') if str(i).isdecimal()]  # <--- hecho por claude code (seguridad 05-nov-2026): isdecimal (isdigit acepta '²' y int() daba 500 tras guardar a medias)
     cfg = AgendaBloqueoConfig.get()
     cfg.activo = request.POST.get('activo') in ('1', 'true', 'on', 'True')
     cfg.mensaje         = (request.POST.get('mensaje') or AgendaBloqueoConfig.MSG_LUNES_DEFAULT).strip()
     cfg.mensaje_jueves  = (request.POST.get('mensaje_jueves') or AgendaBloqueoConfig.MSG_JUEVES_DEFAULT).strip()
     cfg.mensaje_viernes = (request.POST.get('mensaje_viernes') or AgendaBloqueoConfig.MSG_VIERNES_DEFAULT).strip()
-    hora = (request.POST.get('jueves_limite') or '').strip()
-    if hora:
-        cfg.jueves_limite = hora
+    if hora_ok is not None:
+        cfg.jueves_limite = hora_ok
     cfg.save()
-    ids = request.POST.getlist('maestros')
     cfg.maestros.set(User.objects.filter(pk__in=ids))
     return JsonResponse({'ok': True})
 
 
 # ── SUBIR IMAGEN ──────────────────────────────────────────────────────────────
-@login_required
-def subir_imagen(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
-    agenda_id   = request.POST.get('agenda_id')
-    imagen      = request.FILES.get('imagen')
-    descripcion = request.POST.get('descripcion', '')
-    materia     = request.POST.get('materia', '')
+# <--- hecho por claude code (seguridad 05-nov-2026): lista blanca de imágenes comprobada con PIL (antes se guardaba CUALQUIER archivo en /media/)
+_IMG_TIPOS = {'.png': ('PNG', 'image/png'), '.jpg': ('JPEG', 'image/jpeg'), '.jpeg': ('JPEG', 'image/jpeg'),
+              '.gif': ('GIF', 'image/gif'), '.webp': ('WEBP', 'image/webp')}
+_IMG_MAX_MB = 10
 
-    if not agenda_id or not imagen:
+
+def _validar_imagen_subida(f):
+    """<--- hecho por claude code (seguridad 05-nov-2026): None si es una imagen real (PNG/JPG/GIF/WEBP, ≤ 10 MB, abierta con PIL); si no, el motivo."""
+    ext = os.path.splitext(getattr(f, 'name', '') or '')[1].lower()
+    if ext not in _IMG_TIPOS:
+        return 'Solo imágenes PNG, JPG, GIF o WEBP.'
+    if not f.size or f.size > _IMG_MAX_MB * 1024 * 1024:
+        return f'La imagen está vacía o pesa más de {_IMG_MAX_MB} MB.'
+    try:
+        from PIL import Image
+        f.seek(0)
+        im = Image.open(f)
+        im.verify()
+        formato = im.format
+    except Exception:
+        return 'El archivo no es una imagen válida.'
+    finally:
+        try:
+            f.seek(0)
+        except Exception:
+            pass
+    if formato == 'MPO':  # <--- hecho por claude code (seguridad 05-nov-2026): JPEG con imagen MPF (fotos HDR de celulares recientes) = JPEG válido
+        formato = 'JPEG'
+    if formato not in {t[0] for t in _IMG_TIPOS.values()}:
+        return 'Solo imágenes PNG, JPG, GIF o WEBP.'
+    return None
+
+
+@login_required
+@require_POST
+def subir_imagen(request):
+    agenda_id   = request.POST.get('agenda_id') or ''
+    imagen      = request.FILES.get('imagen')
+    descripcion = (request.POST.get('descripcion') or '')[:200]
+    materia     = (request.POST.get('materia') or '').strip()
+
+    if not agenda_id.isdecimal():
         return JsonResponse({'error': 'Datos incompletos'}, status=400)
 
-    agenda = get_object_or_404(Agenda, pk=agenda_id)
+    agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=agenda_id)
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo candado que la pantalla Editar (área de la agenda + horario de llenado)
+    if not _puede_ver_agenda(request.user, agenda):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    _msg_bloqueo = _agenda_bloqueado(request)
+    if _msg_bloqueo:
+        return JsonResponse({'error': _msg_bloqueo}, status=403)
+    es_coord = _es_coord_efectivo(request) and _coordina_agenda(request.user, agenda)
+    # <--- hecho por claude code (seguridad 05-nov-2026): la clase debe ser de la agenda y el maestro solo sube en la que puede llenar (como en Editar)
+    saved, orden_total = _clases_de_agenda(agenda)
+    if materia not in orden_total:
+        return JsonResponse({'error': 'Clase inválida'}, status=400)
+    usuario_actual = request.user.get_full_name() or request.user.username
+    if not _fila_editable(saved.get(materia), usuario_actual, es_coord):
+        return JsonResponse({'error': 'Esa clase la llenó otro docente'}, status=403)
+    # <--- hecho por claude code (seguridad 05-nov-2026): la imagen que subió OTRO maestro solo la reemplaza el coordinador del área (antes se borraba la de cualquiera)
+    previas = list(ImagenAgenda.objects.filter(agenda=agenda, materia=materia))
+    if not es_coord and any(p.subida_por_id != request.user.pk for p in previas):
+        return JsonResponse({'error': 'La imagen de esa clase la subió otro docente'}, status=403)
+    if not imagen:
+        return JsonResponse({'error': 'Datos incompletos'}, status=400)
+    error = _validar_imagen_subida(imagen)
+    if error:
+        return JsonResponse({'error': error}, status=400)
+    imagen.name = f"agenda{agenda.pk}_{timezone.now():%Y%m%d%H%M%S}{os.path.splitext(imagen.name)[1].lower()}"   # nombre propio, nunca el del cliente
 
     # Si ya existe imagen para esta materia, reemplazarla
-    es_coord = _es_coordinador(request.user)
-    if materia:
-        ImagenAgenda.objects.filter(agenda=agenda, materia=materia).delete()
+    for p in previas:
+        p.imagen.delete(save=False)
+        p.delete()
 
     img = ImagenAgenda.objects.create(
         agenda=agenda,
@@ -652,16 +826,38 @@ def subir_imagen(request):
         materia=materia,
         subida_por=request.user,
     )
-    return JsonResponse({'ok': True, 'url': img.imagen.url, 'id': img.pk})
+    # <--- hecho por claude code (seguridad 05-nov-2026): se sirve por la vista con permiso, no por /media/ público
+    return JsonResponse({'ok': True, 'url': reverse('agendas:imagen_ver', args=[img.pk]), 'id': img.pk})
+
+
+# ── VER IMAGEN (hecho por claude code, seguridad 05-nov-2026) ────────────────
+@login_required
+def imagen_ver(request, pk):
+    """<--- hecho por claude code (seguridad 05-nov-2026): sirve la foto de una clase con el MISMO permiso que la agenda (antes /media/agendas/imagenes/ era público)."""
+    img = get_object_or_404(ImagenAgenda.objects.select_related('agenda__grado'), pk=pk)
+    if not _puede_ver_agenda(request.user, img.agenda):
+        return HttpResponseForbidden()
+    if not img.imagen:
+        raise Http404
+    tipo = _IMG_TIPOS.get(os.path.splitext(img.imagen.name)[1].lower())
+    try:
+        resp = FileResponse(img.imagen.open('rb'), content_type=tipo[1] if tipo else 'application/octet-stream',
+                            as_attachment=not tipo)
+    except FileNotFoundError:
+        raise Http404
+    resp['Cache-Control'] = 'private, max-age=300'
+    return resp
 
 
 # ── ELIMINAR IMAGEN ───────────────────────────────────────────────────────────
 @login_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026): borraba por GET (un <img src> en otra página bastaba); el JS ya usa POST
 def eliminar_imagen(request, pk):
-    img = get_object_or_404(ImagenAgenda, pk=pk)
-    es_coord = _es_coordinador(request.user)
-    if img.subida_por != request.user and not es_coord:
-        return HttpResponseForbidden()
+    img = get_object_or_404(ImagenAgenda.objects.select_related('agenda__grado'), pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): quien la subió (si sigue teniendo el área) o el coordinador de ESA área; antes cualquier coordinador de cualquier área
+    propia = img.subida_por_id == request.user.pk and _puede_ver_agenda(request.user, img.agenda)
+    if not propia and not (_es_coordinador(request.user) and _coordina_agenda(request.user, img.agenda)):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
     img.imagen.delete(save=False)
     img.delete()
     return JsonResponse({'ok': True})
@@ -825,7 +1021,10 @@ def descargar_pptx_agenda(request, pk):
     from pptx.oxml.ns import qn
     from lxml import etree
 
-    agenda   = get_object_or_404(Agenda, pk=pk)
+    agenda   = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo el coordinador de ESA área (antes cualquier coordinador bajaba el PPTX/Word de cualquier área)
+    if not _coordina_agenda(request.user, agenda):
+        return HttpResponseForbidden('Solo la coordinación del área puede descargar esta agenda.')
     es_coord = _es_coordinador(request.user)
 
     # ── Colegio: genera DOCX (Word) ──────────────────────────────────────────
@@ -1080,6 +1279,9 @@ def eliminar_agenda(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
-    agenda = get_object_or_404(Agenda, pk=pk)
+    agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): IDOR — cualquier coordinador borraba agendas de CUALQUIER área; ahora solo el de ESA área
+    if not _coordina_agenda(request.user, agenda):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
     agenda.delete()
     return JsonResponse({'ok': True})

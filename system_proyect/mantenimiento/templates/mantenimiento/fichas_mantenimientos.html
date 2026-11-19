@@ -13,9 +13,9 @@
                     <tbody>
                       {% for r in records_man %}
                       <tr>
-                        <td><span class="badge bg-green-lt text-green">{{ r.record_id }}</span></td>
+                        <td><span class="badge bg-green-lt text-green btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
                         <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                        <td><div class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
+                        <td><div class="fw-semibold">{% if r.laboratorio %}<span class="text-indigo"><i class="ti ti-flask me-1"></i>{{ r.lab_display }}</span>{% elif r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
                         <td>{{ r.teacher_name|default:"—" }}</td>
                         <td>{% if r.mant_comentario %}<span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="left" data-bs-title="Comentarios" data-bs-content="{{ r.mant_comentario }}"><i class="ti ti-message-2 me-1"></i>{{ r.mant_comentario|truncatechars:34 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>

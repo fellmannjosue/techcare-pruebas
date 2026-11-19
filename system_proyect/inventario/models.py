@@ -321,6 +321,15 @@ class ItemGeneral(AuditModel):
         ('baja',       'De baja'),
     ]
     PREFIJO = 'ANAGEN-'
+    # <--- hecho por claude code (12-nov-2026): TIPO del artículo = pestañas del Inventario General (pedido del usuario)
+    TIPOS = [
+        ('mobiliario',  'Mobiliario'),
+        ('maquina',     'Máquinas'),
+        ('herramienta', 'Herramientas'),
+        ('vehiculo',    'Vehículos'),
+        ('inmueble',    'Inmuebles'),
+        ('bien',        'Bienes'),   # <--- hecho por claude code (12-nov-2026): casilla que faltaba
+    ]
 
     codigo      = models.CharField("Código", max_length=20, unique=True, editable=False)
     area        = models.CharField("Área", max_length=20, choices=AREAS_GENERAL, default='administracion')
@@ -329,6 +338,7 @@ class ItemGeneral(AuditModel):
     descripcion = models.CharField("Descripción", max_length=200)
     ubicacion   = models.CharField("Ubicación", max_length=120)
     estado      = models.CharField("Estado", max_length=12, choices=ESTADOS, default='bueno')
+    tipo        = models.CharField("Tipo", max_length=12, choices=TIPOS, blank=True, default='', db_index=True)   # <--- hecho por claude code (12-nov-2026)
     foto        = models.ImageField("Foto", upload_to='inventario/general/', blank=True, null=True)
     comentario_auditora = models.TextField("Comentario de la auditora", blank=True, default='')
 

@@ -70,7 +70,8 @@ $(function () {
   $(document).on('mouseenter focusin', '.mant-pop', function(){
     if (typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
     if (!bootstrap.Popover.getInstance(this)) {
-      bootstrap.Popover.getOrCreateInstance(this, { container: 'body', sanitize: false }).show();
+      // <--- hecho por claude code (seguridad 05-nov-2026): SIN sanitize:false (XSS almacenado: maestro/serie/observaciones van dentro del popover HTML); el sanitizador de Bootstrap conserva div/b/i/br y quita onerror/script
+      bootstrap.Popover.getOrCreateInstance(this, { container: 'body' }).show();
     }
   });
   // <--- hecho por claude code (17-sep-2026): BUG — quedaban DOS recuadros abiertos: el popover abre con hover Y con foco,
@@ -179,8 +180,76 @@ $(function () {
       const activo = $(this).data('equipo') === tipo;
       $(this).toggleClass('btn-primary', activo).toggleClass('btn-outline-primary', !activo);
     });
+    // <--- hecho por claude code (02-nov-2026): modo laboratorio — solo para Control / Entrega / Recogida
+    const esLabTipo = (tipo === 'control' || tipo === 'entrega' || tipo === 'recogida');
+    $('#ambito-equipo').toggleClass('d-none', !esLabTipo);
+    if (!esLabTipo) { labSet(''); } else { labSync(); }
     if (tipo === 'control') { ctrlSwitches(); }
   }
+
+  // <--- hecho por claude code (02-nov-2026): modo laboratorio (una sola ficha para TODO el laboratorio)
+  function labSync() {
+    const lab = ($('#id_laboratorio').val() || '').trim();
+    const esLab = !!lab;
+    $('.js-campo-comp').toggleClass('d-none', esLab);
+    $('#lab-banner').toggleClass('d-none', !esLab);
+    // con un laboratorio activo, las variantes que necesitan UNA computadora no aplican
+    $('#chk-caso-especial, #chk-cambio-equipo, #chk-reasignacion').prop('disabled', esLab)
+      .each(function(){ if (esLab) this.checked = false; });
+    if (esLab) {
+      $('#id_computadora').val('');
+      const inp = document.getElementById('chk-ambito-' + lab);
+      if (inp) {
+        $('#lab-banner-titulo').text(inp.dataset.label + ' · ' + inp.dataset.n + ' equipos');
+        $('#lab-banner-sub').text('Área ' + inp.dataset.area + '. Se registrará UNA sola ficha para todo el laboratorio.');
+      }
+      if (typeof ctrlSwitches === 'function') ctrlSwitches();
+      // <--- hecho por claude code (13-nov-2026): entrega/recogida de todo el lab: el equipo va marcado y la firma es opcional
+      $('#id_ent_equipo').prop('checked', true);
+      $('#ent-equipo-detalle').text($('#lab-banner-titulo').text() || 'Todo el laboratorio');
+      labLista(lab);
+      $('#id_firma_nombre option:first').text('— Opcional en laboratorio (se firma a mano) —');
+    } else {
+      $('#id_firma_nombre option:first').text('— Seleccionar maestro —');
+      $('#ent-lab-lista').addClass('d-none');
+    }
+    $('#fotos-limite').text(esLab ? '(hasta 10 · laboratorio)' : '(hasta 5)');   // <--- hecho por claude code (13-nov-2026)
+  }
+  // <--- hecho por claude code (13-nov-2026): lista de las computadoras del laboratorio (Asset ID · modelo · serie)
+  function labLista(lab, destino) {
+    let datos = {};
+    try { datos = JSON.parse(document.getElementById('lab-equipos').textContent) || {}; } catch (e) { datos = {}; }
+    const lista = datos[lab] || [];
+    destino = destino || '#ent-lab-lista';
+    const caja = document.querySelector(destino + ' .ent-lab-lista');
+    if (!caja) return;
+    caja.textContent = '';
+    lista.forEach(function (c, i) {
+      const fila = document.createElement('div');
+      fila.className = 'ent-lab-fila';
+      const n = document.createElement('span'); n.className = 'text-muted'; n.textContent = (i + 1) + '.';
+      const a = document.createElement('b'); a.textContent = c.asset_id;
+      const m = document.createElement('span'); m.textContent = [c.modelo, c.serie ? 'Serie ' + c.serie : ''].filter(Boolean).join(' · ') || '—';
+      fila.append(n, a, m);
+      caja.appendChild(fila);
+    });
+    if (!lista.length) caja.textContent = 'No hay computadoras de este laboratorio en el inventario.';
+    $(destino).removeClass('d-none');
+  }
+  function labSet(clave) {
+    clave = clave || '';
+    $('#id_laboratorio').val(clave);
+    $('.chk-ambito').each(function(){ this.checked = ((this.dataset.lab || '') === clave); });
+    labSync();
+  }
+  $(document).on('change', '.chk-ambito', function(){
+    if (this.checked) { labSet(this.dataset.lab || ''); }
+    else if (!$('.chk-ambito:checked').length) { labSet(''); }   // siempre debe haber uno activo (general)
+  });
+  // si se activa una variante que necesita UNA computadora, se vuelve a "general"
+  $(document).on('change', '#chk-caso-especial, #chk-cambio-equipo, #chk-reasignacion', function(){
+    if (this.checked) labSet('');
+  });
 
   // <--- hecho por claude code (16-oct-2026): préstamo — fechas por defecto y solicitante/área desde la computadora
   function hoyISO() { const d = new Date(), p2 = x => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
@@ -482,9 +551,12 @@ $(function () {
 
   // <--- hecho por claude code (21-oct-2026): evita re-agregar el MISMO archivo (nombre+tamaño) = no se duplican las fotos
   function _yaEsta(lista, f) { return lista.some(x => x.name === f.name && x.size === f.size); }
+  // <--- hecho por claude code (13-nov-2026): fichas de LABORATORIO admiten 10 fotos; las demás 5
+  function maxFotosNuevo() { return ($('#id_laboratorio').val() || '').trim() ? 10 : 5; }
+  function maxFotosEditar() { return ($('#edit-computadora').val() || '').indexOf('lab:') === 0 ? 10 : 5; }
   function addFiles(files) {
     for (const f of files) {
-      if (selectedFiles.length >= 5) break;
+      if (selectedFiles.length >= maxFotosNuevo()) break;
       if (!f.type.startsWith('image/')) continue;
       if (_yaEsta(selectedFiles, f)) continue;
       selectedFiles.push(f);
@@ -502,9 +574,10 @@ $(function () {
       const url = URL.createObjectURL(f);
       const wrap = document.createElement('div');
       wrap.style.position = 'relative';
-      wrap.innerHTML = `<img src="${url}" class="mant-foto-zoom" title="${f.name}">
+      wrap.innerHTML = `<img src="${url}" class="mant-foto-zoom">
         <button type="button" class="btn btn-sm btn-ghost-danger" onclick="removeFile(${i})"
           style="position:absolute;top:-4px;right:-4px;padding:0 4px;font-size:.7rem;">✕</button>`;
+      wrap.querySelector('img').title = f.name;   // <--- hecho por claude code (seguridad 05-nov-2026): el nombre del archivo como propiedad, no dentro del innerHTML
       preview.appendChild(wrap);
     });
   }
@@ -529,7 +602,7 @@ $(function () {
 
   function editAddFiles(files) {
     for (const f of files) {
-      if (editSelectedFiles.length >= 5) break;
+      if (editSelectedFiles.length >= maxFotosEditar()) break;
       if (!f.type.startsWith('image/')) continue;
       if (_yaEsta(editSelectedFiles, f)) continue;   // <--- hecho por claude code (21-oct-2026): no duplicar
       editSelectedFiles.push(f);
@@ -546,9 +619,10 @@ $(function () {
       const url = URL.createObjectURL(f);
       const wrap = document.createElement('div');
       wrap.style.position = 'relative';
-      wrap.innerHTML = `<img src="${url}" class="mant-foto-zoom" title="${f.name}">
+      wrap.innerHTML = `<img src="${url}" class="mant-foto-zoom">
         <button type="button" class="btn btn-sm btn-ghost-danger" onclick="editRemoveFile(${i})"
           style="position:absolute;top:-4px;right:-4px;padding:0 4px;font-size:.7rem;">✕</button>`;
+      wrap.querySelector('img').title = f.name;   // <--- hecho por claude code (seguridad 05-nov-2026): el nombre del archivo como propiedad, no dentro del innerHTML
       editPreview.appendChild(wrap);
     });
   }
@@ -566,10 +640,11 @@ $(function () {
         const wrap = document.createElement('div');
         wrap.style.position = 'relative';
         // <--- hecho por claude code (21-oct-2026): foto guardada con hover para verla grande y "✕" para borrarla
-        wrap.innerHTML = `<img src="${ft.url}" class="mant-foto-zoom" title="Pasa el mouse para verla; ✕ para borrar">
-          <button type="button" class="btn btn-sm btn-ghost-danger btn-foto-del"
-            data-url="${ft.del || ''}" data-id="${ft.id}"
-            style="position:absolute;top:-4px;right:-4px;padding:0 4px;font-size:.7rem;" title="Eliminar esta foto">✕</button>`;
+        // <--- hecho por claude code (seguridad 05-nov-2026): la ✕ solo si el servidor manda la URL de borrado (permiso delete_fotomantenimiento)
+        wrap.innerHTML = `<img src="${ft.url}" class="mant-foto-zoom" title="Pasa el mouse para verla${ft.del ? '; ✕ para borrar' : ''}">` +
+          (ft.del ? `<button type="button" class="btn btn-sm btn-ghost-danger btn-foto-del"
+            data-url="${ft.del}" data-id="${ft.id}"
+            style="position:absolute;top:-4px;right:-4px;padding:0 4px;font-size:.7rem;" title="Eliminar esta foto">✕</button>` : '');
         cont.appendChild(wrap);
       });
     }
@@ -787,6 +862,12 @@ $(function () {
       editCtrlSwitches();
       $('#edit-ce-control').text(d.control_origen_rid || '—');
       $('#edit-ent-equipo').prop('checked', !!d.ent_equipo);
+      // <--- hecho por claude code (13-nov-2026): ficha de TODO un laboratorio = opción «Laboratorio X» del selector
+      const labTipoEd = ['control', 'entrega', 'recogida', 'mantenimiento'].indexOf(d.tipo_equipo) >= 0;
+      $('#edit-computadora .edit-opt-labs').prop('disabled', !labTipoEd).toggle(labTipoEd);
+      if (d.laboratorio) $('#edit-computadora').val('lab:' + d.laboratorio);
+      const esLabEd = !!d.laboratorio;
+      editLabSync(d.lab_display);
       $('#edit-ent-mouse').prop('checked', !!d.ent_mouse_teclado);
       $('#edit-ent-televisor').prop('checked', !!d.ent_televisor);
       $('#edit-ent-control').prop('checked', !!d.ent_control_tv);
@@ -794,7 +875,7 @@ $(function () {
       $('#edit-televisor').val(d.televisor ? String(d.televisor) : '');
       movElegirFirmante('#edit-firma-nombre', d.firma_nombre || '');
       $('#edit-fecha-hora').val(d.fecha_hora || '');
-      $('#edit-ent-equipo-detalle').text([d.model, d.serie ? 'Serie ' + d.serie : '', d.teacher_name].filter(Boolean).join(' · ') || '—');
+      if (!esLabEd) $('#edit-ent-equipo-detalle').text([d.model, d.serie ? 'Serie ' + d.serie : '', d.teacher_name].filter(Boolean).join(' · ') || '—');
       $('.edit-inspeccion').toggleClass('d-none', !esInsp);
       $('#edit-insp-limpio').prop('checked', !!d.insp_limpio);
       $('#edit-insp-ordenado').prop('checked', !!d.insp_ordenado);
@@ -833,6 +914,8 @@ $(function () {
       if (esImp) $('.edit-no-impresora').addClass('d-none');
       if (esInsp || esMov) $('.edit-no-inspeccion').addClass('d-none');
       if (esMan || esRep) $('.edit-no-mant').addClass('d-none');   // <--- hecho por claude code (22-oct-2026): mantenimiento/reparación ocultan Tipo de Falla/Solución/Observaciones y muestran sus campos
+      if (esLabEd) $('#modalEditarRegistro .edit-campo-comp').addClass('d-none');   // <--- hecho por claude code (13-nov-2026): ficha de laboratorio
+      if (esLabEd) $('#edit-ent-equipo').prop('checked', true);
       $('#edit-impresora').val(d.impresora ? String(d.impresora) : '');
       if (esImp) {
         const imp = IMP_DATA[String(d.impresora)] || {};
@@ -890,7 +973,31 @@ $(function () {
   });
 
   // Auto-fill al cambiar computadora en modal editar
+  // <--- hecho por claude code (13-nov-2026): en Editar, «Laboratorio X» del selector = una ficha para todo el laboratorio
+  function editLabSync(titulo) {
+    const v = $('#edit-computadora').val() || '';
+    const lab = v.indexOf('lab:') === 0 ? v.slice(4) : '';
+    titulo = titulo || $('#edit-computadora option:selected').text();
+    $('#edit-lab-banner').toggleClass('d-none', !lab);
+    $('#edit-lab-titulo').text(lab ? titulo : '');
+    $('#modalEditarRegistro .edit-campo-comp').toggleClass('d-none', !!lab);
+    $('#edit-firma-nombre option:first').text(lab ? '— Opcional en laboratorio (se firma a mano) —' : '— Seleccionar maestro —');
+    $('#edit-fotos-limite').text(lab ? '(agregar hasta 10 · laboratorio)' : '(agregar hasta 5)');   // <--- hecho por claude code (13-nov-2026)
+    if (lab) {
+      $('#edit-ent-equipo-detalle').text(titulo);
+      $('#edit-ent-equipo').prop('checked', true);
+      labLista(lab, '#edit-ent-lab-lista');
+    } else {
+      $('#edit-ent-lab-lista').addClass('d-none');
+    }
+  }
   $('#edit-computadora').on('change', function(){
+    editLabSync();
+    if ((this.value || '').indexOf('lab:') === 0) {
+      $('#edit-model, #edit-serie, #edit-area-display, #edit-grado-display, #edit-grade').val('');
+      $('#edit-asignado-display, #edit-teacher-name').val('Laboratorio de computación');
+      return;
+    }
     const comp = COMP_DATA[this.value] || {};
     $('#edit-model').val(comp.modelo || '');
     $('#edit-serie').val(comp.serie || '');
@@ -908,7 +1015,7 @@ $(function () {
     const rid = $(this).data('rid');
     Swal.fire({
       title: '¿Eliminar ' + rid + '?',
-      text: 'Se eliminará el registro y la numeración se reiniciará desde 001.',
+      text: 'Se eliminará el registro. Las demás fichas conservan su número.',   // <--- hecho por claude code (seguridad 05-nov-2026): ya no se renumera
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',

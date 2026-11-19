@@ -96,7 +96,7 @@ function loadSponsorData(sponsorId) {
       document.getElementById("id_civil_status").value = data.civil_status || "";
       document.getElementById("id_note_1").value = data.note_1 || "";
       document.getElementById("id_note_2").value = data.note_2 || "";
-      document.getElementById("id_padrino_ch_d").value = data.padrino_ch_d || "";
+      document.getElementById("id_padrino_ch_d").value = data.padrino_ch_d || 0;   // <--- hecho por claude code (06-nov-2026): código del país
 
       // FECHAS
       document.getElementById("id_visitor_date").value = data.visitor_date || "";

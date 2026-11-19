@@ -93,6 +93,16 @@ $(function(){
       headers: {'X-CSRFToken': CSRF_TOKEN},
       success: function(res){
         if (res.ok){ $li.remove(); actualizarLimite($wrap); }
+        else { Swal.fire({icon:'warning', title:'No se eliminó el comentario', text: res.error || 'No se pudo eliminar.'}); }
+      },
+      // <--- hecho por claude code (seguridad 05-nov-2026): el servidor da 403 si el comentario es ajeno y no tiene Reporte – Eliminar; antes la X no avisaba nada
+      error: function(xhr){
+        var msg = 'Error de red.';
+        if (xhr && xhr.status) {
+          msg = 'Error ' + xhr.status + '.';
+          try { var j = JSON.parse(xhr.responseText); if (j && j.error) msg = j.error; } catch(e){}
+        }
+        Swal.fire({icon:'error', title:'No se eliminó el comentario', text: msg});
       }
     });
   });

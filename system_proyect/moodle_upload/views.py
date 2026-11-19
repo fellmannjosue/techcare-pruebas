@@ -152,7 +152,11 @@ def conectar(request, pk):
         cache.delete('moodle_upload_cursos')
         messages.success(request, f'Conectado a «{con.nombre}».')
     destino = request.POST.get('next') or ''
-    return redirect(destino if destino.startswith('/') and not destino.startswith('//') else reverse('moodle_upload:index'))
+    # <--- hecho por claude code (seguridad 05-nov-2026): '/\\otro.sitio' pasaba el filtro casero (redirección abierta); validación de Django
+    from django.utils.http import url_has_allowed_host_and_scheme
+    seguro = destino.startswith('/') and url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()},
+                                                                        require_https=request.is_secure())
+    return redirect(destino if seguro else reverse('moodle_upload:index'))
 
 
 @login_required
@@ -261,7 +265,11 @@ def cursos_json(request):
     try:
         cursos = _cursos_cache(con)
         # <--- hecho por claude code (15-oct-2026): agrupados por grado-sección + el grupo que corresponde a la agenda
-        grupos = services.agrupar(cursos)
+        # <--- hecho por claude code (seguridad 05-nov-2026): el coordinador ve SOLO sus cursos (mismo filtro que la pestaña Publicar: filtrar_para)
+        grupos = services.filtrar_para(services.agrupar(cursos), request.user)
+        if not request.user.is_superuser:
+            ids_ok = {c['id'] for g in grupos for c in g['cursos']}
+            cursos = [c for c in cursos if c['id'] in ids_ok]
         sugerido = ''
         if (request.GET.get('agenda') or '').isdigit():
             from agendas.models import Agenda
@@ -279,9 +287,22 @@ def publicar_agenda(request, pk):
     if not _puede_publicar_agendas(request.user):
         return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
     from agendas.models import Agenda
+    from agendas.views import _coordina_agenda
     agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): la agenda debe ser de un área que coordina (con usar_final se leía la imagen final de una agenda de OTRA área)
+    if not _coordina_agenda(request.user, agenda):
+        return JsonResponse({'ok': False, 'error': 'Esa agenda no es de tu coordinación.'}, status=403)
     f = request.FILES.get('imagen')
     curso_id = request.POST.get('curso', '')
+    con = ConexionMoodle.actual()
+    # <--- hecho por claude code (seguridad 05-nov-2026): candado del servidor (mismo filtro que 'publicar'): el coordinador solo publica en SUS cursos (filtrar_para/COORD_CURSOS); el superusuario conserva todos
+    if curso_id and not request.user.is_superuser:
+        try:
+            permitidos = services.cursos_permitidos_ids(services.agrupar(_cursos_cache(con)), request.user)
+        except services.MoodleError as e:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=502)
+        if curso_id not in permitidos:
+            return JsonResponse({'ok': False, 'error': 'Ese curso no corresponde a tu coordinación.'}, status=403)
     # <--- hecho por claude code (15-oct-2026): o la imagen final que generó el editor de diseño de Agendas
     if not f and request.POST.get('usar_final') == '1' and agenda.imagen_final:
         try:
@@ -296,7 +317,6 @@ def publicar_agenda(request, pk):
         return JsonResponse({'ok': False, 'error': 'Solo imágenes PNG o JPG.'}, status=400)
     if f.size > MAX_MB * 1024 * 1024:
         return JsonResponse({'ok': False, 'error': f'La imagen pesa más de {MAX_MB} MB.'}, status=400)
-    con = ConexionMoodle.actual()
     try:
         nombres = {str(c['id']): c['nombre'] for c in _cursos_cache(con)}
     except services.MoodleError:

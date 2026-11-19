@@ -13,7 +13,7 @@ AREA_CHOICES = (
 ESTADO_CHOICES = (
     ('borrador', 'Borrador'),   # <--- hecho por claude code (27-oct-2026): auto-guardado sin avisar al coordinador
     ('enviado', 'Enviado'),
-    ('revisando', 'Revisando'),
+    # <--- hecho por claude code (06-nov-2026, pedido del usuario): sin «Revisando» — el flujo es Enviado → Revisado → Aprobado
     ('revisado', 'Revisado'),
     ('aprobado', 'Aprobado'),
 )
@@ -310,7 +310,11 @@ def evidencia_upload_to(instance, filename):
         area = instance.reporte_informativo.area
     elif tipo == 'progress':
         area = 'bilingue'  # progress solo existe en bilingüe
-    return f'evidencias/{area}/{tipo}/{filename}'
+    # <--- hecho por claude code (09-nov-2026): nombre aleatorio (antes el nombre original: "WhatsApp Image <fecha>",
+    # fácil de adivinar y a veces con el nombre del alumno). Las ya subidas conservan su nombre.
+    import os as _os, uuid as _uuid
+    ext = _os.path.splitext(filename or '')[1].lower()[:6]
+    return f'evidencias/{area}/{tipo}/{_uuid.uuid4().hex}{ext}'
 
 
 # ────────────────────────────────────────────────────────────────
@@ -394,12 +398,15 @@ class ConfiguracionNotificacion(AuditModel):
 # Período Escolar (propio de conducta — independiente de Salidas Baño)
 # ────────────────
 class PeriodoEscolarConducta(AuditModel):
-    """Parcial con fechas para clasificar los reportes (dashboard/historial).
-    Catálogo propio de conducta: sus fechas pueden diferir de Salidas Baño."""
+    """Período Escolar GENERAL (Configuración Académica): parcial con fechas.
+    <--- hecho por claude code (06-nov-2026, pedido del usuario): lo usan Conducta, Agendas, Reforzamiento y desde hoy
+    también Salidas al Baño (antes tenía su propia tabla `sb_periodo_escolar`). Solo lo edita el superusuario.
+    'colegio' cubre Colegio y Bachillerato; 'ambas' = Bilingüe + Colegio (nunca CFP)."""
     AREA_CHOICES = [
         ('bilingue', 'Bilingüe'),
         ('colegio',  'Colegio'),
         ('ambas',    'Ambas'),
+        ('cfp',      'CFP'),
     ]
     nombre       = models.CharField("Nombre", max_length=60)
     parcial      = models.PositiveSmallIntegerField("Número de parcial")
@@ -408,6 +415,11 @@ class PeriodoEscolarConducta(AuditModel):
     fecha_inicio = models.DateField("Fecha de inicio")
     fecha_fin    = models.DateField("Fecha de fin")
     activo       = models.BooleanField("Activo", default=False)
+    # <--- hecho por claude code (06-nov-2026): interruptor por módulo {clave: bool}; falta la clave = abierto (ver conducta/periodo_modulos.py)
+    modulos      = models.JSONField("Módulos abiertos", default=dict, blank=True)
+
+    def modulo_abierto(self, clave):
+        return bool((self.modulos or {}).get(clave, True))
 
     class Meta:
         db_table            = 'conducta_periodo_escolar'

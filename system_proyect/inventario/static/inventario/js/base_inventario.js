@@ -8,7 +8,8 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
   function abrir(e) {
     var el = e.target.closest ? e.target.closest('.inv-pop') : null;
     if (!el || !window.bootstrap || !bootstrap.Popover) return;
-    if (!bootstrap.Popover.getInstance(el)) bootstrap.Popover.getOrCreateInstance(el, { container: 'body', sanitize: false }).show();
+    // <--- hecho por claude code (seguridad 05-nov-2026): sin "sanitize: false": el detalle lleva texto de los equipos (observaciones, serie…) y con data-bs-html un <img onerror> se ejecutaba; el sanitizador de Bootstrap deja pasar los <div>/<b> del detalle.
+    if (!bootstrap.Popover.getInstance(el)) bootstrap.Popover.getOrCreateInstance(el, { container: 'body' }).show();
   }
   document.addEventListener('mouseover', abrir);
   document.addEventListener('focusin', abrir);

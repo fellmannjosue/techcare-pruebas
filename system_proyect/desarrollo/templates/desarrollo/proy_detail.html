@@ -45,7 +45,8 @@
           <dt class="col-5">Base de datos</dt><dd class="col-7">{{ proy.base_datos|default:"—" }}</dd>
           <dt class="col-5">App Django</dt><dd class="col-7">{{ proy.app_django|default:"—" }}</dd>
           <dt class="col-5">Ruta</dt><dd class="col-7">{{ proy.ruta|default:"—" }}</dd>
-          <dt class="col-5">URL</dt><dd class="col-7">{% if proy.url %}<a href="{{ proy.url }}" target="_blank">{{ proy.url }}</a>{% else %}—{% endif %}</dd>
+          {# <--- hecho por claude code (seguridad 05-nov-2026): solo se enlaza una URL segura (url_segura); cualquier otra se muestra como texto #}
+          <dt class="col-5">URL</dt><dd class="col-7">{% with u=proy.url|url_segura %}{% if u %}<a href="{{ u }}" target="_blank" rel="noopener noreferrer">{{ proy.url }}</a>{% else %}{{ proy.url|default:"—" }}{% endif %}{% endwith %}</dd>
         </dl>
       </div>
     </div>

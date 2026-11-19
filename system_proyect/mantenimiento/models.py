@@ -112,6 +112,15 @@ class MaintenanceRecord(AuditModel):
         ('544', '544'),
         ('504', '504'),
     ]
+    # <--- hecho por claude code (02-nov-2026): modo LABORATORIO — una sola ficha para TODO el laboratorio
+    # (en vez de una por computadora). Cada laboratorio se identifica por el prefijo del asset_id.
+    LABORATORIOS = {
+        'bl':  {'label': 'Laboratorio BL',  'area': 'Bilingue',   'area_display': 'Bilingüe',   'prefijo': 'IDANALABBL',  'persona': 'Laboratorio de computación · BL'},
+        'col': {'label': 'Laboratorio COL', 'area': 'Colegio',    'area_display': 'Colegio',    'prefijo': 'IDANALABCOL', 'persona': 'Laboratorio de computación · COL'},
+        'cfp': {'label': 'Laboratorio CFP', 'area': 'Vocacional', 'area_display': 'Vocacional', 'prefijo': 'IDCFPLAB',    'persona': 'Laboratorio de computación · CFP'},
+    }
+    LABORATORIO_CHOICES = [(k, v['label']) for k, v in LABORATORIOS.items()]
+    LAB_TIPOS = ('control', 'entrega', 'recogida', 'mantenimiento')   # tipos que admiten el modo laboratorio
 
     record_id    = models.CharField("ID Registro", max_length=20, unique=True, blank=True)
     tipo_equipo  = models.CharField("Tipo de equipo", max_length=20, choices=TIPO_EQUIPO_CHOICES, default='computadora')
@@ -146,6 +155,9 @@ class MaintenanceRecord(AuditModel):
     obs_auditora        = models.TextField("Observaciones de la auditora", blank=True)
     obs_tecnico         = models.TextField("Observaciones del técnico", blank=True)
     estado_equipo       = models.CharField("Estado del equipo", max_length=10, choices=ESTADO_EQUIPO_CHOICES, blank=True)
+    # <--- hecho por claude code (02-nov-2026): modo laboratorio (una ficha para todo el lab; `computadora` queda vacía)
+    laboratorio   = models.CharField("Laboratorio (ficha de todo el lab)", max_length=10, choices=LABORATORIO_CHOICES, blank=True)
+    lab_cantidad  = models.PositiveIntegerField("Equipos del laboratorio", null=True, blank=True)
     # <--- hecho por claude code: respuestas de la Inspección
     insp_limpio    = models.BooleanField("Mantiene limpio el espacio de trabajo", default=False)
     insp_ordenado  = models.BooleanField("Tiene ordenado el espacio de trabajo", default=False)
@@ -238,6 +250,31 @@ class MaintenanceRecord(AuditModel):
     @property
     def firmado_maestro(self):
         return bool((self.firma or '').strip())
+
+    # <--- hecho por claude code (02-nov-2026): helpers del modo laboratorio
+    @property
+    def lab_info(self):
+        return MaintenanceRecord.LABORATORIOS.get(self.laboratorio) if self.laboratorio else None
+
+    @property
+    def es_laboratorio(self):
+        return bool(self.laboratorio)
+
+    @property
+    def lab_display(self):
+        info = self.lab_info
+        if not info:
+            return ''
+        n = self.lab_cantidad or 0
+        return f"{info['label']} · {n} equipos"
+
+    @classmethod
+    def computadoras_de_laboratorio(cls, clave):
+        from inventario.models import Computadora
+        info = cls.LABORATORIOS.get(clave)
+        if not info:
+            return Computadora.objects.none()
+        return Computadora.objects.filter(asset_id__startswith=info['prefijo'])
 
     @property
     def es_control(self):

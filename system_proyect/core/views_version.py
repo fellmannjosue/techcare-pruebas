@@ -1,26 +1,24 @@
 # core/views_version.py
 # <--- hecho por claude code: marca las novedades de la versión actual como vistas por el usuario
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, login_not_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from core.version import version_actual, novedades
 
 
-# <--- hecho por claude code (26-oct-2026): novedades en JSON para la app de escritorio (.exe).
-# PÚBLICO (sin login): la ventana de novedades/actualización del .exe lo lee ANTES del login.
-# Solo expone el changelog (mismas novedades que ya ve cualquier usuario en el footer).
+# <--- hecho por claude code (09-nov-2026, portado de pruebas): novedades en JSON para la app de escritorio (.exe).
+# PÚBLICO a propósito (@login_not_required): la ventana de novedades/actualización del .exe lo lee antes del login,
+# desde su proceso principal (sin la cookie de sesión). Solo las versiones GENERALES (las «menor» son del superusuario).
+@login_not_required
 def novedades_json(request):
     try:
         limite = int(request.GET.get('limite', 20))
     except (TypeError, ValueError):
         limite = 20
     limite = max(1, min(limite, 50))
-    resp = JsonResponse({
-        'version': version_actual(),
-        'entradas': novedades(limite=limite),
-    })
-    resp['Access-Control-Allow-Origin'] = '*'   # por si se consume desde el envoltorio
+    entradas = [e for e in novedades(limite=50) if not e.get('menor')][:limite]
+    resp = JsonResponse({'version': version_actual(), 'entradas': entradas})
     resp['Cache-Control'] = 'no-store'
     return resp
 

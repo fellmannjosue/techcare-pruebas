@@ -1,0 +1,89 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Programas por aplicación{% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code (09-nov-2026): qué programas se ven en la Web, en el .exe y en la APK (core/canales.py) #}
+<link rel="stylesheet" href="{% static 'accounts/css/settings_canales.css' %}?v=1">
+<div id="cn-cfg" hidden data-url="{% url 'settings_canales_toggle' %}" data-csrf="{{ csrf_token }}"></div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-devices me-2 text-orange"></i>Programas por aplicación</h3>
+  </div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">
+      Elige qué programas aparecen en cada forma de entrar a TechCare. Lo que apagues en una columna
+      desaparece de los menús y del Panel de esa aplicación, y su pantalla queda bloqueada ahí
+      («No disponible en esta aplicación»). Aplica a todos, también al superusuario.
+      Los permisos de cada usuario se siguen respetando. Configuración nunca se bloquea.
+    </p>
+    <div class="cn-resumen">
+      {% for c in canales_resumen %}
+      <div class="cn-res" data-canal="{{ c.key }}">
+        <i class="ti {{ c.icon }}"></i>
+        <div><b>{{ c.label }}</b><span><span class="cn-num">{{ c.visibles }}</span> de {{ c.total }} programas visibles</span></div>
+        {% if c.key == canal_real %}<span class="badge bg-green-lt text-green ms-auto">Estás aquí</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">Programas</h3>
+    <div class="card-options small text-secondary" id="cn-estado">Los cambios se guardan solos.</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table cn-tabla">
+      <thead>
+        <tr>
+          <th>Programa</th>
+          {% for c in canales %}<th class="text-center"><i class="ti {{ c.icon }} me-1"></i>{{ c.label }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="cn-ico"><i class="ti {{ f.icon }}"></i></span>
+              <div>
+                <div class="fw-medium">{{ f.label }}</div>
+                <div class="small text-secondary font-monospace">{{ f.prefijos|join:" " }}</div>
+                {% if f.global_oculto %}<span class="badge bg-secondary-lt text-secondary mt-1">Oculto para todos (Seguridad)</span>{% endif %}
+              </div>
+            </div>
+          </td>
+          {% for c in f.canales %}
+          <td class="text-center">
+            <label class="form-check form-switch d-inline-block m-0" title="{{ f.label }}">
+              <input class="form-check-input cn-sw" type="checkbox" data-canal="{{ c.key }}" data-programa="{{ f.key }}"{% if c.visible %} checked{% endif %}>
+            </label>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3 class="card-title"><i class="ti ti-eye me-2"></i>Probar como</h3></div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">Mira el sistema desde tu navegador como lo vería cada aplicación (solo en tu sesión). Arriba aparece un aviso para volver.</p>
+    <form method="post" action="{% url 'settings_canales_probar' %}" class="d-flex flex-wrap gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="/accounts/menu/">
+      {% for c in canales %}
+      <button type="submit" name="canal" value="{{ c.key }}" class="btn{% if canal_prueba == c.key %} btn-primary{% endif %}"><i class="ti {{ c.icon }} me-1"></i>{{ c.label }}</button>
+      {% endfor %}
+      {% if canal_prueba %}<button type="submit" name="canal" value="" class="btn btn-outline-danger"><i class="ti ti-x me-1"></i>Dejar de probar</button>{% endif %}
+    </form>
+  </div>
+</div>
+
+<script src="{% static 'accounts/js/settings_canales.js' %}?v=1"></script>
+{% endblock %}

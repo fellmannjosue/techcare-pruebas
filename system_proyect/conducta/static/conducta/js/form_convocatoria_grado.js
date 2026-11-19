@@ -38,6 +38,12 @@ const CFG_FORM_CONVOCATORIA_GRADO = (function(){
   var MI_NOMBRE = CFG_FORM_CONVOCATORIA_GRADO.v3;
   var ES_COORD = CFG_FORM_CONVOCATORIA_GRADO.j10;
   var DIA_AB = ['','L','M','M','J','V'];
+  // <--- hecho por claude code (seguridad 05-nov-2026): alumno, asignatura y grado salen de la BD y van a innerHTML: se escapan
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
 
   // Guardado al instante + "Solicitó: nombre" + bloqueo tras registrar
   document.querySelectorAll('.conv-chk').forEach(function (chk) {
@@ -96,14 +102,14 @@ const CFG_FORM_CONVOCATORIA_GRADO = (function(){
     var filas = c.asigs.map(function (a, i) {
       var dl = c.diasDe[a] || [];
       var cels = [1,2,3,4,5].map(function (n) { return '<td>' + (dl.indexOf(n) >= 0 ? '✔' : '') + '</td>'; }).join('');
-      return '<tr><td>' + (i+1) + '</td><td class="asig">' + a + '</td>' + cels + '</tr>';
+      return '<tr><td>' + (i+1) + '</td><td class="asig">' + esc(a) + '</td>' + cels + '</tr>';
     }).join('');
     wrap.innerHTML =
       '<div class="conv-prev-card"><div class="school">NUEVO AMANECER SCHOOL</div>' +
       '<div style="text-align:center;font-size:.72rem;color:#555;">Aldea La Venta, km. 36 carretera hacia Olancho · Tels. 2758-0300 / 9485-4082</div>' +
       '<div style="text-align:center;font-weight:bold;margin:8px 0;">COMPROMISO DE ASISTENCIA A TUTORÍA</div>' +
-      '<p style="text-align:justify;font-size:.82rem;">El C.E.B.N.G.B. Nuevo Amanecer pone a disposición de los padres un sistema de tutorías gratuitas de lunes a viernes de <b>7:00 – 7:45 a.m.</b> Vigencia durante todo el <b>' + PARCIAL_ROM + '</b> parcial.</p>' +
-      '<p style="font-size:.82rem;">Su hijo (a) <b>' + c.nombre + '</b> del <b>' + GRADO_LABEL + '</b> ha sido convocado a las siguientes tutorías:</p>' +
+      '<p style="text-align:justify;font-size:.82rem;">El C.E.B.N.G.B. Nuevo Amanecer pone a disposición de los padres un sistema de tutorías gratuitas de lunes a viernes de <b>7:00 – 7:45 a.m.</b> Vigencia durante todo el <b>' + esc(PARCIAL_ROM) + '</b> parcial.</p>' +
+      '<p style="font-size:.82rem;">Su hijo (a) <b>' + esc(c.nombre) + '</b> del <b>' + esc(GRADO_LABEL) + '</b> ha sido convocado a las siguientes tutorías:</p>' +
       '<table><thead><tr><th>Nº</th><th>Asignatura(s)</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead><tbody>' + filas + '</tbody></table>' +
       '<p style="font-size:.75rem;color:#555;">Dado a los ' + fechaTexto() + '.</p>' +
       '<div style="display:flex;justify-content:space-between;margin-top:34px;font-size:.7rem;text-align:center;font-weight:bold;">' +

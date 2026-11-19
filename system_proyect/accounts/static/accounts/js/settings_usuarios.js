@@ -3,6 +3,8 @@
   if (!_cfg) return;
   const CSRF = _cfg.dataset.csrf;
   const URL_ASIGNAR_GRUPOS = _cfg.dataset.urlAsignarGrupos;
+  // <--- hecho por claude code (seguridad 05-nov-2026): el nombre (editable en Mi perfil) se pintaba con innerHTML en la ventana de permisos (XSS)
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   // ── Selección múltiple ────────────────────────────────────
   const barra      = document.getElementById('barra-seleccion');
@@ -113,8 +115,8 @@
       const msg = document.getElementById('toggle-perms-msg');
       if (msg) {
         msg.innerHTML = puedeVer
-          ? `¿<strong>Quitar</strong> acceso a Usuarios/Grupos de <strong>${nombre}</strong>?`
-          : `¿<strong>Conceder</strong> acceso a Usuarios/Grupos a <strong>${nombre}</strong>?`;
+          ? `¿<strong>Quitar</strong> acceso a Usuarios/Grupos de <strong>${esc(nombre)}</strong>?`
+          : `¿<strong>Conceder</strong> acceso a Usuarios/Grupos a <strong>${esc(nombre)}</strong>?`;
       }
       const btnConfirm = document.getElementById('btn-confirm-toggle-perms');
       if (btnConfirm) {

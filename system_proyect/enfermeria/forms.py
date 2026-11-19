@@ -6,7 +6,8 @@ from .models import AtencionMedica, InventarioMedicamento, UsoMedicamento
 class AtencionMedicaForm(forms.ModelForm):
     class Meta:
         model   = AtencionMedica
-        exclude = ['estudiante', 'grado']
+        # <--- hecho por claude code (seguridad 05-nov-2026): lista EXPLÍCITA; con exclude entraban creado_por/modificado_por (FK a User) y un POST podía fijarlos a cualquier usuario (y cada guardado normal los dejaba en blanco).
+        fields  = ['fecha_hora', 'atendido_por', 'motivo', 'tratamiento']
         widgets = {
             'fecha_hora':   forms.DateTimeInput(attrs={
                                 'type':'datetime-local',

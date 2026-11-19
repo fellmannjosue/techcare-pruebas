@@ -1,3 +1,5 @@
+// <--- hecho por claude code (seguridad 05-nov-2026): envuelto en IIFE (CSRF, URL_TASA, URL_AUTO y TASAS eran globales y chocan con otros .js)
+(function () {
 const CSRF     = window._PAGE.csrf;
 const URL_TASA = window._PAGE.urlTasa;
 const URL_AUTO = window._PAGE.urlAuto;
@@ -46,7 +48,7 @@ $(document).on('click', '.btn-guardar-tasa', function(){
 $('#btn-auto-tasas').on('click', function(){
   const $btn = $(this).prop('disabled', true).html('<i class="ti ti-loader me-1"></i>Consultando...');
   $.ajax({
-    url: URL_AUTO, method: 'GET',
+    url: URL_AUTO, method: 'POST',   // <--- hecho por claude code (seguridad 05-nov-2026): guarda tasas → POST con CSRF (antes GET)
     headers: {'X-CSRFToken': CSRF},
     success: function(res){
       $btn.prop('disabled', false).html('<i class="ti ti-refresh me-1"></i>Actualizar tasas desde internet');
@@ -73,3 +75,4 @@ $('#btn-auto-tasas').on('click', function(){
     }
   });
 });
+})();

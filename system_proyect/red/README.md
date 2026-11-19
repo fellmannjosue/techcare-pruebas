@@ -157,3 +157,21 @@ estado de conectividad). Endpoint JSON `/red/api/buscar/?q=` para integraciones.
 `/red/switches/` · `/red/enlaces/` · `/red/planos/` · `/red/topologia/` · `/red/racks/` ·
 `/red/gabinete/<id>/rack/` · `/red/pruebas/` · `/red/migracion/` · `/red/buscar/` ·
 `/red/export/excel/` · `/red/auditoria/`.
+
+## 9. Seguridad (05-nov-2026)
+<!-- hecho por claude code (seguridad 05-nov-2026) -->
+- **Imágenes** (planos, fotos de gabinetes y dispositivos): se sirven por vista con `_gate`
+  (`/red/planos/<pk>/imagen/`, `/red/ubicaciones/gabinete/<pk>/foto/`, `/red/dispositivos/<pk>/foto/`);
+  Apache bloquea `media/red/`. Nunca enlazar `{{ x.imagen.url }}` en plantillas.
+- **Contraseñas de IPs actuales**: la página ya no las pinta; el ojo hace POST a
+  `/red/ips-actuales/<pk>/password/` (`administrar_red`) y cada lectura queda en la Auditoría (`ver_password`).
+  El JS solo manda `password` al guardar si el usuario la escribió, **siempre con `password_cambiada: true`**
+  (2.ª vuelta): el servidor ignora un `password` suelto (el JS viejo lo mandaba siempre, vacío con la plantilla nueva) y,
+  si cambiaría o borraría la guardada, responde 409 «recárgala». Apagar «¿Tiene usuario?» en una fila con contraseña
+  pide confirmación (el modelo la borra al guardar sin usuario); la respuesta trae `fila.tiene_password` (nunca el texto).
+  **Despliegue**: `collectstatic` con sudo y `cmp staticfiles/red/js/ips_actuales.js red/static/red/js/ips_actuales.js` ANTES de reiniciar Apache.
+- **Admin**: Plano, Gabinete y Device enlazan su archivo a la vista con `_gate` (`_ArchivosProtegidosMixin` en `admin.py`).
+- **Clave de cifrado** (`crypto.py`): sin `RED_CRED_KEY` se deriva del `SECRET_KEY` (aviso en el log).
+  Antes de rotar el `SECRET_KEY` hay que crear `RED_CRED_KEY` y recifrar, o las contraseñas dejan de leerse.
+- **IP de auditoría**: solo `REMOTE_ADDR` (no hay proxy delante de Apache; X-Forwarded-For es del cliente).
+- **API**: la raíz `/red/api/v1/` exige `red.ver_red` como el resto. Subredes de VLAN: máximo /16.

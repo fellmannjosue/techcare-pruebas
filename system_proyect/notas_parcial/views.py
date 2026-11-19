@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 import io
 import json
 import os
+import unicodedata  # <--- hecho por claude code (seguridad 05-nov-2026): comparar grado/sección como MySQL (sin mayúsculas ni acentos)
 from collections import OrderedDict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP  # <--- hecho por claude code: redondeo de notas igual que floatformat
@@ -26,8 +27,11 @@ from reportlab.pdfgen import canvas
 from django.contrib.auth import get_user_model
 
 from django.core.mail import send_mail
+from django.db.models import Q
+from django.utils.html import escape
 from .models import NotaComentario, AsignacionMaestro, RevisionFinalizada, CierreNotas, MaestroGuia
 from . import pdf_emoji  # <--- hecho por claude code: emojis a color en el PDF de comentarios
+from .templatetags.notas_tags import _GRUPO_COORD_NOTAS  # <--- hecho por claude code (seguridad 05-nov-2026): el candado usa los MISMOS grupos que el menú
 
 User = get_user_model()
 
@@ -55,13 +59,17 @@ def _areas_para(user):
     return AREAS
 
 
+_GRUPOS_COORD_MENU = set(_GRUPO_COORD_NOTAS)   # <--- hecho por claude code (seguridad 05-nov-2026): = es_coord_notas del sidebar
+
+
 def _es_coordinador(user):
     # <--- hecho por claude code: sin is_staff. Es la marca del admin de Django, no un
     # rol: daba acceso de coordinacion (y el toast) a administracion, contabilidad,
     # enfermeria y direccion CFP. Los coordinadores reales estan en _GRUPOS_COORD.
     if user.is_superuser:
         return True
-    return user.groups.filter(name__in=_GRUPOS_COORD).exists()
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que el menú (es_coord_notas); antes también entraban coordinador_bilingue/colegio de conducta sin enlace en el menú
+    return user.groups.filter(name__in=_GRUPOS_COORD_MENU).exists()
 
 
 def _es_solo_revision(user):
@@ -74,6 +82,71 @@ def _es_solo_revision(user):
 
 def _es_maestro(user):
     return user.groups.filter(name__in=_GRUPOS_MAESTRO).exists()
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): candado por ÁREA. Las vistas tomaban el área del navegador sin validarla (Bilingüe veía/escribía lo de Colegio y al revés); ahora se valida contra el USUARIO.
+def _areas_coord(user):
+    """(clave, etiqueta) de las áreas que el usuario COORDINA. Solo cuentan los grupos de coordinación
+    del menú: un grupo de maestro (p. ej. maestros_notas_parcial_col) NO da coordinación de esa área."""
+    if user.is_superuser:
+        return AREAS
+    grupos = set(user.groups.values_list('name', flat=True)) & _GRUPOS_COORD_MENU
+    bl, col = bool(grupos & _GRUPOS_BL), bool(grupos & _GRUPOS_COLEGIO)
+    if bl and col:
+        return AREAS
+    if bl:
+        return AREAS_BL
+    if col:
+        return AREAS_COLEGIO
+    return []   # coordinador sin grupo de área: no se le abre ninguna (antes _areas_para le daba TODAS)
+
+
+def _claves_coord(user):
+    return [a for a, _ in _areas_coord(user)]
+
+
+def _coordina_area(user, area):
+    """True si el usuario coordina ESA área (superusuario: todas)."""
+    return bool(area) and area in _claves_coord(user)
+
+
+def _grupos_maestro_de_area(area):
+    """Grupos de maestro válidos para asignar en esa área (superconjunto del desplegable del coordinador)."""
+    if area in dict(AREAS_BL):
+        return {'maestros_bilingue', 'maestros_notas_parcial_bl', 'maestros_notas_parcial'}
+    return {'maestros_colegio', 'maestros_notas_parcial_col', 'maestros_notas_parcial'}
+
+
+def _json_error(msg, status=400, **extra):
+    return JsonResponse({'ok': False, 'error': msg, **extra}, status=status)
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): validaciones compartidas que pidió el revisor
+def _es_num(v):
+    """True si v son solo dígitos ASCII. str.isdigit() acepta '²' (y int('²') revienta con error 500)."""
+    s = str(v)
+    return s.isascii() and s.isdigit()
+
+
+def _texto(v, maximo=20):
+    """Texto de un cuerpo JSON: None → ''; otro tipo o más largo que `maximo` → ValueError (la vista responde 400, no 500)."""
+    if v is None:
+        return ''
+    if not isinstance(v, str):
+        raise ValueError('tipo')
+    v = v.strip()
+    if maximo and len(v) > maximo:
+        raise ValueError('largo')
+    v.encode('utf-8')   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 3): un "\ud800" suelto del JSON no se puede mandar a MySQL; UnicodeEncodeError es ValueError → 400 (antes 500)
+    return v
+
+
+def _clave_gs(grado, seccion):
+    """(grado, sección) comparables como los compara MySQL (utf8mb4_0900_ai_ci: '2DO'/'A'/'1éro' = '2do'/'a'/'1ero')."""
+    def n(s):
+        s = unicodedata.normalize('NFKD', str(s or '')).casefold()
+        return ''.join(ch for ch in s if not unicodedata.combining(ch))
+    return n(grado), n(seccion)
 
 
 _coordinador = user_passes_test(_es_coordinador, login_url='login')
@@ -100,8 +173,9 @@ def _estado_cierre(area, parcial, anio, grado='', seccion=''):
     except (TypeError, ValueError):
         return {'cerrado': False, 'motivo': '', 'texto': '', 'cierre_en': '', 'cierre_iso': '',
                 'revocado_grupo': False, 'revocado_parcial': False, 'fecha_grupo': '', 'fecha_parcial': ''}
-    filas = {(c.grado, c.seccion): c for c in CierreNotas.objects.filter(area=area, parcial=parcial, anio=anio)}
-    g = filas.get((grado or '', seccion or '')) if grado else None
+    # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): la búsqueda ignora mayúsculas/acentos como MySQL; con la clave exacta, '2DO'/'A' no encontraba el cierre de '2do'/'a'
+    filas = {_clave_gs(c.grado, c.seccion): c for c in CierreNotas.objects.filter(area=area, parcial=parcial, anio=anio)}
+    g = filas.get(_clave_gs(grado, seccion)) if grado else None
     p = filas.get(('', ''))
     revocado = bool((g and g.revocado) or (p and p.revocado))
     fechas = [c.cierre_en for c in (g, p) if c and c.cierre_en]
@@ -140,8 +214,13 @@ def _parciales_cerrados():
 def _maestro_puede_escribir(user, area, parcial, anio, grado='', seccion=''):
     """(ok, mensaje). Coordinadores y superusuario siempre pueden; el maestro no, si su grupo está cerrado.
     Sin grado (pantallas viejas) se bloquea si TODAS sus asignaciones de ese parcial están cerradas."""
-    if _es_coordinador(user):
+    if _coordina_area(user, area):   # <--- hecho por claude code (seguridad 05-nov-2026): exime solo a quien coordina ESA área (antes cualquier coordinador, de cualquier área)
         return True, ''
+    # <--- hecho por claude code (06-nov-2026): «Notas mitad de parcial» cerrado en el Período Escolar activo del área
+    from conducta.periodo_modulos import periodo_que_cierra, mensaje_cerrado
+    _p = periodo_que_cierra('not', 'bilingue' if area in ('bl', 'colegio_bl') else 'colegio', user)
+    if _p:
+        return False, mensaje_cerrado('not', _p)
     if grado:
         est = _estado_cierre(area, parcial, anio, grado, seccion)
         return (not est['cerrado']), est['texto']
@@ -356,6 +435,7 @@ def _llamar_sp(area, parcial, anio, curso=None):
             cache.set(key, (rows, cols), _CACHE_TTL)
         except Exception as e_cache:
             print(f">>> CACHE SET ERROR ({sp}):", e_cache)
+        _guardar_ubic(key, _mapa_ubic(rows))   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): la caché chica de ubicaciones queda igual de fresca que la del SP
     return rows, cols
 
 
@@ -396,6 +476,70 @@ def _agrupar(rows):
             'cuadros': cuadros,
         })
     return list(alumnos.values())
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): el grado-sección del alumno sale del sistema académico, no del navegador; caché chica aparte ({IngrEgrID: (grado, grupo)}, ~10 KB) para no deserializar en cada comentario los ~3 MB del SP.
+# <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): 1 h (antes 6 h) y se renueva con cada lectura fresca del SP y con "Actualizar datos"; si no, un alumno cambiado de grupo en Access seguía en el grupo viejo hasta 6 h
+_UBIC_TTL = 3600
+
+
+def _mapa_ubic(rows):
+    m = {}
+    for r in rows:
+        try:
+            iid = int(r.get('IngrEgrID'))
+        except (TypeError, ValueError):
+            continue
+        m.setdefault(iid, (str(r.get('CrsoNumero') or '').strip(), str(r.get('GrupoNumero') or '').strip()))
+    return m
+
+
+def _guardar_ubic(sp_key, m):
+    if m:
+        try:
+            cache.set('notas_ubic_' + sp_key, m, _UBIC_TTL)
+        except Exception as e:
+            print('[notas_parcial] no se pudo cachear ubicaciones:', e)
+
+
+def _ubicaciones(area, parcial, anio, curso=None, fresco=False):
+    """{IngrEgrID: (grado, grupo)} del área/parcial/año según el sistema académico (mismo criterio que _agrupar)."""
+    sp_key = _cache_key(area, parcial, anio, curso)
+    if not fresco:
+        m = cache.get('notas_ubic_' + sp_key)
+        if isinstance(m, dict) and m:
+            return m
+    rows, _ = _llamar_sp(area, parcial, anio, curso)
+    m = _mapa_ubic(rows)
+    _guardar_ubic(sp_key, m)
+    return m
+
+
+def _asignacion_de_alumno(user, area, parcial, anio, iid, grado_pista=''):
+    """Ruta de MAESTRO: (grado, grupo) REAL del alumno si cae en una asignación del usuario; None si no;
+    False si el sistema académico no devolvió datos (no se pudo verificar).
+    Primero con la caché chica; si no cuadra, se relee el SP (alumno nuevo o cambiado de grupo) antes de negar."""
+    pares = set(AsignacionMaestro.objects.filter(maestro=user, area=area, parcial=parcial, anio=anio)
+                .values_list('grado', 'seccion'))
+    if not pares:
+        return None
+    hubo_datos = False
+    cursos = [None]
+    if area == 'bachillerato':   # el SP de bachillerato va por curso; primero el del grado que se está viendo (caché caliente)
+        cursos = []
+        for g in [grado_pista] + sorted(g for g, _ in pares):
+            c = _curso_de_grado(g)
+            if c and c not in cursos:
+                cursos.append(c)
+        cursos = cursos or [None]
+    for fresco in (False, True):
+        for curso in cursos:
+            mapa = _ubicaciones(area, parcial, anio, curso, fresco=fresco)
+            hubo_datos = hubo_datos or bool(mapa)
+            ub = mapa.get(iid)
+            if ub and (ub in pares or (ub[0], '') in pares):   # asignación sin sección = todo el grado (como en Mis Reportes)
+                return ub   # el grupo REAL del alumno: con él se revisa el cierre
+    return None if hubo_datos else False
 
 
 def _fmt_fecha(d):
@@ -528,40 +672,59 @@ def guardar_comentario(request):
         iid       = int(data['ingr_egr_id'])
         parcial_v = int(data['parcial'])
         anio_v    = int(data['anio'])
-        area_v    = data['area']
-        comentario = (data.get('comentario', '') or '').strip()
-
-        # Límite de 40 palabras
-        if len(comentario.split()) > 40:
-            return JsonResponse({'ok': False, 'error': 'El comentario no puede superar las 40 palabras.'})
-        # <--- hecho por claude code: el tope de palabras no frena un "aaaa…" de 300 letras
-        # (es UNA palabra) y eso reventaba el PDF. Tope de caracteres, igual que el textarea.
-        if len(comentario) > 600:
-            return JsonResponse({'ok': False, 'error': 'El comentario no puede superar los 600 caracteres.'})
-
-        # <--- hecho por claude code (12-oct-2026): cierre de escritura (revocado o fecha vencida)
-        _ok, _msg = _maestro_puede_escribir(request.user, area_v, parcial_v, anio_v,
-                                            (data.get('grado') or '').strip(), (data.get('seccion') or '').strip())
-        if not _ok:
-            return JsonResponse({'ok': False, 'error': _msg or 'La escritura está cerrada.', 'cerrado': True}, status=403)
-
-        # Maestro autor del comentario (caja). Por defecto, el usuario actual.
+        area_v    = str(data['area'])
+        comentario = str(data.get('comentario', '') or '').strip()
         maestro_id = data.get('maestro_id')
-        es_coord = request.user.is_superuser or request.user.groups.filter(name__icontains='coord').exists()
-        if maestro_id:
-            maestro_id = int(maestro_id)
-            if maestro_id != request.user.id and not es_coord:
-                return JsonResponse({'ok': False, 'error': 'Solo puedes editar tu propio comentario.'}, status=403)
-        else:
-            maestro_id = request.user.id
+        maestro_id = int(maestro_id) if maestro_id not in (None, '') else None
+        grado_pista = str(data.get('grado') or '').strip()
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return _json_error('Datos incompletos.')
+    if area_v not in dict(AREAS):
+        return _json_error('Área inválida.')
 
+    # Límite de 40 palabras
+    if len(comentario.split()) > 40:
+        return JsonResponse({'ok': False, 'error': 'El comentario no puede superar las 40 palabras.'})
+    # <--- hecho por claude code: el tope de palabras no frena un "aaaa…" de 300 letras
+    # (es UNA palabra) y eso reventaba el PDF. Tope de caracteres, igual que el textarea.
+    if len(comentario) > 600:
+        return JsonResponse({'ok': False, 'error': 'El comentario no puede superar los 600 caracteres.'})
+
+    user = request.user
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes aceptaba cualquier área/alumno/maestro_id y el grado-sección del navegador; ahora se decide por el USUARIO
+    if _coordina_area(user, area_v):
+        # Coordinación DEL ÁREA (incluye coord_revision: en producción corrige comentarios ajenos desde el carrusel)
+        if maestro_id is None:
+            maestro_id = user.id
+        elif maestro_id != user.id and not (
+                AsignacionMaestro.objects.filter(maestro_id=maestro_id, area=area_v, parcial=parcial_v, anio=anio_v).exists()
+                or NotaComentario.objects.filter(ingr_egr_id=iid, parcial=parcial_v, anio=anio_v,
+                                                 area=area_v, maestro_id=maestro_id).exists()):
+            return _json_error('Ese maestro no está asignado en esta área y parcial.', 403)
+    else:
+        # Maestro: solo SU comentario, de un alumno de un grupo que tenga asignado, y con ese grupo abierto
+        if maestro_id not in (None, user.id):
+            return _json_error('Solo puedes editar tu propio comentario.', 403)
+        maestro_id = user.id
+        grupo = _asignacion_de_alumno(user, area_v, parcial_v, anio_v, iid, grado_pista)
+        if grupo is False:
+            return _json_error('No se pudo verificar el alumno en el sistema académico. Intenta de nuevo en un momento.', 503)
+        if not grupo:
+            return _json_error('Ese alumno no es de un grupo que tengas asignado.', 403)
+        # <--- hecho por claude code (12-oct-2026): cierre de escritura (revocado o fecha vencida); desde el 05-nov-2026 con el grupo REAL del alumno
+        _ok, _msg = _maestro_puede_escribir(user, area_v, parcial_v, anio_v, grupo[0], grupo[1])
+        if not _ok:
+            return _json_error(_msg or 'La escritura está cerrada.', 403, cerrado=True)
+
+    try:
         NotaComentario.objects.update_or_create(
             ingr_egr_id=iid, parcial=parcial_v, anio=anio_v, area=area_v, maestro_id=maestro_id,
-            defaults={'comentario': comentario, 'actualizado_por': request.user},
+            defaults={'comentario': comentario, 'actualizado_por': user},
         )
-        return JsonResponse({'ok': True})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] guardar_comentario:', e)   # <--- hecho por claude code (seguridad 05-nov-2026): sin el error crudo al cliente
+        return _json_error('No se pudo guardar el comentario.', 500)
+    return JsonResponse({'ok': True})
 
 
 @login_required
@@ -576,6 +739,22 @@ def generar_pdf(request):
 
     if not parcial or not area:
         return HttpResponse('Parámetros incompletos.', status=400)
+    try:
+        parcial_i, anio_i = int(parcial), int(anio)
+    except (TypeError, ValueError):
+        return HttpResponse('Parámetros inválidos.', status=400)
+    if area not in dict(AREAS):
+        return HttpResponse('Área inválida.', status=400)
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes cualquier maestro bajaba el PDF (notas + comentarios) de TODA un área; ahora coordinación del área o el maestro de ESE grupo
+    if not _coordina_area(request.user, area):
+        if not grado or not AsignacionMaestro.objects.filter(
+                maestro=request.user, area=area, parcial=parcial_i, anio=anio_i,
+                grado=grado, seccion=seccion).exists():
+            raise PermissionDenied('No tienes asignado ese grupo.')
+        if (area, parcial_i, anio_i) in _parciales_cerrados():
+            raise PermissionDenied('Coordinación cerró ese parcial.')
+        if area == 'bachillerato':
+            curso = _curso_de_grado(grado) or None
 
     rows, _  = _llamar_sp(area, parcial, anio, curso)
     alumnos  = _agrupar(rows)
@@ -1080,6 +1259,13 @@ def coordinador_notas(request):
     curso     = request.GET.get('curso', '')
     grado     = request.GET.get('grado', '')
     seccion   = request.GET.get('seccion', '')
+    # <--- hecho por claude code (seguridad 05-nov-2026): el área se valida contra lo que COORDINA el usuario (antes solo se recortaba el desplegable)
+    if area and not _coordina_area(request.user, area):
+        raise PermissionDenied('No coordinas esa área.')
+    if parcial and not _es_num(parcial):   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): solo dígitos ASCII ('²' pasaba isdigit)
+        parcial = ''
+    if not _es_num(anio):
+        anio = date.today().year
     alumnos   = []
     grados    = []
     secciones = []
@@ -1095,7 +1281,7 @@ def coordinador_notas(request):
     else:
         _grupos_maestro_area = _GRUPOS_MAESTRO
     maestros = User.objects.filter(
-        groups__name__in=_grupos_maestro_area
+        groups__name__in=_grupos_maestro_area, is_active=True   # <--- hecho por claude code (seguridad 05-nov-2026): el servidor ya no asigna cuentas inactivas
     ).distinct().order_by('first_name', 'last_name', 'username')
 
     secciones_grado = []
@@ -1156,7 +1342,7 @@ def coordinador_notas(request):
 
     notificaciones = (
         RevisionFinalizada.objects
-        .filter(leida=False)
+        .filter(leida=False, area__in=_claves_coord(request.user))   # <--- hecho por claude code (seguridad 05-nov-2026): solo las de SUS áreas
         .select_related('maestro')
         .order_by('-fecha')
     )
@@ -1181,7 +1367,7 @@ def coordinador_notas(request):
         'solo_carrusel':          _es_solo_revision(request.user) and area in {'bl', 'colegio_bl'},
         'ya_revisado':            _ya_revisado(request.user, area, parcial, anio, grado, seccion),   # <--- hecho por claude code
         'ocultar_asignaciones':   _es_solo_revision(request.user),
-        'areas':                  _areas_para(request.user),
+        'areas':                  _areas_coord(request.user),   # <--- hecho por claude code (seguridad 05-nov-2026): mismas áreas que valida el servidor
         'puede_refrescar':        _puede_refrescar(request.user, area),   # <--- hecho por claude code (30-sep-2026)
         # <--- hecho por claude code (12-oct-2026): estado de cierre de cada grado-sección (lo pinta cierre_notas.js)
         'cierres': ({f"{gs['grado']}|{gs['seccion']}": _estado_cierre(area, parcial, anio, gs['grado'], gs['seccion'])
@@ -1201,39 +1387,61 @@ def asignar_maestro_view(request):
     - add: asigna 1 maestro a uno o varios grados-secciones (items).
     - remove: quita 1 maestro de 1 grado-sección.
     Compatibilidad: si llega grado/seccion sueltos, opera sobre ese par."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo coordinación completa DEL ÁREA; maestro = usuario activo con grupo de maestro de esa área; grado/sección acotados
+    if _es_solo_revision(request.user):
+        return _json_error('Tu rol es solo de revisión.', 403)
     try:
         data       = json.loads(request.body)
-        accion     = data.get('accion', 'add')
+        accion     = 'remove' if data.get('accion') == 'remove' else 'add'
         maestro_id = data.get('maestro_id')
-        area       = data['area']
+        area       = str(data['area'])
         parcial    = int(data['parcial'])
         anio       = int(data['anio'])
-        if not maestro_id:
-            return JsonResponse({'ok': False, 'error': 'Falta el maestro'})
-        maestro = User.objects.get(pk=int(maestro_id))
-        nombre  = maestro.get_full_name() or maestro.username
-
         # items = lista de {grado, seccion}; si no, usar grado/seccion sueltos
         items = data.get('items')
         if not items:
             items = [{'grado': data.get('grado', ''), 'seccion': data.get('seccion', '')}]
-
+        if not isinstance(items, list) or len(items) > 200:
+            raise ValueError('items')
+        pares = []
+        for it in items:
+            g, s = str(it.get('grado') or '').strip(), str(it.get('seccion') or '').strip()
+            if len(g) > 20 or len(s) > 20:
+                raise ValueError('largo')
+            pares.append((g, s))
+        maestro_id = int(maestro_id) if maestro_id else 0
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return _json_error('Datos incompletos.')
+    if not maestro_id:
+        return JsonResponse({'ok': False, 'error': 'Falta el maestro'})
+    if not _coordina_area(request.user, area):
+        return _json_error('No coordinas esa área.', 403)
+    maestro = User.objects.filter(pk=maestro_id).first()
+    if not maestro:
+        return _json_error('Maestro no encontrado.', 404)
+    nombre = maestro.get_full_name() or maestro.username
+    try:
         if accion == 'remove':
-            for it in items:
+            for g, s in pares:
                 AsignacionMaestro.objects.filter(
                     area=area, parcial=parcial, anio=anio,
-                    grado=it.get('grado', ''), seccion=it.get('seccion', ''), maestro=maestro,
+                    grado=g, seccion=s, maestro=maestro,
                 ).delete()
         else:
-            for it in items:
+            if not maestro.is_active or not maestro.groups.filter(name__in=_grupos_maestro_de_area(area)).exists():
+                return _json_error('Ese usuario no es maestro de esta área.', 403)
+            if any(not g for g, _ in pares):
+                return _json_error('Falta el grado.')
+            for g, s in pares:
                 AsignacionMaestro.objects.get_or_create(
                     area=area, parcial=parcial, anio=anio,
-                    grado=it.get('grado', ''), seccion=it.get('seccion', ''), maestro=maestro,
+                    grado=g, seccion=s, maestro=maestro,
                     defaults={'asignado_por': request.user},
                 )
-        return JsonResponse({'ok': True, 'nombre': nombre, 'maestro_id': maestro.pk})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] asignar_maestro:', e)
+        return _json_error('No se pudo guardar la asignación.', 500)
+    return JsonResponse({'ok': True, 'nombre': nombre, 'maestro_id': maestro.pk})
 
 
 # <--- hecho por claude code: en bachillerato el "grado" ES el año/curso
@@ -1261,7 +1469,10 @@ def maestro_notas(request):
     ver_todas = es_coord and request.GET.get('todos') == '1'
     _orden = ('-anio', 'parcial', 'area', 'grado', 'seccion')
     if ver_todas:
-        asignaciones = AsignacionMaestro.objects.select_related('maestro').order_by(*_orden)
+        # <--- hecho por claude code (seguridad 05-nov-2026): "todas" = las de las áreas que coordina (+ las suyas), no las de todo el colegio
+        asignaciones = (AsignacionMaestro.objects
+                        .filter(Q(area__in=_claves_coord(user)) | Q(maestro=user))
+                        .select_related('maestro').order_by(*_orden))
     else:
         asignaciones = AsignacionMaestro.objects.filter(maestro=user).order_by(*_orden)
 
@@ -1310,12 +1521,15 @@ def maestro_notas(request):
     asig_activa = None
 
     # <--- hecho por claude code (13-oct-2026): un parcial cerrado no se abre desde Mis Reportes, ni por coordinación
-    if area_sel and parcial_sel and anio_sel and parcial_sel.isdigit() and anio_sel.isdigit() \
+    if area_sel and parcial_sel and anio_sel and not (area_sel in dict(AREAS) and _es_num(parcial_sel) and _es_num(anio_sel)):
+        error = 'Parámetros inválidos.'   # <--- hecho por claude code (seguridad 05-nov-2026): antes int() daba error 500; ronda 2: solo dígitos ASCII ('²' pasaba isdigit) y área exacta (MySQL acepta 'BL' por 'bl')
+    elif area_sel and parcial_sel and anio_sel \
             and (area_sel, int(parcial_sel), int(anio_sel)) in _parciales_cerrados():
         error = f'El Parcial {parcial_sel} está cerrado. Coordinación lo puede reabrir desde la pantalla del coordinador.'
     elif area_sel and parcial_sel and anio_sel:
         # Verificar que el maestro tenga asignación (o sea coordinador)
-        if _es_coordinador(user):
+        # <--- hecho por claude code (seguridad 05-nov-2026): sin asignación propia solo entra quien coordina ESA área (antes cualquier coordinador veía cualquier área)
+        if _coordina_area(user, area_sel):
             asig_activa = AsignacionMaestro.objects.filter(
                 area=area_sel, parcial=int(parcial_sel), anio=int(anio_sel),
                 grado=grado_sel, seccion=seccion_sel,
@@ -1366,7 +1580,7 @@ def maestro_notas(request):
 
     # <--- hecho por claude code (12-oct-2026): aviso y bloqueo en pantalla si coordinación cerró la escritura
     cierre = _estado_cierre(area_sel, parcial_sel, anio_sel, grado_sel, seccion_sel) if (area_sel and parcial_sel and anio_sel) else None
-    escritura_cerrada = bool(cierre and cierre['cerrado'] and not _es_coordinador(user))
+    escritura_cerrada = bool(cierre and cierre['cerrado'] and not _coordina_area(user, area_sel))   # <--- hecho por claude code (seguridad 05-nov-2026): igual que el servidor
 
     return render(request, 'notas_parcial/maestro.html', {
         'cierre':            cierre,
@@ -1401,12 +1615,26 @@ def maestro_notas(request):
 def finalizar_revision(request):
     try:
         data    = json.loads(request.body)
-        area    = data['area']
+        area    = str(data['area'])
         parcial = int(data['parcial'])
         anio    = int(data['anio'])
-        grado   = data.get('grado', '')
-        seccion = data.get('seccion', '')
-
+        grado   = str(data.get('grado') or '')
+        seccion = str(data.get('seccion') or '')
+        (grado + seccion).encode('utf-8')   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 3): un "\ud800" suelto rompía la consulta de la asignación (500); UnicodeEncodeError es ValueError → 400
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return _json_error('Datos incompletos.')
+    if area not in dict(AREAS) or not grado:
+        return _json_error('Datos incompletos.')
+    # <--- hecho por claude code (seguridad 05-nov-2026): el grado-sección debe ser una asignación real (del propio maestro; coordinación del área: de cualquiera); antes venía libre del navegador y se esquivaba el cierre por grupo mandando otro grado
+    asigs = AsignacionMaestro.objects.filter(area=area, parcial=parcial, anio=anio, grado=grado, seccion=seccion)
+    if not _coordina_area(request.user, area):
+        asigs = asigs.filter(maestro=request.user)
+    asig = asigs.order_by('pk').first()
+    if not asig:
+        return _json_error('No tienes asignado ese grupo.', 403)
+    # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): MySQL compara sin mayúsculas ni acentos ('2DO'/'A' encuentra '2do'/'a'); el cierre y el registro usan el grado-sección GUARDADO, no el del navegador
+    grado, seccion = asig.grado, asig.seccion
+    try:
         # <--- hecho por claude code (12-oct-2026): con la escritura cerrada tampoco se marca Finalizado
         _ok, _msg = _maestro_puede_escribir(request.user, area, parcial, anio, grado, seccion)
         if not _ok:
@@ -1437,7 +1665,8 @@ def finalizar_revision(request):
                                  grado, seccion, maestro_nombre, coord_url)
         return JsonResponse({'ok': True})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] finalizar_revision:', e)   # <--- hecho por claude code (seguridad 05-nov-2026): sin el error crudo al cliente
+        return _json_error('No se pudo registrar la revisión.', 500)
 
 
 @login_required
@@ -1456,11 +1685,13 @@ def cierre_guardar(request):
         anio    = int(data['anio'])
         accion  = data.get('accion')
         alcance = data.get('alcance', 'grupo')
-    except (KeyError, ValueError, TypeError):
+        # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): grado/sección/fecha como texto y del largo de la columna; un número o una lista daban error 500
+        grado, seccion = ('', '') if alcance == 'parcial' else (_texto(data.get('grado')), _texto(data.get('seccion')))
+        cierre_raw = _texto(data.get('cierre_en'), 40)
+    except (KeyError, ValueError, TypeError, AttributeError):
         return JsonResponse({'ok': False, 'error': 'Datos incompletos.'}, status=400)
-    if area not in [a for a, _ in _areas_para(request.user)]:
+    if not _coordina_area(request.user, area):   # <--- hecho por claude code (seguridad 05-nov-2026): mismo helper de área que el resto del módulo
         return JsonResponse({'ok': False, 'error': 'No coordinas esa área.'}, status=403)
-    grado, seccion = ('', '') if alcance == 'parcial' else ((data.get('grado') or '').strip(), (data.get('seccion') or '').strip())
     if alcance != 'parcial' and not grado:
         return JsonResponse({'ok': False, 'error': 'Falta el grado.'}, status=400)
     obj, _ = CierreNotas.objects.get_or_create(area=area, parcial=parcial, anio=anio, grado=grado, seccion=seccion)
@@ -1474,7 +1705,7 @@ def cierre_guardar(request):
         obj.parcial_cerrado = accion == 'cerrar_parcial'
         obj.parcial_cerrado_en = _dt.datetime.now() if obj.parcial_cerrado else None
     elif accion == 'fecha':
-        raw = (data.get('cierre_en') or '').strip()
+        raw = cierre_raw
         if raw:
             try:
                 obj.cierre_en = _dt.datetime.strptime(raw, '%Y-%m-%dT%H:%M')
@@ -1496,10 +1727,13 @@ def leer_notificacion(request):
     try:
         data = json.loads(request.body)
         pk   = int(data['pk'])
-        RevisionFinalizada.objects.filter(pk=pk).update(leida=True)
-        return JsonResponse({'ok': True})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Datos incompletos.')
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo avisos de SUS áreas (antes cualquier pk)
+    n = RevisionFinalizada.objects.filter(pk=pk, area__in=_claves_coord(request.user)).update(leida=True)
+    if not n:
+        return _json_error('Aviso no encontrado.', 404)
+    return JsonResponse({'ok': True})
 
 
 @login_required
@@ -1526,12 +1760,20 @@ def enviar_pdf_email(request):
         destinatario = request.POST.get('destinatario', '')
 
     # Validar que el correo sea uno de los permitidos
-    if destinatario not in _CORREOS_VALIDOS:
-        destinos = _destinatarios_para(request.user)
+    # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): contra el desplegable de ESTE usuario (antes la lista global: un coordinador de BL mandaba el PDF de BL a malvarado@ por POST directo)
+    destinos = _destinatarios_para(request.user)
+    if destinatario not in destinos:
         destinatario = destinos[0] if destinos else 'lchavez@ana-hn.org'
 
     if not parcial or not area:
         return JsonResponse({'ok': False, 'error': 'Parámetros incompletos.'})
+    try:
+        int(parcial), int(anio)
+    except (TypeError, ValueError):
+        return _json_error('Parámetros inválidos.')
+    # <--- hecho por claude code (seguridad 05-nov-2026): el PDF (y las copias a _coordinadores_de) solo de un área que coordine quien envía
+    if not _coordina_area(request.user, str(area)):
+        return _json_error('No coordinas esa área.', 403)
 
     rows, _ = _llamar_sp(area, int(parcial), int(anio), curso)
     alumnos = _agrupar(rows)
@@ -1644,7 +1886,8 @@ def enviar_pdf_email(request):
         mail.send()
         return JsonResponse({'ok': True})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] enviar_pdf_email:', e)   # <--- hecho por claude code (seguridad 05-nov-2026): sin el error crudo (servidor SMTP) al cliente
+        return JsonResponse({'ok': False, 'error': 'No se pudo enviar el correo. Intenta de nuevo o avisa a Soporte.'})
 
 
 @login_required
@@ -1654,22 +1897,23 @@ def notificaciones_json(request):
         return JsonResponse({'notificaciones': []})
     notifs = (
         RevisionFinalizada.objects
-        .filter(leida=False)
+        .filter(leida=False, area__in=_claves_coord(request.user))   # <--- hecho por claude code (seguridad 05-nov-2026): solo las de SUS áreas
         .select_related('maestro')
         .order_by('-fecha')
     )
     area_map = dict(AREAS)
     data = []
     for n in notifs:
+        # <--- hecho por claude code (seguridad 05-nov-2026): notif_notas_toast.js pinta estos campos con innerHTML → van escapados
         data.append({
             'pk':         n.pk,
-            'maestro':    n.maestro.get_full_name() or n.maestro.username,
+            'maestro':    escape(n.maestro.get_full_name() or n.maestro.username),
             'area':       n.area,
-            'area_label': area_map.get(n.area, n.area),
+            'area_label': escape(area_map.get(n.area, n.area)),
             'parcial':    n.parcial,
             'anio':       n.anio,
-            'grado':      n.grado,
-            'seccion':    n.seccion,
+            'grado':      escape(n.grado),
+            'seccion':    escape(n.seccion),
             'fecha':      n.fecha.strftime('%d/%m/%Y %H:%M'),
         })
     return JsonResponse({'notificaciones': data})
@@ -1681,7 +1925,10 @@ def notificaciones_json(request):
 @_coordinador
 def asignaciones_vista(request):
     """Lista de asignaciones con fecha límite y estado de cache por grupo."""
-    areas_visibles = [a for a, _ in _areas_para(request.user)]
+    # <--- hecho por claude code (seguridad 05-nov-2026): el menú no muestra Asignaciones a coord_revision (es_solo_revision); el servidor tampoco
+    if _es_solo_revision(request.user):
+        raise PermissionDenied('Tu rol es solo de revisión.')
+    areas_visibles = _claves_coord(request.user)
     qs = AsignacionMaestro.objects.filter(
         area__in=areas_visibles
     ).select_related(
@@ -1742,10 +1989,19 @@ def asignaciones_vista(request):
 @require_POST
 def actualizar_fecha_limite(request):
     """Actualiza o borra la fecha límite de una asignación."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes cualquier pk (IDOR); ahora solo asignaciones de SUS áreas y no para coord_revision
+    if _es_solo_revision(request.user):
+        return _json_error('Tu rol es solo de revisión.', 403)
     try:
         data      = json.loads(request.body)
-        asig      = AsignacionMaestro.objects.get(pk=int(data['id']))
-        fecha_str = data.get('fecha_limite', '').strip()
+        pk        = int(data['id'])
+        fecha_str = str(data.get('fecha_limite') or '').strip()
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Datos incompletos.')
+    asig = AsignacionMaestro.objects.filter(pk=pk, area__in=_claves_coord(request.user)).first()
+    if not asig:
+        return _json_error('Asignación no encontrada.', 404)
+    try:
         if fecha_str:
             from django.utils.dateparse import parse_datetime
             asig.fecha_limite = parse_datetime(fecha_str)
@@ -1754,7 +2010,8 @@ def actualizar_fecha_limite(request):
         asig.save(update_fields=['fecha_limite'])
         return JsonResponse({'ok': True})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] actualizar_fecha_limite:', e)
+        return _json_error('Fecha inválida.')
 
 
 @login_required
@@ -1762,12 +2019,18 @@ def actualizar_fecha_limite(request):
 @require_POST
 def eliminar_asignacion(request):
     """Elimina una AsignacionMaestro por pk."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes cualquier pk (IDOR); ahora solo asignaciones de SUS áreas y no para coord_revision
+    if _es_solo_revision(request.user):
+        return _json_error('Tu rol es solo de revisión.', 403)
     try:
         data = json.loads(request.body)
-        AsignacionMaestro.objects.filter(pk=int(data['id'])).delete()
-        return JsonResponse({'ok': True})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        pk   = int(data['id'])
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Datos incompletos.')
+    n, _ = AsignacionMaestro.objects.filter(pk=pk, area__in=_claves_coord(request.user)).delete()
+    if not n:
+        return _json_error('Asignación no encontrada.', 404)
+    return JsonResponse({'ok': True})
 
 
 # <--- hecho por claude code (30-sep-2026): botón "Actualizar datos" del coordinador. Limpia el caché del SP para
@@ -1777,13 +2040,14 @@ _REFRESCAR_BL_USUARIOS = {'druiz@ana-hn.org', 'cvarela@ana-hn.org'}
 
 
 def _puede_refrescar(user, area):
-    if not area:
+    if not area or area not in dict(AREAS):   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): área exacta
         return False
     if user.is_superuser:
         return True
     if area in dict(AREAS_BL):
         return user.username in _REFRESCAR_BL_USUARIOS
-    return _es_coordinador(user)
+    # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): Colegio/Bachillerato = coordinación DE ESA área (antes cualquier coordinador, también de BL o de solo revisión, por POST directo)
+    return _coordina_area(user, area) and not _es_solo_revision(user)
 
 
 @login_required
@@ -1799,11 +2063,13 @@ def refrescar_cache(request):
     if area and parcial and anio:
         for curso in ([None, '1', '2'] if area == 'bachillerato' else [None]):
             cache.delete(_cache_key(area, parcial, anio, curso))
+            cache.delete('notas_ubic_' + _cache_key(area, parcial, anio, curso))   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): también el grupo de cada alumno que usa guardar_comentario
         try:
             _llamar_sp(area, parcial, anio)
             messages.success(request, 'Datos actualizados desde el sistema académico.')
         except Exception as e:
-            messages.error(request, f'No se pudo leer el sistema académico: {e}')
+            print('[notas_parcial] refrescar_cache:', e)   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): sin el error crudo al cliente
+            messages.error(request, 'No se pudo leer el sistema académico. Intenta de nuevo en un momento.')
     q = {k: request.POST.get(k, '') for k in ('parcial', 'anio', 'area', 'curso', 'grado', 'seccion') if request.POST.get(k)}
     from urllib.parse import urlencode
     return redirect(f"{reverse('notas_parcial_coordinador')}?{urlencode(q)}")
@@ -1818,6 +2084,13 @@ def precargar_cache(request):
     anio    = request.GET.get('anio', '')
     if not (area and parcial and anio):
         return JsonResponse({'ok': False, 'error': 'Faltan parámetros'})
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo desde Asignaciones (oculta a coord_revision) y de un área que coordine
+    if _es_solo_revision(request.user):
+        return _json_error('Tu rol es solo de revisión.', 403)
+    if not _coordina_area(request.user, area):
+        return _json_error('No coordinas esa área.', 403)
+    if not (_es_num(parcial) and _es_num(anio)):   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): solo dígitos ASCII
+        return _json_error('Parámetros inválidos.')
     _llamar_sp(area, parcial, anio)
     return JsonResponse({'ok': True})
 
@@ -1832,6 +2105,13 @@ def revision_comentarios_view(request):
     anio      = request.GET.get('anio', str(date.today().year))
     area      = request.GET.get('area', '')
     grado_sel = request.GET.get('grado', '')
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes listaba los comentarios (con nombre del alumno) de CUALQUIER área
+    if area and not _coordina_area(request.user, area):
+        raise PermissionDenied('No coordinas esa área.')
+    if parcial and not _es_num(parcial):   # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): solo dígitos ASCII ('²' pasaba isdigit y daba error 500)
+        parcial = ''
+    if not _es_num(anio):
+        anio = str(date.today().year)
 
     comentarios  = []
     alumnos_dict = {}
@@ -1872,7 +2152,8 @@ def revision_comentarios_view(request):
             })
 
     return render(request, 'notas_parcial/revision_comentarios.html', {
-        'areas':       AREAS,
+        'areas':       _areas_coord(request.user),   # <--- hecho por claude code (seguridad 05-nov-2026): solo sus áreas
+        'puede_eliminar': not _es_solo_revision(request.user),
         'parcial':     parcial,
         'anio':        anio,
         'area':        area,
@@ -1887,12 +2168,18 @@ def revision_comentarios_view(request):
 @require_POST
 def eliminar_comentario(request):
     """Elimina un NotaComentario por id."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes cualquier pk (IDOR); ahora solo comentarios de SUS áreas y no para coord_revision
+    if _es_solo_revision(request.user):
+        return _json_error('Tu rol es solo de revisión.', 403)
     try:
         data = json.loads(request.body)
-        NotaComentario.objects.filter(pk=int(data['id'])).delete()
-        return JsonResponse({'ok': True})
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        pk   = int(data['id'])
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Datos incompletos.')
+    n, _ = NotaComentario.objects.filter(pk=pk, area__in=_claves_coord(request.user)).delete()
+    if not n:
+        return _json_error('Comentario no encontrado.', 404)
+    return JsonResponse({'ok': True})
 
 
 # <--- hecho por claude code: el botón "Revisado" del coordinador solo pintaba de verde
@@ -1904,11 +2191,19 @@ def eliminar_comentario(request):
 def marcar_revisado(request):
     try:
         data    = json.loads(request.body)
-        area    = data['area']
+        area    = str(data['area'])
         parcial = int(data['parcial'])
         anio    = int(data['anio'])
-        grado   = data.get('grado', '') or ''
-        seccion = data.get('seccion', '') or ''
+        grado   = str(data.get('grado', '') or '')
+        seccion = str(data.get('seccion', '') or '')
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return _json_error('Datos incompletos.')
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo en un área que coordine y con grado/sección del tamaño de la tabla
+    if not _coordina_area(request.user, area):
+        return _json_error('No coordinas esa área.', 403)
+    if len(grado) > 20 or len(seccion) > 20:
+        return _json_error('Datos inválidos.')
+    try:
         if data.get('accion') == 'quitar':
             RevisionFinalizada.objects.filter(
                 maestro=request.user, area=area, parcial=parcial,
@@ -1921,7 +2216,8 @@ def marcar_revisado(request):
             )
         return JsonResponse({'ok': True})
     except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        print('[notas_parcial] marcar_revisado:', e)   # <--- hecho por claude code (seguridad 05-nov-2026): sin el error crudo al cliente
+        return _json_error('No se pudo marcar como revisado.', 500)
 
 
 def _ya_revisado(user, area, parcial, anio, grado, seccion):
@@ -1964,12 +2260,13 @@ def maestro_guia_guardar(request):
         data   = json.loads(request.body or b'{}')
         area   = data['area']
         anio   = int(data['anio'])
-        grado  = (data.get('grado') or '').strip()
-        seccion = (data.get('seccion') or '').strip()
-        nombre = ' '.join((data.get('nombre') or '').split())[:120]
-    except (KeyError, ValueError, TypeError):
+        # <--- hecho por claude code (seguridad 05-nov-2026, ronda 2): grado/sección/nombre como texto y del largo de la columna; un número daba error 500
+        grado  = _texto(data.get('grado'))
+        seccion = _texto(data.get('seccion'))
+        nombre = ' '.join(_texto(data.get('nombre'), None).split())[:120]
+    except (KeyError, ValueError, TypeError, AttributeError):
         return JsonResponse({'ok': False, 'error': 'Datos incompletos.'}, status=400)
-    if area not in [a for a, _ in _areas_para(request.user)]:
+    if not _coordina_area(request.user, area):   # <--- hecho por claude code (seguridad 05-nov-2026): mismo helper de área que el resto del módulo
         return JsonResponse({'ok': False, 'error': 'No coordinas esa área.'}, status=403)
     if not grado:
         return JsonResponse({'ok': False, 'error': 'Falta el grado.'}, status=400)

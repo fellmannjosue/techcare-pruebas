@@ -2,9 +2,11 @@
 # <--- hecho por claude code: API JSON para el frontend Next (build estático).
 # Usa la MISMA sesión de Django (mismo dominio), así que no hay CORS ni JWT:
 # si el usuario no inició sesión, la API responde 403.
+import re   # <--- hecho por claude code (seguridad 05-nov-2026): validar los ids de los filtros
 from django.db.models import Count, Q
 from rest_framework import serializers, viewsets, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import SessionAuthentication   # <--- hecho por claude code (seguridad 05-nov-2026)
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 
 from .models import (Servidor, NVR, Componente, Gabinete, Camara,
@@ -31,7 +33,8 @@ class NormalizaVaciosMixin:
 
 
 class SoloStaff(permissions.BasePermission):
-    """Mismo criterio que el resto del módulo: staff autenticado."""
+    """Mismo criterio que el resto del módulo (_camaras_required y show_camaras_inv): superusuario o grupo 'inventario'.
+    <--- hecho por claude code (seguridad 05-nov-2026): el API está EXENTO del LoginRequiredMiddleware; este es su único candado."""
     def has_permission(self, request, view):
         u = request.user
         # <--- hecho por claude code (seguridad): grupo 'inventario', no is_staff
@@ -110,8 +113,28 @@ class MantenimientoSerializer(NormalizaVaciosMixin, serializers.ModelSerializer)
 
 
 # ── ViewSets ───────────────────────────────────────────────────────────────
-class BaseVS(viewsets.ModelViewSet):
+# <--- hecho por claude code (seguridad 05-nov-2026): SOLO LECTURA. Era ModelViewSet completo (crear/editar/borrar sin
+# auditoría: no ponía creado_por/modificado_por). Nadie escribe por aquí: 0 peticiones en los logs de Apache
+# (22-oct a 05-nov-2026) y ningún registro con creado_por vacío; la SPA que lo usaba se quitó del hub el 05-ago-2026.
+# Altas/ediciones/bajas: por las pantallas del módulo.
+class BaseVS(viewsets.ReadOnlyModelViewSet):
+    authentication_classes = [SessionAuthentication]   # <--- hecho por claude code (seguridad 05-nov-2026): solo la sesión de TechCare (sin tokens), explícito
     permission_classes = [SoloStaff]
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): solo dígitos ASCII; str.isdigit() aceptaba '²', '①' (y '١') y filter(...='²') daba 500
+_ID_FILTRO_RE = re.compile(r'[0-9]{1,10}')
+
+
+def _filtrar_id(qs, request, nombre, campo):
+    """<--- hecho por claude code (seguridad 05-nov-2026): sin el parámetro (o vacío) no filtra; con un id válido filtra;
+    con cualquier otra cosa (abc, -1, ², ①) devuelve la lista VACÍA (antes: 500 o la lista completa)."""
+    v = (request.query_params.get(nombre) or '').strip()
+    if not v:
+        return qs
+    if not _ID_FILTRO_RE.fullmatch(v):
+        return qs.none()
+    return qs.filter(**{campo: int(v)})
 
 
 class ServidorVS(BaseVS):
@@ -124,8 +147,7 @@ class NVRVS(BaseVS):
 
     def get_queryset(self):
         qs = NVR.objects.select_related('servidor').annotate(n_gabinetes=Count('gabinetes'))
-        srv = self.request.query_params.get('servidor')
-        return (qs.filter(servidor_id=srv) if srv else qs).order_by('nvr_id')
+        return _filtrar_id(qs, self.request, 'servidor', 'servidor_id').order_by('nvr_id')   # <--- hecho por claude code (seguridad 05-nov-2026)
 
 
 class GabineteVS(BaseVS):
@@ -133,19 +155,15 @@ class GabineteVS(BaseVS):
 
     def get_queryset(self):
         qs = Gabinete.objects.select_related('nvr').annotate(n_camaras=Count('camaras'))
-        nvr = self.request.query_params.get('nvr')
-        return (qs.filter(nvr_id=nvr) if nvr else qs).order_by('gabinete_id')
+        return _filtrar_id(qs, self.request, 'nvr', 'nvr_id').order_by('gabinete_id')   # <--- hecho por claude code (seguridad 05-nov-2026)
 
 
 class CamaraVS(BaseVS):
     serializer_class = CamaraSerializer
 
     def get_queryset(self):
-        qs = Camara.objects.select_related('gabinete')
-        gab = self.request.query_params.get('gabinete')
-        q = self.request.query_params.get('q')
-        if gab:
-            qs = qs.filter(gabinete_id=gab)
+        qs = _filtrar_id(Camara.objects.select_related('gabinete'), self.request, 'gabinete', 'gabinete_id')   # <--- hecho por claude code (seguridad 05-nov-2026)
+        q = (self.request.query_params.get('q') or '')[:100]
         if q:
             qs = qs.filter(Q(camara_id__icontains=q) | Q(modelo__icontains=q) |
                            Q(serie__icontains=q) | Q(ubicacion__icontains=q))
@@ -173,6 +191,7 @@ class MantenimientoVS(BaseVS):
 
 # ── Resumen para el árbol y las tarjetas ──────────────────────────────────
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication])   # <--- hecho por claude code (seguridad 05-nov-2026)
 @permission_classes([SoloStaff])
 def resumen(request):
     """Conteos + árbol Servidor → NVR → Gabinete → Cámara en una sola llamada."""

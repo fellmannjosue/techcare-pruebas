@@ -23,7 +23,15 @@
       <img src="{% static 'accounts/img/ana-transformed.png' %}" alt="Logo"
            style="width:52px;height:52px;object-fit:contain;" class="mb-3">
 
-      {% if desactivado %}
+      {% if desactivado and canal_label %}
+        {# <--- hecho por claude code (09-nov-2026): programa apagado para ESTA aplicación (Configuración → Programas por aplicación) #}
+        <div class="fb-icon bg-orange-lt text-orange mb-3"><i class="ti ti-devices"></i></div>
+        <h1 class="h2 mb-1">No disponible en esta aplicación</h1>
+        <p class="text-muted mb-3">
+          <strong>{{ mod_label }}</strong> no está disponible en <strong>{{ canal_label }}</strong>.
+          Si lo necesitas, ábrelo desde otra aplicación o desde el navegador.
+        </p>
+      {% elif desactivado %}
         {# <--- hecho por claude code (10-sep-2026): programa ocultado desde Configuración → Seguridad #}
         <div class="fb-icon bg-secondary-lt text-secondary mb-3"><i class="ti ti-eye-off"></i></div>
         <h1 class="h2 mb-1">Programa desactivado</h1>
@@ -79,5 +87,6 @@
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>
 {% endif %}
 {% include 'accounts/_suplantacion_banner.html' %}{# <--- hecho por claude code (12-oct-2026): aviso de Iniciar sesión como #}
+{% include '_canal.html' %}
 </body>
 </html>

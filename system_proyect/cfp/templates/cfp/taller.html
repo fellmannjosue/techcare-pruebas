@@ -47,7 +47,7 @@
           <td class="text-center">{{ e.part_pago }}</td>
           <td class="text-end">{{ e.costo_hora|money }}</td>
           <td class="text-end">{{ e.monto_contrato|money }}</td>
-          <td class="text-end">{{ e.perdida|money }}</td>
+          <td class="text-end text-nowrap">{# <--- hecho por claude code (06-nov-2026): lápiz para escribir la pérdida (se resta de la cancelación) #}{{ e.perdida|money }} <button type="button" class="btn btn-sm btn-ghost-primary btn-icon cfp-perdida" title="Editar pérdida" data-pk="{{ e.id }}" data-curso="{{ e.nombre_curso }}" data-manual="{% if e.perdida_manual is not None %}{{ e.perdida_manual|stringformat:'s' }}{% endif %}" data-auto="{{ e.perdida_calculada|stringformat:'s' }}"><i class="ti ti-pencil"></i></button></td>
           <td class="text-end">{{ e.anticipo|money }}</td>
           <td class="text-end">{{ e.cancelacion|money }}</td>
           <td class="text-end">{{ e.costo_real|money }}</td>
@@ -55,7 +55,9 @@
           <td class="text-end fw-semibold">{{ e.monto_cfp|money }}</td>
           <td class="text-nowrap text-center">
             <button class="btn btn-sm btn-ghost-primary" onclick="editEj({{ e.id }})" title="Editar"><i class="ti ti-pencil"></i></button>
+            {% if puede_eliminar %}{# <--- hecho por claude code (seguridad 05-nov-2026): solo director CFP o superusuario #}
             <button class="btn btn-sm btn-ghost-danger" onclick="delEj({{ e.id }},'{{ e.no_ejecucion|escapejs }}')" title="Eliminar"><i class="ti ti-trash"></i></button>
+            {% endif %}
           </td>
         </tr>
         {% empty %}
@@ -127,6 +129,20 @@
 </div>
 
 {# ── Modal: Nueva/Editar ejecución ── #}
+{# <--- hecho por claude code (06-nov-2026): modal pequeño para la pérdida #}
+<div class="modal modal-blur fade" id="modalPerdida" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+  <form id="formPerdida">
+    <div class="modal-header"><h5 class="modal-title">Pérdida</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="small text-muted mb-2" id="perd-curso"></div>
+      <label class="form-label">Monto de la pérdida (L)</label>
+      <input type="number" step="0.01" min="0" class="form-control" id="perd-monto" placeholder="0.00">
+      <div class="small text-muted mt-2">Se resta de la cancelación. Vacío = automática por deserción (<span id="perd-auto"></span>).</div>
+      <div class="text-danger small mt-2 d-none" id="perd-err"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+  </form>
+</div></div></div>
 <div class="modal modal-blur fade" id="modalEj" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
   <form id="formEj">
     <div class="modal-header"><h5 class="modal-title">Ejecución de curso</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -151,8 +167,10 @@
         <div class="col-md-3"><label class="form-label">Part. final</label><input type="number" name="part_pago" id="ej-part_pago" class="form-control" min="0"></div>
         <div class="col-md-3"><label class="form-label">Costo / Hora</label><input type="number" step="0.01" name="costo_hora" id="ej-costo_hora" class="form-control" min="0"></div>
         <div class="col-md-6"><label class="form-label">Horario</label><input name="horario" id="ej-horario" class="form-control" placeholder="12:10 PM a 4:40 PM"></div>
+        {# <--- hecho por claude code (06-nov-2026): pérdida opcional; vacía = se calcula por deserción #}
+        <div class="col-md-6"><label class="form-label">Pérdida <span class="text-muted fw-normal">(opcional)</span></label><input type="number" step="0.01" min="0" name="perdida_manual" id="ej-perdida_manual" class="form-control" placeholder="Vacío = automática por deserción"></div>
       </div>
-      <div class="text-muted small mt-2"><i class="ti ti-info-circle me-1"></i>El Monto Contrato y la distribución se calculan automáticamente.</div>
+      <div class="text-muted small mt-2"><i class="ti ti-info-circle me-1"></i>El Monto Contrato y la distribución se calculan automáticamente. La pérdida también, salvo que escribas un monto: entonces la cancelación y el costo real se calculan con ese monto.</div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
   </form>
@@ -163,5 +181,5 @@
 <div id="taller-config" hidden
      data-v0="{{ csrf_token }}"
      data-v1="{% url "cfp:ejecucion_guardar" %}"></div>
-<script src="{% static 'cfp/js/taller.js' %}?v=2"></script>
+<script src="{% static 'cfp/js/taller.js' %}?v=4"></script>
 {% endblock %}

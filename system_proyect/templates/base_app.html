@@ -30,14 +30,14 @@
   {# Sistema de diseño del portal (identidad visual única de TODO el sistema) #}
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {# <--- hecho por claude code (30-sep-2026): diseño Horizon Split (riel + panel + cabecera degradada) para todo el sistema #}
-  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=7">
 
   <link rel="manifest" href="/static/accounts/manifest.json">
   <meta name="theme-color" content="#0e1424">
   <link rel="apple-touch-icon" href="/static/img/icon-192.png">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="antialiased {% block body_class %}{% endblock %}">
+<body class="antialiased {% block body_class %}{% endblock %}{% if request.GET.embed == '1' %} tc-embed{% endif %}">{# <--- hecho por claude code (09-nov-2026): ?embed=1 = dentro de la ventana «Registrar» #}
 <div class="wrapper">
 
   {# ── Barra superior horizontal (30-oct-2026) — reemplaza el riel + sidebar vertical ── #}
@@ -119,6 +119,13 @@
     </div>
 
     {% include "_footer.html" %}
+{# <--- hecho por claude code (26-oct-2026; producción 06-nov-2026): asistente IA (solo aparece si el servidor tiene la clave) #}
+{% include "_asistente.html" %}
+{# <--- hecho por claude code (26-oct-2026, PRUEBAS): botón Novedades/actualización en la cabecera (app .exe de pruebas) #}
+{% if es_app_escritorio %}
+<link rel="stylesheet" href="{% static 'css/tc_updater_btn.css' %}?v=2">
+<script src="{% static 'js/tc_updater_btn.js' %}?v=1" defer></script>
+{% endif %}
   </div>
 </div>
 
@@ -136,7 +143,9 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="{% static 'js/dt_guard.js' %}?v=20"></script>
-<script src="{% static 'js/tc_shell.js' %}?v=9"></script>
+<script src="{% static 'js/tc_shell.js' %}?v=10"></script>
+{% include '_canal.html' %}
+{% if request.GET.embed == '1' %}<link rel="stylesheet" href="{% static 'css/tc_embed.css' %}?v=3"><script src="{% static 'js/tc_embed.js' %}?v=1"></script>{% endif %}
 <script src="{% static 'js/tc_responsive.js' %}?v=1"></script>
 <script src="{% static 'js/tc_camara.js' %}?v=1"></script>
 {# <--- hecho por claude code: evita el salto de scroll al abrir cualquier modal #}
@@ -151,13 +160,7 @@
 
 {% include "accounts/_notif_notas_toast.html" %}
 {% include "accounts/_welcome_overlay.html" %}
-{# <--- hecho por claude code (26-oct-2026): asistente IA, se pinta solo en la app .exe #}
-{% include "_asistente.html" %}
-{# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en la cabecera (app .exe) #}
-{% if es_app_escritorio %}
-<link rel="stylesheet" href="{% static 'css/tc_updater_btn.css' %}?v=2">
-<script src="{% static 'js/tc_updater_btn.js' %}?v=1" defer></script>
-{% endif %}
+{% if tc_offline_beta %}<link rel="stylesheet" href="{% static 'css/tc_offline_beta.css' %}?v=1"><script src="{% static 'js/tc_offline_beta.js' %}?v=1"></script>{% endif %}{# <--- hecho por claude code (12-nov-2026): modo sin conexión (beta), solo superusuario #}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=2"></script>
 </body>
 </html>

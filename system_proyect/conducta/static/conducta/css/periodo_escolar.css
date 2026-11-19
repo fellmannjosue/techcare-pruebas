@@ -1,0 +1,91 @@
+/* <--- hecho por claude code (06-nov-2026): Período Escolar general — tarjetas como las de Salidas al Baño (Tablero) */
+.pe-wrap{display:flex;flex-direction:column;gap:16px}
+.pe-intro{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:16px;border:1px solid var(--ps-border,#e6e9f0);
+  background:linear-gradient(110deg,color-mix(in srgb,#2f9e44 9%,var(--ps-surface,#fff)),var(--ps-surface,#fff) 60%)}
+.pe-intro__ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:none;font-size:22px;color:#fff;background:linear-gradient(135deg,#2f9e44,#0ca678)}
+.pe-intro__txt{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:.9rem;color:var(--tblr-secondary,#6b7689)}
+.pe-intro__txt b{color:var(--tblr-body-color,#1a2233)}
+.pe-usos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pe-usos span{font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--tblr-bg-surface-secondary,#f1f3f8);color:var(--tblr-body-color,#1a2233)}
+.pe-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:767.98px){.pe-resumen{grid-template-columns:1fr}}
+.pe-res{--c:#2563eb;position:relative;padding:14px 16px 14px 18px;border-radius:14px;border:1px solid var(--ps-border,#e6e9f0);background:var(--ps-surface,#fff);overflow:hidden}
+.pe-res::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.pe-res--bilingue{--c:#2563eb}.pe-res--colegio{--c:#f59f00}.pe-res--cfp{--c:#ae3ec9}
+.pe-res__area{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c)}
+.pe-res__area small{font-weight:600;text-transform:none;letter-spacing:0;color:var(--tblr-secondary,#6b7689);margin-left:4px}
+.pe-res__nom{font-weight:700;font-size:1rem;margin-top:4px}
+.pe-res__fechas{font-size:.82rem;color:var(--tblr-secondary,#6b7689);font-variant-numeric:tabular-nums}
+.pe-res__dias{font-size:.8rem;font-weight:600;margin-top:6px;color:#2b8a3e;display:flex;align-items:center;gap:5px}
+.pe-res.is-pronto .pe-res__dias{color:#e8590c}
+.pe-res.is-vencido .pe-res__dias,.pe-res.is-vacio .pe-res__dias{color:#c92a2a}
+.pe-res.is-vacio .pe-res__nom{color:var(--tblr-secondary,#6b7689)}
+.pe-card{background:var(--ps-surface,#fff);border:1px solid var(--ps-border,#e6e9f0);border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden}
+.pe-card__head{display:flex;align-items:center;gap:8px;padding:14px 18px;font-weight:700;border-bottom:1px solid var(--ps-border,#e6e9f0);
+  background:linear-gradient(180deg,color-mix(in srgb,#2f9e44 6%,transparent),transparent)}
+.pe-card__head i{color:#2f9e44;font-size:18px}
+.pe-card__body{padding:18px}
+.pe-card__foot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--ps-border,#e6e9f0)}
+.pe-n{font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--tblr-bg-surface-secondary,#f1f3f8);color:var(--tblr-secondary,#6b7689)}
+.pe-tabla th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tblr-secondary,#6b7689);background:transparent}
+.pe-tabla tr.is-activo td:first-child{box-shadow:inset 3px 0 0 #2f9e44}
+.pe-tabla tr.is-edit td{background:color-mix(in srgb,#f59f00 10%,transparent)}
+.pe-area{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px}
+.pe-area--ambas{background:color-mix(in srgb,#0ca678 14%,transparent);color:#087f5b}
+.pe-area--bilingue{background:color-mix(in srgb,#2563eb 14%,transparent);color:#1d4ed8}
+.pe-area--colegio{background:color-mix(in srgb,#f59f00 16%,transparent);color:#b35c00}
+.pe-area--cfp{background:color-mix(in srgb,#ae3ec9 14%,transparent);color:#862e9c}
+/* <--- hecho por claude code (06-nov-2026): interruptores por módulo */
+.pe-mods{border:1px dashed var(--ps-border,#c9d4ec);background:color-mix(in srgb,#2563eb 4%,var(--ps-surface,#fff));border-radius:14px;padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:7px}
+.pe-mods__t{font-weight:700;font-size:.86rem;display:flex;align-items:center;gap:6px}.pe-mods__t i{color:#2563eb}
+.pe-mods__h{font-size:.74rem;color:var(--tblr-secondary,#6b7689);margin-bottom:2px}
+.pe-mod{display:flex;align-items:center;gap:10px;background:var(--ps-surface,#fff);border:1.5px solid var(--ps-border,#e6e9f0);border-radius:11px;padding:8px 10px;cursor:pointer;margin:0}
+.pe-mod[hidden]{display:none}
+.pe-mod__ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.pe-mod__t{flex:1;min-width:0;line-height:1.2}.pe-mod__t b{font-size:.84rem;display:block}.pe-mod__t small{font-size:.7rem;color:var(--tblr-secondary,#6b7689)}
+.pe-mod--inf{--c:#2563eb}.pe-mod--con{--c:#f76707}.pe-mod--age{--c:#0ca678}.pe-mod--not{--c:#12b886}.pe-mod--sal{--c:#f59f00}.pe-mod--pro{--c:#7c3aed}.pe-mod--tut{--c:#d6336c}
+.pe-chips{display:flex;flex-wrap:wrap;gap:3px;max-width:260px}
+.pe-chip{font-size:.66rem;font-weight:700;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,#0ca678 13%,transparent);color:#087f5b;white-space:nowrap}
+.pe-chip.is-off{background:var(--tblr-bg-surface-secondary,#f1f3f8);color:var(--tblr-secondary,#98a2b3);text-decoration:line-through}
+/* <--- hecho por claude code (06-nov-2026): línea de tiempo por área */
+.pe-tl-nav{display:flex;gap:2px}
+.pe-tl-sub{font-size:.8rem;color:var(--tblr-secondary,#6b7689);margin-bottom:12px}
+.pe-tl-meses{display:grid;grid-template-columns:150px repeat(12,minmax(0,1fr));font-size:.7rem;color:var(--tblr-secondary,#6b7689);font-weight:600;margin-bottom:6px}
+.pe-tl-meses span{text-align:center}
+.pe-tl-fila{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;margin-bottom:10px}
+.pe-tl-lbl{font-weight:700;font-size:.85rem;line-height:1.2;padding-right:8px}
+.pe-tl-lbl small{display:block;color:var(--tblr-secondary,#6b7689);font-weight:500;font-size:.7rem}
+.pe-tl-lbl em{display:inline-block;font-style:normal;font-size:.66rem;font-weight:800;margin-top:3px;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#2f9e44 14%,transparent);color:#2b8a3e}
+.pe-tl-lbl em.is-pronto{background:color-mix(in srgb,#e8590c 14%,transparent);color:#d9480f}
+.pe-tl-lbl em.is-vencido{background:color-mix(in srgb,#d63939 14%,transparent);color:#c92a2a}
+.pe-tl-pista{position:relative;height:50px;border-radius:10px;
+  background:repeating-linear-gradient(90deg,var(--tblr-bg-surface-secondary,#f5f7fb) 0 calc(100%/12 - 1px),var(--ps-border,#e6e9f0) calc(100%/12 - 1px) calc(100%/12))}
+.pe-tl-bar{position:absolute;top:5px;bottom:5px;border-radius:9px;color:#fff;padding:0 8px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;white-space:nowrap;text-decoration:none;font-size:.72rem;font-weight:700;background:var(--c)}
+.pe-tl-bar:hover{color:#fff;text-decoration:none;filter:brightness(1.08)}
+.pe-tl-bar span{overflow:hidden;text-overflow:ellipsis}
+.pe-tl-bar small{display:flex;gap:3px;font-size:.62rem;font-weight:700;opacity:.95;overflow:hidden}
+.pe-tl-bar small i{font-style:normal;background:rgba(255,255,255,.25);border-radius:4px;padding:0 4px}
+.pe-tl-bar--ambas{--c:#0ca678}.pe-tl-bar--bilingue{--c:#2563eb}.pe-tl-bar--colegio{--c:#f59f00}.pe-tl-bar--cfp{--c:#ae3ec9}
+.pe-tl-bar.is-activo{box-shadow:0 0 0 2px var(--ps-surface,#fff),0 0 0 4px #2f9e44}
+.pe-tl-bar.is-sel{outline:3px solid var(--tblr-body-color,#1a2233);outline-offset:1px}
+.pe-tl-hoy{position:absolute;top:-7px;bottom:-7px;width:2px;background:#d63939;pointer-events:none}
+.pe-tl-hoy::after{content:"Hoy";position:absolute;top:-15px;left:-10px;font-size:.6rem;font-weight:800;color:#d63939}
+.pe-tl-ley{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.74rem;color:var(--tblr-secondary,#6b7689);margin-top:4px}
+.pe-tl-ley b{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.pe-ley--ambas{background:#0ca678}.pe-ley--bilingue{background:#2563eb}.pe-ley--colegio{background:#f59f00}.pe-ley--activo{background:transparent;box-shadow:0 0 0 2px #2f9e44}
+.pe-tl-codigos{flex-basis:100%}
+/* etiquetas cortas de módulos en la lista */
+.pe-chip--inf{background:#e7f0ff;color:#2563eb}.pe-chip--con{background:#fff0e0;color:#d9480f}.pe-chip--age{background:#e3f7f0;color:#0ca678}
+.pe-chip--not{background:#dff6f2;color:#0a8f7a}.pe-chip--sal{background:#fff4d6;color:#b35c00}.pe-chip--pro{background:#ede7fe;color:#7048e8}.pe-chip--tut{background:#fde7ef;color:#c2255c}
+.pe-chip.is-off{background:var(--tblr-bg-surface-secondary,#f1f3f8)!important;color:var(--tblr-secondary,#98a2b3)!important;text-decoration:line-through}
+@media(max-width:575.98px){.pe-tl-meses{grid-template-columns:78px repeat(12,minmax(0,1fr))}.pe-tl-fila{grid-template-columns:78px minmax(0,1fr)}.pe-tl-bar small,.pe-tl-lbl small{display:none}}
+/* <--- hecho por claude code (06-nov-2026): estilo B — barras de una línea, «Hoy» una sola vez */
+.pe-tl-pista{height:40px}
+.pe-tl-bar{flex-direction:row;align-items:center;text-overflow:ellipsis;display:block;line-height:30px}
+.pe-tl-hoy::after{content:none}
+.pe-tl-hoy.con-etq::after{content:"Hoy"}
+.pe-tl-fila:first-of-type{margin-top:4px}
+.pe-ley--cfp{background:#ae3ec9}
+.pe-tl-meses,.pe-tl-fila{grid-template-columns:130px repeat(12,minmax(0,1fr))}
+.pe-tl-fila{grid-template-columns:130px minmax(0,1fr)}
+@media(max-width:575.98px){.pe-tl-meses{grid-template-columns:78px repeat(12,minmax(0,1fr))}.pe-tl-fila{grid-template-columns:78px minmax(0,1fr)}}

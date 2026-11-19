@@ -1,14 +1,20 @@
+from django.contrib.auth.decorators import login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): candado global de sesión
 import datetime
 import os
 import textwrap
+import uuid
+from functools import wraps
 from io import BytesIO
+from xml.sax.saxutils import escape as _xml_escape
 from PIL import Image as PILImage
 
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles import finders
-from django.http import HttpResponse, JsonResponse
+from django.core import signing
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse, JsonResponse, Http404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
@@ -18,10 +24,118 @@ from reportlab.lib import colors
 from inventario.models import Computadora, Impresora
 from .models import MaintenanceRecord, MaestroMantenimiento, GradoMantenimiento, FotoMantenimiento, TipoFalla
 from .forms import MaintenanceRecordForm, FirmaMaestroForm
+# <--- hecho por claude code (seguridad 05-nov-2026): firma digital = PNG real del pad, de tamaño razonable (misma regla que la firma por enlace)
+from .forms import firma_png_valida as _firma_valida
+from .forms import FIRMA_MAX_ANCHO as _FIRMA_MAX_ANCHO, FIRMA_MAX_ALTO as _FIRMA_MAX_ALTO   # <--- hecho por claude code (seguridad 05-nov-2026): mismo tope de píxeles al armar el PDF
 
 # URL pública del sistema (incluye el puerto :437). El link de firma del maestro
 # DEBE llevar el puerto o no funciona; request.get_host() lo pierde detrás de Apache.
 SITE_URL = 'https://servicios.ana-hn.org:437'
+
+
+# ─────────────────────────────────────────────────────────────
+# <--- hecho por claude code (seguridad 05-nov-2026): CANDADO del módulo. Antes casi todo era solo @login_required y cualquier maestro abría las fichas, bajaba los PDF con firmas, editaba, borraba y, por los derivados del Control, cambiaba el inventario.
+# ─────────────────────────────────────────────────────────────
+def _puede_servicio(u):
+    """Mismo criterio que el menú: nav_servicio (core/context_processors.py) = hub de Servicio Técnico = Inventario ∪ Mantenimiento."""
+    if not (u and u.is_authenticated):
+        return False
+    from servicio_tecnico.views import _puede_inventario, _puede_mantenimiento
+    return _puede_inventario(u) or _puede_mantenimiento(u)
+
+
+def _puede_inventario_u(u):
+    """<--- hecho por claude code (seguridad 05-nov-2026): cambio de equipo y reasignación ESCRIBEN en el inventario: exigen acceso a Inventario (mismo criterio que inventario._inventario_required)."""
+    from servicio_tecnico.views import _puede_inventario
+    return bool(u and u.is_authenticated) and _puede_inventario(u)
+
+
+def _es_auditora(u):
+    """<--- hecho por claude code (seguridad 05-nov-2026): las «Observaciones de la auditora» solo las escribe la auditora (grupo mantenimiento) o el superusuario."""
+    return bool(u and u.is_authenticated) and (u.is_superuser or u.groups.filter(name='mantenimiento').exists())
+
+
+def _puede_eliminar(u):
+    """<--- hecho por claude code (seguridad 05-nov-2026): borrar una ficha = superusuario o el permiso real mantenimiento.delete_maintenancerecord (hoy: grupo mantenimiento)."""
+    return bool(u and u.is_authenticated) and (u.is_superuser or u.has_perm('mantenimiento.delete_maintenancerecord'))
+
+
+def _puede_borrar_foto(u):
+    """<--- hecho por claude code (seguridad 05-nov-2026): borrar una foto de evidencia = superusuario o el permiso real mantenimiento.delete_fotomantenimiento (hoy: grupo mantenimiento)."""
+    return bool(u and u.is_authenticated) and (u.is_superuser or u.has_perm('mantenimiento.delete_fotomantenimiento'))
+
+
+def _servicio_required(view):
+    """<--- hecho por claude code (seguridad 05-nov-2026): login + candado por grupo (403 si no es de Servicio Técnico)."""
+    @wraps(view)
+    @login_required
+    def _w(request, *args, **kwargs):
+        if not _puede_servicio(request.user):
+            raise PermissionDenied('No tienes acceso a las fichas de Mantenimiento.')
+        return view(request, *args, **kwargs)
+    return _w
+
+
+def _e(t):
+    """<--- hecho por claude code (seguridad 05-nov-2026): texto del usuario dentro de un Paragraph de ReportLab SIEMPRE escapado (un <img src=...> leía archivos del disco o pedía URLs desde el servidor)."""
+    return _xml_escape('' if t is None else str(t))
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): el enlace de firma remota CADUCA. Lleva un sello firmado con hora (?t=) que se genera al abrir la página; el token solo ya no basta.
+TIPOS_FIRMA_REMOTA = ('computadora', 'impresora', 'control')   # los únicos que muestran el botón de WhatsApp
+_FIRMA_SALT = 'mantenimiento.firma_remota'
+_FIRMA_LINK_DIAS = 15
+
+
+def _link_firma(rec):
+    sello = signing.TimestampSigner(salt=_FIRMA_SALT).sign(str(rec.token_firma)).split(':', 1)[1]
+    return f"{SITE_URL}{reverse('mantenimiento:firmar_publico', args=[rec.token_firma])}?t={sello}"
+
+
+def _link_firma_vigente(rec, sello):
+    if not sello:
+        return False
+    try:
+        signing.TimestampSigner(salt=_FIRMA_SALT).unsign(f'{rec.token_firma}:{sello}',
+                                                        max_age=datetime.timedelta(days=_FIRMA_LINK_DIAS))
+        return True
+    except signing.BadSignature:   # incluye SignatureExpired
+        return False
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): las fotos de evidencia se guardan SOLO si son imágenes reales y con nombre aleatorio (antes cualquier archivo, p. ej. un .html, quedaba en /media/ con su nombre original).
+_FOTO_FORMATOS = {'JPEG': 'jpg', 'MPO': 'jpg', 'PNG': 'png', 'GIF': 'gif', 'WEBP': 'webp', 'BMP': 'bmp'}
+_FOTO_MAX_BYTES = 20 * 1024 * 1024
+_FOTO_MAX_PIXELES = 25_000_000   # <--- hecho por claude code (seguridad 05-nov-2026): solo PNG/GIF/WEBP/BMP, que ReportLab decodifica enteros al armar la ficha (un PNG de 1 bit pesa poco y ocupa GB); los JPG van al PDF tal cual y PIL ya rechaza más de ~179 MP
+
+
+def _guardar_fotos(request, registro):
+    """Guarda las fotos subidas que sean imágenes válidas. Devuelve cuántas se rechazaron."""
+    rechazadas = 0
+    tope = 10 if registro.laboratorio else 5   # <--- hecho por claude code (13-nov-2026): por envío; laboratorio admite 10
+    for f in request.FILES.getlist('fotos')[:tope]:
+        ext = None
+        try:
+            if f.size <= _FOTO_MAX_BYTES:
+                with PILImage.open(f) as im:
+                    ext = _FOTO_FORMATOS.get(im.format)
+                    if ext and ext != 'jpg' and im.width * im.height > _FOTO_MAX_PIXELES:   # <--- hecho por claude code (seguridad 05-nov-2026): bomba de píxeles (ver _FOTO_MAX_PIXELES)
+                        ext = None
+                    im.verify()
+        except Exception:
+            ext = None
+        if not ext:
+            rechazadas += 1
+            continue
+        f.seek(0)
+        f.name = f'{uuid.uuid4().hex}.{ext}'
+        FotoMantenimiento.objects.create(registro=registro, imagen=f)
+    return rechazadas
+
+
+def _nombre_pdf_firmado(rec):
+    """<--- hecho por claude code (seguridad 05-nov-2026): nombre NO adivinable para el PDF firmado (antes ID + fecha/hora al segundo)."""
+    return f"{rec.record_id}_firmado_{timezone.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:16]}.pdf"
 
 
 def _siguiente_record_id():
@@ -127,7 +241,7 @@ def _resolver_post_tipo_falla(request):
 
 # <--- hecho por claude code (28-sep-2026): una PÁGINA por tipo de ficha (antes 7 pestañas en un dashboard).
 FICHAS_TIPOS = {   # slug de URL → (tipo_equipo, etiqueta, plantilla)
-    'computadoras':     ('computadora',   'Computadoras',       'mantenimiento/fichas_computadoras.html'),
+    'computadoras':     ('computadora',   'Mantenimiento de computadoras', 'mantenimiento/fichas_computadoras.html'),
     'impresoras':       ('impresora',     'Impresoras',         'mantenimiento/fichas_impresoras.html'),
     'control':          ('control',       'Control de equipos', 'mantenimiento/fichas_control.html'),
     'inspecciones':     ('inspeccion',    'Inspecciones',       'mantenimiento/fichas_inspecciones.html'),
@@ -242,17 +356,18 @@ def _crear_derivados_del_control(request, record, messages):
             messages.success(request, f'Reasignación {rea.record_id} creada junto con el control {record.record_id}. '
                                       f'Inventario actualizado: {comp.asset_id} pasó de {rea.asignado_anterior or "—"} a {rea.asignado_nuevo}.')
     # <--- hecho por claude code (21-oct-2026): MANTENIMIENTO (solo comentario) o REPARACIÓN (preguntas + asistido por + PDF firmado)
-    if request.POST.get('mantenimiento') and record.computadora_id:
+    if request.POST.get('mantenimiento') and (record.computadora_id or record.laboratorio):   # <--- hecho por claude code (02-nov-2026): también en modo laboratorio
         P = request.POST
         es_rep = bool(P.get('es_reparacion'))
         tipo = 'reparacion' if es_rep else 'mantenimiento'
         if record.casos_especiales.filter(tipo_equipo=tipo).exists():
             messages.info(request, f'El control {record.record_id} ya tiene {"una reparación" if es_rep else "un mantenimiento"} registrado.')
         else:
-            comp = record.computadora
+            comp = record.computadora   # <--- hecho por claude code (02-nov-2026): None si el control es de todo un laboratorio
             m = MaintenanceRecord(
                 tipo_equipo=tipo, record_id=_siguiente_record_id_prefijo(PREFIJO_REP if es_rep else PREFIJO_MANT),
-                computadora=comp, model=comp.modelo or '', serie=comp.serie or '',
+                computadora=comp, model=(comp.modelo or '') if comp else '', serie=(comp.serie or '') if comp else '',
+                laboratorio=record.laboratorio, lab_cantidad=record.lab_cantidad, area=record.area,
                 teacher_name=record.teacher_name, grade=record.grade, control_origen=record,
                 mant_comentario=(P.get('mant_comentario') or '').strip()[:2000],
                 date=record.date, status='Pendiente' if es_rep else 'Completado',
@@ -289,16 +404,25 @@ def _crear_derivados_del_control(request, record, messages):
                                                              ent_control_tv=False, televisor=None, firma_nombre='', fecha_hora=None)
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def maintenance_dashboard(request, tipo='computadoras'):
     from django.http import Http404
     if tipo not in FICHAS_TIPOS:
         raise Http404('Tipo de ficha no disponible')
     tipo_equipo, tipo_label, plantilla = FICHAS_TIPOS[tipo]
     if request.method == 'POST':
-        form = MaintenanceRecordForm(_resolver_post_tipo_falla(request), request.FILES)
+        from django.contrib import messages as _msg
+        # <--- hecho por claude code (seguridad 05-nov-2026): cambio de equipo / reasignación escriben en el inventario → exigen acceso a Inventario
+        if (request.POST.get('cambio_equipo') or request.POST.get('reasignacion')) and not _puede_inventario_u(request.user):
+            _msg.error(request, 'El cambio de equipo y la reasignación modifican el inventario: necesitas acceso a Inventario.')
+            return _redirect_fichas(request.POST.get('tipo_equipo') or tipo_equipo)
+        post = _resolver_post_tipo_falla(request).copy()
+        if not _es_auditora(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): solo la auditora escribe sus observaciones
+            post['obs_auditora'] = ''
+        form = MaintenanceRecordForm(post, request.FILES)
         if form.is_valid():
             record = form.save(commit=False)
+            record.creado_por = request.user   # <--- hecho por claude code (seguridad 05-nov-2026): quién la registró (antes quedaba vacío)
             # <--- hecho por claude code: rama impresora vs computadora
             if record.tipo_equipo == 'impresora':
                 record.record_id = _siguiente_record_id_impresora()
@@ -330,16 +454,30 @@ def maintenance_dashboard(request, tipo='computadoras'):
                             record.teacher_name = comp.asignado_a or ''
                         if not record.grade:
                             record.grade = comp.grado or ''
-            firma_data = request.POST.get('firma_data', '').strip()
+            # <--- hecho por claude code (02-nov-2026): modo laboratorio — una sola ficha para TODO el laboratorio
+            lab = (request.POST.get('laboratorio') or '').strip()
+            if lab in MaintenanceRecord.LABORATORIOS and record.tipo_equipo in MaintenanceRecord.LAB_TIPOS:
+                info = MaintenanceRecord.LABORATORIOS[lab]
+                record.laboratorio  = lab
+                record.computadora  = None
+                record.lab_cantidad = MaintenanceRecord.computadoras_de_laboratorio(lab).count()
+                record.area         = info['area']
+                record.teacher_name = info['persona']
+                record.grade        = ''
+                record.model        = ''
+                record.serie        = ''
+            else:
+                record.laboratorio = ''
+            firma_data = _firma_valida(request.POST.get('firma_data'))   # <--- hecho por claude code (seguridad 05-nov-2026): solo un PNG real del pad
             if firma_data:
                 record.firma = firma_data
-            firma_tec = request.POST.get('firma_tecnico_data', '').strip()
+            firma_tec = _firma_valida(request.POST.get('firma_tecnico_data'))
             if firma_tec:
                 record.firma_tecnico = firma_tec
             _aplicar_prestamo(record, request.POST)   # <--- hecho por claude code (16-oct-2026)
             record.save()
-            for f in request.FILES.getlist('fotos'):
-                FotoMantenimiento.objects.create(registro=record, imagen=f)
+            if _guardar_fotos(request, record):   # <--- hecho por claude code (seguridad 05-nov-2026): solo imágenes reales
+                _msg.warning(request, 'Se ignoraron archivos que no son imágenes válidas o son demasiado grandes (más de 20 MB o de resolución excesiva).')
             # <--- hecho por claude code: al llenar tinta, reflejar en el inventario de la impresora
             if record.tipo_equipo == 'impresora' and record.impresora_id and record.tipo_mant_impresora == 'llenado_tinta':
                 imp = record.impresora
@@ -364,9 +502,14 @@ def maintenance_dashboard(request, tipo='computadoras'):
         return _redirect_fichas(record.tipo_equipo)
 
     form = MaintenanceRecordForm()
+    es_auditora = _es_auditora(request.user)
+    if not es_auditora:   # <--- hecho por claude code (seguridad 05-nov-2026): el servidor ignora este campo si no es la auditora; se muestra de solo lectura
+        form.fields['obs_auditora'].widget.attrs.update({'readonly': 'readonly', 'title': 'Solo la auditora puede escribir aquí'})
 
     records = (MaintenanceRecord.objects.select_related('computadora', 'impresora', 'tipo_falla', 'televisor', 'control_origen')
                .prefetch_related('fotos', 'casos_especiales').order_by('-date'))
+    for r in records:   # <--- hecho por claude code (seguridad 05-nov-2026): enlace de firma con sello que caduca (las listas de abajo reutilizan estos mismos objetos)
+        r.link_firma = _link_firma(r) if r.tipo_equipo in TIPOS_FIRMA_REMOTA else ''
 
     import json
     # Solo computadoras de general (excluye laboratorios)
@@ -418,7 +561,20 @@ def maintenance_dashboard(request, tipo='computadoras'):
               'entrega': 'ti-package-export', 'recogida': 'ti-package-import', 'caso_especial': 'ti-alert-octagon', 'cambio_equipo': 'ti-replace', 'reasignacion': 'ti-arrows-exchange', 'prestamo': 'ti-transfer-out', 'mantenimiento': 'ti-tool', 'reparacion': 'ti-tools'}
     colores = {'computadora': '#206bc4', 'impresora': '#f76707', 'control': '#0ca678', 'inspeccion': '#f59f00',
                'entrega': '#2fb344', 'recogida': '#ae3ec9', 'caso_especial': '#d6336c', 'cambio_equipo': '#4263eb', 'reasignacion': '#0891b2', 'prestamo': '#7048e8', 'mantenimiento': '#0ca678', 'reparacion': '#e8590c'}
+    # <--- hecho por claude code (02-nov-2026): laboratorios con conteo en vivo para el modo "una ficha por laboratorio"
+    laboratorios = [
+        {'clave': k, 'label': v['label'], 'area_display': v['area_display'],
+         'n': MaintenanceRecord.computadoras_de_laboratorio(k).count()}
+        for k, v in MaintenanceRecord.LABORATORIOS.items()
+    ]
+    # <--- hecho por claude code (13-nov-2026): lista de computadoras de cada laboratorio (se muestra en Entrega/Recogida de lab)
+    lab_equipos = {k: list(MaintenanceRecord.computadoras_de_laboratorio(k).order_by('asset_id').values('asset_id', 'modelo', 'serie'))
+                   for k in MaintenanceRecord.LABORATORIOS}
     return render(request, plantilla, {
+        'lab_equipos':       lab_equipos,
+        'puede_eliminar':    _puede_eliminar(request.user),   # <--- hecho por claude code (seguridad 05-nov-2026): el botón Eliminar solo a quien puede borrar
+        'es_auditora':       es_auditora,
+        'laboratorios':      laboratorios,
         'tipo_actual':       tipo,
         'tipo_label':        tipo_label,
         'tipo_equipo':       tipo_equipo,
@@ -474,8 +630,13 @@ def maintenance_dashboard(request, tipo='computadoras'):
     })
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required (cualquier maestro bajaba la ficha con firmas)
 def download_maintenance_pdf(request, record_id):
+    return _ficha_pdf(request, record_id)
+
+
+def _ficha_pdf(request, record_id):
+    """<--- hecho por claude code (seguridad 05-nov-2026): cuerpo de la ficha PDF sin decorador (lo reutiliza control_fichas_pdf, que ya pasó el candado)."""
     import base64, re
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.units import cm
@@ -576,7 +737,7 @@ def download_maintenance_pdf(request, record_id):
         return tbl
 
     def field_row(label, value):
-        return [Paragraph(label, st_label), Paragraph(str(value) if value else "—", st_value)]
+        return [Paragraph(label, st_label), Paragraph(_e(value) if value else "—", st_value)]   # <--- hecho por claude code (seguridad 05-nov-2026): valor escapado
 
     story.append(_st("Datos del Equipo"))
     story.append(Spacer(1, 0.1*cm))
@@ -590,6 +751,14 @@ def download_maintenance_pdf(request, record_id):
             field_row("Serie:",          record.serie or (imp.serie if imp else "—")),
             field_row("Asignado a:",     record.teacher_name or (imp.asignado_a if imp else "—")),
             field_row("Área:",           record.area or "—"),
+        ]
+    elif record.laboratorio:
+        # <--- hecho por claude code (02-nov-2026): ficha de TODO un laboratorio (una sola ficha)
+        info = record.lab_info or {}
+        equipo_data = [
+            field_row("Laboratorio:",       record.lab_display),
+            field_row("Área:",              info.get('area_display') or record.area or "—"),
+            field_row("Equipos incluidos:", "%s computadoras" % (record.lab_cantidad or 0)),
         ]
     else:
         comp = record.computadora
@@ -614,6 +783,45 @@ def download_maintenance_pdf(request, record_id):
     ]))
     story.append(equipo_tbl)
     story.append(Spacer(1, 0.4*cm))
+
+    # <--- hecho por claude code (13-nov-2026): listado de las computadoras del laboratorio (del inventario, en dos columnas)
+    if record.laboratorio:
+        comps = list(MaintenanceRecord.computadoras_de_laboratorio(record.laboratorio).order_by('asset_id')
+                     .values_list('asset_id', 'modelo', 'serie'))
+        story.append(_st("Computadoras del laboratorio (%d)" % len(comps)))
+        story.append(Spacer(1, 0.1*cm))
+        if comps:
+            mitad = (len(comps) + 1) // 2
+            enc = ['#', 'Asset ID', 'Modelo', 'Serie']
+            filas = [enc + [''] + enc]
+            for i in range(mitad):
+                izq = [str(i + 1)] + [x or '—' for x in comps[i]]
+                j = i + mitad
+                der = ([str(j + 1)] + [x or '—' for x in comps[j]]) if j < len(comps) else ['', '', '', '']
+                filas.append(izq + [''] + der)
+            anchos = [0.6*cm, 2.9*cm, 2.95*cm, 2.0*cm, 0.4*cm, 0.6*cm, 2.9*cm, 2.95*cm, 2.0*cm]   # 17.3 cm
+            lt = Table(filas, colWidths=anchos, repeatRows=1)
+            lt.setStyle(TableStyle([
+                ("FONTSIZE",     (0,0), (-1,-1), 7),
+                ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+                ("TEXTCOLOR",    (0,0), (-1,0), colors.white),
+                ("BACKGROUND",   (0,0), (3,0), colors.HexColor("#555555")),
+                ("BACKGROUND",   (5,0), (8,0), colors.HexColor("#555555")),
+                ("ROWBACKGROUNDS",(0,1),(3,-1), [colors.white, GRAY_LT]),
+                ("ROWBACKGROUNDS",(5,1),(8,-1), [colors.white, GRAY_LT]),
+                ("LEFTPADDING",  (0,0), (-1,-1), 3),
+                ("RIGHTPADDING", (0,0), (-1,-1), 3),
+                ("TOPPADDING",   (0,0), (-1,-1), 1.5),
+                ("BOTTOMPADDING",(0,0), (-1,-1), 1.5),
+                ("BOX",          (0,0), (3,-1), 0.3, colors.HexColor("#cccccc")),
+                ("BOX",          (5,0), (8,-1), 0.3, colors.HexColor("#cccccc")),
+                ("TEXTCOLOR",    (0,1), (0,-1), colors.HexColor("#888888")),
+                ("TEXTCOLOR",    (5,1), (5,-1), colors.HexColor("#888888")),
+            ]))
+            story.append(lt)
+        else:
+            story.append(Paragraph("No hay computadoras de este laboratorio en el inventario.", st_value))
+        story.append(Spacer(1, 0.4*cm))
 
     # ── Sección: Diagnóstico ──────────────────────────────────────
     story.append(_st("Evaluación del Equipo" if record.es_control
@@ -764,7 +972,10 @@ def download_maintenance_pdf(request, record_id):
             return ""
         try:
             raw = re.sub(r'^data:image/[^;]+;base64,', '', b64)
-            pil_img = PILImage.open(BytesIO(base64.b64decode(raw))).convert('RGBA')
+            pil_src = PILImage.open(BytesIO(base64.b64decode(raw)))
+            if pil_src.width > _FIRMA_MAX_ANCHO or pil_src.height > _FIRMA_MAX_ALTO:   # <--- hecho por claude code (seguridad 05-nov-2026): una firma gigante (guardada antes del tope) no se decodifica: el PDF sale con el espacio en blanco
+                return ""
+            pil_img = pil_src.convert('RGBA')
             bg = PILImage.new('RGB', pil_img.size, (255, 255, 255))
             bg.paste(pil_img, mask=pil_img.split()[3])
             out_buf = BytesIO(); bg.save(out_buf, format='PNG'); out_buf.seek(0)
@@ -778,7 +989,7 @@ def download_maintenance_pdf(request, record_id):
                                   textColor=colors.gray, alignment=TA_CENTER)
 
     linea = HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER")
-    sub_maestro = (f"{record.teacher_name}" if record.teacher_name else "")
+    sub_maestro = (_e(record.teacher_name) if record.teacher_name else "")   # <--- hecho por claude code (seguridad 05-nov-2026): escapado
     if record.firmado_en:
         sub_maestro += f" · {record.firmado_en.strftime('%d/%m/%Y %H:%M')}"
 
@@ -794,10 +1005,10 @@ def download_maintenance_pdf(request, record_id):
         # <--- hecho por claude code (17-sep-2026): firma = nombre ESCRITO por el usuario + Soporte Técnico (fija)
         st_fija_m = ParagraphStyle("ffm", fontSize=12, fontName="Helvetica-BoldOblique",
                                    textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
-        def _col_mov(nombre, titulo, sub):
-            return [Spacer(1, 1.2*cm), Paragraph(nombre or "—", st_fija_m), Spacer(1, 0.15*cm),
+        def _col_mov(nombre, titulo, sub):   # <--- hecho por claude code (seguridad 05-nov-2026): nombre y grado escapados
+            return [Spacer(1, 1.2*cm), Paragraph(_e(nombre) or "—", st_fija_m), Spacer(1, 0.15*cm),
                     HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
-                    Paragraph(titulo, st_firma_lbl), Paragraph(sub, st_firma_sub)]
+                    Paragraph(titulo, st_firma_lbl), Paragraph(_e(sub), st_firma_sub)]
         n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
         _fh = record.fecha_hora.strftime('%d/%m/%Y %H:%M') if record.fecha_hora else ''
         if record.es_reasignacion:
@@ -817,10 +1028,10 @@ def download_maintenance_pdf(request, record_id):
         # Fellmann, fijo), Maestro (asignado del equipo) y Técnico que reparó (Ramón Lagos, fijo).
         st_fija_r = ParagraphStyle("ffr", fontSize=12, fontName="Helvetica-BoldOblique",
                                    textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
-        def _col_rep(nombre, titulo, sub):
-            return [Spacer(1, 1.2*cm), Paragraph(nombre or "—", st_fija_r), Spacer(1, 0.15*cm),
+        def _col_rep(nombre, titulo, sub):   # <--- hecho por claude code (seguridad 05-nov-2026): escapado
+            return [Spacer(1, 1.2*cm), Paragraph(_e(nombre) or "—", st_fija_r), Spacer(1, 0.15*cm),
                     HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
-                    Paragraph(titulo, st_firma_lbl), Paragraph(sub, st_firma_sub)]
+                    Paragraph(titulo, st_firma_lbl), Paragraph(_e(sub), st_firma_sub)]
         n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
         n_r, c_r = MaintenanceRecord.FIRMA_TECNICO_REPARO
         cols = [_col_rep(n_t, "Soporte Técnico", c_t),
@@ -831,10 +1042,10 @@ def download_maintenance_pdf(request, record_id):
         # <--- hecho por claude code (21-oct-2026): mantenimiento general — Soporte Técnico (fijo) + Maestro
         st_fija_mt = ParagraphStyle("ffmt", fontSize=12, fontName="Helvetica-BoldOblique",
                                     textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
-        def _col_mt(nombre, titulo, sub):
-            return [Spacer(1, 1.2*cm), Paragraph(nombre or "—", st_fija_mt), Spacer(1, 0.15*cm),
+        def _col_mt(nombre, titulo, sub):   # <--- hecho por claude code (seguridad 05-nov-2026): escapado
+            return [Spacer(1, 1.2*cm), Paragraph(_e(nombre) or "—", st_fija_mt), Spacer(1, 0.15*cm),
                     HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
-                    Paragraph(titulo, st_firma_lbl), Paragraph(sub, st_firma_sub)]
+                    Paragraph(titulo, st_firma_lbl), Paragraph(_e(sub), st_firma_sub)]
         n_t, c_t = MaintenanceRecord.FIRMA_TECNICO_FIJA
         cols = [_col_mt(n_t, "Soporte Técnico", c_t),
                 _col_mt(record.teacher_name, "Maestro", record.grade or "Asignado del equipo")]
@@ -843,10 +1054,10 @@ def download_maintenance_pdf(request, record_id):
         # <--- hecho por claude code: en la inspección la firma es el NOMBRE del asignado (impreso)
         st_fija_i = ParagraphStyle("ffi", fontSize=12, fontName="Helvetica-BoldOblique",
                                    textColor=colors.HexColor("#1f2937"), alignment=TA_CENTER)
-        col_asig = [Spacer(1, 1.2*cm), Paragraph(record.teacher_name or "—", st_fija_i), Spacer(1, 0.15*cm),
+        col_asig = [Spacer(1, 1.2*cm), Paragraph(_e(record.teacher_name) or "—", st_fija_i), Spacer(1, 0.15*cm),   # <--- hecho por claude code (seguridad 05-nov-2026): escapado
                     HRFlowable(width="60%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
                     Paragraph("Firma del Maestro (Asignado del equipo)", st_firma_lbl),
-                    Paragraph(record.grade or "", st_firma_sub)]
+                    Paragraph(_e(record.grade), st_firma_sub)]
         firmas_tbl = Table([[col_asig]], colWidths=[17.3*cm])
     elif record.es_control:
         # <--- hecho por claude code: en el control las firmas de técnico y auditora son FIJAS (impresas)
@@ -876,7 +1087,7 @@ def download_maintenance_pdf(request, record_id):
         col_mae_g = [_firma_img(record.firma) or Spacer(1, 2.3*cm), Spacer(1, 0.1*cm),
                      HRFlowable(width="80%", thickness=0.8, color=colors.gray, hAlign="CENTER"), Spacer(1, 0.1*cm),
                      Paragraph("Firma del Maestro", st_firma_lbl),
-                     Paragraph(sub_maestro or (record.teacher_name or ""), st_firma_sub)]
+                     Paragraph(sub_maestro or _e(record.teacher_name), st_firma_sub)]   # <--- hecho por claude code (seguridad 05-nov-2026): escapado
         firmas_tbl = Table([[col_sop, col_mae_g]], colWidths=[8.65*cm, 8.65*cm])
     firmas_tbl.setStyle(TableStyle([
         ("VALIGN", (0,0), (-1,-1), "BOTTOM"),
@@ -904,7 +1115,7 @@ def download_maintenance_pdf(request, record_id):
 # ─────────────────────────────────────────────────────────────
 # <--- hecho por claude code: REPORTE CONSOLIDADO de Control de equipos (un solo PDF)
 # ─────────────────────────────────────────────────────────────
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def control_reporte_pdf(request):
     """Un solo PDF con TODOS los controles de equipo: resumen por estado, tabla
     consolidada y las firmas fijas (técnico y auditora) al pie."""
@@ -960,17 +1171,17 @@ def control_reporte_pdf(request):
             fallas = r.get_eval_fallas_display() or "—"
             if r.eval_fallas == 'si' and (r.eval_fallas_detalle or '').strip():
                 fallas += f": {r.eval_fallas_detalle.strip()}"
-            filas.append([
-                Paragraph(r.record_id, st_cell),
-                Paragraph((r.computadora.asset_id if r.computadora else r.model) or "—", st_cell),
-                Paragraph(r.teacher_name or "—", st_cell),
-                Paragraph(r.grade or "—", st_cell),
+            filas.append([   # <--- hecho por claude code (seguridad 05-nov-2026): todo texto del usuario escapado
+                Paragraph(_e(r.record_id), st_cell),
+                Paragraph(_e((r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else r.model)) or "—"), st_cell),
+                Paragraph(_e(r.teacher_name or "—"), st_cell),
+                Paragraph(_e(r.grade or "—"), st_cell),
                 Paragraph(r.date.strftime('%d/%m/%Y'), st_cell),
-                Paragraph(r.get_estado_equipo_display() or "—", st_cellb),
-                Paragraph(r.get_eval_trabajo_display() or "—", st_cell),
-                Paragraph(fallas, st_cell),
-                Paragraph(r.obs_auditora or "—", st_cell),
-                Paragraph(r.obs_tecnico or "—", st_cell),
+                Paragraph(_e(r.get_estado_equipo_display() or "—"), st_cellb),
+                Paragraph(_e(r.get_eval_trabajo_display() or "—"), st_cell),
+                Paragraph(_e(fallas), st_cell),
+                Paragraph(_e(r.obs_auditora or "—"), st_cell),
+                Paragraph(_e(r.obs_tecnico or "—"), st_cell),
                 Paragraph("Firmado" if r.firmado_maestro else "Pendiente", st_cell),
             ])
         tabla = Table(filas, colWidths=[2.5*cm, 2.6*cm, 2.6*cm, 2.0*cm, 1.7*cm, 2.1*cm,
@@ -1020,6 +1231,7 @@ def control_reporte_pdf(request):
 # Inspecciones, Entregas y Recogidas. Una sola definición de columnas por tipo para ambos formatos.
 # ─────────────────────────────────────────────────────────────
 _REPORTES_TIPO = {
+    'computadora': {'titulo': 'Reporte de Mantenimiento de Computadoras',  'archivo': 'mantenimiento_de_computadoras', 'color': '#206bc4'},   # <--- hecho por claude code (13-nov-2026)
     'inspeccion': {'titulo': 'Reporte de Inspecciones del Espacio de Trabajo', 'archivo': 'inspecciones', 'color': '#f76707'},
     'entrega':    {'titulo': 'Reporte de Entregas de Equipo',                  'archivo': 'entregas_de_equipo', 'color': '#2fb344'},
     'recogida':   {'titulo': 'Reporte de Recogidas de Equipo',                 'archivo': 'recogidas_de_equipo', 'color': '#ae3ec9'},
@@ -1037,23 +1249,34 @@ def _reporte_tipo_datos(tipo):
     regs = (MaintenanceRecord.objects.filter(tipo_equipo=tipo)
             .select_related('computadora', 'televisor', 'control_origen').order_by('id'))
     sn = lambda b: 'Sí' if b else 'No'
-    base = lambda r: [r.record_id, (r.computadora.asset_id if r.computadora else '') or '—',
+    base = lambda r: [r.record_id, (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—',
                       r.model or (r.computadora.modelo if r.computadora else '') or '—',
                       r.serie or (r.computadora.serie if r.computadora else '') or '—',
                       r.teacher_name or '—', r.grade or '—']
+    if tipo == 'computadora':
+        # <--- hecho por claude code (13-nov-2026): mantenimiento de computadoras (falla, estado, solución y si tiene fotos)
+        from django.db.models import Count as _Count
+        regs = list(regs.select_related('tipo_falla'))
+        nf = dict(MaintenanceRecord.objects.filter(pk__in=[r.pk for r in regs]).annotate(n=_Count('fotos')).values_list('pk', 'n'))
+        enc = ['ID', 'Equipo', 'Modelo', 'Serie', 'Maestro', 'Grado', 'Fecha', 'Tipo de falla', 'Estado', 'Solución', 'Fotos']
+        anchos = [3.0, 2.4, 2.4, 2.0, 2.6, 1.6, 1.7, 2.6, 1.8, 4.1, 1.3]   # suma 25.5 cm
+        filas = [base(r) + [r.date.strftime('%d/%m/%Y') if r.date else '—', str(r.tipo_falla) if r.tipo_falla_id else '—',
+                            r.status or '—', r.solucion or '—',
+                            f'Sí ({nf.get(r.pk, 0)})' if nf.get(r.pk, 0) else 'FALTA'] for r in regs]
+        return enc, filas, anchos
     if tipo == 'prestamo':
         # <--- hecho por claude code (16-oct-2026): préstamo de equipo
         enc = ['ID', 'Asset ID', 'Modelo', 'Serie', 'Solicitante', 'Cargo', 'Área', 'Motivo', 'Dónde se usará', 'Sale', 'Desde', 'Hasta', 'Estado', 'PDF firmado']
         anchos = [2.4, 2.0, 2.0, 1.7, 2.4, 1.7, 1.5, 2.8, 2.2, 0.9, 1.5, 1.5, 1.6, 1.3]   # suma 25.5 cm
         f = lambda d: d.strftime('%d/%m/%Y') if d else '—'
-        filas = [[r.record_id, (r.computadora.asset_id if r.computadora else '') or '—', r.model or '—', r.serie or '—',
+        filas = [[r.record_id, (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—', r.model or '—', r.serie or '—',
                   r.prest_solicitante or '—', r.prest_cargo or '—', r.prest_area or '—', r.prest_motivo or '—', r.prest_lugar or '—',
                   sn(r.prest_sale), f(r.prest_desde), f(r.prest_hasta), r.prestamo_estado[1], 'Sí' if r.prest_pdf else 'No'] for r in regs]
     elif tipo == 'reasignacion':
         # <--- hecho por claude code (12-oct-2026): maestro A → maestro B (misma computadora)
         enc = ['ID', 'Control', 'Asset ID', 'Modelo', 'Serie', 'Asignado antes', 'Grado antes', 'Área antes', 'Reasignado a', 'Grado nuevo', 'Área nueva', 'Fecha', 'Comentario técnico']
         anchos = [2.5, 2.5, 2.0, 2.2, 1.8, 2.6, 1.4, 1.6, 2.6, 1.4, 1.6, 1.5, 1.8]   # suma 25.5 cm
-        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—',
                   r.model or '—', r.serie or '—', r.asignado_anterior or '—', r.grado_anterior or '—', r.area_anterior or '—',
                   r.asignado_nuevo or '—', r.grado_nuevo or '—', r.area_nueva or '—',
                   r.date.strftime('%d/%m/%Y') if r.date else '—', r.obs_tecnico or '—'] for r in regs]
@@ -1061,21 +1284,21 @@ def _reporte_tipo_datos(tipo):
         # <--- hecho por claude code (28-sep-2026): equipo anterior → equipo nuevo
         enc = ['ID', 'Control', 'Asset ID', 'Modelo anterior', 'Serie anterior', 'IP anterior', 'Modelo nuevo', 'Serie nueva', 'IP nueva', 'Maestro', 'Grado', 'Fecha', 'Comentario técnico']
         anchos = [2.5, 2.5, 2.2, 2.4, 1.9, 1.7, 2.4, 1.9, 1.7, 2.3, 1.5, 1.5, 1.0]   # suma 25.5 cm
-        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—',
                   r.modelo_anterior or '—', r.serie_anterior or '—', r.ip_anterior or '—', r.modelo_nuevo or '—', r.serie_nuevo or '—', r.ip_nuevo or '—',
                   r.teacher_name or '—', r.grade or '—', r.date.strftime('%d/%m/%Y') if r.date else '—', r.obs_tecnico or '—'] for r in regs]
     elif tipo == 'mantenimiento':
         # <--- hecho por claude code (21-oct-2026): mantenimiento general (solo comentarios)
         enc = ['ID', 'Control', 'Asset ID', 'Modelo', 'Serie', 'Maestro', 'Grado', 'Fecha', 'Comentarios']
         anchos = [2.6, 2.6, 2.3, 2.6, 2.1, 3.0, 1.8, 1.7, 6.8]   # suma 25.5 cm
-        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—',
                   r.model or (r.computadora.modelo if r.computadora else '') or '—', r.serie or (r.computadora.serie if r.computadora else '') or '—',
                   r.teacher_name or '—', r.grade or '—', r.date.strftime('%d/%m/%Y') if r.date else '—', r.mant_comentario or '—'] for r in regs]
     elif tipo == 'reparacion':
         # <--- hecho por claude code (21-oct-2026): reparación (preguntas + asistido por + PDF firmado)
         enc = ['ID', 'Control', 'Asset ID', 'Maestro', '¿Qué dañado?', '¿Qué reparación?', '¿Cómo se dañó?', 'Asistido por', 'Fecha', 'Estado', 'Firmada']
         anchos = [2.3, 2.3, 1.9, 2.4, 3.3, 3.3, 3.0, 2.0, 1.4, 1.6, 1.0]   # suma 25.5 cm
-        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.computadora.asset_id if r.computadora else '') or '—',
+        filas = [[r.record_id, r.control_origen.record_id if r.control_origen else '—', (r.lab_display if r.laboratorio else (r.computadora.asset_id if r.computadora else '')) or '—',
                   r.teacher_name or '—', r.rep_que_danado or '—', r.rep_que_reparacion or '—', r.rep_como_dano or '—', r.rep_asistido_por or '—',
                   r.date.strftime('%d/%m/%Y') if r.date else '—', r.reparacion_estado[1], sn(bool(r.rep_pdf))] for r in regs]
     elif tipo == 'inspeccion':
@@ -1100,10 +1323,20 @@ def _reporte_tipo_datos(tipo):
             enc = enc + ['Control origen']
             anchos = [2.6, 2.0, 2.2, 1.7, 2.2, 1.5, 1.9, 1.2, 1.2, 1.9, 1.4, 1.9, 2.3, 1.5]   # suma 25.5 cm
             filas = [f + [r.control_origen.record_id if r.control_origen else '—'] for f, r in zip(filas, regs)]
+        # <--- hecho por claude code (13-nov-2026): ¿tiene fotos de evidencia? (para saber a quién le falta subirlas)
+        from django.db.models import Count as _Count
+        nf = dict(MaintenanceRecord.objects.filter(pk__in=[r.pk for r in regs]).annotate(n=_Count('fotos')).values_list('pk', 'n'))
+        if tipo == 'caso_especial':
+            esc = (25.5 - 1.4) / sum(anchos)
+            anchos = [round(x * esc, 2) for x in anchos] + [1.4]
+        else:   # entrega / recogida: el ID completo en una línea (suma 25.5 cm)
+            anchos = [2.75, 1.95, 2.1, 1.85, 2.25, 1.75, 1.8, 1.35, 1.35, 1.9, 1.3, 2.0, 1.9, 1.25]
+        enc = enc + ['Fotos']
+        filas = [f + [f'Sí ({nf.get(r.pk, 0)})' if nf.get(r.pk, 0) else 'FALTA'] for f, r in zip(filas, regs)]
     return enc, filas, anchos
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def reporte_tipo_pdf(request, tipo):
     """PDF apaisado con todos los registros de la pestaña (inspeccion / entrega / recogida)."""
     from django.http import Http404
@@ -1139,7 +1372,14 @@ def reporte_tipo_pdf(request, tipo):
               Paragraph(f"Total de registros: {len(filas)}", ParagraphStyle("r", fontSize=9, fontName="Helvetica-Bold")),
               Spacer(1, 0.25*cm)]
     if filas:
-        data = [[Paragraph(x, st_cellb) for x in enc]] + [[Paragraph(str(v), st_cell) for v in f] for f in filas]
+        data = [[Paragraph(x, st_cellb) for x in enc]] + [[Paragraph(_e(v), st_cell) for v in f] for f in filas]   # <--- hecho por claude code (seguridad 05-nov-2026): celdas escapadas
+        # <--- hecho por claude code (13-nov-2026): columna Fotos — «FALTA» en rojo (para saber a quién le falta subirlas)
+        faltan_fotos = None
+        if enc[-1] == 'Fotos':
+            col_f = len(enc) - 1
+            faltan_fotos = [i for i, f in enumerate(filas, start=1) if f[col_f] == 'FALTA']
+            for i in faltan_fotos:
+                data[i][col_f] = Paragraph('<b><font color="#b91c1c">FALTA</font></b>', st_cell)
         tabla = Table(data, colWidths=[a*cm for a in anchos], repeatRows=1)
         tabla.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), COLOR),
@@ -1149,6 +1389,12 @@ def reporte_tipo_pdf(request, tipo):
             ("LEFTPADDING", (0,0), (-1,-1), 4), ("RIGHTPADDING", (0,0), (-1,-1), 4),
             ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
         ]))
+        if faltan_fotos is not None:
+            for i in faltan_fotos:
+                tabla.setStyle(TableStyle([("BACKGROUND", (col_f, i), (col_f, i), colors.HexColor("#fde2e2"))]))
+            story.append(Paragraph(f"Con fotos: {len(filas) - len(faltan_fotos)} · <font color='#b91c1c'>Sin fotos (falta subirlas): {len(faltan_fotos)}</font>",
+                                   ParagraphStyle("rf", fontSize=9, fontName="Helvetica-Bold")))
+            story.append(Spacer(1, 0.2*cm))
         story.append(tabla)
     else:
         story.append(Paragraph("No hay registros.", st_ctr))
@@ -1177,7 +1423,7 @@ def reporte_tipo_pdf(request, tipo):
     return resp
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def reporte_tipo_excel(request, tipo):
     """Excel (.xlsx) con todos los registros de la pestaña (inspeccion / entrega / recogida)."""
     from django.http import Http404
@@ -1195,6 +1441,9 @@ def reporte_tipo_excel(request, tipo):
     ws.append(enc)
     for f in filas:
         ws.append(f)
+        for c in ws[ws.max_row]:   # <--- hecho por claude code (seguridad 05-nov-2026): un texto que empieza con "=" no se vuelve fórmula (inyección en Excel)
+            if c.data_type == 'f':
+                c.data_type = 's'
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(enc))
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(enc))
     ws['A1'].font = Font(bold=True, size=14, color=meta['color'].lstrip('#'))
@@ -1222,18 +1471,24 @@ def reporte_tipo_excel(request, tipo):
 # <--- hecho por claude code: TODAS las fichas de Control de equipo en un solo PDF
 # (mismo estilo que la ficha individual: reutiliza download_maintenance_pdf por registro
 # y une las páginas con pypdfium2 — cero duplicación del diseño).
-@login_required
-def control_fichas_pdf(request):
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
+def control_fichas_pdf(request, tipo='control'):
     import pypdfium2 as pdfium
-    registros = (MaintenanceRecord.objects.filter(tipo_equipo='control')
+    # <--- hecho por claude code (13-nov-2026): la misma unión de fichas sirve para Recogidas (y otros tipos de la lista)
+    nombres = {'control': ('controles de equipo', 'fichas_control_de_equipo'),
+               'recogida': ('recogidas', 'fichas_recogidas'),
+               'computadora': ('fichas de mantenimiento de computadoras', 'fichas_mantenimiento_computadoras')}
+    if tipo not in nombres:
+        raise Http404
+    registros = (MaintenanceRecord.objects.filter(tipo_equipo=tipo)
                  .order_by('date', 'record_id'))
     if not registros:
-        return HttpResponse('No hay controles de equipo registrados.', content_type='text/plain')
+        return HttpResponse(f'No hay {nombres[tipo][0]} registradas.' if tipo != 'control' else 'No hay controles de equipo registrados.', content_type='text/plain')
     destino = pdfium.PdfDocument.new()
     abiertos = []
     try:
         for r in registros:
-            resp = download_maintenance_pdf(request, r.id)
+            resp = _ficha_pdf(request, r.id)   # <--- hecho por claude code (seguridad 05-nov-2026): el candado ya se pasó arriba
             src = pdfium.PdfDocument(resp.content)
             abiertos.append(src)
             destino.import_pages(src)
@@ -1245,25 +1500,31 @@ def control_fichas_pdf(request):
         destino.close()
     buf.seek(0)
     resp = HttpResponse(buf.read(), content_type='application/pdf')
-    resp['Content-Disposition'] = 'inline; filename="fichas_control_de_equipo.pdf"'
+    resp['Content-Disposition'] = f'inline; filename="{nombres[tipo][1]}.pdf"'
     return resp
 
 
 # ─────────────────────────────────────────────────────────────
 # Editar registro de mantenimiento
 # ─────────────────────────────────────────────────────────────
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required (cualquiera editaba y leía las firmas en el JSON)
 def editar_mantenimiento(request, pk):
     from django.contrib import messages as msg
     record = get_object_or_404(MaintenanceRecord, pk=pk)
 
     if request.method == 'POST':
+        # <--- hecho por claude code (seguridad 05-nov-2026): cambio de equipo / reasignación escriben en el inventario → exigen acceso a Inventario
+        if (request.POST.get('cambio_equipo') or request.POST.get('reasignacion')) and not _puede_inventario_u(request.user):
+            msg.error(request, 'El cambio de equipo y la reasignación modifican el inventario: necesitas acceso a Inventario.')
+            return _redirect_fichas(record.tipo_equipo)
         # <--- hecho por claude code: el modal de edición es de computadora; preservamos el
         # tipo de equipo y los campos específicos del registro para no borrarlos al guardar.
         # <--- hecho por claude code: el modal de edición ya se adapta al tipo (computadora / impresora /
         # control) y envía los campos propios de cada uno; solo se preserva el tipo del registro.
         post = _resolver_post_tipo_falla(request).copy()
         post['tipo_equipo'] = record.tipo_equipo
+        if not _es_auditora(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): solo la auditora cambia sus observaciones; a los demás se les conserva lo guardado
+            post['obs_auditora'] = record.obs_auditora or ''
         # <--- hecho por claude code (28-sep-2026): el modal de edición no manda control_origen; se preserva
         if record.control_origen_id:
             post['control_origen'] = str(record.control_origen_id)
@@ -1273,9 +1534,30 @@ def editar_mantenimiento(request, pk):
         if record.tipo_equipo != 'control':
             for _c in ('modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo'):
                 post[_c] = getattr(record, _c) or ''
+        # <--- hecho por claude code (13-nov-2026): ficha de TODO un laboratorio: el modal de edición no manda el laboratorio ni
+        # el nombre/área/grado del lab (sin esto la validación pedía computadora y firma, y se perdían esos datos)
+        record_lab_antes = record.laboratorio or ''
+        _sel = (post.get('computadora') or '').strip()
+        _lab_nuevo = ''
+        if _sel.startswith('lab:') and _sel[4:] in MaintenanceRecord.LABORATORIOS and record.tipo_equipo in MaintenanceRecord.LAB_TIPOS:
+            _lab_nuevo = _sel[4:]                      # eligió «Laboratorio X» en el selector
+        elif not _sel and record.laboratorio:
+            _lab_nuevo = record.laboratorio            # no tocó el selector: sigue siendo del laboratorio
+        if _sel.startswith('lab:'):
+            post['computadora'] = ''
+        post['laboratorio'] = _lab_nuevo
+        if _lab_nuevo:
+            _info = MaintenanceRecord.LABORATORIOS[_lab_nuevo]
+            post['teacher_name'] = _info['persona'] if _lab_nuevo != record.laboratorio else (record.teacher_name or _info['persona'])
+            post['area'] = _info['area'] if _lab_nuevo != record.laboratorio else (record.area or _info['area'])
+            post['grade'] = (record.grade or '') if _lab_nuevo == record.laboratorio else ''
+            for _c in ('model', 'serie'):
+                post[_c] = ''
         form = MaintenanceRecordForm(post, request.FILES, instance=record)
         if form.is_valid():
             rec = form.save(commit=False)
+            if rec.laboratorio and (rec.laboratorio != record_lab_antes or not rec.lab_cantidad):   # <--- hecho por claude code (13-nov-2026)
+                rec.lab_cantidad = MaintenanceRecord.computadoras_de_laboratorio(rec.laboratorio).count()
             if rec.tipo_equipo == 'impresora':
                 imp = rec.impresora
                 if imp:
@@ -1295,17 +1577,22 @@ def editar_mantenimiento(request, pk):
                             rec.teacher_name = comp.asignado_a or ''
                         if not rec.grade:
                             rec.grade = comp.grado or ''
-            firma_data = request.POST.get('firma_data', '').strip()
+            # <--- hecho por claude code (seguridad 05-nov-2026): solo un PNG real del pad; y la firma que el MAESTRO hizo por su enlace (firmado_en) ya no se puede reemplazar desde aquí
+            firma_data = _firma_valida(request.POST.get('firma_data'))
             if firma_data:
-                rec.firma = firma_data
-            firma_tec = request.POST.get('firma_tecnico_data', '').strip()
+                if rec.firmado_en:
+                    msg.warning(request, f'{rec.record_id}: el maestro ya firmó por su enlace el {rec.firmado_en:%d/%m/%Y %H:%M}; esa firma no se reemplaza.')
+                else:
+                    rec.firma = firma_data
+            firma_tec = _firma_valida(request.POST.get('firma_tecnico_data'))
             if firma_tec:
                 rec.firma_tecnico = firma_tec
             _aplicar_prestamo(rec, request.POST)   # <--- hecho por claude code (16-oct-2026)
             _aplicar_mantenimiento(rec, request.POST)   # <--- hecho por claude code (21-oct-2026)
+            rec.modificado_por = request.user   # <--- hecho por claude code (seguridad 05-nov-2026): quién la modificó
             rec.save()
-            for f in request.FILES.getlist('fotos'):
-                FotoMantenimiento.objects.create(registro=rec, imagen=f)
+            if _guardar_fotos(request, rec):   # <--- hecho por claude code (seguridad 05-nov-2026): solo imágenes reales
+                msg.warning(request, 'Se ignoraron archivos que no son imágenes válidas o son demasiado grandes (más de 20 MB o de resolución excesiva).')
             _crear_derivados_del_control(request, rec, msg)   # <--- hecho por claude code (28-sep-2026): switches también al editar
             if rec.tipo_equipo == 'impresora' and rec.impresora_id and rec.tipo_mant_impresora == 'llenado_tinta':
                 imp = rec.impresora
@@ -1339,6 +1626,7 @@ def editar_mantenimiento(request, pk):
         'televisor': record.televisor_id, 'firma_nombre': record.firma_nombre,
         'control_origen': record.control_origen_id, 'control_origen_rid': record.control_origen.record_id if record.control_origen_id else '',   # <--- hecho por claude code (28-sep-2026)
         'computadora_rid': record.computadora.asset_id if record.computadora_id else '',
+        'laboratorio': record.laboratorio or '', 'lab_display': record.lab_display if record.laboratorio else '',   # <--- hecho por claude code (13-nov-2026)
         'modelo_anterior': record.modelo_anterior, 'serie_anterior': record.serie_anterior, 'ip_anterior': record.ip_anterior,
         'modelo_nuevo': record.modelo_nuevo, 'serie_nuevo': record.serie_nuevo, 'ip_nuevo': record.ip_nuevo,
         # <--- hecho por claude code (28-sep-2026): fichas derivadas de un control (para los switches del modal de edición)
@@ -1377,8 +1665,9 @@ def editar_mantenimiento(request, pk):
         'firma':        record.firma or '',
         'firma_tecnico':record.firma_tecnico or '',
         # <--- hecho por claude code: fotos existentes para mostrarlas en el modal de edición
-        'fotos':        [{'id': f.id, 'url': f.imagen.url,
-                           'del': reverse('mantenimiento:foto_eliminar', args=[f.id])} for f in record.fotos.all()],   # <--- hecho por claude code (21-oct-2026): URL para borrar la foto
+        'fotos':        [{'id': f.id, 'url': reverse('mantenimiento:foto_ver', args=[f.id]),   # <--- hecho por claude code (seguridad 05-nov-2026): la foto se sirve por la app con candado, no por /media/
+                           'del': reverse('mantenimiento:foto_eliminar', args=[f.id]) if _puede_borrar_foto(request.user) else ''}   # <--- hecho por claude code (seguridad 05-nov-2026): sin URL de borrado si no tiene permiso
+                          for f in record.fotos.all()],   # <--- hecho por claude code (21-oct-2026): URL para borrar la foto
     }
     return JsonResponse(data)
 
@@ -1386,13 +1675,21 @@ def editar_mantenimiento(request, pk):
 # ─────────────────────────────────────────────────────────────
 # FIRMA REMOTA DEL MAESTRO (link público con token, sin login)
 # ─────────────────────────────────────────────────────────────
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 @csrf_protect
 def firmar_publico(request, token):
-    rec = get_object_or_404(MaintenanceRecord, token_firma=token)
+    # <--- hecho por claude code (seguridad 05-nov-2026): sigue siendo PÚBLICA (sin sesión), pero solo para los tipos que usan firma por enlace
+    rec = get_object_or_404(MaintenanceRecord, token_firma=token, tipo_equipo__in=TIPOS_FIRMA_REMOTA)
+
+    # <--- hecho por claude code (seguridad 05-nov-2026): el enlace caduca (_FIRMA_LINK_DIAS); sin sello válido no se muestra NADA de la ficha ni se firma
+    sello = (request.POST.get('t') or request.GET.get('t') or '').strip()
+    if not _link_firma_vigente(rec, sello):
+        return render(request, 'mantenimiento/firmar.html', {'vencido': True, 'dias': _FIRMA_LINK_DIAS}, status=403)
 
     # El token es de un solo uso: solo se considera "ya firmado" cuando se firmó
     # por este link (firmado_en). Así el enlace vence tras usarse y se protege.
-    if rec.firmado_en:
+    # <--- hecho por claude code (seguridad 05-nov-2026): también si YA tiene firma (p. ej. en persona); antes el enlace la sobrescribía
+    if rec.firmado_en or rec.firmado_maestro:
         return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'ya_firmado': True})
 
     if request.method == 'POST':
@@ -1405,10 +1702,10 @@ def firmar_publico(request, token):
     else:
         form = FirmaMaestroForm()
 
-    return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'form': form})
+    return render(request, 'mantenimiento/firmar.html', {'rec': rec, 'form': form, 'sello': sello})   # <--- hecho por claude code (seguridad 05-nov-2026): el sello viaja también en el POST
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def tipo_falla_crear(request):
     """AJAX: crea un nuevo Tipo de Falla y lo devuelve."""
     if request.method != 'POST':
@@ -1420,7 +1717,7 @@ def tipo_falla_crear(request):
     return JsonResponse({'ok': True, 'id': obj.id, 'nombre': obj.nombre})
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required
 def marcar_firma_solicitada(request, pk):
     """Marca que ya se mandó el link de firma al maestro (AJAX)."""
     rec = get_object_or_404(MaintenanceRecord, pk=pk)
@@ -1432,48 +1729,21 @@ def marcar_firma_solicitada(request, pk):
 
 
 # ─────────────────────────────────────────────────────────────
-# Eliminar registro y renumerar desde 001
+# Eliminar registro
+# <--- hecho por claude code (seguridad 05-nov-2026): YA NO se renumera. Antes, al borrar una ficha se cambiaba el ID de todas las demás del tipo (.update(), sin historial): la ficha impresa/firmada ANAMAESCTRL-005 pasaba a ser otra, y las notas del inventario «[ANAMAESCAM-001 …]» y los PDF firmados quedaban apuntando a la ficha equivocada.
 # ─────────────────────────────────────────────────────────────
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required (cualquier usuario borraba)
 def eliminar_mantenimiento(request, pk):
     from django.contrib import messages as msg
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    if not _puede_eliminar(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): borrar exige superusuario o el permiso mantenimiento.delete_maintenancerecord
+        raise PermissionDenied('No tienes permiso para eliminar fichas de Mantenimiento.')
     record = get_object_or_404(MaintenanceRecord, pk=pk)
-    if request.method == 'POST':
-        record.delete()
-        # <--- hecho por claude code: renumerar por separado computadora (ANAMAESCOMP###) e impresora (ANAMAESIMP-###)
-        for i, r in enumerate(
-            MaintenanceRecord.objects.filter(tipo_equipo='impresora').order_by('id'), start=1
-        ):
-            nuevo_id = f"ANAMAESIMP-{i:03d}"
-            if r.record_id != nuevo_id:
-                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
-        for i, r in enumerate(
-            MaintenanceRecord.objects.filter(tipo_equipo='control').order_by('id'), start=1
-        ):
-            nuevo_id = f"ANAMAESCTRL-{i:03d}"
-            if r.record_id != nuevo_id:
-                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
-        for i, r in enumerate(
-            MaintenanceRecord.objects.filter(tipo_equipo='inspeccion').order_by('id'), start=1
-        ):
-            nuevo_id = f"ANAMAESINSP-{i:03d}"
-            if r.record_id != nuevo_id:
-                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
-        # <--- hecho por claude code (17-sep-2026): Entrega / Recogida renumeran con su prefijo
-        for _tipo, _pref in (('entrega', PREFIJO_ENTREGA), ('recogida', PREFIJO_RECOGIDA), ('caso_especial', PREFIJO_CASO), ('cambio_equipo', PREFIJO_CAMBIO), ('reasignacion', PREFIJO_REASIG), ('prestamo', PREFIJO_PRESTAMO), ('mantenimiento', PREFIJO_MANT), ('reparacion', PREFIJO_REP)):
-            for i, r in enumerate(MaintenanceRecord.objects.filter(tipo_equipo=_tipo).order_by('id'), start=1):
-                nuevo_id = f"{_pref}{i:03d}"
-                if r.record_id != nuevo_id:
-                    MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
-        for i, r in enumerate(
-            MaintenanceRecord.objects.exclude(tipo_equipo__in=['impresora', 'control', 'inspeccion', 'entrega', 'recogida', 'caso_especial', 'cambio_equipo', 'reasignacion', 'prestamo', 'mantenimiento', 'reparacion']).order_by('id'), start=1
-        ):
-            nuevo_id = f"ANAMAESCOMP{i:03d}"
-            if r.record_id != nuevo_id:
-                MaintenanceRecord.objects.filter(pk=r.pk).update(record_id=nuevo_id)
-        msg.success(request, 'Registro eliminado y numeración reiniciada.')
-        return _redirect_fichas(record.tipo_equipo)
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    rid, tipo = record.record_id, record.tipo_equipo
+    record.delete()   # queda en el historial (simple_history) con quién lo borró
+    msg.success(request, f'Registro {rid} eliminado. Las demás fichas conservan su número.')
+    return _redirect_fichas(tipo)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1514,7 +1784,7 @@ def _puede_prestamos(u):
     return _puede_inventario(u) or _puede_mantenimiento(u)
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): mismo candado que el resto del módulo
 def prestamo_pdf_subir(request, pk):
     """Recibe la solicitud ya FIRMADA en papel (escaneada en PDF). Si estaba pendiente, el equipo pasa a «Prestado»."""
     from django.contrib import messages as msg
@@ -1535,21 +1805,19 @@ def prestamo_pdf_subir(request, pk):
         msg.error(request, 'El archivo no es un PDF.')
         return _redirect_fichas('prestamo')
     f.seek(0)
-    anterior = rec.prest_pdf.name if rec.prest_pdf else ''
-    rec.prest_pdf.save(f"{rec.record_id}_firmado_{timezone.now():%Y%m%d_%H%M%S}.pdf", f, save=False)
+    rec.prest_pdf.save(_nombre_pdf_firmado(rec), f, save=False)   # <--- hecho por claude code (seguridad 05-nov-2026): nombre no adivinable
     rec.prest_pdf_en = timezone.now()
     rec.prest_pdf_por = request.user
     if rec.status == 'Pendiente':
         rec.status = 'En Proceso'   # firmado → prestado
     rec.modificado_por = request.user
     rec.save()
-    if anterior and anterior != rec.prest_pdf.name:
-        rec.prest_pdf.storage.delete(anterior)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el PDF firmado ANTERIOR ya no se borra del disco (es evidencia firmada; el historial guarda su nombre)
     msg.success(request, f'Solicitud firmada de {rec.record_id} guardada. El equipo queda como prestado.')
     return _redirect_fichas('prestamo')
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): mismo candado que el resto del módulo
 def reparacion_pdf_subir(request, pk):
     """<--- hecho por claude code (21-oct-2026): recibe la ficha de reparación ya FIRMADA en papel (PDF). Pasa a «Firmada»."""
     from django.contrib import messages as msg
@@ -1570,20 +1838,18 @@ def reparacion_pdf_subir(request, pk):
         msg.error(request, 'El archivo no es un PDF.')
         return _redirect_fichas('reparacion')
     f.seek(0)
-    anterior = rec.rep_pdf.name if rec.rep_pdf else ''
-    rec.rep_pdf.save(f"{rec.record_id}_firmado_{timezone.now():%Y%m%d_%H%M%S}.pdf", f, save=False)
+    rec.rep_pdf.save(_nombre_pdf_firmado(rec), f, save=False)   # <--- hecho por claude code (seguridad 05-nov-2026): nombre no adivinable
     rec.rep_pdf_en = timezone.now()
     rec.rep_pdf_por = request.user
     rec.status = 'Completado'   # firmada
     rec.modificado_por = request.user
     rec.save()
-    if anterior and anterior != rec.rep_pdf.name:
-        rec.rep_pdf.storage.delete(anterior)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el PDF firmado ANTERIOR ya no se borra del disco (evidencia)
     msg.success(request, f'Reparación firmada de {rec.record_id} guardada.')
     return _redirect_fichas('reparacion')
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): lee el archivo del disco (FileResponse), nunca redirige a /media/
 def reparacion_pdf_ver(request, pk):
     from django.core.exceptions import PermissionDenied
     from django.http import FileResponse, Http404
@@ -1598,7 +1864,7 @@ def reparacion_pdf_ver(request, pk):
         raise Http404
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): mismo candado que el resto del módulo
 def firma_pdf_subir(request, pk):
     """<--- hecho por claude code (21-oct-2026): sube la ficha firmada en papel (PDF) de CUALQUIER tipo salvo préstamo/reparación.
     Mismo flujo que préstamo: imprimir, firmar a mano (Soporte Técnico va fijo en el PDF), escanear y subir."""
@@ -1624,20 +1890,18 @@ def firma_pdf_subir(request, pk):
         msg.error(request, 'El archivo no es un PDF.')
         return redirect('mantenimiento:fichas', tipo=destino)
     f.seek(0)
-    anterior = rec.firma_pdf.name if rec.firma_pdf else ''
-    rec.firma_pdf.save(f"{rec.record_id}_firmado_{timezone.now():%Y%m%d_%H%M%S}.pdf", f, save=False)
+    rec.firma_pdf.save(_nombre_pdf_firmado(rec), f, save=False)   # <--- hecho por claude code (seguridad 05-nov-2026): nombre no adivinable
     rec.firma_pdf_en = timezone.now()
     rec.firma_pdf_por = request.user
     rec.status = 'Completado'   # <--- hecho por claude code (21-oct-2026): al publicar la firma la ficha queda completada
     rec.modificado_por = request.user
     rec.save()
-    if anterior and anterior != rec.firma_pdf.name:
-        rec.firma_pdf.storage.delete(anterior)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el PDF firmado ANTERIOR ya no se borra del disco (evidencia)
     msg.success(request, f'Ficha firmada de {rec.record_id} guardada. La ficha quedó como Completada.')
     return redirect('mantenimiento:fichas', tipo=destino)
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): lee el archivo del disco (FileResponse), nunca redirige a /media/
 def firma_pdf_ver(request, pk):
     from django.core.exceptions import PermissionDenied
     from django.http import FileResponse, Http404
@@ -1652,12 +1916,14 @@ def firma_pdf_ver(request, pk):
         raise Http404
 
 
-@login_required
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): antes solo @login_required (cualquiera borraba fotos de evidencia)
 def foto_eliminar(request, pk):
     """<--- hecho por claude code (21-oct-2026): borra una foto de evidencia (para quitar las duplicadas desde el editar)."""
     from django.http import JsonResponse, Http404
     if request.method != 'POST':
         raise Http404
+    if not _puede_borrar_foto(request.user):   # <--- hecho por claude code (seguridad 05-nov-2026): la evidencia la borra solo quien tiene el permiso
+        raise PermissionDenied('No tienes permiso para eliminar fotos de evidencia.')
     foto = get_object_or_404(FotoMantenimiento, pk=pk)
     rid = foto.registro.record_id if foto.registro_id else ''
     # <--- hecho por claude code (22-oct-2026): las fichas derivadas comparten el archivo con su control;
@@ -1673,7 +1939,27 @@ def foto_eliminar(request, pk):
     return JsonResponse({'ok': True, 'id': pk, 'record_id': rid})
 
 
-@login_required
+@_servicio_required
+def foto_ver(request, pk):
+    """<--- hecho por claude code (seguridad 05-nov-2026): sirve la foto de evidencia por la app (con candado), leyendo del disco; así /media/mantenimiento/ puede cerrarse en Apache."""
+    import mimetypes
+    from django.http import FileResponse, Http404
+    foto = get_object_or_404(FotoMantenimiento, pk=pk)
+    if not foto.imagen:
+        raise Http404
+    ctype = mimetypes.guess_type(foto.imagen.name)[0] or ''
+    if not ctype.startswith('image/') or ctype == 'image/svg+xml':   # nunca se entrega como HTML/SVG algo subido por un usuario
+        ctype = 'application/octet-stream'
+    try:
+        resp = FileResponse(foto.imagen.open('rb'), content_type=ctype)
+    except (FileNotFoundError, ValueError):
+        raise Http404
+    resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cache-Control'] = 'private, max-age=3600'
+    return resp
+
+
+@_servicio_required   # <--- hecho por claude code (seguridad 05-nov-2026): lee el archivo del disco (FileResponse), nunca redirige a /media/
 def prestamo_pdf_ver(request, pk):
     """Abre la solicitud firmada (se sirve por la app; no depende de cómo se publique /media/)."""
     from django.core.exceptions import PermissionDenied

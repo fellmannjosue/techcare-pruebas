@@ -4,7 +4,7 @@
 {% block title %}Mantenimiento Mecánico{% endblock %}
 {% block page_pretitle %}Combustibles, aceites y vehículos{% endblock %}
 {% block page_title %}<i class="ti ti-engine me-2"></i>Mantenimiento Mecánico{% endblock %}
-{% block back_button %}<a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Panel Principal</a>{% endblock %}
+{% block back_button %}{% url 'mantenimiento_mecanico:index' as hub_mm %}{% if nav_home_url != hub_mm %}<a href="{{ nav_home_url|default:'/accounts/menu/' }}" class="btn btn-sm"><i class="ti ti-arrow-left me-1"></i>Panel Principal</a>{% endif %}{% endblock %}{# <--- hecho por claude code (06-nov-2026): si el hub ES su Panel Principal, sin botón de regreso #}
 {% block page_actions %}
 {% if ver_veh and puede_registrar_veh %}<a href="{% url 'vehiculos:nuevo' %}" class="btn btn-sm"><i class="ti ti-car me-1"></i>Registrar vehículo</a>{% endif %}
 {% if ver_insumos %}<a href="{% url 'mantenimiento_mecanico:pagina' 'diesel' %}" class="btn btn-sm btn-primary"><i class="ti ti-gas-station me-1"></i>Cargar diésel</a>{% endif %}

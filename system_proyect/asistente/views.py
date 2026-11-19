@@ -36,6 +36,28 @@ def _api_key():
     return os.getenv('ANTHROPIC_API_KEY') or getattr(settings, 'ANTHROPIC_API_KEY', '') or ''
 
 
+# <--- hecho por claude code (06-nov-2026, producción): tope de consultas por usuario y día (chat + redactar),
+# para que nadie gaste los créditos sin control. El superusuario no tiene tope. Se cuenta en la caché de Django.
+def _excede_limite(user):
+    if user.is_superuser:
+        return False
+    import datetime
+    from django.core.cache import cache
+    limite = int(getattr(settings, 'ASISTENTE_LIMITE_DIA', 30) or 30)
+    llave = 'asistente_uso_%s_%s' % (user.pk, datetime.date.today().isoformat())
+    usado = cache.get(llave, 0)
+    if usado >= limite:
+        return True
+    cache.set(llave, usado + 1, 60 * 60 * 26)
+    return False
+
+
+def _respuesta_limite():
+    lim = int(getattr(settings, 'ASISTENTE_LIMITE_DIA', 30) or 30)
+    return JsonResponse({'ok': False, 'error': 'Llegaste al límite de %d consultas por hoy. Vuelve a intentarlo mañana.' % lim},
+                        status=429)
+
+
 @login_required
 @require_POST
 def chat(request):
@@ -60,6 +82,8 @@ def chat(request):
             mensajes.append({'role': role, 'content': contenido[:MAX_LARGO_MSG]})
     if not mensajes or mensajes[-1]['role'] != 'user':
         return JsonResponse({'ok': False, 'error': 'No hay un mensaje para responder.'}, status=400)
+    if _excede_limite(request.user):
+        return _respuesta_limite()
 
     es_super = request.user.is_superuser
     system = system_prompt_para(request.user, es_super)
@@ -122,6 +146,8 @@ def redactar(request):
     system, mensaje = prompt_redactar(accion, texto)
     if system is None:
         return JsonResponse({'ok': False, 'error': 'Acción no válida.'}, status=400)
+    if _excede_limite(request.user):
+        return _respuesta_limite()
 
     try:
         import anthropic

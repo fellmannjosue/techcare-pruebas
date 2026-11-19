@@ -8,9 +8,12 @@
   <a href="javascript:history.back()" class="btn btn-ghost-secondary btn-sm">
     <i class="ti ti-arrow-left me-1"></i>Regresar
   </a>
+  {# <--- hecho por claude code (seguridad 05-nov-2026): solo con Vacaciones – Editar, el mismo permiso que exige el servidor #}
+  {% if can_edit %}
   <a href="{% url 'reloj_vacaciones_importar' %}" class="btn btn-ghost-secondary btn-sm">
     <i class="ti ti-upload me-1"></i>Importar fechas
   </a>
+  {% endif %}
 {% endblock %}
 
 {% block content %}

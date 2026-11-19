@@ -1,40 +1,9 @@
 # <--- hecho por claude code: Formularios Salidas Baño
 from django import forms
 from django.contrib.auth import get_user_model
-from .models import PeriodoEscolar, MaestroClase
+from .models import MaestroClase
 
 User = get_user_model()
-
-
-class PeriodoEscolarForm(forms.ModelForm):
-    # <--- hecho por claude code: el coordinador de un ámbito solo elige SUS áreas
-    def __init__(self, *args, area_choices=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if area_choices:
-            self.fields['area'].choices = area_choices
-
-    class Meta:
-        model  = PeriodoEscolar
-        fields = ['nombre', 'parcial', 'anio', 'area', 'fecha_inicio', 'fecha_fin', 'activo']
-        widgets = {
-            'nombre':       forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Parcial 1 2026'}),
-            'parcial':      forms.Select(choices=[(i, f'Parcial {i}') for i in range(1, 5)],
-                                         attrs={'class': 'form-select'}),
-            'anio':         forms.NumberInput(attrs={'class': 'form-control', 'min': 2020, 'max': 2099}),
-            'area':         forms.Select(attrs={'class': 'form-select'}),
-            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_fin':    forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'activo':       forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-
-    def clean(self):
-        # <--- hecho por claude code: evitar rangos invertidos (asi entró un período
-        # con fin 19/08/2025 antes que su inicio 15/06/2026, y no cargaban los alumnos)
-        cleaned = super().clean()
-        ini, fin = cleaned.get('fecha_inicio'), cleaned.get('fecha_fin')
-        if ini and fin and fin < ini:
-            self.add_error('fecha_fin', 'La fecha de fin no puede ser anterior a la de inicio.')
-        return cleaned
 
 
 class MaestroClaseForm(forms.ModelForm):

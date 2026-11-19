@@ -114,6 +114,8 @@ const CFG_INGRESOS_NOTAS = (function () {
       h += '<th class="text-center col-nota' + ec + '" title="' + esc(col.key) + '">' +
            esc(col.label) + '</th>';
     });
+    // <--- hecho por claude code (06-nov-2026): diseño A — promedio de los cuadros y estado (aprueba con 70)
+    h += '<th class="text-center col-prom">Promedio</th><th class="text-center col-est">Estado</th>';
     h += '</tr></thead><tbody>';
 
     alumnos.forEach(function (a, i) {
@@ -129,11 +131,38 @@ const CFG_INGRESOS_NOTAS = (function () {
              ' data-materia="' + a.materia_id + '" data-col="' + esc(col.key) + '"' +
              ' data-alumno="' + esc(a.nombre) + '"></td>';
       });
-      h += '</tr>';
+      h += '<td class="text-center td-prom">—</td><td class="text-center td-est"></td></tr>';
     });
-    h += '</tbody></table></div>';
+    h += '</tbody><tfoot><tr><td></td><td class="tf-lbl">Promedio del grupo</td>';
+    columnas.forEach(function () { h += '<td class="text-center tf-col">—</td>'; });
+    h += '<td class="text-center tf-prom">—</td><td class="text-center tf-est"></td></tr></tfoot></table></div>';
     cont.innerHTML = h;
+    recalcular();
   }
+
+  // <--- hecho por claude code (06-nov-2026): promedios en vivo (fila, columna y grupo) y notas bajas en rojo
+  var MINIMO = 70;
+  function recalcular() {
+    var P = TC_PLANILLA, filas = cont.querySelectorAll('tbody tr'), aprob = 0, reprob = 0, todos = [];
+    if (!filas.length) return;
+    filas.forEach(function (tr) {
+      var vals = [].map.call(tr.querySelectorAll('.celda-nota'), function (i) { return P.num(i.value); });
+      var p = P.prom(vals), tdp = tr.querySelector('.td-prom'), tde = tr.querySelector('.td-est');
+      tdp.textContent = P.fmt(p); tdp.classList.toggle('prom-baja', p !== null && p < MINIMO);
+      if (p === null) { tde.innerHTML = '<span class="text-muted">—</span>'; }
+      else if (p >= MINIMO) { tde.innerHTML = '<span class="est-ok">Aprobado</span>'; aprob++; todos.push(p); }
+      else { tde.innerHTML = '<span class="est-mal">Reprobado</span>'; reprob++; todos.push(p); }
+    });
+    var tf = cont.querySelectorAll('tfoot .tf-col');
+    columnas.forEach(function (col, k) {
+      var vals = [].map.call(cont.querySelectorAll('.celda-nota[data-col="' + col.key + '"]'), function (i) { return P.num(i.value); });
+      if (tf[k]) tf[k].textContent = P.fmt(P.prom(vals));
+    });
+    var tp = cont.querySelector('.tf-prom'); if (tp) tp.textContent = P.fmt(P.prom(todos));
+    var te = cont.querySelector('.tf-est'); if (te) te.innerHTML = '<span class="est-ok">' + aprob + '</span> · <span class="est-mal">' + reprob + '</span>';
+    P.marcarBajas(cont, '.celda-nota', MINIMO);
+  }
+  cont.addEventListener('input', function (e) { if (e.target.classList.contains('celda-nota')) recalcular(); });
 
   // ── Autoguardado por celda ──
   cont.addEventListener('focusin', function (e) {
@@ -166,19 +195,18 @@ const CFG_INGRESOS_NOTAS = (function () {
       .then(function (d) {
         inp.classList.remove('celda-guardando');
         if (!d.ok) {
-          inp.classList.add('celda-error');
-          inp.value = inp.dataset.antes || '';           // se revierte lo escrito
+          TC_PLANILLA.rechazo(inp, d.error || 'error');
+          recalcular();
           pinta('<i class="ti ti-alert-triangle me-1"></i>' + esc(d.error), 'text-danger');
           return;
         }
-        inp.classList.add('celda-ok');
+        inp.classList.add('celda-ok'); inp.removeAttribute('title');
         inp.dataset.antes = actual;
+        TC_PLANILLA.burbuja(inp);
         pinta('<i class="ti ti-check me-1"></i>Guardado', 'text-green');
       })
       .catch(function () {
-        inp.classList.remove('celda-guardando');
-        inp.classList.add('celda-error');
-        inp.value = inp.dataset.antes || '';
+        TC_PLANILLA.rechazo(inp, 'sin conexión');
         pinta('<i class="ti ti-cloud-off me-1"></i>Sin conexión — no se guardó', 'text-danger');
       });
   });

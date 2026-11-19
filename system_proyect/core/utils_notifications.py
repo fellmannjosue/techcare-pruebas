@@ -23,6 +23,7 @@ _TIPO_ICON = {
 _MODULO_LABEL = {
     'tickets':       'Soporte Técnico',
     'mantenimiento_mecanico': 'Mantenimiento Mecánico',   # <--- hecho por claude code (01-oct-2026)
+    'datashow':      'Solicitud de DataShow',   # <--- hecho por claude code (03-nov-2026)
     'vehiculos': 'Mantenimiento de vehículos',   # <--- hecho por claude code (12-oct-2026)
     'conducta':      'Conducta',
     'reloj':         'Control de Horario',
@@ -31,7 +32,6 @@ _MODULO_LABEL = {
     # <--- hecho por claude code: si no, el toast mostraba "Notas_parcial"
     'notas_parcial': 'Notas de Parcial',
     'salidas_bano':  'Salidas al Baño',
-    'datashow':      'Solicitud de DataShow',   # <--- hecho por claude code (02-nov-2026)
 }
 
 

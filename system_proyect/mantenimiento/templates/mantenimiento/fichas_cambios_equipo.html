@@ -14,7 +14,7 @@
                     <tbody>
                       {% for r in records_cam %}
                       <tr>
-                        <td><span class="badge bg-azure-lt text-azure">{{ r.record_id }}</span></td>
+                        <td><span class="badge bg-azure-lt text-azure btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
                         <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</td>
                         <td><div>{{ r.modelo_anterior|default:"—" }}</div><div class="text-muted small">{% if r.serie_anterior %}Serie {{ r.serie_anterior }}{% endif %}{% if r.ip_anterior %} · IP {{ r.ip_anterior }}{% endif %}</div></td>

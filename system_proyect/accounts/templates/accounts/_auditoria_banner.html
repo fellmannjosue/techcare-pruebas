@@ -1,0 +1,3 @@
+{% load static %}
+{# <--- hecho por claude code (10-nov-2026): aviso fijo del rol Auditoría + bloqueo visual de los campos de guardar (se incluye desde _welcome_overlay y 403) #}
+{% if tc_auditoria %}<link rel="stylesheet" href="{% static 'core/css/auditoria.css' %}?v=2"><div class="tc-auditoria" role="status"><i class="ti ti-eye-check"></i> Modo auditoría · {% if tc_auditoria_bloquea %}solo lectura{% else %}edición permitida aquí{% endif %}</div>{% if tc_auditoria_bloquea %}<script src="{% static 'core/js/auditoria.js' %}?v=2"></script>{% endif %}{% endif %}

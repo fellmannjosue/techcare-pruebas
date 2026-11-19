@@ -226,8 +226,10 @@ $(function(){
   $(document).on('click', '.btn-asignar-grupo', function(){
     modoGrupo = 'single';
     grupoCompId = $(this).data('id');
-    document.getElementById('grupo-modal-desc').innerHTML =
-      'Equipo: <strong>' + $(this).data('asset') + '</strong>';
+    // <--- hecho por claude code (seguridad 05-nov-2026): el Asset ID va como TEXTO (con innerHTML un Asset ID con etiquetas se ejecutaba)
+    var _desc = document.getElementById('grupo-modal-desc'), _b = document.createElement('strong');
+    _b.textContent = String($(this).data('asset') || '');
+    _desc.textContent = 'Equipo: '; _desc.appendChild(_b);
     document.getElementById('grupo-input').value = $(this).data('grupo') || '';
     new bootstrap.Modal(document.getElementById('modalAsignarGrupo')).show();
   });

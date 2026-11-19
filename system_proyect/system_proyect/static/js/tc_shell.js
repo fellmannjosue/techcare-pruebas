@@ -167,6 +167,10 @@
       e.stopPropagation();
       topnav.classList.toggle('abierto-movil');
       burger.classList.toggle('on');
+      // <--- hecho por claude code (09-nov-2026): al abrir el menú en el teléfono queda desplegado el grupo de la pantalla actual
+      if (topnav.classList.contains('abierto-movil') && !topnav.querySelector('.tc-nav-item.abierto')) {
+        var act = topnav.querySelector('.tc-nav-item.activo'); if (act && act.querySelector('.tc-dd')) act.classList.add('abierto');
+      }
     });
     topnav.addEventListener('click', function (e) {
       if (e.target.closest('.tc-dd-link, .tc-nav-link:not(.tc-nav-toggle)')) {

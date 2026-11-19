@@ -7,6 +7,11 @@
   const CSRF          = _cfg.dataset.csrf;
   let usuariosCargados = false;
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): el nombre lo escribe cada usuario en Mi perfil y se pintaba con innerHTML en la ventana del superusuario (XSS almacenado)
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
   function getMensaje(){
     const el = document.getElementById('mensajeExtra');
     return el ? el.value.trim() : '';
@@ -24,14 +29,9 @@
 
   function toast(msg, ok){
     const el = document.createElement('div');
-    el.className = `alert alert-${ok?'success':'danger'} alert-dismissible tc-toast-solido`;
+    el.className = `alert alert-${ok?'success':'danger'} alert-dismissible position-fixed bottom-0 end-0 m-3`;
     el.style.zIndex = 9999;
-    // <--- hecho por claude code (10-nov-2026): fondo SÓLIDO y por encima del botón del asistente, aunque el navegador tenga el CSS viejo en caché
-    Object.assign(el.style, {position: 'fixed', right: '16px', bottom: '88px', margin: '0', opacity: '1',
-      maxWidth: 'min(420px, calc(100vw - 32px))', background: ok ? '#ebfbee' : '#fff5f5', color: '#1d2433',
-      border: '1px solid ' + (ok ? '#b2f2bb' : '#ffc9c9'), borderLeft: '5px solid ' + (ok ? '#2fb344' : '#d63939'),
-      borderRadius: '10px', boxShadow: '0 10px 28px rgba(15,23,42,.25)', fontWeight: '600', backdropFilter: 'none'});
-    el.innerHTML = `<i class="ti ti-${ok?'check':'x'} me-1"></i>${msg}<button class="btn-close" data-bs-dismiss="alert"></button>`;
+    el.innerHTML = `<i class="ti ti-${ok?'check':'x'} me-1"></i>${esc(msg)}<button class="btn-close" data-bs-dismiss="alert"></button>`;
     document.body.appendChild(el);
     setTimeout(()=>el.remove(), 4000);
   }
@@ -44,13 +44,13 @@
   function renderFilas(usuarios){
     const tbody = document.getElementById('tbodyUsuarios');
     tbody.innerHTML = usuarios.map(u => `
-      <tr class="fila-usuario" data-nombre="${u.nombre.toLowerCase()}" data-email="${u.email.toLowerCase()}">
-        <td><input type="checkbox" class="chk-usuario" value="${u.email}"></td>
-        <td>${u.nombre}</td>
-        <td class="text-muted small">${u.email}</td>
+      <tr class="fila-usuario" data-nombre="${esc(u.nombre.toLowerCase())}" data-email="${esc(u.email.toLowerCase())}">
+        <td><input type="checkbox" class="chk-usuario" value="${esc(u.email)}"></td>
+        <td>${esc(u.nombre)}</td>
+        <td class="text-muted small">${esc(u.email)}</td>
         <td>
           <button type="button" class="btn btn-sm btn-ghost-primary btn-enviar-uno"
-                  data-email="${u.email}" data-nombre="${u.nombre}">
+                  data-email="${esc(u.email)}" data-nombre="${esc(u.nombre)}">
             <i class="ti ti-send me-1"></i>Enviar
           </button>
         </td>

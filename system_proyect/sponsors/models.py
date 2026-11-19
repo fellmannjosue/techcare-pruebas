@@ -154,13 +154,14 @@ class Sponsor(models.Model):
         ("Irlanda", "Irlanda"),  
     ]
 
-    padrino_ch_d = models.CharField(
-        max_length=50,
-      blank=True,
-       null=True,
-      choices=PADRINO_CHOICES,
-      db_column='padrino_ch_d',
-    verbose_name="Padrino CH/D",
+    # <--- hecho por claude code (06-nov-2026): en la BD la columna es TINYINT NOT NULL (default 0) con el CÓDIGO del país
+    # (tbl_gen_country: 1 Alemania, 2 Austria… 29 Irlanda; 0 = ninguno). Antes estaba como texto con lista de países:
+    # vacío daba NULL y un país daba texto en un número → ni agregar ni editar un sponsor podía guardarse.
+    # PADRINO_CHOICES queda solo como referencia; el formulario arma la lista desde la tabla de países.
+    padrino_ch_d = models.PositiveSmallIntegerField(
+        default=0,
+        db_column='padrino_ch_d',
+        verbose_name="Padrino CH/D",
     )
 
     class Meta:

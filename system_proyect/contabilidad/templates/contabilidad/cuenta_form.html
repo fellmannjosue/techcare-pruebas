@@ -10,6 +10,7 @@
 <div class="card" style="max-width:820px"><div class="card-body">
 <form method="post">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {% if form.bloqueada %}<div class="alert alert-info"><i class="ti ti-lock me-1"></i>Esta cuenta ya tiene movimientos: el código, el tipo y la naturaleza no se pueden cambiar.</div>{% endif %}{# <--- hecho por claude code (seguridad 05-nov-2026) #}
   <div class="row g-3">
     <div class="col-md-4"><label class="form-label required">Código</label>{{ form.codigo }}{{ form.codigo.errors }}</div>
     <div class="col-md-8"><label class="form-label required">Nombre</label>{{ form.nombre }}{{ form.nombre.errors }}</div>

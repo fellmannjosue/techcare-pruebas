@@ -8,6 +8,7 @@ from . import api  # <--- hecho por claude code: API REST solo lectura (Fase 5)
 app_name = 'red'
 
 _api_router = DefaultRouter()
+_api_router.APIRootView = api.APIRaizRed   # <--- hecho por claude code (seguridad 05-nov-2026): la raíz de la API exige red.ver_red como el resto
 _api_router.register('vlans', api.VLANVS, basename='api-vlans')
 _api_router.register('ips', api.IPVS, basename='api-ips')
 _api_router.register('dispositivos', api.DeviceVS, basename='api-dispositivos')
@@ -35,6 +36,7 @@ urlpatterns = [
     path('ips-actuales/vlan/<int:pk>/ips/', views.ip_actual_vlan_ips, name='ip_actual_vlan_ips'),
     path('ips-actuales/guardar/', views.ip_actual_guardar, name='ip_actual_guardar'),
     path('ips-actuales/<int:pk>/borrar/', views.ip_actual_borrar, name='ip_actual_borrar'),
+    path('ips-actuales/<int:pk>/password/', views.ip_actual_password, name='ip_actual_password'),   # <--- hecho por claude code (seguridad 05-nov-2026): contraseña bajo demanda
     path('vlans/', views.vlan_list, name='vlan_list'),
     path('vlans/nueva/', views.vlan_form, name='vlan_nueva'),
     path('vlans/<int:pk>/', views.vlan_detail, name='vlan_detail'),
@@ -88,6 +90,10 @@ urlpatterns = [
     path('planos/', views.planos_list, name='planos_list'),
     path('planos/nuevo/', views.plano_form, name='plano_nuevo'),
     path('planos/<int:pk>/', views.plano_view, name='plano_view'),
+    # <--- hecho por claude code (seguridad 05-nov-2026): imágenes de media/red/ por vista con _gate (ya no por /media/)
+    path('planos/<int:pk>/imagen/', views.plano_imagen, name='plano_imagen'),
+    path('ubicaciones/gabinete/<int:pk>/foto/', views.gabinete_foto, name='gabinete_foto'),
+    path('dispositivos/<int:pk>/foto/', views.device_foto, name='device_foto'),
     path('planos/<int:pk>/editar/', views.plano_form, name='plano_editar'),
     path('planos/<int:plano_pk>/marcador/add/', views.marcador_add, name='marcador_add'),
     path('marcador/<int:pk>/move/', views.marcador_move, name='marcador_move'),

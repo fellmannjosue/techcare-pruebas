@@ -132,7 +132,7 @@ class Ticket(AuditModel):
         if not pa:
             return ''
         from django.utils import timezone as _tz
-        hoy = _tz.localdate()
+        hoy = _tz.now().date()   # <--- hecho por claude code (seguridad 05-nov-2026): localdate() revienta con USE_TZ=False (500 en el chat del técnico y en ticket_status_get_ajax fuera de horario)
         cuando = 'hoy' if pa.date() == hoy else ('mañana' if (pa.date() - hoy).days == 1 else pa.strftime('el %d/%m'))
         return f'Fuera de horario laboral — el SLA continúa {cuando} a las {pa.strftime("%H:%M")}'
 
@@ -244,7 +244,7 @@ class TicketComment(AuditModel):
         if not self.archivo:
             return False
         ext = self.archivo.name.rsplit('.', 1)[-1].lower() if '.' in self.archivo.name else ''
-        return ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg')
+        return ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp')   # <--- hecho por claude code (seguridad 05-nov-2026): sin svg (puede llevar script; ya no se acepta al subir)
 
     @property
     def archivo_nombre(self):

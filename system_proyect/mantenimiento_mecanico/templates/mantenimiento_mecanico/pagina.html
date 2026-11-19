@@ -29,7 +29,8 @@
         <div class="mm-saldo-sub">Compras acumuladas {{ resumen.entradas|floatformat:2 }} gal · entregado {{ resumen.entregas|floatformat:2 }} gal</div>
       {% endif %}
     </div>
-    {% if puede_editar %}<button type="button" class="btn btn-sm btn-ghost-secondary mm-saldo-cfg" data-bs-toggle="modal" data-bs-target="#mmModalConfig" title="Configurar capacidad y mínimo"><i class="ti ti-settings"></i></button>{% endif %}
+    {# <--- hecho por claude code (seguridad 05-nov-2026): configurar capacidad y mínimo de alerta = solo el superusuario (mismo criterio que insumo_config) #}
+    {% if puede_modificar %}<button type="button" class="btn btn-sm btn-ghost-secondary mm-saldo-cfg" data-bs-toggle="modal" data-bs-target="#mmModalConfig" title="Configurar capacidad y mínimo"><i class="ti ti-settings"></i></button>{% endif %}
   </div>
   <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#f59f00"><i class="ti ti-calendar-event"></i></div><div><div class="mm-kpi-lbl">Entregas este mes</div><div class="mm-kpi-num">{{ kpi_mes_n }}</div></div></div>
   <div class="mm-kpi"><div class="mm-kpi-ico" style="--mm:#0ca678"><i class="ti ti-droplet"></i></div><div><div class="mm-kpi-lbl">Galones este mes</div><div class="mm-kpi-num">{{ kpi_mes_gal|floatformat:2 }}</div></div></div>
@@ -154,7 +155,7 @@
           <td class="text-end"></td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-3">Aún no hay entradas. Registra el saldo inicial con el botón «{{ insumo.etiqueta_entrada }}».</td></tr>
+        <tr><td colspan="6" class="text-center text-muted py-3">Aún no hay entradas.{% if puede_modificar %} Registra el saldo inicial con el botón «{{ insumo.etiqueta_entrada }}».{% elif puede_editar %} Registra lo que entra con el botón «{{ insumo.etiqueta_entrada }}»; el saldo inicial y los ajustes los registra el superusuario.{% endif %}</td></tr>{# <--- hecho por claude code (seguridad 05-nov-2026): el saldo inicial lo registra solo el superusuario; 2.ª revisión: al operador se le dice cómo seguir #}
       {% endfor %}
       </tbody>
     </table>

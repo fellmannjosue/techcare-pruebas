@@ -108,6 +108,8 @@ window._PAGE = {
 // ── Cálculo compensatorio — 5 tabs ──  // <--- hecho por claude code
 const CSRF = window._PAGE.csrf;
 const minToH = m => +(m / 60).toFixed(1);
+// <--- hecho por claude code (seguridad 05-nov-2026): escapa el texto guardado (razón, comentario, descripción, nombre) antes de pintarlo con innerHTML (XSS almacenado); local al IIFE, no es global
+const escCompCalc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 function jpost(url, payload) {
   return fetch(url, {
@@ -233,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
     empty.style.display = 'none';
     entries.forEach(e => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-pink">${e.horas} h</td><td class="text-muted small">${e.razon}</td>`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(e.fecha)}</td><td class="text-center fw-semibold text-pink">${escCompCalc(e.horas)} h</td><td class="text-muted small">${escCompCalc(e.razon)}</td>`;
       tbody.appendChild(tr);
     });
   }
@@ -244,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     empty.style.display = 'none';
     manual.forEach(m => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.puedeTomado ? `<td class="text-center text-nowrap"><button class="btn btn-sm btn-ghost-primary btn-tomm-edit" data-pk="${m.pk}" data-fecha="${m.fecha_iso}" data-horas="${m.horas}" data-razon="${(m.razon_raw || '').replace(/"/g, '&quot;')}" title="Editar"><i class="ti ti-pencil"></i></button><button class="btn btn-sm btn-ghost-danger btn-tomm-del" data-pk="${m.pk}" title="Eliminar"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(m.fecha)}</td><td class="text-center fw-semibold text-pink">${escCompCalc(m.horas)} h</td><td class="text-muted small">${escCompCalc(m.razon)}</td>${window._PAGE.puedeTomado ? `<td class="text-center text-nowrap"><button class="btn btn-sm btn-ghost-primary btn-tomm-edit" data-pk="${escCompCalc(m.pk)}" data-fecha="${escCompCalc(m.fecha_iso)}" data-horas="${escCompCalc(m.horas)}" data-razon="${escCompCalc(m.razon_raw || '')}" title="Editar"><i class="ti ti-pencil"></i></button><button class="btn btn-sm btn-ghost-danger btn-tomm-del" data-pk="${escCompCalc(m.pk)}" title="Eliminar"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
@@ -259,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
     receso.forEach(r => {
       tot += r.minutos;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="small">${r.mes}</td><td class="text-center fw-semibold text-orange">+${r.minutos} min</td>`;
+      tr.innerHTML = `<td class="small">${escCompCalc(r.mes)}</td><td class="text-center fw-semibold text-orange">+${escCompCalc(r.minutos)} min</td>`;
       tbody.appendChild(tr);
     });
     document.getElementById('tom-receso-total').textContent = tot;
@@ -438,8 +440,8 @@ document.addEventListener('DOMContentLoaded', function () {
         ? '<span class="badge bg-orange-lt text-orange"><i class="ti ti-clock me-1"></i>Pendiente</span>'
         : '<span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>Aplicado</span>';
       // <--- hecho por claude code: columna Días (valor propio de cada entrada)
-      const diasCel = (d.dias != null) ? `${d.dias}` : '<span class="text-muted">—</span>';
-      tr.innerHTML = `<td class="text-muted small font-monospace">${d.fecha || '—'}</td><td class="text-muted small">${d.descripcion || '—'}</td><td class="text-center fw-semibold text-orange">${d.horas} h</td><td class="text-center fw-semibold text-azure">${diasCel}</td><td class="text-center">${estado}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${d.id}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      const diasCel = (d.dias != null) ? escCompCalc(d.dias) : '<span class="text-muted">—</span>';
+      tr.innerHTML = `<td class="text-muted small font-monospace">${escCompCalc(d.fecha || '—')}</td><td class="text-muted small">${escCompCalc(d.descripcion || '—')}</td><td class="text-center fw-semibold text-orange">${escCompCalc(d.horas)} h</td><td class="text-center fw-semibold text-azure">${diasCel}</td><td class="text-center">${estado}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-dnl-del" data-id="${escCompCalc(d.id)}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
@@ -508,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
     empty.style.display = 'none';
     entries.forEach(e => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-cyan">${e.minutos} min</td><td class="text-muted small">${e.razon}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-te-del" data-te-pk="${e.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(e.fecha)}</td><td class="text-center fw-semibold text-cyan">${escCompCalc(e.minutos)} min</td><td class="text-muted small">${escCompCalc(e.razon)}</td>${canEdit ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-te-del" data-te-pk="${escCompCalc(e.pk)}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
@@ -631,7 +633,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
       const cont = document.getElementById('ae-resultados');
       cont.innerHTML = '<div class="text-muted small p-2">Buscando…</div>';
       const d = await (await fetch(`${window._PAGE.urlEmpBuscar}?q=${encodeURIComponent(q)}`)).json();
-      if (!d.ok) { cont.innerHTML = `<div class="text-danger small p-2">${d.error || 'Error'}</div>`; return; }
+      if (!d.ok) { cont.innerHTML = `<div class="text-danger small p-2">${escCompCalc(d.error || 'Error')}</div>`; return; }
       if (!d.empleados.length) { cont.innerHTML = '<div class="text-muted small p-2">Sin resultados.</div>'; return; }
       cont.innerHTML = '';
       d.empleados.forEach(e => {
@@ -639,7 +641,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
         a.type = 'button';
         a.className = 'list-group-item list-group-item-action ae-item';
         a.dataset.emp = e.emp_code; a.dataset.nombre = e.nombre;
-        a.innerHTML = `<span class="fw-semibold">${e.nombre}</span> <span class="text-muted small">· ${e.emp_code}</span>`;
+        a.innerHTML = `<span class="fw-semibold">${escCompCalc(e.nombre)}</span> <span class="text-muted small">· ${escCompCalc(e.emp_code)}</span>`;
         cont.appendChild(a);
       });
     }, 300);
@@ -700,7 +702,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
     empty.style.display = 'none';
     entries.forEach(en => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${en.fecha}</td><td class="text-center fw-semibold text-blue">${en.horas} h</td><td class="text-muted small">${en.comentario}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-cmt-del" data-pk="${en.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(en.fecha)}</td><td class="text-center fw-semibold text-blue">${escCompCalc(en.horas)} h</td><td class="text-muted small">${escCompCalc(en.comentario)}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-cmt-del" data-pk="${escCompCalc(en.pk)}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tbody.appendChild(tr);
     });
   }
@@ -775,7 +777,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
     em.style.display = 'none';
     entries.forEach(e => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${e.fecha}</td><td class="text-center fw-semibold text-cyan">${e.minutos} min</td><td class="text-muted small">${e.comentario}</td>${window._PAGE.canEditExtra ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-instte-del" data-pk="${e.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(e.fecha)}</td><td class="text-center fw-semibold text-cyan">${escCompCalc(e.minutos)} min</td><td class="text-muted small">${escCompCalc(e.comentario)}</td>${window._PAGE.canEditExtra ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-instte-del" data-pk="${escCompCalc(e.pk)}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tb.appendChild(tr);
     });
   }
@@ -827,7 +829,7 @@ if (window._PAGE.canEditExtra || window._PAGE.canDeleteExtra) (function () {
     em.style.display = 'none';
     manual.forEach(m => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="text-center font-monospace small">${m.fecha}</td><td class="text-center fw-semibold text-pink">${m.horas} h</td><td class="text-muted small">${m.razon}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-insttom-del" data-pk="${m.pk}"><i class="ti ti-trash"></i></button></td>` : ''}`;
+      tr.innerHTML = `<td class="text-center font-monospace small">${escCompCalc(m.fecha)}</td><td class="text-center fw-semibold text-pink">${escCompCalc(m.horas)} h</td><td class="text-muted small">${escCompCalc(m.razon)}</td>${window._PAGE.isSuperuser ? `<td class="text-center"><button class="btn btn-sm btn-ghost-danger btn-insttom-del" data-pk="${escCompCalc(m.pk)}"><i class="ti ti-trash"></i></button></td>` : ''}`;
       tb.appendChild(tr);
     });
   }

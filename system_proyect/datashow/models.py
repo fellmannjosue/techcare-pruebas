@@ -99,4 +99,6 @@ class ReservaDataShow(AuditModel):
         """El solicitante (o superusuario) cancela mientras siga activa y no haya pasado."""
         if self.estado not in self.ESTADOS_ACTIVOS:
             return False
+        if self.es_pasada:   # <--- hecho por claude code (seguridad 05-nov-2026): lo que dice el docstring; una reserva ya pasada no se cancela
+            return False
         return user.is_superuser or self.solicitante_id == user.id

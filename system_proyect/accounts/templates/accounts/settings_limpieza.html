@@ -1,0 +1,106 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Respaldo y limpieza{% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code (13-nov-2026): paso 1 guardar JSON general (ZIP) · paso 2 limpiar la BD de esos módulos #}
+<div id="lp-cfg" hidden data-descarga="{% if listo %}{% url 'settings_limpieza_descargar' %}?f={{ listo }}{% endif %}" data-frase="{{ frase }}"></div>
+
+<div class="alert alert-warning">
+  <div class="d-flex gap-2">
+    <i class="ti ti-alert-triangle fs-2"></i>
+    <div><b>El Reloj, el Inventario, los usuarios y la configuración nunca se tocan.</b> Primero se guarda el JSON general (paso 1); la limpieza (paso 2) solo se puede hacer con un respaldo de menos de {{ horas }} horas, tu contraseña y la frase <b>{{ frase }}</b>.</div>
+  </div>
+</div>
+
+<form method="post" class="card mb-3" id="lp-form-respaldo">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="respaldo">
+  <div class="card-header">
+    <h3 class="card-title"><span class="badge bg-blue text-white me-2">1</span>Guardar JSON general</h3>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for m in modulos %}
+      <div class="col-12 col-xl-6">
+        <label class="lp-mod" style="--c:{{ m.color }}">
+          <input type="checkbox" class="form-check-input lp-chk" name="modulos" value="{{ m.clave }}"{% if not m.opcional %} checked{% endif %}>
+          <span class="lp-ico"><i class="ti {{ m.icono }}"></i></span>
+          <span class="lp-txt">
+            <span class="fw-bold d-block">{{ m.titulo }}</span>
+            <span class="text-muted small d-block">{{ m.nota }}</span>
+            <span class="small d-block mt-1"><b class="text-danger">Se borra:</b>
+              {% for t in m.tablas_borrar %}{{ t.nombre }} ({{ t.n }}){% if not forloop.last %} · {% endif %}{% endfor %}
+              {% if m.historial %} · historial ({{ m.historial }}){% endif %}</span>
+            {% if m.tablas_conservar %}<span class="small text-muted d-block"><b>Se conserva:</b>
+              {% for t in m.tablas_conservar %}{{ t.nombre }} ({{ t.n }}){% if not forloop.last %} · {% endif %}{% endfor %}</span>{% endif %}
+          </span>
+          <span class="badge bg-red-lt text-red lp-n">{{ m.total_borrar }}</span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-footer d-flex flex-wrap align-items-center gap-2">
+    <span class="text-muted small">Se descarga un ZIP con un JSON por tabla y las fotos/PDFs/evidencias; una copia queda en <code>/home/admin2/backups/limpieza_modulos</code>. Puede tardar un minuto.</span>
+    <button type="submit" class="btn btn-primary ms-auto" id="lp-btn-respaldo"><i class="ti ti-database-export me-1"></i>Guardar JSON general</button>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><span class="badge bg-red text-white me-2">2</span>Respaldos guardados y limpieza de la BD</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead><tr><th>Respaldo</th><th>Módulos</th><th>Tamaño</th><th>Estado</th><th class="w-1"></th></tr></thead>
+      <tbody>
+        {% for r in respaldos %}
+        <tr{% if r.nombre == listo %} class="table-success"{% endif %}>
+          <td><div class="fw-semibold">{{ r.fecha|date:"d/m/Y H:i" }}</div><div class="text-muted small">{{ r.nombre }} · {{ r.usuario }}</div></td>
+          <td class="small">{{ r.modulos|join:" · " }}</td>
+          <td class="text-nowrap">{{ r.mb }} MB</td>
+          <td>{% if r.limpiado %}<span class="badge bg-secondary-lt">BD limpiada</span>{% elif r.vigente %}<span class="badge bg-green-lt text-green">Listo para limpiar</span>{% else %}<span class="badge bg-yellow-lt text-yellow">Vencido</span>{% endif %}</td>
+          <td class="text-nowrap">
+            <a class="btn btn-sm" href="{% url 'settings_limpieza_descargar' %}?f={{ r.nombre }}"><i class="ti ti-download me-1"></i>Descargar</a>
+            {% if r.vigente %}<button type="button" class="btn btn-sm btn-danger lp-limpiar" data-respaldo="{{ r.nombre }}" data-modulos="{{ r.modulos|join:' · ' }}"><i class="ti ti-trash me-1"></i>Limpiar BD</button>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Aún no hay respaldos. Guarda el JSON general (paso 1).</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="lp-modal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="lp-form-limpiar">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="limpiar">
+      <input type="hidden" name="respaldo" id="lp-respaldo">
+      <div class="modal-status bg-danger"></div>
+      <div class="modal-header"><h5 class="modal-title text-danger"><i class="ti ti-alert-octagon me-1"></i>Limpiar la base de datos</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Se borrarán <b>todos los registros</b> (y su historial) de: <b id="lp-mods"></b>.</p>
+        <p class="text-muted small">Solo se podrán recuperar restaurando el respaldo <code id="lp-nom"></code>.</p>
+        <div class="mb-3"><label class="form-label">Tu contraseña</label><input type="password" name="password" class="form-control" required autocomplete="current-password"></div>
+        <div><label class="form-label">Escribe <b>{{ frase }}</b></label><input type="text" name="frase" class="form-control" id="lp-frase" required autocomplete="off"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-danger" id="lp-btn-limpiar" disabled><i class="ti ti-trash me-1"></i>Limpiar BD</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block vendor_head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'accounts/css/settings_limpieza.css' %}?v=1">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'accounts/js/settings_limpieza.js' %}?v=1"></script>
+{% endblock %}

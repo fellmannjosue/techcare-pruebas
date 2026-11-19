@@ -15,10 +15,11 @@
                     <tbody>
                       {% for r in records_ent %}
                       <tr>
-                        <td><span class="badge bg-green-lt text-green">{{ r.record_id }}</span></td>
-                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="badge bg-green-lt text-green btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
+                        <td class="fw-semibold">{% if r.laboratorio %}<span class="text-indigo"><i class="ti ti-flask me-1"></i>{{ r.lab_display }}</span>{% elif r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        {# <--- hecho por claude code (seguridad 05-nov-2026): popover HTML con doble escape en los datos del usuario (el navegador deshace un nivel y Bootstrap mete el resto como HTML) #}
                         <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
-                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Asignado:</b> {{ r.teacher_name|default:'—' }}</div><div><b>Grado:</b> {{ r.grade|default:'—' }}</div>">{{ r.model|default:"—" }}</span></td>
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—'|force_escape|force_escape }}</div><div><b>Asignado:</b> {{ r.teacher_name|default:'—'|force_escape|force_escape }}</div><div><b>Grado:</b> {{ r.grade|default:'—'|force_escape|force_escape }}</div>">{{ r.model|default:"—" }}</span></td>
                         <td>
                           {% for lbl, ok, det in r.movimiento_respuestas %}
                           <span class="badge {% if ok %}bg-success-lt text-success{% else %}bg-secondary-lt text-secondary{% endif %} me-1" title="{{ lbl }}{% if det %} — {{ det }}{% endif %}">{% if ok %}✓{% else %}—{% endif %} {% if forloop.counter == 1 %}Equipo{% elif forloop.counter == 2 %}Mouse/teclado{% elif forloop.counter == 3 %}TV{% else %}Control TV{% endif %}</span>

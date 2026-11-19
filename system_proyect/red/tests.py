@@ -38,7 +38,7 @@ class ValidacionVLANTests(TestCase):
         self.assertTrue(any('superpon' in e for e in services.validar_vlan(v)))
 
     def test_solape_subredes(self):
-        _vlan(vlan_id=1, nombre='a', subred='192.168.99.0/24')
+        _vlan(vlan_id=3901, nombre='a', subred='192.168.99.0/24')   # <--- (09-nov-2026) la VLAN 1 ya la crea una migración de datos
         self.assertTrue(services.subredes_solapadas('192.168.99.0/25'))
 
 

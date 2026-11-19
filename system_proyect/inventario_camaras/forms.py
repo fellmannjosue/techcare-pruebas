@@ -4,6 +4,7 @@ from .models import (
     Servidor, NVR, Componente, Gabinete, Camara,
     TipoFallaCamara, MantenimientoCamara,
 )
+from .seguridad import FIRMA_MAX_CHARS, validar_firma_png  # <--- hecho por claude code (seguridad 05-nov-2026)
 
 _TXT    = {'class': 'form-control'}
 _SEL    = {'class': 'form-select'}
@@ -128,14 +129,15 @@ class MantenimientoCamaraForm(forms.ModelForm):
 class FirmaTecnicoForm(forms.Form):
     """Formulario público (sin login) para que el técnico firme por link."""
     tecnico_nombre = forms.CharField(
-        label="Tu nombre completo", max_length=150,
+        label="Tu nombre completo", max_length=150, min_length=3,  # <--- hecho por claude code (seguridad 05-nov-2026): mínimo 3 caracteres
         widget=forms.TextInput(attrs={'class': 'form-control form-control-lg',
                                        'placeholder': 'Nombre del técnico'})
     )
-    firma_data = forms.CharField(widget=forms.HiddenInput, required=True)
+    firma_data = forms.CharField(widget=forms.HiddenInput, required=True, max_length=FIRMA_MAX_CHARS)  # <--- hecho por claude code (seguridad 05-nov-2026): POST anónimo con tope de tamaño
 
     def clean_firma_data(self):
-        data = self.cleaned_data.get('firma_data', '').strip()
-        if not data or not data.startswith('data:image'):
-            raise forms.ValidationError("Debes firmar antes de enviar.")
-        return data
+        # <--- hecho por claude code (seguridad 05-nov-2026): antes bastaba con que empezara por "data:image"; ahora tiene que ser un PNG real (Pillow) y se guarda re-codificado
+        try:
+            return validar_firma_png(self.cleaned_data.get('firma_data', ''))
+        except ValueError as e:
+            raise forms.ValidationError(str(e))

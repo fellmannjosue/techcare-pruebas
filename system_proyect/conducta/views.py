@@ -1,4 +1,6 @@
+from django.contrib.auth.decorators import login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): candado global de sesión
 import io, os, json
+from conducta.periodo_modulos import respuesta_si_cerrado   # <--- hecho por claude code (06-nov-2026)
 from conducta.richtext import (   # <--- hecho por claude code (03-nov-2026): comentario con formato
     sanitizar as _san_coment, a_markup_pdf as _coment_pdf, tiene_formato as _coment_formato)
 from accounts.models import CoordPermiso
@@ -406,13 +408,14 @@ def _notificar_coordinadores(tipo, maestro, alumno, grado, materia, area, coordi
     icon  = _TIPO_ICON.get(tipo, '&#128203;')
     anio  = _dt_module.datetime.now().year
     filas_html = ""
+    from html import escape as _esc  # <--- hecho por claude code (seguridad 05-nov-2026): grado/materia llegan como texto libre del maestro (carga:docente|materia) y se metían sin escapar en el HTML del correo
     for etiqueta, valor in [("Tipo", tipo), ("Maestro", nombre), ("Alumno", alumno),
                              ("Grado", grado), ("Materia", materia), ("Área", area)]:
         if valor:
             filas_html += (
                 f'<tr><td style="padding:8px 0;font-size:12px;color:#6c757d;'
                 f'text-transform:uppercase;letter-spacing:.4px;width:90px;">{etiqueta}</td>'
-                f'<td style="padding:8px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{valor}</td></tr>'
+                f'<td style="padding:8px 0;font-size:14px;color:#1a1a2e;font-weight:600;">{_esc(str(valor))}</td></tr>'
             )
     html_cuerpo = f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
@@ -768,16 +771,20 @@ def _maestro_dos_areas(user):
 
 # <--- hecho por claude code (seguridad): el área salía del PATH, no del usuario, así que
 # un maestro de colegio abría /reporte/conductual/bilingue/ y veía (y podía reportar sobre)
-# a menores de otra área. Estos son los grupos que legítimamente acceden a cada área; el
-# superusuario y administración pasan siempre para no bloquear a nadie.
+# a menores de otra área. Estos son los grupos que legítimamente acceden a cada área.
+from accounts.panel_roles import _GRUPOS_COORD_BL as _COORD_BL, _GRUPOS_COORD_COL as _COORD_COL
+from django.core.exceptions import PermissionDenied
+
+# <--- hecho por claude code (seguridad 05-nov-2026): grupos del área = maestros + coordinadores del área, el mismo criterio del menú (nav_maestro_*/nav_coord_* en core/context_processors.py)
 _GRUPOS_AREA_CONDUCTA = {
-    'bilingue': {'maestros_bilingue', 'coordinador_bilingue', 'coord_progress_bl'},
-    'colegio':  {'maestros_colegio',  'coordinador_colegio'},
+    'bilingue': {'maestros_bilingue', *_COORD_BL},
+    'colegio':  {'maestros_colegio', *_COORD_COL},
 }
 
 
 def _puede_area_conducta(user, area):
-    if user.is_superuser or user.is_staff or user.groups.filter(name='administracion').exists():
+    # <--- hecho por claude code (seguridad 05-nov-2026): is_staff y 'administracion' ya NO abren el área (24 cuentas de administración —panadería, contabilidad, auditoría— veían a los menores de las dos áreas); ningún autor real dependía de eso
+    if user.is_superuser:
         return True
     return user.groups.filter(name__in=_GRUPOS_AREA_CONDUCTA.get(area, set())).exists()
 
@@ -787,30 +794,68 @@ def _puede_area_conducta(user, area):
 # usaba `is_staff` o `name__icontains='coordinador'`: lo primero convierte a cualquier staff
 # en coordinador; lo segundo NO distingue área (coordinador_colegio contiene "coordinador" y
 # pasaba para bilingüe). Aquí sí se separa por área. `is_staff` YA NO cuenta como coordinador.
-from accounts.panel_roles import _GRUPOS_COORD_BL as _COORD_BL, _GRUPOS_COORD_COL as _COORD_COL
-
 _GRUPOS_COORD_POR_AREA = {'bilingue': _COORD_BL, 'colegio': _COORD_COL}
 
 
 def _es_coord_area(user, area):
-    if user.is_superuser or user.groups.filter(name='administracion').exists():
+    # <--- hecho por claude code (seguridad 05-nov-2026): 'administracion' ya NO cuenta como coordinador (el menú nunca le muestra el dashboard de coordinador): solo superusuario o el grupo coordinador del área
+    if user.is_superuser:
         return True
     return user.groups.filter(name__in=_GRUPOS_COORD_POR_AREA.get(area, ())).exists()
 
 
+def _areas_coord(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): áreas que el usuario coordina ([] si ninguna)."""
+    return [a for a in ('bilingue', 'colegio') if _es_coord_area(user, a)]
+
+
+def _exigir_coord_area(user, area):
+    """<--- hecho por claude code (seguridad 05-nov-2026): 403 si no es coordinador de ESA área."""
+    if not _es_coord_area(user, area):
+        raise PermissionDenied('Solo un coordinador de esta área.')
+
+
+def _area_reporte(reporte):
+    """<--- hecho por claude code (seguridad 05-nov-2026): ProgressReport no tiene campo área (solo existe en Bilingüe)."""
+    return getattr(reporte, 'area', None) or 'bilingue'
+
+
 def _puede_gestionar_reporte(user, reporte):
-    """Editar / eliminar / descargar un reporte concreto: su AUTOR, o un coordinador de
-    ESE reporte (por su área). Cierra el acceso cross-área y por is_staff."""
+    """Ver / descargar un reporte concreto: su AUTOR, o un coordinador de ESE reporte
+    (por su área). Cierra el acceso cross-área y por is_staff."""
     if getattr(reporte, 'usuario_id', None) == user.id:
         return True
-    return _es_coord_area(user, getattr(reporte, 'area', None))
+    return _es_coord_area(user, _area_reporte(reporte))
+
+
+def _puede_editar_reporte_coord(user, reporte):
+    """<--- hecho por claude code (seguridad 05-nov-2026): editar como coordinador (estado, firma y comentario del coordinador) = coordinador del área del reporte con «Dashboard – Editar» (CoordPermiso), el mismo criterio que muestra el botón Editar; el autor maestro ya no puede aprobar/firmar su propio reporte."""
+    if user.is_superuser:
+        return True
+    return _es_coord_area(user, _area_reporte(reporte)) and _coord_dash_perms(user)[0]
+
+
+def _puede_eliminar_reporte(user, reporte):
+    """<--- hecho por claude code (seguridad 05-nov-2026): eliminar = coordinador del área del reporte con «Dashboard – Eliminar» vigente (CoordPermiso), igual que el botón de la UI."""
+    if user.is_superuser:
+        return True
+    return _es_coord_area(user, _area_reporte(reporte)) and _coord_dash_perms(user)[1]
 
 
 def _exigir_area_conducta(user, area):
     """Corta con 403 si el usuario no tiene el área. Úsese al entrar a cada vista."""
-    from django.core.exceptions import PermissionDenied
     if not _puede_area_conducta(user, area):
         raise PermissionDenied('No tiene acceso al área solicitada.')
+
+
+def _puede_progress_bl(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): progress BL = maestros/coordinación BL o el rol 'solo_progress' (el menú le muestra el enlace con nav_solo_progress)."""
+    return _puede_area_conducta(user, 'bilingue') or user.groups.filter(name='solo_progress').exists()
+
+
+def _exigir_progress_bl(user):
+    if not _puede_progress_bl(user):
+        raise PermissionDenied('No tiene acceso a Progress Report.')
 
 
 @login_required
@@ -830,10 +875,30 @@ def dashboard_maestro(request):
     return render(request, 'conducta/dashboard_maestros.html', {'area': area})
 
 # ------------ REPORTE INFORMATIVO  ------------
+def _recientes_por_alumno(area, dias=120, maximo=3):
+    """<--- hecho por claude code (06-nov-2026): últimos reportes de cada alumno (para la tarjeta del alumno del formulario).
+    {alumno_id: [{'t': 'inf'|'con', 'f': 'dd/mm', 'm': materia, 'e': estado}, ...]} · solo informativos y conductuales del área."""
+    import datetime as _d
+    desde = timezone.now() - _d.timedelta(days=dias)
+    out = {}
+    filas = ([('inf', r) for r in ReporteInformativo.objects.filter(area=area, fecha__gte=desde).exclude(estado='borrador').only('alumno_id', 'fecha', 'materia', 'estado')] +
+             [('con', r) for r in ReporteConductual.objects.filter(area=area, fecha__gte=desde).exclude(estado='borrador').only('alumno_id', 'fecha', 'materia', 'estado')])
+    filas.sort(key=lambda x: x[1].fecha, reverse=True)
+    for t, r in filas:
+        lst = out.setdefault(str(r.alumno_id), [])
+        if len(lst) < maximo:
+            lst.append({'t': t, 'f': r.fecha.strftime('%d/%m'), 'm': r.materia or '', 'e': r.estado})
+    return out
+
+
 @login_required
 def reporte_informativo_bilingue(request):
     area = 'bilingue'
     _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'inf', area)
+    if _cerrado:
+        return _cerrado
     students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%dT%H:%M")
@@ -881,6 +946,7 @@ def reporte_informativo_bilingue(request):
         return redirect('reporte_informativo_bilingue')
 
     return render(request, 'conducta/form_informativo.html', {
+        'recientes': _recientes_por_alumno('bilingue'),   # <--- hecho por claude code (06-nov-2026): tarjeta del alumno
         'students': students,
         'students_agrupados': obtener_alumnos_bilingue_agrupados(),  # <--- hecho por claude code: alumnos por grupo
         'materia_docente_choices': materia_docente_choices,
@@ -893,6 +959,10 @@ def reporte_informativo_bilingue(request):
 def reporte_informativo_colegio(request):
     area = 'colegio'
     _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'inf', area)
+    if _cerrado:
+        return _cerrado
     students = obtener_alumnos_colegio()
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%dT%H:%M")
@@ -933,6 +1003,7 @@ def reporte_informativo_colegio(request):
         return redirect('reporte_informativo_colegio')
 
     return render(request, 'conducta/form_informativo.html', {
+        'recientes': _recientes_por_alumno('colegio'),   # <--- hecho por claude code (06-nov-2026): tarjeta del alumno
         'students': students,
         'materia_docente_choices': materia_docente_choices,
         'fecha': fecha,
@@ -944,6 +1015,10 @@ def reporte_informativo_colegio(request):
 def reporte_conductual_bilingue(request):
     area = 'bilingue'
     _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'con', area)
+    if _cerrado:
+        return _cerrado
     students = obtener_alumnos_bilingue_cfg()  # <--- hecho por claude code: alumnado desde JSON
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%d")
@@ -1025,6 +1100,10 @@ def reporte_conductual_bilingue(request):
 def reporte_conductual_colegio(request):
     area = 'colegio'
     _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'con', area)
+    if _cerrado:
+        return _cerrado
     students = obtener_alumnos_colegio()
     materia_docente_choices = get_materia_docente_choices(area)
     fecha = timezone.now().strftime("%Y-%m-%d")
@@ -1094,6 +1173,11 @@ def reporte_conductual_colegio(request):
 #-------------- PROGRESS REPORT -----------------
 @login_required
 def progress_report_bilingue(request):
+    _exigir_progress_bl(request.user)  # <--- hecho por claude code (seguridad 05-nov-2026): listaba a todo el alumnado BL a cualquier usuario con sesión
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'pro', 'bilingue')
+    if _cerrado:
+        return _cerrado
     # <--- hecho por claude code: lista fija completa como Agendas (asociadas incluidas,
     # ya no hay "Agregar fila Asociada"). Las vacías se ocultan en el PowerPoint/PDF.
     MATERIAS_PRIMARIA = [
@@ -1254,6 +1338,7 @@ def _agendas_historial(usuario, areas):
         docente = (a.usuario.get_full_name() or a.usuario.username) if a.usuario else '—'
         out.append({
             'pk': a.pk,
+            'usuario_id': a.usuario_id,   # <--- hecho por claude code (06-nov-2026): la línea de tiempo muestra solo las propias
             'grado': a.grado.nombre,
             'docente': docente,
             'semana_inicio': a.semana_inicio,
@@ -1268,6 +1353,8 @@ def _agendas_historial(usuario, areas):
 
 @login_required
 def historial_maestro_bilingue(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): mostraba TODOS los progress reports BL a cualquier usuario con sesión; ahora solo maestros/coordinadores BL (el llenado de progress es colaborativo entre ellos)
+    _exigir_progress_bl(request.user)
     usuario = request.user
     usuario_actual = usuario.get_full_name()
     request.session['maestro_area'] = 'bilingue'
@@ -1304,7 +1391,11 @@ def historial_maestro_bilingue(request):
     # real del usuario: Panel General si da clase en las dos áreas, su dashboard si no)
     back_url = 'tickets/submit_ticket/' if es_admin else ''
 
+    _lin = _linea_historial(usuario, reportes_informativo, reportes_conductual,
+                            [r for r in reportes_progress if r.usuario_id == usuario.id],
+                            convocatorias_tut, agendas_usuario, tickets_usuario, 'bilingue')
     return render(request, 'conducta/historial_maestro.html', {
+        'linea': _lin[0], 'linea_conteo': _lin[1], 'linea_total': _lin[2],   # <--- hecho por claude code (06-nov-2026): diseño B
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
         'reportes_progress': reportes_progress,
@@ -1317,8 +1408,72 @@ def historial_maestro_bilingue(request):
     })
 
 
+def _linea_historial(usuario, informativos, conductuales, progress, tutorias, agendas, tickets, area):
+    """<--- hecho por claude code (06-nov-2026): Historial del maestro como LÍNEA DE TIEMPO (diseño B).
+    Une todo lo que registró el usuario en una lista por fecha: [{'dia': date, 'items': [...]}, ...]."""
+    import datetime as _d
+    from django.urls import reverse as _rev
+    def _dt(x):
+        if isinstance(x, _d.datetime):
+            return x
+        if isinstance(x, _d.date):
+            return _d.datetime.combine(x, _d.time())
+        return _d.datetime.min
+    def _est(e):
+        return {'aprobado': ('apr', 'Aprobado'), 'revisado': ('rev', 'Revisado'), 'borrador': ('bor', 'Borrador')}.get(e, ('env', 'Enviado'))
+    it = []
+    for r in informativos:
+        k, t = _est(r.estado)
+        it.append({'tipo': 'inf', 'tipo_txt': 'Informativo' + (' · Conductual' if r.tipo_reporte == 'conductual' else ''),
+                   'titulo': r.alumno_nombre, 'sub': ' · '.join(x for x in (r.grado, r.materia) if x), 'cuando': _dt(r.fecha),
+                   'est': k, 'est_txt': t, 'evid': list(r.evidenciareporte_set.all()),
+                   'acc': [('PDF', _rev('descargar_pdf_informativo', args=[r.id]), 'ti-file-type-pdf', True)]})
+    for r in conductuales:
+        k, t = _est(r.estado)
+        it.append({'tipo': 'con', 'tipo_txt': 'Conductual', 'titulo': r.alumno_nombre,
+                   'sub': ' · '.join(x for x in (r.grado, r.materia) if x), 'cuando': _dt(r.fecha), 'est': k, 'est_txt': t,
+                   'evid': list(r.evidenciareporte_set.all()),
+                   'acc': [('PDF', _rev('descargar_pdf_conductual', args=[r.id]), 'ti-file-type-pdf', True),
+                           ('3 Strikes', _rev('descargar_pdf_conductual_3_strikes', args=[r.id]), 'ti-file-alert', False)]})
+    for r in progress:
+        k, t = _est(r.estado)
+        it.append({'tipo': 'pro', 'tipo_txt': 'Progress', 'titulo': r.alumno_nombre,
+                   'sub': '%s · semana %s – %s' % (r.grado, r.semana_inicio.strftime('%d/%m'), r.semana_fin.strftime('%d/%m/%Y')),
+                   'cuando': _dt(r.fecha), 'est': k, 'est_txt': t, 'evid': [],
+                   'acc': [('Editar', _rev('editar_progress_report', args=[r.id]), 'ti-pencil', False)]})
+    for c in tutorias:
+        it.append({'tipo': 'tut', 'tipo_txt': 'Tutorías', 'titulo': c['alumno_nombre'],
+                   'sub': '%s · P%s · %s' % (c['grado'], c['parcial'], c['asigs_txt']), 'cuando': _dt(c['fecha']),
+                   'est': '', 'est_txt': '', 'evid': [], 'acc': []})
+    for a in agendas:
+        if a.get('usuario_id') != usuario.id:
+            continue
+        it.append({'tipo': 'age', 'tipo_txt': 'Agenda', 'titulo': 'Agenda %s' % a['grado'],
+                   'sub': 'Semana %s – %s · %s materias' % (a['semana_inicio'].strftime('%d/%m'), a['semana_fin'].strftime('%d/%m/%Y'), a['n_materias']),
+                   'cuando': _dt(a['semana_inicio']), 'est': 'env', 'est_txt': a['estado'], 'evid': [],
+                   'acc': [('Ver / Editar', _rev('agendas:editar_agenda', args=[a['pk']]), 'ti-eye', False)]})
+    for t in tickets:
+        ok = t.status in ('Resuelto', 'Cerrado', 'Closed')
+        acc = [('Chat', _rev('ticket_comments', args=[t.id]) + '?area=' + area, 'ti-message-dots', False)]
+        if t.attachment:
+            acc.append(('Adjunto', _rev('ticket_adjunto', args=[t.id]), 'ti-paperclip', True))
+        it.append({'tipo': 'tic', 'tipo_txt': 'Ticket', 'titulo': t.ticket_id, 'sub': (t.description or '')[:90],
+                   'cuando': _dt(t.created_at), 'est': 'apr' if ok else 'env', 'est_txt': 'Resuelto' if ok else t.status,
+                   'evid': [], 'acc': acc})
+    it.sort(key=lambda x: x['cuando'], reverse=True)
+    dias = []
+    for x in it:
+        d = x['cuando'].date() if x['cuando'] != _d.datetime.min else None
+        if not dias or dias[-1]['dia'] != d:
+            dias.append({'dia': d, 'items': []})
+        dias[-1]['items'].append(x)
+    conteo = {k: sum(1 for x in it if x['tipo'] == k) for k in ('tic', 'inf', 'con', 'pro', 'tut', 'age')}
+    return dias, conteo, len(it)
+
+
 @login_required
 def historial_maestro_colegio(request):
+    _exigir_area_conducta(request.user, 'colegio')  # <--- hecho por claude code (seguridad 05-nov-2026): listaba las agendas del área a cualquier usuario con sesión
     usuario = request.user
     request.session['maestro_area'] = 'colegio'
     reportes_informativo = ReporteInformativo.objects.filter(usuario=usuario, area='colegio').order_by('-fecha')
@@ -1333,7 +1488,9 @@ def historial_maestro_colegio(request):
     # real del usuario: Panel General si da clase en las dos áreas, su dashboard si no)
     back_url = 'tickets/submit_ticket/' if es_admin else ''
 
+    _lin = _linea_historial(usuario, reportes_informativo, reportes_conductual, [], [], agendas_usuario, tickets_usuario, 'colegio')
     return render(request, 'conducta/historial_maestro.html', {
+        'linea': _lin[0], 'linea_conteo': _lin[1], 'linea_total': _lin[2],   # <--- hecho por claude code (06-nov-2026): diseño B
         'reportes_informativo': reportes_informativo,
         'reportes_conductual': reportes_conductual,
         'reportes_progress': [],
@@ -1348,6 +1505,7 @@ def historial_maestro_colegio(request):
 # REENVIAR NOTIFICACIONES A COORDINADORES (solo superuser)
 # ────────────────────────────────────────────────────────────
 @login_required
+@require_POST  # <--- hecho por claude code (seguridad 05-nov-2026): manda correos; el JS ya usa POST
 def reenviar_reportes_coordinadores(request):
     if not request.user.is_superuser:
         return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
@@ -1397,11 +1555,20 @@ def reenviar_reportes_coordinadores(request):
 # EDITAR CONDUCTUAL
 # ────────────────
 
+# <--- hecho por claude code (seguridad 05-nov-2026): estados que puede poner el coordinador ('borrador' es solo del auto-guardado del maestro y esconde el reporte a coordinación)
+_ESTADOS_COORD = ('enviado', 'revisado', 'aprobado')   # <--- sin «revisando» (06-nov-2026)
+
+
+def _estado_coord(valor, actual):
+    v = (valor or '').strip()
+    return v if v in _ESTADOS_COORD else actual
+
+
 @login_required
 def editar_reporte_conductual(request, pk):
     reporte = get_object_or_404(ReporteConductual, pk=pk)
-    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
-        from django.core.exceptions import PermissionDenied
+    # <--- hecho por claude code (seguridad 05-nov-2026): editor de COORDINADOR (estado/firma): antes también lo abría el autor maestro y podía aprobar y firmar su propio reporte
+    if not _puede_editar_reporte_coord(request.user, reporte):
         raise PermissionDenied('No puede editar este reporte.')
 
     # Elige coordinadores según área
@@ -1419,7 +1586,7 @@ def editar_reporte_conductual(request, pk):
     if request.method == "POST":
         reporte.comentario            = _san_coment(request.POST.get("comentario", ""))
         reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
-        reporte.estado                = request.POST.get("estado", "enviado")
+        reporte.estado                = _estado_coord(request.POST.get("estado"), reporte.estado)  # <--- hecho por claude code (seguridad 05-nov-2026): solo estados válidos
         reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
         reporte.save()
         # <--- hecho por claude code: actualizar incisos desde los checkboxes del coordinador
@@ -1446,8 +1613,8 @@ def editar_reporte_conductual(request, pk):
 @login_required
 def editar_reporte_informativo(request, pk):
     reporte = get_object_or_404(ReporteInformativo, pk=pk)
-    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
-        from django.core.exceptions import PermissionDenied
+    # <--- hecho por claude code (seguridad 05-nov-2026): editor de COORDINADOR (estado/firma): antes también lo abría el autor maestro y podía aprobar y firmar su propio reporte
+    if not _puede_editar_reporte_coord(request.user, reporte):
         raise PermissionDenied('No puede editar este reporte.')
 
     # Elige coordinadores según área
@@ -1459,9 +1626,10 @@ def editar_reporte_informativo(request, pk):
     if request.method == "POST":
         reporte.comentario            = _san_coment(request.POST.get("comentario", ""))
         reporte.comentario_coordinador = request.POST.get("comentario_coordinador", "")
-        reporte.estado                = request.POST.get("estado", "enviado")
+        reporte.estado                = _estado_coord(request.POST.get("estado"), reporte.estado)  # <--- hecho por claude code (seguridad 05-nov-2026): solo estados válidos
         reporte.coordinador_firma     = request.POST.get("coordinador_firma", "")
-        reporte.tipo_reporte          = request.POST.get("tipo_reporte", "academico")
+        _tr = request.POST.get("tipo_reporte", "academico")
+        reporte.tipo_reporte          = _tr if _tr in ('academico', 'conductual') else reporte.tipo_reporte  # <--- hecho por claude code (seguridad 05-nov-2026)
         reporte.save()
         messages.success(request, "Reporte informativo actualizado correctamente.")
         return redirect('dashboard_coordinador', area=reporte.area)
@@ -1480,7 +1648,7 @@ def eliminar_reporte_conductual(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
     reporte = get_object_or_404(ReporteConductual, pk=pk)
-    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+    if not _puede_eliminar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad 05-nov-2026): coordinador del área con permiso de eliminar vigente (como el botón)
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     info = {
         'pk': reporte.pk,
@@ -1506,7 +1674,7 @@ def eliminar_reporte_informativo(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
     reporte = get_object_or_404(ReporteInformativo, pk=pk)
-    if not _puede_gestionar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad)
+    if not _puede_eliminar_reporte(request.user, reporte):  # <--- hecho por claude code (seguridad 05-nov-2026): coordinador del área con permiso de eliminar vigente (como el botón)
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     info = {
         'pk': reporte.pk,
@@ -1536,36 +1704,49 @@ def bulk_eliminar_reportes(request):
     Body: { "items": [{"pk": 1, "tipo": "informativo"}, ...] }
     <--- hecho por claude code
     """
-    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes bastaba is_staff o un grupo con "coordinador" (cualquier área) y se borraba por pk sin mirar área ni autor; ahora coordinador con «Dashboard – Eliminar» vigente (la barra masiva solo sale con ese permiso) y CADA reporte se valida con _puede_eliminar_reporte (su área)
+    if not (request.user.is_superuser or (_areas_coord(request.user) and _coord_dash_perms(request.user)[1])):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
 
     try:
         body  = json.loads(request.body or b'{}')
-        items = body.get('items', [])
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)})
+        items = body.get('items', []) if isinstance(body, dict) else []
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+    if not isinstance(items, list):
+        items = []
 
     eliminador = request.user.get_full_name() or request.user.username
     eliminados = 0
     errores    = []
 
     for item in items:
+        if not isinstance(item, dict):
+            continue
         pk   = item.get('pk')
         tipo = item.get('tipo', '')
         try:
-            if tipo in ('informativo', 'academico', 'conductual_inf'):
-                obj = ReporteInformativo.objects.get(pk=pk)
-            elif tipo == 'conductual':
-                obj = ReporteConductual.objects.get(pk=pk)
-            elif tipo == 'progress':
-                obj = ProgressReport.objects.get(pk=pk)
-            else:
-                errores.append(f'Tipo desconocido: {tipo}')
-                continue
-            obj.delete()
-            eliminados += 1
-        except Exception as e:
-            errores.append(f'pk={pk}: {e}')
+            pk = int(pk)
+        except (TypeError, ValueError):
+            errores.append('pk inválido')
+            continue
+        if tipo in ('informativo', 'academico', 'conductual_inf'):
+            obj = ReporteInformativo.objects.filter(pk=pk).first()
+        elif tipo == 'conductual':
+            obj = ReporteConductual.objects.filter(pk=pk).first()
+        elif tipo == 'progress':
+            obj = ProgressReport.objects.filter(pk=pk).first()
+        else:
+            errores.append('Tipo desconocido')
+            continue
+        if obj is None:
+            errores.append(f'pk={pk}: no existe')
+            continue
+        if not _puede_eliminar_reporte(request.user, obj):
+            errores.append(f'pk={pk}: sin permiso')
+            continue
+        obj.delete()
+        eliminados += 1
 
     if eliminados:
         msg = f"⚠️ Eliminación masiva: {eliminados} reporte(s) eliminados por {eliminador}."
@@ -1609,11 +1790,16 @@ def set_coord_reporte(request):
 # ────────────────────────────────────────────────────────────────
 @login_required
 def editar_reporte_ajax(request):
-    if not es_coordinador(request.user):
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes es_coordinador() = is_staff o cualquier grupo "coordinador" (sin área); ahora coordinador del ÁREA del reporte con «Dashboard – Editar»
+    if not _areas_coord(request.user):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
 
     pk   = request.GET.get('pk')   or request.POST.get('pk')
     tipo = request.GET.get('tipo') or request.POST.get('tipo')
+    try:
+        pk = int(pk)
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'pk inválido'}, status=400)
 
     if tipo == 'conductual':
         obj = get_object_or_404(ReporteConductual, pk=pk)
@@ -1623,6 +1809,8 @@ def editar_reporte_ajax(request):
         obj = get_object_or_404(ProgressReport, pk=pk)
     else:
         return JsonResponse({'ok': False, 'error': 'Tipo inválido'}, status=400)
+    if not _puede_editar_reporte_coord(request.user, obj):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
 
     if request.method == 'GET':
         data = {
@@ -1646,17 +1834,41 @@ def editar_reporte_ajax(request):
         return JsonResponse(data)
 
     if request.method == 'POST':
-        obj.estado             = request.POST.get('estado', obj.estado)
+        obj.estado             = _estado_coord(request.POST.get('estado'), obj.estado)  # <--- hecho por claude code (seguridad 05-nov-2026): solo estados válidos
         obj.coordinador_firma  = request.POST.get('coordinador_firma', '') or None
         obj.comentario_coordinador = request.POST.get('comentario_coordinador', '') or None
         if tipo in ('conductual', 'informativo'):
             obj.comentario = request.POST.get('comentario', '') or None
         if tipo == 'informativo':
-            obj.tipo_reporte = request.POST.get('tipo_reporte', obj.tipo_reporte)
+            _tr = request.POST.get('tipo_reporte', obj.tipo_reporte)
+            obj.tipo_reporte = _tr if _tr in ('academico', 'conductual') else obj.tipo_reporte  # <--- hecho por claude code (seguridad 05-nov-2026)
         obj.save()
         return JsonResponse({'ok': True})
 
     return JsonResponse({'ok': False}, status=405)
+
+
+@login_required
+@require_POST
+def cambiar_estado_reporte(request):
+    """<--- hecho por claude code (06-nov-2026): botones «Marcar revisado» / «Aprobar» del panel de detalle del coordinador.
+    Mismo permiso que la edición (coordinador del ÁREA del reporte con «Dashboard – Editar»). Solo cambia el estado."""
+    if not _areas_coord(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    pk, tipo, estado = request.POST.get('pk', ''), request.POST.get('tipo', ''), request.POST.get('estado', '')
+    if not pk.isdecimal() or estado not in _ESTADOS_COORD:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    modelo = {'conductual': ReporteConductual, 'informativo': ReporteInformativo, 'progress': ProgressReport}.get(tipo)
+    if not modelo:
+        return JsonResponse({'ok': False, 'error': 'Tipo inválido'}, status=400)
+    obj = get_object_or_404(modelo, pk=int(pk))
+    if not _puede_editar_reporte_coord(request.user, obj):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    if getattr(obj, 'estado', '') == 'borrador':
+        return JsonResponse({'ok': False, 'error': 'Es un borrador del maestro: todavía no se envió.'}, status=409)
+    obj.estado = estado
+    obj.save(update_fields=['estado'])
+    return JsonResponse({'ok': True, 'estado': estado})
 
 
 # ────────────────
@@ -1676,7 +1888,10 @@ def editar_progress_report(request, pk):
     COORDINADORES_BL = ["Mr. Martinez", "Miss Alcerro", "Mr. Ruiz" , "Mrs. Varela"]
 
     reporte = get_object_or_404(ProgressReport, pk=pk)
-    es_coord = es_coordinador(request.user)
+    # <--- hecho por claude code (seguridad 05-nov-2026): no había candado (cualquiera con sesión veía y llenaba el progress de cualquier alumno); el llenado sigue colaborativo pero SOLO entre maestros/coordinación BL, y "coordinador" = coordinador BL con «Dashboard – Editar» (antes is_staff o cualquier grupo "coordinador", incluso de Colegio)
+    if not (reporte.usuario_id == request.user.id or _puede_progress_bl(request.user)):
+        raise PermissionDenied('No tiene acceso a este progress report.')
+    es_coord = _puede_editar_reporte_coord(request.user, reporte)
     usuario_actual = request.user.get_full_name() or request.user.username
 
     # Decodificar materias — JSONField puede devolver str si fue guardado con json.dumps()
@@ -1785,7 +2000,7 @@ def editar_progress_report(request, pk):
 
         if es_coord:
             reporte.coordinador_firma      = request.POST.get('coordinador_firma', reporte.coordinador_firma)
-            reporte.estado                 = request.POST.get('estado', reporte.estado)
+            reporte.estado                 = _estado_coord(request.POST.get('estado'), reporte.estado)  # <--- hecho por claude code (seguridad 05-nov-2026): solo estados válidos
             reporte.comentario_coordinador = request.POST.get('comentario_coordinador', reporte.comentario_coordinador)
         elif not es_ajax and reporte.estado == 'borrador':
             # El maestro le dio "Finalizar": el borrador pasa a enviado.
@@ -1883,6 +2098,8 @@ def _draw_paragraph_plano(pdf, text, x, y, max_width, font="Helvetica", font_siz
 # <--- hecho por claude code: PNG del reporte para el link de WhatsApp (público con token)
 # ══════════════════════════════════════════════════════════════════════════
 _REPORTE_PNG_SALT = 'reporte-png-v1'
+# <--- hecho por claude code (seguridad 05-nov-2026): el enlace de WhatsApp ya no es eterno; 60 días cubre de sobra a los que se mandan hoy (el token lleva la hora en que se pintó el dashboard)
+_REPORTE_PNG_MAX_AGE = 60 * 24 * 3600
 
 def _logo_reader_reporte():
     from reportlab.lib.utils import ImageReader
@@ -1971,13 +2188,16 @@ def _pdf_conductual_bytes(r):
         pdf.line(xc,y_f,xc+lf,y_f)
     pdf.save(); buf.seek(0); return buf
 
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 def reporte_png(request, token):
     """<--- hecho por claude code: sirve el reporte como PNG (link de WhatsApp). Público con token firmado."""
     from django.core import signing
     from django.http import Http404
     try:
-        data = signing.loads(token, salt=_REPORTE_PNG_SALT)
-    except signing.BadSignature:
+        data = signing.loads(token, salt=_REPORTE_PNG_SALT, max_age=_REPORTE_PNG_MAX_AGE)  # <--- hecho por claude code (seguridad 05-nov-2026): con caducidad
+    except signing.BadSignature:   # SignatureExpired es subclase: enlace vencido = 404
+        raise Http404('token inválido')
+    if not isinstance(data, dict):
         raise Http404('token inválido')
     tipo, pk = data.get('t'), data.get('pk')
     from .models import ReporteInformativo, ReporteConductual
@@ -1991,7 +2211,7 @@ def reporte_png(request, token):
     imgs = convert_from_bytes(pdf.getvalue(), dpi=110, first_page=1, last_page=1)
     out = io.BytesIO(); imgs[0].save(out, format='PNG'); out.seek(0)
     resp = HttpResponse(out.getvalue(), content_type='image/png')
-    resp['Cache-Control'] = 'public, max-age=86400'
+    resp['Cache-Control'] = 'private, no-store'  # <--- hecho por claude code (seguridad 05-nov-2026): era public (un proxy/caché compartida podía guardar el reporte de un menor)
     return resp
 
 
@@ -2235,8 +2455,9 @@ def fechas_progress(request):
     """Pantalla estilo "Crear agenda": el coordinador BL establece, por parcial, las
     fechas en que toca llenar el Progress Report. SOLO INFORMA (no bloquea el llenado).
     <--- hecho por claude code (27-oct-2026)"""
-    if not (request.user.is_superuser or es_coordinador(request.user)):
-        return HttpResponseForbidden("Solo coordinadores.")
+    # <--- hecho por claude code (seguridad 05-nov-2026): era is_staff o cualquier grupo "coordinador" (contabilidad o Colegio podían cambiarlas); ahora coordinador BL
+    if not _es_coord_area(request.user, 'bilingue'):
+        return HttpResponseForbidden("Solo coordinadores de Bilingüe.")
 
     anio_actual = timezone.now().year
     try:
@@ -2249,6 +2470,14 @@ def fechas_progress(request):
         for p in PARCIALES:
             ini = (request.POST.get(f'inicio_{p}') or '').strip()
             fin = (request.POST.get(f'fin_{p}') or '').strip()
+            try:  # <--- hecho por claude code (seguridad 05-nov-2026): una fecha mal formada daba 500
+                if ini:
+                    _dt_module.date.fromisoformat(ini)
+                if fin:
+                    _dt_module.date.fromisoformat(fin)
+            except ValueError:
+                messages.error(request, f"Fecha inválida en el Parcial {p}.")
+                continue
             if ini and fin:
                 VentanaProgressReport.objects.update_or_create(
                     area='bilingue', anio=anio, parcial=p,
@@ -2362,6 +2591,10 @@ def descargar_pdf_progress(request, pk):
 
     # ── datos ─────────────────────────────────────────────────────────────────
     reporte  = get_object_or_404(ProgressReport, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): sin candado se bajaba el PPTX de cualquier alumno; ahora autor, maestros/coordinadores BL o la cuenta coordinacion_bl
+    if not (reporte.usuario_id == request.user.id or _puede_progress_bl(request.user)
+            or (request.user.email or '').lower() == _EMAIL_COORDI_BL):
+        raise PermissionDenied('No tiene acceso a este progress report.')
     # <--- hecho por claude code: solo materias con contenido (las vacías no salen en el PPTX)
     materias = [m for m in (reporte.materias_json or [])
                 if (m.get('asignacion') or '').strip() or (m.get('comentario') or '').strip()]
@@ -2849,6 +3082,9 @@ def descargar_zip_reportes(request):
 def descargar_pdf_conductual_3_strikes(request, pk):
     from .models import ReporteConductual
     reporte = get_object_or_404(ReporteConductual, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): no tenía candado (cualquiera con sesión sacaba los 3 reportes de un alumno); ahora el autor o coordinación del área, como el PDF normal
+    if not _puede_gestionar_reporte(request.user, reporte):
+        raise PermissionDenied('No puede descargar este reporte.')
 
     # <--- hecho por claude code: regla corregida — el reporte 3 strikes solo se genera
     # cuando el alumno acumula 3 reportes del MISMO tipo (3 leve, 3 grave o 3 muy grave).
@@ -3108,12 +3344,18 @@ def _coord_apps_launcher(request, area, url_name, url_args=None, coord_codigo=No
 
 @login_required
 def dashboard_coordinador(request, area):
+    # <--- hecho por claude code (seguridad 05-nov-2026): la cuenta compartida coordinacion_bl (solo Progress) entraba por 'administracion'; ahora va directo a su tablero propio
+    if area == 'bilingue' and not request.user.is_superuser and (request.user.email or '').lower() == _EMAIL_COORDI_BL:
+        return redirect('dashboard_coordi_bl')
     _exigir_area_conducta(request.user, area)          # el área debe ser suya
     if not _es_coord_area(request.user, area):         # <--- hecho por claude code (seguridad)
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied('Solo un coordinador de esta área.')
     if request.user.groups.filter(name='solo_progress').exists():
         return redirect('progress_report_bilingue')
+    # <--- hecho por claude code (06-nov-2026): el Período Escolar general tiene pantalla propia (solo superusuario)
+    if request.GET.get('app') == 'periodo' and request.user.is_superuser:
+        return redirect('periodo_escolar')
 
     # <--- hecho por claude code (Nivel 2): "Coordinador BL/Colegio" es un LANZADOR de apps.
     # Sin ?app= muestra el grid; con ?app=X entra a esa app enfocada. Los coordinadores con
@@ -3144,7 +3386,7 @@ def dashboard_coordinador(request, area):
                 'area': area,
                 'reportes_informativo': ReporteInformativo.objects.none(),
                 'reportes_conductual':  ReporteConductual.objects.none(),
-                'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.all(), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),
+                'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.exclude(estado='borrador'), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),  # <--- hecho por claude code (seguridad 05-nov-2026): sin borradores
                 'strikes':              {},
                 'today':                timezone.now().strftime('%Y-%m-%d'),
             }
@@ -3186,17 +3428,7 @@ def dashboard_coordinador(request, area):
 
     # ── Permisos editar/eliminar para coordinadores (CoordPermiso) ────────────
     u = request.user
-    if u.is_superuser:
-        can_edit_dash   = True
-        can_delete_dash = True
-    else:
-        try:
-            _cp = u.coord_permiso
-            can_edit_dash   = _cp.dashboard_editar
-            can_delete_dash = _cp.dashboard_eliminar
-        except Exception:
-            can_edit_dash   = False
-            can_delete_dash = False
+    can_edit_dash, can_delete_dash = _coord_dash_perms(u)  # <--- hecho por claude code (seguridad 05-nov-2026): mismo cálculo que valida el servidor (respeta «eliminar hasta»)
 
     contexto = {
         'area': area,
@@ -3284,12 +3516,31 @@ def _coord_dash_perms(user):
         return True, True
     try:
         cp = CoordPermiso.objects.get(user_id=user.pk)
-        return cp.dashboard_editar, cp.dashboard_eliminar
     except CoordPermiso.DoesNotExist:
         return False, False
+    # <--- hecho por claude code (seguridad 05-nov-2026): «Dashboard – Eliminar» es temporal; vencido ya no cuenta (antes solo caducaba cuando el superusuario abría Configuración → Permisos de coordinadores)
+    hasta = cp.dashboard_eliminar_hasta
+    puede_eliminar = bool(cp.dashboard_eliminar) and not (hasta and hasta < timezone.now())
+    return bool(cp.dashboard_editar), puede_eliminar
 
 
+def _exigir_coord_codigo(request, codigo):
+    """<--- hecho por claude code (seguridad 05-nov-2026): dashboard_cN es SOLO del coordinador BL con ese código (ConfiguracionCoordinador o su correo en _REDIRECT_COORD_BL) o del superusuario; antes cualquier usuario con sesión lo abría."""
+    u = request.user
+    if u.is_superuser:
+        return
+    if _es_coord_area(u, 'bilingue'):
+        cfg = _coord_de_usuario(u)
+        if cfg and cfg.area == 'bilingue' and (cfg.codigo or '').strip().upper() == codigo:
+            return
+        if _REDIRECT_COORD_BL.get((u.email or '').lower()) == f'dashboard_{codigo.lower()}':
+            return
+    raise PermissionDenied('Este tablero es de otro coordinador.')
+
+
+@login_required  # <--- hecho por claude code (seguridad 05-nov-2026): c2/c3/c4 lo tenían y c1 no (respondía sin sesión)
 def dashboard_c1(request):
+    _exigir_coord_codigo(request, 'C1')  # <--- hecho por claude code (seguridad 05-nov-2026)
     coord_titulo = _coord_etiqueta_cod('C1')
     _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c1', coord_codigo='C1', coord_titulo=coord_titulo)
     if _l:
@@ -3323,6 +3574,7 @@ def dashboard_c1(request):
 
 @login_required
 def dashboard_c2(request):
+    _exigir_coord_codigo(request, 'C2')  # <--- hecho por claude code (seguridad 05-nov-2026)
     coord_titulo = _coord_etiqueta_cod('C2')
     _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c2', coord_codigo='C2', coord_titulo=coord_titulo)
     if _l:
@@ -3350,6 +3602,7 @@ def dashboard_c2(request):
 
 @login_required
 def dashboard_c3(request):
+    _exigir_coord_codigo(request, 'C3')  # <--- hecho por claude code (seguridad 05-nov-2026)
     coord_titulo = _coord_etiqueta_cod('C3')
     _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c3', coord_codigo='C3', coord_titulo=coord_titulo)
     if _l:
@@ -3380,6 +3633,7 @@ def dashboard_c3(request):
 
 @login_required
 def dashboard_c4(request):
+    _exigir_coord_codigo(request, 'C4')  # <--- hecho por claude code (seguridad 05-nov-2026)
     coord_titulo = _coord_etiqueta_cod('C4')
     _l = _coord_apps_launcher(request, 'bilingue', 'dashboard_c4', coord_codigo='C4', coord_titulo=coord_titulo)
     if _l:
@@ -3407,6 +3661,9 @@ def dashboard_c4(request):
 
 @login_required
 def dashboard_coordi_bl(request):
+    # <--- hecho por claude code (seguridad 05-nov-2026): lo abría cualquier usuario con sesión; ahora coordinación BL, superusuario o la cuenta compartida coordinacion_bl (su dueña)
+    if not (_es_coord_area(request.user, 'bilingue') or (request.user.email or '').lower() == _EMAIL_COORDI_BL):
+        raise PermissionDenied('Solo coordinación Bilingüe.')
     reportes_nuevos_bl = (
         ReporteInformativo.objects.filter(area='bilingue', estado='enviado').count() +
         ReporteConductual.objects.filter(area='bilingue', estado='enviado').count() +
@@ -3417,7 +3674,7 @@ def dashboard_coordi_bl(request):
         'area': 'bilingue',
         'reportes_informativo': ReporteInformativo.objects.none(),
         'reportes_conductual':  ReporteConductual.objects.none(),
-        'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.all(), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),
+        'reportes_progress':    _solo_periodo_activo(ProgressReport.objects.exclude(estado='borrador'), campo='semana_inicio', area='bilingue').annotate(num_evid=Count('evidenciareporte')),  # <--- hecho por claude code (seguridad 05-nov-2026): sin borradores
         'strikes': {}, 'today': timezone.now().strftime('%Y-%m-%d'),
         'mostrar_reportes_nuevos': True, 'reportes_nuevos_bl': reportes_nuevos_bl,
         'can_edit_dash': can_edit_dash, 'can_delete_dash': can_delete_dash,
@@ -3425,6 +3682,79 @@ def dashboard_coordi_bl(request):
         'periodo_activo': _periodo_activo('bilingue'),
         'periodos_escolares': _periodos_escolares('bilingue'),
     })
+
+# <--- hecho por claude code (06-nov-2026, pedido del usuario): pantalla PROPIA del Período Escolar GENERAL
+# (Configuración Académica). Lo usan Conducta, Agendas, Reforzamiento y Salidas al Baño. Solo el superusuario.
+_PERIODO_USOS = ['Reportes informativos', 'Reportes conductuales', 'Agendas', 'Notas mitad de parcial',
+                 'Salidas al Baño', 'Progress Report', 'Convocatoria / Tutorías']
+_PERIODO_AREAS_INFO = [
+    ('ambas',    'Ambas',    'Bilingüe y Colegio'),
+    ('bilingue', 'Bilingüe', 'Primaria y Colegio Bilingüe'),
+    ('colegio',  'Colegio',  'Colegio y Bachillerato'),
+    ('cfp',      'CFP',      'Vocacional'),
+]
+
+
+@login_required
+def periodo_escolar(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'El Período Escolar solo lo configura el administrador.')
+        return redirect('menu')
+    from django.db.models import Count
+    from .models import PeriodoEscolarConducta
+    periodos = list(PeriodoEscolarConducta.objects.annotate(n_salidas=Count('salidas_bano'))
+                    .order_by('-anio', '-parcial', 'area'))
+    editar = None
+    pk = (request.GET.get('editar') or '').strip()
+    if pk.isdecimal():
+        editar = next((p for p in periodos if p.pk == int(pk)), None)
+    activos = {a: [p for p in periodos if p.activo and (p.area == a or (p.area == 'ambas' and a in ('bilingue', 'colegio')))]
+               for a, _l, _d in _PERIODO_AREAS_INFO if a != 'ambas'}
+    hoy = timezone.now().date()
+    resumen = []
+    for a, etq, desc in _PERIODO_AREAS_INFO:
+        if a == 'ambas':
+            continue
+        p = activos[a][0] if activos[a] else None
+        dias = (p.fecha_fin - hoy).days if p else None
+        resumen.append({'area': a, 'etq': etq, 'desc': desc, 'p': p, 'dias': dias, 'dias_abs': abs(dias) if dias is not None else None})
+    from .periodo_modulos import MODULOS, CORTO, modulos_de_area
+    for p in periodos:   # módulos del período con su estado, para la lista y la línea de tiempo
+        p.mods = [{'k': k, 't': t, 'c': CORTO[k], 'on': p.modulo_abierto(k)} for k, t, _a in modulos_de_area(p.area)]
+    # <--- hecho por claude code (06-nov-2026): LÍNEA DE TIEMPO del año (una fila por área, barras con fechas reales)
+    import datetime as _dtm
+    act = next((p for p in periodos if p.activo), None)
+    try:
+        anio_tl = int(request.GET.get('anio') or (act.anio if act else hoy.year))
+    except ValueError:
+        anio_tl = hoy.year
+    ini, fin = _dtm.date(anio_tl, 1, 1), _dtm.date(anio_tl + 1, 1, 1)
+    total = (fin - ini).days
+    filas_tl = []
+    for a, etq, desc in _PERIODO_AREAS_INFO:
+        barras = []
+        for p in periodos:
+            if p.area != a or p.fecha_fin < ini or p.fecha_inicio >= fin:
+                continue
+            i0, f0 = max(p.fecha_inicio, ini), min(p.fecha_fin, fin)
+            barras.append({'p': p, 'left': round((i0 - ini).days / total * 100, 2),
+                           'width': max(round(((f0 - i0).days + 1) / total * 100, 2), 1.2)})
+        if a == 'cfp' and not barras:
+            continue
+        r = next((x for x in resumen if x['area'] == a), None)
+        _sub = {'ambas': 'Bilingüe + Colegio', 'bilingue': 'solo BL', 'colegio': '+ Bachillerato', 'cfp': 'Vocacional'}[a]
+        filas_tl.append({'area': a, 'etq': etq, 'desc': _sub, 'barras': barras, 'res': r})
+    hoy_pct = round((hoy - ini).days / total * 100, 2) if ini <= hoy < fin else None
+    meses_tl = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    areas_form = [x for x in _PERIODO_AREAS_INFO if x[0] != 'cfp' or (editar and editar.area == 'cfp')]
+    mods_form = [{'k': k, 't': t, 'areas': ' '.join(a), 'on': (editar.modulo_abierto(k) if editar else True)}
+                 for k, t, a in MODULOS]
+    return render(request, 'conducta/periodo_escolar.html', {
+        'periodos': periodos, 'editar': editar, 'resumen': resumen, 'usos': _PERIODO_USOS,
+        'areas_info': areas_form, 'mods_form': mods_form, 'anio_actual': hoy.year, 'hoy': hoy,
+        'anio_tl': anio_tl, 'filas_tl': filas_tl, 'hoy_pct': hoy_pct, 'meses_tl': meses_tl,
+    })
+
 
 @login_required
 def periodo_conducta_save(request):
@@ -3438,14 +3768,23 @@ def periodo_conducta_save(request):
         obj.nombre       = request.POST.get('nombre', '').strip()[:60]
         obj.parcial      = int(request.POST.get('parcial') or 1)
         obj.anio         = int(request.POST.get('anio') or timezone.now().year)
-        obj.area         = request.POST.get('area') if request.POST.get('area') in ('bilingue', 'colegio', 'ambas') else 'ambas'
+        # <--- hecho por claude code (06-nov-2026): CFP no tiene período por ahora (solo se conserva el que ya existía)
+        _areas_ok = ('bilingue', 'colegio', 'ambas') + (('cfp',) if obj.pk and obj.area == 'cfp' else ())
+        obj.area         = request.POST.get('area') if request.POST.get('area') in _areas_ok else 'ambas'
         obj.fecha_inicio = request.POST.get('fecha_inicio')
         obj.fecha_fin    = request.POST.get('fecha_fin')
         obj.activo       = request.POST.get('activo') == 'on'
+        from .periodo_modulos import modulos_de_area   # <--- hecho por claude code (06-nov-2026): interruptores por módulo
+        obj.modulos = {k: request.POST.get('mod_' + k) == 'on' for k, _t, _a in modulos_de_area(obj.area)}
+        if not obj.nombre:   # <--- hecho por claude code (06-nov-2026)
+            raise ValueError('el nombre es obligatorio')
+        if str(obj.fecha_fin) < str(obj.fecha_inicio):
+            raise ValueError('la fecha de fin no puede ser anterior a la de inicio')
         obj.save()
         if obj.activo:
             # Un solo período activo por área
-            areas = ['bilingue', 'colegio', 'ambas'] if obj.area == 'ambas' else [obj.area, 'ambas']
+            areas = (['cfp'] if obj.area == 'cfp'   # <--- hecho por claude code (06-nov-2026): CFP no comparte con 'ambas'
+                     else ['bilingue', 'colegio', 'ambas'] if obj.area == 'ambas' else [obj.area, 'ambas'])
             PeriodoEscolarConducta.objects.exclude(pk=obj.pk).filter(area__in=areas).update(activo=False)
         messages.success(request, f'Período "{obj.nombre}" guardado.')
     except Exception as e:
@@ -3458,8 +3797,13 @@ def periodo_conducta_delete(request, pk):
     if not request.user.is_superuser or request.method != 'POST':
         return redirect('menu')
     from .models import PeriodoEscolarConducta
-    PeriodoEscolarConducta.objects.filter(pk=pk).delete()
-    messages.success(request, 'Período eliminado.')
+    # <--- hecho por claude code (06-nov-2026): el período general ahora también lo usan las Salidas al Baño (PROTECT)
+    from django.db.models import ProtectedError
+    try:
+        PeriodoEscolarConducta.objects.filter(pk=pk).delete()
+        messages.success(request, 'Período eliminado.')
+    except ProtectedError:
+        messages.error(request, 'No se puede eliminar: tiene salidas al baño registradas. Desactívalo en lugar de borrarlo.')
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
@@ -3479,6 +3823,8 @@ def historial_alumnado(request, area):
     if area not in ('bilingue', 'colegio'):
         from django.http import Http404
         raise Http404
+    # <--- hecho por claude code (seguridad 05-nov-2026): el área salía del PATH sin validar (cualquiera veía el historial de la otra área); ahora coordinador de ESA área
+    _exigir_coord_area(request.user, area)
     _parcial_de = _parcial_de_factory(_periodos_escolares(area))
 
     # <--- hecho por claude code: solo (parcial, grado) para contar; sin construir filas.
@@ -3488,7 +3834,7 @@ def historial_alumnado(request, area):
     for grado, fecha in ReporteConductual.objects.filter(area=area).values_list('grado', 'fecha'):
         pares.append((_parcial_de(fecha.date()), grado or '—'))
     if area == 'bilingue':
-        for grado, semana in ProgressReport.objects.values_list('grado', 'semana_inicio'):
+        for grado, semana in ProgressReport.objects.exclude(estado='borrador').values_list('grado', 'semana_inicio'):  # <--- hecho por claude code (seguridad 05-nov-2026): sin borradores
             pares.append((_parcial_de(semana), grado or '—'))
 
     parciales = []
@@ -3511,6 +3857,7 @@ def historial_alumnado_grado(request, area):
     if area not in ('bilingue', 'colegio'):
         from django.http import Http404
         raise Http404
+    _exigir_coord_area(request.user, area)  # <--- hecho por claude code (seguridad 05-nov-2026): el área salía del PATH sin validar
     try:
         parcial = int(request.GET.get('parcial') or 0)
     except ValueError:
@@ -3543,7 +3890,7 @@ def historial_alumnado_grado(request, area):
                          'docente': r.docente, 'materia': r.materia, 'fecha': r.fecha, 'estado': r.estado,
                          'num_evid': r.num_evid})
     if area == 'bilingue':
-        for r in (ProgressReport.objects.filter(gfilter)
+        for r in (ProgressReport.objects.filter(gfilter).exclude(estado='borrador')  # <--- hecho por claude code (seguridad 05-nov-2026): sin borradores
                   .annotate(num_evid=Count('evidenciareporte'))):
             if _parcial_de(r.semana_inicio) != parcial:
                 continue
@@ -3669,9 +4016,17 @@ def historial_alumno_coordinador(request, alumno_id):
     Devuelve el historial de reportes (informativo, conductual, progress)
     para un alumno específico. Se usa en el modal del dashboard coordinador.
     """
-    informativos = ReporteInformativo.objects.filter(alumno_id=alumno_id).order_by('-fecha')
-    conductuales = ReporteConductual.objects.filter(alumno_id=alumno_id).order_by('-fecha')
-    progress = ProgressReport.objects.filter(alumno_id=alumno_id).order_by('-fecha')
+    # <--- hecho por claude code (seguridad 05-nov-2026): era un IDOR (cualquiera con sesión veía el historial completo de un menor de cualquier área); ahora solo coordinadores y solo los reportes de las áreas que coordina, sin borradores de progress (la cuenta coordinacion_bl ve solo progress)
+    areas = _areas_coord(request.user)
+    solo_progress = (not areas) and (request.user.email or '').lower() == _EMAIL_COORDI_BL
+    if not areas and not solo_progress:
+        raise PermissionDenied('Solo coordinadores.')
+    informativos = ReporteInformativo.objects.filter(alumno_id=alumno_id, area__in=areas).order_by('-fecha')
+    conductuales = ReporteConductual.objects.filter(alumno_id=alumno_id, area__in=areas).order_by('-fecha')
+    if 'bilingue' in areas or solo_progress:
+        progress = ProgressReport.objects.filter(alumno_id=alumno_id).exclude(estado='borrador').order_by('-fecha')
+    else:
+        progress = ProgressReport.objects.none()
     context = {
         'informativos': informativos,
         'conductuales': conductuales,
@@ -3682,7 +4037,46 @@ def historial_alumno_coordinador(request, alumno_id):
 
 # ----------- EDITOR DE REPORTES ( SOLO COORDINADOR) -----------
 def es_coordinador(user):
-    return user.is_staff or user.groups.filter(name__icontains="coordinador").exists()
+    # <--- hecho por claude code (seguridad 05-nov-2026): era is_staff o name__icontains='coordinador' (sin área); ahora coordinador de ALGUNA área y cada vista valida además el área del objeto
+    return bool(_areas_coord(user))
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): la evidencia se guardaba sin validar (cualquier archivo —p. ej. .html o .svg— quedaba servido por Apache en /media/ del mismo dominio)
+_EVIDENCIA_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+_EVIDENCIA_FMT = {'JPEG', 'PNG', 'GIF', 'WEBP'}
+_EVIDENCIA_MAX_BYTES = 15 * 1024 * 1024
+
+
+def _evidencia_imagen_valida(f):
+    """True si el archivo subido es de verdad una imagen JPG/PNG/GIF/WEBP de tamaño razonable."""
+    nombre = (getattr(f, 'name', '') or '').lower()
+    if '.' not in nombre or nombre.rsplit('.', 1)[1] not in _EVIDENCIA_EXT:
+        return False
+    if (getattr(f, 'size', 0) or 0) > _EVIDENCIA_MAX_BYTES:
+        return False
+    try:
+        from PIL import Image
+        f.seek(0)
+        img = Image.open(f)
+        fmt = (img.format or '').upper()
+        img.verify()
+        return fmt in _EVIDENCIA_FMT
+    except Exception:
+        return False
+    finally:
+        try:
+            f.seek(0)
+        except Exception:
+            pass
+
+
+def _area_evidencia(ev):
+    """<--- hecho por claude code (seguridad 05-nov-2026): área del reporte al que pertenece la evidencia."""
+    if ev.reporte_conductual_id:
+        return ev.reporte_conductual.area
+    if ev.reporte_informativo_id:
+        return ev.reporte_informativo.area
+    return 'bilingue'   # progress solo existe en Bilingüe
 
 
 # Cambia estos según tu lógica o roles
@@ -3698,6 +4092,45 @@ COORDINADORES_COLEGIO = [
     "Profe. Felipe", 
     "Profe. Gabriela"
     ]
+
+
+# <--- hecho por claude code (09-nov-2026, revisión ISO 27001 · datos de menores): las fotos de evidencia
+# ya NO se sirven por /media/evidencias/ (Apache las daba SIN SESIÓN a quien tuviera o adivinara la URL).
+# Ahora salen solo por esta vista, con el mismo criterio que el reporte: su autor o la coordinación del
+# área; en Progress (colaborativo en BL) quien tiene acceso a Progress Report.
+def _puede_ver_evidencia(user, ev):
+    if user.is_superuser:
+        return True
+    if ev.reporte_conductual_id:
+        return _puede_gestionar_reporte(user, ev.reporte_conductual)
+    if ev.reporte_informativo_id:
+        return _puede_gestionar_reporte(user, ev.reporte_informativo)
+    if ev.reporte_progress_id:
+        return _puede_gestionar_reporte(user, ev.reporte_progress) or _puede_progress_bl(user)
+    return False
+
+
+@login_required
+def evidencia_ver(request, pk):
+    from django.http import FileResponse, Http404
+    ev = get_object_or_404(EvidenciaReporte.objects.select_related(
+        'reporte_conductual', 'reporte_informativo', 'reporte_progress'), pk=pk)
+    if not _puede_ver_evidencia(request.user, ev):
+        return HttpResponseForbidden('No tiene acceso a esta evidencia.')
+    if not ev.imagen:
+        raise Http404
+    try:
+        f = ev.imagen.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404
+    ext = os.path.splitext(ev.imagen.name)[1].lower().lstrip('.')
+    tipo = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+            'gif': 'image/gif', 'webp': 'image/webp'}.get(ext, 'application/octet-stream')
+    resp = FileResponse(f, content_type=tipo)
+    resp['Content-Disposition'] = 'inline; filename="evidencia-%d.%s"' % (ev.pk, ext or 'bin')
+    resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cache-Control'] = 'private, no-store'
+    return resp
 
 
 # ─────────────────────────────────────────────────────────────
@@ -3723,7 +4156,12 @@ def subir_evidencia(request):
         titulo = request.POST.get('titulo', '')
 
         # Validar que lleguen todos los datos mínimos
-        if not imagen or not tipo or not reporte_id:
+        if not tipo or not reporte_id:
+            messages.error(request, "Faltan datos para subir la evidencia.")
+            return redirect(request.META.get('HTTP_REFERER', 'dashboard_maestro'))
+        try:
+            reporte_id = int(reporte_id)
+        except (TypeError, ValueError):
             messages.error(request, "Faltan datos para subir la evidencia.")
             return redirect(request.META.get('HTTP_REFERER', 'dashboard_maestro'))
 
@@ -3743,6 +4181,16 @@ def subir_evidencia(request):
         else:
             messages.error(request, "Tipo de reporte inválido.")
             return redirect('dashboard_maestro')
+
+        # <--- hecho por claude code (seguridad 05-nov-2026): solo coordinación del ÁREA de ese reporte (antes cualquier staff, de cualquier área)
+        if not _es_coord_area(request.user, area):
+            return HttpResponseForbidden("Solo coordinadores del área del reporte pueden subir evidencias.")
+        if not imagen:
+            messages.error(request, "Faltan datos para subir la evidencia.")
+            return redirect(request.META.get('HTTP_REFERER', 'dashboard_maestro'))
+        if not _evidencia_imagen_valida(imagen):
+            messages.error(request, "La evidencia debe ser una imagen JPG, PNG, GIF o WEBP (máximo 15 MB).")
+            return redirect('dashboard_coordinador', area=area)
 
         # Máximo 2 evidencias por reporte
         if total_evidencias >= 2:
@@ -3780,6 +4228,9 @@ def eliminar_evidencia(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Método no permitido.'}, status=405)
     ev = get_object_or_404(EvidenciaReporte, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo coordinación del área del reporte (antes cualquier staff borraba evidencias —y su archivo— de cualquier área)
+    if not _es_coord_area(request.user, _area_evidencia(ev)):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
     try:
         ev.imagen.delete(save=False)
     except Exception:
@@ -3815,18 +4266,27 @@ def _moviles_alumno(campo1, campo2):
     return res
 
 
+def _alumno_en_areas(alumno_id, areas):
+    """<--- hecho por claude code (seguridad 05-nov-2026): True si el alumno tiene algún reporte (no borrador) en las áreas dadas."""
+    aid = str(alumno_id)
+    if ReporteInformativo.objects.filter(alumno_id=aid, area__in=areas).exists():
+        return True
+    if ReporteConductual.objects.filter(alumno_id=aid, area__in=areas).exists():
+        return True
+    return 'bilingue' in areas and ProgressReport.objects.filter(alumno_id=aid).exclude(estado='borrador').exists()
+
+
 @login_required
 def telefonos_alumno(request, alumno_id):
     """<--- hecho por claude code: números (WhatsApp) del padre/madre de un alumno, por
     PersonaID (= alumno_id del reporte) desde padres_sqlserver. Solo coord/admin/enfermería."""
     u = request.user
-    permitido = (
-        u.is_superuser or u.is_staff or
-        u.groups.filter(name__in=[
-            'coordinador_bilingue', 'coordinadores_colegio',
-            'coordinador_colegio', 'coordinadores', 'enfermeria',
-        ]).exists()
-    )
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes bastaba is_staff (o un grupo coordinador de CUALQUIER área) para sacar los teléfonos de cualquier PersonaID; ahora superusuario/enfermería o un coordinador cuyo ÁREA tenga reportes de ese alumno (el botón de WhatsApp sale de una fila de reporte)
+    if u.is_superuser or u.groups.filter(name='enfermeria').exists():
+        permitido = True
+    else:
+        areas = _areas_coord(u)
+        permitido = bool(areas) and _alumno_en_areas(alumno_id, areas)
     if not permitido:
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
 
@@ -3845,15 +4305,21 @@ def telefonos_alumno(request, alumno_id):
 
 @login_required
 def directorio_telefonos(request):
+    from django.urls import reverse as _dj_reverse
     user = request.user
-    is_admin       = user.is_superuser or user.is_staff
-    is_coord_bl    = user.groups.filter(name='coordinador_bilingue').exists()
-    is_coord_col   = user.groups.filter(name__in=['coordinadores_colegio', 'coordinador_colegio', 'coordinadores']).exists()
+    # <--- hecho por claude code (seguridad 05-nov-2026): is_admin era superuser o is_staff (cualquier staff de contabilidad/reloj/auditoría veía los teléfonos de las 5 áreas); ahora superusuario/enfermería = todo, coordinador BL = áreas BL, coordinador Colegio = Colegio+Bachillerato (mismos grupos del menú), nadie más (403)
+    is_admin       = user.is_superuser
+    is_coord_bl    = user.groups.filter(name__in=_COORD_BL).exists()
+    is_coord_col   = user.groups.filter(name__in=_COORD_COL).exists()
     is_enfermeria  = user.groups.filter(name='enfermeria').exists()
 
     if is_admin or is_enfermeria:
         areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
         titulo = 'Todos los Alumnos'
+        area_dashboard = 'bilingue'
+    elif is_coord_bl and is_coord_col:
+        areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL', N'Colegio', N'Bachillerato'"
+        titulo = 'Alumnos Bilingüe y Colegio'
         area_dashboard = 'bilingue'
     elif is_coord_bl:
         areas  = "N'PrimariaBL', N'ColegioBL', N'PreescolarBL'"
@@ -3864,9 +4330,7 @@ def directorio_telefonos(request):
         titulo = 'Alumnos Colegio'
         area_dashboard = 'colegio'
     else:
-        areas  = "N''"
-        titulo = ''
-        area_dashboard = 'bilingue'
+        raise PermissionDenied('Solo coordinación o enfermería.')
 
     sql = f"""
       SELECT
@@ -3940,6 +4404,10 @@ def directorio_telefonos(request):
         'total':           len(alumnos),
         'titulo':          titulo,
         'area_dashboard':  area_dashboard,
+        # <--- hecho por claude code (10-nov-2026): Directorio ÚNICO (también el de Enfermería): "Volver" según quién entra
+        'volver_url':      (_dj_reverse('enfermeria:enfermeria_dashboard')
+                            if is_enfermeria and not (is_admin or is_coord_bl or is_coord_col)
+                            else _dj_reverse('dashboard_coordinador', kwargs={'area': area_dashboard})),
     })
 
 
@@ -3999,9 +4467,18 @@ def _horario_grado(grado_num, parcial, anio):
     return out
 
 
+def _es_coord_bl_tutorias(user):
+    """<--- hecho por claude code (seguridad 05-nov-2026): coordinación de tutorías BL = superusuario, grupo coordinador BL o ConfiguracionCoordinador bilingüe activo (el mismo 'es_coord' que ya usaban estas pantallas)."""
+    if user.is_superuser or _es_coord_area(user, 'bilingue'):
+        return True
+    return ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=user, activo=True).exists()
+
+
 @login_required
 def convocatoria_horario_ajax(request):
     """Devuelve las asignaturas+días de tutoría de un grado para un parcial/año."""
+    if not _puede_area_conducta(request.user, 'bilingue'):  # <--- hecho por claude code (seguridad 05-nov-2026)
+        return JsonResponse({'ok': False, 'items': []}, status=403)
     try:
         grado_num = int(request.GET.get('grado_num'))
         parcial = int(request.GET.get('parcial'))
@@ -4017,7 +4494,15 @@ def convocatoria_nueva(request, pk=None):
     from .models import (ConvocatoriaTutoria, ConvocatoriaAsignatura,
                          PeriodoEscolarConducta, GRADO_TUTORIA_LABEL)
     area = 'bilingue'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad 05-nov-2026): listaba a todo el alumnado BL a cualquiera
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'tut', area)
+    if _cerrado:
+        return _cerrado
     conv_edit = get_object_or_404(ConvocatoriaTutoria, pk=pk) if pk else None
+    # <--- hecho por claude code (seguridad 05-nov-2026): editar = su autor o coordinación BL (antes cualquiera editaba la convocatoria de otro por URL)
+    if conv_edit and not (conv_edit.usuario_id == request.user.id or _es_coord_bl_tutorias(request.user)):
+        raise PermissionDenied('No puede editar esta convocatoria.')
     students = obtener_alumnos_bilingue()
     periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
                     .order_by('-anio', '-parcial'))
@@ -4126,10 +4611,9 @@ def convocatoria_nueva(request, pk=None):
 @require_POST
 def convocatoria_eliminar(request, pk):
     """Elimina una convocatoria (coordinador/superuser o su autor)."""
-    from .models import ConvocatoriaTutoria, ConfiguracionCoordinador
+    from .models import ConvocatoriaTutoria
     conv = get_object_or_404(ConvocatoriaTutoria, pk=pk)
-    es_coord = (request.user.is_superuser or
-                ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+    es_coord = _es_coord_bl_tutorias(request.user)  # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio en todas las vistas de tutorías
     if not (es_coord or conv.usuario_id == request.user.id):
         return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
     conv.delete()
@@ -4182,6 +4666,9 @@ def convocatoria_pdf(request, pk):
     from weasyprint import HTML as _WHTML
     from .models import ConvocatoriaTutoria
     conv = get_object_or_404(ConvocatoriaTutoria, pk=pk)
+    # <--- hecho por claude code (seguridad 05-nov-2026): IDOR — la carta (alumno + cita a los padres) la sacaba cualquiera; ahora su autor o coordinación BL
+    if not (conv.usuario_id == request.user.id or _es_coord_bl_tutorias(request.user)):
+        raise PermissionDenied('No puede ver esta convocatoria.')
     ctx = _convocatoria_ctx(conv)
     # Logo como ruta de archivo (WeasyPrint no siempre resuelve {% static %} por HTTP)
     for _base in (settings.STATIC_ROOT, *[d for d in getattr(settings, 'STATICFILES_DIRS', [])]):
@@ -4205,6 +4692,9 @@ def convocatorias_coordinador(request):
     """Solicitudes de tutorías (tab del coordinador) — agrupadas por grado/sección."""
     from .models import (ConvocatoriaMarca, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
                          ConfiguracionCoordinador, grupo_coord_de_grado)
+    # <--- hecho por claude code (seguridad 05-nov-2026): pantalla del COORDINADOR; no tenía candado (cualquiera veía las solicitudes de tutoría de todos los alumnos)
+    if not _es_coord_bl_tutorias(request.user):
+        raise PermissionDenied('Solo coordinación Bilingüe.')
     qs = ConvocatoriaMarca.objects.filter(area='bilingue').select_related('marcado_por')
 
     # Auto-restricción: un coordinador C1/C2 (no superuser) solo ve su grupo
@@ -4272,7 +4762,7 @@ def convocatorias_coordinador(request):
 
     from .models import MateriaDocenteBilingue
 
-    es_coord = request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()
+    es_coord = _es_coord_bl_tutorias(request.user)  # <--- hecho por claude code (seguridad 05-nov-2026): era is_staff o icontains('coordinador')
     maestros = sorted(set(MateriaDocenteBilingue.objects.filter(activo=True)
                           .values_list('docente', flat=True)))
 
@@ -4297,6 +4787,9 @@ def tutoria_horario_config(request):
     """Pantalla del coordinador/superuser: editar la matriz Grado × Día × Asignatura."""
     from .models import (TutoriaHorario, PeriodoEscolarConducta, GRADOS_TUTORIA,
                          DIAS_TUTORIA, color_asignatura)
+    # <--- hecho por claude code (seguridad 05-nov-2026): no tenía candado: cualquier usuario con sesión podía BORRAR y reescribir todo el horario de tutorías
+    if not _es_coord_bl_tutorias(request.user):
+        raise PermissionDenied('Solo coordinación Bilingüe.')
     activo = _periodo_activo('bilingue')
     try:
         parcial = int(request.GET.get('parcial') or (activo.parcial if activo else 1))
@@ -4386,6 +4879,7 @@ def convocatoria_grado(request):
     from .models import (ConvocatoriaMarca, PeriodoEscolarConducta, GRADO_TUTORIA_LABEL,
                          ConfiguracionCoordinador)
     area = 'bilingue'
+    _exigir_area_conducta(request.user, area)  # <--- hecho por claude code (seguridad 05-nov-2026): listaba a todo el alumnado BL a cualquiera
     activo = _periodo_activo('bilingue')
     periodos = list(PeriodoEscolarConducta.objects.filter(area__in=['bilingue', 'ambas'])
                     .order_by('-anio', '-parcial'))
@@ -4430,8 +4924,7 @@ def convocatoria_grado(request):
                 'subjects': subjects, 'filas': filas,
             }
 
-    es_coord = (request.user.is_superuser or
-                ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=request.user).exists())
+    es_coord = _es_coord_bl_tutorias(request.user)  # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que valida el servidor en los PDF
     subjects_json = json.dumps([{'asignatura': s['asignatura'], 'dias': s['dias']}
                                for s in (tabla['subjects'] if tabla else [])])
     return render(request, 'conducta/form_convocatoria_grado.html', {
@@ -4451,15 +4944,28 @@ def convocatoria_grado(request):
 def convocatoria_marca_toggle(request):
     """AJAX: marca/desmarca un alumno en una asignatura (guardado al instante)."""
     from .models import ConvocatoriaMarca
-    body = json.loads(request.body or b'{}')
+    # <--- hecho por claude code (seguridad 05-nov-2026): cualquier usuario con sesión marcaba/desmarcaba tutorías; ahora solo maestros/coordinación BL
+    if not _puede_area_conducta(request.user, 'bilingue'):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    _cerrado = respuesta_si_cerrado(request, 'tut', 'bilingue', json=True)
+    if _cerrado:
+        return _cerrado
+    try:
+        body = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    if not isinstance(body, dict):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
     try:
         parcial = int(body['parcial']); anio = int(body['anio']); grado_num = int(body['grado_num'])
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, TypeError):  # <--- hecho por claude code (seguridad 05-nov-2026): TypeError (null) daba 500
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
-    seccion = (body.get('seccion') or '').strip()
-    alumno_id = (body.get('alumno_id') or '').strip()
-    alumno_nombre = (body.get('alumno_nombre') or '').strip()
-    asignatura = (body.get('asignatura') or '').strip()
+    # <--- hecho por claude code (seguridad 05-nov-2026): str() + tope de largo (un valor no-texto daba 500)
+    seccion = str(body.get('seccion') or '').strip()[:20]
+    alumno_id = str(body.get('alumno_id') or '').strip()[:30]
+    alumno_nombre = str(body.get('alumno_nombre') or '').strip()[:200]
+    asignatura = str(body.get('asignatura') or '').strip()[:60]
     checked = bool(body.get('checked'))
     if not alumno_id or not asignatura:
         return JsonResponse({'ok': False, 'error': 'Faltan datos'}, status=400)
@@ -4500,9 +5006,9 @@ def convocatoria_firma_guardar(request):
     """Guarda el coordinador de área que firma la convocatoria de un grado. Solo coordinadores."""
     if request.method != 'POST':
         return redirect('convocatorias_coordinador')
-    if not (request.user.is_staff or request.user.groups.filter(name__icontains='coordinador').exists()):
-        messages.error(request, 'No tienes permiso para editar la firma.')
-        return redirect('convocatorias_coordinador')
+    # <--- hecho por claude code (seguridad 05-nov-2026): era is_staff o icontains('coordinador') (Colegio o contabilidad cambiaban la firma de las cartas BL)
+    if not _es_coord_bl_tutorias(request.user):
+        return HttpResponseForbidden('No tienes permiso para editar la firma.')
     from .models import ConvocatoriaFirma
     try:
         gnum = int(request.POST['grado']); parcial = int(request.POST['parcial']); anio = int(request.POST['anio'])
@@ -4531,6 +5037,8 @@ def _firma_convocatoria(gnum, sec, parcial, anio):
 def convocatoria_cartas_pdf(request):
     """PDF con las cartas individuales de todos los alumnos convocados del grado."""
     from weasyprint import HTML as _WHTML
+    if not _es_coord_bl_tutorias(request.user):  # <--- hecho por claude code (seguridad 05-nov-2026): el botón solo lo ve coordinación; el servidor no lo validaba
+        raise PermissionDenied('Solo coordinación Bilingüe.')
     try:
         gnum = int(request.GET.get('g')); parcial = int(request.GET.get('parcial')); anio = int(request.GET.get('anio'))
     except (TypeError, ValueError):
@@ -4568,6 +5076,8 @@ def convocatoria_tabla_pdf(request):
     """PDF con la tabla del grado (alumnos × asignaturas con ✔)."""
     from weasyprint import HTML as _WHTML
     from .models import ConvocatoriaMarca, GRADO_TUTORIA_LABEL
+    if not _es_coord_bl_tutorias(request.user):  # <--- hecho por claude code (seguridad 05-nov-2026): el botón solo lo ve coordinación; el servidor no lo validaba
+        raise PermissionDenied('Solo coordinación Bilingüe.')
     try:
         gnum = int(request.GET.get('g')); parcial = int(request.GET.get('parcial')); anio = int(request.GET.get('anio'))
     except (TypeError, ValueError):
@@ -4887,26 +5397,36 @@ def grupos_bl_guardar(request):
     return JsonResponse({'ok': True, 'actualizado': cfg['actualizado'], 'coords': coords})
 
 
-def _es_coord_bl_tutorias(user):
-    """<--- hecho por claude code (06-nov-2026, portado de producción): coordinación de tutorías BL = superusuario, grupo coordinador BL o ConfiguracionCoordinador bilingüe activo."""
-    from .models import ConfiguracionCoordinador
-    if user.is_superuser or _es_coord_area(user, 'bilingue'):
-        return True
-    return ConfiguracionCoordinador.objects.filter(area='bilingue', usuario=user, activo=True).exists()
-
-
-# <--- hecho por claude code (06-nov-2026, portado de producción): TC-PRY-0005 Convocatoria a reforzamiento; por ahora solo druiz y el superusuario
+# <--- hecho por claude code (05-nov-2026): maqueta TC-PRY-0005 Convocatoria a reforzamiento, solo para que la revise druiz (y el superusuario). No guarda datos.
 _REFORZAMIENTO_DEMO_USUARIOS = {'druiz@ana-hn.org'}
 
 
 def puede_ver_reforzamiento(user):
+    """<--- hecho por claude code (06-nov-2026): por ahora solo druiz y el superusuario ven Reforzamiento."""
     return bool(getattr(user, 'is_authenticated', False) and (
         user.is_superuser or (user.username or '').lower() in _REFORZAMIENTO_DEMO_USUARIOS))
 
 
 @login_required
+def reforzamiento_demo(request):
+    u = request.user
+    if not puede_ver_reforzamiento(u):
+        return HttpResponseForbidden('Sin permiso.')
+    # <--- hecho por claude code (06-nov-2026): fase 2 de la maqueta: docentes de grado reales (maestros BL), coordinación por grado (C1 1.1-3.2 cvarela, C2 4.1-9 druiz) y V° B° fijo
+    from django.contrib.auth.models import User
+    maestros = [x.get_full_name() or x.username for x in User.objects.filter(
+        is_active=True, groups__name='maestros_bilingue').distinct().order_by('first_name', 'last_name')]
+    def _nom(username):
+        x = User.objects.filter(username=username).first()
+        return (x.get_full_name() or username) if x else username
+    return render(request, 'conducta/reforzamiento_demo.html', {
+        'maestros': maestros, 'coord_c1': _nom('cvarela@ana-hn.org'),
+        'coord_c2': _nom('druiz@ana-hn.org'), 'direccion': 'Angela Cruz'})
+
+
+@login_required
 def tutorias_reforzamiento_hub(request):
-    """<--- hecho por claude code (06-nov-2026): sub-dashboard «Tutorías y Reforzamiento» (Bilingüe)."""
+    """<--- hecho por claude code (06-nov-2026): sub-dashboard «Tutorías y Reforzamiento» (Bilingüe); Reforzamiento solo lo ven druiz y el superusuario."""
     _exigir_area_conducta(request.user, 'bilingue')
     return render(request, 'conducta/tutorias_reforzamiento_hub.html', {
         'es_coord': _es_coord_bl_tutorias(request.user),

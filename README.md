@@ -2,7 +2,7 @@
 
 Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**. Centraliza la gestión de tickets, asistencia, conducta estudiantil, inventario, citas, enfermería, agendas docentes, notas parciales, finanzas y calculadoras internas.
 
-- **Versión del sistema:** 7.4.0.004 (ver *Novedades* en el pie de página de la app)
+- **Versión del sistema:** 7.10.0 (ver *Novedades* en el pie de página de la app)
 - **URL de producción:** https://servicios.ana-hn.org:437
 - **Servidor:** Apache + mod_wsgi
 - **Stack:** Django 6.0.5 · Python 3.13.3 · MySQL + SQL Server
@@ -14,6 +14,291 @@ Sistema web desarrollado en Django para la **Asociación Nuevo Amanecer (ANA)**.
 ## Novedades recientes
 
 > El detalle por versión se genera automáticamente en `core/changelog.json` (comando `manage.py gen_changelog`, disparado por el hook `post-commit`) y se muestra a cada usuario en una ventana la primera vez que entra tras un cambio de versión. Ver *"Versionado y novedades"* más abajo.
+
+### v8.2.0 — Reloj (año laboral, horas trabajadas manuales, fecha de corte), reportes de Mantenimiento e Inventario, laboratorios, Seguridad por área y bloqueo por formulario según el área (17-nov-2026)
+
+- **Reloj · Cálculo Compensatorio**: año laboral por aniversario de ingreso; días del cierre ANA = horas ÷ 8; los permisos «Compensatorio» ingresados suman a las horas trabajadas y el receso se resta de ellas; **horas trabajadas a mano** para quien no marca (ventana del lápiz, `CompensatorioTrabajadasManual`, hoy Santos); **«Fecha de corte»** editable junto a la fecha de ingreso en el tab de vacaciones (`CompensatorioFechaCorte`, mig reloj 0071, años ≥ 2000); se quitó el selector «Año» (usa el año actual o `?anio=`).
+- **Mantenimiento**: reporte PDF/Excel de **Mantenimiento de computadoras** (falla, estado, solución y columna Fotos con «FALTA» en rojo); fichas de **laboratorio** en Entrega/Recogida con la lista de computadoras del lab y edición que conserva el laboratorio; hasta **10 fotos** en fichas de laboratorio (5 en las demás).
+- **Inventario General**: pestañas por **tipo** con conteo, asignar tipo a varios artículos a la vez y **Reporte general** PDF/Excel agrupado por tipo (resumen tipo × estado + una tabla por tipo, firma de la auditora).
+- **Seguridad · lista de correos permitidos**: clasificación por **área** (Dirección, Coordinación BL, Coordinación Col, BL, Col, CFP, Admin, Pruebas, Otros; automática por grupos o elegida a mano, campo `CorreoInstitucional.area`, mig accounts 0020) con filtro y conteos, y **toggle «Todos»** para habilitar/deshabilitar los visibles.
+- **Bloqueo por formulario**: con un área concreta (Bilingüe/Colegio), quien pertenece a dos áreas solo queda bloqueado en lo del área elegida (`core.middleware._peticion_de_otra_area`: URL, parámetro `area` y área del modo maestro de Agendas).
+- **Configuración → Sistema** (superusuario): **Respaldo y limpieza de módulos** (ZIP con JSON + archivos y borrado con candados, `core/limpieza_modulos.py`) y **Modo sin conexión (beta)** (`core/offline_beta.py`, constance `OFFLINE_BETA`).
+- Formularios «Registrar» en ventana: el pie (Cancelar/Registrar) siempre visible (`tc_embed.css`).
+
+### v8.1.0 — Rol Auditoría (solo lectura), Directorio único, manuales y documentación en PDF, y 2FA más claro (10-nov-2026)
+
+- **Rol Auditoría** (grupo `auditoria`, cuenta `auditoria@ana-hn.org`): ve TechCare como el superusuario pero en **solo lectura**. `core/auditoria.py::AuditoriaMiddleware` lo trata como superusuario solo en memoria, corre cada GET en una transacción que se revierte y rechaza los envíos (403) salvo en los programas habilitados en **Configuración → Permisos → Rol Auditoría** (constance `AUDITORIA_EDITAR`). En pantalla los campos quedan deshabilitados (`core/js/auditoria.js`) y sale el aviso «Modo auditoría · solo lectura». Nunca entra a `/admin/`, «Iniciar sesión como», la pantalla del rol ni el Directorio. Bitácora en `logs/seguridad.log` (`auditoria_vista`, `auditoria_edicion`, `auditoria_bloqueo`). Pruebas: `core/tests_auditoria.py`.
+- **Un solo Directorio de teléfonos**: `/conducta/directorio/` (alcance por grupo: superusuario y Enfermería = todo, coordinador BL = BL, coordinador Colegio = Colegio + Bachillerato). `/enfermeria/directorio/` redirige allí y todos los enlaces apuntan al único; «Volver» según quién entra.
+- **Documentación**: descarga en **PDF** de cada documento o de una carpeta entera (WeasyPrint, CSS del disco), índice en **acordeón**, **Manual de usuario** y **Manual técnico** (`docs/manuales/`). Los planes y políticas de `docs/seguridad/` quedaron aprobados.
+- **Verificación en dos pasos**: correo del código con diseño (código grande en el asunto, aviso «¿No fuiste tú?» con fecha). Arreglo: las peticiones en segundo plano ya no reciben la pantalla del código (respuesta 401 en JSON) ni cambian el destino después de verificar.
+
+### v8.0.1 — Seguridad (revisión ISO 27001/COBIT), «Recordar mis datos», Registrar en ventana y programas por aplicación (09-nov-2026)
+
+- **Login**: casilla **«Recordar mis datos»** (`accounts/js/recordar_login.js`). Límite de **20 intentos fallidos por IP pública en 15 min** (las IP internas no cuentan: casi todo llega por el gateway); el superusuario recibe esperas de 1 min cada 3 fallos, nunca el bloqueo total.
+- **Recuperar contraseña con límite** (`accounts/recuperacion.py`: 3 por correo/hora, 10 por IP pública) y enlace válido 24 h.
+- **Bitácora de seguridad** (`core/seguridad_eventos.py` → `logs/seguridad.log`, JSON): inicios de sesión, fallos, bloqueos, cambios de privilegios/grupos/contraseñas y ajustes de constance, sin guardar secretos. Errores 500 en `logs/errores.log`.
+- **Evidencias de conducta** solo por `/conducta/evidencia/<pk>/ver/` con permiso del reporte; archivos nuevos con nombre uuid. Pendiente: cerrar `media/evidencias` en Apache (`docs/seguridad/infra/apache_media.conf`).
+- Descargas (PDF/Excel/ZIP/adjuntos) con `Cache-Control: private, no-store` (`DescargasPrivadasMiddleware`); arreglos de XSS en Ruteo BL y el admin de Conducta.
+- **Configuración → Documentación** (solo superusuario, `accounts/views_documentacion.py`): visor de `docs/` con el diagnóstico, matrices de riesgos y trazabilidad, guías de despliegue/respaldo/incidentes, planes de seguridad, continuidad y capacitación, proceso de alta de usuarios y borradores de políticas (acceso, contraseñas, información sensible, cambios, desarrollo). **No es una certificación.**
+- **Programas por aplicación** (`core/canales.py`, constance `PROGRAMAS_POR_CANAL`): qué programas ofrece la Web, el .exe y la APK, con «Probar como» para el superusuario. Endpoint público `novedades.json` para la ventana de novedades del .exe.
+- **Control y Servicio Técnico**: los formularios de «＋ Registrar» se abren dentro de la ventana (`?embed=1`, `tc_embed.js`). Inventario General: la categoría nueva se guarda sola al salir del campo.
+- Pruebas aisladas: `settings_test.py` + `core/tests_seguridad.py` (27 pruebas con datos sintéticos).
+
+### v7.80.1 — Período Escolar general, Dashboard del Coordinador por estados, pantallas nuevas del maestro e Ingreso de Notas en planilla (06-nov-2026)
+
+- **Período Escolar general** (`/conducta/periodo-escolar/`, solo superusuario; `conducta/periodo_modulos.py`): un período por área con **7 interruptores** (Reportes informativos, conductuales, Agendas, Notas mitad de parcial, Salidas al Baño, Progress Report, Convocatoria/Tutorías) y línea de tiempo del año. Al cerrar un módulo se bloquea la escritura en ese módulo (`respuesta_si_cerrado`). **Salidas al Baño ya no tiene período propio** (usa el general, módulo `sal`). Migs conducta 0030 (`modulos`) y 0031 (estado «revisando» → «enviado»).
+- **Dashboard del Coordinador (diseño B, lista + detalle)** en Académicos, Conductuales y Progress (Bilingüe y Colegio): estados **Enviado → Revisado → Aprobado** con botones rápidos (`reporte/estado/`).
+- **Pantallas del maestro**: Historial de Reportes en línea de tiempo, Reporte Informativo con tarjeta del alumno y sus reportes recientes, Reporte Conductual con semáforo y vista previa.
+- **Mantenimiento Mecánico**: para quien solo tiene ese módulo, su hub es el Panel Principal.
+- **Ingreso de Notas (diseños A/B, `planilla.js`)**: Exámenes y Hábitos con promedios por alumno y del grupo; Tareas con las tareas del día en columnas (la Tarea N se bloquea hasta tener la N−1); Asistencias en matriz por fecha (5/10 días) con modal para quitar una falta. **Solo enteros**: exámenes 1–100, tareas y hábitos 1–10 (también validado en el servidor). Si el servidor rechaza una casilla, lo escrito queda en rojo con el motivo (ya no se borra). Arreglado el fallo intermitente al crear la nota de un parcial nuevo (`Fecha` smalldatetime redondeaba al minuto siguiente y chocaba con el CHECK `fecha<=getdate()`).
+
+### v7.10.0 — Seguridad en todo el sistema: sesión obligatoria, archivos protegidos y permisos por área (auditoría y reparación del 05-nov-2026)
+
+- **Sesión obligatoria en todo el sistema** (`core.middleware.TechCareLoginRequiredMiddleware`): ninguna pantalla queda pública por olvido; las públicas a propósito llevan `@login_not_required` (login, PWA, firma remota por token, formulario de tickets para el desbloqueo del login, enlace de Google del reloj).
+- **Archivos subidos protegidos**: adjuntos de tickets y de Desarrollo, PDF firmados y fotos de Mantenimiento, fotos de Cámaras y de Mantenimiento Mecánico, planos de Red, imágenes de Agendas y el ruteo de Bilingüe ya no se abren por URL directa: salen por pantallas que revisan el permiso. En `/media/` PHP está apagado y los `.html/.svg` se descargan en vez de abrirse. Pillow ya no abre EPS/PostScript.
+- **Permisos por área real del usuario** (no por lo que manda el navegador) en Conducta, Notas Mitad de Parcial, Ingresos de Notas, Agendas, Salidas al Baño, CFP Notas, Enfermería y Reloj; cada quien solo ve y modifica lo de su área.
+- **Salidas al Baño**: cada coordinador en su ámbito; **Salidas CFP queda oculto** (Configuración → Seguridad → Programas activos, clave `salidas_cfp`).
+- **Agendas**: áreas desde los grupos reales; fotos validadas (PNG/JPG/GIF/WEBP, también fotos HDR de celular); «Publicar en Moodle» solo para quien puede publicar.
+- **Cámaras**: el enlace de firma remota caduca a los 7 días y es de un solo uso; la vista nueva `/inventario-camaras/app/` queda en pausa (la API es de solo lectura).
+- **Mantenimiento Mecánico**: «Configurar», «Saldo inicial» y «Ajuste» solo para el superusuario; nadie borra registros, tampoco por `/admin/`.
+- **Red**: las contraseñas de los equipos se ven solo con el ojo (y queda en la auditoría). **No cambiar nunca el `SECRET_KEY`**: esas contraseñas dejarían de leerse.
+- **Ingresos de Notas**: «Trajo Excusa» se puede registrar por adelantado; un parcial cerrado en Notas Mitad de Parcial no se puede modificar.
+- **Login**: el ticket de desbloqueo a los 5 intentos ya muestra el usuario correcto.
+- Inventario: los botones Eliminar vuelven a funcionar (con confirmación) y el Asset ID se valida. Tickets: adjuntos con lista blanca de tipos y límite de envíos del formulario público.
+- Informe completo de la auditoría (95 hallazgos, 82 cerrados, los 20 críticos cerrados) y reglas nuevas en `AGENTS.md` → sección «Seguridad · auditoría de 14 agentes…».
+
+### v7.9.6 — Solicitud de DataShow con acceso por grupo, diésel en galones + décimas y límite de la Asignación en Progress Report (release menor)
+
+> Release **menor** (novedades solo al superusuario). 34 archivos.
+
+- **📽️ Solicitud de DataShow (módulo nuevo en producción).** Calendario de reservas de DataShow que **solo ven y usan los usuarios del grupo `datashow`** (o el superusuario); nadie más, aunque entre por la URL. Soporte sigue autorizando cada reserva. Nueva ventana **Configuración → Módulos → "Acceso a DataShow"** (solo superusuario): lista de usuarios con *checkbox*, buscador, "marcar/quitar visibles" y contador para asignar el grupo (flicona, mcarias, bespino, acruz…). Tarjeta en el Panel (Soporte y TI), enlace en el menú y en el dashboard.
+- **⛽ Mantenimiento Mecánico · diésel en galones + décimas.** El formulario de "Nueva entrega" de **diésel** ahora registra la cantidad como **galones enteros + décimas** (ej. "10 galones 4/10" = 10.4 gal), con un selector de 0/10 a 9/10 y la muestra del total; el saldo y los reportes siguen en galones. Los demás insumos no cambian.
+- **✏️ Progress Report (conducta Bilingüe) · Asignación acotada.** Los campos de **Asignación** (principal y asociadas, en crear y en el editor) se limitan a **20 caracteres**; al llegar al límite aparece el aviso *"Si desea escribir más, póngalo en comentarios."* Los campos de Comentario y Comentario General conservan su longitud.
+
+### v7.9.1 — Préstamo de equipo, panel admin reorganizado, Código del sistema y correcciones en Mantenimiento (release menor)
+
+> Release **menor** (novedades solo al superusuario). 35 archivos.
+
+- **🔁 Mantenimiento · Préstamo de equipo (nuevo).** Ficha `ANAMAESPRE-` conectada al inventario: solicitante, cargo, área, motivo, fechas de entrega y devolución, dónde se usará, si sale de la institución y accesorios. PDF tipo carta (Tegucigalpa) con **4 firmas**: Solicitante y Dirección Ejecutiva a mano, Soporte Técnico y Auditoría fijas. Se sube la solicitud **firmada** (PDF) y el equipo queda *Prestado*; marca *vencido* si pasó la fecha de devolución. Página propia, tarjeta en el hub, reportes PDF/Excel.
+- **🛠️ Panel admin (Unfold) reorganizado.** Menú lateral por programa (Soporte y TI · Académico · Administración · Sistema) armado solo desde los modelos registrados, con contadores (tickets abiertos, préstamos vencidos); inicio con indicadores (tickets, préstamos, agendas de la semana, Moodle), módulos por programa y últimos cambios de la auditoría; colores índigo de TechCare; listas mejoradas de Tickets, Fichas y Agendas.
+- **📋 Todo en el admin.** Los modelos sin `admin.py` (77) se registran solos (`core/admin_auto.py`); bitácoras en solo lectura y campos cifrados ocultos.
+- **📊 Configuración → Código del sistema.** Líneas por app (views, models, forms, admin, otros .py, HTML, CSS, JS), archivos y peso, de la más grande a la más pequeña; se recalcula sola al cambiar un archivo.
+- **🐞 Correcciones.** Editar un Control que generó un cambio de equipo / reasignación ya no exige las preguntas (no dejaba agregar fotos); editar una ficha de **cambio de equipo** ya no borra el equipo anterior/nuevo (se recuperó ANAMAESCAM-001); Agendas reconoce el grupo `coordinador_colegio`.
+
+### v7.9.0 — Agendas: Crear agenda y editor de diseño (vista previa, ajustes y PNG), publicación en Moodle por grado-sección y Mantenimiento Mecánico en litros
+
+> Release **general** (novedades a todos). 51 archivos.
+
+- **🗓️ Agendas · Crear agenda.** Pestaña nueva en el Dashboard del coordinador: elige la semana (se ajusta a lunes–viernes) y los grados, y se crea la agenda **vacía** de cada uno para que los maestros la llenen. Nunca se duplica (marca "ya creada").
+- **🎨 Agendas · Editor de diseño.** Botón *Diseño* en cada agenda: vista previa igual al **PowerPoint de BL** y al **Word de Colegio**, con tamaño de letra general y por celda, alto de filas o *ajustar a la hoja*, ancho de columnas, ocultar clases vacías y corrección de textos en la misma hoja; se guarda solo y avisa si la tabla no cabe. **Descargar PNG** en alta resolución, que además queda como **imagen final** de la agenda. El PowerPoint y el Word salen con los mismos ajustes (y el PowerPoint vuelve a traer el fondo).
+- **☁️ Agendas · Publicar en Moodle.** Botón de la nube en cada agenda: los cursos de Moodle agrupados por grado-sección (marcar el grado = todas sus clases, buscador), con el grado de la agenda ya marcado; usa la imagen final y publica curso por curso con avance. Plugin propio `local_techcareagenda` instalado en el Moodle de ANA.
+- **👥 Agendas por área.** Quien da clases en BL y en Colegio ve las dos áreas; cada coordinador, solo las que coordina.
+- **⛽ Mantenimiento Mecánico.** Gasolina y diésel se **compran en litros**: el formulario convierte a galones (el sistema sigue en galones). Aceites y coolant: **lectura aproximada del barril** (Lleno · ¾ · ½ · ¼ · Casi vacío · Vacío + barriles llenos) que se compara con el saldo calculado, sin cambiarlo.
+
+### v7.8.1 — Inventario General, maestro guía en el PDF de notas, historial de Salidas al baño, directorio de Enfermería y login renovado (release menor)
+
+> Release **menor** (novedades solo al superusuario). 34 archivos.
+
+- **📦 Inventario General (nuevo).** Código automático `ANAGEN-0001`, **área** (Administración, Bilingüe, Colegio, Vocacional) y **categoría por área agregable** desde el formulario, descripción, ubicación, estado, foto (se reduce sola) y **comentario de la auditora** (solo Yeny Lagos o el superusuario). Filtro por área y su categoría, ficha PDF por artículo con la **firma fija de la auditora**, fichas de todos y Excel respetando el filtro. En el menú (Inventario → Inventario General) y en el hub de Servicio Técnico.
+- **📊 Notas mitad de parcial.** **Maestro guía** por grado-sección y año (botón en la pantalla del coordinador); el PDF lleva su nombre sobre la línea "Firma del Maestro Guía". Un parcial cerrado ya no aparece ni se abre en *Mis Reportes* para nadie (coordinación lo maneja desde su pantalla).
+- **🚻 Salidas al baño · Historial.** Pestaña nueva con filtros (período, fechas, área, grado, semáforo, quién registró, búsqueda, sin regreso), resumen, top 10 de alumnos y Excel. Coordinación ve todo; el maestro, solo lo que registró.
+- **🩺 Enfermería.** El directorio de teléfonos salía vacío para la cuenta de Enfermería; ahora muestra a todos los alumnos (797).
+- **🎨 Acceso.** El login, la selección de rol y las pantallas de recuperar contraseña recuperan el degradado azul→violeta (el tema lo tapaba y el título blanco no se leía). La pantalla de bienvenida es **75 % más rápida** (~5 s), con la paleta nueva, y se cierra con un clic o Esc.
+
+### v7.8.0.001 — Menú en acordeón para todos los usuarios y tarjeta de "Sumar horas" (release menor)
+
+> Release **menor** (novedades solo al superusuario). 7 archivos.
+
+- **📋 Menú lateral en acordeón (corrección).** A los usuarios que no son superusuario el menú les seguía saliendo todo abierto: la clase `sidebar-static` (de un diseño anterior) forzaba los grupos abiertos y quitaba el clic de las cabeceras. Se retiró; ahora los grupos empiezan cerrados, se abren con clic y uno a la vez. El superusuario conserva su menú de siempre.
+- **🧮 Calculadoras.** El ícono de la tarjeta *Sumar horas* se veía diminuto (usaba `icon-lg`, que no aplica a íconos de fuente); ahora tiene el mismo tamaño que las demás.
+
+### v7.8.0 — Mantenimiento Mecánico (combustibles, aceites y vehículos), cierre de parciales en Notas, menú en acordeón e "Iniciar sesión como"
+
+> Release **general** (novedades a todos). 59 archivos.
+
+- **🛢️ Mantenimiento Mecánico (módulo nuevo).** Control de gasolina, diésel (tanque de 715 gal), aceite 40, aceite 50, aceite hidráulico y coolant (barriles de 55 gal): entregas con correlativo, entradas (compra, llenado, barril nuevo, ajuste), saldo calculado (nunca guardado), aviso de saldo bajo, ficha PDF por entrega, reporte tabla y general en PDF y Excel. Registra el grupo `mantenimiento_mecanico`; la auditoría (`mantenimiento_mecanico_lectura`) ve y comenta; editar es solo del superusuario y eliminar no existe.
+- **🚗 Mantenimiento de vehículos** (dentro del mismo módulo). Formato de Access: flota con km actual, próximo mantenimiento y cuánto falta (semáforo), hoja de tareas (qué toca según el intervalo de cada tarea) para imprimir, historial de mantenimientos 2026 y lecturas de km. **Formulario para registrar vehículos** (marca, tipo, color, año, placa, chasis, motor, cuenta diésel, intervalo, km/millas/horas, tractor). El **diésel se carga por vehículo** (registra el km y la ficha del vehículo muestra sus cargas). **Aviso** al grupo `vehiculos_alertas` cuando faltan 100 o menos y cuando se vence. Grupos `vehiculos_registro`, `vehiculos_kilometraje`, `vehiculos_auditoria`.
+- **🧭 Un solo sub-dashboard** en `/mantenimiento-mecanico/` con los saldos de cada insumo y el estado de la flota; una sola tarjeta, un solo grupo de menú y un solo ícono en el riel.
+- **📊 Notas mitad de parcial.** Botones **Revocar permisos** y **Fecha de cierre** por grado-sección y **Cerrar Parcial N** (el parcial desaparece de *Mis Reportes* de los maestros y se bloquea la escritura en el servidor; se puede reabrir). Parcial 3/2026 cerrado en las 4 áreas y oculto en *Asignaciones de Maestros* (botón *Ver parciales cerrados*). Al pasar de alumno con *Siguiente* la pantalla ya no sube a las tarjetas. El superusuario ya no recibe el aviso emergente de notas.
+- **🖥️ Mantenimiento · Reasignación de computadora.** La misma computadora pasa del maestro A al maestro B desde el Control de equipo (ficha `ANAMAESREA-`, inventario actualizado, PDF con 3 firmas).
+- **📋 Menú y Panel.** El menú lateral funciona en **acordeón** (grupos cerrados, se abren con clic, uno a la vez). Tarjetas nuevas en el Panel: **Control y Servicio Técnico**, **CFP** y **Gestión de Desarrollo** para quien las tiene en el menú.
+- **🔐 Iniciar sesión como** (solo superusuario, como el *Log in as* de Moodle): entra a la cuenta de un usuario para ver lo que él ve; bitácora de cada entrada y barra *Volver a mi cuenta*.
+- **🔧 Otros.** Reloj: permiso de ajuste del bono para yzavala, ylagos y glorenzo. Red: campo *Texto* en la edición múltiple del plano. Coordinador: *Menú Principal* vuelve a su lanzador. La lista desplegable de la cabecera ya no se recorta.
+
+### v7.7.1 — Diseño Horizon Split en todo el sistema, Tickets ↔ Gestión de Desarrollo, calculadoras de tiempo por grupo, refresco de notas parciales y ajustes de Reloj (release menor)
+
+> Release **menor** (novedades solo al superusuario). 49 archivos.
+
+- **🎨 Diseño Horizon Split (todo el sistema).** Nuevo shell elegido entre 5 propuestas: **riel de íconos** a la izquierda (un ícono por módulo, generado desde el menú de cada rol; el superusuario suma accesos directos a Tickets, Desarrollo, Servicio Técnico, Red, Reloj, Contabilidad y Académico), **panel contextual** con buscador que filtra el menú, ítem activo resaltado y grupo abierto automáticamente, y **cabecera degradada azul→violeta** en todas las páginas. Panel Principal del superusuario rediseñado: saludo con fecha, KPIs flotando sobre la cabecera, gráficas y los 13 módulos en cuadrícula con pestañas *Todos / Soporte / Académico / Administración*. Login y selección de rol con la misma paleta. En móvil el riel se oculta y queda el menú colapsable.
+- **🎫🧩 Tickets ↔ Gestión de Desarrollo.** Un requerimiento puede abrir un ticket enlazado (casilla al crear, botón en el detalle) y un ticket se puede convertir en requerimiento desde el chat del técnico. El requerimiento manda: cada cambio de estado o responsable actualiza el ticket, deja un comentario del sistema en el chat y envía el correo; *Producción* resuelve el ticket. Esos tickets van **sin SLA** (no suenan en la alerta) y con distintivo "Desarrollo".
+- **💬 Chat de tickets.** Los mensajes del sistema (pausas, reanudaciones, cambios de estado) se muestran como burbujas naranjas diferenciadas.
+- **🧮 Calculadoras de tiempo.** Nuevo grupo `calculadoras_tiempo`: ve solo las 5 calculadoras de tiempo (sumar horas, entre dos horas, horas→días, fecha a fecha, minutos→horas) y su tarjeta en el panel; las demás siguen solo para el superusuario.
+- **⏱️ Reloj · Cálculo compensatorio.** *Control adeudados* y *Adeudados 2* ya no suman los 3 días de permiso ni muestran horas de más (viven solo en el tab 4); Gabriela García entra al tab 4. Feriado Morazánico a 20 h y Cierre de Diciembre a 64 h (56 h para Yerisely Zavala).
+- **📊 Notas mitad de parcial.** Caché de 10 min (antes 30) y botón **Actualizar datos del sistema académico** para el coordinador (en Bilingüe solo David Ruiz y Catherine Varela; en Colegio y Bachillerato todos los coordinadores). Asignaciones de BL y Colegio BL del 3.º parcial copiadas al 4.º.
+- **🛡️ Auditoría.** Selector agrupado por programa (una opción por programa con todas sus tablas) e historial nuevo para las 10 tablas de CFP (notas y contabilidad CFP).
+- **🔧 Correcciones.** El comentario del Reporte de Permisos mostraba `\u000D\u000A` literal (`|escapejs` dentro de `data-*`, retirado en 5 plantillas); cierre de sesión por inactividad aplicado también a las pantallas de Salidas al baño; en Control de equipo los interruptores *Caso especial* / *Cambio de equipo* aparecen también al editar.
+
+### v7.7.0 — Control y Servicio Técnico (Inventario + Mantenimiento unidos), fichas por página, casos especiales y cambio de equipo, núcleo contable, capa responsiva y cierre de sesión por inactividad
+
+> Release **general** (novedades a todos). 70 archivos.
+
+- **🎧 Control y Servicio Técnico.** Inventario y Mantenimiento se unen en un solo hub (`/servicio-tecnico/`): KPIs, tiles de los 6 tipos de equipo y de los 8 tipos de ficha con conteo, alertas reales (tinta baja, controles en mal estado, computadoras sin control, fichas pendientes) y actividad reciente. Una sola tarjeta en Soporte y TI, en el menú y en el sidebar; los "Volver al panel" de ambos módulos regresan al hub. El *Panel de Inventario* de 8 tiles se retiró (`/inventario/` redirige al hub).
+- **🔧 Fichas de Mantenimiento por página.** Cada tipo (Computadoras, Impresoras, Control de equipos, Inspecciones, Entregas, Recogidas, Casos especiales, Cambios de equipo) es una **página individual** con su título, sus KPIs, su tabla y su botón *Nuevo* fijo al tipo; usan la base común del sistema (sidebar, tema, responsivo). Rediseño visual del módulo (KPIs con acento, tabla a todo el ancho, buscador y paginación integrados).
+- **🔁 Caso especial y Cambio de equipo.** Desde un Control de equipo (al crear y al editar) dos interruptores excluyentes: *Caso especial* reemplaza las preguntas por el checklist de recogida y crea la ficha `ANAMAESCE-`; *Cambio de equipo* muestra el equipo anterior y abre el formulario de la computadora para registrar el nuevo (modelo, serie, IP), crea la ficha `ANAMAESCAM-` con el antes/después y **actualiza el inventario** (mismo Asset ID, mismo maestro; nota en observaciones e historial). Comentario del técnico en Entrega/Recogida/Caso especial, en tabla, ficha PDF y reportes.
+- **💼 Contabilidad · núcleo contable.** Catálogo de cuentas (con catálogo base de 150 cuentas para ONG hondureña, cargable sobre catálogo vacío), centros de costo, períodos (abrir/cerrar), partidas de partida doble con líneas dinámicas y cuadre en vivo (borrador → contabilizada → anulada, número `P-AAAA-0001` al contabilizar), mayor por cuenta, balanza de comprobación, balance general, estado de resultados y libro diario, todos con Excel. Grupo `contabilidad_contable`. (Pantallas provisionales: se rediseñarán al estilo QuickBooks.)
+- **📱 Capa responsiva global.** Tablas con scroll en móvil, retícula sin breakpoint apilada, DataTables con controles apilados, cabecera con botones debajo del título, modales a pantalla completa en tablet, inputs a 16 px (sin zoom en iPhone) y menú lateral con scroll. En teléfonos, todo adjunto de imágenes ofrece **Tomar foto** (cámara) y **Galería**.
+- **🔒 Cierre de sesión por inactividad.** Ahora también del lado del servidor: la sesión caduca sola si no hay actividad en el tiempo configurado (constance `SESION_INACTIVIDAD_MIN`, 4 h por defecto) aunque se cierre el navegador; antes la cookie duraba un año. Salidas al baño incluye el aviso.
+- **📊 Notas mitad de parcial.** Habilitado el **4.º parcial**; las asignaciones de Colegio y Bachillerato del 3.º se copiaron al 4.º.
+- **🌐 Red.** Switches corregidos según CDP (SwitchC1200-DTC-01, SwitchSG250-DTC-02 nuevo en .59, SF350-AULA22, SF350-LabBL, SF350 Casa Azul por confirmar), 43 puertos y 6 enlaces documentados.
+
+### v7.6.5 — Red (Lista de IPs actuales), Reloj (compensatorio 47 min/día en 4 tabs), Mantenimiento (Entrega y Recogida de equipo) e Inventario compacto con PDF (release menor)
+
+> Release **menor** (novedades solo al superusuario). La versión sí es general en el pie. **Aún falta** para una versión general (49 archivos < 50).
+
+- **🌐 Red · Lista de IPs actuales.** Nueva pantalla del ANA Network Manager: inventario de las IPs en uso agrupado por categoría de equipo, con autoguardado por fila, filtro rápido y auditoría. Cada fila lleva IP actual, categoría, **VLAN implementada**, descripción, casilla *¿Tiene usuario?*, usuario y **contraseña cifrada** (solo la ve quien administra la red). La **IP asignada en la VLAN** se elige del IPAM con su nombre; si la VLAN está **en producción** se asigna sola la primera libre.
+- **⏰ Reloj · Compensatorio de 47 min/día.** Cálculo Compensatorio cambia "Compensatorio por vacaciones" y "Tiempo diario" por **4 tabs**: *Vacaciones*, *Tiempo hecho y deuda*, *Cierre* (47 min por día hábil del 1-feb al 30-nov, matrícula 2026 del 30-nov al 18-dic a 12 min; descuenta lo ya hecho y da la **fecha en que termina contando desde hoy**) y *Con 3 días de permiso* (horas hechas, tomado de los 3 días y lo que le resta por tomar, como dato aparte). Editables: vacación acumulada, saldo para gastar, días que necesita, tiempo extra, tiempo tomado y tomado de los 3 días. Botón **"Pruebas"** en el panel de Reloj con su propio permiso.
+- **🔧 Mantenimiento · Entrega y Recogida de equipo.** Dos tipos nuevos con numeración, pestaña, edición y ficha PDF propias: datos del equipo + lista de lo entregado o recibido (equipo, mouse y teclado, televisor indicando cuál, control con batería), firma elegida de la lista de maestros y fecha y hora. Reportes **PDF y Excel** en las pestañas Inspecciones, Entregas y Recogidas.
+- **📦 Inventario.** En las seis tablas el detalle del equipo sale al pasar el mouse por **Modelo** y las tablas quedan compactas (el buscador sigue encontrando por serie, asignado o IP). En *Registros de inventario* se repararon los botones Todos / General / Lab BL / Lab COL / Lab CFP y se agregó **Descargar PDF** en las seis pestañas; en Computadoras, PDF y Excel exportan lo filtrado.
+- **Agendas y Notas.** Un coordinador que también es maestro abre desde su tarjeta la ventana de crear agenda (no la de coordinador) y tiene "Mis notas" por área en el sidebar.
+
+### v7.6.4 — CFP Contabilidad (planilla con monto manual, partidas reubicadas, PDFs en legal), Reloj (Compensatorio por vacaciones + Tiempo diario) y Programas ocultos en Seguridad (release menor)
+
+> Release **menor** (novedades solo al superusuario). La versión sí es general en el pie. **Aún falta** para una versión general (31 archivos < 50).
+
+- **⏰ Reloj · Cálculo Compensatorio: dos tabs nuevos.** **"Compensatorio por vacaciones"** (Saldo = Derecho − Vacación acumulada; Días que necesita = días no laborables ANA; Total = necesita + permisos extras; Días que debe compensar = Total − Saldo; y su equivalente en horas × 8.8) y **"Tiempo diario"** (min/día = deuda × 8.8 h ÷ días hábiles del periodo **1-feb → 26-nov**, configurable por año; con las mismas columnas y modales de *Adeudados 2*). *Vacación acumulada* y *permisos extras* editables por empleado. El *Tiempo tomado* = permiso compensatorio + tomado manual + receso, igual en todos los tabs.
+- **🏫 CFP · Planilla administrativa con monto manual.** El monto de cada persona se escribe a mano (el "Disponible para la planilla" = 20% − capturados queda como referencia, con aviso *cuadra / faltan / se pasa*). Nuevo catálogo **"Personas por cargo"** (admin): al elegir el cargo se cargan solos el nombre y el DNI (consulta en vivo, sin recargar) y *Agregar persona* trae al siguiente cargo pendiente.
+- **CFP · Partidas reubicadas.** *Seguro de Accidentes Personales (participantes)* pasó a **Materia Prima y Mantenimiento**; *Papel* y *Marcadores* pasaron a **Administración** (capturados); nuevas casillas **Gastos y viáticos** (Personal) y **Mantenimiento** (Materia Prima). Migración de datos que renombra las claves ya guardadas.
+- **CFP · PDFs en papel legal.** La **planilla** ahora sale en legal, con 17 líneas numeradas para firmar y el bloque de firmas fijo al pie; el **informe contable** llena la hoja (se quitó el hueco grande al pie).
+- **🔐 Seguridad · "Programas activos".** En *Configuración → Seguridad*, un interruptor por programa (19) que lo **oculta a todos los usuarios**: desaparece de los menús y sus rutas quedan bloqueadas con la pantalla *"Programa desactivado"*. El superusuario lo sigue viendo en su Panel Principal con la etiqueta *Oculto*.
+
+### v7.6.3 — Tickets (SLA con pausas + correos de estado), Mantenimiento (Control de equipo e Inspección), Reloj compensatorio y calculadora (release menor)
+
+> Release **menor** (novedades solo al superusuario). La versión sí es general en el pie. **Aún falta** para una versión general (40 archivos < 50).
+
+- **🎫 Tickets · estados que pausan el SLA.** Nuevos estados **"En espera del usuario"** e **"Incompleto"** que **congelan el SLA** (no vencen mientras están pausados). El reloj se reanuda cuando el usuario comenta o el técnico regresa el ticket a *En Proceso*; historial de pausas (`TicketPausaSLA`), soporte de pausas múltiples y reanudación automática. Nuevo `tickets/estados.py`.
+- **Tickets · SLA fuera de horario.** Un ticket creado fuera del horario laboral (L–V 7–16) **pausa el SLA** hasta la próxima apertura y al usuario se le avisa que "se recibió y se atenderá en horas laborables".
+- **Tickets · correos en cada cambio de estado** (antes solo al Resolver): En Proceso, En espera / Incompleto (indicando lo que falta) y Resuelto. Plantilla `email/ticket_estado.html`.
+- **Tickets · panel del técnico**: el SLA pausado se muestra **"Pausado"** (naranja), ya no "Incumplido"; columna de chat alineada; descripción como *hover* (popover).
+- **🔧 Mantenimiento · Control de equipo** (3.er tipo, evaluación del equipo del maestro): preguntas de evaluación, **estado del equipo** (Buen estado / Regular / Mal estado / Fuera de servicio), fotos, firmas fijas (Soporte Técnico / Auditora) + firma digital del maestro y PDF con 3 firmas. **Inspección** (4.º tipo) con 4 chequeos Sí/No + firma del asignado. Pestañas por tipo (Computadoras / Impresoras / Control) con *hover* compacto.
+- **⏰ Reloj · Cálculo Compensatorio**: "Días no laborables ANA" con **fecha por entrada** (el *Tiempo tomado* solo refleja los feriados ya ocurridos) y **días reales por feriado** (no derivados de las horas); **factor 8.8 h/día**; el **receso** (minutos de más) se suma al *Tiempo tomado*. Permiso provisional con **autoguardado + cuenta regresiva** y distintivo verde "Permiso activo" / rojo "Permiso denegado". "Tiempo tomado manual" editable para el grupo `reloj`.
+- **🧮 Calculadoras**: nueva **"Sumar horas y minutos"**.
+
+### v7.6.2 — Seguridad de dependencias + Red: acceso por grupos, monitoreo, migración VLAN, API REST (release menor)
+
+> Release **menor/técnico** (novedades solo al superusuario). La versión sí es general en el pie.
+
+- **🛡️ Seguridad de dependencias (respuesta a las 110 alertas de Dependabot).** Actualizados en producción: **Django 6.0.5→6.0.8**, **Pillow 12.2→12.3**, PyJWT 2.13, sqlparse 0.6, cryptography 50, idna 3.15, tablib 3.10 (46 avisos PYSEC cerrados). Se **retiraron del repo los prototipos Next.js `frontend/` y `frontend_super/`** (no estaban en producción; concentraban las 4 críticas y la mayoría de las altas; respaldados en `/home/admin2/backups`). Nuevo `.github/dependabot.yml` (PRs semanales de pip). Informe: `docs/SEGURIDAD_DEPENDENCIAS_2026-08-26.md`. Pendiente sin parche disponible: `weasyprint` (no explotable: solo plantillas internas).
+- **Red · acceso por grupos.** El módulo ya no es solo superadmin: `_gate(request, escribir=…)` valida permisos. Grupos **`red`** (lectura + exportar; soporte/TI) y **`red_admin`** (administrar + aprobar migraciones). 33 vistas de escritura protegidas; entrada en el sidebar para no-superusers.
+- **Red · monitoreo continuo.** Comando `manage.py ping_red` en **cron cada 15 min** (`logs/ping_red.log`): actualiza estado/latencia y notifica **solo en transiciones** (caída/recuperación) a superusers y `red_admin`.
+- **Red · migración de VLAN real.** El planificador ahora **ejecuta**: selección de equipos, motivo obligatorio, confirmación explícita, permiso `aprobar_migracion`. Se procesa equipo por equipo en transacción (libera IP anterior en el IPAM, asigna la primera libre del destino, actualiza el equipo); si uno falla se revierte solo ese. Auditado.
+- **Red · topología**: export **SVG** y **PDF** (además de PNG/Mermaid).
+- **Red · API REST** de solo lectura en `/red/api/v1/` (vlans, ips, dispositivos, switches con puertos, enlaces, ubicaciones, gabinetes) con búsqueda/filtros y auth por sesión o **token** (`rest_framework.authtoken`).
+- Docs: `red/README.md` (informe ejecutivo del módulo) y OT-E2-00 / OT-E2-02-A de la integración SQL Server (verificación de conexiones y metadatos de los 4 SP de maestros).
+
+### v7.6.1 — Inventario: integración de LECTURA con SQL Server (Test2) + flujo guiado a 3 pasos + racks (release menor)
+
+> Release **menor/técnico** (novedades solo al superusuario). La versión sí es general en el pie.
+
+- **Inventario institucional (SQL Server · Test2) — Etapa 0–1, SOLO LECTURA.** Capa nueva `contabilidad/sqlserver_inventory/` (alias Django `inventario_test2` con `mssql-django`, guard de base/rol `Des_EquipoInventario`, router anti-migraciones, DTOs y 8 consultas de solo lectura: categorías, unidades, almacenes, artículos, proveedores, existencias, costo promedio y kardex). Validada con 20 pruebas. **No escribe** nada; la tarjeta de acceso está **apagada** por defecto (`INV_TEST2_MOSTRAR_TARJETA=0`). Documentada en `contabilidad/sqlserver_inventory/README.md`.
+- **Flujo guiado de Inventario corregido a 3 pasos**: Proveedor → Producto → Compra. La **entrada al inventario la registra CONFIRMAR la compra** (ya no manda al Movimiento, que duplicaba el stock). El "Registrar movimiento" queda solo para saldo inicial, ajustes, mermas y donaciones.
+- **Racks (ANA Network Manager) — refinamientos**: numeración estándar (U1 abajo → U42 arriba), **frente/atrás** del gabinete, tipos **Bandeja**, **NVR** y **Media converter**; el tamaño del marcador escala también el texto.
+
+### v7.6.0 — ANA Network Manager: nuevo módulo de documentación y operación de red (Fases 1–5)
+
+Módulo **`red`** (superadmin) para documentar y operar la infraestructura de red. Tablas `red_*` en MySQL `sponsors2`.
+
+- **IPAM y catálogo (Fase 1–2)**: VLANs con capacidad real (rango asignable, reservas, DHCP, alertas), direcciones IP, dispositivos, switches, puertos y enlaces. Detección de duplicados de IP/MAC y de ciclos.
+- **Mapa de campus (Fase 3)**: planos con **marcadores** (figuras de red: router, switch, servidor, AP, firewall, cámara, NVR, reloj marcador…), **tamaño/giro editable** (ícono + texto), **selección múltiple**, y **líneas** entre marcadores (recta u **ortogonal** con punto de referencia, con nombre). **Zoom, orientación y paneo** del plano (recordados por plano). Una línea puede apuntar a un **equipo concreto** del rack de destino.
+- **Topología (Fase 3)**: vista Cytoscape de dispositivos/enlaces y también de los marcadores/líneas de un plano; export PNG y Mermaid.
+- **Racks (elevación tipo draw.io)**: cada gabinete tiene su **rack por unidades (U)** con equipos apilables, reordenables por arrastre y vinculables al inventario. Datacenter modelado con **Rack 1 (internet/red general)** y **Rack 2 (cámaras/CCTV)**.
+- **Panel avanzado (Fase 4)**: KPIs y gráficas (dispositivos por tipo/edificio, IPs por VLAN, capacidad, enlaces, ocupación de puertos).
+- **Pruebas de conectividad (Fase 4)**: ping desde el servidor a dispositivos/switches con estado (en línea/caído/latencia) e histórico.
+- **Migración de VLAN (Fase 4)**: análisis de impacto (solo lectura) al mover dispositivos entre VLAN.
+- **Buscador global (Fase 5)**: IP, MAC, equipo, switch o VLAN en una sola caja (+ endpoint JSON `/red/api/buscar/`).
+- **Exportar a Excel (Fase 5)**: inventario (dispositivos, switches, VLANs, IPs) en `.xlsx`.
+
+Rutas principales bajo `/red/`: `dashboard`, `panel`, `vlans`, `ubicaciones`, `dispositivos`, `switches`, `enlaces`, `planos`, `topologia`, `racks`, `gabinete/<id>/rack`, `pruebas`, `migracion`, `buscar`, `export/excel`.
+
+### v7.5.0 — Panel Principal nuevo, Contabilidad por roles + regalías, Tickets con SLA y horario compensatorio
+
+Release **general** (50 archivos): novedades para todos.
+
+- **Panel Principal (superusuario) rediseñado**: KPIs reales arriba, **gráficas de actividad** (Chart.js, accesos últimos 14 días + usuarios más activos), y módulos en **2 columnas** compactas por área. Se movieron los módulos administrativos (Calculadoras, Monitoreo, Permisos, Configuración, Mantenimiento) al sidebar; el dropdown de usuario volvió al pie del sidebar (solo superuser).
+- **Contabilidad · Inventario por roles**: hub de Inventario y **3 roles** con grupos propios — Ventas (form de venta que descuenta stock y genera ingreso), Abastecimiento (productos/proveedores/compras) y Supervisión (reportes + **auditoría** del módulo). Proveedores y Compras viven dentro de Inventario de Uniformes.
+- **Regalías de proveedores**: informe aparte (no se contabiliza) con reporte por proveedor.
+- **Precios por proveedor + ISV 15% incluido**: form de precios con costo del proveedor, precio de venta e ISV 15% *dentro* del precio; columna **Proveedor en las salidas** del kardex por FIFO. Todo el dinero con **`L` y separador de millares**.
+- **Tickets con SLA y urgencia**: el usuario elige **urgencia** (Bajo/Medio/Alto/Urgente) que define el **SLA en horas laborales** (L–V 7:00–16:00): 72/24/8/2 h. Semáforo SLA en el panel y **alerta sonora cada 10 min** para tickets sin atender.
+- **Reloj · horario compensatorio por fecha**: reglas con vigencia (Nancy/Diego/Ana/Gabriela cambian desde el 24/08 sin alterar el histórico) y **excedente** de horas cuando el saldo deuda llega a 0.
+- **Agendas (PPTX)**: fuentes/tamaños de la agenda semanal (Century Gothic, Book Antiqua) y posición del cuadro de grado.
+
+### v7.4.2 — Dashboard Coordinador (acordeón + WhatsApp), CFP notas, accesos y limpieza
+
+Release **general** (~60 archivos): novedades para todos.
+
+- **Conducta · Dashboard Coordinador**
+  - **Acordeón plegable** (DataTables RowGroup, conserva buscador/orden/selección/evidencias/editar): Informativo y Conductual **por fecha** (recientes primero), Progress **por grado** (1.º→9.º).
+  - **Botón de WhatsApp por reporte**: abre WhatsApp con el teléfono del padre/madre (desde `padres_sqlserver` por `PersonaID`) y un **mensaje editable** según el reporte. Solo coordinadores/admin/enfermería.
+  - **Historial de alumnado**: corregida la carga (ya no se queda cargando al entrar directo al tab).
+  - **Descargar ZIP**: modal para **elegir qué reportes** (académico / conductual / progress / historial), **filtrado por el grado del coordinador** y **organizado en carpetas por grado**.
+  - **Reenviar reportes**: selección de tipos.
+  - Editor de Progress igual a Agendas; clase **Spelling** en primaria y colegio; corrección de `_x000D_` en el PowerPoint.
+- **CFP · Notas/Horas**: carga de notas por intento (T1–T3 / P1–P3) y horas por mes; la grilla ya **no muestra decimales**.
+- **Accesos / Login**
+  - Inicio de sesión por **usuario o correo** (el admin entra como `jfellmann` o `admin`); **el superusuario nunca se bloquea** temporalmente.
+  - **Enfermería** entra normal a su propio dashboard (antes caía en 403).
+  - **Tickets**: los usuarios de *administración* ven **solo sus tickets** (se dejó de usar `is_staff` como rol; el acceso total es por permiso `tickets.view_ticket`).
+- **Contabilidad** (módulo nuevo, **en pausa** esperando la estructura en SQL Server): inventario contable con kardex, **promedio ponderado**, proveedores y compras (todo en MySQL por ahora).
+- **Responsive**: refuerzo global para verse bien en celular/tablet + Panel Principal más legible en móvil.
+- **Limpieza**: eliminadas las apps sin uso **`camaras`** y **`atencion_padres`** (respaldadas antes de borrar).
+- **Backups**: el paso *"actualiza todo"* ahora **sincroniza los backups (sistema + BD) a la PC del administrador** por SMB (`sync_backups.sh` + cron).
+
+### v7.4.1.007.001 — Nuevo módulo: Gestión de Desarrollo (requerimientos y proyectos)
+
+> Release **menor** (36 archivos, módulo nuevo aislado): la ventana de novedades solo la ve el superusuario.
+
+**Gestión de Desarrollo** — el registro histórico oficial del ciclo de desarrollo de TechCare. App Django `desarrollo`, dentro de **Soporte y TI** (sidebar + acordeón del Panel Principal). Acceso: superusuario y grupos `desarrollo_admin` / `desarrollo_dev`.
+- **Requerimientos** con código automático `REQ-AAAA-XXXX`: formulario, listado con filtros, detalle, edición/seguimiento, **historial automático**, **bitácora** de notas, **adjuntos** (PDF/imágenes/Office/texto, máx 10 MB) y **semáforo** 🟢🟡🔴⚪ (en tiempo / próximo / atrasado / sin fecha).
+- **Proyectos** con código `TC-PRY-XXXX`: listado, ficha técnica, requerimientos asociados, timeline de actividad y **conversión requerimiento→proyecto**.
+- **Dashboard**: KPIs, gráficos (estado/prioridad/tipo/área con Chart.js), panel de semáforos, próximos a vencer y actividad reciente.
+- **Roadmap Kanban** con **arrastrar y soltar** para cambiar de estado, y **"Mis Requerimientos"** (asignados / solicitados).
+- **Exportación a Excel** de los requerimientos (respeta filtros y permisos).
+- Permisos por grupo: admin/dev ven y gestionan todo; solicitante/responsable ven lo suyo.
+
+### v7.4.1.007 — Rediseño del Dashboard Coordinador + topbar (campana y usuario arriba)
+
+> Release **menor** (14 archivos): la ventana de novedades solo la ve el superusuario.
+
+**Dashboard Coordinador (BL y Colegio) — de una página pesada a un lanzador de apps:**
+- Al entrar a "Coordinador BL/Colegio" se ve un **grid de apps** (Reportes Académicos · Conductuales · Progress · Historial); cada una abre **enfocada** (sin la barra de tabs, con "← Apps"). Aplica al superuser y a cada coordinador (`dashboard_c1..c4`).
+- **Reportes Conductuales solo para C3** (Isabel Alcerro); C1/C2/C4 no lo ven.
+- **Título con la identidad** de quien entra: *"Coordinador (Bilingüe) · Coordi 1 · Catherine Varela"*; "Prin" se muestra como **Principal**.
+- **Filtro "por coordinador"** ahora lista solo C1–C4 (los que coordinan reportes); antes decía mal "Mr. Martinez" en C1.
+- Se agregaron al menú del coordinador (Panel General **y** sidebar, consistentes): **Tutorías**, **Período Escolar** (vía `?app=periodo`) y **Ruteo**.
+
+**Barra lateral y topbar:**
+- **Sidebar estático** (submenús siempre abiertos) para staff/usuarios; el superusuario lo mantiene **colapsable** (su menú es muy largo).
+- La **campanita de notificaciones** y el **usuario** (avatar+nombre) se movieron a la **esquina superior derecha** (topbar).
+- **Modo oscuro** pasa de botón flotante a **interruptor** dentro del menú de usuario.
+- Arreglo: el botón "Dashboard" en Tutorías vuelve al **home correcto** del usuario.
+
+### v7.4.1.006 — Autoguardado en Editar Agenda (+ ajustes del Bono y receso)
+
+> Novedad **general** (la ven todos los usuarios): autoguardado de agendas.
+
+**Para los docentes (novedad visible):**
+- **Editar Agenda ahora se guarda sola.** Se quitó el botón "Guardar"; cada vez que escribes o modificas una casilla, la agenda se guarda automáticamente (al salir de la casilla o ~1.2 s después de escribir), reduciendo el riesgo de perder información. Aparece un indicador "Se guarda solo → ✓ Guardado".
+
+**Ajustes internos (Reloj / CFP, no salen en la novedad):**
+- **Bono por Asistencia — reglas de dos niveles:** el límite de tardanza pasa a **06:59** (se toleran 2, pierde en la 3ra) y se agregó un **tope duro a las 07:00**: una marca a esa hora o después pierde el bono automáticamente. No afecta horarios especiales de maestros por hora ni vigilancia.
+- **Receso:** ventana de detección ampliada a **11:00–16:00** para almuerzos tardíos, con tope de 90 min para no confundir la salida del día con un receso.
+- **Salidas al Baño (CFP):** un instructor ve **solo su curso** asignado; coordinador/director ven todos.
+- **PDF del Bono:** subtítulo dinámico *"…de {mes} para {mes siguiente} · valor Lps. 200"*.
+
+### v7.4.0.005 — Botón "Volver a Historial de Reportes" en Editar Agenda
+
+> Release **menor** (4 archivos): la ventana de novedades solo la ve el superusuario.
+
+- **Agendas (lado maestro)**: al editar una agenda, se agregó arriba el botón **"← Volver a Historial de Reportes"**, que regresa al historial del maestro y **abre directamente la pestaña Agendas** (activación de pestaña por `#hash`). El coordinador conserva su botón de Descargar PPTX.
 
 ### v7.4.0.004 — Autoguardado de Horas CFP, filtro de tabs en Inventario y ventana de receso más amplia
 
@@ -623,7 +908,6 @@ Conecta con SQL Server para leer marcas del reloj biométrico. Gestiona horarios
 | `permisos/` | `reloj_permisos_list` | Permisos de empleados |
 | `permisos/reporte/` | `reloj_permiso_reporte` | Reporte mensual de permisos |
 | `vacaciones/` | `reloj_vacaciones_list` | Vacaciones |
-| `google/compensatorio/ingresar/` | `compensatorio_google_hook` | Hook Google Forms |
 
 ### Modelos (`reloj/models.py`)
 
@@ -671,6 +955,8 @@ Donde:
 | `historial_maestro.html` | Historial de agendas del maestro |
 | `dashboard_coordinador.html` | Dashboard del coordinador por área |
 | `editar_agenda.html` | Edición de agenda existente |
+| `_crear_agenda.html` | Pestaña *Crear agenda* (grado + semana, varios grados) |
+| `diseno_agenda.html` | Editor de diseño: vista previa PowerPoint BL / Word Colegio, ajustes y PNG final (`agendas/diseno.py`) |
 
 ### URLs (`/agendas/`)
 
@@ -684,6 +970,12 @@ Donde:
 | `<pk>/eliminar/` | `eliminar_agenda` | Eliminar agenda |
 | `modo/toggle/` | `toggle_modo` | Alternar modo maestro/coordinador |
 | `imagen/subir/` | `subir_imagen` | Subir imagen a agenda |
+| `crear-semana/` | `crear_semana` | Crear agendas vacías de una semana (coordinador) |
+| `<pk>/diseno/` | `diseno` | Editor de diseño |
+| `<pk>/diseno/guardar/` | `diseno_guardar` | Autoguardado de ajustes y textos (JSON) |
+| `<pk>/imagen-final/` · `guardar/` | `imagen_final` · `imagen_final_guardar` | Ver / guardar la imagen final (PNG) |
+
+**Moodle** (`/moodle-upload/`, app `moodle_upload`, solo superusuario + botón en el Dashboard para coordinadores): conexiones guardadas (Moodle real activo, Moodle de pruebas), publicar en cursos agrupados por grado-sección, historial y aviso de vencimiento del token. Plugin de Moodle en `moodle_plugin/local_techcareagenda`.
 
 **Acceso:** grupos `coordinador_bilingue` y `coord_progress_bl` tienen acceso a agendas de coordinador.
 

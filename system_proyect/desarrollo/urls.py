@@ -27,6 +27,8 @@ urlpatterns = [
     path('requerimientos/<str:codigo>/ticket/', views.requerimiento_abrir_ticket, name='req_abrir_ticket'),
     path('tickets/<int:ticket_id>/convertir/', views.ticket_convertir, name='ticket_convertir'),
     path('adjuntos/<int:pk>/eliminar/', views.adjunto_eliminar, name='adjunto_eliminar'),
+    # <--- hecho por claude code (seguridad 05-nov-2026): el adjunto se sirve por la app con permiso del requerimiento (no por /media/)
+    path('adjuntos/<int:pk>/', views.adjunto_ver, name='adjunto_ver'),
 
     # Proyectos (FASE 3)
     path('proyectos/', views.proyecto_list, name='proy_list'),

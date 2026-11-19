@@ -12,6 +12,7 @@
   <link href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="{% static 'conducta/css/coordinador.css' %}?v=2">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="{% static 'conducta/css/coord_detalle.css' %}?v=1">{# <--- hecho por claude code (06-nov-2026): diseño B lista + detalle #}
 {% endblock %}
 
 {% block page_actions %}
@@ -256,7 +257,7 @@
             </tr></thead>
             <tbody>
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'academico' %}
-              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}" data-estado="{{ r.estado }}" data-alumno="{{ r.alumno_nombre }}" data-grado="{{ r.grado|formato_grado }}" data-materia="{{ r.materia|default:'' }}" data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}" data-comentario="{{ r.comentario|default:''|striptags }}" data-comcoord="{{ r.comentario_coordinador|default:'' }}" data-firma="{{ r.coordinador_firma|default:'' }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -293,7 +294,7 @@
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
-                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                      <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
                            title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                            style="object-fit:cover;border-radius:4px;cursor:pointer;">
                       <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
@@ -348,7 +349,7 @@
             <tbody>
               {# Informativos marcados como conductual #}
               {% for r in reportes_informativo %}{% if r.tipo_reporte == 'conductual' %}
-              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
+              <tr data-pk="{{ r.pk }}" data-tipo="informativo" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}" data-estado="{{ r.estado }}" data-alumno="{{ r.alumno_nombre }}" data-grado="{{ r.grado|formato_grado }}" data-materia="{{ r.materia|default:'' }}" data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}" data-comentario="{{ r.comentario|default:''|striptags }}" data-comcoord="{{ r.comentario_coordinador|default:'' }}" data-firma="{{ r.coordinador_firma|default:'' }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="informativo"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -384,7 +385,7 @@
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
-                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                      <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
                            title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                            style="object-fit:cover;border-radius:4px;cursor:pointer;">
                       <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
@@ -423,7 +424,7 @@
               {% endif %}{% endfor %}
               {# Reportes Conductuales #}
               {% for r in reportes_conductual %}
-              <tr data-pk="{{ r.pk }}" data-tipo="conductual" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}">
+              <tr data-pk="{{ r.pk }}" data-tipo="conductual" data-docente="{{ r.docente }}" data-coord="{{ r.coord_codigo }}" data-estado="{{ r.estado }}" data-alumno="{{ r.alumno_nombre }}" data-grado="{{ r.grado|formato_grado }}" data-materia="{{ r.materia|default:'' }}" data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}" data-comentario="{{ r.comentario|default:''|striptags }}" data-comcoord="{{ r.comentario_coordinador|default:'' }}" data-firma="{{ r.coordinador_firma|default:'' }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="conductual"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -459,7 +460,7 @@
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
-                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                      <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
                            title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                            style="object-fit:cover;border-radius:4px;cursor:pointer;">
                       <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
@@ -520,7 +521,7 @@
             </tr></thead>
             <tbody>
               {% for r in reportes_progress %}
-              <tr data-pk="{{ r.pk }}" data-tipo="progress">
+              <tr data-pk="{{ r.pk }}" data-tipo="progress" data-docente="{{ r.usuario }}" data-estado="{{ r.estado }}" data-alumno="{{ r.alumno_nombre }}" data-grado="{{ r.grado|formato_grado }}" data-materia="Semana {{ r.semana_inicio|date:'d/m' }} – {{ r.semana_fin|date:'d/m/Y' }}" data-fecha="{{ r.fecha|date:'d/m/Y H:i' }}" data-comentario="{{ r.comentario_general|default:''|striptags }}" data-comcoord="{{ r.comentario_coordinador|default:'' }}" data-firma="{{ r.coordinador_firma|default:'' }}">
                 <td class="text-center {% if not can_delete_dash %}d-none{% endif %}"><input type="checkbox" class="form-check-input chk-reporte" data-pk="{{ r.pk }}" data-tipo="progress"></td>
                 <td><span class="text-muted small">#{{ r.pk }}</span></td>
                 <td>{{ r.alumno_nombre }}</td>
@@ -546,7 +547,7 @@
                     </button>
                     {% for ev in r.evidenciareporte_set.all %}
                     <div class="ev-thumb-wrap">
-                      <img src="{{ ev.imagen.url }}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
+                      <img src="{% url 'evidencia_ver' ev.pk %}" class="img-evidencia-hover img-evidencia-click" width="32" height="32"
                            title="{{ ev.titulo|default:ev.comentario|default:'Sin título' }}"
                            style="object-fit:cover;border-radius:4px;cursor:pointer;">
                       <button type="button" class="btn-ev-delete" data-ev-pk="{{ ev.pk }}"
@@ -666,7 +667,7 @@
                 </div>
                 <div class="mb-2"><label class="form-label small mb-1">Área</label>
                   <select name="area" id="per-area" class="form-select form-select-sm">
-                    <option value="ambas">Ambas</option><option value="bilingue">Bilingüe</option><option value="colegio">Colegio</option>
+                    <option value="ambas">Ambas</option><option value="bilingue">Bilingüe</option><option value="colegio">Colegio</option><option value="cfp">CFP</option>
                   </select></div>
                 <div class="row g-2 mb-2">
                   <div class="col-6"><label class="form-label small mb-1">Fecha inicio</label>
@@ -734,6 +735,8 @@
      data-v3="{% url "editar_reporte_ajax" %}"
      data-v4="{% url "bulk_eliminar_reportes" %}"
      data-v5="{{ request.user.is_superuser|yesno:'true,false' }}"></div>
+{# <--- hecho por claude code (06-nov-2026): diseño B (lista + detalle) — botones de estado solo para quien edita #}
+<div id="cb-cfg" hidden data-url-estado="{% url 'cambiar_estado_reporte' %}" data-csrf="{{ csrf_token }}" data-editar="{% if can_edit_dash %}1{% endif %}"></div>
 {# <--- hecho por claude code: script movido a extra_js (carga tras jQuery/DataTables/SweetAlert); se quitó el include duplicado que declaraba CFG dos veces #}
 
 {% endblock %}
@@ -1036,7 +1039,6 @@
                 <label class="form-label fw-bold">Estado</label>
                 <select name="estado" id="me-estado" class="form-select">
                   <option value="enviado">Enviado</option>
-                  <option value="revisando">Revisando</option>
                   <option value="revisado">Revisado</option>
                   <option value="aprobado">Aprobado</option>
                 </select>
@@ -1154,4 +1156,5 @@
 
 {# <--- hecho por claude code: script AL FINAL del bloque, tras todo el HTML que referencia (zip-toast, lightbox), para que no truene en null #}
 <script src="{% static 'conducta/js/dashboard_coordinador.js' %}?v=14"></script>
+<script src="{% static 'conducta/js/coord_detalle.js' %}?v=1"></script>{# <--- hecho por claude code (06-nov-2026): diseño B lista + detalle #}
 {% endblock %}

@@ -76,9 +76,10 @@ urlpatterns = [
     # ─────────────────────────────────────────────
     path('compensatorio-calculo/', views.compensatorio_calculo_list, name='reloj_compensatorio_calculo_list'),
     path('compensatorio-calculo/pruebas/', views.compensatorio_pruebas, name='reloj_compensatorio_pruebas'),  # <--- hecho por claude code (16-sep-2026)
-    path('compensatorio-calculo/hoja/', views.compensatorio_hoja_save, name='reloj_compensatorio_hoja_save'),  # <--- hecho por claude code (16-nov-2026): hoja por empleado
+    path('compensatorio-calculo/hoja/', views.compensatorio_hoja_save, name='reloj_compensatorio_hoja_save'),  # <--- hecho por claude code (16-nov-2026): hoja por empleado (Pruebas)
     path('compensatorio-calculo/pruebas/permiso-tomado/', views.compensatorio_permiso_tomado_save, name='reloj_compensatorio_permiso_tomado_save'),  # <--- hecho por claude code (16-sep-2026)
     path('compensatorio-calculo/pruebas/saldo/', views.compensatorio_saldo_manual_save, name='reloj_compensatorio_saldo_manual_save'),  # <--- hecho por claude code (16-sep-2026)
+    path('compensatorio-calculo/pruebas/fecha/', views.compensatorio_fecha_corte_save, name='reloj_compensatorio_fecha_corte_save'),  # <--- hecho por claude code (16-nov-2026)
     # <--- hecho por claude code: tabs "Compensatorio por vacaciones" / "Tiempo diario"
     path('compensatorio-calculo/periodo/', views.compensatorio_periodo_save, name='reloj_compensatorio_periodo_save'),
     path('compensatorio-calculo/vac-acumulada/', views.compensatorio_vac_acumulada_save, name='reloj_compensatorio_vac_acumulada_save'),
@@ -128,10 +129,6 @@ urlpatterns = [
     path('compensatorio-calculo/<int:pk>/tiempo-extra/add/', views.compensatorio_calculo_add_tiempo_extra_entrada, name='reloj_compensatorio_calculo_add_te'),
     path('compensatorio-te/<int:te_pk>/delete/', views.compensatorio_calculo_del_tiempo_extra_entrada, name='reloj_compensatorio_calculo_del_te'),
     path('compensatorio/emp/<str:emp_code>/tiempo-extra/add/', views.compensatorio_add_tiempo_extra_byemp, name='reloj_add_te_byemp'),
-
-    # Hook Google Forms (POST Apps Script)
-    path('google/compensatorio/ingresar/', views.compensatorio_google_hook, name='compensatorio_google_hook'),
-    path('google/compensatorio/empleados/', views.compensatorio_employees_list, name='compensatorio_employees_list'),
 
 
     # ─────────────────────────────────────────────

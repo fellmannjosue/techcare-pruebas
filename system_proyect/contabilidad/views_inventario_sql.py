@@ -3,6 +3,7 @@
 # los modelos/servicios/vistas de escritura del Inventario MySQL existente.
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
@@ -14,6 +15,9 @@ from .sqlserver_inventory.errors import InventarioSqlError
 
 def _gate(user, codename='ver_inventario'):
     # Reutiliza el sistema de permisos existente (superuser siempre pasa).
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que la tarjeta del hub (inventario_dashboard): con settings.INVENTARIO_SQL_TARJETA apagada solo entra el superusuario (antes cualquiera con ver_inventario por URL directa)
+    if not user.is_superuser and not getattr(settings, 'INVENTARIO_SQL_TARJETA', False):
+        raise PermissionDenied('El Inventario institucional aún no está habilitado.')
     if not puede(user, codename):
         raise PermissionDenied('Acceso restringido al Inventario.')
 

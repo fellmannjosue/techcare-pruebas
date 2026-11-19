@@ -61,6 +61,25 @@
     return i ? i.value : '';
   }
 
+  // Copia a `destino` SOLO el subconjunto permitido (como conducta/richtext.py). DOMParser crea un documento
+  // inerte: ahí no corren scripts ni se cargan imágenes (onerror) mientras se lee.
+  function cargarSeguro(destino, html) {
+    var raiz = new DOMParser().parseFromString('<div>' + html + '</div>', 'text/html').body.firstChild;
+    (function copiar(src, dst) {
+      Array.prototype.forEach.call(src.childNodes, function (n) {
+        if (n.nodeType === 3) { dst.appendChild(document.createTextNode(n.nodeValue)); return; }
+        if (n.nodeType !== 1) return;
+        var t = n.tagName.toLowerCase(), el = null;
+        if (t === 'br') { dst.appendChild(document.createElement('br')); return; }
+        if (t === 'b' || t === 'strong') el = document.createElement('b');
+        else if (t === 'span' && n.classList && (n.classList.contains('tc-fs-lg') || n.classList.contains('tc-fs-sm'))) {
+          el = document.createElement('span'); el.className = n.classList.contains('tc-fs-lg') ? 'tc-fs-lg' : 'tc-fs-sm';
+        }
+        if (el) { copiar(n, el); dst.appendChild(el); } else copiar(n, dst);
+      });
+    })(raiz, destino);
+  }
+
   function construir(textarea) {
     if (textarea.dataset.ricoListo) return;
     textarea.dataset.ricoListo = '1';
@@ -82,7 +101,10 @@
       '<div class="tc-rico-ia btn-group btn-group-sm" role="group"></div>' +
       '<span class="tc-rico-estado"></span>';
     var iaWrap = bar.querySelector('.tc-rico-ia');
-    ACCIONES.forEach(function (a) {
+    // <--- hecho por claude code (06-nov-2026): la IA solo aparece si la plantilla pasa data-redactar-url (en producción se activa con el asistente, Fase 3)
+    var conIA = !!textarea.dataset.redactarUrl;
+    if (!conIA) { bar.querySelector('.tc-rico-ia-lbl').hidden = true; iaWrap.hidden = true; }
+    if (conIA) ACCIONES.forEach(function (a) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'btn btn-ia'; b.dataset.ia = a.id; b.title = a.title;
       b.innerHTML = '<i class="ti ' + a.icon + '"></i> ' + a.txt;
@@ -96,7 +118,9 @@
     ed.setAttribute('role', 'textbox');
     ed.setAttribute('aria-label', 'Comentario');
     if (textarea.getAttribute('placeholder')) ed.dataset.ph = textarea.getAttribute('placeholder');
-    ed.innerHTML = (textarea.value || '').trim();   // el valor ya viene saneado del servidor
+    // <--- hecho por claude code (06-nov-2026, seguridad): NO usar innerHTML con lo guardado — los comentarios
+    // anteriores al formato nunca pasaron por el sanitizador. Se copia solo <b>, <span tc-fs-lg|sm> y <br>.
+    cargarSeguro(ed, (textarea.value || '').trim());
 
     textarea.style.display = 'none';
     textarea.parentNode.insertBefore(cont, textarea);
@@ -139,7 +163,7 @@
         var texto = (ed.innerText || '').trim();
         if (!texto) { estado.textContent = 'Escribe algo primero.'; return; }
         setBusy(true);
-        fetch(textarea.dataset.redactarUrl || REDACTAR_URL, {
+        fetch(textarea.dataset.redactarUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfDe(form) },
           body: JSON.stringify({ accion: btn.dataset.ia, texto: texto })

@@ -30,13 +30,8 @@
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab3" type="button">Tiempo compensatorio general</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab5" type="button">Instructores</button></li>
   <li class="nav-item"><button class="nav-link" id="tab-gilma-btn" data-bs-toggle="tab" data-bs-target="#tab-gilma" type="button"><i class="ti ti-user-shield me-1 text-pink"></i>{{ gilma.nombre }}</button></li>
-  {# <--- hecho por claude code (19-nov-2026): los tabs 1·2·3 y «Cálculo compensatorio» están en Reloj → Pruebas #}
-  <li class="nav-item ms-auto d-flex align-items-center gap-2">
-    <span class="text-muted small">Año:</span>
-    <select id="anio-sel" class="form-select form-select-sm" style="width:auto;">
-      {% for a in anios %}<option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>{% endfor %}
-    </select>
-  </li>
+  {# <--- hecho por claude code (19-nov-2026, PRUEBAS): los tabs 1·2·3 y «Cálculo compensatorio» viven en Reloj → Pruebas #}
+  {# <--- hecho por claude code (16-nov-2026): se quitó el selector «Año» (pedido del usuario); el año sigue siendo el actual o ?anio= #}
 </ul>
 
 <div class="tab-content">
@@ -208,7 +203,6 @@
 {# ══════════════════ TAB NUEVO — COMPENSATORIO POR VACACIONES ══════════════════ #}
 {# <--- hecho por claude code: días que debe compensar (vacaciones + días no laborables ANA) #}
 
-
 </div>{# /tab-content #}
 
 <div id="compensatorio_calculo_list-config" hidden
@@ -229,7 +223,7 @@
 
 {% include 'reloj/_compensatorio_modales.html' %}
 
-<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=43"></script>
-<script src="{% static 'reloj/js/trabajadas_manual.js' %}?v=1"></script>{# <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos) #}{# <--- hecho por claude code (16-sep-2026): lápices de saldo / 3 días + recarga al cerrar modales #}
+<script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=44"></script>{# <--- hecho por claude code (seguridad 05-nov-2026): v40 escapa razones y comentarios en los modales #}
+<script src="{% static 'reloj/js/trabajadas_manual.js' %}?v=1"></script>{# <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos) #}
 
 {% endblock %}

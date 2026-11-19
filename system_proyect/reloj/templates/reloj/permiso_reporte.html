@@ -708,7 +708,7 @@
 <script src="{% static 'reloj/js/permiso_ausentes.js' %}?v=2"></script>
 <script src="{% static 'reloj/js/permiso_marcas.js' %}?v=3"></script>
 <script src="{% static 'reloj/js/permiso_comentario.js' %}?v=1"></script>
-<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=7"></script>
+<script src="{% static 'reloj/js/permiso_reporte.js' %}?v=8"></script>{# <--- hecho por claude code (seguridad 05-nov-2026): v8 escapa la razón en el historial de permisos #}
 
 {# ── Ajuste del receso (solo superuser): seleccionar marcas reales del día ── #}
 {% if request.user.is_superuser %}

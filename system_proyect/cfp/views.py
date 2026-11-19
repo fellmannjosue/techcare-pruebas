@@ -8,8 +8,9 @@ from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.conf import settings
 from django.contrib.auth.decorators import login_required  # <--- hecho por claude code
-from django.db import connections
+from django.db import connections, transaction   # <--- hecho por claude code (seguridad 05-nov-2026): transaction para la planilla
 from django.db.models import Max
+import logging   # <--- hecho por claude code (seguridad 05-nov-2026): errores del driver al log, no print()
 from django.views.decorators.http import require_POST
 
 from .models import (
@@ -112,6 +113,7 @@ def taller(request, taller):
         'ejecuciones': ejecuciones, 'tot': tot,
         'dist': dist, 'dist_tot': dist_tot,
         'es_mecanica': taller == 'mecanica',
+        'puede_eliminar': _es_director(request.user),   # <--- hecho por claude code (seguridad 05-nov-2026): botón Eliminar = mismo criterio que ejecucion_eliminar
     })
 
 
@@ -141,7 +143,7 @@ def ejecucion_guardar(request):
     taller = request.POST.get('taller')
     if taller not in TALLER_LABEL:
         return JsonResponse({'ok': False, 'error': 'Taller inválido'}, status=400)
-    obj = get_object_or_404(EjecucionCurso, pk=pk) if pk else EjecucionCurso()
+    obj = get_object_or_404(EjecucionCurso, pk=_pk_int(pk)) if pk else EjecucionCurso()   # <--- hecho por claude code (seguridad 05-nov-2026): pk='abc' daba 500
     obj.anio         = _to_int(request.POST.get('anio'), date.today().year)
     obj.taller       = taller
     obj.taller_anio  = _to_int(request.POST.get('taller_anio')) or None
@@ -159,6 +161,11 @@ def ejecucion_guardar(request):
     obj.part_pago    = _to_int(request.POST.get('part_pago'))
     obj.costo_hora   = _to_dec(request.POST.get('costo_hora'))
     obj.horario      = (request.POST.get('horario') or '').strip()
+    # <--- hecho por claude code (06-nov-2026): pérdida opcional escrita a mano (vacía = automática por deserción)
+    perdida, error = _perdida_valida(request.POST.get('perdida_manual'))
+    if error:
+        return JsonResponse({'ok': False, 'error': error}, status=400)
+    obj.perdida_manual = perdida
     if not obj.nombre_curso:
         return JsonResponse({'ok': False, 'error': 'El nombre del curso es obligatorio'}, status=400)
     obj.save()
@@ -174,13 +181,46 @@ def ejecucion_detalle(request, pk):
         'nombre_curso': e.nombre_curso, 'horas': e.horas,
         'part_inicial': e.part_inicial, 'part_pago': e.part_pago, 'costo_hora': float(e.costo_hora),
         'horario': e.horario,
+        'perdida_manual': '' if e.perdida_manual is None else float(e.perdida_manual),   # <--- hecho por claude code (06-nov-2026)
     })
+
+
+def _perdida_valida(crudo):
+    """<--- hecho por claude code (06-nov-2026): (Decimal|None, error). Vacío = None (automática); texto o negativo = error."""
+    from decimal import Decimal, InvalidOperation
+    crudo = (crudo or '').strip().replace(',', '')
+    if not crudo:
+        return None, ''
+    try:
+        v = Decimal(crudo)
+    except InvalidOperation:
+        return None, 'Escribe un monto válido'
+    if not v.is_finite() or v < 0 or v >= Decimal('10000000000'):
+        return None, 'La pérdida debe ser un monto de 0 o más'
+    return v.quantize(Decimal('0.01')), ''
+
+
+@cfp_required
+def ejecucion_perdida(request, pk):
+    """<--- hecho por claude code (06-nov-2026): guarda SOLO la pérdida del curso (modal del lápiz). Vacía = automática por deserción."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    obj = get_object_or_404(EjecucionCurso, pk=pk)
+    valor, error = _perdida_valida(request.POST.get('perdida'))
+    if error:
+        return JsonResponse({'ok': False, 'error': error}, status=400)
+    obj.perdida_manual = valor
+    obj.save(update_fields=['perdida_manual'])
+    return JsonResponse({'ok': True, 'perdida': obj.perdida, 'cancelacion': obj.cancelacion, 'costo_real': obj.costo_real})
 
 
 @cfp_required
 def ejecucion_eliminar(request, pk):
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
+    # <--- hecho por claude code (seguridad 05-nov-2026): borrar una ejecución arrastra su informe y su planilla (cascada) → solo director CFP o superusuario (antes cualquiera de contabilidad_cfp)
+    if not _es_director(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo el director del CFP puede eliminar una ejecución.'}, status=403)
     get_object_or_404(EjecucionCurso, pk=pk).delete()
     return JsonResponse({'ok': True})
 
@@ -377,20 +417,22 @@ def planilla_form(request, pk):
         dnis    = request.POST.getlist('dni')
         cargos  = request.POST.getlist('cargo')
         montos  = request.POST.getlist('monto')   # <--- hecho por claude code (09-sep): monto manual por persona
-        ej.planilla.all().delete()
-        nuevas = []
-        for i, nombre in enumerate(nombres):
-            nombre = (nombre or '').strip()
-            if not nombre:                      # una fila sin nombre no es nadie
-                continue
-            nuevas.append(GastoAdministrativo(
-                ejecucion=ej, nombre=nombre,
-                dni=(dnis[i] if i < len(dnis) else '').strip(),
-                cargo=(cargos[i] if i < len(cargos) else '').strip(),
-                orden=i,
-                monto=round(float(_to_dec(montos[i] if i < len(montos) else '') or 0), 2)))
-        GastoAdministrativo.objects.bulk_create(nuevas)
-        inf.sincronizar_cargos()                # el informe refleja la planilla
+        # <--- hecho por claude code (seguridad 05-nov-2026): borrar + recrear en UNA transacción (si algo falla no queda la planilla vacía)
+        with transaction.atomic():
+            ej.planilla.all().delete()
+            nuevas = []
+            for i, nombre in enumerate(nombres):
+                nombre = (nombre or '').strip()
+                if not nombre:                      # una fila sin nombre no es nadie
+                    continue
+                nuevas.append(GastoAdministrativo(
+                    ejecucion=ej, nombre=nombre,
+                    dni=(dnis[i] if i < len(dnis) else '').strip(),
+                    cargo=(cargos[i] if i < len(cargos) else '').strip(),
+                    orden=i,
+                    monto=round(float(_to_dec(montos[i] if i < len(montos) else '') or 0), 2)))
+            GastoAdministrativo.objects.bulk_create(nuevas)
+            inf.sincronizar_cargos()                # el informe refleja la planilla
         # <--- hecho por claude code: autoguardado — mismo POST, respuesta JSON
         if request.GET.get('ajax') == '1':
             return JsonResponse({'ok': True,
@@ -532,6 +574,26 @@ def _cursos_instructor(u):
     return set(InstructorCurso.objects.filter(instructor=u).values_list('curso', flat=True))
 
 
+def _curso_permitido(u, curso):
+    """<--- hecho por claude code (seguridad 05-nov-2026): True si el usuario puede ver/escribir ESE curso
+    (superusuario o director = todos; instructor = solo sus InstructorCurso). Antes solo lo revisaba notas_curso."""
+    permitidos = _cursos_instructor(u)
+    return permitidos is None or curso in permitidos
+
+
+def _json_403(msg='Este curso no está asignado a tu usuario.'):
+    """<--- hecho por claude code (seguridad 05-nov-2026): el JS de notas lee {ok, error} con r.json()."""
+    return JsonResponse({'ok': False, 'error': msg}, status=403)
+
+
+def _pk_int(v):
+    """<--- hecho por claude code (seguridad 05-nov-2026): pk del body JSON como entero (antes 'abc' daba 500)."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _puede_notas(u):
     """Quién entra a Notas (Programa 2)."""
     return u.is_superuser or u.groups.filter(
@@ -581,8 +643,8 @@ def _conteo_cursos(anio):
         with connections['padres_sqlserver'].cursor() as c:
             c.execute(sql, [anio] + CURSOS_CFP)
             return {row[0]: row[1] for row in c.fetchall()}
-    except Exception as e:
-        print('[cfp notas] ERROR conteo SQL Server:', e)
+    except Exception:
+        logging.getLogger(__name__).exception('[cfp notas] ERROR conteo SQL Server')   # <--- hecho por claude code (seguridad 05-nov-2026)
         return {}
 
 
@@ -609,8 +671,8 @@ def _participantes_curso(anio, curso):
                      'nombre': ' '.join((r[1] or '').split()),
                      'identidad': (r[2] or '').strip(),
                      'sexo': (r[3] or '').strip()} for r in c.fetchall()]
-    except Exception as e:
-        print(f'[cfp notas] ERROR participantes SQL Server ({curso}):', e)
+    except Exception:
+        logging.getLogger(__name__).exception('[cfp notas] ERROR participantes SQL Server (%s)', curso)   # <--- hecho por claude code (seguridad 05-nov-2026)
         return []
 
 
@@ -836,7 +898,10 @@ def _cursos_jornadas(cn):
 def modulo_guardar(request):
     """Crea o edita un módulo. En cursos divididos se espeja en ambas jornadas."""
     d = _body(request)
-    cn = get_object_or_404(CursoNota, pk=d.get('curso_pk'))
+    cn = get_object_or_404(CursoNota, pk=_pk_int(d.get('curso_pk')))
+    # <--- hecho por claude code (seguridad 05-nov-2026): un instructor solo toca módulos de SUS cursos (antes cualquier curso_pk)
+    if not _curso_permitido(request.user, cn.curso):
+        return _json_403()
     targets = _cursos_jornadas(cn)
 
     # Prefijo del curso (se aplica a todas las jornadas)
@@ -854,7 +919,8 @@ def modulo_guardar(request):
 
     pk = d.get('pk')
     if pk:
-        base = get_object_or_404(ModuloNota, pk=pk)
+        # <--- hecho por claude code (seguridad 05-nov-2026): el módulo debe ser de ESTE curso (o de su otra jornada)
+        base = get_object_or_404(ModuloNota, pk=_pk_int(pk), curso__in=targets)
         numero = base.numero
     else:
         mx = max((t.modulos.aggregate(x=Max('numero'))['x'] or 0) for t in targets)
@@ -877,7 +943,10 @@ def modulo_guardar(request):
 def modulo_eliminar(request):
     """Elimina el módulo en todas las jornadas que lo comparten."""
     d = _body(request)
-    m = get_object_or_404(ModuloNota, pk=d.get('pk'))
+    m = get_object_or_404(ModuloNota.objects.select_related('curso'), pk=_pk_int(d.get('pk')))
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes un instructor BORRABA (en cascada, con sus notas) módulos de cursos ajenos
+    if not _curso_permitido(request.user, m.curso.curso):
+        return _json_403()
     targets = _cursos_jornadas(m.curso)
     ModuloNota.objects.filter(curso__in=targets, numero=m.numero).delete()
     return JsonResponse({'ok': True})
@@ -888,11 +957,14 @@ def modulo_eliminar(request):
 def notas_guardar(request):
     """Guarda la cuadrícula de notas por intento (Tab 1)."""
     d = _body(request)
-    cn = get_object_or_404(CursoNota, pk=d.get('curso_pk'))
+    cn = get_object_or_404(CursoNota, pk=_pk_int(d.get('curso_pk')))
+    # <--- hecho por claude code (seguridad 05-nov-2026): un instructor solo escribe notas de SUS cursos (antes cualquier curso_pk)
+    if not _curso_permitido(request.user, cn.curso):
+        return _json_403()
     mod_ids = set(cn.modulos.values_list('id', flat=True))
     n = 0
     for row in d.get('notas', []):
-        mid = row.get('modulo'); pid = row.get('persona')
+        mid = row.get('modulo'); pid = _pk_int(row.get('persona'))   # <--- hecho por claude code (seguridad 05-nov-2026): entero o se ignora (antes 500)
         if mid not in mod_ids or not pid:
             continue
         vals = {k: _dec(row.get(k)) for k in ('t1', 't2', 't3', 'p1', 'p2', 'p3')}
@@ -914,7 +986,10 @@ def notas_guardar(request):
 def horas_guardar(request):
     """Guarda horas-meta (solo director) y horas reales por participante (Tab 4)."""
     d = _body(request)
-    cn = get_object_or_404(CursoNota, pk=d.get('curso_pk'))
+    cn = get_object_or_404(CursoNota, pk=_pk_int(d.get('curso_pk')))
+    # <--- hecho por claude code (seguridad 05-nov-2026): un instructor solo escribe horas de SUS cursos (antes cualquier curso_pk)
+    if not _curso_permitido(request.user, cn.curso):
+        return _json_403()
     if _es_director(request.user):
         for mes, val in (d.get('meta') or {}).items():
             try:
@@ -925,7 +1000,7 @@ def horas_guardar(request):
                 HorasMetaMes.objects.update_or_create(
                     curso=cn, mes=mes, defaults={'horas': _dec(val) or 0})
     for row in d.get('part', []):
-        pid = row.get('persona'); mes = row.get('mes')
+        pid = _pk_int(row.get('persona')); mes = row.get('mes')   # <--- hecho por claude code (seguridad 05-nov-2026)
         try:
             mes = int(mes)
         except (TypeError, ValueError):
@@ -940,6 +1015,9 @@ def horas_guardar(request):
 @cfp_notas_required
 def notas_excel(request, anio, curso):
     """Exporta a Excel las 4 vistas (Progreso, Compilación, Módulos, Horas)."""
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo candado que notas_curso (antes exportaba cualquier curso, con DNI)
+    if not _curso_permitido(request.user, curso):
+        return HttpResponseForbidden('Este curso no está asignado a tu usuario.')
     if curso not in CURSOS_CFP:
         return redirect('cfp:notas_cursos')
     from openpyxl import Workbook

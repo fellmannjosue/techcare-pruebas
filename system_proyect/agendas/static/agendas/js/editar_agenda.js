@@ -50,8 +50,13 @@ window._PAGE = { agendaId: CFG_EDITAR_AGENDA.j2, csrf: CFG_EDITAR_AGENDA.v0, sub
           document.querySelectorAll('.cam-zona-' + zonaId).forEach(function (el) {
             el.classList.add('d-none');
           });
+        } else {
+          /* <--- hecho por claude code (seguridad 05-nov-2026): el servidor ahora valida tipo/permiso; avisar en vez de fallar en silencio */
+          input.value = '';
+          alert((data && data.error) || 'No se pudo subir la imagen.');
         }
-      });
+      })
+      .catch(function () { input.value = ''; alert('No se pudo subir la imagen.'); });
   }
 
   function eliminarImg(imgId, zonaId) {
@@ -66,8 +71,10 @@ window._PAGE = { agendaId: CFG_EDITAR_AGENDA.j2, csrf: CFG_EDITAR_AGENDA.v0, sub
         document.querySelectorAll('.cam-zona-' + zonaId).forEach(function (el) {
           el.classList.remove('d-none');
         });
+      } else {
+        alert((data && data.error) || 'No se pudo eliminar la imagen.');   /* <--- hecho por claude code (seguridad 05-nov-2026) */
       }
-    });
+    }).catch(function () { alert('No se pudo eliminar la imagen.'); });
   }
 
   function addAsociada() {

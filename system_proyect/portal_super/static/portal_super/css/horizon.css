@@ -327,5 +327,11 @@ html.dark { --tc-tb-bg: #0c1526; --tc-tb-bd: #1b2740; }
     display: block; box-shadow: none; border: 0; border-radius: 0;
     padding: 2px 0 6px 14px; min-width: 0; max-height: none;
   }
+  /* <--- hecho por claude code (09-nov-2026): en el teléfono cada grupo es un ACORDEÓN (antes siempre abierto y el toque no hacía nada) */
+  .tc-topnav .tc-dd { display: none; }
+  .tc-topnav .tc-nav-item.abierto > .tc-dd { display: block; }
+  .tc-nav-car { transition: transform .15s; }
+  .tc-nav-item.abierto > .tc-nav-toggle .tc-nav-car { transform: rotate(180deg); }
+  .tc-nav-item.abierto > .tc-nav-toggle { background: var(--ps-surface-2); }
 }
 @media print { .tc-topbar { display: none !important; } .page-wrapper { padding-top: 0 !important; } }

@@ -120,5 +120,9 @@ pytz==2026.1.post1
 tzdata==2026.2
 tqdm==4.67.3
 
-# <--- hecho por claude code (26-oct-2026): asistente IA
+# <--- hecho por claude code (26-oct-2026; producción 06-nov-2026): asistente IA
 anthropic
+
+# <--- hecho por claude code (09-nov-2026): Configuración → Documentación (visor de docs/, html=False)
+markdown-it-py==4.2.0
+mdurl==0.1.2

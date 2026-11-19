@@ -98,8 +98,9 @@
           <div class="col-12"><label class="form-label">Tipo</label>
             <select name="tipo" class="form-select">
               {% if insumo.presentacion == 'galones' %}<option value="compra">Compra de galones</option>{% elif insumo.presentacion == 'tanque' %}<option value="llenado">Llenado de tanque</option>{% else %}<option value="barril">Barril nuevo</option>{% endif %}
-              <option value="inicial">Saldo inicial (lo que hay hoy)</option>
-              <option value="ajuste">Ajuste</option>
+              {# <--- hecho por claude code (seguridad 05-nov-2026): saldo inicial y ajuste = solo el superusuario (mismo criterio que entrada_crear) #}
+              {% if puede_modificar %}<option value="inicial">Saldo inicial (lo que hay hoy)</option>
+              <option value="ajuste">Ajuste</option>{% endif %}
             </select>
           </div>
           {% if insumo.presentacion == 'tanque' %}<div class="col-12"><label class="form-check"><input type="checkbox" class="form-check-input" name="confirmar_capacidad" value="1"><span class="form-check-label">Confirmar de todas formas si supera la capacidad del tanque ({{ insumo.capacidad_envase|floatformat:0 }} gal)</span></label></div>{% endif %}
@@ -171,6 +172,7 @@
   </div>
 </div>
 {% endif %}
+{% if puede_modificar %}{# <--- hecho por claude code (seguridad 05-nov-2026): configurar = solo el superusuario (mismo criterio que insumo_config) #}
 <div class="modal fade" id="mmModalConfig" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <form method="post" class="modal-content" action="{% url 'mantenimiento_mecanico:insumo_config' insumo.clave %}">
@@ -186,6 +188,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 {% endif %}
 

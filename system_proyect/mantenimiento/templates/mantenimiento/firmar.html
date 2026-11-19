@@ -37,6 +37,13 @@
           <h3 class="mb-1">Este mantenimiento ya fue firmado</h3>
           <p class="mb-0">Firmado por <strong>{{ rec.teacher_name }}</strong>{% if rec.firmado_en %} el {{ rec.firmado_en|date:"d/m/Y H:i" }}{% endif %}.</p>
         </div>
+      {% elif vencido %}
+        {# <--- hecho por claude code (seguridad 05-nov-2026): el enlace de firma caduca; no se muestran datos de la ficha #}
+        <div class="alert alert-warning text-center">
+          <i class="ti ti-clock-x fs-1 d-block mb-2"></i>
+          <h3 class="mb-1">Este enlace venció</h3>
+          <p class="mb-0">Los enlaces de firma son válidos por {{ dias }} días. Pide a Soporte Técnico que te envíe uno nuevo.</p>
+        </div>
       {% else %}
         <div class="card card-sm mb-3 bg-light">
           <div class="card-body">
@@ -62,6 +69,7 @@
         <p class="text-muted small">{% if rec.tipo_equipo == 'control' %}Firme como evidencia de conformidad con el control de equipo realizado.{% else %}Firme como evidencia de conformidad con la reparación realizada.{% endif %}</p>
         <form method="post" id="firmaForm">
           {% csrf_token %}
+          <input type="hidden" name="t" value="{{ sello }}">{# <--- hecho por claude code (seguridad 05-nov-2026): sello del enlace (caduca) #}
           <input type="hidden" name="firma_data" id="firma_data">
           <div class="mb-2">
             <label class="form-label fw-semibold">Firma</label>
@@ -78,7 +86,7 @@
   </div>
 </div>
 
-{% if not exito and not ya_firmado %}
+{% if not exito and not ya_firmado and not vencido %}{# <--- hecho por claude code (seguridad 05-nov-2026): sin pad de firma si el enlace venció #}
 <script src="{% static 'mantenimiento/js/firmar.js' %}?v=2"></script>
 {% endif %}
 {% if True %}

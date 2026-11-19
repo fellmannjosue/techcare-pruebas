@@ -45,3 +45,16 @@ def semaforo_emoji(clave):
 @register.filter
 def semaforo_texto(clave):
     return _SEMAFORO.get(clave, _SEMAFORO['gris'])[1]
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): la URL del proyecto se pintaba en href tal cual (un "javascript:" quedaba como XSS almacenado); solo se enlaza una ruta interna (/…) o http(s)://
+@register.filter
+def url_segura(url):
+    u = (url or '').strip()
+    if not u or '\\' in u or any(ord(c) < 33 for c in u):
+        return ''
+    if u.startswith('/') and not u.startswith('//'):
+        return u
+    if u.lower().startswith(('http://', 'https://')):
+        return u
+    return ''

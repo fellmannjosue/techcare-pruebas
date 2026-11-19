@@ -15,7 +15,7 @@
                       {% for r in records_rep %}
                       {% with est=r.reparacion_estado %}
                       <tr>
-                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td><span class="badge bg-orange-lt text-orange btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
                         <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td><div class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
                         <td>{{ r.teacher_name|default:"—" }}</td>

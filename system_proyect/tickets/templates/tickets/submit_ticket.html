@@ -102,8 +102,9 @@
         </div>
 
         {# Inputs de archivo — completamente ocultos #}
+        {# <--- hecho por claude code (seguridad 05-nov-2026): accept = la lista blanca del servidor (antes image/* ofrecía SVG/HEIC, que se rechazan); la cámara sigue con image/* porque saca JPG #}
         <input type="file" id="inputBrowse" style="display:none;"
-               accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">
+               accept="{{ accept_adjuntos }}">
         <input type="file" id="inputCamera" style="display:none;"
                accept="image/*" capture="environment">
 

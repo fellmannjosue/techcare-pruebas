@@ -7,7 +7,7 @@ from django.db.models import Q, Count, Avg
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET, require_safe
 
 from .models import (
     RequerimientoDesarrollo, ProyectoDesarrollo, HistorialRequerimiento,
@@ -18,8 +18,30 @@ from .models import (
 from .forms import (RequerimientoNuevoForm, RequerimientoEditForm, ComentarioForm,
                     AdjuntoForm, ProyectoForm, ConvertirProyectoForm)
 from .utils import (es_admin_desarrollo, es_dev_desarrollo, puede_ver_requerimiento,
-                    es_solo_solicitante)
+                    es_solo_solicitante, puede_entrar_desarrollo, reqs_visibles)
 from . import services
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): candado del módulo con el MISMO criterio que el menú (nav_desarrollo = superusuario o grupo desarrollo_admin/dev/solicitante); antes cualquier usuario con sesión veía proyectos, creaba requerimientos y llenaba los catálogos
+def _desarrollo_requerido(vista):
+    from functools import wraps
+
+    @wraps(vista)
+    def _envuelta(request, *args, **kwargs):
+        if not puede_entrar_desarrollo(request.user):
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'ok': False, 'error': 'No tienes acceso a Gestión de Desarrollo.'}, status=403)
+            raise PermissionDenied('No tienes acceso a Gestión de Desarrollo.')
+        return vista(request, *args, **kwargs)
+    return _envuelta
+
+
+def _int_o_none(valor):
+    """<--- hecho por claude code (seguridad 05-nov-2026): los filtros GET ?proyecto=/?responsable= con texto daban 500 (ValueError del ORM)."""
+    try:
+        return int(str(valor).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 # ────────────────────────────── Dashboard ──────────────────────────────
@@ -34,6 +56,7 @@ _SEMAFORO_HEX = {'verde': '#2fb344', 'amarillo': '#f59f00', 'rojo': '#d63939', '
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def dashboard(request):
     """Dashboard (FASE 4): KPIs, gráficos (estado/tipo/área/prioridad),
     semáforos, próximos a vencer y actividad reciente."""
@@ -110,6 +133,7 @@ def dashboard(request):
 
 # ────────────────────────────── Nuevo ──────────────────────────────
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_nuevo(request):
     if request.method == 'POST':
         form = RequerimientoNuevoForm(request.POST)
@@ -140,6 +164,7 @@ def requerimiento_nuevo(request):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def solicitante_agregar(request):
     """Agrega un solicitante al catálogo desde el formulario (AJAX). Devuelve JSON."""
@@ -157,6 +182,7 @@ def solicitante_agregar(request):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def catalogo_agregar(request):
     """Agrega una opción de Área/Módulo al catálogo (AJAX). Guarda y devuelve texto."""
@@ -195,14 +221,17 @@ def _requerimientos_filtrados(request):
         val = (g.get(campo) or '').strip()
         if val:
             qs = qs.filter(**{campo: val})
-    if g.get('proyecto'):
-        qs = qs.filter(proyecto_id=g['proyecto'])
-    if g.get('responsable'):
-        qs = qs.filter(responsable_id=g['responsable'])
+    pid = _int_o_none(g.get('proyecto'))       # <--- hecho por claude code (seguridad 05-nov-2026): texto en el filtro daba 500
+    if pid is not None:
+        qs = qs.filter(proyecto_id=pid)
+    rid = _int_o_none(g.get('responsable'))
+    if rid is not None:
+        qs = qs.filter(responsable_id=rid)
     return qs
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_list(request):
     if es_solo_solicitante(request.user):            # <--- staff: su historial es Mis Requerimientos
         return redirect('desarrollo:mis_requerimientos')
@@ -225,6 +254,7 @@ def requerimiento_list(request):
 
 # ────────────────────────────── Detalle ──────────────────────────────
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_detail(request, codigo):
     req = get_object_or_404(
         RequerimientoDesarrollo.objects.select_related('proyecto', 'solicitante', 'responsable', 'ticket'),
@@ -241,6 +271,7 @@ def requerimiento_detail(request, codigo):
         'puede_editar': es_dev_desarrollo(request.user) or req.responsable_id == request.user.id,
         'puede_proyecto': es_admin_desarrollo(request.user) or es_dev_desarrollo(request.user),
         'es_admin': es_admin_desarrollo(request.user),
+        'es_dev': es_dev_desarrollo(request.user),   # <--- hecho por claude code (seguridad 05-nov-2026): el botón de borrar adjunto solo a quien puede (dev o quien lo subió)
         'nav_home_url': '/',
     })
 
@@ -248,6 +279,7 @@ def requerimiento_detail(request, codigo):
 # ────────────────────────────── Vínculo con Tickets ──────────────────────────────
 # <--- hecho por claude code (29-sep-2026)
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def requerimiento_abrir_ticket(request, codigo):
     """Abre el ticket de un requerimiento que aún no lo tiene (sirve también para los ya existentes)."""
@@ -264,6 +296,7 @@ def requerimiento_abrir_ticket(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def ticket_convertir(request, ticket_id):
     """Convierte un ticket existente en requerimiento de desarrollo (quedan enlazados)."""
@@ -283,6 +316,7 @@ def ticket_convertir(request, ticket_id):
 
 # ────────────────────────────── Edición / seguimiento ──────────────────────────────
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_editar(request, codigo):
     req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
     if not (es_dev_desarrollo(request.user) or req.responsable_id == request.user.id):
@@ -326,6 +360,7 @@ def requerimiento_editar(request, codigo):
 
 # ────────────────────────────── Bitácora / adjuntos ──────────────────────────────
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def comentario_agregar(request, codigo):
     req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
@@ -341,6 +376,7 @@ def comentario_agregar(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def adjunto_subir(request, codigo):
     req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
@@ -359,11 +395,14 @@ def adjunto_subir(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def adjunto_eliminar(request, pk):
     a = get_object_or_404(AdjuntoRequerimiento.objects.select_related('requerimiento'), pk=pk)
     req = a.requerimiento
-    if not (es_dev_desarrollo(request.user) or a.usuario_id == request.user.id):
+    # <--- hecho por claude code (seguridad 05-nov-2026): quien lo subió solo lo borra si todavía ve el requerimiento (p. ej. un responsable reasignado ya no)
+    if not (es_dev_desarrollo(request.user)
+            or (a.usuario_id == request.user.id and puede_ver_requerimiento(request.user, req))):
         raise PermissionDenied()
     a.archivo.delete(save=False)
     a.delete()
@@ -371,8 +410,42 @@ def adjunto_eliminar(request, pk):
     return redirect('desarrollo:req_detail', codigo=req.codigo)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): adjuntos servidos por la app CON permiso del requerimiento (antes /media/desarrollo/adjuntos/ salía por Apache sin sesión). Imágenes y PDF en línea con su tipo real; lo demás como descarga octet-stream.
+_ADJ_EN_LINEA = {'.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg',
+                 '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
+
+
+@login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
+@require_safe  # <--- hecho por claude code (seguridad 05-nov-2026): GET y HEAD (solo lectura)
+def adjunto_ver(request, pk):
+    import os
+    from django.http import FileResponse, Http404
+    a = get_object_or_404(AdjuntoRequerimiento.objects.select_related('requerimiento'), pk=pk)
+    if not puede_ver_requerimiento(request.user, a.requerimiento):
+        raise PermissionDenied('No tienes permiso para ver este adjunto.')
+    if not a.archivo:
+        raise Http404('Sin archivo')
+    guardado = os.path.basename(a.archivo.name or '')
+    ext = os.path.splitext(guardado)[1].lower()
+    nombre = os.path.basename((a.nombre_original or '').replace('\\', '/')) or guardado or 'adjunto'
+    if os.path.splitext(nombre)[1].lower() != ext:   # el nombre de descarga conserva la extensión REAL del archivo guardado
+        nombre = guardado or 'adjunto'
+    try:
+        fh = a.archivo.open('rb')
+    except (FileNotFoundError, OSError, ValueError):
+        raise Http404('Archivo no encontrado')
+    tipo = _ADJ_EN_LINEA.get(ext)
+    resp = FileResponse(fh, as_attachment=tipo is None, filename=nombre,
+                        content_type=tipo or 'application/octet-stream')
+    resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cache-Control'] = 'private, no-store'
+    return resp
+
+
 # ══════════════════════════════ FASE 3 · Proyectos ══════════════════════════════
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def proyecto_list(request):
     """Listado de proyectos con conteo de requerimientos y avance promedio."""
     if es_solo_solicitante(request.user):
@@ -441,20 +514,22 @@ def _generar_prompt_claude(proy, reqs):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def proyecto_detail(request, codigo):
     """Detalle del proyecto: ficha técnica + requerimientos + timeline agregado."""
     if es_solo_solicitante(request.user):
         return redirect('desarrollo:mis_requerimientos')
     proy = get_object_or_404(ProyectoDesarrollo.objects.select_related('responsable', 'solicitado_por'),
                              codigo=codigo)
-    reqs = (proy.requerimientos
-            .select_related('responsable', 'solicitante').order_by('-fecha_creado'))
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo los requerimientos que el usuario puede ver (mismo criterio que puede_ver_requerimiento) en la tabla, el timeline y el prompt
+    reqs = reqs_visibles(request.user, proy.requerimientos
+                         .select_related('responsable', 'solicitante').order_by('-fecha_creado'))
     total = reqs.count()
     cerrados = sum(1 for r in reqs if r.estado in ESTADOS_CERRADOS)
     avance = round(sum(r.porcentaje_avance for r in reqs) / total) if total else 0
     # Timeline: últimos movimientos de historial de todos los requerimientos del proyecto.
     timeline = (HistorialRequerimiento.objects
-                .filter(requerimiento__proyecto=proy)
+                .filter(requerimiento__proyecto=proy, requerimiento__in=reqs)
                 .select_related('requerimiento', 'usuario')
                 .order_by('-fecha', '-id')[:30])
     return render(request, 'desarrollo/proy_detail.html', {
@@ -468,6 +543,7 @@ def proyecto_detail(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def proyecto_nuevo(request):
     if not (es_admin_desarrollo(request.user) or es_dev_desarrollo(request.user)):
         raise PermissionDenied('No tienes permiso para crear proyectos.')
@@ -490,6 +566,7 @@ def proyecto_nuevo(request):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def proyecto_editar(request, codigo):
     proy = get_object_or_404(ProyectoDesarrollo, codigo=codigo)
     if not (es_admin_desarrollo(request.user) or es_dev_desarrollo(request.user)):
@@ -509,6 +586,7 @@ def proyecto_editar(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_convertir(request, codigo):
     """Convierte un requerimiento en proyecto (services.convertir_en_proyecto)."""
     req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
@@ -538,6 +616,7 @@ def requerimiento_convertir(request, codigo):
 
 # ══════════════════════════════ FASE 5 · Roadmap / Mis requerimientos ══════════════════════════════
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def roadmap(request):
     """Tablero Kanban: requerimientos agrupados por estado (arrastrar para mover)."""
     if es_solo_solicitante(request.user):
@@ -547,8 +626,8 @@ def roadmap(request):
           .select_related('responsable', 'proyecto').order_by('-fecha_creado'))
     if not es_admin:
         qs = qs.filter(Q(solicitante=request.user) | Q(responsable=request.user))
-    proyecto_id = (request.GET.get('proyecto') or '').strip()
-    if proyecto_id:
+    proyecto_id = _int_o_none(request.GET.get('proyecto'))   # <--- hecho por claude code (seguridad 05-nov-2026): texto en el filtro daba 500
+    if proyecto_id is not None:
         qs = qs.filter(proyecto_id=proyecto_id)
 
     por_estado = {clave: [] for clave, _ in EstadoReq.choices}
@@ -567,12 +646,14 @@ def roadmap(request):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def requerimiento_mover(request, codigo):
     """Cambia el estado desde el Kanban (drag & drop). Devuelve JSON."""
-    req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
-    if not (es_dev_desarrollo(request.user) or req.responsable_id == request.user.id):
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que el tablero (puede_mover = dev/admin); el responsable que no es dev cambia el estado por «Editar / Seguimiento», como le muestra la pantalla
+    if not es_dev_desarrollo(request.user):
         return JsonResponse({'ok': False, 'error': 'Sin permiso para mover este requerimiento.'}, status=403)
+    req = get_object_or_404(RequerimientoDesarrollo, codigo=codigo)
     nuevo = (request.POST.get('estado') or '').strip()
     if nuevo not in {c for c, _ in EstadoReq.choices}:
         return JsonResponse({'ok': False, 'error': 'Estado inválido.'}, status=400)
@@ -588,6 +669,7 @@ def requerimiento_mover(request, codigo):
 
 
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def mis_requerimientos(request):
     """Los requerimientos donde el usuario es solicitante o responsable."""
     base = RequerimientoDesarrollo.objects.select_related('proyecto', 'solicitante', 'responsable')
@@ -602,6 +684,7 @@ def mis_requerimientos(request):
 
 # ══════════════════════════════ FASE 6 · Exportación a Excel ══════════════════════════════
 @login_required
+@_desarrollo_requerido   # <--- hecho por claude code (seguridad 05-nov-2026)
 def requerimiento_exportar(request):
     """Exporta a .xlsx los requerimientos filtrados (respeta permisos y filtros GET)."""
     if es_solo_solicitante(request.user):
@@ -654,6 +737,8 @@ def requerimiento_exportar(request):
         ws.column_dimensions[get_column_letter(i)].width = ancho
     for row in ws.iter_rows(min_row=2):
         for cell in row:
+            if isinstance(cell.value, str) and cell.data_type == 'f':   # <--- hecho por claude code (seguridad 05-nov-2026): openpyxl guardaba como FÓRMULA un título que empieza con "=" (inyección en el Excel de quien exporta); queda como texto
+                cell.data_type = 's'
             if isinstance(cell.value, str) and len(cell.value) > 40:
                 cell.alignment = Alignment(wrap_text=True, vertical='top')
 

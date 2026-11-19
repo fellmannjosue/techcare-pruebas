@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): candado global de sesión
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse, HttpResponse
@@ -8,6 +9,9 @@ from django.contrib import messages
 from django.contrib.auth.models import User, Group
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError   # <--- hecho por claude code (seguridad 05-nov-2026): PermissionDenied se usaba sin importar (500 en vez de 403)
+from django.contrib.auth.password_validation import validate_password   # <--- hecho por claude code (seguridad 05-nov-2026): aplicar AUTH_PASSWORD_VALIDATORS
+from django.utils.http import url_has_allowed_host_and_scheme   # <--- hecho por claude code (seguridad 05-nov-2026): ?next= del login solo al propio sitio
 import datetime
 
 # ⬅️ Nuevo sistema de notificaciones globales
@@ -27,6 +31,55 @@ from reloj.models import RelojPermiso
 _LOGIN_MAX_TEMP  = 3      # intentos para el bloqueo temporal
 _LOGIN_TEMP_SECS = 60     # duración del bloqueo temporal (1 min)
 _LOGIN_MAX_TOTAL = 5      # intentos para el bloqueo total
+# <--- hecho por claude code (09-nov-2026, ISO 27001 · autenticación segura): límite POR IP, además del de la cuenta.
+# Frena el password spraying (pocas claves contra muchos usuarios) y la fuerza bruta contra el superusuario,
+# que sigue exento del bloqueo de cuenta (si se bloqueara no habría quién desbloquee). Solo retrasa: no bloquea cuentas.
+_LOGIN_MAX_IP     = 20         # fallos desde una misma IP…
+_LOGIN_IP_VENTANA = 15 * 60    # …dentro de 15 min → esa IP espera
+_LOGIN_IP_LOCK    = 15 * 60    # 15 min sin poder intentar
+
+
+def _ip_login(request):
+    from core.seguridad_eventos import ip_cliente
+    return ip_cliente(request) or 'sin-ip'
+
+
+def _ip_es_publica(request):
+    """El límite por IP solo aplica a IPs PÚBLICAS: dentro de la red de ANA casi todo llega por la
+    misma IP del gateway (93 % de los accesos medidos el 09-nov-2026) y un límite ahí bloquearía a
+    toda la institución por los errores de unos pocos."""
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(_ip_login(request))
+        return not (ip.is_private or ip.is_loopback)
+    except ValueError:
+        return False
+
+
+def _ip_lock_left(request):
+    import time
+    if not _ip_es_publica(request):
+        return 0
+    from django.core.cache import cache
+    ts = cache.get('login_iplock:' + _ip_login(request))
+    left = int(ts - time.time()) if ts else 0
+    return left if left > 0 else 0
+
+
+def _registrar_fallo_ip(request):
+    import time
+    if not _ip_es_publica(request):
+        return 0
+    from django.core.cache import cache
+    ip = _ip_login(request)
+    n = (cache.get('login_ipfails:' + ip, 0) or 0) + 1
+    cache.set('login_ipfails:' + ip, n, _LOGIN_IP_VENTANA)
+    if n >= _LOGIN_MAX_IP:
+        cache.set('login_iplock:' + ip, time.time() + _LOGIN_IP_LOCK, _LOGIN_IP_LOCK)
+        from core.seguridad_eventos import evento
+        evento('bloqueo_ip_login', request, fallos=n)
+        return _LOGIN_IP_LOCK
+    return 0
 
 
 def _login_key(username):
@@ -87,11 +140,17 @@ def _registrar_fallo_login(username, key):
     import time
     from django.core.cache import cache
     from django.utils import timezone as _tz
-    # <--- hecho por claude code: al superusuario no se le cuentan intentos ni se le bloquea
-    if _es_superusuario(username):
-        return {'intentos': 0, 'temp_secs': 0, 'total': False}
     n = (cache.get('login_fails:' + key, 0) or 0) + 1
     cache.set('login_fails:' + key, n, 15 * 60)   # ventana de 15 min
+    # <--- hecho por claude code (09-nov-2026, ISO 27001): el superusuario NUNCA recibe el bloqueo TOTAL
+    # (no quedaría quién desbloquee), pero sí el TEMPORAL de 1 min cada 3 fallos. Antes no tenía ningún
+    # límite: fuerza bruta ilimitada contra la cuenta más privilegiada.
+    if _es_superusuario(username):
+        estado = {'intentos': n, 'temp_secs': 0, 'total': False}
+        if n % _LOGIN_MAX_TEMP == 0:
+            cache.set('login_lock:' + key, time.time() + _LOGIN_TEMP_SECS, _LOGIN_TEMP_SECS)
+            estado['temp_secs'] = _LOGIN_TEMP_SECS
+        return estado
     estado = {'intentos': n, 'temp_secs': 0, 'total': False}
     if n >= _LOGIN_MAX_TOTAL:
         estado['total'] = True
@@ -116,6 +175,7 @@ def _reset_login_fails(key):
     cache.delete('login_lock:' + key)
 
 
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 def login_view(request):
     """
     Login unificado para todos los usuarios.
@@ -127,7 +187,9 @@ def login_view(request):
     # (evita que el botón "atrás" del navegador muestre el login cuando ya está logueado)
     if request.user.is_authenticated:
         next_url = request.GET.get('next', '')
-        if next_url and next_url.startswith('/'):
+        # <--- hecho por claude code (seguridad 05-nov-2026): antes '//otro-sitio.com' empezaba con '/' y redirigía fuera (open redirect)
+        if (next_url and next_url.startswith('/') and url_has_allowed_host_and_scheme(
+                next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure())):
             return redirect(next_url)
         return redirect('menu')
 
@@ -135,18 +197,24 @@ def login_view(request):
     if request.method == 'POST':
         # <--- hecho por claude code: resolver username real (por username o correo) antes de todo,
         # para que el login normal por correo funcione y el superusuario quede exento del bloqueo.
-        username = _resolver_username(request.POST['username'])
-        password = request.POST['password']
+        username = _resolver_username(request.POST.get('username', ''))   # <--- hecho por claude code (seguridad 05-nov-2026): .get (un POST sin el campo daba 500)
+        password = request.POST.get('password', '')
         is_maestro = request.POST.get('is_maestro') == 'on'
         key = _login_key(username)
+
+        # <--- hecho por claude code (09-nov-2026): primero el límite por IP (aplica a todos, también al superusuario)
+        _ip_left = _ip_lock_left(request)
+        if _ip_left > 0:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_temp': _ip_left})
 
         # Bloqueo total (persistente) o temporal (cache) antes de autenticar
         _u_block, _is_blocked = _perfil_bloqueado(username)
         if _is_blocked:
             return render(request, 'accounts/login.html',
                           {'year': year, 'bloqueo_total': True, 'bloqueo_username': username})
-        # <--- hecho por claude code: el bloqueo temporal tampoco aplica al superusuario
-        _lock_left = 0 if _es_superusuario(username) else _login_temp_lock_left(key)
+        # <--- hecho por claude code (09-nov-2026): el bloqueo temporal ahora también aplica al superusuario
+        _lock_left = _login_temp_lock_left(key)
         if _lock_left > 0:
             return render(request, 'accounts/login.html',
                           {'year': year, 'bloqueo_temp': _lock_left})
@@ -156,14 +224,10 @@ def login_view(request):
         if user:
             _reset_login_fails(key)
             def _registrar_acceso(u):
-                ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-                if ip and ',' in ip:
-                    ip = ip.split(',')[0].strip()
-                RegistroAcceso.objects.create(
-                    usuario=u, username=u.username,
-                    ip=ip or None,
-                    agente=request.META.get('HTTP_USER_AGENT', '')[:500],
-                )
+                # <--- hecho por claude code (09-nov-2026): el acceso ya lo registra la señal user_logged_in
+                # (accounts/apps.py); antes se creaban DOS filas por cada login. Se deja la función vacía
+                # para no tocar las llamadas.
+                return None
 
             # <--- hecho por claude code: cookie de bienvenida universal (funciona en cualquier página destino)
             def _welcome_redirect(url_name, *args, **kwargs):
@@ -233,7 +297,15 @@ def login_view(request):
             return _welcome_redirect('seleccion_rol')
 
         # ── Fallo de autenticación: contar intento y (des)bloquear ──
+        _ip_secs = _registrar_fallo_ip(request)
         estado = _registrar_fallo_login(username, key)
+        if estado['total'] or estado['temp_secs']:
+            from core.seguridad_eventos import evento
+            evento('bloqueo_cuenta_login', request, objetivo=username,
+                   tipo='total' if estado['total'] else 'temporal')
+        if _ip_secs and not estado['total']:
+            return render(request, 'accounts/login.html',
+                          {'year': year, 'bloqueo_temp': _ip_secs})
         if estado['total']:
             return render(request, 'accounts/login.html',
                           {'year': year, 'bloqueo_total': True, 'bloqueo_username': username})
@@ -273,6 +345,8 @@ _GRUPO_A_ROL = {
     # <--- hecho por claude code (12-oct-2026): Mantenimiento de vehículos (ventana aparte)
     'vehiculos_registro':    {'titulo': 'Mantenimiento de vehículos', 'subtitulo': 'Registrar km y mantenimientos', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
     'vehiculos_kilometraje': {'titulo': 'Mantenimiento de vehículos', 'subtitulo': 'Registrar kilometraje', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
+    # <--- hecho por claude code (10-nov-2026): rol Auditoría (ve como superusuario en solo lectura) → Panel Principal
+    'auditoria':             {'titulo': 'Auditoría', 'subtitulo': 'Ver todo TechCare en solo lectura', 'icon': 'ti-eye-check', 'clase': 'icon-admin', 'url': '/accounts/menu/'},
     'vehiculos_auditoria':   {'titulo': 'Mantenimiento de vehículos · Auditoría', 'subtitulo': 'Ver y comentar', 'icon': 'ti-car', 'clase': 'icon-admin', 'url': '/mantenimiento-mecanico/'},
 }
 
@@ -338,6 +412,32 @@ def _solo_superuser(user):
     return user.is_authenticated and user.is_superuser
 
 
+# <--- hecho por claude code (17-nov-2026): área automática de un correo de la lista blanca según los grupos de su cuenta.
+_GRUPOS_AREA = [   # orden = prioridad (el primero que coincida manda); Dirección y Pruebas se eligen a mano
+    ('coord_bl',  {'coordinador_bilingue', 'coord_notas_parcial_bl', 'coord_progress_bl'}),
+    ('coord_col', {'coordinador_colegio', 'coordinador_col', 'coord_notas_parcial_col'}),
+    ('bl',        {'maestros_bilingue', 'maestros_notas_parcial_bl', 'ingreso notas bilingue'}),
+    ('col',       {'maestros_colegio', 'maestros_notas_parcial_col', 'control baños col', 'ingreso notas colegio'}),
+    ('cfp',       {'director_cfp', 'instructores', 'instructores_cfp', 'control baños cfp', 'control baño coord cfp', 'contabilidad_cfp'}),
+    ('admin',     {'administracion'}),
+]
+
+
+def _area_de_correo(c, usuario):
+    import re as _re
+    if _re.search(r'prueba|test|demo', f'{c.correo} {c.nombre}', _re.I):
+        return 'pruebas'
+    if usuario is None:
+        return 'otros'
+    grupos = {g.name for g in usuario.groups.all()}
+    for area, gs in _GRUPOS_AREA:
+        if grupos & gs:
+            return area
+    if usuario.is_superuser:
+        return 'admin'
+    return 'otros'
+
+
 @login_required
 def panel_seguridad(request):
     from django.core.exceptions import PermissionDenied
@@ -347,13 +447,20 @@ def panel_seguridad(request):
         raise PermissionDenied('Solo el superusuario.')
     registrados = set(User.objects.values_list('email', flat=True))
     correos = list(CorreoInstitucional.objects.all())
+    # <--- hecho por claude code (17-nov-2026): clasificación por área (manual o automática por grupos)
+    usuarios = {u.email.lower(): u for u in User.objects.prefetch_related('groups') if u.email}
+    conteo = {k: 0 for k, _ in CorreoInstitucional.AREAS}
     for c in correos:
         c.ya_registrado = c.correo in registrados
+        c.area_auto = _area_de_correo(c, usuarios.get(c.correo.lower()))
+        c.area_ef = c.area or c.area_auto
+        conteo[c.area_ef] = conteo.get(c.area_ef, 0) + 1
     from core.programas import programas_para_ui
     return render(request, 'accounts/panel_seguridad.html', {
         'registro_activo': config.REGISTRO_USUARIOS_ACTIVO,
         'dosfa_activo':    config.DOSFA_ACTIVO,
         'correos':         correos,
+        'areas_correo':    [(k, n, conteo.get(k, 0)) for k, n in CorreoInstitucional.AREAS],
         'programas':       programas_para_ui(config),   # <--- hecho por claude code (10-sep-2026)
     })
 
@@ -428,6 +535,45 @@ def seguridad_correo_toggle(request):
     obj.activo = not obj.activo
     obj.save(update_fields=['activo'])
     return JsonResponse({'ok': True, 'activo': obj.activo})
+
+
+# <--- hecho por claude code (17-nov-2026): habilitar/deshabilitar de una vez todos los correos visibles (ids) del panel.
+@login_required
+@require_POST
+def seguridad_correo_masivo(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    ids = [i for i in request.POST.getlist('ids') if str(i).isdecimal()]
+    activo = request.POST.get('activo') == '1'
+    n = CorreoInstitucional.objects.filter(pk__in=ids).update(activo=activo)
+    try:
+        from core.seguridad_eventos import evento
+        evento('lista_blanca_masivo', request, objetivo=f'{n} correos', activo=activo)
+    except Exception:
+        pass
+    return JsonResponse({'ok': True, 'activo': activo, 'n': n})
+
+
+# <--- hecho por claude code (17-nov-2026): cambiar el área de un correo (vacío = volver al automático).
+@login_required
+@require_POST
+def seguridad_correo_area(request):
+    from django.http import JsonResponse
+    from .models import CorreoInstitucional
+    if not _solo_superuser(request.user):
+        return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
+    obj = CorreoInstitucional.objects.filter(pk=request.POST.get('id')).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'No existe'}, status=404)
+    area = (request.POST.get('area') or '').strip()
+    if area and area not in dict(CorreoInstitucional.AREAS):
+        return JsonResponse({'ok': False, 'error': 'Área inválida'}, status=400)
+    obj.area = area
+    obj.save(update_fields=['area'])
+    u = User.objects.filter(email__iexact=obj.correo).prefetch_related('groups').first()
+    return JsonResponse({'ok': True, 'area': area or _area_de_correo(obj, u)})
 
 
 # <--- hecho por claude code (seguridad): exportar la lista blanca (csv | json | xlsx).
@@ -597,7 +743,7 @@ def verificar_2fa(request):
     correo = request.user.email
 
     def _enviar_codigo():
-        import secrets as _secrets   # <--- hecho por claude code (10-nov-2026): código con generador criptográfico (como producción)
+        import secrets as _secrets   # <--- hecho por claude code (seguridad 05-nov-2026): código con generador criptográfico (random es predecible)
         codigo = f'{_secrets.randbelow(1000000):06d}'
         v.codigo = codigo
         v.codigo_expira = timezone.now() + timedelta(minutes=CODIGO_VIGENCIA_MIN)
@@ -606,10 +752,11 @@ def verificar_2fa(request):
         try:
             # <--- hecho por claude code (10-nov-2026): correo HTML con el mismo estilo que la pantalla (+ texto plano de respaldo)
             from django.template.loader import render_to_string
+            from core.seguridad_eventos import ip_cliente
             _ctx = {'codigo': codigo, 'minutos': CODIGO_VIGENCIA_MIN,
                     'nombre': request.user.first_name or '',
                     'cuando': timezone.localtime(timezone.now()).strftime('%d/%m/%Y a las %H:%M') if _st.USE_TZ else timezone.now().strftime('%d/%m/%Y a las %H:%M'),
-                    'ip': request.META.get('REMOTE_ADDR', '')}
+                    'ip': ip_cliente(request)}
             try:   # la IP interna (casi siempre el gateway 192.168.10.1) no le dice nada a quien lee el correo
                 import ipaddress as _ipa
                 if _ipa.ip_address(_ctx['ip']).is_private:
@@ -643,7 +790,7 @@ def verificar_2fa(request):
             messages.error(request, 'Demasiados intentos. Pide un código nuevo.')
         elif not v.codigo or not v.codigo_expira or timezone.now() > v.codigo_expira:
             messages.error(request, 'El código caducó. Pide uno nuevo.')
-        elif ingresado == v.codigo:
+        elif __import__('hmac').compare_digest(ingresado.encode(), v.codigo.encode()):   # <--- hecho por claude code (seguridad 05-nov-2026): comparación en tiempo constante
             v.ultima_verificacion = timezone.now()
             v.codigo = ''
             v.codigo_expira = None
@@ -675,6 +822,19 @@ def correos_disponibles_json(request):
     return JsonResponse({'correos': sorted(correos)})
 
 
+def _grupo_de_registro(area, cargo):
+    """(grupo, is_staff) que recibe la cuenta creada por el registro, según área y cargo."""
+    if area == 'bilingue':
+        return ('maestros_bilingue', False) if cargo == 'docente' else ('coordinador_bilingue', True)
+    if area == 'colegio':
+        if cargo == 'docente':
+            return 'maestros_colegio', False
+        if cargo == 'instructor_cfp':
+            return 'instructores', False   # solo ve Notas CFP + Tickets
+        return 'coordinador_colegio', True
+    return 'administracion', True
+
+
 @login_required
 def register_maestro(request):
     """
@@ -695,12 +855,18 @@ def register_maestro(request):
     if request.method == 'POST':
         form = MaestroRegisterForm(request.POST)
 
+        grupo_reg, staff_reg = None, False
+        if form.is_valid():
+            # <--- hecho por claude code (seguridad 05-nov-2026): grupo y staff se calculan ANTES de crear la cuenta; el gestor delegado solo crea cuentas SIN staff y con grupo delegable (bilingüe + instructor_cfp le daba coordinador_bilingue staff)
+            grupo_reg, staff_reg = _grupo_de_registro(form.cleaned_data['area'], form.cleaned_data.get('cargo'))
+            if not request.user.is_superuser and (staff_reg or grupo_reg not in _GRUPOS_DELEGABLES):
+                campo_err = 'area' if form.cleaned_data['area'] == 'administracion' else 'cargo'   # <--- hecho por claude code (seguridad 05-nov-2026): con Administración el select de cargo está oculto (registro.js) y el error no se veía
+                form.add_error(campo_err, 'Solo el superusuario puede crear cuentas de coordinación o administración.')
+
         if form.is_valid():
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
             email = form.cleaned_data['email']
-            area = form.cleaned_data['area']
-            cargo = form.cleaned_data['cargo']
             password = form.cleaned_data['password']
 
             # Crear usuario
@@ -712,26 +878,9 @@ def register_maestro(request):
                 last_name=last_name
             )
 
-            # Asignar grupos
-            if area == 'bilingue':
-                if cargo == 'docente':
-                    group_name = 'maestros_bilingue'
-                else:
-                    group_name = 'coordinador_bilingue'
-                    user.is_staff = True
-            elif area == 'colegio':
-                if cargo == 'docente':
-                    group_name = 'maestros_colegio'
-                elif cargo == 'instructor_cfp':
-                    group_name = 'instructores'   # solo ve Notas CFP + Tickets
-                else:
-                    group_name = 'coordinador_colegio'
-                    user.is_staff = True
-            else:
-                group_name = 'administracion'
-                user.is_staff = True
-
-            group, _ = Group.objects.get_or_create(name=group_name)
+            # Asignar grupo (y staff) según área y cargo: _grupo_de_registro
+            user.is_staff = staff_reg
+            group, _ = Group.objects.get_or_create(name=grupo_reg)
             user.groups.add(group)
             user.save()
 
@@ -847,9 +996,14 @@ def menu_view(request):
         if user.groups.filter(name='solo_progress').exists():
             return redirect('progress_report_bilingue')
 
+        # <--- hecho por claude code (06-nov-2026): solo Mantenimiento Mecánico → su hub es el Panel Principal
+        from .panel_roles import solo_mant_mecanico
+        if solo_mant_mecanico(user):
+            return redirect('mantenimiento_mecanico:index')
+
         # Técnicos → tickets
         if user.groups.filter(name='tecnicos').exists():
-            return redirect('tickets_dashboard')
+            return redirect('technician_dashboard')  # <--- hecho por claude code (seguridad 05-nov-2026): 'tickets_dashboard' no existe (NoReverseMatch = 500)
 
         # Reloj → dashboard reloj
         if user.groups.filter(name='reloj').exists() and not user.groups.filter(
@@ -1059,7 +1213,7 @@ GRUPOS_SUPER = [
         # <--- hecho por claude code (28-sep-2026): Inventario + Mantenimiento se unen en un solo hub
         {'t': 'Control y Servicio Técnico', 's': 'Inventario de equipos y fichas de mantenimiento', 'i': 'ti-headset', 'c': '#0ca678', 'url': 'servicio_tecnico:hub'},
         {'t': 'Inventario y Mant. de Cámaras', 's': 'Cámaras, NVRs, gabinetes', 'i': 'ti-camera', 'c': '#4263eb', 'url': 'inventario_camaras:hub'},
-        # <--- hecho por claude code (02-nov-2026): reserva de DataShow (el usuario agenda, Soporte autoriza)
+        # <--- hecho por claude code (03-nov-2026): reserva de DataShow (el usuario agenda, Soporte autoriza)
         {'t': 'Solicitud de DataShow', 's': 'Calendario de reservas · autoriza Soporte', 'i': 'ti-calendar-plus', 'c': '#ae3ec9', 'url': 'datashow:index'},
      ]},
     # <--- hecho por claude code (22-oct-2026): Inventario General y Préstamo de equipo salieron de Control y Servicio Técnico a grupos propios
@@ -1090,7 +1244,7 @@ GRUPOS_SUPER = [
         # <--- hecho por claude code: Enfermería, Notas Mitad de Parcial y Ruteo pasaron a grupos propios (columna 2)
         # <--- hecho por claude code: Tutorías y Período Escolar salen del dashboard coordinador y pasan a apps propias
         # <--- hecho por claude code: Período Escolar abre la pestaña de configuración de parciales (?app=periodo)
-        {'t': 'Período Escolar', 's': 'Parciales de conducta', 'i': 'ti-calendar-stats', 'c': '#2f9e44', 'url': 'dashboard_coordinador', 'args': {'area': 'bilingue'}, 'query': 'app=periodo'},
+        {'t': 'Período Escolar', 's': 'Parciales de todo el sistema', 'i': 'ti-calendar-stats', 'c': '#2f9e44', 'url': 'periodo_escolar'},   # <--- hecho por claude code (06-nov-2026): pantalla propia del Período Escolar general
      ]},
     # <--- hecho por claude code (06-nov-2026): Tutorías sale de Académico a su propio grupo con Reforzamiento (TC-PRY-0005)
     {'key': 'tutorias_refuerzo', 'titulo': 'Tutorías y Reforzamiento', 'icon': 'ti-school', 'color': '#e8590c',
@@ -1230,7 +1384,18 @@ def _grupos_super_con_hrefs():
         href = _reverse_seguro(c.get('url'), c.get('args'), c.get('query'))
         prog = programa_de_ruta(href) if href else None
         return {**c, 'href': href, 'oculto': bool(prog and prog['key'] in _oc)}
-    return [{**g, 'cards': [_card(c) for c in g['cards']]} for g in GRUPOS_SUPER]
+    # <--- hecho por claude code (09-nov-2026): fuera las tarjetas de programas que el CANAL (Web/.exe/APK) no tiene
+    from core.canales import OCULTOS_ACTUAL
+    _oc_canal = OCULTOS_ACTUAL.get()
+    def _visible(c):
+        prog = programa_de_ruta(c['href']) if c.get('href') else None
+        return not (prog and prog['key'] in _oc_canal)
+    out = []
+    for g in GRUPOS_SUPER:
+        cards = [c for c in (_card(c) for c in g['cards']) if _visible(c)]
+        if cards:
+            out.append({**g, 'cards': cards})
+    return out
 
 
 # <--- hecho por claude code: estos módulos quedan SOLO en el sidebar (no en el Panel Principal)
@@ -1523,6 +1688,7 @@ def usuarios_lista_json(request):
 
 
 @login_required
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026): con GET el modo caía en 'todos' y bastaba un enlace/imagen para mandar correo a TODOS (CSRF)
 def reenviar_bienvenida(request):
     if not request.user.is_superuser:
         return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
@@ -1554,8 +1720,9 @@ def reenviar_bienvenida(request):
         )
         bloque_mensaje_extra = ""
         if mensaje_extra:
+            import html as _html_esc   # <--- hecho por claude code (seguridad 05-nov-2026): el texto libre va escapado en el HTML del correo
             lineas_html = "".join(
-                f'<span style="font-size:14px;color:#1a1a2e;">{linea}</span><br>'
+                f'<span style="font-size:14px;color:#1a1a2e;">{_html_esc.escape(linea)}</span><br>'
                 for linea in mensaje_extra.splitlines()
             )
             bloque_mensaje_extra = f"""
@@ -1695,6 +1862,50 @@ def _settings_ctx(request, tab):
     }
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): avatar solo imagen real re-codificada a PNG con nombre propio (antes un .html/.svg servido desde /media/ era XSS almacenado)
+_AVATAR_MAX_BYTES = 2 * 1024 * 1024        # lo que ya promete la pantalla: "Máximo 2 MB"
+_AVATAR_MAX_PIXELES = 25_000_000           # evita bombas de descompresión (25 MP)
+
+
+def _avatar_seguro(archivo, uid):
+    """(ContentFile, None) con la imagen re-codificada a PNG, o (None, 'mensaje') si no es una imagen válida."""
+    import io
+    import secrets
+    from django.core.files.base import ContentFile
+    from PIL import Image
+    if not archivo or getattr(archivo, 'size', 0) <= 0:
+        return None, 'No se recibió ninguna imagen.'
+    if archivo.size > _AVATAR_MAX_BYTES:
+        return None, 'La imagen supera los 2 MB.'
+    try:
+        archivo.seek(0)
+        img = Image.open(archivo)
+        img.verify()
+        archivo.seek(0)
+        img = Image.open(archivo)
+        if img.format not in ('JPEG', 'PNG', 'GIF', 'WEBP'):
+            return None, 'Formato no permitido. Usa JPG, PNG o GIF.'
+        if img.size[0] * img.size[1] > _AVATAR_MAX_PIXELES:
+            return None, 'La imagen es demasiado grande.'
+        img.load()
+        img.thumbnail((512, 512))
+        img = img.convert('RGBA' if ('A' in img.getbands() or 'transparency' in img.info) else 'RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG', optimize=True)
+    except Exception:
+        return None, 'El archivo no es una imagen válida (JPG, PNG o GIF).'
+    return ContentFile(buf.getvalue(), name=f'u{uid}_{secrets.token_hex(6)}.png'), None
+
+
+def _errores_clave(password, user=None):
+    """<--- hecho por claude code (seguridad 05-nov-2026): mensajes de AUTH_PASSWORD_VALIDATORS (lista vacía = contraseña aceptable)."""
+    try:
+        validate_password(password, user=user)
+        return []
+    except ValidationError as e:
+        return list(e.messages)
+
+
 # ── 1. Mi Perfil ──────────────────────────────────────────────
 @login_required
 def settings_perfil(request):
@@ -1705,19 +1916,33 @@ def settings_perfil(request):
         action = request.POST.get('action', 'perfil')
 
         if action == 'perfil':
-            user.first_name = request.POST.get('first_name', '').strip()
-            user.last_name  = request.POST.get('last_name', '').strip()
+            # <--- hecho por claude code (seguridad 05-nov-2026): el formulario del avatar manda action=perfil SIN nombre/apellido y los dejaba vacíos
+            if 'first_name' in request.POST:
+                user.first_name = request.POST.get('first_name', '').strip()
+            if 'last_name' in request.POST:
+                user.last_name  = request.POST.get('last_name', '').strip()
             email = request.POST.get('email', '').strip()
             if email and email != user.email:
-                if User.objects.filter(email=email).exclude(pk=user.pk).exists():
+                # <--- hecho por claude code (seguridad 05-nov-2026): el correo es la identidad de acceso y la llave de permisos por correo (coordinadores, agendas, notas, mantenimiento): solo lo cambia el superusuario
+                if not user.is_superuser:
+                    messages.error(request, 'El correo solo lo puede cambiar el administrador del sistema.')
+                    return redirect('settings_perfil')
+                from django.db.models import Q
+                if User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exclude(pk=user.pk).exists():   # <--- hecho por claude code (seguridad 05-nov-2026): tampoco el usuario de otra cuenta (el login por correo resolvería a esa)
                     messages.error(request, 'Ese correo ya está en uso por otro usuario.')
                     return redirect('settings_perfil')
                 user.email = email
-            user.save()
+            nuevo_avatar = None
             if 'avatar' in request.FILES:
+                nuevo_avatar, err_avatar = _avatar_seguro(request.FILES['avatar'], user.pk)
+                if err_avatar:
+                    messages.error(request, err_avatar)
+                    return redirect('settings_perfil')
+            user.save()
+            if nuevo_avatar is not None:
                 if perfil.avatar:
                     perfil.avatar.delete(save=False)
-                perfil.avatar = request.FILES['avatar']
+                perfil.avatar = nuevo_avatar
                 perfil.save()
             messages.success(request, 'Perfil actualizado correctamente.')
 
@@ -1732,12 +1957,14 @@ def settings_perfil(request):
             old_pw  = request.POST.get('old_password', '')
             new_pw  = request.POST.get('new_password', '')
             confirm = request.POST.get('confirm_password', '')
+            errores_pw = _errores_clave(new_pw, user) if new_pw == confirm else []   # <--- hecho por claude code (seguridad 05-nov-2026): AUTH_PASSWORD_VALIDATORS (antes solo largo >= 8)
             if not user.check_password(old_pw):
                 messages.error(request, 'Contraseña actual incorrecta.')
             elif new_pw != confirm:
                 messages.error(request, 'Las contraseñas nuevas no coinciden.')
-            elif len(new_pw) < 8:
-                messages.error(request, 'La contraseña debe tener al menos 8 caracteres.')
+            elif errores_pw:
+                for m in errores_pw:
+                    messages.error(request, m)
             else:
                 from django.contrib.auth import update_session_auth_hash
                 user.set_password(new_pw)
@@ -1771,6 +1998,49 @@ def _can_manage(user):
     return user.is_superuser or (user.is_staff and perfil is not None and perfil.puede_ver_usuarios)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): el GESTOR DELEGADO (staff con puede_ver_usuarios) solo pone/quita estos grupos; claves ajenas, correo, staff, activo, eliminar y el CRUD de grupos son del superusuario
+_GRUPOS_DELEGABLES = frozenset({
+    'maestros_bilingue', 'maestros_colegio',
+    'maestros_notas_parcial_bl', 'maestros_notas_parcial_col',
+    'instructores', 'instructores_cfp',
+})
+
+
+def _ids_validos(valores):
+    """Solo ids numéricos (un valor raro en el POST ya no revienta la consulta)."""
+    return [int(v) for v in valores if str(v).strip().isdigit()]
+
+
+def _grupos_asignables(user):
+    """Grupos que este usuario puede poner o quitar a otros."""
+    qs = Group.objects.all()
+    return qs if user.is_superuser else qs.filter(name__in=_GRUPOS_DELEGABLES)
+
+
+def _puede_editar_cuenta(actor, objetivo):
+    """El superusuario edita todas; el gestor delegado solo cuentas comunes (ni staff ni superusuario) y nunca la suya."""
+    if actor.is_superuser:
+        return True
+    return (_can_manage(actor) and objetivo.pk != actor.pk
+            and not objetivo.is_superuser and not objetivo.is_staff)
+
+
+def _aplicar_grupos(actor, objetivo, ids_pedidos, reemplazar=True):
+    """Asigna grupos respetando lo que el actor puede tocar: los grupos que no son suyos se conservan tal cual."""
+    permitidos = _grupos_asignables(actor)
+    pedidos = set(permitidos.filter(pk__in=_ids_validos(ids_pedidos)).values_list('pk', flat=True))
+    if actor.is_superuser:
+        if reemplazar:
+            objetivo.groups.set(pedidos)
+        else:
+            objetivo.groups.add(*pedidos)
+        return
+    ids_permitidos = set(permitidos.values_list('pk', flat=True))
+    actuales = set(objetivo.groups.values_list('pk', flat=True))
+    objetivo.groups.set(((actuales - ids_permitidos) | pedidos) if reemplazar else (actuales | pedidos))
+
+
+@login_required   # <--- hecho por claude code (seguridad 05-nov-2026): faltaba (el anónimo rebotaba por otra vía)
 def settings_usuarios(request):
     if not _can_manage(request.user):
         messages.error(request, 'No tienes permisos para acceder a esta sección.')
@@ -1820,6 +2090,7 @@ def settings_usuarios(request):
         'q':             q,
         'grupo_filtro':  grupo_filtro,
         'todos_grupos':  todos_grupos,
+        'grupos_asignables': _grupos_asignables(request.user).order_by('name'),   # <--- hecho por claude code (seguridad 05-nov-2026): el modal "Asignar grupos" ofrece solo lo que el servidor acepta
     })
     return render(request, 'accounts/settings_usuarios.html', ctx)
 
@@ -1930,9 +2201,9 @@ _GRUPO_DESCRIPCIONES = {
     'monitoreo': 'Monitoreo: acceso a la Auditoría y Actividad del sistema (solo lectura).',
 }
 
-def _grupos_con_desc():
+def _grupos_con_desc(qs=None):
     """Grupos ordenados, cada uno con su .descripcion (para los checkboxes + tooltip)."""
-    grupos = list(Group.objects.all().order_by('name'))
+    grupos = list((qs if qs is not None else Group.objects.all()).order_by('name'))   # <--- hecho por claude code (seguridad 05-nov-2026): el gestor delegado solo ve los grupos que puede asignar
     for g in grupos:
         g.descripcion = _GRUPO_DESCRIPCIONES.get(g.name, 'Grupo de acceso del sistema.')
     return grupos
@@ -1950,7 +2221,8 @@ def settings_usuario_crear(request):
         messages.warning(request, 'La creación de usuarios está desactivada. Actívala en Configuración → Seguridad.')
         return redirect('settings_usuarios')
 
-    grupos = _grupos_con_desc()
+    es_super = request.user.is_superuser
+    grupos = _grupos_con_desc(_grupos_asignables(request.user))   # <--- hecho por claude code (seguridad 05-nov-2026)
 
     if request.method == 'POST':
         username   = request.POST.get('username', '').strip()
@@ -1962,14 +2234,31 @@ def settings_usuario_crear(request):
         last_name  = request.POST.get('last_name', '').strip()
         email      = request.POST.get('email', '').strip()
         password   = request.POST.get('password', '')
-        is_staff   = request.POST.get('is_staff') == 'on'
+        is_staff   = es_super and request.POST.get('is_staff') == 'on'   # <--- hecho por claude code (seguridad 05-nov-2026): staff solo lo da el superusuario
         is_active  = request.POST.get('is_active', 'on') == 'on'
         group_ids  = request.POST.getlist('groups')
+        errores_pw = _errores_clave(password, User(username=username, email=email, first_name=first_name, last_name=last_name)) if password else []   # <--- hecho por claude code (seguridad 05-nov-2026)
+        from django.db.models import Q
+        from .models import CorreoInstitucional
 
         if not username or not password:
             messages.error(request, 'El usuario y la contraseña son obligatorios.')
-        elif User.objects.filter(username=username).exists():
+        elif User.objects.filter(username__iexact=username).exists():
             messages.error(request, f'El usuario "{username}" ya existe.')
+        # <--- hecho por claude code (seguridad 05-nov-2026): el correo es identidad y llave de permisos: ni duplicado ni cruzado con el usuario de otra cuenta (el login por correo cambiaba de dueño)
+        elif User.objects.filter(email__iexact=username).exists():
+            messages.error(request, f'"{username}" es el correo de otra cuenta: usa otro nombre de usuario.')
+        elif email and User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
+            messages.error(request, 'Ese correo ya lo usa otra cuenta.')
+        # <--- hecho por claude code (seguridad 05-nov-2026): el gestor delegado solo crea la cuenta de un correo de la lista blanca, con ese mismo correo como usuario (igual que el registro)
+        elif not es_super and (not email or username.lower() != email.lower()):
+            messages.error(request, 'El usuario debe ser el mismo correo institucional de la persona.')
+        elif not es_super and not CorreoInstitucional.objects.filter(correo__iexact=email, activo=True).exists():
+            messages.error(request, 'Ese correo no está en la lista de correos institucionales autorizados. '
+                                    'Solicita al administrador que lo agregue.')
+        elif errores_pw:
+            for m in errores_pw:
+                messages.error(request, m)
         else:
             u = User.objects.create_user(
                 username=username, email=email, password=password,
@@ -1977,7 +2266,7 @@ def settings_usuario_crear(request):
                 is_staff=is_staff, is_active=is_active,
             )
             if group_ids:
-                u.groups.set(Group.objects.filter(pk__in=group_ids))
+                _aplicar_grupos(request.user, u, group_ids)   # <--- hecho por claude code (seguridad 05-nov-2026): el gestor delegado solo asigna los grupos permitidos
             # <--- hecho por claude code: enviar credenciales por correo si se marcó y hay email
             enviar = request.POST.get('enviar_correo') == 'on'
             if enviar and email:
@@ -2004,27 +2293,50 @@ def settings_usuario_editar(request, pk):
         return redirect('settings_perfil')
 
     u      = get_object_or_404(User, pk=pk)
-    grupos = _grupos_con_desc()
+    es_super = request.user.is_superuser
+    # <--- hecho por claude code (seguridad 05-nov-2026): el gestor delegado ya no edita superusuarios, staff ni su propia cuenta (para eso está Mi perfil)
+    if not _puede_editar_cuenta(request.user, u):
+        messages.error(request, 'Esa cuenta solo la puede editar el superusuario.' if u.pk != request.user.pk
+                       else 'Tu propia cuenta se edita desde Mi perfil.')
+        return redirect('settings_usuarios')
+    grupos = _grupos_con_desc(_grupos_asignables(request.user))
 
     if request.method == 'POST':
+        es_yo  = (u.pk == request.user.pk)
+        new_pw = request.POST.get('password', '').strip()
+        # <--- hecho por claude code (seguridad 05-nov-2026): la contraseña AJENA solo la cambia el superusuario y pasa por AUTH_PASSWORD_VALIDATORS
+        if new_pw and not es_super:
+            messages.error(request, 'La contraseña de otro usuario solo la puede cambiar el superusuario.')
+            return redirect('settings_usuario_editar', pk=pk)
+        if new_pw:
+            errores_pw = _errores_clave(new_pw, u)
+            if errores_pw:
+                for m in errores_pw:
+                    messages.error(request, m)
+                return redirect('settings_usuario_editar', pk=pk)
         u.first_name = request.POST.get('first_name', '').strip()
         u.last_name  = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
-        if email and email != u.email:
-            if not User.objects.filter(email=email).exclude(pk=pk).exists():
-                u.email = email
-        u.is_staff  = request.POST.get('is_staff') == 'on'
-        u.is_active = request.POST.get('is_active') == 'on'
-        if request.user.is_superuser:
-            u.is_superuser = request.POST.get('is_superuser') == 'on'
-        new_pw = request.POST.get('password', '').strip()
-        if new_pw:
-            u.set_password(new_pw)
-        group_ids = request.POST.getlist('groups')
-        u.groups.set(Group.objects.filter(pk__in=group_ids))
+        if es_super:
+            # <--- hecho por claude code (seguridad 05-nov-2026): correo, staff, activo y superusuario solo los cambia el superusuario
+            email = request.POST.get('email', '').strip()
+            if email and email != u.email:
+                from django.db.models import Q
+                if not User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exclude(pk=pk).exists():   # <--- hecho por claude code (seguridad 05-nov-2026): tampoco el usuario de otra cuenta
+                    u.email = email
+                else:
+                    messages.warning(request, 'Ese correo ya lo usa otra cuenta: se conservó el anterior.')
+            # <--- hecho por claude code (seguridad 05-nov-2026): en su propia cuenta el superusuario conserva superusuario/staff/activo (hoy es el único: quitárselo dejaba el sistema sin administrador)
+            if not es_yo:
+                u.is_staff     = request.POST.get('is_staff') == 'on'
+                u.is_active    = request.POST.get('is_active') == 'on'
+                u.is_superuser = request.POST.get('is_superuser') == 'on'
+            if new_pw:
+                u.set_password(new_pw)
+        _aplicar_grupos(request.user, u, request.POST.getlist('groups'))
         u.save()
         # Actualizar permiso puede_ver_usuarios (solo superuser puede otorgarlo)
-        if request.user.is_superuser:
+        # <--- hecho por claude code (seguridad 05-nov-2026): solo si el formulario lo manda (este formulario no lo trae y cada guardado lo apagaba; se cambia con el botón de la lista)
+        if es_super and 'puede_ver_usuarios' in request.POST:
             perfil_u, _ = PerfilUsuario.objects.get_or_create(usuario=u)
             perfil_u.puede_ver_usuarios = request.POST.get('puede_ver_usuarios') == 'on'
             perfil_u.save()
@@ -2033,19 +2345,25 @@ def settings_usuario_editar(request, pk):
 
     perfil_u, _ = PerfilUsuario.objects.get_or_create(usuario=u)
     ctx = _settings_ctx(request, 'usuarios')
-    ctx.update({'edit_user': u, 'grupos': grupos, 'modo': 'editar', 'perfil_edit': perfil_u})
+    ctx.update({'edit_user': u, 'grupos': grupos, 'modo': 'editar', 'perfil_edit': perfil_u,
+                # <--- hecho por claude code (seguridad 05-nov-2026): grupos del usuario que el gestor delegado no puede tocar (se muestran sin casilla y se conservan)
+                'grupos_fijos': [] if es_super else list(u.groups.exclude(name__in=_GRUPOS_DELEGABLES)
+                                                         .order_by('name').values_list('name', flat=True))})
     return render(request, 'accounts/settings_usuario_form.html', ctx)
 
 
 @login_required
 def settings_usuario_eliminar(request, pk):
-    if not _can_manage(request.user):
-        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    # <--- hecho por claude code (seguridad 05-nov-2026): borrar cuentas es solo del superusuario y nunca a otro superusuario (el gestor delegado borraba a cualquiera)
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo el superusuario puede eliminar usuarios.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
     u = get_object_or_404(User, pk=pk)
     if u == request.user:
         return JsonResponse({'ok': False, 'error': 'No puedes eliminarte a ti mismo.'})
+    if u.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'No se puede eliminar a un superusuario: quítale primero ese rol.'}, status=403)
     nombre = u.get_full_name() or u.username
     u.delete()
     return JsonResponse({'ok': True, 'nombre': nombre})
@@ -2078,10 +2396,22 @@ def settings_grupos(request):
     return render(request, 'accounts/settings_grupos.html', ctx)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): crear/renombrar/borrar grupos es solo del superusuario
+def _solo_super_grupos(request):
+    """Los roles del sistema son grupos POR NOMBRE: renombrar o borrar uno (y recrearlo con ese nombre) era escalar privilegios."""
+    if request.user.is_superuser:
+        return None
+    if _can_manage(request.user):
+        messages.error(request, 'Solo el superusuario puede crear, renombrar o eliminar grupos.')
+        return redirect('settings_grupos')
+    return redirect('settings_perfil')
+
+
 @login_required
 def settings_grupo_crear(request):
-    if not _can_manage(request.user):
-        return redirect('settings_perfil')
+    corte = _solo_super_grupos(request)
+    if corte is not None:
+        return corte
 
     if request.method == 'POST':
         nombre = request.POST.get('name', '').strip()
@@ -2101,8 +2431,9 @@ def settings_grupo_crear(request):
 
 @login_required
 def settings_grupo_editar(request, pk):
-    if not _can_manage(request.user):
-        return redirect('settings_perfil')
+    corte = _solo_super_grupos(request)   # <--- hecho por claude code (seguridad 05-nov-2026)
+    if corte is not None:
+        return corte
 
     g = get_object_or_404(Group, pk=pk)
 
@@ -2125,8 +2456,8 @@ def settings_grupo_editar(request, pk):
 
 @login_required
 def settings_grupo_eliminar(request, pk):
-    if not _can_manage(request.user):
-        return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
+    if not request.user.is_superuser:   # <--- hecho por claude code (seguridad 05-nov-2026): borrar grupos solo el superusuario
+        return JsonResponse({'ok': False, 'error': 'Solo el superusuario puede eliminar grupos.'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
     g = get_object_or_404(Group, pk=pk)
@@ -2141,19 +2472,21 @@ def settings_usuarios_asignar_grupos(request):
         return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
-    user_pks  = request.POST.getlist('user_pks')
-    group_pks = request.POST.getlist('group_pks')
+    user_pks  = _ids_validos(request.POST.getlist('user_pks'))
+    group_pks = _ids_validos(request.POST.getlist('group_pks'))
     modo      = request.POST.get('modo', 'agregar')
     if not user_pks or not group_pks:
         return JsonResponse({'ok': False, 'error': 'Selecciona al menos un usuario y un grupo.'})
-    users  = User.objects.filter(pk__in=user_pks)
-    groups = Group.objects.filter(pk__in=group_pks)
+    users = User.objects.filter(pk__in=user_pks)
+    # <--- hecho por claude code (seguridad 05-nov-2026): el gestor delegado solo asigna grupos permitidos a cuentas comunes (ni staff, ni superusuario, ni la suya)
+    if not request.user.is_superuser:
+        users = users.filter(is_superuser=False, is_staff=False).exclude(pk=request.user.pk)
+        if not _grupos_asignables(request.user).filter(pk__in=group_pks).exists():
+            return JsonResponse({'ok': False, 'error': 'Esos grupos solo los puede asignar el superusuario.'}, status=403)
+    users = list(users)
     for u in users:
-        if modo == 'reemplazar':
-            u.groups.set(groups)
-        else:
-            u.groups.add(*groups)
-    return JsonResponse({'ok': True, 'count': users.count()})
+        _aplicar_grupos(request.user, u, group_pks, reemplazar=(modo == 'reemplazar'))
+    return JsonResponse({'ok': True, 'count': len(users)})
 
 
 @login_required
@@ -2429,6 +2762,98 @@ def settings_datashow(request):
 
 
 @login_required
+def settings_offline(request):
+    """<--- hecho por claude code (13-nov-2026): Configuración → Sistema → Modo sin conexión (beta). Interruptor y
+    lista de páginas guardadas EN ESTE NAVEGADOR (la lista la da el service worker; el servidor no las conoce)."""
+    if not request.user.is_superuser or getattr(request, 'tc_auditoria', False):
+        return redirect('settings_perfil')
+    from constance import config
+    if request.method == 'POST':
+        nuevo = request.POST.get('activo') == '1'
+        config.OFFLINE_BETA = nuevo
+        try:
+            from core.seguridad_eventos import evento
+            evento('offline_beta', request, activo=nuevo)
+        except Exception:
+            pass
+        messages.success(request, 'Modo sin conexión (beta) ' + ('ACTIVADO.' if nuevo else 'DESACTIVADO: las copias guardadas se borran solas al abrir la siguiente página.'))
+        return redirect('settings_offline')
+    ctx = _settings_ctx(request, 'offline')
+    ctx['offline_activo'] = bool(config.OFFLINE_BETA)
+    return render(request, 'accounts/settings_offline.html', ctx)
+
+
+def settings_limpieza(request):
+    """<--- hecho por claude code (13-nov-2026): Configuración → Sistema → Respaldo y limpieza de módulos (core/limpieza_modulos.py).
+    Paso 1 guarda el JSON general (ZIP) y lo descarga; paso 2 limpia la BD de esos módulos con contraseña + frase."""
+    if not request.user.is_superuser or getattr(request, 'tc_auditoria', False) or request.session.get('tc_suplantador_id'):
+        return redirect('settings_perfil')
+    from core import limpieza_modulos as lm
+    from core.seguridad_eventos import evento
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'respaldo':
+            claves = request.POST.getlist('modulos')
+            try:
+                nombre = lm.crear_respaldo(claves, request.user)
+            except ValueError as e:
+                messages.error(request, str(e))
+                return redirect('settings_limpieza')
+            evento('limpieza_respaldo', request, modulos=claves, archivo=nombre)
+            messages.success(request, f'JSON general guardado ({nombre}). Se descarga solo; también queda en el servidor.')
+            return redirect(f"{reverse('settings_limpieza')}?listo={nombre}")
+        if accion == 'limpiar':
+            nombre = request.POST.get('respaldo', '')
+            if (request.POST.get('frase') or '').strip() != lm.FRASE:
+                messages.error(request, f'Escribe exactamente «{lm.FRASE}» para confirmar.')
+            elif not request.user.check_password(request.POST.get('password') or ''):
+                evento('limpieza_rechazo', request, motivo='contraseña', archivo=nombre)
+                messages.error(request, 'La contraseña no es correcta. No se borró nada.')
+            else:
+                try:
+                    total = lm.limpiar(nombre)
+                except lm.Rechazo as e:
+                    evento('limpieza_rechazo', request, motivo=str(e), archivo=nombre)
+                    messages.error(request, str(e))
+                else:
+                    n = sum(total.values())
+                    evento('limpieza_bd', request, archivo=nombre, borrados=total)
+                    messages.success(request, f'Base de datos limpia: se borraron {n:,} registros. El respaldo {nombre} los conserva.'.replace(',', '.'))
+        return redirect('settings_limpieza')
+    ctx = _settings_ctx(request, 'limpieza')
+    listo = request.GET.get('listo', '')
+    ctx.update(modulos=lm.resumen(), respaldos=lm.listar_respaldos(), frase=lm.FRASE, horas=lm.RESPALDO_HORAS,
+               listo=listo if lm.ruta_respaldo(listo) else '')
+    return render(request, 'accounts/settings_limpieza.html', ctx)
+
+
+def settings_limpieza_descargar(request):
+    """<--- hecho por claude code (13-nov-2026): descarga un ZIP de respaldo (nombre validado con lista blanca)."""
+    if not request.user.is_superuser or request.session.get('tc_suplantador_id'):
+        return redirect('settings_perfil')
+    import os
+    from django.http import FileResponse, Http404
+    from core import limpieza_modulos as lm
+    p = lm.ruta_respaldo(request.GET.get('f', ''))
+    if not p:
+        raise Http404
+    try:
+        from core.seguridad_eventos import evento
+        evento('limpieza_descarga', request, archivo=os.path.basename(p))
+    except Exception:
+        pass
+    return FileResponse(open(p, 'rb'), as_attachment=True, filename=os.path.basename(p))
+
+
+def _es_campo_bool(obj, campo):
+    """<--- hecho por claude code (seguridad 05-nov-2026): True solo si `campo` es una casilla BooleanField del modelo."""
+    try:
+        return obj._meta.get_field(campo).get_internal_type() == 'BooleanField'
+    except Exception:
+        return False
+
+
+@login_required
 def settings_reloj_permisos(request):
     if not request.user.is_superuser:
         return redirect('settings_perfil')
@@ -2483,7 +2908,7 @@ def settings_reloj_permisos(request):
                 return JsonResponse({'ok': True,
                                      'hasta': prh.strftime('%Y-%m-%dT%H:%M') if prh else '',
                                      'hasta_ms': int(prh.timestamp() * 1000) if prh else 0})
-            if hasattr(obj, campo):
+            if _es_campo_bool(obj, campo):   # <--- hecho por claude code (seguridad 05-nov-2026): antes hasattr() aceptaba 'user_id' y movía el permiso a otra cuenta
                 setattr(obj, campo, valor)
                 obj.save(update_fields=[campo])
                 return JsonResponse({'ok': True})
@@ -2604,7 +3029,7 @@ def settings_coord_permisos(request):
                 return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
             u   = User.objects.get(pk=user_id)
             obj = CoordPermiso.objects.get(user=u)
-            if not hasattr(obj, campo):
+            if not _es_campo_bool(obj, campo):   # <--- hecho por claude code (seguridad 05-nov-2026): solo casillas booleanas (antes cualquier atributo, p. ej. 'user_id')
                 return JsonResponse({'ok': False}, status=400)
             setattr(obj, campo, valor)
             hasta_iso = None
@@ -2675,37 +3100,106 @@ def settings_coord_permisos(request):
     })
 
 
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 def pwa_service_worker(request):
     sw = """
-const CACHE = 'techcare-v2';
+// <--- hecho por claude code (12-nov-2026): + MODO SIN CONEXIÓN (beta, solo superusuario). Solo se guardan las páginas
+// cuya respuesta trae X-TC-Offline: 1 (core/offline_beta.py). Para los demás usuarios todo sigue igual.
+const CACHE = 'techcare-v4';
 const OFFLINE_URL = '/offline/';
+const BETA_PAG = 'tc-beta-paginas';
+const BETA_EST = 'tc-beta-estaticos';
+const MAX_PAG = 250;
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.add(OFFLINE_URL)).then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.add(OFFLINE_URL)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => ![CACHE, BETA_PAG, BETA_EST].includes(k)).map(k => caches.delete(k))))
       .then(() => clients.claim())
   );
 });
+const betaActivo = () => caches.has(BETA_PAG);
+async function purgar() { await caches.delete(BETA_PAG); await caches.delete(BETA_EST); }
+async function recortar() {
+  const c = await caches.open(BETA_PAG); const k = await c.keys();
+  for (let i = 0; i < k.length - MAX_PAG; i++) await c.delete(k[i]);
+}
+async function navegar(req) {
+  const url = new URL(req.url);
+  try {
+    const r = await fetch(req);
+    if (url.origin === self.location.origin && r.ok && (r.headers.get('content-type') || '').includes('text/html')) {
+      if (r.headers.get('X-TC-Offline') === '1') {
+        const c = await caches.open(BETA_PAG); await c.put(req.url, r.clone()); recortar();
+      } else if (url.pathname !== OFFLINE_URL && await betaActivo()) {
+        await purgar();   // otra sesión/usuario en este navegador: no dejar copias del superusuario
+      }
+    }
+    return r;
+  } catch (err) {
+    if (await betaActivo()) {
+      const c = await caches.open(BETA_PAG);
+      const r = await c.match(req.url);
+      if (r) return r;
+    }
+    return (await caches.match(OFFLINE_URL)) || Response.error();
+  }
+}
+async function recurso(req) {   // estáticos propios y CDN (CSS/JS/fuentes) mientras el modo beta esté activo
+  try {
+    const r = await fetch(req);
+    if (r && (r.ok || r.type === 'opaque')) { const c = await caches.open(BETA_EST); c.put(req, r.clone()); }
+    return r;
+  } catch (err) {
+    const r = await caches.match(req);
+    return r || Response.error();
+  }
+}
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  // Navegación (abrir páginas): si no hay red, mostrar la página offline cacheada
-  if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match(OFFLINE_URL)));
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (req.mode === 'navigate') { e.respondWith(navegar(req)); return; }
+  const url = new URL(req.url);
+  const propio = url.origin === self.location.origin;
+  const estatico = (propio && url.pathname.startsWith('/static/')) ||
+                   (!propio && ['style', 'script', 'font'].includes(req.destination));
+  if (estatico) {
+    e.respondWith(betaActivo().then(b => b ? recurso(req)
+      : (propio ? fetch(req).catch(() => caches.match(req).then(r => r || Response.error())) : fetch(req))));
     return;
   }
-  // Otros recursos: intenta red, cae a caché si existe
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  // <--- hecho por claude code (09-nov-2026): sin red y sin copia en caché, caches.match da undefined y respondWith reventaba
+  if (!propio) return;
+  e.respondWith(fetch(req).catch(() => caches.match(req).then(r => r || Response.error())));
+});
+self.addEventListener('message', e => {
+  if (!e.data || !e.ports || !e.ports[0]) return;
+  if (e.data.tipo === 'tc-beta-estado') {
+    caches.open(BETA_PAG).then(c => c.keys()).then(k => e.ports[0].postMessage({ paginas: k.length }));
+  } else if (e.data.tipo === 'tc-beta-borrar') {
+    purgar().then(() => e.ports[0].postMessage({ ok: true }));
+  } else if (e.data.tipo === 'tc-beta-lista') {   // <--- hecho por claude code (13-nov-2026): para Configuración → Modo sin conexión
+    caches.open(BETA_PAG).then(async c => {
+      const out = [];
+      for (const req of await c.keys()) {
+        const r = await c.match(req); let titulo = '';
+        try { const m = (await r.clone().text()).match(new RegExp('<title[^>]*>([^<]*)</title>', 'i')); titulo = m ? m[1].trim() : ''; } catch (x) {}
+        out.push({ url: req.url, fecha: r.headers.get('date') || '', titulo: titulo, kb: Math.round(((await r.clone().blob()).size) / 1024) });
+      }
+      e.ports[0].postMessage({ paginas: out });
+    });
+  } else if (e.data.tipo === 'tc-beta-quitar') {
+    caches.open(BETA_PAG).then(c => c.delete(e.data.url)).then(ok => e.ports[0].postMessage({ ok: ok }));
+  }
 });
 """
     return HttpResponse(sw.strip(), content_type='application/javascript',
                         headers={'Service-Worker-Allowed': '/'})
 
 
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 def pwa_offline(request):
     """Página mostrada por el service worker cuando no hay conexión."""
     return render(request, 'accounts/offline.html')
@@ -2788,7 +3282,10 @@ def settings_logs_api(request):
         return JsonResponse({'ok': False, 'error': 'Sin permisos'}, status=403)
 
     log_key = request.GET.get('log', 'apache_error')
-    lineas  = min(int(request.GET.get('lineas', 300)), 1000)
+    try:   # <--- hecho por claude code (seguridad 05-nov-2026): un valor no numérico daba 500
+        lineas = max(1, min(int(request.GET.get('lineas', 300)), 1000))
+    except (TypeError, ValueError):
+        lineas = 300
     filtro  = request.GET.get('q', '').strip().lower()
 
     path = _LOG_FILES.get(log_key)
@@ -2886,6 +3383,10 @@ def _fmt_val(v):
     return (s[:120] + '…') if len(s) > 120 else s
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): la auditoría (la ve también 'monitoreo') ya no muestra claves de router, tokens ni cifrados: dice QUÉ campo cambió, no el valor
+_AUDIT_CAMPOS_OCULTOS = _re.compile(r'(password|passwd|contrasen|token|secret|_enc$|^clave_router$)', _re.I)
+
+
 def _build_audit_event(hr, with_table=False, model=None):
     """Convierte un registro Historical* en un evento legible para la tabla."""
     tipo, color, icon = _AUDIT_TIPO.get(hr.history_type, ('?', 'secondary', 'ti-help'))
@@ -2896,9 +3397,10 @@ def _build_audit_event(hr, with_table=False, model=None):
             prev = hr.prev_record
             if prev is not None:
                 for c in hr.diff_against(prev).changes:
+                    oculto = bool(_AUDIT_CAMPOS_OCULTOS.search(c.field or ''))
                     cambios.append({'campo': c.field,
-                                    'old': _fmt_val(c.old),
-                                    'new': _fmt_val(c.new)})
+                                    'old': '(oculto)' if oculto else _fmt_val(c.old),
+                                    'new': '(oculto)' if oculto else _fmt_val(c.new)})
             else:
                 sin_baseline = True
         except Exception:
@@ -3725,3 +4227,71 @@ def settings_envio_login_preview(request):
     data = {k: request.POST.get(k, v) for k, v in _LOGIN_EMAIL_DEFAULTS.items()}
     html = _build_login_email_html(data, nombre_dest='[Nombre del usuario]')
     return JsonResponse({'html': html})
+
+
+# ── Programas por aplicación (superuser) ─────────────────────────────
+# <--- hecho por claude code (09-nov-2026): qué programas se ven en la Web, en la app de escritorio (.exe)
+# y en la app móvil (APK). Lógica en core/canales.py; el bloqueo lo hace core.middleware.CanalAppMiddleware.
+@login_required
+def settings_canales(request):
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+    from constance import config as _cfg
+    from core.programas import PROGRAMAS, ocultos as _ocultos_global
+    from core.canales import CANALES, config_canales, canal_real, SESION_PRUEBA
+    cfg = config_canales(_cfg)
+    oc_global = _ocultos_global(_cfg)
+    filas = [{**p,
+              'global_oculto': p['key'] in oc_global,
+              'canales': [{'key': c['key'], 'visible': p['key'] not in cfg[c['key']]} for c in CANALES]}
+             for p in PROGRAMAS]
+    resumen = [{**c, 'visibles': sum(1 for p in PROGRAMAS if p['key'] not in cfg[c['key']]),
+                'total': len(PROGRAMAS)} for c in CANALES]
+    ctx = _settings_ctx(request, 'canales')
+    ctx.update({
+        'canales':       CANALES,
+        'canales_resumen': resumen,
+        'filas':         filas,
+        'canal_real':    canal_real(request),
+        'canal_prueba':  request.session.get(SESION_PRUEBA) or '',
+    })
+    return render(request, 'accounts/settings_canales.html', ctx)
+
+
+@login_required
+@require_POST
+def settings_canales_toggle(request):
+    """Prende/apaga un programa en un canal (JSON). Autoguardado de la tabla."""
+    if not request.user.is_superuser:
+        return JsonResponse({'ok': False, 'error': 'Solo el superusuario.'}, status=403)
+    from constance import config as _cfg
+    from core.canales import guardar_canal, CANAL_LABEL
+    from core.programas import POR_KEY
+    canal = request.POST.get('canal', '')
+    prog = request.POST.get('programa', '')
+    visible = request.POST.get('visible') == '1'
+    try:
+        cfg = guardar_canal(_cfg, canal, prog, visible)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Canal o programa inválido.'}, status=400)
+    return JsonResponse({'ok': True, 'canal': canal, 'programa': prog, 'visible': visible,
+                         'msg': f"{POR_KEY[prog]['label']}: {'visible' if visible else 'oculto'} en {CANAL_LABEL[canal]}",
+                         'visibles': len(POR_KEY) - len(cfg[canal])})
+
+
+@login_required
+@require_POST
+def settings_canales_probar(request):
+    """El superusuario ve el sistema como si entrara desde otro canal (solo en su sesión)."""
+    if not request.user.is_superuser:
+        return redirect('settings_perfil')
+    from core.canales import CANAL_KEYS, SESION_PRUEBA
+    canal = request.POST.get('canal', '')
+    if canal in CANAL_KEYS:
+        request.session[SESION_PRUEBA] = canal
+    else:
+        request.session.pop(SESION_PRUEBA, None)
+    destino = request.POST.get('next') or ''
+    if not destino.startswith('/') or destino.startswith('//'):
+        destino = reverse('settings_canales')
+    return redirect(destino)

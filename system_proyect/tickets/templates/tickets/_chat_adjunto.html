@@ -1,11 +1,12 @@
 {# Adjunto de un comentario de chat (imagen inline o archivo descargable) #}
 {% if c.archivo %}
+{# <--- hecho por claude code (seguridad 05-nov-2026): el archivo sale por la vista con permiso del ticket, no por /media/ #}
   {% if c.es_imagen %}
-  <a href="{{ c.archivo.url }}" target="_blank" class="chat-adjunto-img-link">
-    <img src="{{ c.archivo.url }}" alt="{{ c.archivo_nombre }}" class="chat-adjunto-img">
+  <a href="{% url 'ticket_comentario_archivo' c.id %}" target="_blank" class="chat-adjunto-img-link">
+    <img src="{% url 'ticket_comentario_archivo' c.id %}" alt="{{ c.archivo_nombre }}" class="chat-adjunto-img">
   </a>
   {% else %}
-  <a href="{{ c.archivo.url }}" target="_blank" class="chat-adjunto-file">
+  <a href="{% url 'ticket_comentario_archivo' c.id %}" target="_blank" class="chat-adjunto-file">
     <i class="ti ti-file-text"></i>
     <span class="chat-adjunto-name">{{ c.archivo_nombre }}</span>
     <i class="ti ti-download ms-1"></i>

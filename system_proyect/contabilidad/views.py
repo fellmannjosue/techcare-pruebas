@@ -22,6 +22,22 @@ from .forms import (ProductoUniformeForm, MovimientoUniformeForm, ProveedorForm,
 from . import services
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): filtros GET validados (antes ?desde=abc o ?proveedor=abc daban 500)
+def _id_get(v):
+    """Entero positivo o None."""
+    v = (v or '').strip()
+    return int(v) if v.isdigit() else None
+
+
+def _fecha_get(v):
+    """date ISO (AAAA-MM-DD) o None."""
+    import datetime as _dt
+    try:
+        return _dt.date.fromisoformat((v or '').strip()) if v else None
+    except ValueError:
+        return None
+
+
 # Submódulos del programa contable. 'listo=True' cuando la fase que lo implementa
 # ya está desplegada; hasta entonces se muestra como "Próximamente" (sin números inventados).
 _SUBMODULOS = [
@@ -298,10 +314,10 @@ def inventario_lista(request):
     if buscar:
         qs = qs.filter(Q(nombre__icontains=buscar) | Q(codigo__icontains=buscar) |
                        Q(talla__icontains=buscar) | Q(color__icontains=buscar))
-    if g.get('area'):
-        qs = qs.filter(area_id=g['area'])
-    if g.get('tipo'):
-        qs = qs.filter(tipo_id=g['tipo'])
+    if _id_get(g.get('area')):   # <--- hecho por claude code (seguridad 05-nov-2026): validado
+        qs = qs.filter(area_id=_id_get(g.get('area')))
+    if _id_get(g.get('tipo')):
+        qs = qs.filter(tipo_id=_id_get(g.get('tipo')))
     if g.get('estado') == 'bajo':
         qs = qs.filter(stock_minimo__gt=0, existencia_actual__lte=F('stock_minimo'))
     productos = list(qs)
@@ -619,14 +635,15 @@ def compra_lista(request):
     _gate(request.user, 'ver_compras')
     qs = CompraProveedor.objects.select_related('proveedor').prefetch_related('detalles')
     g = request.GET
-    if g.get('proveedor'):
-        qs = qs.filter(proveedor_id=g['proveedor'])
+    # <--- hecho por claude code (seguridad 05-nov-2026): proveedor y fechas validados (antes 500 con valores inválidos)
+    if _id_get(g.get('proveedor')):
+        qs = qs.filter(proveedor_id=_id_get(g.get('proveedor')))
     if g.get('estado'):
         qs = qs.filter(estado=g['estado'])
-    if g.get('desde'):
-        qs = qs.filter(fecha__gte=g['desde'])
-    if g.get('hasta'):
-        qs = qs.filter(fecha__lte=g['hasta'])
+    if _fecha_get(g.get('desde')):
+        qs = qs.filter(fecha__gte=_fecha_get(g.get('desde')))
+    if _fecha_get(g.get('hasta')):
+        qs = qs.filter(fecha__lte=_fecha_get(g.get('hasta')))
     if g.get('documento'):
         qs = qs.filter(documento__icontains=g['documento'])
     compras = list(qs[:200])
@@ -647,13 +664,19 @@ def compra_nueva(request):
         costos = request.POST.getlist('linea_costo')
         impuestos = request.POST.getlist('linea_impuesto')
         lineas = []
+        linea_mala = False   # <--- hecho por claude code (seguridad 05-nov-2026): una línea con texto en vez de número daba 500
         for i, pid in enumerate(prod_ids):
             if not pid or not (cants[i] if i < len(cants) else ''):
                 continue
-            lineas.append({'producto': int(pid), 'cantidad': int(cants[i]),
-                           'costo_unitario': costos[i] or '0',
-                           'tipo_impuesto': (int(impuestos[i]) if i < len(impuestos) and impuestos[i] else None)})
-        if form.is_valid() and lineas:
+            try:
+                lineas.append({'producto': int(pid), 'cantidad': int(cants[i]),
+                               'costo_unitario': (costos[i] if i < len(costos) else '') or '0',
+                               'tipo_impuesto': (int(impuestos[i]) if i < len(impuestos) and impuestos[i] else None)})
+            except (TypeError, ValueError):
+                linea_mala = True
+        if linea_mala:
+            messages.error(request, 'Hay líneas con producto, cantidad o impuesto inválidos. Revisa la compra.')
+        elif form.is_valid() and lineas:
             cd = form.cleaned_data
             try:
                 compra = services.registrar_compra(

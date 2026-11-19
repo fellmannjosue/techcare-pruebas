@@ -9,9 +9,9 @@ from .sla import minutos_laborales_entre
 
 
 def _es_gestor(user):
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que el menú (nav_tickets_tecnico); se quitó groups icontains 'tecnico' (no distingue grupos)
     return bool(user and user.is_authenticated and (
-        user.is_superuser or user.has_perm('tickets.view_ticket')
-        or user.groups.filter(name__icontains='tecnico').exists()))
+        user.is_superuser or user.has_perm('tickets.view_ticket')))
 
 
 @transaction.atomic

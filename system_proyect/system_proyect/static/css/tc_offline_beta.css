@@ -1,0 +1,8 @@
+/* <--- hecho por claude code (12-nov-2026): modo sin conexión (beta), solo superusuario */
+.tc-ob-pill{position:fixed;left:12px;bottom:12px;z-index:1080;display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;border:1px solid rgba(37,99,235,.35);border-radius:999px;background:rgba(255,255,255,.92);color:#1e40af;font:500 .75rem/1.2 Inter,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;opacity:.85}
+.tc-ob-pill:hover{opacity:1}
+.tc-ob-pill--off{background:#fff7ed;color:#c2410c;border-color:#fdba74}
+html.dark .tc-ob-pill{background:rgba(30,41,59,.92);color:#93c5fd;border-color:rgba(147,197,253,.35)}
+html.dark .tc-ob-pill--off{background:#431407;color:#fdba74;border-color:#9a3412}
+.tc-ob-aviso{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:1090;display:flex;gap:.6rem;align-items:flex-start;max-width:min(640px,calc(100vw - 32px));padding:.7rem 1rem;border-radius:10px;background:#c2410c;color:#fff;font-size:.875rem;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.tc-ob-aviso .ti{font-size:1.3rem;line-height:1}

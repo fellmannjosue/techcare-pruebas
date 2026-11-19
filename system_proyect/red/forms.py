@@ -1,5 +1,6 @@
 # <--- hecho por claude code: ANA Network Manager — formularios
 from django import forms
+from django.urls import reverse
 
 from .models import (VLAN, IPAddress, Device, NetworkInterface,
                      Campus, Edificio, Ubicacion, Gabinete)
@@ -7,6 +8,32 @@ from . import services
 
 _I = {'class': 'form-control'}
 _S = {'class': 'form-select'}
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): media/red/ ya no se sirve por /media/ (Apache lo bloquea); el enlace
+# «Actualmente: …» de los formularios apunta a la vista con candado (_gate) del módulo.
+class _ArchivoEnVista:
+    def __init__(self, archivo, url):
+        self._archivo, self.url = archivo, url
+
+    def __str__(self):
+        return str(self._archivo)
+
+
+class ArchivoProtegidoInput(forms.ClearableFileInput):
+    url_vista = ''
+
+    def format_value(self, value):
+        v = super().format_value(value)
+        if v and self.url_vista:
+            return _ArchivoEnVista(v, self.url_vista)
+        return v
+
+
+def _proteger_archivo(form, campo, nombre_url):
+    w = form.fields[campo].widget if campo in form.fields else None
+    if isinstance(w, ArchivoProtegidoInput) and form.instance.pk:
+        w.url_vista = reverse(nombre_url, args=[form.instance.pk])
 
 
 class BootstrapMixin:
@@ -142,6 +169,11 @@ class GabineteForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Gabinete
         fields = ['ubicacion', 'codigo', 'nombre', 'unidades_rack', 'ups', 'observaciones', 'fotografia', 'activo']
+        widgets = {'fotografia': ArchivoProtegidoInput}   # <--- hecho por claude code (seguridad 05-nov-2026)
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        _proteger_archivo(self, 'fotografia', 'red:gabinete_foto')   # <--- hecho por claude code (seguridad 05-nov-2026)
 
 
 # ── Dispositivos ───────────────────────────────────────────────────────────
@@ -153,7 +185,12 @@ class DeviceForm(BootstrapMixin, forms.ModelForm):
                   'metodo_direccionamiento', 'sistema_operativo', 'responsable', 'estado',
                   'criticidad', 'fecha_compra', 'garantia', 'fotografia', 'observaciones']
         widgets = {'observaciones': forms.Textarea(attrs={'rows': 2}),
-                   'fecha_compra': forms.DateInput(attrs={'type': 'date'})}
+                   'fecha_compra': forms.DateInput(attrs={'type': 'date'}),
+                   'fotografia': ArchivoProtegidoInput}   # <--- hecho por claude code (seguridad 05-nov-2026)
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        _proteger_archivo(self, 'fotografia', 'red:device_foto')   # <--- hecho por claude code (seguridad 05-nov-2026)
 
 
 class InterfaceForm(BootstrapMixin, forms.ModelForm):
@@ -224,3 +261,8 @@ class PlanoForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Plano
         fields = ['nombre', 'edificio', 'imagen', 'descripcion', 'orden', 'activo']
+        widgets = {'imagen': ArchivoProtegidoInput}   # <--- hecho por claude code (seguridad 05-nov-2026)
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        _proteger_archivo(self, 'imagen', 'red:plano_imagen')   # <--- hecho por claude code (seguridad 05-nov-2026)

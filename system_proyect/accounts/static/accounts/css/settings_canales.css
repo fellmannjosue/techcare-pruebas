@@ -1,0 +1,9 @@
+/* <--- hecho por claude code (09-nov-2026): Programas por aplicación */
+.cn-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.cn-res { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--ps-border, #e6e8ef); border-radius: 12px; background: var(--ps-surface-2, #f8f9fb); }
+.cn-res > i { font-size: 1.5rem; color: #e8590c; }
+.cn-res b { display: block; font-size: .9rem; }
+.cn-res span { font-size: .78rem; color: var(--ps-muted, #6b7280); }
+.cn-ico { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--ps-surface-2, #f1f3f8); flex: none; }
+.cn-tabla td, .cn-tabla th { white-space: nowrap; }
+.cn-tabla .form-switch .form-check-input { width: 2.4em; height: 1.3em; cursor: pointer; float: none; margin: 0; }

@@ -3,14 +3,30 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from datetime import date
+from functools import wraps
+import logging
 import urllib.request
 import json as _json
 from .models import TasaCambio, MONEDA_CHOICES
 
 API_URL = 'https://open.exchangerate-api.com/v6/latest/USD'
 
+def _candado(prueba):
+    """<--- hecho por claude code (seguridad 05-nov-2026): con sesión pero sin permiso → a su menú (como antes).
+    Sin sesión lo para LoginRequiredMiddleware y va DIRECTO al login: el login_url='menu' de user_passes_test
+    lo mandaba primero al menú (y de ahí al login, perdiendo el ?next)."""
+    def deco(vista):
+        @wraps(vista)
+        def _envuelta(request, *args, **kwargs):
+            if not prueba(request.user):
+                return redirect('menu')
+            return vista(request, *args, **kwargs)
+        return _envuelta
+    return deco
+
+
 # <--- hecho por claude code: Calculadoras es SOLO para el superusuario (nadie más)…
-solo_super = user_passes_test(lambda u: u.is_superuser, login_url='menu')
+solo_super = _candado(lambda u: u.is_authenticated and u.is_superuser)
 # …salvo las 5 calculadoras de TIEMPO (sumar horas, entre dos horas, horas→días, fecha a fecha, minutos→horas),
 # que también las usa el grupo `calculadoras_tiempo` (30-sep-2026, pedido para yzavala). Divisas, MB→GB, IPs y
 # Lorem siguen siendo solo del superusuario.
@@ -21,7 +37,7 @@ def puede_tiempo(u):
     return u.is_authenticated and (u.is_superuser or u.groups.filter(name=GRUPO_TIEMPO).exists())
 
 
-tiempo_o_super = user_passes_test(puede_tiempo, login_url='menu')
+tiempo_o_super = _candado(puede_tiempo)
 
 
 @tiempo_o_super
@@ -106,14 +122,19 @@ def actualizar_tasa(request):
     return JsonResponse({'ok': True, 'tasa': str(obj.tasa), 'fecha': str(obj.fecha_actualizacion)})
 
 
+@require_POST   # <--- hecho por claude code (seguridad 05-nov-2026): GUARDA en la BD → solo POST (con CSRF); antes bastaba un GET
 @solo_super
 def fetch_tasas_auto(request):
     """Obtiene tasas USD/EUR/CHF → HNL desde open.exchangerate-api.com y las guarda."""
     try:
         with urllib.request.urlopen(API_URL, timeout=8) as resp:
             data = _json.load(resp)
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': f'No se pudo conectar a la API: {e}'})
+        if not isinstance(data, dict):
+            raise ValueError('respuesta inesperada')
+    except Exception:
+        # <--- hecho por claude code (seguridad 05-nov-2026): el detalle va al log, no al navegador (antes se devolvía la excepción cruda)
+        logging.getLogger(__name__).exception('calculadoras: no se pudo consultar %s', API_URL)
+        return JsonResponse({'ok': False, 'error': 'No se pudo conectar al servicio de tasas. Intenta más tarde o ingrésalas a mano.'})
 
     rates = data.get('rates', {})
     hnl = rates.get('HNL')

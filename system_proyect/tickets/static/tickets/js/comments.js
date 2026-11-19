@@ -26,6 +26,13 @@ document.addEventListener("DOMContentLoaded", function () {
     try { audio.currentTime = 0; audio.volume = 0.6; audio.play().catch(function () {}); } catch (e) {}
   }
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): el nombre del archivo se pinta escapado (va dentro de innerHTML)
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
   // ── Adjuntos (copy-paste / subir / adjuntar) ──
   let pendingFile = null;
   const fileImg   = document.getElementById("chat-file-img");
@@ -43,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const kb = Math.max(1, Math.round(pendingFile.size / 1024));
     previewBox.innerHTML =
       `<div class="chat-attach-chip">${media}` +
-      `<span class="chat-attach-fname">${pendingFile.name}</span>` +
+      `<span class="chat-attach-fname">${escHtml(pendingFile.name)}</span>` +
       `<span class="chat-attach-size">${kb} KB</span>` +
       `<button type="button" class="btn-close ms-2" id="btn-attach-remove" aria-label="Quitar"></button></div>`;
     const rm = document.getElementById("btn-attach-remove");
@@ -263,16 +270,17 @@ document.addEventListener("DOMContentLoaded", function () {
       },
       body: fd,
     })
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      // <--- hecho por claude code (seguridad 05-nov-2026): el servidor explica el rechazo también con 400/403 (tipo de archivo no permitido, ticket cerrado, sin permiso): se lee su JSON y se muestra el motivo
+      .then(r => r.json().catch(() => ({ ok: false })))
       .then(res => {
-        if (res.ok) {
+        if (res && res.ok) {
           lastHtml = null;
           cargarMensajes();
         } else {
           // Restaurar si el servidor rechazó
           if (ta) ta.value = mensaje;
           if (fileToSend) { pendingFile = fileToSend; renderPreview(); }
-          if (res.error) alert(res.error);
+          alert((res && res.error) || "No se pudo enviar. Intenta de nuevo o con un archivo más pequeño.");
         }
       })
       .catch(() => {

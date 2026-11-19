@@ -1,7 +1,7 @@
 {# <--- hecho por claude code (16-sep-2026): los 4 tabs del compensatorio (Vacaciones · Tiempo hecho y deuda · Cierre · Con 3 días de permiso). #}
 {# Compartido por Cálculo Compensatorio (reemplaza a 'Compensatorio por vacaciones' y 'Tiempo diario') y por la pantalla Pruebas. #}
 {% load l10n %}
-<div id="pruebas-config" hidden data-permtom="{% url 'reloj_compensatorio_permiso_tomado_save' %}" data-saldo="{% url 'reloj_compensatorio_saldo_manual_save' %}" data-csrf="{{ csrf_token }}"></div>
+<div id="pruebas-config" hidden data-permtom="{% url 'reloj_compensatorio_permiso_tomado_save' %}" data-saldo="{% url 'reloj_compensatorio_saldo_manual_save' %}" data-fecha="{% url 'reloj_compensatorio_fecha_corte_save' %}" data-csrf="{{ csrf_token }}"></div>
 {# ── Tab 1: Vacaciones (mismos datos que "Compensatorio por vacaciones", solo lectura) ── #}
 {# <--- hecho por claude code (16-sep-2026): sin "show active" — en Cálculo Compensatorio ya hay un panel activo (dos activos = bug al cambiar de tab); en Pruebas lo activa el JS #}
 <div class="tab-pane fade" id="ptab-vac">
@@ -13,6 +13,7 @@
       <thead><tr>
         <th>Empleado</th>
         <th class="text-center">Fecha de ingreso</th>
+        <th class="text-center">Fecha de corte</th>{# <--- hecho por claude code (16-nov-2026): fecha de corte editable, junto a la de ingreso (pedido del usuario) #}
         <th class="text-center">Derecho a días</th>
         <th class="text-center">Deuda vacación</th>
         <th class="text-center">Saldo de vacación acumulada</th>
@@ -25,6 +26,7 @@
         <tr data-emp="{{ r.emp_code }}">
           <td><div class="fw-semibold">{{ r.nombre }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}{% if r.al_tramos %} <i class="ti ti-info-circle text-blue al-info" tabindex="0" role="button" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Año laboral" title="Año laboral {{ r.al_tramos.ini|date:'d/m/Y' }} – {{ r.al_tramos.fin|date:'d/m/Y' }}{% if not r.al_tramos.n %} · sin cierres registrados{% endif %}"></i>{% if not r.al_tramos.n %} <i class="ti ti-alert-triangle text-warning" title="Sin cierres registrados en este año laboral"></i>{% endif %}{% endif %}</td>{# <--- hecho por claude code (11-nov-2026): año laboral en la «i» de información (pedido del usuario) #}{# <--- hecho por claude code (10-nov-2026): año laboral (prueba con Nancy) #}
+          <td class="text-center">{% if can_edit %}<input type="date" class="form-control form-control-sm p-fecha-corte w-auto mx-auto" min="2000-01-01" max="2100-12-31" data-emp="{{ r.emp_code }}" value="{{ r.p_fecha|date:'Y-m-d' }}" title="Fecha de corte (se guarda sola)">{% elif r.p_fecha %}{{ r.p_fecha|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
           <td class="text-center">{{ r.derecho }}</td>
           <td class="text-center">{{ r.acumulada }}{% if r.acumulada_es_manual %} <span class="badge bg-blue-lt text-blue" title="Valor manual">m</span>{% endif %}
             {% if can_edit %}<button class="btn btn-sm btn-ghost-secondary btn-edit-acum px-1 py-0 ms-1" data-emp="{{ r.emp_code }}" data-nombre="{{ r.nombre }}" data-valor="{{ r.acumulada|unlocalize }}" title="Editar deuda vacación"><i class="ti ti-pencil text-muted" style="font-size:.7rem;"></i></button>{% endif %}
@@ -42,7 +44,7 @@
           <td class="text-center fw-bold table-warning {% if r.p_debe_dias < 0 %}text-danger{% endif %}">{{ r.p_debe_dias }}</td>
           <td class="text-center fw-bold table-warning font-monospace {% if r.p_debe_h < 0 %}text-danger{% endif %}">{{ r.p_debe_h }} h</td>
         </tr>
-        {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Sin registros.</td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="9" class="text-center text-muted py-4">Sin registros.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div></div>

@@ -26,8 +26,9 @@
   <td>
     {# <--- hecho por claude code (16-sep-2026): contraseña del equipo (cifrada); solo la ve/edita quien administra la red #}
     {% if puede_editar %}
+    {# <--- hecho por claude code (seguridad 05-nov-2026): la contraseña guardada ya NO se pinta en el HTML; el ojo la pide al servidor (queda en la auditoría) #}
     <div class="input-group input-group-sm ia-pass-wrap" {% if not f or not f.tiene_usuario %}hidden{% endif %}>
-      <input type="password" class="form-control ia-pass" value="{{ f.password|default:'' }}" placeholder="Contraseña" maxlength="120" autocomplete="new-password">
+      <input type="password" class="form-control ia-pass" value="" placeholder="{% if f and f.password_enc %}•••••••• (guardada){% else %}Contraseña{% endif %}" maxlength="120" autocomplete="new-password"{% if f and f.password_enc %} data-guardada="1"{% endif %}>
       <button type="button" class="btn ia-ver" title="Mostrar / ocultar"><i class="ti ti-eye"></i></button>
     </div>
     {% elif f and f.tiene_usuario and f.password_enc %}<span class="text-muted" title="Solo visible para administradores de red">••••••••</span>{% endif %}

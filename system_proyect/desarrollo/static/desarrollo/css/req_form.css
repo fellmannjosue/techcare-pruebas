@@ -1,0 +1,4 @@
+/* <--- hecho por claude code (06-nov-2026): la «i» de ayuda junto a la etiqueta de cada campo del requerimiento */
+.ds-info{display:inline-flex;align-items:center;vertical-align:middle;margin-left:4px;color:var(--tblr-secondary,#6b7689);cursor:help;font-size:15px;line-height:1;border-radius:50%}
+.ds-info:hover,.ds-info:focus{color:var(--tblr-primary,#2563eb);outline:none}
+.ds-info:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--tblr-primary,#2563eb) 25%,transparent)}

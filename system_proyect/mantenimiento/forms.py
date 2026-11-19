@@ -1,5 +1,32 @@
+import base64
+from io import BytesIO
+
 from django import forms
 from .models import MaintenanceRecord, TipoFalla
+
+# <--- hecho por claude code (seguridad 05-nov-2026): una firma digital válida = PNG real del pad (data:image/png;base64), de tamaño razonable
+FIRMA_PREFIJO = 'data:image/png;base64,'
+FIRMA_MAX_CHARS = 600_000   # la más grande guardada mide ~36 mil caracteres
+FIRMA_MAX_ANCHO, FIRMA_MAX_ALTO = 3000, 1500   # <--- hecho por claude code (seguridad 05-nov-2026): el pad mide lo que el canvas en pantalla (las 83 guardadas: máx. 590x200); sin tope, un PNG de 1 bit de 13000x13000 cabe en 50 mil caracteres y armar su PDF ocupa ~1,2 GB
+
+
+def firma_png_valida(data):
+    """Devuelve la firma si es un PNG válido del pad; si no, ''."""
+    from PIL import Image
+    data = (data or '').strip()
+    if not data or not data.startswith(FIRMA_PREFIJO) or len(data) > FIRMA_MAX_CHARS:
+        return ''
+    try:
+        raw = base64.b64decode(data[len(FIRMA_PREFIJO):], validate=True)
+        with Image.open(BytesIO(raw)) as im:
+            if im.format != 'PNG':
+                return ''
+            if im.width > FIRMA_MAX_ANCHO or im.height > FIRMA_MAX_ALTO:   # <--- hecho por claude code (seguridad 05-nov-2026): bomba de píxeles (ver FIRMA_MAX_ANCHO)
+                return ''
+            im.verify()
+    except Exception:
+        return ''
+    return data
 
 
 class MaintenanceRecordForm(forms.ModelForm):
@@ -17,9 +44,11 @@ class MaintenanceRecordForm(forms.ModelForm):
                   'ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv',
                   'televisor', 'firma_nombre', 'fecha_hora', 'control_origen',
                   'modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo',
-                  'date', 'status', 'solucion', 'observaciones']
+                  'date', 'status', 'solucion', 'observaciones',
+                  'laboratorio']   # <--- hecho por claude code (02-nov-2026): modo laboratorio
         widgets = {
             'tipo_equipo':  forms.HiddenInput(),
+            'laboratorio':  forms.HiddenInput(),   # <--- hecho por claude code (02-nov-2026): lo manejan los toggles del modal
             'computadora':  forms.Select(attrs={'class': 'form-select'}),
             'impresora':    forms.Select(attrs={'class': 'form-select'}),
             'model':        forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
@@ -86,7 +115,8 @@ class MaintenanceRecordForm(forms.ModelForm):
                   'estado_equipo', 'status',
                   # <--- hecho por claude code (17-sep-2026): entrega/recogida; `date` la pone fecha_hora en clean()
                   'televisor', 'firma_nombre', 'fecha_hora', 'date', 'control_origen',
-                  'modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo'):
+                  'modelo_anterior', 'serie_anterior', 'ip_anterior', 'modelo_nuevo', 'serie_nuevo', 'ip_nuevo',
+                  'laboratorio'):   # <--- hecho por claude code (02-nov-2026)
             self.fields[f].required = False
         # <--- hecho por claude code (28-sep-2026): el origen de un caso especial solo puede ser un Control de equipo
         self.fields['control_origen'].queryset = MaintenanceRecord.objects.filter(tipo_equipo='control')
@@ -109,6 +139,11 @@ class MaintenanceRecordForm(forms.ModelForm):
         # <--- hecho por claude code: validación condicional por tipo de equipo
         cleaned = super().clean()
         tipo = cleaned.get('tipo_equipo') or 'computadora'
+        # <--- hecho por claude code (02-nov-2026): modo laboratorio — una ficha para todo el lab (sin computadora)
+        lab = (self.data.get('laboratorio') or '').strip()
+        es_lab = (lab in dict(MaintenanceRecord.LABORATORIO_CHOICES)) and (tipo in MaintenanceRecord.LAB_TIPOS)
+        if not es_lab:
+            cleaned['laboratorio'] = ''
         if tipo == 'impresora':
             if not cleaned.get('impresora'):
                 self.add_error('impresora', 'Selecciona una impresora.')
@@ -118,7 +153,7 @@ class MaintenanceRecordForm(forms.ModelForm):
                 self.add_error('estado_tinta', 'Indica el estado de la tinta.')
         elif tipo == 'control':
             # <--- hecho por claude code: el control se hace sobre la computadora del maestro
-            if not cleaned.get('computadora'):
+            if not es_lab and not cleaned.get('computadora'):   # <--- hecho por claude code (02-nov-2026): en modo laboratorio no se elige computadora
                 self.add_error('computadora', 'Selecciona la computadora del maestro.')
             # <--- hecho por claude code (28-sep-2026): con "caso especial" las dos preguntas se reemplazan por el checklist de recogida
             if self.data.get('reasignacion'):
@@ -171,14 +206,17 @@ class MaintenanceRecordForm(forms.ModelForm):
             # <--- hecho por claude code (28-sep-2026): el caso especial valida igual que una recogida y exige el control de origen
             if tipo == 'caso_especial' and not cleaned.get('control_origen'):
                 self.add_error('control_origen', 'El caso especial debe nacer de un Control de equipo.')
-            if not cleaned.get('computadora'):
+            if not es_lab and not cleaned.get('computadora'):   # <--- hecho por claude code (02-nov-2026): entrega/recogida de todo el lab
                 self.add_error('computadora', 'Selecciona la computadora.')
-            if not (cleaned.get('firma_nombre') or '').strip():
+            # <--- hecho por claude code (13-nov-2026): en modo laboratorio no hay un maestro asignado → firma opcional (se firma a mano)
+            if not es_lab and not (cleaned.get('firma_nombre') or '').strip():
                 self.add_error('firma_nombre', 'El usuario debe escribir su nombre como firma.')
             if not cleaned.get('fecha_hora'):
                 self.add_error('fecha_hora', 'Indica la fecha y la hora.')
             if cleaned.get('ent_televisor') and not cleaned.get('televisor'):
                 self.add_error('televisor', 'Indica qué televisor.')
+            if es_lab and not any(cleaned.get(c) for c in ('ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv')):
+                cleaned['ent_equipo'] = True   # <--- hecho por claude code (13-nov-2026): el laboratorio completo = los equipos del lab
             if not any(cleaned.get(c) for c in ('ent_equipo', 'ent_mouse_teclado', 'ent_televisor', 'ent_control_tv')):
                 self.add_error('ent_equipo', 'Marca al menos una cosa.')
             if not cleaned.get('ent_televisor'):
@@ -229,7 +267,8 @@ class FirmaMaestroForm(forms.Form):
     firma_data = forms.CharField(widget=forms.HiddenInput, required=True)
 
     def clean_firma_data(self):
-        data = (self.cleaned_data.get('firma_data') or '').strip()
-        if not data or not data.startswith('data:image'):
+        # <--- hecho por claude code (seguridad 05-nov-2026): antes bastaba que empezara con "data:image" (cualquier contenido y tamaño)
+        data = firma_png_valida(self.cleaned_data.get('firma_data'))
+        if not data:
             raise forms.ValidationError("Debes firmar antes de enviar.")
         return data

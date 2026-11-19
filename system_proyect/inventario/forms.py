@@ -212,6 +212,7 @@ class CategoryUpdateForm(forms.Form):
             ('Impresora',   'Impresora'),
             ('Router',      'Router'),
             ('DataShow',    'DataShow'),
+            ('Monitor',     'Monitor'),   # <--- hecho por claude code (seguridad 05-nov-2026): la página lista monitores y el form los rechazaba
         ],
         widget=forms.HiddenInput  # Se envía en oculto, no se muestra al usuario
     )
@@ -239,10 +240,15 @@ class CategoryUpdateForm(forms.Form):
             'Impresora':   Impresora,
             'Router':      Router,
             'DataShow':    DataShow,
+            'Monitor':     Monitor,
         }
-        obj = modelo_map[tipo].objects.get(pk=pk)
+        # <--- hecho por claude code (seguridad 05-nov-2026): .get() con un id inexistente daba 500; ahora devuelve False y la vista avisa
+        obj = modelo_map[tipo].objects.filter(pk=pk).first()
+        if obj is None:
+            return False
         obj.category = cat
         obj.save()
+        return True
 
 
 # -------------------------------------------------------------------
@@ -348,7 +354,7 @@ class MonitorForm(forms.ModelForm):
 class ItemGeneralForm(forms.ModelForm):
     class Meta:
         model = ItemGeneral
-        fields = ['area', 'categoria', 'descripcion', 'ubicacion', 'estado', 'foto']
+        fields = ['area', 'categoria', 'tipo', 'descripcion', 'ubicacion', 'estado', 'foto']   # <--- hecho por claude code (12-nov-2026): + tipo
         widgets = {
             'area':        forms.Select(attrs={'class': 'form-select', 'id': 'ig-area'}),
             'categoria':   forms.Select(attrs={'class': 'form-select', 'id': 'ig-categoria'}),
@@ -363,6 +369,8 @@ class ItemGeneralForm(forms.ModelForm):
         self.fields['categoria'].required = True
         self.fields['categoria'].empty_label = '— Elige la categoría —'
         self.fields['categoria'].queryset = CategoriaGeneral.objects.all()
+        self.fields['tipo'].required = True   # <--- hecho por claude code (12-nov-2026): una de las 5 pestañas
+        self.fields['tipo'].error_messages['required'] = 'Marca el tipo: Mobiliario, Máquinas, Herramientas, Vehículos, Inmuebles o Bienes.'
 
     def clean(self):
         d = super().clean()

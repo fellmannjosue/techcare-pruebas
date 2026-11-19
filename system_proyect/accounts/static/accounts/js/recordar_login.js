@@ -1,4 +1,4 @@
-// <--- hecho por claude code (26-oct-2026): "Recordar mis datos" en el login (para la app de escritorio)
+// <--- hecho por claude code (26-oct-2026, portado a producción 09-nov-2026): "Recordar mis datos" en el login
 // Guarda correo + contraseña en localStorage por 1 mes; luego pide volver a ingresarlos.
 // IIFE con nombres propios para no chocar con login.js (ámbito global compartido).
 (function () {

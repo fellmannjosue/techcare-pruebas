@@ -229,7 +229,7 @@ class SabadoAsignacion(models.Model):
 
 class TiempoCompensatorio(models.Model):
     """
-    Solicitudes de tiempo extra registradas por usuario (vía Google Form o UI).
+    Solicitudes de tiempo extra registradas desde la pantalla del Reloj (el enlace de Google Forms se quitó el 06-nov-2026).
     No autoriza: solo captura y queda en estado PEND hasta que staff apruebe minutos.
     """
     STATUS_CHOICES = [
@@ -525,6 +525,19 @@ class CompensatorioSaldoManual(models.Model):
 
     def __str__(self):
         return f'{self.emp_code}: {self.saldo}'
+
+
+class CompensatorioFechaCorte(models.Model):
+    """<--- hecho por claude code (16-nov-2026): columna «Fecha» editable por empleado en el tab Vacaciones (pedido del usuario)."""
+    emp_code = models.CharField(max_length=20, unique=True)
+    fecha = models.DateField()
+
+    class Meta:
+        db_table = 'reloj_compensatorio_fecha_corte'
+        verbose_name = 'Fecha (tab Vacaciones del compensatorio)'
+
+    def __str__(self):
+        return f'{self.emp_code}: {self.fecha}'
 
 
 class CompensatorioPermisoTomadoManual(models.Model):

@@ -1,0 +1,6 @@
+/* <--- hecho por claude code (10-nov-2026): aviso del rol Auditoría */
+.tc-auditoria{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:2000;
+  background:#4c6ef5;color:#fff;font-size:.8rem;font-weight:600;padding:.35rem .9rem;border-radius:999px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;display:flex;gap:.35rem;align-items:center}
+/* el Directorio de teléfonos está prohibido para el auditor (core/auditoria.PROHIBIDAS): se ocultan sus enlaces */
+a[href*="/enfermeria/directorio/"],a[href*="/conducta/directorio/"]{display:none!important}

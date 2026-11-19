@@ -1,0 +1,100 @@
+{% load static %}<!DOCTYPE html>
+{# <--- hecho por claude code (05-nov-2026): maqueta TC-PRY-0005 Convocatoria a reforzamiento; solo druiz y superusuario #}
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convocatoria a Reforzamiento · Maqueta</title>
+<link rel="stylesheet" href="{% static 'conducta/css/reforzamiento_demo.css' %}?v=3">
+</head><body>
+
+<div class="hero"><div class="in">
+  <small>TechCare · Conducta Bilingüe · TC-PRY-0005</small>
+  <h1>Convocatoria a reforzamiento</h1>
+  <p>Maqueta navegable: así se vería cada pantalla. Los nombres son de ejemplo. <a href="/" style="color:#fff;text-decoration:underline">Volver a TechCare</a></p>
+</div></div>
+
+<div class="wrap">
+  <div class="tabs" id="tabs">
+    <button data-t="maestro" class="on">1 · Tabla por grado (maestro)</button>
+    <button data-t="coord">2 · Panel del coordinador</button>
+    <button data-t="config">3 · Configuración del parcial</button>
+    <button data-t="carta">4 · Carta PDF</button>
+  </div>
+
+  
+  <section id="t-maestro">
+    <div class="card">
+      <h2>Convocar a reforzamiento · 5to grado · Sección A</h2>
+      <p class="sub">Como en Tutorías: marca en qué asignatura convocas a cada alumno. Cada marca agrega una fila a su carta (máximo 8) y abre la casilla para escribir la nota.</p>
+      <div class="grid" style="margin-bottom:14px">
+        <div><label>Grado</label><select><option>5to grado</option></select></div>
+        <div><label>Sección</label><select><option>A</option></select></div>
+        <div><label>Parcial</label><select><option>IV Parcial · 2026</option></select></div>
+      </div>
+      <div class="scroll"><table id="tm"></table></div>
+      <p class="note">Las marcas se guardan solas. La columna «Asignaturas» avisa cuando el alumno llega a 8.</p>
+    </div>
+  </section>
+
+  
+  <section id="t-coord" hidden>
+    <div class="card">
+      <div class="bar">
+        <div><h2>Convocados · IV Parcial 2026</h2><p class="sub" style="margin:0">Cada coordinador ve solo su grupo, igual que en Tutorías.</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn">Tabla del grado (PDF)</button><button class="btn p">Cartas del grado (PDF)</button></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Alumno</th><th>Grado</th><th class="c">Asignaturas</th><th>Convocó · Docente de grado</th><th>Coordinación</th><th class="c">Carta</th></tr></thead>
+        <tbody id="tc"></tbody></table></div>
+      <p class="note">El Docente de grado se elige una vez por grado y sección; sale en la firma de todas las cartas de ese grado. La Coordinación sale sola según el grado (1.1 a 3.2 = C1, 4.1 a 9 = C2).</p>
+    </div>
+  </section>
+
+  
+  <section id="t-config" hidden>
+    <div class="card">
+      <h2>Fechas del IV Parcial · 2026</h2>
+      <p class="sub">Coordinación BL las escribe una vez; salen en todas las cartas del parcial.</p>
+      <div class="grid">
+        <div><label>Fecha de la carta</label><input type="date" id="f1" value="2026-11-02"></div>
+        <div><label>Inicio de exámenes del parcial</label><input type="date" id="f2" value="2026-11-04"></div>
+        <div><label>Reforzamiento · desde</label><input type="date" id="f3" value="2026-11-09"></div>
+        <div><label>Reforzamiento · hasta</label><input type="date" id="f4" value="2026-11-13"></div>
+      </div>
+      <p class="note">Cambia una fecha y mira la pestaña «Carta PDF»: se actualiza sola.</p>
+    </div>
+  </section>
+
+  
+  <section id="t-carta" hidden>
+    <div class="bar" style="margin-bottom:8px"><div class="legend" style="margin:0"><span class="sw"></span> Lo que llena el sistema (todo lo demás es el texto fijo de tu formato)</div><div><label>Carta de</label><select id="p-sel"></select></div></div>
+    <div class="paperwrap"><div class="paper">
+      <h3>NUEVO AMANECER SCHOOL</h3>
+      <div class="der">La Venta, D.C., <span class="new" id="p-fecha">02 de noviembre de 2026</span></div>
+      <p>Estimados Padres de Familia:</p>
+      <p>Por este medio enviamos un afectuoso saludo acompañado por nuestros deseos de bienestar en cada área de sus vidas.</p>
+      <p>Como ya es de su conocimiento, desde el día <span class="new" id="p-ini">miércoles 04 de noviembre</span> iniciamos exámenes del <span class="new">IV Parcial</span>. Por lo tanto, como institución ya recibimos los lineamientos a seguir, máxime para aquellos alumnos que deberán someterse al proceso de recuperación anual. Previo a la única recuperación que se aplicará, los alumnos recibirán el debido proceso de reforzamiento el cual será del <span class="new" id="p-ref">lunes 09 al viernes 13 de noviembre</span> del año en curso. Esta convocatoria a reforzamiento se hace en base a los siguientes aspectos:</p>
+      <ul>
+        <li><b>Alumnos ya reprobados:</b> Deberán ser integrados al proceso de reforzamiento de forma obligatoria. Aplica alumnos que a este momento ya no alcanzan a pasar la asignatura.</li>
+        <li><b>Casos condicionados:</b> Aquellos estudiantes que dependan de la nota del examen para aprobar deberán ser convocados preventivamente.</li>
+        <li><b>Casos imprevistos:</b> Alumnos que reprueben a última hora por no alcanzar el 70% mínimo en el IV parcial.</li>
+      </ul>
+      <p>Por lo anterior, se le notifica que su hijo (a): <span class="u new" id="p-alumno">Valeria Mejía · 5to A</span> ha sido convocado a reforzamiento en la (s) siguiente (s) asignatura (s):</p>
+      <table id="p-tabla"><thead id="p-head"></thead><tbody id="p-tab"></tbody></table>
+      <p style="margin-bottom:4px">Cualquier duda, no dude en comunicarse con la coordinación académica de área a:</p>
+      <ul class="chk" style="margin-left:24px">
+        <li>área inglés de primer a tercer grado: <a>cvarela@ana-hn.org</a></li>
+        <li>área de inglés de cuarto a noveno grado: <a>druiz@ana-hn.org</a></li>
+        <li>área de matemáticas: <a>jmartinez@ana-hn.org</a></li>
+        <li>área de idioma español: <a>ialcerro@ana-hn.org</a>.</li>
+      </ul>
+      <p>Sin otro particular, me despido de ustedes.</p>
+      <p>¡Bendiciones!</p>
+      <div class="firmas"><div><span class="fn new" id="p-docente"></span>Docente de grado</div><div><span class="fn new" id="p-coord"></span>Coordinación Académica</div><div><span class="fn new" id="p-dir"></span>V° B° Dirección</div></div>
+    </div></div>
+    <p class="note">Tabla ampliada a <b>8 filas</b> (antes 5). La nota es opcional: si el alumno no tiene ninguna, la columna «Resultado» no aparece. Los nombres de las firmas salen sobre la línea.</p>
+  </section>
+</div>
+
+{{ maestros|json_script:"rz-maestros" }}
+<div id="rz-cfg" hidden data-c1="{{ coord_c1 }}" data-c2="{{ coord_c2 }}" data-dir="{{ direccion }}"></div>
+<script src="{% static 'conducta/js/reforzamiento_demo.js' %}?v=3"></script>
+</body></html>

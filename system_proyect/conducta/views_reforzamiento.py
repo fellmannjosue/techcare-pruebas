@@ -189,6 +189,11 @@ def reforzamiento_marcar(request):
     no = _gate(request)
     if no:
         return JsonResponse({'ok': False, 'error': 'Sin permiso.'}, status=403)
+    # <--- hecho por claude code (06-nov-2026): módulo cerrado en el Período Escolar activo → no se puede llenar
+    from .periodo_modulos import respuesta_si_cerrado
+    _cerrado = respuesta_si_cerrado(request, 'tut', 'bilingue', json=True)
+    if _cerrado:
+        return _cerrado
     d = _json(request)
     if d is None:
         return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)

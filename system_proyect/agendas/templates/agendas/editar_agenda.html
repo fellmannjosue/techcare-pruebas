@@ -53,7 +53,8 @@
                 {# Miniatura + borrar (solo si hay imagen) #}
                 <div class="mt-1" id="img-zona-{{ idx }}">
                   {% if mat.imagen %}
-                    <img src="{{ mat.imagen.imagen.url }}"
+                    {# <--- hecho por claude code (seguridad 05-nov-2026): la foto sale por la vista con permiso (imagen_ver), no por /media/ público #}
+                    <img src="{% url 'agendas:imagen_ver' mat.imagen.pk %}"
                          style="height:48px;width:100%;object-fit:cover;border-radius:4px;"
                          class="d-block mb-1">
                     <button type="button" class="btn btn-xs btn-ghost-danger"
@@ -151,5 +152,5 @@
      data-v0="{{ csrf_token }}"
      data-v1="{% url "agendas:subir_imagen" %}"
      data-v2="{{ agenda.pk }}"></div>
-<script src="{% static 'agendas/js/editar_agenda.js' %}?v=22"></script>
+<script src="{% static 'agendas/js/editar_agenda.js' %}?v=23"></script>
 {% endblock %}

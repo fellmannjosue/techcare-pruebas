@@ -1,0 +1,7 @@
+{% load static %}<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Guardado</title>
+{# <--- hecho por claude code (09-nov-2026): respuesta del formulario dentro de la ventana «Registrar»: avisa a la ventana padre (tc_embed_resultado.js) #}
+</head><body>
+{{ resultado|json_script:"tc-embed-resultado" }}
+<script src="{% static 'js/tc_embed_resultado.js' %}?v=1"></script>
+</body></html>

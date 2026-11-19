@@ -8,6 +8,7 @@
 
 {% block extra_head %}
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{% static 'conducta/css/form_reporte.css' %}?v=1">{# <--- hecho por claude code (06-nov-2026) #}
 {% endblock %}
 
 {% block page_actions %}
@@ -52,89 +53,83 @@
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title"><i class="ti ti-info-circle me-2 text-cyan"></i>Nuevo Reporte Informativo</h3>
+{# <--- hecho por claude code (06-nov-2026): diseño B — tarjeta del alumno a la izquierda, formulario a la derecha y barra de guardar fija. Mismos campos y nombres de siempre #}
+<form method="post" autocomplete="off" id="formReporteInformativo" class="fr-wrap">
+  {% csrf_token %}
+  <div class="fr-grid">
+    <div class="fr-card fr-alum">
+      <div class="fr-card__t"><i class="ti ti-user"></i> Estudiante</div>
+      <select id="id_alumno" name="alumno" class="form-select" required>
+        <option value="">-- Selecciona un estudiante --</option>
+        {% if students_agrupados %}
+          {% for g in students_agrupados %}
+          <optgroup label="{{ g.grupo }}">
+            {% for s in g.alumnos %}<option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        {% else %}
+          {% for s in students %}<option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>{% endfor %}
+        {% endif %}
+      </select>
+      <input type="hidden" name="grado" id="id_grado">
+      <div class="fr-alum__card" id="fr-alum-card" hidden>
+        <span class="fr-av" id="fr-av"></span>
+        <div><b id="fr-alum-nom"></b><small>Grado: <input type="text" id="grado-display" class="fr-grado" readonly placeholder="—"></small></div>
       </div>
-      <div class="card-body">
-        <form method="post" autocomplete="off" id="formReporteInformativo">
-          {% csrf_token %}
+      <div class="fr-vacio" id="fr-alum-vacio"><i class="ti ti-user-search"></i>Elige al alumno para ver su tarjeta.</div>
+      <div class="fr-rec" id="fr-rec" hidden>
+        <div class="fr-rec__t">Sus últimos reportes</div>
+        <div id="fr-rec-lista"></div>
+      </div>
+    </div>
 
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Estudiante</label>
-              <select id="id_alumno" name="alumno" class="form-select" required>
-                <option value="">-- Selecciona un estudiante --</option>
-                {# <--- hecho por claude code: alumnos agrupados por grupo (grado-sección) #}
-                {% if students_agrupados %}
-                  {% for g in students_agrupados %}
-                  <optgroup label="{{ g.grupo }}">
-                    {% for s in g.alumnos %}<option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>{% endfor %}
-                  </optgroup>
-                  {% endfor %}
-                {% else %}
-                  {% for s in students %}
-                  <option value="{{ s.id }}" data-grado="{{ s.grado }}">{{ s.label }}</option>
-                  {% endfor %}
-                {% endif %}
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Grado</label>
-              <input type="text" id="grado-display" class="form-control" readonly placeholder="Se llena automáticamente">
-              <input type="hidden" name="grado" id="id_grado">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Materia / Docente</label>
-              <select id="id_materia_docente" name="materia_docente" class="form-select" required>
-                <option value="">-- Selecciona una materia --</option>
-                {% for v, t, c in materia_docente_choices %}
-                  <option value="{{ v }}" data-coord="{{ c }}">{{ t }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Tipo de Reporte</label>
-              <select name="tipo_reporte" id="tipo_reporte" class="form-select" required>
-                <option value="academico">Académico</option>
-                <option value="conductual">Conductual</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Fecha</label>
-              <input type="date" id="id_fecha" name="fecha" class="form-control"
-                     value="{{ fecha|slice:':10' }}" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Comentario</label>
-              <textarea id="id_comentario" name="comentario" rows="4"
-                        class="form-control"
-                        data-rico data-redactar-url="{% url 'asistente:redactar' %}"
-                        placeholder="Escribe el comentario…"></textarea>
-            </div>
-          </div>
-
-          <div class="mt-4 d-flex gap-2">
-            <button type="submit" class="btn btn-primary">
-              <i class="ti ti-device-floppy me-1"></i> Guardar Reporte
-            </button>
-            <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary">Cancelar</a>
-          </div>
-        </form>
+    <div class="fr-card">
+      <div class="fr-card__t"><i class="ti ti-info-circle"></i> Nuevo Reporte Informativo</div>
+      <div class="row g-3">
+        <div class="col-md-7">
+          <label class="form-label">Materia / Docente</label>
+          <select id="id_materia_docente" name="materia_docente" class="form-select" required>
+            <option value="">-- Selecciona una materia --</option>
+            {% for v, t, c in materia_docente_choices %}<option value="{{ v }}" data-coord="{{ c }}">{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Tipo de Reporte</label>
+          <select name="tipo_reporte" id="tipo_reporte" class="form-select" required>
+            <option value="academico">Académico</option>
+            <option value="conductual">Conductual</option>
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Fecha</label>
+          <input type="date" id="id_fecha" name="fecha" class="form-control" value="{{ fecha|slice:':10' }}" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Comentario</label>
+          <textarea id="id_comentario" name="comentario" rows="5" class="form-control"
+                    data-rico data-redactar-url="{% url 'asistente:redactar' %}"
+                    placeholder="Escribe el comentario…"></textarea>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <div class="fr-bar">
+    <span class="fr-bar__estado" id="fr-estado"><i class="ti ti-circle-dashed"></i> Elige alumno, materia y escribe el comentario</span>
+    <a href="{{ nav_home_url }}" class="btn btn-ghost-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Guardar Reporte</button>
+  </div>
+</form>
+{{ recientes|json_script:"fr-recientes" }}
 {% endblock %}
 
 {% block extra_js %}
   <link rel="stylesheet" href="{% static 'conducta/css/comentario_rico.css' %}?v=1">
-  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=1"></script>
+  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=3"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   {# <--- hecho por claude code: materia/docente por grupo del alumno #}
   {# <--- hecho por claude code: datos para formularios.js, sin JS inline #}
   {{ md_por_grado_json|default:"{}"|safe|json_script:"md-por-grado-data" }}
   <script src="{% static 'conducta/js/formularios.js' %}?v=3"></script>
+  <script src="{% static 'conducta/js/form_reporte.js' %}?v=1"></script>{# <--- hecho por claude code (06-nov-2026) #}
 {% endblock %}

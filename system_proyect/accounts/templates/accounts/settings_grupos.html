@@ -6,11 +6,14 @@
 <div class="card">
   <div class="card-header">
     <h3 class="card-title"><i class="ti ti-users-group me-2 text-purple"></i>Gestión de Grupos</h3>
+    {# <--- hecho por claude code (seguridad 05-nov-2026): crear, renombrar y eliminar grupos es solo del superusuario (mismo candado que el servidor) #}
+    {% if request.user.is_superuser %}
     <div class="card-options">
       <a href="{% url 'settings_grupo_crear' %}" class="btn btn-sm btn-success">
         <i class="ti ti-plus me-1"></i>Nuevo grupo
       </a>
     </div>
+    {% endif %}
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -43,6 +46,7 @@
               </span>
             </td>
             <td class="text-center">
+              {% if request.user.is_superuser %}
               <a href="{% url 'settings_grupo_editar' g.pk %}"
                  class="btn btn-sm btn-ghost-primary" title="Editar nombre">
                 <i class="ti ti-edit"></i>
@@ -53,6 +57,9 @@
                       title="Eliminar grupo">
                 <i class="ti ti-trash"></i>
               </button>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -122,5 +129,5 @@
 
 {% block extra_js %}
 <div id="page-config" hidden data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'accounts/js/settings_grupos.js' %}?v=20"></script>
+<script src="{% static 'accounts/js/settings_grupos.js' %}?v=21"></script>{# <--- hecho por claude code (seguridad 05-nov-2026): v21 escapa nombres #}
 {% endblock %}

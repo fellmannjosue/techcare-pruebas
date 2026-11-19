@@ -14,13 +14,13 @@
 </nav>
 {% endblock %}
 {% block back_button %}<a href="{{ nav_home_url|default:'/' }}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Volver al panel</a>{% endblock %}
-{% block vendor_head %}<link rel="stylesheet" href="{% static 'inventario/css/inventario_general.css' %}?v=2">{% endblock %}
+{% block vendor_head %}<link rel="stylesheet" href="{% static 'inventario/css/inventario_general.css' %}?v=5">{% endblock %}
 
 {% block messages %}{% include 'ui/messages.html' %}{% endblock %}
 
 {% block content %}
 {# <--- hecho por claude code (13-oct-2026): filtro por ÁREA y luego por SU categoría #}
-<form method="get" class="ig-filtro">
+<form method="get" class="ig-filtro">{% if f_tipo %}<input type="hidden" name="f_tipo" value="{{ f_tipo }}">{% endif %}
   <div class="ig-filtro-campo"><label class="form-label">Área</label>
     <select name="f_area" id="ig-f-area" class="form-select form-select-sm"><option value="">Todas las áreas</option>{% for k, l in areas %}<option value="{{ k }}" {% if f_area == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
   <div class="ig-filtro-campo"><label class="form-label">Categoría</label>
@@ -58,17 +58,25 @@
               <button type="button" class="btn btn-outline-primary" id="ig-cat-nueva-btn" title="Agregar categoría a esta área"><i class="ti ti-plus"></i></button>
             </div>
             <div class="input-group mt-2 d-none" id="ig-cat-nueva">
-              <input type="text" class="form-control" id="ig-cat-nombre" maxlength="80" placeholder="Nueva categoría (ej.: Mobiliario)">
+              <input type="text" class="form-control" id="ig-cat-nombre" maxlength="80" placeholder="Nueva categoría (ej.: Mobiliario) · se guarda sola al salir">
               <button type="button" class="btn btn-primary" id="ig-cat-guardar">Agregar</button>
             </div>
             <div class="small text-danger mt-1 d-none" id="ig-cat-err"></div>
+            <div class="small text-green mt-1 d-none" id="ig-cat-ok"></div>{# <--- hecho por claude code (09-nov-2026): aviso del autoguardado de la categoría #}
             {% for e in form.categoria.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          {# <--- hecho por claude code (12-nov-2026): TIPO = pestañas del inventario; se marca uno solo (inventario_general.js los hace excluyentes) #}
+          <div class="col-12"><label class="form-label required">Tipo</label>
+            <div class="ig-tipos">
+              {% for k, l in tipos %}<label class="form-check ig-tipo"><input type="checkbox" class="form-check-input ig-tipo-chk" name="tipo" value="{{ k }}"{% if tipo_sel == k %} checked{% endif %}><span class="form-check-label">{{ l }}</span></label>{% endfor %}
+            </div>
+            {% for e in form.tipo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
           <div class="col-12"><label class="form-label required">{{ form.descripcion.label }}</label>{{ form.descripcion }}{% for e in form.descripcion.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
           <div class="col-md-7 col-lg-12"><label class="form-label required">{{ form.ubicacion.label }}</label>{{ form.ubicacion }}{% for e in form.ubicacion.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             <datalist id="ig-ubicaciones">{% for u in ubicaciones %}<option value="{{ u }}">{% endfor %}</datalist></div>
           <div class="col-md-5 col-lg-12"><label class="form-label">{{ form.estado.label }}</label>{{ form.estado }}</div>
           <div class="col-12"><label class="form-label">Foto</label>
-            {% if edit and edit.foto %}<div class="mb-2"><img src="{{ edit.foto.url }}" alt="Foto actual" class="ig-foto-actual"></div>{% endif %}
+            {# <--- hecho por claude code (seguridad 05-nov-2026): la foto se sirve por una vista con candado de Inventario, no por /media/ #}
+            {% if edit and edit.foto %}<div class="mb-2"><img src="{% url 'inventario:item_general_foto' edit.pk %}?v={{ edit.fecha_modificado|date:'U' }}" alt="Foto actual" class="ig-foto-actual"></div>{% endif %}
             <input type="file" name="foto" accept="image/*" class="form-control">
             {% if edit and edit.foto %}<label class="form-check mt-1"><input type="checkbox" class="form-check-input" name="foto-clear"><span class="form-check-label small">Quitar la foto</span></label>{% endif %}
             {% for e in form.foto.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
@@ -87,21 +95,43 @@
       <div class="card-header">
         <h3 class="card-title"><i class="ti ti-package me-2"></i>Artículos registrados</h3>
         <div class="card-actions btn-list">
+          {# <--- hecho por claude code (13-nov-2026): reporte general agrupado por tipo (PDF y Excel) #}
+          <a href="{% url 'inventario:item_general_reporte_pdf' %}?{{ filtro_qs }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="ti ti-report me-1"></i>Reporte general</a>
+          <a href="{% url 'inventario:item_general_reporte_excel' %}?{{ filtro_qs }}" class="btn btn-sm btn-outline-success"><i class="ti ti-table-export me-1"></i>Reporte Excel</a>
           <a href="{% url 'inventario:item_general_pdf_todos' %}?{{ filtro_qs }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="ti ti-file-type-pdf me-1"></i>Fichas PDF</a>
           <a href="{% url 'inventario:item_general_excel' %}?{{ filtro_qs }}" class="btn btn-sm btn-outline-success"><i class="ti ti-file-spreadsheet me-1"></i>Excel</a>
         </div>
       </div>
+      {# <--- hecho por claude code (12-nov-2026): pestañas por tipo (respetan el filtro de área/categoría) #}
+      <div class="card-header ig-tabs-wrap">
+        <ul class="nav nav-tabs card-header-tabs ig-tabs">
+          {% for t in tabs_tipo %}<li class="nav-item"><a class="nav-link{% if f_tipo == t.k %} active{% endif %}" href="?{% if qs_tab %}{{ qs_tab }}&{% endif %}f_tipo={{ t.k }}"><i class="ti {{ t.icon }} me-1"></i>{{ t.l }} <span class="badge {% if f_tipo == t.k %}bg-primary text-white{% else %}bg-secondary-lt{% endif %} ms-1">{{ t.n }}</span></a></li>{% endfor %}
+        </ul>
+      </div>
+      {# <--- hecho por claude code (12-nov-2026): selección múltiple → asignar el tipo a los marcados #}
+      <form method="post" action="{% url 'inventario:item_general_tipo_lote' %}" id="ig-lote" class="ig-lote d-none">{% csrf_token %}
+        <input type="hidden" name="volver" value="?{{ request.GET.urlencode }}">
+        <span class="ig-lote-n"><i class="ti ti-checks me-1"></i><b id="ig-lote-n">0</b> seleccionado(s)</span>
+        <select name="tipo" class="form-select form-select-sm" required>
+          <option value="">Mover a…</option>
+          {% for k, l in tipos %}<option value="{{ k }}">{{ l }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary"><i class="ti ti-arrow-right me-1"></i>Asignar tipo</button>
+        <button type="button" class="btn btn-sm btn-ghost-secondary" id="ig-lote-limpiar">Quitar selección</button>
+        <span id="ig-lote-ids"></span>
+      </form>
       <div class="card-body p-0">
         <div class="table-responsive">
           <table id="ig-tabla" class="table table-vcenter table-hover card-table" style="width:100%;">
-            <thead><tr><th>Foto</th><th>Código</th><th>Área</th><th>Categoría</th><th>Descripción</th><th>Ubicación</th><th>Estado</th><th>Auditoría</th><th class="text-end">Acciones</th></tr></thead>
+            <thead><tr><th class="w-1"><input type="checkbox" class="form-check-input m-0" id="ig-sel-todos" title="Marcar todos los de la página"></th><th>Foto</th><th>Código</th><th>Área</th><th>Categoría</th><th>Descripción</th><th>Ubicación</th><th>Estado</th><th>Auditoría</th><th class="text-end">Acciones</th></tr></thead>
             <tbody>
             {% for it in items %}
               <tr>
-                <td>{% if it.foto %}<img src="{{ it.foto.url }}" alt="Foto de {{ it.codigo }}" class="ig-thumb" data-full="{{ it.foto.url }}" data-titulo="{{ it.codigo }} · {{ it.descripcion }}">{% else %}<span class="ig-sin-foto"><i class="ti ti-photo-off"></i></span>{% endif %}</td>
+                <td><input type="checkbox" class="form-check-input m-0 ig-sel" value="{{ it.pk }}" aria-label="Seleccionar {{ it.codigo }}"></td>
+                <td>{% if it.foto %}{% url 'inventario:item_general_foto' it.pk as foto_url %}<img src="{{ foto_url }}?v={{ it.fecha_modificado|date:'U' }}" alt="Foto de {{ it.codigo }}" class="ig-thumb" data-full="{{ foto_url }}?v={{ it.fecha_modificado|date:'U' }}" data-titulo="{{ it.codigo }} · {{ it.descripcion }}">{% else %}<span class="ig-sin-foto"><i class="ti ti-photo-off"></i></span>{% endif %}</td>
                 <td class="text-nowrap"><b>{{ it.codigo }}</b></td>
                 <td class="text-nowrap">{{ it.get_area_display }}</td>
-                <td>{% if it.categoria %}<span class="badge bg-blue-lt text-blue">{{ it.categoria.nombre }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td>{% if it.categoria %}<span class="badge bg-blue-lt text-blue">{{ it.categoria.nombre }}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% if it.tipo %}<div class="small text-muted mt-1">{{ it.get_tipo_display }}</div>{% endif %}</td>
                 <td>{{ it.descripcion }}</td>
                 <td>{{ it.ubicacion }}</td>
                 <td><span class="ig-estado ig-estado--{{ it.estado }}"><i class="ig-dot ig-dot--{{ it.estado }}"></i>{{ it.get_estado_display }}</span></td>
@@ -148,5 +178,5 @@
 
 {% block extra_js %}
 <div id="ig-config" hidden data-url-cat="{% url 'inventario:categoria_general_add' %}" data-csrf="{{ csrf_token }}"></div>
-<script src="{% static 'inventario/js/inventario_general.js' %}?v=2"></script>
+<script src="{% static 'inventario/js/inventario_general.js' %}?v=5"></script>
 {% endblock %}

@@ -12,7 +12,8 @@
   {% for p in planos %}
   <div class="col-sm-6 col-lg-4">
     <div class="card">
-      <a href="{% url 'red:plano_view' p.pk %}"><img src="{{ p.imagen.url }}" class="card-img-top" style="height:180px;object-fit:cover;background:#f1f3f5;" alt="{{ p.nombre }}"></a>
+      {# <--- hecho por claude code (seguridad 05-nov-2026): miniatura por la vista con candado, no por /media/ #}
+      <a href="{% url 'red:plano_view' p.pk %}"><img src="{% url 'red:plano_imagen' p.pk %}" class="card-img-top" style="height:180px;object-fit:cover;background:#f1f3f5;" alt="{{ p.nombre }}"></a>
       <div class="card-body">
         <div class="fw-semibold">{{ p.nombre }}</div>
         <div class="text-muted small">{{ p.edificio|default:'Campus / general' }} · {{ p.marcadores.count }} marcadores</div>

@@ -40,9 +40,26 @@ def puede_administrar_red(user):
     return user.is_superuser or user.has_perm('red.administrar_red')
 
 
+def _num(valor):
+    """<--- hecho por claude code (seguridad 05-nov-2026): id numérico de un parámetro (GET/POST) o '' si no lo es
+    (un ?plano=abc o ?origen=abc reventaba con error 500)."""
+    valor = (valor or '').strip()
+    return valor if valor.isdigit() else ''
+
+
+def _txt(valor):
+    # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): texto de un cuerpo JSON ('' si no es texto: un número o una lista daban 500 en .strip())
+    return valor.strip() if isinstance(valor, str) else ''
+
+
 def _ip_cliente(request):
-    xff = request.META.get('HTTP_X_FORWARDED_FOR')
-    return (xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR'))
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo REMOTE_ADDR. Delante de Apache no hay proxy, así que X-Forwarded-For lo escribe el propio cliente: falseaba la IP de la auditoría (o la rompía con texto largo).
+    ip = (request.META.get('REMOTE_ADDR') or '').strip()
+    try:
+        ipaddress.ip_address(ip)
+        return ip
+    except ValueError:
+        return None
 
 
 def _audit(request, modulo, registro, accion, antes=None, despues=None, motivo=''):
@@ -245,21 +262,39 @@ def ip_actual_guardar(request):
         d = json.loads(request.body or b'{}')
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
-    ip = (d.get('ip') or '').strip()
+    # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): cuerpo que no es objeto o id/VLAN no numericos daban 500
+    if not isinstance(d, dict):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    id_fila, id_vlan = _num(str(d.get('id') or '')), _num(str(d.get('vlan') or ''))
+    if (d.get('id') and not id_fila) or (d.get('vlan') and not id_vlan):
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos'}, status=400)
+    ip = _txt(d.get('ip'))
     try:
         ipaddress.IPv4Address(ip)
     except ValueError:
         return JsonResponse({'ok': False, 'error': 'IP inválida'}, status=400)
-    cat = d.get('categoria') or 'otro'
+    cat = _txt(d.get('categoria')) or 'otro'   # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): una lista aquí daba 500 (no se puede buscar en el dict)
     if cat not in dict(Device.TIPOS):
         cat = 'otro'
-    vlan = VLAN.objects.filter(pk=d.get('vlan')).first() if d.get('vlan') else None
-    obj = IPActual.objects.filter(pk=d.get('id')).first() if d.get('id') else None
+    vlan = VLAN.objects.filter(pk=id_vlan).first() if id_vlan else None
+    obj = IPActual.objects.filter(pk=id_fila).first() if id_fila else None
+    # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): la contraseña SOLO cambia si el JS la marca como escrita (password_cambiada=true).
+    # El JS viejo (cacheado en el navegador o sin collectstatic) manda SIEMPRE 'password' con el valor del campo, que la plantilla nueva deja vacío, y no
+    # pide confirmación al quitar el usuario: suelta (sin la marca) se ignora si viene vacía o igual a la guardada; si cambiaría la contraseña o la borraría
+    # (quitar «¿Tiene usuario?» en una fila que la tiene) se rechaza pidiendo recargar. Un JS viejo ya no puede borrar ni perder una contraseña en silencio.
+    pass_nueva = None
+    if d.get('password_cambiada') is True:
+        pass_nueva = _txt(d.get('password'))[:120]
+    elif 'password' in d:
+        legado = _txt(d.get('password'))[:120]
+        guardada = obj.password if obj else ''
+        if (legado and legado != guardada) or (obj is not None and obj.password_enc and not d.get('tiene_usuario')):
+            return JsonResponse({'ok': False, 'error': 'Pantalla desactualizada: recárgala (Ctrl+F5); este cambio no se guardó'}, status=409)
     dup = IPActual.objects.filter(ip=ip).exclude(pk=obj.pk if obj else None).first()
     if dup:
         return JsonResponse({'ok': False, 'error': f'La IP {ip} ya está en la lista ({dup.get_categoria_display()})'}, status=400)
     # <--- hecho por claude code (16-sep-2026): IP asignada en la VLAN elegida (validada contra su subred)
-    ip_nueva = (d.get('ip_nueva') or '').strip() or None
+    ip_nueva = _txt(d.get('ip_nueva')) or None
     if vlan is None:
         ip_nueva = None
     if ip_nueva:
@@ -290,15 +325,14 @@ def ip_actual_guardar(request):
     obj.categoria = cat
     obj.vlan = vlan
     obj.ip_nueva = ip_nueva
-    obj.descripcion = (d.get('descripcion') or '').strip()[:120]
+    obj.descripcion = _txt(d.get('descripcion'))[:120]
     obj.tiene_usuario = bool(d.get('tiene_usuario'))
-    obj.usuario = (d.get('usuario') or '').strip()[:120] if obj.tiene_usuario else ''
+    obj.usuario = _txt(d.get('usuario'))[:120] if obj.tiene_usuario else ''
     # <--- hecho por claude code (16-sep-2026): contraseña cifrada; nunca va a la auditoría en claro
     cambio_pass = False
-    if obj.tiene_usuario and 'password' in d:
-        nueva = (d.get('password') or '').strip()[:120]
-        if nueva != obj.password:
-            obj.password = nueva
+    if obj.tiene_usuario and pass_nueva is not None:   # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): solo con la marca (ver arriba)
+        if pass_nueva != obj.password:
+            obj.password = pass_nueva
             cambio_pass = True
     obj.modificado_por = request.user
     obj.save()
@@ -306,7 +340,28 @@ def ip_actual_guardar(request):
     if cambio_pass:
         despues['password'] = '(cambiada)'
     _audit(request, 'ips_actuales', obj, 'editar' if antes else 'crear', antes, despues)
-    return JsonResponse({'ok': True, 'id': obj.pk, 'fila': _ia_dict(obj), 'auto': auto})
+    # <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): tiene_password (solo si hay una guardada, nunca el texto) para que la pantalla no la dé por guardada si ya no está
+    fila = dict(_ia_dict(obj), tiene_password=bool(obj.password_enc))
+    return JsonResponse({'ok': True, 'id': obj.pk, 'fila': fila, 'auto': auto})
+
+
+@login_required
+@require_POST
+def ip_actual_password(request, pk):
+    """<--- hecho por claude code (seguridad 05-nov-2026): contraseña de UNA fila, bajo demanda (botón del ojo).
+    Antes la página pintaba descifradas TODAS las contraseñas en el HTML; ahora se piden de una en una y
+    cada lectura queda en la auditoría de Red. Mismo permiso que editar la lista (administrar_red)."""
+    from .models import IPActual
+    try:
+        _gate(request, escribir=True)
+    except PermissionDenied as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=403)
+    obj = get_object_or_404(IPActual, pk=pk)
+    pw = obj.password if obj.tiene_usuario else ''
+    _audit(request, 'ips_actuales', obj, 'ver_password')
+    resp = JsonResponse({'ok': True, 'password': pw})
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 def _ip_libre_para(vlan, excluir_pk=None):
@@ -795,6 +850,45 @@ def plano_view(request, pk):
     return render(request, 'red/plano_view.html', ctx)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): las imágenes de media/red/ (planos, fotos de gabinetes y dispositivos)
+# se sirven por vista con el MISMO candado del módulo (_gate); por /media/ salían sin sesión. Apache ya bloquea esas carpetas.
+def _servir_imagen(archivo):
+    import mimetypes
+    from django.http import FileResponse, Http404
+    if not archivo or not archivo.name:
+        raise Http404('Sin archivo.')
+    try:
+        fh = archivo.storage.open(archivo.name, 'rb')
+    except (FileNotFoundError, OSError):
+        raise Http404('Archivo no encontrado.')
+    tipo = mimetypes.guess_type(archivo.name)[0] or ''
+    es_imagen = tipo.startswith('image/') and 'svg' not in tipo
+    resp = FileResponse(fh, content_type=tipo if es_imagen else 'application/octet-stream')
+    if not es_imagen:
+        resp['Content-Disposition'] = 'attachment'
+    resp['Cache-Control'] = 'private, max-age=3600'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
+
+
+@login_required
+def plano_imagen(request, pk):
+    _gate(request)
+    return _servir_imagen(get_object_or_404(Plano, pk=pk).imagen)
+
+
+@login_required
+def gabinete_foto(request, pk):
+    _gate(request)
+    return _servir_imagen(get_object_or_404(Gabinete, pk=pk).fotografia)
+
+
+@login_required
+def device_foto(request, pk):
+    _gate(request)
+    return _servir_imagen(get_object_or_404(Device, pk=pk).fotografia)
+
+
 def _marcador_dict(m):
     ref = m.gabinete_id or m.dispositivo_id or m.switch_id or ''
     return {'id': m.id, 'etiqueta': m.etiqueta, 'tipo': m.tipo, 'x': m.x, 'y': m.y, 'color': m.color,
@@ -1112,7 +1206,7 @@ def topologia(request):
     # <--- hecho por claude code: modo "plano" → dibuja los marcadores y líneas de un plano
     plano_pk = request.GET.get('plano') or ''
     if plano_pk:
-        pl = get_object_or_404(Plano, pk=plano_pk)
+        pl = get_object_or_404(Plano, pk=_num(plano_pk) or 0)   # <--- hecho por claude code (seguridad 05-nov-2026): no numérico → 404, no 500
         marks = list(pl.marcadores.all())
         nodes = []
         for m in marks:
@@ -1142,8 +1236,8 @@ def topologia(request):
             'planos': Plano.objects.all(), 'plano_sel': pl,
             'nav_home_url': '/'})
 
-    f_edif = request.GET.get('edificio') or ''
-    f_vlan = request.GET.get('vlan') or ''
+    f_edif = _num(request.GET.get('edificio'))   # <--- hecho por claude code (seguridad 05-nov-2026): solo ids numéricos
+    f_vlan = _num(request.GET.get('vlan'))
     f_tipo = request.GET.get('tipo') or ''
     colorby = request.GET.get('colorby') or 'tipo'
 
@@ -1250,8 +1344,8 @@ def migracion(request):
     """Análisis de impacto de mover dispositivos de una VLAN a otra (solo lectura).
     La EJECUCIÓN real vive en `migracion_ejecutar` (POST, permiso aprobar_migracion)."""
     _gate(request)
-    origen_id = request.GET.get('origen') or ''
-    destino_id = request.GET.get('destino') or ''
+    origen_id = _num(request.GET.get('origen'))   # <--- hecho por claude code (seguridad 05-nov-2026): solo ids numéricos
+    destino_id = _num(request.GET.get('destino'))
     contexto = {'vlans': VLAN.objects.all(), 'origen_id': origen_id, 'destino_id': destino_id, 'nav_home_url': '/',
                 # <--- hecho por claude code: solo quien puede aprobar migraciones ve el botón de ejecutar
                 'puede_ejecutar': request.user.is_superuser or request.user.has_perm('red.aprobar_migracion')}
@@ -1279,8 +1373,9 @@ def migracion_ejecutar(request):
     u = request.user
     if not (u.is_superuser or u.has_perm('red.aprobar_migracion')):
         raise PermissionDenied('Se requiere el permiso "Aprobar migraciones".')
-    origen = get_object_or_404(VLAN, pk=request.POST.get('origen'))
-    destino = get_object_or_404(VLAN, pk=request.POST.get('destino'))
+    # <--- hecho por claude code (seguridad 05-nov-2026): ids no numéricos → 404 (antes error 500)
+    origen = get_object_or_404(VLAN, pk=_num(request.POST.get('origen')) or 0)
+    destino = get_object_or_404(VLAN, pk=_num(request.POST.get('destino')) or 0)
     motivo = (request.POST.get('motivo') or '').strip()
     if origen.pk == destino.pk:
         messages.error(request, 'Origen y destino deben ser VLAN distintas.')
@@ -1293,7 +1388,13 @@ def migracion_ejecutar(request):
         return redirect(f"{reverse('red:migracion')}?origen={origen.pk}&destino={destino.pk}")
 
     # Solo los equipos marcados (permite migrar un subconjunto); si no se marca ninguno, todos los de la VLAN
-    ids = request.POST.getlist('dispositivos')
+    ids_raw = request.POST.getlist('dispositivos')
+    ids = [_num(i) for i in ids_raw if _num(i)]
+    # <--- hecho por claude code (seguridad 05-nov-2026): si se marcaron equipos pero ningún id es válido NO se cae al
+    # "todos los de la VLAN": se rechaza (antes un id raro daba 500; filtrarlo a secas habría migrado la VLAN entera).
+    if ids_raw and not ids:
+        messages.error(request, 'La selección de equipos no es válida; no se migró nada.')
+        return redirect(f"{reverse('red:migracion')}?origen={origen.pk}&destino={destino.pk}")
     devs = Device.objects.filter(vlan=origen)
     if ids:
         devs = devs.filter(pk__in=ids)

@@ -48,4 +48,27 @@ def puede_ver_requerimiento(user, req):
     (Los dev pueden editar/mover cualquiera, así que también deben poder verlos.)"""
     if es_dev_desarrollo(user):
         return True
+    if not puede_entrar_desarrollo(user):   # <--- hecho por claude code (seguridad 05-nov-2026): sin el grupo del módulo (mismo criterio que nav_desarrollo) no ve ninguno
+        return False
     return req.solicitante_id == user.id or req.responsable_id == user.id
+
+
+def reqs_visibles(user, qs):
+    """<--- hecho por claude code (seguridad 05-nov-2026): filtra un queryset de requerimientos con el mismo criterio que puede_ver_requerimiento."""
+    from django.db.models import Q
+    if es_dev_desarrollo(user):
+        return qs
+    if not puede_entrar_desarrollo(user):
+        return qs.none()
+    return qs.filter(Q(solicitante=user) | Q(responsable=user))
+
+
+def usuarios_desarrollo(incluir_pk=None):
+    """<--- hecho por claude code (seguridad 05-nov-2026): usuarios activos que pueden entrar al módulo (superusuario o uno de sus 3 grupos); incluir_pk conserva al responsable actual."""
+    from django.contrib.auth.models import User
+    from django.db.models import Q
+    cond = Q(is_active=True) & (Q(is_superuser=True) |
+                                Q(groups__name__in=('desarrollo_admin', 'desarrollo_dev', 'desarrollo_solicitante')))
+    if incluir_pk:
+        cond |= Q(pk=incluir_pk)
+    return User.objects.filter(cond).distinct()

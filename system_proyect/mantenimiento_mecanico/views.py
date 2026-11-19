@@ -5,15 +5,18 @@ import datetime
 import json
 import os
 import re
+import uuid
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.staticfiles import finders
 from django.core.exceptions import PermissionDenied
+from django.core.files.base import ContentFile   # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): las fotos de la limpieza se guardan desde los bytes recodificados
 from django.db.models import Sum, Count
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -53,11 +56,24 @@ def _insumo(clave):
     return get_object_or_404(Insumo, clave=clave, activo=True)
 
 
+_DEC_MAX = Decimal('999999.99')   # <--- hecho por claude code (seguridad 05-nov-2026): tope de galones/litros (los DecimalField son de 8-10 dígitos); NaN, Infinito o un número enorme reventaban con 500 al comparar o al guardar
+_RE_ENTERO = re.compile(r'[0-9]{1,9}')   # <--- hecho por claude code (seguridad 05-nov-2026): solo cifras ASCII; str.isdigit() acepta '²' y luego int('²') reventaba con 500
+
+
 def _dec(v, default=None):
     try:
-        return Decimal(str(v).replace(',', '.').strip())
+        d = Decimal(str(v).replace(',', '.').strip()).quantize(Decimal('0.01'))   # <--- hecho por claude code (seguridad 05-nov-2026): a 2 decimales, como se guarda (antes 0.001 pasaba el "mayor a cero" y quedaba 0.00)
     except (InvalidOperation, ValueError, AttributeError):
         return default
+    if not d.is_finite() or abs(d) > _DEC_MAX:   # <--- hecho por claude code (seguridad 05-nov-2026): ver _DEC_MAX
+        return default
+    return d
+
+
+def _entero(v):
+    """<--- hecho por claude code (seguridad 05-nov-2026): entero ASCII de hasta 9 cifras, o None (km, ids de vehículo/maquinaria)."""
+    v = (v or '').strip()
+    return int(v) if _RE_ENTERO.fullmatch(v) else None
 
 
 def _fecha(v, default=None):
@@ -228,20 +244,19 @@ def _leer_entrega(request, insumo, obj=None):
     gal = _dec(request.POST.get('galones'))
     # <--- hecho por claude code (03-nov-2026): el diésel se registra en galones + décimas (ej. "10 galones 4/10" = 10.4 gal)
     if insumo.clave == 'diesel' and request.POST.get('galones_entero') is not None:
-        ent = (request.POST.get('galones_entero') or '').strip()
-        dec = (request.POST.get('galones_decimas') or '0').strip()
-        if ent.isdigit():
-            gal = Decimal(ent) + (Decimal(dec) / Decimal(10) if dec.isdigit() else Decimal(0))
+        # <--- hecho por claude code (seguridad 05-nov-2026): cifras ASCII acotadas (con isdigit() un '²' daba 500) y décimas de 0 a 9
+        ent, dec = _entero(request.POST.get('galones_entero')), _entero(request.POST.get('galones_decimas') or '0')
+        if ent is not None:
+            gal = _dec(Decimal(ent) + (Decimal(min(dec, 9)) / Decimal(10) if dec is not None else Decimal(0)))
     if gal is None or gal <= 0:
         err.append('Los galones deben ser mayores a cero.')
     maq = veh = None
-    km = (request.POST.get('kilometraje') or '').strip()
-    km_val = int(km) if km.isdigit() else None
+    km_val = _entero(request.POST.get('kilometraje'))   # <--- hecho por claude code (seguridad 05-nov-2026): ver _entero
     if insumo.clave == 'diesel':
         # <--- hecho por claude code (12-oct-2026): el diésel se carga a un vehículo (como en Access: Gasto · EstadoKm · Fecha · Comentario)
         from .models import VehiculoMant
-        vid = (request.POST.get('vehiculo') or '').strip()
-        veh = VehiculoMant.objects.filter(pk=int(vid)).first() if vid.isdigit() else None
+        vid = _entero(request.POST.get('vehiculo'))   # <--- hecho por claude code (seguridad 05-nov-2026): ver _entero
+        veh = VehiculoMant.objects.filter(pk=vid).first() if vid is not None else None
         if not veh:
             err.append('Elige el vehículo al que se carga el diésel.')
         elif km_val is not None and obj is None and not veh.sin_tacometro:
@@ -250,9 +265,9 @@ def _leer_entrega(request, insumo, obj=None):
             if est is not None and km_val < est:
                 err.append(f'El kilometraje ({km_val:,}) es menor al último registrado de {veh.nombre} ({est:,}).'.replace(',', '.'))
     else:
-        mid = (request.POST.get('maquinaria') or '').strip()
-        if mid.isdigit():
-            maq = Maquinaria.objects.filter(pk=int(mid)).first()
+        mid = _entero(request.POST.get('maquinaria'))   # <--- hecho por claude code (seguridad 05-nov-2026): ver _entero
+        if mid is not None:
+            maq = Maquinaria.objects.filter(pk=mid).first()
     if insumo.requiere_kilometraje and km_val is None:
         err.append('El kilometraje es obligatorio en diésel.')
     if km_val is not None and maq:
@@ -278,8 +293,10 @@ def _leer_entrega(request, insumo, obj=None):
 
 def _volver(insumo, request):
     url = reverse('mantenimiento_mecanico:pagina', args=[insumo.clave])
-    qs = request.POST.get('_qs') or ''
-    return redirect(url + ('?' + qs if qs else ''))
+    # <--- hecho por claude code (seguridad 05-nov-2026): del _qs que manda el navegador solo se conservan desde/hasta con fecha válida (antes se pegaba crudo en el Location)
+    q = QueryDict(request.POST.get('_qs') or '')
+    limpio = {k: q.get(k) for k in ('desde', 'hasta') if _fecha(q.get(k))}
+    return redirect(url + ('?' + urlencode(limpio) if limpio else ''))
 
 
 @login_required
@@ -305,7 +322,11 @@ def entrega_crear(request, clave):
         messages.warning(request, f'Saldo bajo de {insumo.nombre}: se avisó a {n} persona(s).')
     # <--- hecho por claude code (12-oct-2026): el km de la carga de diésel queda como LECTURA del vehículo (alimenta el
     # conteo del próximo mantenimiento y, si entra en "pronto"/"vencido", avisa al grupo vehiculos_alertas)
-    if obj.vehiculo_id and obj.kilometraje is not None:
+    from .views_vehiculos import puede_km as _puede_km_veh
+    if obj.vehiculo_id and obj.kilometraje is not None and not _puede_km_veh(request.user):
+        # <--- hecho por claude code (seguridad 05-nov-2026): la lectura del vehículo exige el permiso de km de Mantenimiento de vehículos (vehiculos_registro / vehiculos_kilometraje); sin él el km queda solo en la entrega
+        messages.info(request, 'El km quedó anotado en la entrega, pero no como lectura del vehículo: eso requiere el permiso de kilometraje de Mantenimiento de vehículos.')
+    elif obj.vehiculo_id and obj.kilometraje is not None:
         from . import vehiculos_db
         from .models import LecturaVehiculo
         from .views_vehiculos import _avisar
@@ -371,10 +392,14 @@ def entrada_crear(request, clave):
         litros = None
         if extra is not None:   # solo compra extra, sin litros: el total es el extra
             cant = extra
-    tipo = request.POST.get('tipo') or {'galones': 'compra', 'tanque': 'llenado', 'barril': 'barril'}[insumo.presentacion]
-    if tipo not in dict(Entrada.TIPOS):
-        tipo = 'ajuste'
-    if not fecha or cant is None or (cant <= 0 and tipo != 'ajuste'):
+    tipos = dict(Entrada.TIPOS)
+    tipo_def = {'galones': 'compra', 'tanque': 'llenado', 'barril': 'barril'}[insumo.presentacion]
+    tipo = (request.POST.get('tipo') or tipo_def).strip()
+    # <--- hecho por claude code (seguridad 05-nov-2026): saldo inicial y ajuste (el ajuste admite negativos) son SOLO del superusuario; el grupo que registra solo carga la compra/llenado/barril del insumo. Un tipo desconocido ya no cae en 'ajuste'.
+    if tipo not in (set(tipos) if puede_modificar(request.user) else {tipo_def}):
+        messages.error(request, f'«{tipos[tipo]}» solo lo registra el superusuario.' if tipo in tipos else 'Tipo de entrada no válido.')
+        return _volver(insumo, request)
+    if not fecha or cant is None or cant == 0 or (cant < 0 and tipo != 'ajuste'):   # <--- hecho por claude code (seguridad 05-nov-2026): cero nunca; negativo solo en un ajuste
         messages.error(request, 'Fecha y cantidad (mayor a cero) son obligatorias.')
         return _volver(insumo, request)
     if insumo.presentacion == 'tanque' and insumo.capacidad_envase:
@@ -431,6 +456,71 @@ def lectura_crear(request, clave):
     return _volver(insumo, request)
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): fotos de la limpieza = SOLO imágenes reales (formato leído por PIL, no el content_type que manda el navegador), hasta 20 MB, con nombre aleatorio y extensión de esta lista blanca
+_FOTO_FORMATOS = {'JPEG': 'jpg', 'MPO': 'jpg', 'PNG': 'png', 'GIF': 'gif', 'WEBP': 'webp', 'BMP': 'bmp'}
+_FOTO_MAX_BYTES = 20 * 1024 * 1024
+_FOTO_MAX_PIXELES = 50_000_000   # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): tope para TODOS los formatos, JPEG incluido (WeasyPrint gira por EXIF y decodifica el JPEG entero; un JPEG de 665 bytes declaraba 144 MP y pasaba); 50 MP deja pasar las fotos de celular de alta resolución (8160x6120)
+_FOTO_LADO = 2000   # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): cada foto se GUARDA reducida a este lado máximo y vuelta a codificar como JPEG nuevo sin EXIF: el PDF nunca recibe una imagen grande ni contenido extra del archivo original
+_FOTO_MAX_N = 8
+_FOTO_ABRIR = ('JPEG', 'PNG', 'GIF', 'WEBP', 'BMP')   # <--- hecho por claude code (seguridad 05-nov-2026): PIL SOLO prueba estos lectores (un EPS/PostScript disfrazado llamaría a Ghostscript, que está instalado, al armar el PDF); el MPO entra por el de JPEG
+
+
+def _formato_foto(fp, max_pixeles=_FOTO_MAX_PIXELES):
+    """<--- hecho por claude code (seguridad 05-nov-2026): extensión de la lista blanca si `fp` (archivo o ruta) es una imagen real de hasta `max_pixeles` (tamaño declarado, se mira ANTES de decodificar); si no, None."""
+    from PIL import Image
+    try:
+        with Image.open(fp, formats=_FOTO_ABRIR) as im:
+            ext = _FOTO_FORMATOS.get(im.format)
+            if ext and im.width * im.height > max_pixeles:   # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): antes el JPEG quedaba fuera del tope
+                ext = None
+            if ext:
+                im.verify()
+        return ext
+    except Exception:
+        return None
+
+
+def _foto_reducida(f):
+    """<--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): bytes de la foto (ya validada) girada según su EXIF, reducida a _FOTO_LADO px y vuelta a codificar como JPEG NUEVO (sin EXIF ni nada más del archivo original); None si no se puede decodificar (p. ej. truncada)."""
+    from io import BytesIO
+    from PIL import Image, ImageOps
+    try:
+        f.seek(0)
+        with Image.open(f, formats=_FOTO_ABRIR) as im:
+            if _FOTO_FORMATOS.get(im.format) is None or im.width * im.height > _FOTO_MAX_PIXELES:
+                return None
+            im.draft(None, (_FOTO_LADO, _FOTO_LADO))   # JPEG: se decodifica ya reducido (1/2, 1/4, 1/8), sin armar la imagen entera en memoria
+            im.thumbnail((_FOTO_LADO, _FOTO_LADO))
+            try:
+                img = ImageOps.exif_transpose(im)   # sobre la imagen ya reducida
+            except Exception:
+                img = im
+            if img.mode in ('RGBA', 'LA', 'PA') or (img.mode == 'P' and 'transparency' in img.info):
+                img = img.convert('RGBA')
+                fondo = Image.new('RGB', img.size, (255, 255, 255))
+                fondo.paste(img, mask=img.getchannel('A'))
+                img = fondo
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            buf = BytesIO()
+            img.save(buf, 'JPEG', quality=85, optimize=True)
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
+def _foto_subida(f):
+    """<--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): bytes del JPEG que se guarda si el archivo subido es una imagen real de la lista blanca, de hasta 20 MB y 50 MP; si no, None."""
+    datos = None
+    if f.size and f.size <= _FOTO_MAX_BYTES and _formato_foto(f):
+        datos = _foto_reducida(f)
+    try:
+        f.seek(0)
+    except Exception:
+        pass
+    return datos
+
+
 @login_required
 @require_POST
 def limpieza_crear(request, clave):
@@ -450,20 +540,33 @@ def limpieza_crear(request, clave):
     if fecha > datetime.date.today():
         messages.error(request, 'La fecha de la limpieza no puede ser futura.')
         return _volver(insumo, request)
-    fotos = [f for f in request.FILES.getlist('fotos') if (f.content_type or '').startswith('image/')][:8]
+    # <--- hecho por claude code (seguridad 05-nov-2026): antes el único filtro era f.content_type (lo pone el cliente) y se guardaba cualquier archivo con su nombre original; ver _foto_subida (2.ª revisión: se guarda la foto REDUCIDA y recodificada, nunca el archivo del cliente)
+    archivos = request.FILES.getlist('fotos')
+    fotos, rechazadas = [], 0
+    for f in archivos[:_FOTO_MAX_N]:
+        datos = _foto_subida(f)
+        if datos:
+            fotos.append(datos)
+        else:
+            rechazadas += 1
     with transaction.atomic():
         lim = LimpiezaTanque.objects.create(
             insumo=insumo, codigo=services.siguiente_codigo_limpieza(), fecha=fecha, responsable=responsable,
             galones_sacados=_dec(request.POST.get('galones_sacados')),
             galones_reingresados=_dec(request.POST.get('galones_reingresados')),
             observaciones=(request.POST.get('observaciones') or '').strip()[:2000], registrado_por=request.user, **marcas)
-        for f in fotos:
-            FotoLimpiezaTanque.objects.create(limpieza=lim, imagen=f)
+        for datos in fotos:
+            # <--- hecho por claude code (seguridad 05-nov-2026): nombre aleatorio, nunca el del cliente; 2.ª revisión: el contenido es el JPEG reducido de _foto_subida
+            FotoLimpiezaTanque.objects.create(limpieza=lim, imagen=ContentFile(datos, name=f'{uuid.uuid4().hex}.jpg'))
     insumo.aviso_limpieza = ''
     insumo.save(update_fields=['aviso_limpieza'])
     e = services.estado_limpieza(insumo)
     messages.success(request, f'Limpieza {lim.codigo} registrada. Próxima limpieza del tanque: {e["proxima"]:%d/%m/%Y} ({e["texto"]}). '
                               f'El saldo de {insumo.nombre} no cambia.')
+    if rechazadas:
+        messages.warning(request, f'{rechazadas} foto(s) no se guardaron: solo se aceptan imágenes JPG, PNG, GIF, WEBP o BMP de hasta 20 MB y 50 megapíxeles.')   # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): el tope de megapíxeles vale para todos los formatos
+    if len(archivos) > _FOTO_MAX_N:
+        messages.warning(request, f'Solo se guardan {_FOTO_MAX_N} fotos por limpieza: {len(archivos) - _FOTO_MAX_N} no se guardaron.')
     return _volver(insumo, request)
 
 
@@ -471,7 +574,10 @@ def limpieza_crear(request, clave):
 def limpieza_pdf(request, pk):
     _gate(request)
     lim = get_object_or_404(LimpiezaTanque.objects.select_related('insumo', 'registrado_por').prefetch_related('fotos'), pk=pk)
-    fotos = [f'file://{f.imagen.path}' for f in lim.fotos.all() if f.imagen and os.path.exists(f.imagen.path)]
+    # <--- hecho por claude code (seguridad 05-nov-2026): al PDF (WeasyPrint) solo van las fotos que en el DISCO siguen siendo imágenes de la lista blanca (si Pillow no la reconoce, WeasyPrint la prueba como SVG)
+    # <--- hecho por claude code (seguridad 05-nov-2026, 2.ª revisión): y solo del tamaño que guarda limpieza_crear (lado de _FOTO_LADO px): una más grande no la puso el módulo y no se decodifica en cada GET
+    fotos = [f'file://{f.imagen.path}' for f in lim.fotos.all()
+             if f.imagen and os.path.exists(f.imagen.path) and _formato_foto(f.imagen.path, max_pixeles=_FOTO_LADO * _FOTO_LADO)]
     ctx = {'l': lim, 'insumo': lim.insumo, 'logo': _logo_file(), 'auditora': FIRMA_AUDITORA, 'fotos': fotos,
            'proxima': services.sumar_meses(lim.fecha, services.LIMPIEZA_MESES)}
     return _pdf(request, 'mantenimiento_mecanico/pdf/limpieza.html', ctx, f'{lim.codigo}.pdf')
@@ -481,7 +587,7 @@ def limpieza_pdf(request, pk):
 @require_POST
 def insumo_config(request, clave):
     """Capacidad del envase y mínimo de alerta (desde el modal Configurar)."""
-    _gate(request, escribir=True)
+    _gate(request, modificar=True)   # <--- hecho por claude code (seguridad 05-nov-2026): solo el superusuario (el grupo que registra podía bajar el mínimo y apagar el aviso de saldo bajo que recibe la auditora)
     insumo = _insumo(clave)
     cap = _dec(request.POST.get('capacidad_envase'))
     minimo = _dec(request.POST.get('minimo_alerta'))
@@ -503,12 +609,15 @@ def maquinaria_add(request):
         body = json.loads(request.body or b'{}')
     except ValueError:
         body = {}
-    nombre = (body.get('nombre') or '').strip()[:120]
+    if not isinstance(body, dict):   # <--- hecho por claude code (seguridad 05-nov-2026): un JSON que no es objeto (p. ej. una lista) daba 500
+        body = {}
+    nombre = (str(body.get('nombre') or '')).strip()[:120]
     if len(nombre) < 2:
         return JsonResponse({'ok': False, 'error': 'Escribe el nombre de la maquinaria.'}, status=400)
     m = Maquinaria.objects.filter(nombre__iexact=nombre).first()
     if m is None:
-        m = Maquinaria.objects.create(nombre=nombre, tipo=body.get('tipo') if body.get('tipo') in dict(Maquinaria.TIPOS) else 'maquina',
+        tipo = body.get('tipo') if isinstance(body.get('tipo'), str) else ''   # <--- hecho por claude code (seguridad 05-nov-2026): un tipo que no es texto (lista) daba 500
+        m = Maquinaria.objects.create(nombre=nombre, tipo=tipo if tipo in dict(Maquinaria.TIPOS) else 'maquina',
                                       usa_kilometraje=bool(body.get('usa_kilometraje')), creado_por=request.user)
     elif not m.activo:
         m.activo = True
@@ -618,6 +727,12 @@ def _encabezado(ws, fila, cols, est):
 
 
 def _xlsx_response(wb, filename):
+    # <--- hecho por claude code (seguridad 05-nov-2026): inyección de fórmulas: openpyxl guarda como FÓRMULA todo texto que empiece con "=" (persona, observaciones, maquinaria…); se fuerza a texto (ningún Excel del módulo usa fórmulas)
+    for ws in wb.worksheets:
+        for fila in ws.iter_rows():
+            for c in fila:
+                if c.data_type == 'f':
+                    c.data_type = 's'
     resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="{filename}"'
     wb.save(resp)

@@ -4,6 +4,8 @@
   if (!cfg || typeof cytoscape === 'undefined') return;
   var CSRF = cfg.dataset.csrf, POS_URL = cfg.dataset.pos;
   function J(v) { try { return JSON.parse(v || '[]'); } catch (e) { return []; } }
+  // <--- hecho por claude code (seguridad 05-nov-2026): la etiqueta de la línea y las VLAN permitidas son texto libre de la BD → se escapan antes del innerHTML
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   var rawNodes = J(cfg.dataset.nodes), rawEdges = J(cfg.dataset.edges);
 
   // Elementos: asigna posición en cuadrícula a los nodos sin coordenadas guardadas
@@ -57,8 +59,8 @@
   document.getElementById('cy').parentNode.appendChild(info);
   cy.on('tap', 'edge', function (ev) {
     var d = ev.target.data();
-    info.innerHTML = '<strong>' + d.label + '</strong> · ' + (d.modo || '') +
-      (d.nativa ? ' · nativa ' + d.nativa : '') + (d.permitidas ? ' · tagged ' + d.permitidas : '');
+    info.innerHTML = '<strong>' + esc(d.label) + '</strong> · ' + esc(d.modo || '') +
+      (d.nativa ? ' · nativa ' + esc(d.nativa) : '') + (d.permitidas ? ' · tagged ' + esc(d.permitidas) : '');
     var rp = ev.renderedPosition;
     info.style.left = (rp.x + 8) + 'px'; info.style.top = (rp.y + 8) + 'px'; info.style.display = 'block';
   });

@@ -62,7 +62,9 @@ $(document).ready(function () {
         }).then((res) => {
 
             if (res.isConfirmed) {
-                $.post(`/inventario/computadora/delete/${id}/`, function (resp) {
+                // <--- hecho por claude code (seguridad 05-nov-2026): el borrado ahora es solo POST con token CSRF (este archivo no lo carga ninguna plantilla: la página usa inventario_computadoras.js)
+                var _tok = ($('[name=csrfmiddlewaretoken]').first().val()) || ((document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || '');
+                $.post(`/inventario/computadora/delete/${id}/`, { csrfmiddlewaretoken: _tok }, function (resp) {
                     if (resp.ok) {
                         Swal.fire("Eliminado", "Registro eliminado correctamente.", "success")
                             .then(() => location.reload());

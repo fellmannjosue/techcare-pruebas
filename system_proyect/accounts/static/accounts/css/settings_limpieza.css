@@ -1,0 +1,7 @@
+/* <--- hecho por claude code (13-nov-2026): tarjetas de módulos de Respaldo y limpieza */
+.lp-mod{display:flex;gap:.75rem;align-items:flex-start;padding:.85rem;border:1px solid var(--tblr-border-color);border-radius:.6rem;cursor:pointer;height:100%}
+.lp-mod:has(.lp-chk:checked){border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset}
+.lp-mod .lp-chk{margin-top:.6rem;flex:0 0 auto}
+.lp-ico{flex:0 0 2.4rem;height:2.4rem;border-radius:.5rem;display:grid;place-items:center;font-size:1.25rem;color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.lp-txt{flex:1;min-width:0}
+.lp-n{flex:0 0 auto}

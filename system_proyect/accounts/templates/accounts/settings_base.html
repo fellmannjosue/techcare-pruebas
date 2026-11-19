@@ -61,6 +61,18 @@
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_coord_permisos' %} active{% endif %}" href="{% url 'settings_coord_permisos' %}" style="--c:#e8590c"><i class="ti ti-user-shield"></i>Permisos Coordinadores</a>
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_roles' or active_tab == 'roles' %} active{% endif %}" href="{% url 'settings_roles' %}" style="--c:#e8590c"><i class="ti ti-shield-half"></i>Config. Roles</a>
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_datashow' or active_tab == 'datashow' %} active{% endif %}" href="{% url 'settings_datashow' %}" style="--c:#e8590c"><i class="ti ti-calendar-plus"></i>Acceso a DataShow</a>
+          {# <--- hecho por claude code (09-nov-2026): programas por aplicación (Web / .exe / APK) #}
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_canales' or active_tab == 'canales' %} active{% endif %}" href="{% url 'settings_canales' %}" style="--c:#e8590c"><i class="ti ti-devices"></i>Programas por aplicación</a>
+          {% if not tc_auditoria %}<a class="cfg-link{% if request.resolver_match.url_name == 'settings_auditoria_rol' %} active{% endif %}" href="{% url 'settings_auditoria_rol' %}" style="--c:#e8590c"><i class="ti ti-eye-check"></i>Rol Auditoría</a>{% endif %}{# <--- hecho por claude code (10-nov-2026) #}
+        </div>
+      </details>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      {# <--- hecho por claude code (09-nov-2026): guías, planes y políticas (visor de docs/) #}
+      <details class="cfg-acc" style="--c:#4263eb"{% if request.resolver_match.url_name == 'settings_documentacion' %} open{% endif %}>
+        <summary><span class="cfg-gi"><i class="ti ti-book"></i></span>Documentación<span class="cfg-n">1</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <div class="cfg-in">
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_documentacion' %} active{% endif %}" href="{% url 'settings_documentacion' %}" style="--c:#4263eb"><i class="ti ti-book"></i>Guías y políticas</a>
         </div>
       </details>
       {% endif %}
@@ -97,11 +109,13 @@
       {% endif %}
       {% if request.user.is_superuser %}
       <details class="cfg-acc" style="--c:#495057">
-        <summary><span class="cfg-gi"><i class="ti ti-tool"></i></span>Sistema<span class="cfg-n">4</span><i class="ti ti-chevron-down cfg-car"></i></summary>
+        <summary><span class="cfg-gi"><i class="ti ti-tool"></i></span>Sistema<span class="cfg-n">6</span><i class="ti ti-chevron-down cfg-car"></i></summary>
         <div class="cfg-in">
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_codigo' or active_tab == 'codigo' %} active{% endif %}" href="{% url 'settings_codigo' %}" style="--c:#495057"><i class="ti ti-code"></i>Código del sistema</a>
           <a class="cfg-link{% if request.resolver_match.url_name == 'settings_entorno' %} active{% endif %}" href="{% url 'settings_entorno' %}" style="--c:#495057"><i class="ti ti-variable"></i>Variables del sistema</a>
           <a class="cfg-link{% if request.resolver_match.url_name == 'mantenimiento_modo' %} active{% endif %}" href="{% url 'mantenimiento_modo' %}" style="--c:#495057"><i class="ti ti-tool"></i>Modo Mantenimiento</a>
+          <a class="cfg-link{% if request.resolver_match.url_name == 'settings_offline' %} active{% endif %}" href="{% url 'settings_offline' %}" style="--c:#495057"><i class="ti ti-cloud-download"></i>Modo sin conexión <span class="badge bg-orange-lt text-orange ms-1">beta</span></a>{# <--- hecho por claude code (13-nov-2026) #}
+          {% if not tc_auditoria %}<a class="cfg-link{% if request.resolver_match.url_name == 'settings_limpieza' %} active{% endif %}" href="{% url 'settings_limpieza' %}" style="--c:#495057"><i class="ti ti-database-export"></i>Respaldo y limpieza</a>{% endif %}{# <--- hecho por claude code (13-nov-2026) #}
           <a class="cfg-link" href="{% url 'admin:index' %}" target="_blank" rel="noopener" style="--c:#495057"><i class="ti ti-layout-dashboard"></i>Ventana Admin <i class="ti ti-external-link ms-auto cfg-ext"></i></a>
         </div>
       </details>

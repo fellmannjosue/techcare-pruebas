@@ -20,10 +20,11 @@
                     <tbody>
                       {% for r in records_ctrl %}
                       <tr>
-                        <td><span class="badge bg-teal-lt text-teal">{{ r.record_id }}</span>{% with ce=r.casos_especiales.all|first %}{% if ce %}<br><span class="badge bg-pink-lt text-pink mt-1" title="Recogida por caso especial {{ ce.record_id }}"><i class="ti ti-alert-octagon me-1"></i>{{ ce.record_id }}</span>{% endif %}{% endwith %}</td>
-                        <td class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        <td><span class="badge bg-teal-lt text-teal btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span>{% with ce=r.casos_especiales.all|first %}{% if ce %}<br><span class="badge bg-pink-lt text-pink mt-1" title="Recogida por caso especial {{ ce.record_id }}"><i class="ti ti-alert-octagon me-1"></i>{{ ce.record_id }}</span>{% endif %}{% endwith %}</td>
+                        <td class="fw-semibold">{% if r.laboratorio %}<span class="text-indigo"><i class="ti ti-flask me-1"></i>{{ r.lab_display }}</span>{% elif r.computadora %}{{ r.computadora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
+                        {# <--- hecho por claude code (seguridad 05-nov-2026): popover HTML con doble escape en los datos del usuario (el navegador deshace un nivel y Bootstrap mete el resto como HTML) #}
                         <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle del equipo"
-                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—' }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade }}{% elif r.computadora %}{{ r.computadora.grado|default:'—' }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                              data-bs-content="<div><b>Serie:</b> {{ r.serie|default:'—'|force_escape|force_escape }}</div><div><b>Maestro:</b> {% if r.teacher_name %}{{ r.teacher_name|force_escape|force_escape }}{% elif r.computadora %}{{ r.computadora.asignado_a|default:'—'|force_escape|force_escape }}{% else %}—{% endif %}</div><div><b>Grado:</b> {% if r.grade %}{{ r.grade|force_escape|force_escape }}{% elif r.computadora %}{{ r.computadora.grado|default:'—'|force_escape|force_escape }}{% else %}—{% endif %}</div>">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
                         <td><div>Trabajó: <strong>{{ r.get_eval_trabajo_display|default:"—" }}</strong></div><div class="small {% if r.eval_fallas == 'si' %}text-danger{% else %}text-muted{% endif %}">Fallas: {{ r.get_eval_fallas_display|default:"—" }}</div></td>
                         <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>
                         <td>
@@ -34,8 +35,9 @@
                           {% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
                         {# <--- hecho por claude code: hover con observaciones de la auditora y del técnico #}
+                        {# <--- hecho por claude code (seguridad 05-nov-2026): popover HTML con doble escape en los datos del usuario (el navegador deshace un nivel y Bootstrap mete el resto como HTML) #}
                         <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="left" data-bs-title="Observaciones"
-                              data-bs-content="<div class='mb-1'><b><i class='ti ti-user-check me-1'></i>Auditora:</b><br>{{ r.obs_auditora|default:'—' }}</div><div><b><i class='ti ti-tool me-1'></i>Técnico:</b><br>{{ r.obs_tecnico|default:'—' }}</div>">{% if r.obs_auditora or r.obs_tecnico %}<i class="ti ti-message-2 me-1"></i>Ver{% else %}—{% endif %} <i class="ti ti-info-circle text-muted"></i></span></td>
+                              data-bs-content="<div class='mb-1'><b><i class='ti ti-user-check me-1'></i>Auditora:</b><br>{{ r.obs_auditora|default:'—'|force_escape|force_escape }}</div><div><b><i class='ti ti-tool me-1'></i>Técnico:</b><br>{{ r.obs_tecnico|default:'—'|force_escape|force_escape }}</div>">{% if r.obs_auditora or r.obs_tecnico %}<i class="ti ti-message-2 me-1"></i>Ver{% else %}—{% endif %} <i class="ti ti-info-circle text-muted"></i></span></td>
                         {% include "mantenimiento/_celda_fotos.html" %}
                         {% include "mantenimiento/_fila_acciones.html" %}
                       </tr>

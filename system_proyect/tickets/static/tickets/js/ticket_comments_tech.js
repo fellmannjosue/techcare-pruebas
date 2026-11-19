@@ -53,12 +53,13 @@ document.addEventListener('DOMContentLoaded', function(){
           badge.innerHTML = (res.sla_estado==='pausado'?'<i class="ti ti-player-pause me-1"></i>':'') + (res.sla_texto||'');
         }
         if (info){
-          if (res.sla_pausado){ info.classList.remove('d-none'); info.innerHTML = '<i class="ti ti-info-circle me-1"></i>Desde '+res.pausa_desde+' · '+res.pausa_motivo; }
+          // <--- hecho por claude code (seguridad 05-nov-2026): el motivo es texto libre: se pinta como texto, no como HTML
+          if (res.sla_pausado){ info.classList.remove('d-none'); info.innerHTML = '<i class="ti ti-info-circle me-1"></i>'; info.appendChild(document.createTextNode('Desde '+(res.pausa_desde||'')+' · '+(res.pausa_motivo||''))); }
           else info.classList.add('d-none');
         }
         const fh = document.getElementById('sla-fuera-horario');
         if (fh){
-          if (res.fuera_horario){ fh.classList.remove('d-none'); fh.innerHTML = '<i class="ti ti-moon me-1"></i>'+(res.fuera_horario_texto||'Fuera de horario laboral'); }
+          if (res.fuera_horario){ fh.classList.remove('d-none'); fh.innerHTML = '<i class="ti ti-moon me-1"></i>'; fh.appendChild(document.createTextNode(res.fuera_horario_texto||'Fuera de horario laboral')); }
           else fh.classList.add('d-none');
         }
       }).catch(()=>{});

@@ -1,0 +1,57 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Modo sin conexión (beta){% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code (13-nov-2026): interruptor del modo sin conexión y páginas guardadas en este navegador #}
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-cloud-download me-2 text-orange"></i>Modo sin conexión <span class="badge bg-orange-lt text-orange ms-1">beta</span></h3>
+  </div>
+  <div class="card-body">
+    <form method="post" class="d-flex flex-wrap align-items-center gap-3">
+      {% csrf_token %}
+      <input type="hidden" name="activo" value="{% if offline_activo %}0{% else %}1{% endif %}">
+      <div class="flex-fill" style="min-width:16rem">
+        <div class="fw-bold mb-1">
+          {% if offline_activo %}<span class="badge bg-green-lt text-green me-1">Activado</span>{% else %}<span class="badge bg-secondary-lt me-1">Desactivado</span>{% endif %}
+          Guardar las páginas que abre el superusuario
+        </div>
+        <div class="text-muted small">Las páginas se guardan en <b>el navegador donde las abres</b> (no en el servidor). Si se cae la red, se pueden volver a abrir para <b>ver</b>; sin red no se guarda nada. Solo aplica al superusuario. Al desactivarlo, las copias se borran solas.</div>
+      </div>
+      {% if offline_activo %}
+        <button type="submit" class="btn btn-outline-danger"><i class="ti ti-player-pause me-1"></i>Desactivar</button>
+      {% else %}
+        <button type="submit" class="btn btn-success"><i class="ti ti-player-play me-1"></i>Activar</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-files me-2"></i>Páginas guardadas en este navegador <span class="badge bg-blue-lt text-blue ms-1" id="of-n">…</span></h3>
+    <div class="card-actions btn-list">
+      <button type="button" class="btn btn-sm" id="of-recargar"><i class="ti ti-refresh me-1"></i>Actualizar</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="of-borrar"><i class="ti ti-trash me-1"></i>Borrar todas</button>
+    </div>
+  </div>
+  <div class="card-body border-bottom py-2">
+    <div class="input-group input-group-sm" style="max-width:22rem">
+      <span class="input-group-text"><i class="ti ti-search"></i></span>
+      <input type="text" id="of-buscar" class="form-control" placeholder="Buscar página…" autocomplete="off">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead><tr><th>Página</th><th>Dirección</th><th>Guardada</th><th class="text-end">Tamaño</th><th class="w-1"></th></tr></thead>
+      <tbody id="of-lista"><tr><td colspan="5" class="text-muted text-center py-4">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted"><i class="ti ti-info-circle me-1"></i>Cada navegador tiene su propia lista. Se guardan como máximo 250 páginas (las más viejas salen primero). Las descargas (PDF/Excel) no se guardan.</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'accounts/js/settings_offline.js' %}?v=1"></script>
+{% endblock %}

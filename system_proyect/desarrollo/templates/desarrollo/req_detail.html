@@ -131,11 +131,15 @@
           {% for a in adjuntos %}
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
             <i class="ti ti-file text-muted"></i>
-            <a href="{{ a.archivo.url }}" target="_blank" class="small flex-fill text-truncate">{{ a.nombre_original|default:a.archivo.name }}</a>
+            {# <--- hecho por claude code (seguridad 05-nov-2026): el adjunto se abre por la vista con permiso (adjunto_ver), ya no por /media/ sin sesión #}
+            <a href="{% url 'desarrollo:adjunto_ver' a.pk %}" target="_blank" rel="noopener" class="small flex-fill text-truncate">{{ a.nombre_original|default:a.archivo.name }}</a>
+            {# <--- hecho por claude code (seguridad 05-nov-2026): el botón de borrar solo a quien el servidor se lo permite (dev o quien lo subió) #}
+            {% if es_dev or a.usuario_id == request.user.id %}
             <form method="post" action="{% url 'desarrollo:adjunto_eliminar' a.pk %}" onsubmit="return confirm('¿Eliminar adjunto?');" class="m-0">
               {% csrf_token %}
               <button class="btn btn-sm btn-ghost-danger p-1" title="Eliminar"><i class="ti ti-trash"></i></button>
             </form>
+            {% endif %}
           </li>
           {% empty %}<li class="text-muted small">Sin adjuntos.</li>{% endfor %}
         </ul>

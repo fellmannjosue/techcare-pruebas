@@ -91,10 +91,10 @@
                           <i class="ti ti-download"></i>
                         </a>
                         {# <--- hecho por claude code (14-oct-2026): publicar la imagen final en Moodle #}
-                        <button type="button" class="btn btn-sm btn-outline-info btn-moodle-agenda" data-pk="{{ ag.pk }}"
+                        {% if moodle_pantalla %}{# <--- hecho por claude code (seguridad 05-nov-2026): solo quien puede publicar (el servidor da 403 al resto) #}<button type="button" class="btn btn-sm btn-outline-info btn-moodle-agenda" data-pk="{{ ag.pk }}"
                                 data-grado="{{ ag.grado.nombre }}" data-semana="{{ ag.semana_inicio|date:'d/m/Y' }} – {{ ag.semana_fin|date:'d/m/Y' }}"
                                 {% if ag.imagen_final %}data-final="{{ ag.imagen_final_en|date:'d/m/Y H:i' }}" data-final-url="{% url 'agendas:imagen_final' ag.pk %}"{% endif %}
-                                title="Publicar en Moodle"><i class="ti ti-cloud-upload"></i></button>
+                                title="Publicar en Moodle"><i class="ti ti-cloud-upload"></i></button>{% endif %}
                         {% if ag.imagen_final %}<span class="badge bg-purple-lt text-purple" title="Imagen final generada el {{ ag.imagen_final_en|date:'d/m/Y H:i' }}"><i class="ti ti-photo-check"></i></span>{% endif %}
                         <button class="btn btn-sm btn-ghost-danger btn-eliminar-agenda"
                                 data-pk="{{ ag.pk }}"
@@ -230,5 +230,5 @@
      data-v1="{% url "agendas:bloqueo_config_guardar" %}"></div>
 <script src="{% static 'agendas/js/dashboard_coordinador.js' %}?v=4"></script>
 <script src="{% static 'agendas/js/crear_agenda.js' %}?v=1"></script>
-{% include 'moodle_upload/_agenda_modal.html' %}
+{% if moodle_pantalla %}{% include 'moodle_upload/_agenda_modal.html' %}{% endif %}
 {% endblock %}

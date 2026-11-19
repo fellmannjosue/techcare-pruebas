@@ -65,3 +65,44 @@
   document.addEventListener('click', function(e){ if (!box.contains(e.target)) res.hidden = true; });
   if (box.dataset.auto === '1') { var f = box.querySelector('input[data-campo="last_name_1"]'); if (f) f.focus(); }
 })();
+
+/* <--- hecho por claude code (06-nov-2026, pedido del usuario): AUTOGUARDADO de la ficha.
+   Cada cambio se manda 1.5 s después de dejar de escribir (mismo POST + ?ajax=1). Un sponsor NUEVO se crea
+   en cuanto el formulario es válido (Apellido 1 + Ciudad) y desde ahí la ficha pasa a modo edición sin recargar. */
+(function(){
+  var form = document.getElementById('form-sponsor');
+  if (!form || form.dataset.autoguardar !== '1') return;
+  var estado = document.getElementById('spn-auto');
+  var timer = null, enCurso = false, pendiente = false, cambiado = false;
+  function pintar(clase, icono, txt){ if (!estado) return; estado.className = 'spn-auto ' + clase; estado.innerHTML = '<i class="ti ' + icono + '"></i> '; estado.appendChild(document.createTextNode(txt)); }
+  function hora(){ var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function urlGuardar(){ var a = form.getAttribute('action') || location.pathname; return a + (a.indexOf('?') > -1 ? '&' : '?') + 'ajax=1'; }
+  function guardar(final){
+    if (!cambiado) return;
+    if (enCurso) { pendiente = true; return; }
+    enCurso = true; cambiado = false; pintar('guardando', 'ti-loader-2', 'Guardando…');
+    fetch(urlGuardar(), { method: 'POST', body: new FormData(form), credentials: 'same-origin', keepalive: !!final,
+                          headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r){ return r.json().catch(function(){ return { ok: false }; }); })
+      .then(function(j){
+        if (j.ok) {
+          if (j.creado && j.url) {   // pasa a modo edición: las siguientes veces actualiza la misma ficha
+            form.setAttribute('action', j.url); form.dataset.modo = 'editar';
+            try { history.replaceState(null, '', j.url); } catch (e) {}
+            pintar('ok', 'ti-cloud-check', 'Sponsor creado (ID ' + j.id + ') · guardado ' + hora());
+          } else pintar('ok', 'ti-cloud-check', 'Guardado ' + hora());
+        } else if (j.errores) {
+          var faltan = Object.keys(j.errores).map(function(k){ return (j.etiquetas && j.etiquetas[k]) || k; });
+          pintar(form.dataset.modo === 'nuevo' ? '' : 'mal', 'ti-alert-circle',
+                 (form.dataset.modo === 'nuevo' ? 'Aún no se guarda: falta ' : 'No se guardó: revisa ') + faltan.join(', '));
+        } else pintar('mal', 'ti-alert-circle', 'No se pudo guardar. Revisa la conexión.');
+      })
+      .catch(function(){ pintar('mal', 'ti-wifi-off', 'Sin conexión: no se guardó.'); cambiado = true; })
+      .then(function(){ enCurso = false; if (pendiente) { pendiente = false; cambiado = true; guardar(); } });
+  }
+  function programar(){ cambiado = true; clearTimeout(timer); timer = setTimeout(guardar, 1500); }
+  form.addEventListener('input', programar);
+  form.addEventListener('change', programar);
+  // al salir de la página con cambios sin mandar, se envían igual
+  window.addEventListener('pagehide', function(){ if (cambiado) { clearTimeout(timer); guardar(true); } });
+})();

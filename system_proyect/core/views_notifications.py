@@ -76,7 +76,11 @@ def marcar_notificaciones_leidas(request):
     try:
         body = request.body.decode('utf-8')
         data = json.loads(body) if body.strip() else {}
-        ids = data.get("ids", [])
+        crudos = data.get("ids", []) if isinstance(data, dict) else []
+        # <--- hecho por claude code (seguridad 05-nov-2026): solo ids numéricos (antes un texto en "ids" reventaba y devolvía la excepción cruda)
+        ids = [int(i) for i in (crudos if isinstance(crudos, list) else []) if str(i).strip().isdigit()]
+        if crudos and not ids:
+            return JsonResponse({"ok": False, "error": "Solicitud inválida"}, status=400)
 
         qs = Notificacion.objects.filter(destinatario=request.user, leida=False)
         if ids:
@@ -85,5 +89,5 @@ def marcar_notificaciones_leidas(request):
 
         return JsonResponse({"ok": True})
 
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=400)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Solicitud inválida"}, status=400)

@@ -1,138 +1,142 @@
 {
-  "version": "7.9.99",
+  "version": "8.2.0",
   "entradas": [
     {
-      "version": "7.9.99",
+      "version": "8.2.0",
+      "fecha": "2026-11-17",
+      "commit": "b27d5d6",
+      "cambios": [
+        "feat(v8.2.0): Reloj con año laboral y fecha de corte, reportes de Mantenimiento e Inventario por tipo, laboratorios y bloqueo por formulario según el área"
+      ],
+      "menor": false
+    },
+    {
+      "version": "8.1.0",
+      "fecha": "2026-11-10",
+      "commit": "ba1ee37",
+      "cambios": [
+        "feat(v8.1.0): un solo Directorio de teléfonos y correo del código de verificación renovado"
+      ],
+      "menor": false
+    },
+    {
+      "version": "8.0.1",
+      "fecha": "2026-11-09",
+      "commit": "bf73abe",
+      "cambios": [
+        "feat(v8.0.1): «Recordar mis datos» en el login, inicio de sesión más seguro y formularios de Registrar dentro de la ventana",
+        "chore(apps): .exe y APK a v8.0.0 (misma versión que la web)",
+        "feat(apps v7.80.1): app de escritorio (.exe) y app Android (APK) de PRODUCCIÓN"
+      ],
+      "menor": false
+    },
+    {
+      "version": "7.80.1",
       "fecha": "2026-11-06",
-      "commit": "",
-      "menor": true,
+      "commit": "edad6fe",
       "cambios": [
-        "Configuración: menú en acordeón con todos los accesos (Mi cuenta, Usuarios y acceso, Permisos, Auditoría, Correos, Conducta, Sistema) y buscador",
-        "Seguridad, Desbloqueos, Permisos Reloj/Coordinadores, Auditoría, Actividad, Correos y Modo Mantenimiento ahora se abren dentro de Configuración",
-        "Configuración → Variables del sistema (.env), solo superusuario: valores ocultos que se ven o se cambian confirmando la contraseña; editar, agregar, deshabilitar y habilitar con respaldo; «Probar conexión»; marca las que no usa el código; bitácora sin valores"
-      ]
+        "feat(v7.71.1): Dashboard del Coordinador por estados, pantallas nuevas del maestro y Período Escolar general"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.98",
+      "version": "7.70.1",
       "fecha": "2026-11-06",
-      "commit": "",
-      "menor": true,
+      "commit": "fdc57a7",
       "cambios": [
-        "Sponsors: panel renovado con «acción destacada» (Nuevo Sponsor y Buscar, con los indicadores), mosaico de gestión y catálogos compactos"
-      ]
+        "feat(v7.70.1): Sponsors con autoguardado y Salidas al Baño con el Período Escolar general"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.97",
+      "version": "7.60.3",
       "fecha": "2026-11-06",
-      "commit": "",
-      "menor": true,
+      "commit": "1855bd0",
       "cambios": [
-        "Control y Servicio Técnico: la ventana «Registrar» con el diseño C (selector a la izquierda y panel en vivo a la derecha); abre el formulario ya preseleccionado"
-      ]
+        "feat(v7.60.3): Asistente IA (Claude) activo en TechCare y «redactar con IA» en Conducta; se quitó el enlace de Google Forms del Reloj"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.96",
+      "version": "7.60.2",
       "fecha": "2026-11-06",
-      "commit": "b9b34e0",
-      "menor": true,
+      "commit": "cf04471",
       "cambios": [
-        "Convocatoria a reforzamiento: tabla por grado con alumnos y clases reales, nota opcional, máximo 8 asignaturas, docente de grado y carta PDF",
-        "Sub-dashboard «Tutorías y Reforzamiento» y acordeón «Convocatoria» en el menú",
-        "Gestión de Desarrollo: descripción, problema actual y resultado esperado obligatorios",
-        "Pantalla de inicio con la barra superior nueva y Panel del superusuario en 4 columnas"
-      ]
+        "feat(v7.60.2): Gestión de Desarrollo · ayuda («i») en cada campo del requerimiento y aviso «Por favor llena este campo» con la indicación"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.92",
-      "fecha": "2026-11-04",
-      "commit": "",
-      "menor": true,
+      "version": "7.60.1",
+      "fecha": "2026-11-06",
+      "commit": "7fba413",
       "cambios": [
-        "Proyecto Notas Fase 1: galería «Plantillas de ingreso (demo)» en Ingresos de Notas con 12 plantillas editables (Tareas, Exámenes, Record de hábitos y Asistencias × 3 opciones) para que los usuarios prueben la rapidez de ingreso y elijan el diseño."
-      ]
+        "feat(v7.60.1): Pantallas renovadas en Red, Servicio Técnico, Reloj, Salidas al Baño, Conducta, Sponsors y Configuración"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.91",
-      "fecha": "2026-11-04",
-      "commit": "",
-      "menor": true,
+      "version": "7.40.1",
+      "fecha": "2026-11-06",
+      "commit": "4026d2c",
       "cambios": [
-        "Mantenimiento Mecánico: «Flota de vehículos» y «Hojas de la flota» agrupadas en un acordeón «Flota» (menú superior y sidebar)."
-      ]
+        "feat(v7.40.1): Menú nuevo en la barra superior, Panel Principal «Launcher» y menús por categorías"
+      ],
+      "menor": true
     },
     {
-      "version": "7.9.90",
-      "fecha": "2026-11-04",
-      "commit": "",
-      "menor": true,
+      "version": "7.10.0",
+      "fecha": "2026-11-05",
+      "commit": "0ace99f",
       "cambios": [
-        "Coordinador-maestro de doble área (druiz): «Coordinador BL» sale de la barra superior (la coordinación ya está en el Panel Principal); en la barra solo queda «Maestros COL/BL».",
-        "Dashboard de Maestro Bilingüe: se quita «Salidas al Baño» (es solo de Colegio).",
-        "Notas Mitad de Parcial: al elegir «Mis notas · Colegio» ahora se resalta Colegio (y no Bilingüe) — el menú detecta el área por el parámetro de la URL."
-      ]
+        "feat(v7.10.0): Seguridad en todo el sistema: sesión obligatoria, archivos protegidos y permisos por área real"
+      ],
+      "menor": false
     },
     {
-      "version": "7.8.99.80",
-      "fecha": "2026-11-04",
-      "commit": "",
-      "menor": true,
+      "version": "7.9.6",
+      "fecha": "2026-11-03",
+      "commit": "39ad323",
       "cambios": [
-        "Rediseño de pantallas: Dashboard de Red (botón «Explorar módulos»), ficha de Sponsor estilo Access, y los paneles de Reloj, Enfermería, Coordinador (BL/Colegio) e Ingreso de Notas.",
-        "Control de Salidas al Baño: nuevo Tablero (Kanban) por estado; pestañas Períodos y Maestros–Clases modernizadas.",
-        "Directorio de alumnos: vista de tarjetas con buscador y botón de WhatsApp.",
-        "Control y Servicio Técnico: botón «Registrar» unificado (conmutador Inventario/Mantenimiento/Control) y panel estilo Centro de control."
-      ]
+        "feat(v7.9.6): Solicitud de DataShow con acceso por grupo, diésel en galones + décimas y Asignación de Progress Report acotada a 20 caracteres"
+      ],
+      "menor": true
     },
     {
-      "version": "7.8.99.50",
-      "fecha": "2026-10-30",
-      "commit": "",
-      "menor": true,
+      "version": "7.9.5",
+      "fecha": "2026-11-02",
+      "commit": "04203fa",
       "cambios": [
-        "Panel Principal: módulos en tarjetas uniformes (Launcher) con buscador, categorías y nueva categoría Mantenimiento.",
-        "Navegación: menú superior horizontal en lugar del menú lateral.",
-        "Préstamo de equipo: botón para registrar préstamos; Préstamo e Inventario General con navegación propia.",
-        "App de escritorio: shell nativo renovado (barra propia, navegación, splash y pantalla sin conexión)."
-      ]
-    },
-    {
-      "version": "7.9.98",
-      "fecha": "2026-10-26",
-      "commit": "",
-      "menor": true,
-      "cambios": [
-        "Botón \"Novedades y actualización\" también en la pantalla de inicio de sesión de la app (ver novedades/actualización sin entrar)."
-      ]
+        "feat(v7.9.5): Mantenimiento · clic en el ID de la ficha (ANAMAESCTRL-…) abre el modal de editar, en las 12 tablas"
+      ],
+      "menor": true
     },
     {
       "version": "7.9.4",
-      "fecha": "2026-10-26",
-      "commit": "",
-      "menor": true,
+      "fecha": "2026-11-02",
+      "commit": "dc03e65",
       "cambios": [
-        "Botón \"Novedades y actualización\" en la cabecera de la app de escritorio (abre la ventana sin usar la bandeja)."
-      ]
+        "feat(v7.9.4): Mantenimiento · registrar una sola ficha para todo un laboratorio (BL/COL/CFP) en Control, Entrega, Recogida y Mantenimiento"
+      ],
+      "menor": true
     },
     {
       "version": "7.9.3",
-      "fecha": "2026-10-26",
-      "commit": "",
-      "menor": true,
+      "fecha": "2026-11-02",
+      "commit": "0b90d38",
       "cambios": [
-        "Asistente IA en la app de escritorio: guía de uso para los usuarios y diagnóstico para el superusuario.",
-        "Ventana de Novedades y actualización en la app, con actualización automática (electron-updater).",
-        "Opción \"Recordar mis datos\" en el inicio de sesión (1 mes).",
-        "Corrección del ícono de la bandeja del sistema en la app."
-      ]
+        "feat(v7.9.3): Progress Report con auto-guardado (borrador) y fechas por parcial; Moodle detecta/reemplaza imágenes en General y «Upload Moodle» para coordinadores"
+      ],
+      "menor": true
     },
     {
       "version": "7.9.2",
       "fecha": "2026-10-24",
-      "commit": "f1a7e07",
-      "menor": true,
+      "commit": "40188ff",
       "cambios": [
         "feat(v7.9.2): Control y Servicio Técnico renovado (botón Registrar único, Control de equipo en un solo formulario con pestañas, inventario en ventana) y mejoras de mantenimiento y combustibles"
-      ]
+      ],
+      "menor": true
     },
     {
       "version": "7.9.1",

@@ -29,8 +29,7 @@ urlpatterns = [
     path('historial/exportar/',          views.historial_exportar, name='historial_exportar'),
     path('cfp/historial/exportar/',      views.historial_exportar, {'ambito': 'cfp'}, name='historial_exportar_cfp'),
 
-    # ── Coordinador: Períodos Escolares ──────────────────────────────────────
-    path('periodos/',                    views.periodos_view,       name='periodos'),
+    # <--- hecho por claude code (06-nov-2026): sin ruta de períodos propios (Período Escolar general: /conducta/periodo-escolar/)
 
     # ── Coordinador: Maestros – Clases ───────────────────────────────────────
     path('maestros-clases/',             views.maestros_clases_view, name='maestros_clases'),

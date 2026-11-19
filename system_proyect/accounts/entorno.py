@@ -47,7 +47,6 @@ _ETIQUETAS = {
     'MSSQL_REAL_DB_NAME': 'Base académica REAL (AdmonANASQL)',
     'NOTAS_PARCIAL_DB': 'Base que usa Notas mitad de parcial (padres_sqlserver = Test2 · academico_real = AdmonANASQL)',
     'NOTAS_PARCIAL_AREAS_REAL': 'Áreas que ya leen de la base real, separadas por coma',
-    'GOOGLE_FORMS_SHARED_TOKEN': 'Llave del formulario de Google del compensatorio (Reloj). Sin ella el enlace responde 403.',
     'TICKET_IMAGE_PATH': 'Ruta de imágenes de tickets (antigua)',
     'EMAILS_REALES': 'Enviar correos de verdad (true) o solo a la consola (false)',
     'RED_CRED_KEY': 'Clave propia para cifrar contraseñas de Red (si falta, se deriva de la clave maestra)',

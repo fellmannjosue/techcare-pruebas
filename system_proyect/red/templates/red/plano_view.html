@@ -100,7 +100,8 @@
       </div>
       <div class="plano-scroll">
         <div id="plano-wrap" class="plano-wrap">
-          <img id="plano-img" src="{{ p.imagen.url }}" alt="{{ p.nombre }}">
+          {# <--- hecho por claude code (seguridad 05-nov-2026): la imagen sale por la vista con candado, no por /media/ #}
+          <img id="plano-img" src="{% url 'red:plano_imagen' p.pk %}" alt="{{ p.nombre }}">
           <svg id="plano-lines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
           <div id="plano-lineui"></div>
           <div id="plano-marks"></div>
@@ -196,4 +197,4 @@
      data-switches="[{% for s in switches %}{&quot;id&quot;:{{ s.id }},&quot;t&quot;:&quot;{{ s.nombre|escapejs }}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"></div>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'red/js/plano_map.js' %}?v=12"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'red/js/plano_map.js' %}?v=13"></script>{% endblock %}

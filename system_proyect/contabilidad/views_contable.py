@@ -42,8 +42,8 @@ def _rango(request):
 
 
 def _centro(request):
-    cid = request.GET.get('centro')
-    return CentroCosto.objects.filter(pk=cid).first() if cid else None
+    cid = (request.GET.get('centro') or '').strip()
+    return CentroCosto.objects.filter(pk=cid).first() if cid.isdigit() else None   # <--- hecho por claude code (seguridad 05-nov-2026): ?centro=abc daba 500
 
 
 def _ctx(request, **extra):
@@ -95,7 +95,7 @@ def cuenta_form(request, pk=None):
     else:
         inicial = {}
         padre = request.GET.get('padre')
-        if padre and not cuenta:
+        if padre and padre.isdigit() and not cuenta:   # <--- hecho por claude code (seguridad 05-nov-2026): ?padre=abc daba 500
             p = CuentaContable.objects.filter(pk=padre).first()
             if p:
                 n = p.hijas.count() + 1
@@ -307,7 +307,7 @@ def mayor(request):
     desde, hasta = _rango(request)
     centro = _centro(request)
     cid = request.GET.get('cuenta')
-    cuenta = CuentaContable.objects.filter(pk=cid).first() if cid else None
+    cuenta = CuentaContable.objects.filter(pk=cid).first() if cid and cid.isdigit() else None   # <--- hecho por claude code (seguridad 05-nov-2026): ?cuenta=abc daba 500
     data = contable.mayor_cuenta(cuenta, desde, hasta, centro) if cuenta else None
     return render(request, 'contabilidad/mayor.html', _ctx(
         request, cuenta=cuenta, data=data, cuentas=CuentaContable.objects.filter(activo=True),

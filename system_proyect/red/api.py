@@ -3,7 +3,7 @@
 #   - sesión de Django (mismo dominio), o
 #   - token DRF (header "Authorization: Token <clave>") para scripts/externos.
 # Permiso: `red.ver_red` (o superuser). Nunca escribe: solo ReadOnlyModelViewSet.
-from rest_framework import serializers, viewsets, permissions, filters
+from rest_framework import serializers, viewsets, permissions, filters, routers
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 
 from .models import VLAN, IPAddress, Device, Switch, SwitchPort, NetworkLink, Ubicacion, Gabinete
@@ -21,6 +21,12 @@ class _Base(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [PuedeVerRed]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): la raíz /red/api/v1/ usaba el permiso por defecto (IsAuthenticated) y cualquier usuario con sesión veía el índice de la API; ahora mismo candado que el resto.
+class APIRaizRed(routers.APIRootView):
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [PuedeVerRed]
 
 
 # ── Serializers ──
@@ -115,10 +121,11 @@ class IPVS(_Base):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        vlan = self.request.query_params.get('vlan')      # ?vlan=<vlan_id>
+        vlan = (self.request.query_params.get('vlan') or '').strip()      # ?vlan=<vlan_id>
         estado = self.request.query_params.get('estado')  # ?estado=asignada
         if vlan:
-            qs = qs.filter(vlan__vlan_id=vlan)
+            # <--- hecho por claude code (seguridad 05-nov-2026): ?vlan=abc daba error 500; un valor no numérico no devuelve nada
+            qs = qs.filter(vlan__vlan_id=int(vlan)) if vlan.isdigit() else qs.none()
         if estado:
             qs = qs.filter(estado=estado)
         return qs

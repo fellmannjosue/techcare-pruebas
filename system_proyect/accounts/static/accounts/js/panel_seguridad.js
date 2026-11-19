@@ -72,9 +72,11 @@
     if (vacia) tb.innerHTML = '';
     var tr = document.createElement('tr');
     tr.dataset.id = r.id;
+    tr.dataset.area = 'otros';
     tr.innerHTML =
       '<td class="font-monospace">' + r.correo + '</td>' +
       '<td>' + (r.nombre || '—') + '</td>' +
+      '<td class="text-center small text-muted">recargue para clasificar</td>' +
       '<td class="text-center"><span class="badge bg-green-lt text-green c-estado">Habilitado</span></td>' +
       '<td class="text-center"><span class="text-muted small">disponible</span></td>' +
       '<td class="text-end">' +

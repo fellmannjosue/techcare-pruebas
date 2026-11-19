@@ -14,7 +14,7 @@
                     <tbody>
                       {% for r in records_rea %}
                       <tr>
-                        <td><span class="badge bg-cyan-lt text-cyan">{{ r.record_id }}</span></td>
+                        <td><span class="badge bg-cyan-lt text-cyan btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
                         <td>{% if r.control_origen %}<span class="badge bg-teal-lt text-teal">{{ r.control_origen.record_id }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td><div class="fw-semibold">{% if r.computadora %}{{ r.computadora.asset_id }}{% else %}—{% endif %}</div><div class="text-muted small">{{ r.model|default:"" }}{% if r.serie %} · Serie {{ r.serie }}{% endif %}</div></td>
                         <td><div>{{ r.asignado_anterior|default:"—" }}</div><div class="text-muted small">{{ r.grado_anterior|default:"" }}{% if r.area_anterior %} · {{ r.area_anterior }}{% endif %}</div></td>

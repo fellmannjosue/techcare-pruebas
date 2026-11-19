@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block vendor_head %}
-  <link rel="stylesheet" href="{% static 'sponsors/css/ficha_densa.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'sponsors/css/ficha_densa.css' %}?v=3">
 {% endblock %}
 
 {# <--- hecho por claude code (06-nov-2026): la ficha ES la entrada del módulo → el botón de regreso va al inicio del sistema #}
@@ -40,7 +40,8 @@
   <a href="{% url 'sponsors:sponsor_list' %}" class="spn-buscar__lista"><i class="ti ti-list"></i> Lista completa</a>
 </div>
 
-<form method="post" id="form-sponsor" class="spn-ficha">
+{# <--- hecho por claude code (06-nov-2026): autoguardado — solo para quien puede guardar (agregar en modo nuevo, cambiar en edición) #}
+<form method="post" id="form-sponsor" class="spn-ficha"{% if not edit_mode %} action="{% url 'sponsors:add_sponsor' %}"{% endif %}{% if edit_mode and perms.sponsors.change_sponsor or not edit_mode and perms.sponsors.add_sponsor %} data-autoguardar="1" data-modo="{% if edit_mode %}editar{% else %}nuevo{% endif %}"{% endif %}>
   {% csrf_token %}
   {% for f in form.hidden_fields %}{{ f }}{% endfor %}
   <div class="row g-3">
@@ -154,8 +155,10 @@
   {# <--- hecho por claude code (06-nov-2026): barra de botones de la ficha, como Access: siempre visible (nuevo, buscar y editar); reemplaza las tarjetas de Gestión y Catálogos del panel #}
   <div class="spn-foot">
     <div class="spn-foot__save">
-      <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>{% if edit_mode %}Guardar cambios{% else %}Agregar sponsor{% endif %}</button>
-      {% if edit_mode %}<a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-outline-primary"><i class="ti ti-user-plus me-1"></i>Nuevo</a>{% endif %}
+      {# <--- hecho por claude code (seguridad 05-nov-2026): guardar/eliminar solo con su permiso; quien solo ve (view_sponsor) consulta la ficha #}
+      {% if edit_mode and perms.sponsors.change_sponsor or not edit_mode and perms.sponsors.add_sponsor %}<button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i>{% if edit_mode %}Guardar ahora{% else %}Agregar sponsor{% endif %}</button>
+      <span class="spn-auto" id="spn-auto" aria-live="polite">{% if edit_mode %}<i class="ti ti-cloud-check"></i> Se guarda solo{% else %}<i class="ti ti-cloud"></i> Se guarda solo al tener Apellido 1 y Ciudad{% endif %}</span>{% endif %}
+      {% if edit_mode and perms.sponsors.add_sponsor %}<a href="{% url 'sponsors:add_sponsor' %}" class="btn btn-outline-primary"><i class="ti ti-user-plus me-1"></i>Nuevo</a>{% endif %}
     </div>
     <div class="spn-foot__grp">
       <span class="spn-foot__lbl">Gestión</span>
@@ -172,11 +175,11 @@
       <a href="{% url 'sponsors:add_title' %}" class="spn-btn" style="--c:#f59f00"><i class="ti ti-id-badge"></i>Def. Título</a>
       <a href="{% url 'sponsors:add_descr_godfather' %}" class="spn-btn" style="--c:#ae3ec9"><i class="ti ti-file-description"></i>Descr. Padrino</a>
     </div>
-    {% if edit_mode %}<button type="button" class="btn btn-outline-danger spn-foot__del" id="btn-eliminar"><i class="ti ti-trash me-1"></i>Eliminar</button>{% endif %}
+    {% if edit_mode and perms.sponsors.delete_sponsor %}<button type="button" class="btn btn-outline-danger spn-foot__del" id="btn-eliminar"><i class="ti ti-trash me-1"></i>Eliminar</button>{% endif %}
   </div>
 </form>
 
-{% if edit_mode %}
+{% if edit_mode and perms.sponsors.delete_sponsor %}
 {# Eliminar va por POST con confirmación: antes se borraba con un simple GET #}
 <form method="post" action="{% url 'sponsors:delete_sponsor' sponsor.id %}" id="form-eliminar" class="d-none">
   {% csrf_token %}
@@ -185,5 +188,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'sponsors/js/form_sponsor.js' %}?v=3"></script>
+<script src="{% static 'sponsors/js/form_sponsor.js' %}?v=4"></script>
 {% endblock %}

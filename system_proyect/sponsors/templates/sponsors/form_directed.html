@@ -6,6 +6,7 @@
 
 {% block content %}
 <div class="row row-cards">
+  {% if perms.sponsors.add_directed %}{# <--- hecho por claude code (seguridad 05-nov-2026): el formulario solo a quien puede agregar #}
   <div class="col-12 col-lg-4">
     <div class="card">
       <div class="card-header"><h3 class="card-title"><i class="ti ti-mail-forward me-2 text-indigo"></i>Agregar</h3></div>
@@ -25,6 +26,7 @@
       </form>
     </div>
   </div>
+  {% endif %}
   <div class="col-12 col-lg-8">
     <div class="card">
       <div class="card-header"><h3 class="card-title">Registrados</h3></div>

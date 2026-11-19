@@ -42,6 +42,20 @@ $(function () {
   const form    = document.getElementById('formMant');
   const createUrl = window.location.pathname;
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): los datos de las cámaras los escribe el usuario; se escapan antes de meterlos como HTML (XSS almacenado)
+  function esc(v) {
+    return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, ch => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  // <--- hecho por claude code (seguridad 05-nov-2026): ficha firmada por el técnico -> solo estado y fotos (el servidor ignora lo demás)
+  const CAMPOS_FIRMADOS = ['#id_grupo', '#id_tipo_falla', '#id_date', '#id_solucion', '#id_observaciones', '#id_responsable_nombre'];
+  function bloquearFirmado(firmado) {
+    CAMPOS_FIRMADOS.forEach(sel => $(sel).prop('disabled', !!firmado));
+    $('#bloque-firma-resp').toggleClass('d-none', !!firmado);
+    $('#mant-firmado-aviso').toggleClass('d-none', !firmado);
+  }
+
   // ── Mostrar cámaras del grupo seleccionado ──
   function renderCamarasGrupo(grupo) {
     const cams = CAM_GRUPO[grupo] || [];
@@ -58,9 +72,9 @@ $(function () {
     let html = '<table class="table table-sm table-vcenter mb-0"><thead><tr>' +
       '<th>ID</th><th>Modelo</th><th>Serie</th><th>Ubicación</th><th>Estado</th></tr></thead><tbody>';
     cams.forEach(c => {
-      html += `<tr><td><span class="badge bg-green-lt text-green">${c.camara_id}</span></td>` +
-        `<td>${c.modelo || '—'}</td><td class="small font-monospace">${c.serie || '—'}</td>` +
-        `<td>${c.ubicacion || '—'}</td><td>${c.estado || '—'}</td></tr>`;
+      html += `<tr><td><span class="badge bg-green-lt text-green">${esc(c.camara_id)}</span></td>` +
+        `<td>${esc(c.modelo || '—')}</td><td class="small font-monospace">${esc(c.serie || '—')}</td>` +
+        `<td>${esc(c.ubicacion || '—')}</td><td>${esc(c.estado || '—')}</td></tr>`;
     });
     html += '</tbody></table>';
     cont.html(html);
@@ -136,6 +150,7 @@ $(function () {
   // ── Nuevo ──
   $('#btnNuevo').on('click', function () {
     form.reset(); form.action = createUrl; clearFotos(); resetFirma();
+    bloquearFirmado(false);
     renderCamarasGrupo('');
     $('#mantTitle').html('<i class="ti ti-tool me-2 text-primary"></i>Nuevo Registro');
     modal.show();
@@ -156,7 +171,8 @@ $(function () {
       $('#id_solucion').val(d.solucion);
       $('#id_observaciones').val(d.observaciones);
       $('#id_responsable_nombre').val(d.responsable_nombre);
-      $('#mantTitle').html('<i class="ti ti-pencil me-2 text-primary"></i>Editar ' + d.record_id);
+      bloquearFirmado(d.firmado);
+      $('#mantTitle').html('<i class="ti ti-pencil me-2 text-primary"></i>Editar ' + esc(d.record_id));
       modal.show();
       setTimeout(resizeCanvas, 200);
     }).fail(() => Swal.fire('Error', 'No se pudo cargar el registro.', 'error'));
@@ -166,7 +182,7 @@ $(function () {
   $(document).on('click', '.btn-del-mant', function () {
     const pk = $(this).data('pk'), rid = $(this).data('rid');
     Swal.fire({
-      title: '¿Eliminar ' + rid + '?', icon: 'warning', showCancelButton: true,
+      title: '¿Eliminar ' + esc(rid) + '?', icon: 'warning', showCancelButton: true,
       confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#d63939',
     }).then(r => {
       if (r.isConfirmed) {
@@ -178,33 +194,50 @@ $(function () {
   });
 
   // ── Link de firma del técnico (WhatsApp / Copiar) ──
+  // <--- hecho por claude code (seguridad 05-nov-2026): el link solo sirve si el servidor lo ACTIVÓ (firma_solicitada). Antes el POST iba sin mirar la respuesta y, si fallaba (sesión caducada = 302 al login, red), se mandaba un link que daba 403. Ahora se activa PRIMERO y solo con {ok:true} se muestra para enviarlo
+  function linkNoActivado(motivo) {
+    Swal.fire('No se pudo activar el link', esc(motivo || 'Recarga la página (la sesión pudo haber caducado) y vuelve a intentarlo. No envíes el link: todavía no funciona.'), 'error');
+  }
+  function copiarLinkAMano(link) {
+    Swal.fire({ title: 'Copia el link', html: `<input class="form-control form-control-sm" value="${esc(link)}" readonly onclick="this.select()">`, icon: 'info' });
+  }
   $(document).on('click', '.btn-firma-link', function () {
     const link = $(this).data('link');
     const rid  = $(this).data('rid');
     const markUrl = $(this).data('mark');
-    const msg = `Hola, por favor firma el mantenimiento ${rid} de la cámara en este enlace: ${link}`;
+    const dias = parseInt($(this).data('dias'), 10) || 7;   // <--- hecho por claude code (seguridad 05-nov-2026): el link vence (FIRMA_LINK_DIAS)
+    const msg = `Hola, por favor firma el mantenimiento ${rid} de la cámara en este enlace (vence en ${dias} días): ${link}`;
     const wa  = 'https://wa.me/?text=' + encodeURIComponent(msg);
 
-    Swal.fire({
-      title: 'Enviar link de firma',
-      html: `<p class="text-muted small mb-2">Comparte este enlace con el técnico para que firme:</p>
-             <input id="ic-link" class="form-control form-control-sm mb-2" value="${link}" readonly onclick="this.select()">`,
-      showCancelButton: true,
-      confirmButtonText: '<i class="ti ti-brand-whatsapp"></i> WhatsApp',
-      confirmButtonColor: '#25D366',
-      cancelButtonText: '<i class="ti ti-copy"></i> Copiar link',
-      cancelButtonColor: '#206bc4',
-    }).then(res => {
-      // Marcar como solicitada (sin bloquear)
-      $.post(markUrl, { csrfmiddlewaretoken: window._IC.csrf });
-      if (res.isConfirmed) {
-        window.open(wa, '_blank');
-      } else if (res.dismiss === Swal.DismissReason.cancel) {
-        navigator.clipboard.writeText(link).then(
-          () => Swal.fire({ icon: 'success', title: 'Link copiado', timer: 1200, showConfirmButton: false }),
-          () => { document.getElementById('ic-link'); }
-        );
-      }
-    });
+    Swal.fire({ title: 'Activando el link…', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+    $.ajax({ url: markUrl, method: 'POST', dataType: 'json', timeout: 15000, data: { csrfmiddlewaretoken: window._IC.csrf } })
+      .done(r => { if (r && r.ok === true) { mostrarLink(); } else { linkNoActivado(r && r.error); } })
+      .fail(xhr => linkNoActivado(xhr && xhr.responseJSON && xhr.responseJSON.error));
+
+    function mostrarLink() {
+      Swal.fire({
+        title: 'Enviar link de firma',
+        html: `<p class="text-muted small mb-2">Comparte este enlace con el técnico para que firme. Vence en ${dias} días; si caduca, vuelve a enviarlo desde aquí.</p>
+               <input id="ic-link" class="form-control form-control-sm mb-2" value="${esc(link)}" readonly onclick="this.select()">`,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ti ti-brand-whatsapp"></i> WhatsApp',
+        confirmButtonColor: '#25D366',
+        cancelButtonText: '<i class="ti ti-copy"></i> Copiar link',
+        cancelButtonColor: '#206bc4',
+      }).then(res => {
+        if (res.isConfirmed) {
+          window.open(wa, '_blank', 'noopener');
+        } else if (res.dismiss === Swal.DismissReason.cancel) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(
+              () => Swal.fire({ icon: 'success', title: 'Link copiado', timer: 1200, showConfirmButton: false }),
+              () => copiarLinkAMano(link)
+            );
+          } else {
+            copiarLinkAMano(link);
+          }
+        }
+      });
+    }
   });
 });

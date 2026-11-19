@@ -11,6 +11,8 @@ urlpatterns = [
 
     # Atención Médica
     path('atencion/',                  views.atencion_form,             name='atencion_form'),
+    # <--- hecho por claude code (seguridad 05-nov-2026): borrar es POST con CSRF (antes GET atencion/?delete=<id>)
+    path('atencion/<int:pk>/eliminar/', views.atencion_eliminar,        name='atencion_eliminar'),
     path('atencion/pdf/<int:pk>/',     views.atencion_download_pdf,     name='atencion_pdf'),
 
     # Nuevo: formulario de envío de correo en lugar de PDF

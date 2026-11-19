@@ -68,3 +68,56 @@
    para verla de un vistazo entre los que sí asistieron. */
 .fila-falta > td { background: #fff5f5 !important; }
 .fila-falta .fw-medium { color: #c53030; }
+
+/* <--- hecho por claude code (06-nov-2026): diseños A (planillas) y B (matriz de asistencias) */
+.tabla-notas tbody tr:nth-child(even) > td{background:var(--ps-surface-2,#f8fafd)}
+.tabla-notas tbody tr:focus-within > td{background:color-mix(in srgb,#2563eb 7%,var(--ps-surface,#fff))}
+.tabla-notas .col-prom,.tabla-notas .col-est{width:86px}
+.tabla-notas .td-prom{font-weight:800;font-variant-numeric:tabular-nums}
+.tabla-notas .prom-baja{color:#d63939}
+.tabla-notas .celda-baja{color:#d63939;font-weight:700}
+.tabla-notas .est-ok{color:#0ca678;font-weight:700;font-size:.74rem}
+.tabla-notas .est-mal{color:#d63939;font-weight:700;font-size:.74rem}
+.tabla-notas tfoot td{position:sticky;bottom:0;background:#eef2fb;border-top:2px solid var(--ps-border,#dee2e6);font-weight:800;font-variant-numeric:tabular-nums;z-index:1}
+.tabla-notas tfoot .tf-lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--ps-muted,#6b7689)}
+.tc-guardado{position:absolute;right:4px;top:-8px;background:#0ca678;color:#fff;font-size:.6rem;font-weight:700;border-radius:999px;padding:1px 6px;pointer-events:none;animation:tcG 1.3s ease forwards;z-index:4}
+@keyframes tcG{0%{opacity:0;transform:translateY(4px)}15%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+/* tareas: columnas por tarea y comentario opcional */
+.planilla-tareas .col-tarea{min-width:86px}
+.planilla-tareas .col-nueva{background:color-mix(in srgb,#2563eb 8%,transparent);color:#2563eb}
+.planilla-tareas .celda-com{display:none;margin-top:3px;font-size:.72rem}
+.planilla-tareas.con-coms .celda-com{display:block}
+.tr-toggle{font-size:.74rem;font-weight:600;color:var(--ps-muted,#6b7689);display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.tr-pie{padding:8px 14px;border-top:1px solid var(--ps-border,#eef1f6)}
+/* asistencias: matriz */
+.tabla-asis .col-dia{min-width:58px;font-size:.68rem;line-height:1.2}
+.tabla-asis .col-actual{background:color-mix(in srgb,#2563eb 9%,transparent)!important}
+.as-hoy{display:inline-block;margin-top:2px;font-size:.58rem;font-weight:800;color:#fff;background:#2563eb;border-radius:999px;padding:0 6px}
+.as-cel{width:40px;height:32px;border-radius:8px;border:1.5px solid var(--ps-border,#e3e8f1);background:var(--ps-surface,#fff);font-weight:800;font-size:.8rem;color:var(--ps-muted,#98a2b3);cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.as-cel:hover{border-color:#2563eb}
+.as-cel:focus-visible,.as-cel.as-sel{outline:2px solid #2563eb;outline-offset:1px}
+.as-cel.as-t1{background:#ffe3e3;border-color:#ffa8a8;color:#c92a2a}
+.as-cel.as-t2{background:#fff3bf;border-color:#ffd43b;color:#b35c00}
+.as-cel.as-t3{background:#d0ebff;border-color:#74c0fc;color:#1864ab}
+.as-cel.as-t4{background:#e5dbff;border-color:#b197fc;color:#5f3dc4}
+.as-cel.as-t5{background:#d3f9d8;border-color:#8ce99a;color:#2b8a3e}
+.as-cel.as-guardando{opacity:.5}
+.as-cel.as-ok{box-shadow:0 0 0 3px rgba(12,166,120,.35)}
+.as-kpis{padding:10px 14px;border-bottom:1px solid var(--ps-border,#eef1f6);display:flex;flex-direction:column;gap:8px}
+.as-kpis__fila{display:flex;flex-wrap:wrap;gap:8px}
+.as-k{display:inline-flex;align-items:baseline;gap:6px;font-size:.78rem;font-weight:600;color:var(--ps-muted,#6b7689);background:var(--ps-surface-2,#f5f7fb);border-radius:10px;padding:6px 12px}
+.as-k b{font-size:1.1rem;color:var(--ps-ink,#172033)}
+.as-k--ok b{color:#0ca678}.as-k--t1 b{color:#c92a2a}.as-k--t2 b{color:#b35c00}.as-k--t3 b{color:#1864ab}.as-k--t4 b{color:#5f3dc4}
+.as-k--dia{margin-left:auto;background:color-mix(in srgb,#2563eb 10%,transparent);color:#2563eb}
+.as-kpis__ley{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.74rem}
+.as-ley{display:inline-flex;align-items:center;gap:5px}.as-ley .as-cel{width:24px;height:22px;font-size:.66rem;cursor:default}
+.as-det{padding:12px 14px;border-top:1px solid var(--ps-border,#eef1f6);background:var(--ps-surface-2,#f8fafd)}
+.as-det__t{font-size:.84rem;margin-bottom:8px}
+.as-det__c{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:10px}
+.as-det__c label{display:flex;flex-direction:column;gap:3px;font-size:.72rem;font-weight:700;color:var(--ps-muted,#6b7689)}
+@media(max-width:575.98px){.as-det__c{grid-template-columns:1fr}.as-k--dia{margin-left:0}}
+
+/* <--- hecho por claude code (06-nov-2026): rechazo visible y tareas bloqueadas */
+.tc-guardado-error{background:#d63939!important;color:#fff!important;animation-duration:4.5s!important}
+.celda-error{border-color:#d63939!important;background:rgba(214,57,57,.08)!important}
+.planilla-tareas .celda-tarea:disabled{background:var(--ps-surface-2,#f1f3f5);cursor:not-allowed;font-size:.7rem}

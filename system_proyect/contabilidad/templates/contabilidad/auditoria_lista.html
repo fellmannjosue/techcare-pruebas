@@ -22,7 +22,7 @@
           <td class="text-muted text-nowrap">{{ e.fecha|date:"d/m/Y H:i" }}</td>
           <td><span class="badge" style="background:{{ e.color }}22;color:{{ e.color }};"><i class="ti {{ e.icono }} me-1"></i>{{ e.accion }}</span></td>
           <td><div class="fw-semibold">{{ e.objeto }}</div><div class="text-muted small">{{ e.detalle }}</div></td>
-          <td>{{ e.usuario.get_full_name|default:e.usuario.username|default:"—" }}</td>
+          <td>{% if e.usuario %}{{ e.usuario.get_full_name|default:e.usuario.username }}{% else %}—{% endif %}</td>{# <--- hecho por claude code (19-nov-2026): sin usuario reventaba la página #}
         </tr>
         {% empty %}
         <tr><td colspan="4" class="text-center text-muted py-4">Sin actividad todavía.</td></tr>

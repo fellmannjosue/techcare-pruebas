@@ -126,4 +126,15 @@
   .ps-tabs { margin-left: 0; width: 100%; overflow-x: auto; order: 2; }
   .ps-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 480px) { .ps-kpis { grid-template-columns: 1fr; } }
+/* <--- hecho por claude code (09-nov-2026): en el teléfono los 4 KPIs van 2 x 2 y compactos (antes uno por fila, muy largo) */
+@media (max-width: 575.98px) {
+  .ps-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+  .ps-kpi { flex-direction: column; align-items: flex-start; padding: 12px; gap: 6px; min-width: 0; }
+  .ps-kpi-ico { width: 32px; height: 32px; font-size: 1.05rem; }
+  .ps-kpi-body { min-width: 0; width: 100%; }
+  .ps-kpi-lbl { font-size: .7rem; line-height: 1.2; display: block; }
+  .ps-kpi-num { font-size: 1.35rem; line-height: 1.1; }
+  .ps-kpi-hint { font-size: .68rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ps-chart-wrap { height: 180px; }
+  .tc-hero .page-title { font-size: 1.2rem; }
+}

@@ -26,13 +26,14 @@ urlpatterns = [
     path('tutorias/coordinador/', views.convocatorias_coordinador, name='convocatorias_coordinador'),
     path('tutorias/firma/', views.convocatoria_firma_guardar, name='convocatoria_firma_guardar'),
     path('tutorias/horario/', views.tutoria_horario_config, name='tutoria_horario_config'),
-    path('tutorias/inicio/', views.tutorias_reforzamiento_hub, name='tutorias_reforzamiento_hub'),  # <--- hecho por claude code (06-nov-2026)
-    # <--- hecho por claude code (06-nov-2026): TC-PRY-0005 Convocatoria a reforzamiento (datos reales)
+    path('tutorias/inicio/', views.tutorias_reforzamiento_hub, name='tutorias_reforzamiento_hub'),  # <--- hecho por claude code (06-nov-2026): sub-dashboard Tutorías y Reforzamiento
+    path('reforzamiento/demo/', views.reforzamiento_demo, name='reforzamiento_demo'),
+    # <--- hecho por claude code (06-nov-2026): TC-PRY-0005 módulo real (datos reales)
     path('reforzamiento/', views_reforzamiento.reforzamiento, name='reforzamiento'),
     path('reforzamiento/marcar/', views_reforzamiento.reforzamiento_marcar, name='reforzamiento_marcar'),
     path('reforzamiento/docente/', views_reforzamiento.reforzamiento_docente, name='reforzamiento_docente'),
     path('reforzamiento/fechas/', views_reforzamiento.reforzamiento_config, name='reforzamiento_config'),
-    path('reforzamiento/cartas.pdf', views_reforzamiento.reforzamiento_pdf, name='reforzamiento_pdf'),
+    path('reforzamiento/cartas.pdf', views_reforzamiento.reforzamiento_pdf, name='reforzamiento_pdf'),  # <--- hecho por claude code (05-nov-2026): maqueta TC-PRY-0005, solo druiz
 
     # Dashboards
     path('dashboard/maestro/', views.dashboard_maestro, name='dashboard_maestro'),
@@ -81,15 +82,18 @@ urlpatterns = [
 
     path('set-coord/', views.set_coord_reporte, name='set_coord_reporte'),
     path('reporte/editar-ajax/', views.editar_reporte_ajax, name='editar_reporte_ajax'),
+    path('reporte/estado/', views.cambiar_estado_reporte, name='cambiar_estado_reporte'),   # <--- hecho por claude code (06-nov-2026)
 
     # --- EVIDENCIAS ---  <--- hecho por claude code
     # Recibe el POST del modal del dashboard coordinador.
     # Acepta imagen + comentario + tipo + reporte_id y guarda EvidenciaReporte.
     path('evidencia/subir/', views.subir_evidencia, name='subir_evidencia'),
+    path('evidencia/<int:pk>/ver/', views.evidencia_ver, name='evidencia_ver'),   # <--- hecho por claude code (09-nov-2026): evidencias solo con permiso (antes /media/ público)
     path('evidencia/<int:pk>/eliminar/', views.eliminar_evidencia, name='eliminar_evidencia'),
     path('descargar/zip/', views.descargar_zip_reportes, name='descargar_zip_reportes'),
     path('historial-alumnado/<str:area>/', views.historial_alumnado, name='historial_alumnado'),
     path('historial-alumnado/<str:area>/grado/', views.historial_alumnado_grado, name='historial_alumnado_grado'),
+    path('periodo-escolar/', views.periodo_escolar, name='periodo_escolar'),   # <--- hecho por claude code (06-nov-2026): Período Escolar general
     path('periodos/guardar/', views.periodo_conducta_save, name='periodo_conducta_save'),
     path('periodos/<int:pk>/eliminar/', views.periodo_conducta_delete, name='periodo_conducta_delete'),
     path('directorio/', views.directorio_telefonos, name='directorio_telefonos'),

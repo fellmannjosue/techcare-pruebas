@@ -27,7 +27,7 @@ const CFG_LOGIN_BLOQUEO = (function(){
                 btn.disabled=true;
                 fetch(CFG_LOGIN_BLOQUEO.v0,{method:'POST',headers:{'Content-Type':'application/json'},
                   body:JSON.stringify({name:CFG_LOGIN_BLOQUEO.v1,grade:'Desbloqueo de acceso',email:email,
-                    description:'Solicitud de desbloqueo de acceso — usuario: CFG_LOGIN_BLOQUEO.j1. '+msg})})
+                    description:'Solicitud de desbloqueo de acceso — usuario: '+CFG_LOGIN_BLOQUEO.v1+'. '+msg})})  // <--- hecho por claude code (05-nov-2026): antes mandaba el texto literal «CFG_LOGIN_BLOQUEO.j1»
                   .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
                   .then(function(res){ if(res.ok){document.getElementById('unlockOk').classList.remove('d-none'); btn.classList.add('d-none');}
                     else {err.textContent=(res.d&&(res.d.error||res.d.message))||'No se pudo enviar.'; err.classList.remove('d-none'); btn.disabled=false;} })

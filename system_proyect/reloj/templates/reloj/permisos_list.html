@@ -6,11 +6,14 @@
 {% block nav_permisos %}active{% endblock %}
 
 {% block page_actions %}
+{# <--- hecho por claude code (seguridad 05-nov-2026): el botón sale con el mismo permiso que exige el servidor (antes a todos) #}
+{% if can_edit %}
 <div class="col-auto ms-auto">
   <a href="{% url 'reloj_permiso_new' %}" class="btn btn-primary">
     <i class="ti ti-plus me-1"></i> Agregar Permiso
   </a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -76,7 +79,9 @@
             <td>{{ p.autorizado_por|default:"—" }}</td>
             <td>
               <div class="d-flex gap-1 flex-wrap">
-                {% if request.user.is_staff or request.user.is_superuser %}
+                {# <--- hecho por claude code (seguridad 05-nov-2026): antes is_staff; ahora can_edit / can_delete de la vista (mismo criterio que el servidor) #}
+                {% if can_edit or can_delete %}
+                  {% if can_edit %}
                   {% if p.aprobado is None %}
                     <button class="btn btn-sm btn-ghost-success btn-aprobar" data-id="{{ p.pk }}" title="Aprobar">
                       <i class="ti ti-check"></i>
@@ -88,9 +93,12 @@
                   <a href="{% url 'reloj_permiso_edit' p.pk %}" class="btn btn-sm btn-ghost-primary" title="Editar">
                     <i class="ti ti-pencil"></i>
                   </a>
+                  {% endif %}
+                  {% if can_delete %}
                   <a href="{% url 'reloj_permiso_delete' p.pk %}" class="btn btn-sm btn-ghost-danger" title="Eliminar">
                     <i class="ti ti-trash"></i>
                   </a>
+                  {% endif %}
                 {% else %}
                   <span class="text-muted small">—</span>
                 {% endif %}

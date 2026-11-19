@@ -8,6 +8,11 @@ let notisPrevias = new Set();
 let dropdownAbierto = false;
 let audioDesbloqueado = false;
 
+// <--- hecho por claude code (seguridad 05-nov-2026): el mensaje lleva texto que escribe el usuario (p. ej. el nombre del ticket) y se pintaba con innerHTML = XSS almacenado
+function _tcNotifEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+
 // =======================================
 // Desbloquear audio en primer clic
 // =======================================
@@ -83,11 +88,11 @@ function renderizarLista(notis) {
         item.innerHTML = `
             <div class="p-2 border-bottom small">
                 <div class="fw-bold text-primary">
-                    ${n.modulo.toUpperCase()}
+                    ${_tcNotifEsc((n.modulo || '').toUpperCase())}
                 </div>
-                <div>${n.mensaje}</div>
+                <div>${_tcNotifEsc(n.mensaje)}</div>
                 <div class="text-muted" style="font-size: 11px;">
-                    ${n.fecha}
+                    ${_tcNotifEsc(n.fecha)}
                 </div>
             </div>
         `;
@@ -115,11 +120,11 @@ function mostrarToastNotif(n) {
     el.innerHTML = `
       <div class="toast-header">
         <span class="me-2 text-${color}"><i class="ti ${icon}"></i></span>
-        <strong class="me-auto">${(n.modulo || '').toUpperCase()}</strong>
-        <small class="text-muted ms-2">${n.fecha}</small>
+        <strong class="me-auto">${_tcNotifEsc((n.modulo || '').toUpperCase())}</strong>
+        <small class="text-muted ms-2">${_tcNotifEsc(n.fecha)}</small>
         <button type="button" class="btn-close ms-2" aria-label="Cerrar"></button>
       </div>
-      <div class="toast-body small">${n.mensaje}</div>`;
+      <div class="toast-body small">${_tcNotifEsc(n.mensaje)}</div>`;
 
     el.querySelector('.btn-close').addEventListener('click', () => el.remove());
     setTimeout(() => { if (el.parentNode) el.remove(); }, 7000);

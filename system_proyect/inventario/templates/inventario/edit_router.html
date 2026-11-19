@@ -1,17 +1,18 @@
 <form id="form-edit-router">
     {% csrf_token %}
-    <input type="hidden" id="router-id" name="id" value="{{ router.id }}">
+    {# <--- hecho por claude code (seguridad 05-nov-2026): la vista pasa "obj" (con "router.id" el id salía vacío y el guardado iba a router/update//); campos con su etiqueta #}
+    <input type="hidden" id="router-id" name="id" value="{{ obj.id }}">
 
     <div class="row g-3">
-        {{ form.asset_id }}
-        {{ form.modelo }}
-        {{ form.serie }}
-        {{ form.nombre_router }}
-        {{ form.clave_router }}
-        {{ form.ip_asignada }}
-        {{ form.ip_uso }}
-        {{ form.ubicado }}
-        {{ form.observaciones }}
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.asset_id.label }}</label>{{ form.asset_id }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.modelo.label }}</label>{{ form.modelo }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.serie.label }}</label>{{ form.serie }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.nombre_router.label }}</label>{{ form.nombre_router }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.clave_router.label }}</label>{{ form.clave_router }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.ubicado.label }}</label>{{ form.ubicado }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.ip_asignada.label }}</label>{{ form.ip_asignada }}</div>
+        <div class="col-md-6"><label class="form-label fw-semibold">{{ form.ip_uso.label }}</label>{{ form.ip_uso }}</div>
+        <div class="col-12"><label class="form-label fw-semibold">{{ form.observaciones.label }}</label>{{ form.observaciones }}</div>
     </div>
 
     <button type="submit" class="btn btn-primary w-100 mt-3">Guardar Cambios</button>

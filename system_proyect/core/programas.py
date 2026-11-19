@@ -19,12 +19,12 @@ PROGRAMAS = [
     {'key': 'tickets',       'label': 'Sistema de Tickets',           'icon': 'ti-ticket',
      'prefijos': ('/tickets/',),
      'flags': ('nav_tickets', 'nav_tickets_tecnico', 'show_tickets')},
+    {'key': 'datashow', 'label': 'Solicitud de DataShow', 'icon': 'ti-calendar-plus',   # <--- hecho por claude code (03-nov-2026)
+     'prefijos': ('/datashow/',),
+     'flags': ('nav_datashow', 'show_datashow')},
     {'key': 'servicio_tecnico', 'label': 'Control y Servicio Técnico', 'icon': 'ti-headset',   # <--- hecho por claude code (28-sep-2026)
      'prefijos': ('/servicio-tecnico/',),
      'flags': ('nav_servicio', 'show_servicio')},
-    {'key': 'datashow', 'label': 'Solicitud de DataShow', 'icon': 'ti-calendar-plus',   # <--- hecho por claude code (02-nov-2026)
-     'prefijos': ('/datashow/',),
-     'flags': ('nav_datashow', 'show_datashow')},
     {'key': 'mantenimiento_mecanico', 'label': 'Mantenimiento Mecánico', 'icon': 'ti-engine',   # <--- hecho por claude code (01-oct-2026; 12-oct-2026 incluye vehículos)
      'prefijos': ('/mantenimiento-mecanico/', '/mantenimiento-vehiculos/'),
      'flags': ('nav_mant_mecanico', 'nav_mm_insumos', 'nav_vehiculos', 'show_mant_mecanico', 'show_vehiculos')},
@@ -58,12 +58,16 @@ PROGRAMAS = [
     {'key': 'ruteo',         'label': 'Ruteo Reportes BL',            'icon': 'ti-route',
      'prefijos': ('/conducta/routing-bl/',),
      'flags': ('nav_ruteo_bl',)},
+    # <--- hecho por claude code (05-nov-2026, decisión del usuario): Salidas CFP se oculta APARTE de Colegio. Va ANTES de 'salidas' porque programa_de_ruta toma la primera coincidencia.
+    {'key': 'salidas_cfp',   'label': 'Salidas al baño CFP',          'icon': 'ti-door-exit',
+     'prefijos': ('/salidas-bano/cfp/',),
+     'flags': ('nav_salidas_bano_cfp', 'show_salidas_bano_cfp')},
     {'key': 'salidas',       'label': 'Salidas al baño (Colegio y CFP)', 'icon': 'ti-door-exit',
      'prefijos': ('/salidas-bano/',),
      'flags': ('nav_salidas_bano', 'nav_salidas_bano_cfp', 'show_salidas_bano', 'show_salidas_bano_cfp')},
     {'key': 'enfermeria',    'label': 'Enfermería',                   'icon': 'ti-stethoscope',
      'prefijos': ('/enfermeria/',),
-     'excepto':  ('/enfermeria/directorio/',),    # el Directorio lo usan los coordinadores
+     'excepto':  ('/enfermeria/directorio/',),    # el Directorio lo usan los coordinadores (hoy solo redirige al único, /conducta/directorio/)
      'flags': ('nav_enfermeria', 'show_enfermeria')},
     {'key': 'reloj',         'label': 'Reloj',                        'icon': 'ti-clock',
      'prefijos': ('/reloj/',),
@@ -83,6 +87,17 @@ PROGRAMAS = [
     {'key': 'calculadoras',  'label': 'Calculadoras',                 'icon': 'ti-calculator',
      'prefijos': ('/calculadoras/',),
      'flags': ('nav_calculadoras', 'show_calculadoras')},
+    # <--- hecho por claude code (09-nov-2026): para configurar por canal (.exe / APK). Van AL FINAL:
+    # /conducta/ es el prefijo general y Tutorías/Progress/Ruteo (más específicos) deben coincidir antes.
+    {'key': 'moodle',        'label': 'Upload Moodle',                'icon': 'ti-cloud-upload',
+     'prefijos': ('/moodle-upload/',),
+     'flags': ('show_moodle_upload',)},
+    {'key': 'conducta',      'label': 'Reportes y Coordinación (Conducta)', 'icon': 'ti-chalkboard',
+     'prefijos': ('/conducta/',),
+     'flags': ()},
+    {'key': 'asistente',     'label': 'Asistente IA',                 'icon': 'ti-sparkles',
+     'prefijos': ('/asistente/',),
+     'flags': ()},
 ]
 
 POR_KEY = {p['key']: p for p in PROGRAMAS}
@@ -123,6 +138,12 @@ def programa_oculto_de_ruta(ruta, config):
 def aplicar_ocultos(ctx, claves_ocultas):
     """Apaga en `ctx` las variables nav_*/show_* de los programas ocultos y agrega
     `programas_ocultos` ({clave: True}) para condicionar enlaces sueltos en plantillas."""
+    # <--- hecho por claude code (09-nov-2026): se suman los ocultos del CANAL de esta petición (Web/.exe/APK)
+    try:
+        from core.canales import OCULTOS_ACTUAL
+        claves_ocultas = set(claves_ocultas) | set(OCULTOS_ACTUAL.get())
+    except Exception:
+        pass
     for k in claves_ocultas:
         for f in POR_KEY[k]['flags']:
             if f in ctx:

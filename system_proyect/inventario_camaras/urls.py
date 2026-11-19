@@ -2,13 +2,23 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
 from . import api          # <--- hecho por claude code
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, APIRootView
 
 app_name = 'inventario_camaras'
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): la raíz /api/ quedaba con IsAuthenticated (cualquier maestro veía el índice); mismo candado que el resto del API
+class _RaizApiCamaras(APIRootView):
+    authentication_classes = [api.SessionAuthentication]
+    permission_classes = [api.SoloStaff]
+
+
+class _RouterCamaras(DefaultRouter):
+    APIRootView = _RaizApiCamaras
+
+
 # <--- hecho por claude code: API REST para el frontend Next (build estático)
-router = DefaultRouter()
+router = _RouterCamaras()
 router.register('servidores', api.ServidorVS, basename='api-servidores')
 router.register('nvrs', api.NVRVS, basename='api-nvrs')
 router.register('gabinetes', api.GabineteVS, basename='api-gabinetes')
@@ -55,6 +65,7 @@ urlpatterns = [
     path('mantenimiento/<int:pk>/eliminar/', views.mantenimiento_eliminar, name='mantenimiento_eliminar'),
     path('mantenimiento/<int:pk>/pdf/', views.download_mantenimiento_pdf, name='mantenimiento_pdf'),
     path('mantenimiento/<int:pk>/firma-solicitada/', views.marcar_firma_solicitada, name='marcar_firma_solicitada'),
+    path('mantenimiento/foto/<int:pk>/', views.foto_ver, name='foto_ver'),   # <--- hecho por claude code (seguridad 05-nov-2026): fotos por vista con candado (no por /media/)
 
     # ── Firma remota (público, sin login) ──
     path('firmar/<uuid:token>/', views.firmar_publico, name='firmar_publico'),

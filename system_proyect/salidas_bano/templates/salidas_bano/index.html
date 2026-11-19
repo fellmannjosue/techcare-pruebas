@@ -19,7 +19,7 @@
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {# <--- hecho por claude code (03-nov-2026): shell Horizon (barra superior) igual que el resto del sistema #}
-  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'portal_super/css/horizon.css' %}?v=7">
   {% endif %}
 </head>
 <body class="antialiased">
@@ -109,12 +109,7 @@
                 </button>
               </li>
               {% if es_coordinador %}
-              <li class="nav-item">
-                <button class="nav-link {% if tab_activo == 'periodos' %}active{% endif %}"
-                        data-bs-toggle="tab" data-bs-target="#tab-periodos" type="button">
-                  <i class="ti ti-calendar-event me-2"></i>Períodos Escolares
-                </button>
-              </li>
+              {# <--- hecho por claude code (06-nov-2026): sin pestaña «Períodos Escolares» — se usa el Período Escolar general #}
               <li class="nav-item">
                 <button class="nav-link {% if tab_activo == 'maestros' %}active{% endif %}"
                         data-bs-toggle="tab" data-bs-target="#tab-maestros" type="button">
@@ -183,8 +178,11 @@
               {% if error %}
               <div class="alert alert-warning m-3">
                 <i class="ti ti-alert-triangle me-2"></i>{{ error }}
-                {% if es_coordinador %}
-                <a href="?tab=periodos" class="alert-link ms-2">→ Configurar período</a>
+                {# <--- hecho por claude code (06-nov-2026): el período es el general de Configuración Académica (solo superusuario) #}
+                {% if request.user.is_superuser %}
+                <a href="{% url 'periodo_escolar' %}" class="alert-link ms-2">→ Configurar el Período Escolar</a>
+                {% else %}
+                <span class="ms-2">El Período Escolar lo activa el administrador en Configuración Académica.</span>
                 {% endif %}
               </div>
               {% endif %}
@@ -266,126 +264,6 @@
             </div>
 
             {% if es_coordinador %}
-            <div class="tab-pane fade {% if tab_activo == 'periodos' %}show active{% endif %}" id="tab-periodos">
-              <div class="row g-0">
-                {# Formulario #}
-                <div class="col-lg-4 border-end">
-                  <div class="p-4">
-                    <h4 class="mb-3">
-                      <i class="ti ti-{% if editar_periodo_id %}edit{% else %}plus-circle{% endif %} me-2 text-teal"></i>
-                      {% if editar_periodo_id %}Editar período{% else %}Nuevo período{% endif %}
-                    </h4>
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="accion" value="guardar_periodo">
-                      <input type="hidden" name="edit_id" value="{{ editar_periodo_id }}">
-                      <div class="mb-3">
-                        <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
-                        {{ periodo_form.nombre }}
-                        {% if periodo_form.nombre.errors %}<div class="text-danger small mt-1">{{ periodo_form.nombre.errors }}</div>{% endif %}
-                      </div>
-                      <div class="row g-2 mb-3">
-                        <div class="col-6">
-                          <label class="form-label fw-semibold">Parcial</label>
-                          {{ periodo_form.parcial }}
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label fw-semibold">Año</label>
-                          {{ periodo_form.anio }}
-                        </div>
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label fw-semibold">Área</label>
-                        {{ periodo_form.area }}
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label fw-semibold">Fecha inicio</label>
-                        {{ periodo_form.fecha_inicio }}
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label fw-semibold">Fecha fin</label>
-                        {{ periodo_form.fecha_fin }}
-                      </div>
-                      <div class="mb-4 form-check">
-                        {{ periodo_form.activo }}
-                        <label class="form-check-label" for="{{ periodo_form.activo.id_for_label }}">
-                          Marcar como período activo
-                        </label>
-                      </div>
-                      <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-teal flex-fill">
-                          <i class="ti ti-device-floppy me-1"></i>Guardar
-                        </button>
-                        {% if editar_periodo_id %}
-                        <a href="?tab=periodos" class="btn btn-outline-secondary">
-                          <i class="ti ti-x"></i> Cancelar
-                        </a>
-                        {% endif %}
-                      </div>
-                    </form>
-                  </div>
-                </div>
-                {# Lista #}
-                <div class="col-lg-8">
-                  <div class="table-responsive">
-                    <table class="table table-vcenter table-hover table-sm mb-0">
-                      <thead class="table-light">
-                        <tr>
-                          <th>Nombre</th>
-                          <th class="text-center">Parcial</th>
-                          <th class="text-center">Año</th>
-                          <th>Área</th>
-                          <th>Inicio</th>
-                          <th>Fin</th>
-                          <th class="text-center">Estado</th>
-                          <th class="text-center" style="width:90px">Acc.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for p in periodos_lista %}
-                        <tr {% if editar_periodo_id == p.pk|stringformat:"s" %}class="table-warning"{% endif %}>
-                          <td class="fw-semibold">{{ p.nombre }}</td>
-                          <td class="text-center"><span class="badge bg-blue-lt text-blue">{{ p.parcial }}</span></td>
-                          <td class="text-center">{{ p.anio }}</td>
-                          <td>{{ p.get_area_display }}</td>
-                          <td>{{ p.fecha_inicio|date:"d/m/Y" }}</td>
-                          <td>{{ p.fecha_fin|date:"d/m/Y" }}</td>
-                          <td class="text-center">
-                            {% if p.activo %}
-                            <span class="badge bg-success"><i class="ti ti-check me-1"></i>Activo</span>
-                            {% else %}
-                            <span class="badge bg-secondary-lt text-secondary">Inactivo</span>
-                            {% endif %}
-                          </td>
-                          <td class="text-center">
-                            <div class="btn-group btn-group-sm">
-                              <a href="?tab=periodos&editar_periodo={{ p.pk }}" class="btn btn-sm btn-outline-blue" title="Editar">
-                                <i class="ti ti-edit"></i>
-                              </a>
-                              <form method="post" onsubmit="return confirm('¿Eliminar?')" style="display:inline">
-                                {% csrf_token %}
-                                <input type="hidden" name="accion" value="eliminar_periodo">
-                                <input type="hidden" name="obj_id" value="{{ p.pk }}">
-                                <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
-                                  <i class="ti ti-trash"></i>
-                                </button>
-                              </form>
-                            </div>
-                          </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="8" class="text-center text-muted py-5">
-                          <i class="ti ti-calendar-off" style="font-size:2rem;"></i>
-                          <p class="mt-2 mb-0">Sin períodos registrados.</p>
-                        </td></tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div class="tab-pane fade {% if tab_activo == 'maestros' %}show active{% endif %}" id="tab-maestros">
               <div class="row g-0">
                 {# Formulario #}
@@ -629,8 +507,9 @@
 <script src="{% static 'salidas_bano/js/index.js' %}?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta19/dist/js/tabler.min.js"></script>
 {# <--- hecho por claude code (03-nov-2026): arma la barra superior Horizon desde el sidebar-fuente #}
-<script src="{% static 'js/tc_shell.js' %}?v=9"></script>
-<script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=13"></script>
+<script src="{% static 'js/tc_shell.js' %}?v=10"></script>
+{% include '_canal.html' %}
+<script src="{% static 'salidas_bano/js/salidas_bano.js' %}?v=15"></script>
 <script src="{% static 'salidas_bano/js/salidas_kanban.js' %}?v=3"></script>{# <--- hecho por claude code (04-nov-2026): vista Tablero (Kanban) #}
 <script src="{% static 'salidas_bano/js/salidas_alerta.js' %}?v=5"></script>
 {# <--- hecho por claude code: footer unificado #}

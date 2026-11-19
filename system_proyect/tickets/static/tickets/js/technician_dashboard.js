@@ -34,6 +34,13 @@ $(function(){
     'Pendiente':  'bg-warning-lt text-warning',
   };
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): XSS — el chat lo escribe el usuario; se escapa antes de pintarlo con innerHTML
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
+    });
+  }
+
   function tipoClass(tipo) {
     if (tipo === 'tecnico') return 'bm-tecnico';
     if (tipo === 'sistema') return 'bm-sistema';
@@ -47,8 +54,8 @@ $(function(){
       const cls  = tipoClass(c.tipo);
       return `
         <div class="${isMe ? 'chat-row-right' : ''}">
-          <div class="chat-meta ${isMe ? 'right' : ''}">${c.autor} · ${c.fecha}</div>
-          <div class="chat-bubble-modal ${cls}">${c.mensaje.replace(/\n/g,'<br>')}</div>
+          <div class="chat-meta ${isMe ? 'right' : ''}">${escHtml(c.autor)} · ${escHtml(c.fecha)}</div>
+          <div class="chat-bubble-modal ${cls}">${escHtml(c.mensaje).replace(/\n/g,'<br>')}</div>
         </div>`;
     }).join('');
   }
@@ -126,10 +133,19 @@ $(function(){
 
 // <--- hecho por claude code: popovers de la columna Descripción (hover). Perezoso porque
 // DataTables pagina y las filas ocultas no existen al cargar.
-document.addEventListener('mouseenter', function(e){
-  const el = e.target.closest && e.target.closest('.td-desc');
-  if (!el || typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
-  if (!bootstrap.Popover.getInstance(el)) {
-    bootstrap.Popover.getOrCreateInstance(el, { container: 'body', sanitize: false }).show();
+// <--- hecho por claude code (seguridad 05-nov-2026): la descripción es TEXTO del que envía el ticket (también anónimos): html:false (Bootstrap usa textContent) y se lee con getAttribute de data-desc, que no es data-bs-* (Bootstrap no la pasa por JSON.parse/decodeURIComponent). Sin data-bs-toggle: Tabler ya no lo auto-inicializa.
+(function(){
+  function abrirPopDesc(e){
+    const el = e.target && e.target.closest && e.target.closest('.td-desc');
+    if (!el || typeof bootstrap === 'undefined' || !bootstrap.Popover) return;
+    if (!bootstrap.Popover.getInstance(el)) {
+      bootstrap.Popover.getOrCreateInstance(el, {
+        container: 'body', html: false, trigger: 'hover focus', placement: 'top',
+        customClass: 'td-desc-pop',
+        content: function(){ return el.getAttribute('data-desc') || ''; }
+      }).show();
+    }
   }
-}, true);
+  document.addEventListener('mouseenter', abrirPopDesc, true);
+  document.addEventListener('focusin', abrirPopDesc, true);
+})();

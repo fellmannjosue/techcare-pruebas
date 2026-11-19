@@ -140,7 +140,8 @@
               <td><span class="badge bg-{{ r.estado_color }}-lt text-{{ r.estado_color }}"><i class="ti {{ r.estado_icono }} me-1"></i>{{ r.get_estado_display }}</span></td>
               <td class="text-secondary small">{{ r.comentario_soporte|default:"—" }}</td>
               <td class="text-end">
-                {% if r.puede_cancelar %}
+                {# <--- hecho por claude code (seguridad 05-nov-2026): cancelable lo calcula la vista con el usuario (mismo criterio que la vista cancelar) #}
+                {% if r.cancelable %}
                 <form method="post" action="{% url 'datashow:cancelar' r.pk %}" class="d-inline ds-cancelar">
                   {% csrf_token %}
                   <button class="btn btn-sm btn-ghost-danger"><i class="ti ti-ban me-1"></i>Cancelar</button>

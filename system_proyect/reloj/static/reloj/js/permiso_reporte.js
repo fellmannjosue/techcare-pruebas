@@ -39,6 +39,12 @@
 
   function tipoColor(tipo){ return TIPO_COLORS[tipo] || '#e9ecef'; }
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): escapa el texto guardado (razón del permiso) antes de pintarlo con innerHTML (XSS almacenado)
+  function escPermisoRep(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   // ── Renderizar página del historial ──
   function renderPagina() {
     const tbody  = document.getElementById('mhp-tbody');
@@ -70,14 +76,14 @@
         : '<span class="text-muted">—</span>';
       const tr = document.createElement('tr');
       tr.innerHTML =
-        '<td class="small">' + fechaDisplay + '</td>' +
-        '<td><span class="badge" style="background:' + tipoColor(p.tipo) + ';color:#333">' + p.label + '</span></td>' +
+        '<td class="small">' + escPermisoRep(fechaDisplay) + '</td>' +
+        '<td><span class="badge" style="background:' + escPermisoRep(tipoColor(p.tipo)) + ';color:#333">' + escPermisoRep(p.label) + '</span></td>' +
         '<td class="text-center">' + diasCell  + '</td>' +
         '<td class="text-center">' + horasCell + '</td>' +
-        '<td class="text-muted small">' + (p.razon || '—') + '</td>' +
+        '<td class="text-muted small">' + escPermisoRep(p.razon || '—') + '</td>' +
         '<td class="text-center">' +
           (CAN_DELETE
-            ? '<button class="btn btn-xs btn-outline-danger p-0 btn-del-hist" data-pk="' + p.pk + '" title="Eliminar" style="width:22px;height:22px;line-height:1.4"><i class="ti ti-trash" style="font-size:.7rem"></i></button>'
+            ? '<button class="btn btn-xs btn-outline-danger p-0 btn-del-hist" data-pk="' + escPermisoRep(p.pk) + '" title="Eliminar" style="width:22px;height:22px;line-height:1.4"><i class="ti ti-trash" style="font-size:.7rem"></i></button>'
             : '') +
         '</td>';
       tbody.appendChild(tr);

@@ -4,7 +4,9 @@ from django.conf import settings
 
 
 class PeriodoEscolar(models.Model):
-    """Parcial con fechas — configurable manualmente por el admin."""
+    """<--- hecho por claude code (06-nov-2026): YA NO SE USA. Salidas al Baño toma el Período Escolar general
+    (conducta.PeriodoEscolarConducta). La tabla `sb_periodo_escolar` se conserva solo como respaldo histórico."""
+    SIN_ADMIN = True   # no sale en /admin/ (core/admin_auto lo respeta)
     # <--- hecho por claude code: 'ambos' = Colegio + Bachillerato, NUNCA incluye CFP
     AREA_CHOICES = [
         ('colegio',      'Colegio'),
@@ -89,10 +91,12 @@ class SalidaBano(models.Model):
     area        = models.CharField("Área", max_length=20, choices=AREA_CHOICES)
 
     # ── Período escolar ────────────────────────────────────────────────────
+    # <--- hecho por claude code (06-nov-2026): usa el Período Escolar GENERAL (Configuración Académica). Antes era
+    # PeriodoEscolar propio con CASCADE (borrar un período borraba sus salidas); ahora PROTECT.
     periodo     = models.ForeignKey(
-        PeriodoEscolar,
-        on_delete=models.CASCADE,
-        related_name='salidas',
+        'conducta.PeriodoEscolarConducta',
+        on_delete=models.PROTECT,
+        related_name='salidas_bano',
         verbose_name='Período',
     )
 

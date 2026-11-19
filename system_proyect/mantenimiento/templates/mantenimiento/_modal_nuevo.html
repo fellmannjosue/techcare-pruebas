@@ -33,6 +33,42 @@
             <button type="button" class="btn btn-outline-primary mant-equipo-btn" data-equipo="prestamo"><i class="ti ti-transfer-out me-1"></i>Préstamo de equipo</button>{# <--- hecho por claude code (16-oct-2026) #}
           </div>
 
+          {# <--- hecho por claude code (02-nov-2026): ¿Para qué equipos? — General vs un laboratorio completo (una sola ficha) #}
+          <div class="row g-2 mb-1 d-none" id="ambito-equipo">
+            <div class="col-12"><div class="hr-text text-primary"><i class="ti ti-building-warehouse me-1"></i>¿Para qué equipos?</div></div>
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-3">
+                <label class="form-check form-switch mb-0">
+                  <input type="checkbox" class="form-check-input chk-ambito" data-lab="" id="chk-ambito-general" checked>
+                  <span class="form-check-label fw-semibold"><i class="ti ti-device-desktop me-1"></i>Computadoras en general</span>
+                </label>
+                {% for lab in laboratorios %}
+                <label class="form-check form-switch mb-0">
+                  <input type="checkbox" class="form-check-input chk-ambito" data-lab="{{ lab.clave }}"
+                         id="chk-ambito-{{ lab.clave }}" data-label="{{ lab.label }}" data-area="{{ lab.area_display }}" data-n="{{ lab.n }}">
+                  <span class="form-check-label fw-semibold text-indigo"><i class="ti ti-flask me-1"></i>{{ lab.label }}
+                    <span class="badge bg-indigo-lt ms-1">{{ lab.n }}</span></span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="form-hint mt-1">Marca un laboratorio para registrar <b>una sola ficha</b> de todo el laboratorio (no se elige computadora).</div>
+            </div>
+            {{ form.laboratorio }}
+          </div>
+
+          {# Aviso del laboratorio elegido (reemplaza la selección de computadora) #}
+          <div class="mb-2 d-none" id="lab-banner">
+            <div class="p-3 rounded" style="background:var(--tblr-indigo-lt,#eef2ff);border:1px solid var(--tblr-indigo,#6366f1)">
+              <div class="d-flex align-items-center">
+                <i class="ti ti-flask me-2" style="font-size:1.7rem;color:var(--tblr-indigo,#6366f1)"></i>
+                <div>
+                  <div class="fw-bold" id="lab-banner-titulo">Laboratorio</div>
+                  <div class="text-muted small" id="lab-banner-sub">Se registrará una sola ficha para todo el laboratorio.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {# ───────── Bloque COMPUTADORA ───────── #}
           <div class="row g-3 equipo-computadora">
 
@@ -63,19 +99,19 @@
             </div>
 
             {# Computadora dropdown #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold">Computadora</label>
               {{ form.computadora }}
             </div>
 
             {# Modelo (auto-fill) #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold">Modelo</label>
               {{ form.model }}
             </div>
 
             {# Serie con checkbox #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold d-flex align-items-center gap-2">
                 Serie
                 <span class="form-check form-check-inline mb-0 ms-1">
@@ -87,19 +123,19 @@
             </div>
 
             {# Asignado a (auto-fill) #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold">Nombre de la persona</label>
               <input type="text" id="mant-asignado" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
 
             {# Área (auto-fill) #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold">Área</label>
               <input type="text" id="mant-area" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
 
             {# Grado (auto-fill) #}
-            <div class="col-md-4">
+            <div class="col-md-4 js-campo-comp">
               <label class="form-label fw-semibold">Grado</label>
               <input type="text" id="mant-grado" class="form-control bg-light text-muted" readonly placeholder="Auto desde computadora">
             </div>
@@ -295,6 +331,9 @@
             <div class="col-md-7">
               <label class="form-check"><span class="me-2">{{ form.ent_equipo }}</span><span class="form-check-label lbl-mov" data-ent="Se entrega el equipo" data-rec="Se recibe el equipo">Se entrega el equipo</span></label>
               <div class="ms-4 mb-2 small text-muted">Equipo: <span class="fw-semibold text-body" id="ent-equipo-detalle">— selecciona la computadora arriba —</span></div>
+              {# <--- hecho por claude code (13-nov-2026): computadoras del laboratorio elegido (lo llena maintenance_dashboard.js) #}
+              <div class="ms-4 mb-2 d-none" id="ent-lab-lista"><div class="ent-lab-lista border rounded small"></div></div>
+              {{ lab_equipos|json_script:"lab-equipos" }}
               <label class="form-check"><span class="me-2">{{ form.ent_mouse_teclado }}</span><span class="form-check-label lbl-mov" data-ent="Se le entrega mouse y teclado" data-rec="Se recibe mouse y teclado">Se le entrega mouse y teclado</span></label>
               <label class="form-check"><span class="me-2">{{ form.ent_televisor }}</span><span class="form-check-label lbl-mov" data-ent="Se le entrega televisor" data-rec="Se recibe televisor">Se le entrega televisor</span></label>
               <div class="ms-4 mb-2" id="ent-televisor-wrap" hidden>{{ form.televisor }}<div class="form-hint">Indica cuál televisor (del inventario).</div></div>
@@ -353,7 +392,7 @@
 
             {# Fotos – drop zone #}
             <div class="col-12">
-              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small">(hasta 5)</span></label>
+              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small" id="fotos-limite">(hasta 5)</span></label>
               <div id="drop-zone">
                 <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-1"></i>
                 <p class="mb-1 text-muted small">Arrastra imágenes aquí o haz clic para seleccionar</p>

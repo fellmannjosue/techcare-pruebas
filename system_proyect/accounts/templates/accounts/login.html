@@ -15,18 +15,10 @@
   <script>(function(){try{var t=localStorage.getItem('tc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
   <link rel="stylesheet" href="{% static 'portal_super/css/portal.css' %}?v=6">
   {% endif %}
-  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
+  {# <--- hecho por claude code (26-oct-2026, PRUEBAS): botón Novedades/actualización en el login (solo app .exe) #}
   {% if es_app_escritorio %}<link rel="stylesheet" href="{% static 'css/tc_updater_btn.css' %}?v=2">{% endif %}
 </head>
 <body class="login-bg d-flex align-items-center">
-  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
-  {% if es_app_escritorio %}
-  <div id="tc-upd-wrap-login">
-    <button type="button" class="tc-upd-pill" id="tc-upd-header" title="Novedades y actualización">
-      <i class="ti ti-sparkles me-1"></i><span id="tc-upd-label">Novedades</span>
-    </button>
-  </div>
-  {% endif %}
   <div class="container py-5">
     <div class="row justify-content-center">
       <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
@@ -132,7 +124,7 @@
                   <input class="form-check-input" type="checkbox" id="is_maestro" name="is_maestro">
                   <span class="form-check-label">Soy maestro</span>
                 </label>
-                {# <--- hecho por claude code (26-oct-2026): recordar usuario+contraseña 1 mes (para la app de escritorio) #}
+                {# <--- hecho por claude code (09-nov-2026): recordar usuario+contraseña 1 mes (portado de pruebas) #}
                 <label class="form-check cursor-pointer mt-1">
                   <input class="form-check-input" type="checkbox" id="rec_recordar">
                   <span class="form-check-label">Recordar mis datos <span class="text-muted small">(1 mes)</span></span>
@@ -173,14 +165,12 @@
   {% if bloqueo_temp or bloqueo_total %}
   <div id="login-config" hidden
        data-v0="{% url 'submit_ticket' %}"
-       data-v1="{{ bloqueo_username|escapejs }}"
+       data-v1="{{ bloqueo_username }}"{# <--- hecho por claude code (05-nov-2026): sin escapejs en data-* (salía ana\u002Dhn.org) #}
        data-v2="{{ bloqueo_temp|default:0 }}"></div>
-  <script src="{% static 'accounts/js/login_bloqueo.js' %}?v=2" defer></script>
+  <script src="{% static 'accounts/js/login_bloqueo.js' %}?v=3" defer></script>
   {% endif %}
   <script src="{% static 'accounts/js/login.js' %}?v=3" defer></script>
-  {# <--- hecho por claude code (26-oct-2026): recordar usuario+contraseña 1 mes (app de escritorio) #}
   <script src="{% static 'accounts/js/recordar_login.js' %}?v=1" defer></script>
-  {# <--- hecho por claude code (26-oct-2026): botón Novedades/actualización en el login (solo app .exe) #}
   {% if es_app_escritorio %}<script src="{% static 'js/tc_updater_btn.js' %}?v=1" defer></script>{% endif %}
 {% if True %}
 <script src="{% static 'portal_super/js/portal_theme.js' %}?v=1"></script>

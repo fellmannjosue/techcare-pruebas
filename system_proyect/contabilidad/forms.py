@@ -184,6 +184,9 @@ class CuentaContableForm(forms.ModelForm):
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): con movimientos, código/tipo/naturaleza quedan fijos (cambiarlos reescribía la balanza y los estados ya emitidos)
+    CAMPOS_FIJOS_CON_MOVIMIENTOS = ('codigo', 'tipo', 'naturaleza')
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         qs = CuentaContable.objects.filter(es_detalle=False)
@@ -192,6 +195,11 @@ class CuentaContableForm(forms.ModelForm):
         self.fields['padre'].queryset = qs
         self.fields['padre'].required = False
         self.fields['naturaleza'].required = False
+        # disabled = Django ignora lo que llegue en el POST y conserva el valor guardado (candado del servidor, no solo visual)
+        self.bloqueada = bool(self.instance.pk and self.instance.movimientos.exists())
+        if self.bloqueada:
+            for nombre in self.CAMPOS_FIJOS_CON_MOVIMIENTOS:
+                self.fields[nombre].disabled = True
 
     def clean(self):
         d = super().clean()

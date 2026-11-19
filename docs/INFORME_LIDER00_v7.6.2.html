@@ -1,0 +1,200 @@
+<title>Cierre v7.6.2 — Seguridad y Red</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#F7F9FB; --surface:#FFFFFF; --ink:#1B2733; --muted:#6B7A88; --line:#D9E1E8;
+    --accent:#0E7C86; --accent-ink:#FFFFFF; --accent-soft:#E3F2F3;
+    --ok:#2E8B57; --ok-soft:#E4F3EA; --warn:#C77800; --warn-soft:#FBF0DC; --crit:#B3261E; --crit-soft:#F9E3E1;
+    --code-bg:#EEF2F5;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0F1519; --surface:#161E24; --ink:#E6ECF1; --muted:#98A6B3; --line:#2A3540;
+      --accent:#3FB2BB; --accent-ink:#0F1519; --accent-soft:#12303A;
+      --ok:#5CC48A; --ok-soft:#173224; --warn:#E7A23D; --warn-soft:#3A2A10; --crit:#F08A80; --crit-soft:#3F1C19;
+      --code-bg:#1C262E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F1519; --surface:#161E24; --ink:#E6ECF1; --muted:#98A6B3; --line:#2A3540;
+    --accent:#3FB2BB; --accent-ink:#0F1519; --accent-soft:#12303A;
+    --ok:#5CC48A; --ok-soft:#173224; --warn:#E7A23D; --warn-soft:#3A2A10; --crit:#F08A80; --crit-soft:#3F1C19;
+    --code-bg:#1C262E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55}
+  .wrap{max-width:74rem;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+  h1,h2,h3{font-family:"IBM Plex Sans","Source Sans 3",sans-serif;text-wrap:balance;margin:0}
+  h1{font-size:2rem;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  h2{font-size:1.35rem;font-weight:600;margin-top:.25rem}
+  h3{font-size:1.05rem;font-weight:600}
+  p{max-width:68ch;margin:0}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .mono{font-family:"IBM Plex Mono",monospace;font-size:.9em;font-variant-numeric:tabular-nums}
+  code{font-family:"IBM Plex Mono",monospace;font-size:.86em;background:var(--code-bg);padding:.1em .4em;border-radius:4px}
+  header{display:grid;gap:.75rem;padding-bottom:1.75rem;border-bottom:2px solid var(--accent)}
+  .meta{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;color:var(--muted);font-size:.95rem}
+  .meta b{color:var(--ink);font-weight:600}
+  .lead{max-width:68ch;font-size:1.08rem}
+  section{display:grid;gap:1rem;padding:2rem 0;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem;margin-top:.5rem}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem;display:grid;gap:.15rem;border-top:3px solid var(--accent)}
+  .kpi.ok{border-top-color:var(--ok)} .kpi.warn{border-top-color:var(--warn)} .kpi.crit{border-top-color:var(--crit)}
+  .kpi .n{font-family:"IBM Plex Sans",sans-serif;font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+  .kpi .l{color:var(--muted);font-size:.85rem}
+  .pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:.2em .6em;border-radius:999px;border:1px solid transparent}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.95rem}
+  th,td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--bg)}
+  tr:last-child td{border-bottom:0}
+  td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+  ul{margin:0;padding-left:1.2rem;display:grid;gap:.4rem;max-width:72ch}
+  li::marker{color:var(--accent)}
+  .callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:1rem 1.15rem;display:grid;gap:.4rem;max-width:72ch}
+  .callout.crit{border-left-color:var(--crit)} .callout.acc{border-left-color:var(--accent)}
+  .decisions{display:grid;gap:.75rem;counter-reset:d}
+  .dec{display:grid;grid-template-columns:2.4rem 1fr;gap:.9rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem 1.1rem}
+  .dec .idx{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--accent);font-size:1.15rem;line-height:1.3}
+  .dec h3{margin-bottom:.25rem}
+  .dec p{font-size:.97rem}
+  .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1rem}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem 1.15rem;display:grid;gap:.5rem}
+  footer{color:var(--muted);font-size:.9rem;padding-top:1.5rem}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">TechCare · Informe para 00-1 Líder</div>
+  <h1>Cierre de release 7.6.2: seguridad de dependencias y apertura operativa del módulo de Red</h1>
+  <p class="lead">Se atendieron las 110 alertas de seguridad que GitHub reportaba sobre el proyecto y se habilitaron las cuatro funciones pendientes del ANA Network Manager: acceso por grupos, monitoreo continuo, migración real de VLAN y API/exportación. Todo está publicado, respaldado y corriendo en producción.</p>
+  <div class="meta">
+    <span>Fecha <b>26 de agosto de 2026</b></span>
+    <span>Versión <b class="mono">7.6.2</b> (release menor)</span>
+    <span>Commit <b class="mono">ab43383</b></span>
+    <span>Servidor <b>Apache reiniciado 19:58, arranque limpio</b></span>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">Resumen en 20 segundos</div>
+  <div class="kpis">
+    <div class="kpi ok"><span class="n">110 → ~1</span><span class="l">alertas de seguridad (al re-escanear GitHub)</span></div>
+    <div class="kpi ok"><span class="n">0</span><span class="l">críticas y altas restantes</span></div>
+    <div class="kpi"><span class="n">7</span><span class="l">librerías Python actualizadas en producción</span></div>
+    <div class="kpi"><span class="n">4 / 4</span><span class="l">funciones de Red entregadas</span></div>
+    <div class="kpi warn"><span class="n">2</span><span class="l">decisiones que solo puede tomar Dirección</span></div>
+    <div class="kpi crit"><span class="n">1</span><span class="l">equipo de red caído (Casa Azul)</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Seguridad de dependencias</h2>
+  <p>El aviso de GitHub decía <em>“110 vulnerabilidades (4 críticas, 45 altas, 46 moderadas, 15 bajas)”</em>. Al auditar localmente el origen real fue muy distinto al que sugería el número:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Origen</th><th>Qué era</th><th>¿Exponía al sistema?</th><th>Acción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mono">frontend/</span> y <span class="mono">frontend_super/</span></td><td>Dos prototipos Next.js/React nunca desplegados. Concentraban <b>las 4 críticas</b> y la mayoría de las altas, y cada aviso salía duplicado (uno por carpeta).</td><td><span class="pill ok">No</span> sin build, Apache no los servía</td><td>Retirados del repositorio (respaldo conservado)</td></tr>
+      <tr><td><span class="mono">requirements.txt</span></td><td>Librerías Python del sistema real con parches pendientes.</td><td><span class="pill warn">Sí, potencialmente</span></td><td>Actualizadas en producción con respaldo previo</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Librerías actualizadas</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Librería</th><th>Antes</th><th>Ahora</th><th>Avisos cerrados</th><th>Por qué importaba</th></tr></thead>
+    <tbody>
+      <tr><td>Django</td><td class="num">6.0.5</td><td class="num">6.0.8</td><td class="num">9</td><td>Framework central, expuesto a Internet</td></tr>
+      <tr><td>Pillow</td><td class="num">12.2.0</td><td class="num">12.3.0</td><td class="num">20</td><td>Procesa las fotos que suben tickets, cámaras y planos</td></tr>
+      <tr><td>PyJWT</td><td class="num">2.12.1</td><td class="num">2.13.0</td><td class="num">8</td><td>Tokens de la API de cámaras</td></tr>
+      <tr><td>sqlparse</td><td class="num">0.5.5</td><td class="num">0.6.0</td><td class="num">4</td><td>Dependencia de Django</td></tr>
+      <tr><td>cryptography</td><td class="num">49.0.0</td><td class="num">50.0.0</td><td class="num">1</td><td>Cifrado</td></tr>
+      <tr><td>idna · tablib</td><td class="num">3.13 · 3.9.0</td><td class="num">3.15 · 3.10.0</td><td class="num">2</td><td>Utilidades</td></tr>
+    </tbody>
+  </table></div>
+  <p>Verificación tras actualizar: sin conflictos de paquetes, sin migraciones pendientes, 20 pruebas automatizadas en verde y todos los módulos respondiendo. Se añadió <code>.github/dependabot.yml</code> para que a partir de ahora GitHub proponga las actualizaciones como PRs semanales en lugar de acumular alertas.</p>
+  <div class="callout acc">
+    <b>Lo único que queda abierto: <span class="mono">weasyprint</span></b>
+    <p>Tiene un aviso <b>sin parche publicado</b> todavía. El riesgo es bajo: solo convierte plantillas internas de Reloj y CFP a PDF, nunca contenido escrito por usuarios. Dependabot avisará cuando salga la corrección.</p>
+  </div>
+  <p class="eyebrow" style="margin-top:.25rem">Nota: GitHub seguirá mostrando “110” unos minutos hasta que re-escanee el commit nuevo; el conteo real se confirmará entonces.</p>
+</section>
+
+<section>
+  <h2>Módulo de Red: las cuatro funciones entregadas</h2>
+  <div class="two">
+    <div class="card">
+      <span class="pill ok">Listo</span>
+      <h3>Acceso por grupos</h3>
+      <p>El módulo deja de ser exclusivo del superadministrador. Dos grupos nuevos: <b><span class="mono">red</span></b> (ver y exportar, pensado para soporte/TI) y <b><span class="mono">red_admin</span></b> (administrar y aprobar migraciones, para el responsable). Las 33 pantallas que modifican datos quedan bloqueadas para quien solo tiene lectura; probado con usuarios de cada perfil.</p>
+    </div>
+    <div class="card">
+      <span class="pill ok">Listo</span>
+      <h3>Monitoreo continuo</h3>
+      <p>Cada 15 minutos el servidor hace ping a todos los equipos con IP y guarda estado y latencia. Avisa por la campana y correo <b>solo cuando un equipo cae o vuelve</b>, para no generar ruido. Durante la puesta en marcha se detectó y corrigió un error de configuración del cron.</p>
+    </div>
+    <div class="card">
+      <span class="pill ok">Listo</span>
+      <h3>Migración real de VLAN</h3>
+      <p>El planificador ya ejecuta: se eligen los equipos, se exige un motivo y una confirmación explícita, y solo puede hacerlo quien tiene el permiso <em>Aprobar migraciones</em>. Se procesa equipo por equipo: libera la IP anterior, asigna la primera libre del destino y actualiza el registro; si uno falla, se revierte solo ese. Todo queda en auditoría. Probado de punta a punta.</p>
+    </div>
+    <div class="card">
+      <span class="pill ok">Listo</span>
+      <h3>Exportación y API</h3>
+      <p>La topología se exporta ahora en <b>SVG</b> y <b>PDF</b> además de PNG. Nueva API de solo lectura en <code>/red/api/v1/</code> (VLANs, IPs, dispositivos, switches, enlaces, ubicaciones, gabinetes) con búsqueda, filtros y acceso por sesión o por token, para integraciones con monitoreo u otros sistemas.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Estado real de la red hoy</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Indicador</th><th>Valor</th><th>Lectura</th></tr></thead>
+    <tbody>
+      <tr><td>Equipos monitoreados</td><td class="num">11</td><td><span class="pill ok">9 en línea</span> <span class="pill crit">2 caídos</span></td></tr>
+      <tr><td>Equipo caído</td><td>Cisco SF350 · Casa Azul <span class="mono">192.168.10.56</span></td><td>No responde ni a ping ni a los puertos 22/80/443: <b>está apagado o desconectado</b>, no es un bloqueo de ICMP. Conviene revisarlo físicamente.</td></tr>
+      <tr><td>VLANs definidas</td><td class="num">13</td><td>Todas en estado “creada”; ninguna marcada aún como producción</td></tr>
+      <tr><td>Direcciones IP generadas</td><td class="num">3 289</td><td>Todas libres: el inventario de equipos con su VLAN/IP aún no se ha cargado (0 de 6 dispositivos tienen VLAN)</td></tr>
+      <tr><td>Gabinetes</td><td class="num">20</td><td>Datacenter Rack 1 y 2 modelados con fotos reales; 8 gabinetes siguen como marcadores “por ubicar”</td></tr>
+    </tbody>
+  </table></div>
+  <p>Consecuencia práctica: el monitoreo y la migración de VLAN ya funcionan, pero mostrarán poco hasta que se cargue el inventario de equipos con su VLAN e IP. Es trabajo de carga de datos, no de desarrollo.</p>
+</section>
+
+<section>
+  <h2>Decisiones que requieren a Dirección</h2>
+  <p>Ordenadas por urgencia. Ninguna está resuelta porque exceden lo que corresponde decidir desde desarrollo.</p>
+  <div class="decisions">
+    <div class="dec"><span class="idx">1</span><div>
+      <h3>Rotar credenciales expuestas en el historial del repositorio <span class="pill crit">Seguridad</span></h3>
+      <p>Al auditar se encontró que el archivo <span class="mono">.env</span> fue commiteado en marzo de 2025 con la clave secreta de Django, la contraseña de la base de datos y la del correo. Hoy está ignorado y fuera del repositorio, pero <b>sigue recuperable en la historia de Git</b>. Recomendación: cambiar esas tres credenciales y, con autorización, limpiar el historial. No se reescribió nada sin aprobación.</p>
+    </div></div>
+    <div class="dec"><span class="idx">2</span><div>
+      <h3>Nombrar a las personas de los grupos de Red <span class="pill warn">Acceso</span></h3>
+      <p>Los grupos <span class="mono">red</span> (lectura) y <span class="mono">red_admin</span> (administración) existen y están probados, pero <b>están vacíos</b>. Por perfil actual, los candidatos técnicos son G. Lorenzo y Yeny Lagos; falta definir quién es el responsable con permiso de administrar y aprobar migraciones.</p>
+    </div></div>
+    <div class="dec"><span class="idx">3</span><div>
+      <h3>Revisar el switch de Casa Azul</h3>
+      <p>Lleva sin responder desde al menos las 13:40 de hoy. El monitoreo avisará automáticamente cuando vuelva.</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Respaldo y trazabilidad</h2>
+  <ul>
+    <li>Respaldo de base de datos y del sistema antes del release, sincronizados a la PC de administración.</li>
+    <li>Copia del entorno Python previo a la actualización (<span class="mono">venv_pre_planA</span>, 80 MB) para revertir en minutos si hiciera falta.</li>
+    <li>Copia de los prototipos retirados (<span class="mono">prototipos_node_frontend</span>) por si se quisieran retomar.</li>
+    <li>Documentos en el repositorio: <span class="mono">docs/SEGURIDAD_DEPENDENCIAS_2026-08-26.md</span>, <span class="mono">red/README.md</span> (informe ejecutivo del módulo) y las órdenes de trabajo OT-E2-00 y OT-E2-02-A de la integración con SQL Server.</li>
+  </ul>
+  <div class="callout">
+    <b>Sobre el tipo de versión</b>
+    <p>El release tocó 49 archivos, por debajo del umbral de 50 acordado, así que salió como <b>versión menor (7.6.2)</b>: la ventana de novedades se muestra solo al superusuario y no a los maestros. Si Dirección prefiere comunicar estos cambios a todos, se puede publicar como versión general en el próximo ciclo.</p>
+  </div>
+</section>
+
+<footer>Elaborado desde el entorno de producción de TechCare. Todas las cifras se tomaron en vivo el 26/08/2026 a las 19:58.</footer>
+</div>

@@ -68,3 +68,7 @@
 .spn-btn:hover{border-color:var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);color:var(--tblr-body-color,#172033);text-decoration:none}
 .spn-foot__del{margin-left:auto}
 @media print{.spn-buscar,.spn-foot{display:none!important}}
+
+/* <--- hecho por claude code (06-nov-2026): estado del autoguardado */
+.spn-auto{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--tblr-secondary,#6b7689);margin-left:4px}
+.spn-auto.ok{color:#2b8a3e}.spn-auto.guardando{color:#2563eb}.spn-auto.mal{color:#c92a2a}

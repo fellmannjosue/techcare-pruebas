@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from core.audit_admin import AuditAdminMixin
 from .models import Ticket, TicketComment
+from .forms import TicketAdminForm, TicketCommentAdminForm   # <--- hecho por claude code (seguridad 05-nov-2026): lista blanca de adjuntos también en el admin
 
 class TicketCommentInline(admin.TabularInline):
     model = TicketComment
@@ -10,6 +11,7 @@ class TicketCommentInline(admin.TabularInline):
     fields = ('usuario', 'mensaje', 'fecha')
 
 class TicketAdmin(AuditAdminMixin):
+    form = TicketAdminForm   # <--- hecho por claude code (seguridad 05-nov-2026): valida el tipo del adjunto
     # <--- hecho por claude code (16-oct-2026): lista práctica — urgencia, estado, SLA, asignado, filtros y búsqueda
     list_display = ('ticket_id', 'name', 'grade', 'urgencia', 'status', 'sla', 'asignado_a', 'attachment_link', 'created_at')
     list_filter = ('status', 'urgencia', 'sin_sla', 'asignado_a', 'created_at')
@@ -29,11 +31,13 @@ class TicketAdmin(AuditAdminMixin):
     def attachment_link(self, obj):
         """Muestra el archivo adjunto como un enlace en el panel de administración."""
         if obj.attachment:
-            return format_html('<a href="{}" target="_blank">Ver Adjunto</a>', obj.attachment.url)
+            from django.urls import reverse   # <--- hecho por claude code (seguridad 05-nov-2026): por la vista con permiso, no por /media/
+            return format_html('<a href="{}" target="_blank">Ver Adjunto</a>', reverse('ticket_adjunto', args=[obj.pk]))
         return "No disponible"
     attachment_link.short_description = "Adjunto"
 
 class TicketCommentAdmin(AuditAdminMixin):
+    form = TicketCommentAdminForm   # <--- hecho por claude code (seguridad 05-nov-2026): valida el tipo del archivo
     list_display = ('ticket', 'usuario', 'mensaje', 'fecha')
     list_filter = ('ticket', 'usuario', 'fecha')
     search_fields = ('mensaje', 'usuario__username', 'ticket__ticket_id')

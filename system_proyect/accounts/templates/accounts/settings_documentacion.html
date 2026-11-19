@@ -1,0 +1,49 @@
+{% extends 'accounts/settings_base.html' %}
+{% load static %}
+{% block title %}Documentación{% endblock %}
+
+{% block settings_content %}
+{# <--- hecho por claude code (09-nov-2026): Configuración → Documentación (visor de docs/ del repositorio; accounts/views_documentacion.py) #}
+<link rel="stylesheet" href="{% static 'accounts/css/settings_documentacion.css' %}?v=3">
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-book me-2 text-indigo"></i>Documentación</h3>
+    <div class="card-options small text-secondary">{{ doc_total }} documento{{ doc_total|pluralize }} · solo lectura</div>
+  </div>
+  <div class="card-body py-2 small text-secondary">
+    Manuales, guías, planes y políticas de TechCare (carpeta <code>docs/</code> del sistema). Cada documento se puede descargar en PDF.
+  </div>
+</div>
+
+<div class="doc-layout">
+  <nav class="card doc-indice" aria-label="Índice de documentos">
+    <div class="card-body p-2">
+      {% for carpeta, lista in doc_grupos %}{# <--- hecho por claude code (10-nov-2026): índice en acordeón (details con el mismo name = uno abierto a la vez) #}
+      <details class="doc-grupo" name="doc-grupos"{% if carpeta == doc_carpeta_actual %} open{% endif %}>
+        <summary class="doc-carpeta"><i class="ti ti-folder me-1"></i><span>{{ carpeta }}</span><span class="doc-cuenta">{{ lista|length }}</span><i class="ti ti-chevron-down doc-flecha"></i></summary>
+        {% for d in lista %}
+        <a class="doc-item{% if d.rel == doc_actual %} activo{% endif %}" href="?doc={{ d.rel|urlencode }}" title="{{ d.rel }}">{{ d.titulo }}</a>
+        {% endfor %}
+      </details>
+      {% empty %}
+      <div class="text-secondary small p-2">No hay documentos en <code>docs/</code>.</div>
+      {% endfor %}
+    </div>
+  </nav>
+  <article class="card doc-contenido">
+    <div class="card-body">
+      {% if doc_actual %}
+      <div class="doc-barra">{# <--- hecho por claude code (10-nov-2026): descarga en PDF #}
+        <div class="doc-ruta"><i class="ti ti-file-text me-1"></i>docs/{{ doc_actual }}</div>
+        <div class="doc-acciones">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'settings_documentacion_pdf' %}?doc={{ doc_actual|urlencode }}"><i class="ti ti-file-type-pdf me-1"></i>Descargar PDF</a>
+          {% if doc_carpeta_raiz %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'settings_documentacion_pdf' %}?carpeta={{ doc_carpeta_raiz|urlencode }}"><i class="ti ti-files me-1"></i>Toda la carpeta «{{ doc_carpeta_raiz }}» en un PDF</a>{% endif %}
+        </div>
+      </div>
+      <div class="doc-md">{{ doc_html|safe }}</div>{# <--- html generado por markdown-it con html=False (el HTML crudo del .md sale como texto) #}
+      {% endif %}
+    </div>
+  </article>
+</div>
+{% endblock %}

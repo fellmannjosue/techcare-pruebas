@@ -9,7 +9,8 @@
   <button class="btn btn-sm btn-firma-link text-white"
           style="background:#25D366;border-color:#25D366;"
           data-rid="{{ r.record_id }}"
-          data-link="{{ site_url }}{% url 'mantenimiento:firmar_publico' r.token_firma %}"
+          {# <--- hecho por claude code (seguridad 05-nov-2026): enlace con sello que caduca, lo arma la vista (r.link_firma) #}
+          data-link="{{ r.link_firma }}"
           data-mark="{% url 'mantenimiento:marcar_firma_solicitada' r.id %}"
           title="Enviar firma al maestro por WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>
   {% endif %}
@@ -26,6 +27,9 @@
   {% endif %}
   <button class="btn btn-sm btn-ghost-primary btn-editar-mant"
           data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+  {# <--- hecho por claude code (seguridad 05-nov-2026): Eliminar solo para quien puede borrar (superusuario o permiso delete_maintenancerecord) #}
+  {% if puede_eliminar %}
   <button class="btn btn-sm btn-ghost-danger btn-eliminar-mant"
           data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+  {% endif %}
 </td>

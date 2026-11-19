@@ -84,7 +84,6 @@
               <label class="form-label fw-bold">Estado del Reporte</label>
               <select name="estado" class="form-select">
                 <option value="enviado"   {% if reporte.estado == "enviado"   %}selected{% endif %}>Enviado</option>
-                <option value="revisando" {% if reporte.estado == "revisando" %}selected{% endif %}>Revisando</option>
                 <option value="revisado"  {% if reporte.estado == "revisado"  %}selected{% endif %}>Revisado</option>
                 <option value="aprobado"  {% if reporte.estado == "aprobado"  %}selected{% endif %}>Aprobado</option>
               </select>
@@ -115,6 +114,6 @@
 
 {% block extra_js %}
   <link rel="stylesheet" href="{% static 'conducta/css/comentario_rico.css' %}?v=1">
-  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=1"></script>
+  <script src="{% static 'conducta/js/comentario_rico.js' %}?v=3"></script>
   <script src="{% static 'conducta/js/editor_reporte.js' %}?v=20"></script>
 {% endblock %}

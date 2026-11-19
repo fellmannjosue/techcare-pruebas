@@ -11,11 +11,12 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from inventario.models import Computadora, Monitor, Televisor, Impresora, Router, DataShow, ItemGeneral
+from inventario.permisos import puede_inventario   # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que las vistas de Inventario
 from mantenimiento.models import MaintenanceRecord
 
 
 def _puede_inventario(u):
-    return u.is_superuser or u.has_perm('inventario.view_item') or u.groups.filter(name='inventario').exists()
+    return puede_inventario(u)   # <--- hecho por claude code (seguridad 05-nov-2026): antes 'inventario.view_item', permiso que no existe
 
 
 def _puede_mantenimiento(u):

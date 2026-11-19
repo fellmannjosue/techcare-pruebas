@@ -20,3 +20,23 @@
 .ig-filtro-campo .form-label { font-size: .72rem; font-weight: 700; margin-bottom: 3px; color: var(--ps-muted, #64748b); }
 .ig-filtro-acc { display: flex; gap: 6px; }
 @media (max-width: 600px) { .ig-filtro-campo { flex: 1 1 100%; } }
+/* <--- hecho por claude code (12-nov-2026): tipo del artículo (checkboxes) y pestañas */
+.ig-tipos{display:flex;flex-wrap:wrap;gap:.35rem 1rem}
+.ig-tipo{margin:0}
+.ig-tabs-wrap{padding-bottom:0;border-bottom:0}
+.ig-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden}
+.ig-tabs .nav-link{white-space:nowrap}
+/* <--- hecho por claude code (12-nov-2026): «Mostrar» y «Buscar» quedaban montados sobre las pestañas */
+.ig-tabs.card-header-tabs{margin-bottom:0}
+.ig-tabs-wrap + .card-body{padding-top:.9rem!important}
+.ig-tabs-wrap + .card-body .dataTables_length,.ig-tabs-wrap + .card-body .dataTables_info,
+.ig-tabs-wrap + .card-body .dt-length,.ig-tabs-wrap + .card-body .dt-info{padding-left:1rem}
+.ig-tabs-wrap + .card-body .dataTables_filter,.ig-tabs-wrap + .card-body .dataTables_paginate,
+.ig-tabs-wrap + .card-body .dt-search,.ig-tabs-wrap + .card-body .dt-paging{padding-right:1rem}
+.ig-tabs-wrap + .card-body .dataTables_wrapper > .row:first-child,.ig-tabs-wrap + .card-body .dt-layout-row:first-child{margin-bottom:.6rem}
+.ig-tabs-wrap + .card-body .dataTables_wrapper > .row:last-child,.ig-tabs-wrap + .card-body .dt-layout-row:last-child{padding-block:.6rem}
+/* <--- hecho por claude code (12-nov-2026): barra de selección múltiple */
+.ig-lote{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem;padding:.6rem 1rem;background:var(--tblr-primary-lt,#e8f0fe);border-bottom:1px solid var(--tblr-border-color,#e6e7e9)}
+.ig-lote .form-select{width:auto;min-width:10rem}
+.ig-lote-n{font-size:.875rem}
+#ig-tabla tbody tr.ig-fila-sel > td{background:var(--tblr-primary-lt,#e8f0fe)}

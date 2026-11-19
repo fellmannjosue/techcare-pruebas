@@ -41,3 +41,16 @@ def es_multi_panel(user):
     if not user.is_authenticated or user.is_superuser or not user.is_staff:
         return False
     return len(panel_buckets(user)) >= 2 or maestro_dos_areas(user)
+
+
+# <--- hecho por claude code (06-nov-2026, pedido del usuario): quien SOLO tiene Mantenimiento Mecánico (sus grupos son
+# todos del módulo) tiene como Panel Principal el hub del módulo, no un menú con una sola tarjeta.
+GRUPOS_MANT_MECANICO = {'mantenimiento_mecanico', 'mantenimiento_mecanico_lectura', 'mantenimiento_mecanico_alertas',
+                        'vehiculos_registro', 'vehiculos_kilometraje', 'vehiculos_auditoria', 'vehiculos_alertas'}
+
+
+def solo_mant_mecanico(user):
+    if not user.is_authenticated or user.is_superuser:
+        return False
+    grupos = set(user.groups.values_list('name', flat=True))
+    return bool(grupos) and grupos <= GRUPOS_MANT_MECANICO and bool(grupos - {'mantenimiento_mecanico_alertas', 'vehiculos_alertas'})

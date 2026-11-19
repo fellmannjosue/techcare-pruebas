@@ -198,6 +198,13 @@ class SponsorForm(EstiloBootstrapMixin, forms.ModelForm):
         for f in ('title', 'directed'):
             if f in self.fields:
                 self.fields[f].required = False
+        # <--- hecho por claude code (06-nov-2026): Padrino CH/D = código del país (0 = ninguno), lista desde la tabla de países
+        if 'padrino_ch_d' in self.fields:
+            from .models import Country
+            opciones = [(0, '— Ninguno —')] + [(c.pk, c.name) for c in Country.objects.order_by('name')]
+            self.fields['padrino_ch_d'] = forms.TypedChoiceField(
+                label='Padrino CH/D', choices=opciones, coerce=int, empty_value=0, required=False,
+                widget=forms.Select(attrs={'class': 'form-control'}))
         if 'city' in self.fields:
             self.fields['city'].queryset = City.objects.select_related('country').order_by('name')
             # Muestra ciudad, código postal y país en la misma opción (antes lo hacía un JS aparte)

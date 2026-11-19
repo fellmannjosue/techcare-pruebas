@@ -10,6 +10,7 @@ urlpatterns = [
     path('ejecucion/guardar/', views.ejecucion_guardar, name='ejecucion_guardar'),
     path('ejecucion/<int:pk>/', views.ejecucion_detalle, name='ejecucion_detalle'),
     path('ejecucion/<int:pk>/eliminar/', views.ejecucion_eliminar, name='ejecucion_eliminar'),
+    path('ejecucion/<int:pk>/perdida/', views.ejecucion_perdida, name='ejecucion_perdida'),  # <--- hecho por claude code (06-nov-2026)
 
     path('informe/<int:pk>/', views.informe_form, name='informe_form'),
     path('informe/<int:pk>/pdf/', views.informe_pdf, name='informe_pdf'),

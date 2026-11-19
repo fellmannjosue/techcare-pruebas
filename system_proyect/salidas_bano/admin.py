@@ -1,12 +1,7 @@
 # <--- hecho por claude code: admin salidas baño
 from django.contrib import admin
-from .models import PeriodoEscolar, MaestroClase, SalidaBano
-
-@admin.register(PeriodoEscolar)
-class PeriodoEscolarAdmin(admin.ModelAdmin):
-    list_display  = ('nombre', 'parcial', 'anio', 'area', 'fecha_inicio', 'fecha_fin', 'activo')
-    list_editable = ('activo',)
-    list_filter   = ('area', 'anio', 'activo')
+from .models import MaestroClase, SalidaBano
+# <--- hecho por claude code (06-nov-2026): sin admin de PeriodoEscolar — Salidas usa el Período Escolar general
 
 @admin.register(MaestroClase)
 class MaestroClaseAdmin(admin.ModelAdmin):

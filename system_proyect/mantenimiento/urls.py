@@ -11,6 +11,8 @@ urlpatterns = [
     path('download/<int:record_id>/',  views.download_maintenance_pdf, name='download_maintenance_pdf'),
     path('control/reporte.pdf',        views.control_reporte_pdf,      name='control_reporte_pdf'),
     path('control/fichas.pdf',         views.control_fichas_pdf,       name='control_fichas_pdf'),
+    path('computadoras/fichas.pdf',    views.control_fichas_pdf, {'tipo': 'computadora'}, name='computadora_fichas_pdf'),   # <--- hecho por claude code (13-nov-2026)
+    path('recogidas/fichas.pdf',       views.control_fichas_pdf, {'tipo': 'recogida'}, name='recogida_fichas_pdf'),   # <--- hecho por claude code (13-nov-2026): todas las fichas de Recogidas en un PDF
     # <--- hecho por claude code (17-sep-2026): reportes PDF/Excel de Inspecciones, Entregas y Recogidas
     path('reporte/<str:tipo>.pdf',     views.reporte_tipo_pdf,         name='reporte_tipo_pdf'),
     path('reporte/<str:tipo>.xlsx',    views.reporte_tipo_excel,       name='reporte_tipo_excel'),
@@ -26,6 +28,7 @@ urlpatterns = [
     path('<int:pk>/ficha-firmada/subir/', views.firma_pdf_subir, name='firma_pdf_subir'),   # <--- hecho por claude code (21-oct-2026): subir firma en cualquier ficha
     path('<int:pk>/ficha-firmada/',       views.firma_pdf_ver,   name='firma_pdf_ver'),
     path('foto/<int:pk>/eliminar/', views.foto_eliminar, name='foto_eliminar'),   # <--- hecho por claude code (21-oct-2026): borrar foto de evidencia
+    path('foto/<int:pk>/', views.foto_ver, name='foto_ver'),   # <--- hecho por claude code (seguridad 05-nov-2026): la foto se sirve por la app con candado (no por /media/)
     path(
         'menu/',
         lambda request: redirect('/accounts/menu/'),

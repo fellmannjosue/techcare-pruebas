@@ -71,9 +71,10 @@
 {% endblock %}
 
 {% block extra_js %}
+{# <--- hecho por claude code (seguridad 05-nov-2026): el aviso llega por el contexto (la vista lo saca de la sesión), no por request.session #}
 <script type="application/json" id="inventario_list-data">
 {
-  "mensajeExito": "{% if request.session.mensaje_exito %}{{ request.session.mensaje_exito|escapejs }}{% endif %}"
+  "mensajeExito": "{% if mensaje_exito %}{{ mensaje_exito|escapejs }}{% endif %}"
 }
 </script>
 <script src="{% static 'enfermeria/js/inventario_list_page.js' %}?v=2"></script>

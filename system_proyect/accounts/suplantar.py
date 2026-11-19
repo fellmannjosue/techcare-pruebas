@@ -28,8 +28,9 @@ def suplantando(request):
 
 
 def _ip(request):
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-    return (ip.split(',')[0].strip() if ip else '') or None
+    # <--- hecho por claude code (09-nov-2026): REMOTE_ADDR; X-Forwarded-For lo controla el cliente
+    from core.seguridad_eventos import ip_cliente
+    return ip_cliente(request)
 
 
 def _motivo_no_permitido(super_user, destino):
@@ -65,6 +66,7 @@ def confirmar(request, pk):
     if request.method == 'POST' and not motivo:
         sup = request.user
         ultimo = destino.last_login
+        request._tc_suplantacion = True   # <--- (09-nov-2026) la señal de acceso no lo cuenta como si entrara el usuario
         login(request, destino, backend=_BACKEND)        # login() vacía la sesión del superusuario (otra cuenta)
         User.objects.filter(pk=destino.pk).update(last_login=ultimo)   # su "último acceso" no cambia por nosotros
         reg = Suplantacion.objects.create(superusuario=sup, usuario=destino, super_username=sup.username,
@@ -97,6 +99,7 @@ def volver(request):
     if not sup:   # el superusuario dejó de serlo mientras tanto: se cierra todo
         logout(request)
         return redirect('login')
+    request._tc_suplantacion = True   # <--- (09-nov-2026) no es un acceso nuevo
     login(request, sup, backend=_BACKEND)   # vacía la sesión del usuario suplantado
     messages.success(request, 'Volviste a tu cuenta.')
     if destino_pk:

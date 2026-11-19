@@ -56,6 +56,17 @@ class ComentarioInline(admin.TabularInline):
 class AdjuntoInline(admin.TabularInline):
     model = AdjuntoRequerimiento
     extra = 0
+    readonly_fields = ('abrir',)
+
+    @admin.display(description='Abrir')
+    def abrir(self, obj):
+        # <--- hecho por claude code (seguridad 05-nov-2026): /media/desarrollo/ se cierra en Apache; el archivo se abre por la vista con permiso
+        from django.urls import reverse
+        from django.utils.html import format_html
+        if not (obj and obj.pk and obj.archivo):
+            return '—'
+        return format_html('<a href="{}" target="_blank" rel="noopener">Abrir</a>',
+                           reverse('desarrollo:adjunto_ver', args=[obj.pk]))
 
 
 @admin.register(RequerimientoDesarrollo)

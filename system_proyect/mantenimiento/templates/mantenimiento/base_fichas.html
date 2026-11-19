@@ -7,7 +7,7 @@
 {% block vendor_head %}
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css"/>
-  <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=11">
+  <link rel="stylesheet" href="{% static 'mantenimiento/css/maintenance_dashboard.css' %}?v=12">
 {% endblock %}
 {% block back_button %}<a href="{% url 'servicio_tecnico:hub' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1"><i class="ti ti-arrow-left"></i> Control y Servicio Técnico</a>{% endblock %}
 {# <--- hecho por claude code (22-oct-2026): sin botones en el encabezado (el alta entra por el launcher "+ Registrar"); solo queda el de regresar #}
@@ -85,6 +85,6 @@
      data-v2="{{ computadoras_json }}"
      data-v3="{{ impresoras_json }}"
      data-v4="{{ tipo_equipo }}"></div>
-<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=39"></script>
+<script src="{% static 'mantenimiento/js/maintenance_dashboard.js' %}?v=47"></script>{# <--- hecho por claude code (13-nov-2026): v43, recogida/entrega de laboratorio sin firma obligatoria #}{# <--- hecho por claude code (seguridad 05-nov-2026): v42, popovers con el sanitizador de Bootstrap (v41: eliminar sin renumeración y la ✕ de fotos solo con permiso) #}
 <script src="{% static 'mantenimiento/js/firma_pdf.js' %}?v=1"></script>
 {% endblock %}

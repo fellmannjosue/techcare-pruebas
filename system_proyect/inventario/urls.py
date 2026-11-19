@@ -25,8 +25,12 @@ urlpatterns = [
     path("general/<int:pk>/comentario/", views.item_general_comentario, name="item_general_comentario"),
     path("general/<int:pk>/eliminar/", views.item_general_eliminar, name="item_general_eliminar"),
     path("general/<int:pk>/pdf/", views.item_general_pdf, name="item_general_pdf"),
+    path("general/<int:pk>/foto/", views.item_general_foto, name="item_general_foto"),   # <--- hecho por claude code (seguridad 05-nov-2026): la foto ya no va por /media/ (sin sesión)
     path("general/pdf/", views.item_general_pdf, name="item_general_pdf_todos"),
     path("general/excel/", views.item_general_excel, name="item_general_excel"),
+    path("general/reporte.pdf", views.item_general_reporte_pdf, name="item_general_reporte_pdf"),   # <--- hecho por claude code (13-nov-2026): reporte general por tipo
+    path("general/reporte.xlsx", views.item_general_reporte_excel, name="item_general_reporte_excel"),
+    path("general/tipo-lote/", views.item_general_tipo_lote, name="item_general_tipo_lote"),   # <--- hecho por claude code (12-nov-2026)
     path("general/categoria/add/", views.categoria_general_add, name="categoria_general_add"),
 
     path("registros/", views.inventario_registros, name="inventario_registros"),
@@ -40,7 +44,8 @@ urlpatterns = [
     path("registros/qr/<str:tipo>/<int:pk>/", views.descargar_qr, name="descargar_qr"),
 
     # Atajo al menú principal
-    path("menu/", lambda req: redirect("accounts:menu"), name="menu"),
+    # <--- hecho por claude code (seguridad 05-nov-2026): el namespace 'accounts' no existe (NoReverseMatch = 500 a todos); la URL del menú se llama 'menu'
+    path("menu/", lambda req: redirect("menu"), name="menu"),
 
     # ---------------------------------------------------------
     # GET - Cargar formulario en MODAL (AJAX)

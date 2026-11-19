@@ -20,6 +20,8 @@
       <div class="modal-body">
         <form method="post" novalidate class="row g-3">
           {% csrf_token %}
+          {# <--- hecho por claude code (seguridad 05-nov-2026): errores de IP/serie/edificio/sub-tipo (campos que no son del form) #}
+          {% if form.non_field_errors %}<div class="col-12"><div class="alert alert-danger mb-0">{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div></div>{% endif %}
 
           {# Laboratorio — radio buttons estilo btn-check #}
           <div class="col-12">

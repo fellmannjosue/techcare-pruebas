@@ -5,6 +5,13 @@
     'Pendiente':  'bg-warning-lt text-warning',
   };
 
+  // <--- hecho por claude code (seguridad 05-nov-2026): XSS — el chat lo escribe el usuario; se escapa antes de pintarlo con innerHTML
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
+    });
+  }
+
   function tipoClass(tipo) {
     if (tipo === 'tecnico') return 'bm-tecnico';
     if (tipo === 'sistema') return 'bm-sistema';
@@ -17,12 +24,12 @@
       const isMe = c.tipo === 'usuario';
       const cls  = tipoClass(c.tipo);
       if (c.tipo === 'sistema') {
-        return `<div class="my-2"><span class="bm-sistema">${c.mensaje}</span></div>`;
+        return `<div class="my-2"><span class="bm-sistema">${escHtml(c.mensaje)}</span></div>`;
       }
       return `
         <div class="${isMe ? 'chat-row-right' : ''}">
-          <div class="chat-meta ${isMe ? 'right' : ''}">${c.autor} · ${c.fecha}</div>
-          <div class="chat-bubble-modal ${cls}">${c.mensaje.replace(/\n/g,'<br>')}</div>
+          <div class="chat-meta ${isMe ? 'right' : ''}">${escHtml(c.autor)} · ${escHtml(c.fecha)}</div>
+          <div class="chat-bubble-modal ${cls}">${escHtml(c.mensaje).replace(/\n/g,'<br>')}</div>
         </div>`;
     }).join('');
   }

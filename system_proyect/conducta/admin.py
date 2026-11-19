@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.urls import reverse   # <--- hecho por claude code (09-nov-2026)
 from django.utils.safestring import mark_safe
 from core.audit_admin import AuditAdminMixin
 from .models import (
@@ -64,10 +65,10 @@ class MateriaDocenteBilingueAdmin(AuditAdminMixin):
             # Try to get the coordinator's display name from ConfiguracionCoordinador
             cfg = ConfiguracionCoordinador.objects.filter(area='bilingue', codigo=c).first()
             label = f"{c} – {cfg.nombre}" if cfg else c
-            badges.append(
-                f'<span style="background:{col};color:#fff;padding:2px 8px;border-radius:20px;'
-                f'font-size:11px;font-weight:600;margin-right:3px">{label}</span>'
-            )
+            # <--- hecho por claude code (09-nov-2026): format_html escapa el nombre (antes f-string + mark_safe = XSS en el admin)
+            badges.append(format_html(
+                '<span style="background:{};color:#fff;padding:2px 8px;border-radius:20px;'
+                'font-size:11px;font-weight:600;margin-right:3px">{}</span>', col, label))
         return mark_safe(''.join(badges))
     coord_display.short_description = 'Coordinador(es)'
 
@@ -89,9 +90,9 @@ class MateriaDocenteColegioAdmin(AuditAdminMixin):
             return mark_safe(
                 '<span style="color:#f59f00;font-size:11px">⚠ Sin asignar (notifica a todos)</span>'
             )
-        badges = [
-            f'<span style="background:#2f9e44;color:#fff;padding:2px 8px;border-radius:20px;'
-            f'font-size:11px;font-weight:600;margin-right:3px">{c.nombre}</span>'
+        badges = [   # <--- hecho por claude code (09-nov-2026): nombre escapado con format_html
+            format_html('<span style="background:#2f9e44;color:#fff;padding:2px 8px;border-radius:20px;'
+                        'font-size:11px;font-weight:600;margin-right:3px">{}</span>', c.nombre)
             for c in coords
         ]
         return mark_safe(''.join(badges))
@@ -213,7 +214,7 @@ class EvidenciaReporteAdmin(AuditAdminMixin):
         if obj.imagen:
             return format_html(
                 '<img src="{}" width="60" style="border-radius:4px;object-fit:cover;"/>',
-                obj.imagen.url
+                reverse('evidencia_ver', args=[obj.pk]),   # <--- (09-nov-2026) por la vista con permiso, no por /media/
             )
         return "-"
     preview.short_description = "Vista previa"

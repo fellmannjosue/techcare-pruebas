@@ -1,0 +1,155 @@
+{% extends 'conducta/base_conducta.html' %}
+{% load static %}
+{# <--- hecho por claude code (06-nov-2026): Período Escolar GENERAL (Configuración Académica), solo superusuario. Diseño de tarjetas como el de Salidas al Baño #}
+{% block title %}Período Escolar{% endblock %}
+{% block page_pretitle %}Configuración Académica{% endblock %}
+{% block page_title %}Período Escolar{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'conducta/css/periodo_escolar.css' %}?v=4">{% endblock %}
+{% block messages %}{% include 'ui/messages.html' %}{% endblock %}
+
+{% block content %}
+<div class="pe-wrap">
+
+  {# ── Qué es y quién lo usa ── #}
+  <div class="pe-intro">
+    <span class="pe-intro__ic"><i class="ti ti-calendar-stats"></i></span>
+    <div class="pe-intro__txt">
+      <b>Un solo calendario de parciales para todo TechCare.</b>
+      <span>El período <b>activo</b> de cada área define qué se muestra y dónde se registra en:</span>
+      <div class="pe-usos">{% for u in usos %}<span>{{ u }}</span>{% endfor %}</div>
+    </div>
+  </div>
+
+  {# <--- hecho por claude code (06-nov-2026): LÍNEA DE TIEMPO del año por área (diseño elegido: modelo A + B) #}
+  <div class="pe-card">
+    <div class="pe-card__head">
+      <i class="ti ti-calendar"></i> Calendario {{ anio_tl }}
+      <span class="pe-tl-nav ms-auto">
+        <a href="?anio={{ anio_tl|add:'-1' }}" class="btn btn-icon btn-ghost-secondary btn-sm" title="Año anterior"><i class="ti ti-chevron-left"></i></a>
+        <a href="?anio={{ anio_tl|add:'1' }}" class="btn btn-icon btn-ghost-secondary btn-sm" title="Año siguiente"><i class="ti ti-chevron-right"></i></a>
+      </span>
+    </div>
+    <div class="pe-card__body">
+      <div class="pe-tl-meses"><span></span>{% for m in meses_tl %}<span>{{ m }}</span>{% endfor %}</div>
+      {% for f in filas_tl %}
+      <div class="pe-tl-fila">
+        <div class="pe-tl-lbl">{{ f.etq }}<small>{{ f.desc }}</small></div>
+        <div class="pe-tl-pista">
+          {% for b in f.barras %}
+          <a href="?editar={{ b.p.pk }}&anio={{ anio_tl }}" class="pe-tl-bar pe-tl-bar--{{ b.p.area }}{% if b.p.activo %} is-activo{% endif %}{% if editar and editar.pk == b.p.pk %} is-sel{% endif %}"
+             style="left:{{ b.left|stringformat:'s' }}%;width:{{ b.width|stringformat:'s' }}%"
+             title="{{ b.p.nombre }} · {{ b.p.fecha_inicio|date:'d/m/Y' }} → {{ b.p.fecha_fin|date:'d/m/Y' }}{% if b.p.activo %} · ACTIVO{% endif %}{% if b.p.mods %} · Abiertos: {% for m in b.p.mods %}{% if m.on %}{{ m.t }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}{% endif %}">P{{ b.p.parcial }} · {{ b.p.nombre }}</a>
+          {% endfor %}
+          {% if hoy_pct is not None %}<div class="pe-tl-hoy{% if forloop.first %} con-etq{% endif %}" style="left:{{ hoy_pct|stringformat:'s' }}%"></div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      <div class="pe-tl-ley">
+        <span><b class="pe-ley--ambas"></b>Ambas</span><span><b class="pe-ley--bilingue"></b>Bilingüe</span><span><b class="pe-ley--colegio"></b>Colegio</span><span><b class="pe-ley--cfp"></b>CFP</span>
+        <span><b class="pe-ley--activo"></b>Activo</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {# ── Lista ── #}
+    <div class="col-12 col-lg-7">
+      <div class="pe-card">
+        <div class="pe-card__head"><i class="ti ti-list"></i> Períodos registrados <span class="pe-n">{{ periodos|length }}</span></div>
+        <div class="table-responsive">
+          <table class="table table-vcenter pe-tabla mb-0">
+            <thead><tr><th>Período</th><th>Área</th><th>Fechas</th><th>Módulos abiertos</th><th class="text-center">Salidas</th><th class="text-center">Estado</th><th class="text-end"></th></tr></thead>
+            <tbody>
+            {% for p in periodos %}
+              <tr class="{% if editar and editar.pk == p.pk %}is-edit{% endif %}{% if p.activo %} is-activo{% endif %}">
+                <td><div class="fw-semibold">{{ p.nombre }}</div><div class="text-secondary small">Parcial {{ p.parcial }} · {{ p.anio }}</div></td>
+                <td><span class="pe-area pe-area--{{ p.area }}">{{ p.get_area_display }}</span></td>
+                <td class="text-nowrap small">{{ p.fecha_inicio|date:"d/m/Y" }} → {{ p.fecha_fin|date:"d/m/Y" }}</td>
+                <td><div class="pe-chips">{% for m in p.mods %}<span class="pe-chip pe-chip--{{ m.k }}{% if not m.on %} is-off{% endif %}" title="{{ m.t }}: {% if m.on %}abierto{% else %}cerrado{% endif %}">{{ m.c }}</span>{% empty %}<span class="text-secondary small">—</span>{% endfor %}</div></td>
+                <td class="text-center">{% if p.n_salidas %}<span class="badge bg-teal-lt text-teal">{{ p.n_salidas }}</span>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
+                <td class="text-center">{% if p.activo %}<span class="badge bg-green-lt text-green"><i class="ti ti-check me-1"></i>Activo</span>{% else %}<span class="text-secondary small">Inactivo</span>{% endif %}</td>
+                <td class="text-end text-nowrap">
+                  <a href="?editar={{ p.pk }}" class="btn btn-icon btn-ghost-primary btn-sm" title="Editar"><i class="ti ti-pencil"></i></a>
+                  {% if p.n_salidas %}
+                  <span class="btn btn-icon btn-ghost-secondary btn-sm disabled" title="Tiene {{ p.n_salidas }} salida{{ p.n_salidas|pluralize }} registrada{{ p.n_salidas|pluralize }}: no se puede borrar"><i class="ti ti-lock"></i></span>
+                  {% else %}
+                  <button type="button" class="btn btn-icon btn-ghost-danger btn-sm js-pe-borrar" title="Eliminar" data-url="{% url 'periodo_conducta_delete' pk=p.pk %}" data-nombre="{{ p.nombre }}"><i class="ti ti-trash"></i></button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-center text-secondary py-5"><i class="ti ti-calendar-off d-block mb-2" style="font-size:2rem"></i>Sin períodos registrados.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {# ── Formulario ── #}
+    <div class="col-12 col-lg-5">
+      <form method="post" action="{% url 'periodo_conducta_save' %}" class="pe-card pe-form">
+        {% csrf_token %}
+        <input type="hidden" name="pk" value="{{ editar.pk|default:'' }}">
+        <div class="pe-card__head">
+          <i class="ti ti-{% if editar %}edit{% else %}plus-circle{% endif %}"></i>
+          {% if editar %}Editar período{% else %}Nuevo período{% endif %}
+        </div>
+        <div class="pe-card__body">
+          <label class="form-label">Nombre <span class="text-danger">*</span></label>
+          <input type="text" name="nombre" class="form-control mb-3" required maxlength="60" placeholder="Ej.: Primer Parcial Escolar" value="{{ editar.nombre|default:'' }}">
+          <div class="row g-2 mb-3">
+            <div class="col-6"><label class="form-label">Parcial</label>
+              <select name="parcial" class="form-select">
+                {% for n in "1234" %}<option value="{{ n }}" {% if editar and editar.parcial|stringformat:"s" == n %}selected{% endif %}>Parcial {{ n }}</option>{% endfor %}
+              </select></div>
+            <div class="col-6"><label class="form-label">Año</label>
+              <input type="number" name="anio" class="form-control" min="2020" max="2100" value="{{ editar.anio|default:anio_actual }}"></div>
+          </div>
+          <label class="form-label">Área</label>
+          <select name="area" class="form-select mb-1" id="pe-area">
+            {% for a, etq, desc in areas_info %}<option value="{{ a }}" {% if editar and editar.area == a %}selected{% elif not editar and a == 'ambas' %}selected{% endif %}>{{ etq }} — {{ desc }}</option>{% endfor %}
+          </select>
+          <div class="form-hint mb-3">«Ambas» sirve a la vez para Bilingüe y Colegio.</div>
+          <div class="row g-2 mb-3">
+            <div class="col-6"><label class="form-label">Inicio <span class="text-danger">*</span></label>
+              <input type="date" name="fecha_inicio" class="form-control" required value="{{ editar.fecha_inicio|date:'Y-m-d' }}"></div>
+            <div class="col-6"><label class="form-label">Fin <span class="text-danger">*</span></label>
+              <input type="date" name="fecha_fin" class="form-control" required value="{{ editar.fecha_fin|date:'Y-m-d' }}"></div>
+          </div>
+          {# <--- hecho por claude code (06-nov-2026): qué módulos quedan abiertos en este período (cambian según el área) #}
+          <div class="pe-mods">
+            <div class="pe-mods__t"><i class="ti ti-stack-2"></i> ¿Qué módulos quedan abiertos en este período?</div>
+            <div class="pe-mods__h">Apagado = <b>cerrado</b>: no se puede llenar en este período (lo ya registrado se sigue viendo).</div>
+            {% for m in mods_form %}
+            <label class="pe-mod pe-mod--{{ m.k }}" data-areas="{{ m.areas }}">
+              <span class="pe-mod__ic"><i class="ti {% if m.k == 'inf' %}ti-book{% elif m.k == 'con' %}ti-alert-triangle{% elif m.k == 'age' %}ti-calendar-week{% elif m.k == 'not' %}ti-notes{% elif m.k == 'sal' %}ti-door-exit{% elif m.k == 'pro' %}ti-chart-line{% else %}ti-users{% endif %}"></i></span>
+              <span class="pe-mod__t"><b>{{ m.t }}</b><small>{% if m.areas == 'bilingue colegio' %}Bilingüe y Colegio{% elif m.areas == 'colegio' %}Solo Colegio{% else %}Solo Bilingüe{% endif %}</small></span>
+              <span class="form-check form-switch m-0"><input type="checkbox" class="form-check-input" name="mod_{{ m.k }}" {% if m.on %}checked{% endif %}></span>
+            </label>
+            {% endfor %}
+          </div>
+          <label class="form-check form-switch mb-1">
+            <input type="checkbox" name="activo" class="form-check-input" {% if editar.activo %}checked{% endif %}>
+            <span class="form-check-label fw-semibold">Período activo</span>
+          </label>
+          <div class="form-hint">Al activarlo, se desactiva el que estuviera activo en esa área.</div>
+        </div>
+        <div class="pe-card__foot">
+          <button class="btn btn-primary" type="submit"><i class="ti ti-device-floppy me-1"></i>Guardar</button>
+          {% if editar %}<a href="{% url 'periodo_escolar' %}" class="btn btn-outline-secondary">Cancelar</a>{% endif %}
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+{# Confirmación de borrado (sin confirm() del navegador) #}
+<div class="modal fade" id="peModalBorrar" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-sm modal-dialog-centered"><form method="post" class="modal-content" id="pe-form-borrar">
+  {% csrf_token %}
+  <div class="modal-body"><div class="fw-semibold mb-1">¿Eliminar este período?</div><div class="text-secondary" id="pe-borrar-nombre"></div></div>
+  <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
+</form></div></div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'conducta/js/periodo_escolar.js' %}?v=2"></script>{% endblock %}

@@ -12,6 +12,7 @@ urlpatterns = [
     path('<int:pk>/editar/',   views.editar_agenda,           name='editar_agenda'),
     path('<int:pk>/pptx/',     views.descargar_pptx_agenda,   name='descargar_pptx'),
     path('imagen/subir/',      views.subir_imagen,            name='subir_imagen'),
+    path('imagen/<int:pk>/',   views.imagen_ver,              name='imagen_ver'),   # <--- hecho por claude code (seguridad 05-nov-2026): la foto de una clase sale por vista con permiso, no por /media/ público
     path('imagen/<int:pk>/eliminar/', views.eliminar_imagen,  name='eliminar_imagen'),
     path('<int:pk>/eliminar/',        views.eliminar_agenda,   name='eliminar_agenda'),
     # <--- hecho por claude code (15-oct-2026): crear la semana y editor de diseño del coordinador

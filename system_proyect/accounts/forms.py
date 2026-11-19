@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 AREA_CHOICES = (
     ('bilingue', 'Bilingüe'),
@@ -28,7 +29,8 @@ class MaestroRegisterForm(forms.Form):
             raise forms.ValidationError('Debe usar su correo institucional @ana-hn.org')
         if any(domain in email for domain in ['gmail.com', 'hotmail.com', 'outlook.com']):
             raise forms.ValidationError('No se permiten correos de gmail, hotmail ni outlook.')
-        if User.objects.filter(email=email).exists():
+        # <--- hecho por claude code (seguridad 05-nov-2026): tampoco puede ser el USUARIO de otra cuenta (el login por correo resolvería a esa cuenta y create_user daba 500)
+        if User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
             raise forms.ValidationError('Este correo ya está registrado.')
         # <--- hecho por claude code (seguridad): el correo DEBE estar en la lista blanca
         # institucional. Antes se aceptaba cualquier @ana-hn.org, así que se podía crear
@@ -50,10 +52,24 @@ class MaestroRegisterForm(forms.Form):
         # Cargo requerido solo en bilingue o colegio
         if area in ['bilingue', 'colegio'] and not cargo:
             self.add_error('cargo', 'Debes seleccionar el cargo para esta área.')
+        # <--- hecho por claude code (seguridad 05-nov-2026): Instructor CFP solo existe en Colegio/CFP; en Bilingüe caía en coordinador_bilingue con staff
+        if area == 'bilingue' and cargo == 'instructor_cfp':
+            self.add_error('cargo', 'El cargo Instructor CFP solo aplica al área Colegio/CFP.')
         # Si es administración, el cargo no debe seleccionarse (lo puedes ocultar en el frontend)
         if area == 'administracion':
             cleaned_data['cargo'] = None  # Opcional: lo puedes ignorar al guardar
 
         if password and password2 and password != password2:
             self.add_error('password2', 'Las contraseñas no coinciden.')
+        # <--- hecho por claude code (seguridad 05-nov-2026): aplicar AUTH_PASSWORD_VALIDATORS (antes no se llamaba en ningún flujo)
+        if password:
+            from django.contrib.auth.password_validation import validate_password
+            correo = cleaned_data.get('email') or ''
+            try:
+                validate_password(password, user=User(
+                    username=correo, email=correo,
+                    first_name=cleaned_data.get('first_name') or '',
+                    last_name=cleaned_data.get('last_name') or ''))
+            except forms.ValidationError as e:
+                self.add_error('password', e)
         return cleaned_data

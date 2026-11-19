@@ -62,11 +62,15 @@
                       data-id="{{ r.id }}" data-rid="{{ r.record_id }}"
                       data-link="{{ site_url }}{% url 'inventario_camaras:firmar_publico' r.token_firma %}"
                       data-mark="{% url 'inventario_camaras:marcar_firma_solicitada' r.id %}"
+                      data-dias="{{ firma_link_dias }}"
                       title="Enviar link de firma al técnico"><i class="ti ti-send"></i></button>
               {% endif %}
               <a href="{% url 'inventario_camaras:mantenimiento_pdf' r.id %}" class="btn btn-sm btn-ghost-secondary" title="PDF"><i class="ti ti-file-type-pdf"></i></a>
               <button class="btn btn-sm btn-ghost-primary btn-edit-mant" data-pk="{{ r.id }}" title="Editar"><i class="ti ti-pencil"></i></button>
+              {# <--- hecho por claude code (seguridad 05-nov-2026): una ficha firmada por el técnico solo la elimina el superusuario (mismo criterio que la vista) #}
+              {% if not r.firmado or user.is_superuser %}
               <button class="btn btn-sm btn-ghost-danger btn-del-mant" data-pk="{{ r.id }}" data-rid="{{ r.record_id }}" title="Eliminar"><i class="ti ti-trash"></i></button>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -90,6 +94,8 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+          {# <--- hecho por claude code (seguridad 05-nov-2026): aviso que muestra mantenimiento.js al editar una ficha ya firmada por el técnico #}
+          <div id="mant-firmado-aviso" class="alert alert-info d-none"><i class="ti ti-lock me-1"></i>Esta ficha ya está firmada por el técnico: solo se puede cambiar el <strong>estado</strong> y agregar fotos.</div>
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Grupo de cámaras</label>
@@ -144,7 +150,7 @@
               </div>
               <div id="fotos-preview" class="d-flex flex-wrap gap-2 mt-2"></div>
             </div>
-            <div class="col-12">
+            <div class="col-12" id="bloque-firma-resp">
               <label class="form-label fw-semibold"><i class="ti ti-signature me-1 text-primary"></i>Firma del responsable</label>
               <div id="sig-wrap" class="border rounded position-relative" style="height:160px;">
                 <canvas id="signature-canvas" style="width:100%;height:100%;"></canvas>
@@ -168,5 +174,5 @@
 <div id="mantenimiento-config" hidden
      data-v0="{{ csrf_token }}"
      data-v1="{{ camaras_grupo_json }}"></div>
-<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=4"></script>
+<script src="{% static 'inventario_camaras/js/mantenimiento.js' %}?v=6"></script>
 {% endblock %}

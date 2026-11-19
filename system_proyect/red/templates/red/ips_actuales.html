@@ -62,9 +62,11 @@
      data-borrar="{% url 'red:ip_actual_borrar' 0 %}"
      data-csrf="{{ csrf_token }}"
      data-editar="{{ puede_editar|yesno:'1,0' }}"
+     data-password-url="{% url 'red:ip_actual_password' 0 %}"
      data-ipam-url="{% url 'red:ip_actual_vlan_ips' 0 %}"></div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'red/js/ips_actuales.js' %}?v=6"></script>
+{# <--- hecho por claude code (seguridad 05-nov-2026, 2.a vuelta): v=8, la contraseña viaja con la marca password_cambiada (el servidor ignora el 'password' suelto del JS viejo) #}
+<script src="{% static 'red/js/ips_actuales.js' %}?v=8"></script>
 {% endblock %}

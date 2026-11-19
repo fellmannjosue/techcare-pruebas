@@ -1,0 +1,6 @@
+/* <--- hecho por claude code (09-nov-2026): aviso del superusuario cuando «Prueba como» otra aplicación */
+.tc-canal-pill { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2000;
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 16px; border-radius: 999px;
+  background: #e8590c; color: #fff; font-size: .85rem; font-weight: 600; box-shadow: 0 10px 30px -8px rgba(0,0,0,.45); max-width: calc(100% - 32px); }
+.tc-canal-pill form { margin: 0; }
+.tc-canal-pill button { border: 0; border-radius: 999px; padding: 4px 12px; background: #fff; color: #e8590c; font-weight: 700; font-size: .8rem; }

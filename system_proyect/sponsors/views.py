@@ -1,9 +1,12 @@
+from functools import wraps
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib import messages
 # <--- hecho por claude code: el módulo manejaba datos de donantes SIN autenticación
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -19,11 +22,40 @@ _SEARCH_LIMIT = 20
 _PER_PAGE = 50
 
 
-@login_required
+# <--- hecho por claude code (seguridad 05-nov-2026): antes las 17 vistas tenían solo @login_required y cualquier maestro veía, editaba y borraba los ~3,561 donantes por URL directa.
+def _sp_puede(user, codename):
+    """Mismo criterio que el menú (nav_sponsors / show_sponsors): superusuario o permiso Django del app sponsors."""
+    return bool(user.is_superuser or user.has_perm(f'sponsors.{codename}'))
+
+
+def sponsors_requerido(escribir=None, siempre=False):
+    """Candado del módulo. Lectura = sponsors.view_sponsor (lo mismo que muestra el menú).
+    `escribir` = permiso extra que se exige en POST (o en cualquier método si `siempre=True`)."""
+    def deco(view):
+        @wraps(view)
+        def _w(request, *args, **kwargs):
+            u = request.user
+            if not _sp_puede(u, 'view_sponsor'):
+                raise PermissionDenied('No tienes permiso para el módulo Sponsors.')
+            if escribir and (siempre or request.method not in ('GET', 'HEAD', 'OPTIONS')) \
+                    and not _sp_puede(u, escribir):
+                raise PermissionDenied('No tienes permiso para modificar Sponsors.')
+            return view(request, *args, **kwargs)
+        return login_required(_w)
+    return deco
+
+
+@sponsors_requerido()   # <--- hecho por claude code (seguridad 05-nov-2026): lectura = view_sponsor
 def sponsors_dashboard(request):
-    """<--- hecho por claude code (06-nov-2026): ya NO hay panel (pedido del usuario: «un solo diseño»). La entrada a
-    Sponsors es directamente la ficha estilo Access en modo búsqueda; se conserva la URL para todos los enlaces."""
+    """<--- hecho por claude code (06-nov-2026): ya NO hay panel (pedido del usuario: «un solo diseño»). Se conserva la URL
+    para los enlaces viejos y lleva a la ficha."""
     return redirect('sponsors:ficha')
+
+
+@sponsors_requerido()   # lectura = view_sponsor: buscar y consultar; guardar va a add_sponsor (exige add_sponsor)
+def ficha(request):
+    """<--- hecho por claude code (06-nov-2026): ENTRADA de Sponsors = la ficha estilo Access en modo búsqueda."""
+    return render(request, "sponsors/form_sponsor.html", {'form': SponsorForm(), 'edit_mode': False, 'buscar': True})
 
 
 # ══════════════════════ Catálogos simples ══════════════════════
@@ -42,31 +74,32 @@ def _catalogo(request, form_class, queryset, template, ctx_name, etiqueta, url_n
     return render(request, template, {'form': form, ctx_name: queryset})
 
 
-@login_required
+# <--- hecho por claude code (seguridad 05-nov-2026): ver la lista = view_sponsor; agregar (POST) = add_<modelo>
+@sponsors_requerido('add_city')
 def add_city(request):
     return _catalogo(request, CityForm, City.objects.select_related('country').order_by('name'),
                      'sponsors/form_city.html', 'city_list', 'Ciudad', 'sponsors:add_city')
 
 
-@login_required
+@sponsors_requerido('add_country')
 def add_country(request):
     return _catalogo(request, CountryForm, Country.objects.order_by('name'),
                      'sponsors/form_country.html', 'countries', 'País', 'sponsors:add_country')
 
 
-@login_required
+@sponsors_requerido('add_directed')
 def add_directed(request):
     return _catalogo(request, DirectedForm, Directed.objects.order_by('description'),
                      'sponsors/form_directed.html', 'directed_list', 'Registro', 'sponsors:add_directed')
 
 
-@login_required
+@sponsors_requerido('add_title')
 def add_title(request):
     return _catalogo(request, TitleForm, Title.objects.order_by('description'),
                      'sponsors/form_title.html', 'title_list', 'Título', 'sponsors:add_title')
 
 
-@login_required
+@sponsors_requerido('add_descr_godfather')
 def add_descr_godfather(request):
     return _catalogo(request, DescrGodfatherForm, Descr_Godfather.objects.order_by('name'),
                      'sponsors/form_descr_godfather.html', 'descr_list',
@@ -75,7 +108,7 @@ def add_descr_godfather(request):
 
 # ══════════════════════ Sponsors ══════════════════════
 
-@login_required
+@sponsors_requerido()   # <--- hecho por claude code (seguridad 05-nov-2026)
 def sponsor_list(request):
     """Lista paginada + buscador (antes cargaba los ~3,500 registros de golpe)."""
     q = (request.GET.get('q') or '').strip()
@@ -94,11 +127,13 @@ def sponsor_list(request):
                   {'page_obj': page, 'sponsors': page.object_list, 'q': q, 'total': total})
 
 
-@login_required
+@sponsors_requerido()   # <--- hecho por claude code (seguridad 05-nov-2026): la ficha completa por ?id=N permitía raspar a todos los donantes
 def get_sponsor_data(request):
-    sponsor_id = request.GET.get('id', None)
+    sponsor_id = (request.GET.get('id') or '').strip()
     if not sponsor_id:
         return JsonResponse({'error': 'ID no proporcionado'}, status=400)
+    if not sponsor_id.isdigit():   # <--- hecho por claude code (seguridad 05-nov-2026): antes ?id=abc daba 500
+        return JsonResponse({'error': 'ID inválido'}, status=400)
     try:
         sponsor = Sponsor.objects.select_related('city', 'city__country').get(id=sponsor_id)
     except Sponsor.DoesNotExist:
@@ -133,7 +168,7 @@ def get_sponsor_data(request):
         'nationality': sponsor.nationality or '', 'imprimir': sponsor.imprimir,
         'deactivate_soon': sponsor.deactivate_soon, 'recog_2010': sponsor.recog_2010,
         'recog_2020_blanket': sponsor.recog_2020_blanket, 'recog_2020_plate': sponsor.recog_2020_plate,
-        'padrino_ch_d': sponsor.padrino_ch_d or '',
+        'padrino_ch_d': sponsor.padrino_ch_d or 0,   # <--- código del país (0 = ninguno)
         'city_id': sponsor.city_id or '',
         'zip_code': (sponsor.city.zip_code or '') if sponsor.city else '',
         'country': (sponsor.city.country.name if sponsor.city and sponsor.city.country else ''),
@@ -141,33 +176,52 @@ def get_sponsor_data(request):
     return JsonResponse(data, safe=False)
 
 
-@login_required
+# <--- hecho por claude code (06-nov-2026, pedido del usuario): AUTOGUARDADO de la ficha. Mismo POST con ?ajax=1 → JSON
+# en vez de redirigir (mismos permisos y la misma validación del formulario).
+def _es_ajax(request):
+    return request.GET.get('ajax') == '1'
+
+
+def _json_errores(form):
+    errores = {campo: [str(m) for m in msgs] for campo, msgs in form.errors.items()}
+    etiquetas = {campo: str(form.fields[campo].label) if campo in form.fields else campo for campo in errores}
+    return JsonResponse({'ok': False, 'errores': errores, 'etiquetas': etiquetas}, status=400)
+
+
+@sponsors_requerido('add_sponsor', siempre=True)   # <--- hecho por claude code (seguridad 05-nov-2026): el formulario vacío solo sirve a quien puede agregar
 def add_sponsor(request):
     if request.method == "POST":
         form = SponsorForm(request.POST)
         if form.is_valid():
             # 'city' ahora viene en el form; antes se excluía y quedaba NULL → IntegrityError
             nuevo = form.save()   # <--- hecho por claude code (06-nov-2026): se queda en la ficha (como Access), ya no salta a la lista
+            if _es_ajax(request):   # autoguardado: el JS pasa a modo edición sin recargar
+                return JsonResponse({'ok': True, 'creado': True, 'id': nuevo.id,
+                                     'url': reverse('sponsors:edit_sponsor', args=[nuevo.id])})
             messages.success(request, "Sponsor agregado correctamente.")
             return redirect("sponsors:edit_sponsor", sponsor_id=nuevo.id)
+        if _es_ajax(request):
+            return _json_errores(form)
         messages.error(request, "Error al agregar el sponsor. Revisa los campos.")
     else:
         form = SponsorForm()
-    # <--- hecho por claude code (06-nov-2026): «Buscar sponsor» abre la MISMA ficha (como Access) con el buscador enfocado
     return render(request, "sponsors/form_sponsor.html",
-                  {'form': form, 'edit_mode': False,
-                   'buscar': request.GET.get('buscar') == '1' or request.resolver_match.url_name == 'ficha'})
+                  {'form': form, 'edit_mode': False, 'buscar': request.GET.get('buscar') == '1'})
 
 
-@login_required
+@sponsors_requerido('change_sponsor')   # <--- hecho por claude code (seguridad 05-nov-2026): ver la ficha = view_sponsor; guardar (POST) = change_sponsor
 def edit_sponsor(request, sponsor_id):
     sponsor = get_object_or_404(Sponsor, id=sponsor_id)
     if request.method == "POST":
         form = SponsorForm(request.POST, instance=sponsor)
         if form.is_valid():
             form.save()
+            if _es_ajax(request):
+                return JsonResponse({'ok': True})
             messages.success(request, "Sponsor actualizado correctamente.")
             return redirect("sponsors:edit_sponsor", sponsor_id=sponsor.id)
+        if _es_ajax(request):
+            return _json_errores(form)
         messages.error(request, "Error al actualizar el sponsor.")
     else:
         form = SponsorForm(instance=sponsor)
@@ -175,7 +229,7 @@ def edit_sponsor(request, sponsor_id):
                   {'form': form, 'edit_mode': True, 'sponsor': sponsor})
 
 
-@login_required
+@sponsors_requerido('delete_sponsor', siempre=True)   # <--- hecho por claude code (seguridad 05-nov-2026)
 @require_POST
 def delete_sponsor(request, sponsor_id):
     """Elimina un sponsor. Solo POST: antes se borraba con un GET sin confirmación."""
@@ -187,7 +241,7 @@ def delete_sponsor(request, sponsor_id):
 
 # ══════════════════════ Relacionados con el sponsor ══════════════════════
 
-@login_required
+@sponsors_requerido('add_godfather')   # <--- hecho por claude code (seguridad 05-nov-2026)
 def add_godfather(request):
     if request.method == "POST":
         form = GodfatherForm(request.POST)
@@ -203,7 +257,7 @@ def add_godfather(request):
                   {'form': form, 'godfather_list': lista, 'total': Godfather.objects.count()})
 
 
-@login_required
+@sponsors_requerido('add_correspondence')   # <--- hecho por claude code (seguridad 05-nov-2026)
 def add_correspondence(request):
     if request.method == "POST":
         form = CorrespondenceForm(request.POST)
@@ -220,7 +274,7 @@ def add_correspondence(request):
                    'total': Correspondence.objects.count()})
 
 
-@login_required
+@sponsors_requerido('add_income')   # <--- hecho por claude code (seguridad 05-nov-2026)
 def add_income(request):
     if request.method == "POST":
         form = IncomeForm(request.POST)
@@ -238,7 +292,7 @@ def add_income(request):
                    'total': Income.objects.count()})
 
 
-@login_required
+@sponsors_requerido('add_sponsored')   # <--- hecho por claude code (seguridad 05-nov-2026)
 def add_sponsored(request):
     if request.method == "POST":
         form = SponsoredForm(request.POST)
@@ -265,7 +319,7 @@ def _sugerencias(campo, query):
     return [v for v in qs if v]
 
 
-@login_required
+@sponsors_requerido()   # <--- hecho por claude code (06-nov-2026)
 def buscar_ficha(request):
     """<--- hecho por claude code (06-nov-2026): buscador de la ficha (Buscar Apellido / Nombre / ID, como Access).
     Devuelve id + nombre completo + ciudad para abrir la ficha del sponsor elegido."""
@@ -296,17 +350,18 @@ def buscar_ficha(request):
     return JsonResponse(datos, safe=False)
 
 
-@login_required
+# <--- hecho por claude code (seguridad 05-nov-2026): el autocompletar exponía nombres e IDs a cualquier autenticado
+@sponsors_requerido()
 def search_name(request):
     return JsonResponse(_sugerencias('first_name_1', request.GET.get('q', '').strip()), safe=False)
 
 
-@login_required
+@sponsors_requerido()
 def search_lastname(request):
     return JsonResponse(_sugerencias('last_name_1', request.GET.get('q', '').strip()), safe=False)
 
 
-@login_required
+@sponsors_requerido()
 def search_id(request):
     q = request.GET.get('q', '').strip()
     if not q:

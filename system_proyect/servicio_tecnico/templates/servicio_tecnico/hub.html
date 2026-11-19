@@ -4,7 +4,7 @@
 {% block title %}Control y Servicio Técnico{% endblock %}
 {% block page_pretitle %}Soporte y TI{% endblock %}
 {% block page_title %}Control y Servicio Técnico{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=6"><link rel="stylesheet" href="{% static 'servicio_tecnico/css/registrar_c.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'servicio_tecnico/css/hub.css' %}?v=6"><link rel="stylesheet" href="{% static 'servicio_tecnico/css/registrar_c.css' %}?v=2">{% endblock %}
 {# <--- hecho por claude code (22-oct-2026): el "Registrar" se movió al hero (reemplaza los dos accesos) #}
 {% block page_actions %}{% endblock %}
 {% block content %}
@@ -158,13 +158,6 @@
               <div class="rgc-chips" data-grupo="inv">
                 {% for o in reg_inv %}<button type="button" class="rgc-chip{% if forloop.first %} on{% endif %}" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endfor %}
               </div>
-              <div class="rgc-sec mt">Lo que vas a llenar</div>
-              <div class="rgc-prev">
-                <div class="rgc-f"><span>Asset ID</span><em>IDANA-0000</em></div><div class="rgc-f"><span>Estado</span><em>Bueno · Regular · Malo</em></div>
-                <div class="rgc-f"><span>Modelo</span><em>Ej. Dell OptiPlex 3080</em></div><div class="rgc-f"><span>Serie</span><em>SN-…</em></div>
-                <div class="rgc-f"><span>Asignado a</span><em>Responsable</em></div><div class="rgc-f"><span>Área</span><em>Administración · Bilingüe · Colegio · Vocacional</em></div>
-                <div class="rgc-f full rgc-drop"><i class="ti ti-photo"></i> Foto del equipo</div>
-              </div>
             </div>
             {% endif %}
             {% if ver_mant %}
@@ -172,13 +165,6 @@
               <div class="rgc-sec">Tipo de equipo</div>
               <div class="rgc-chips" data-grupo="man">
                 {% for o in reg_mant %}<button type="button" class="rgc-chip g-man{% if forloop.first %} on{% endif %}" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endfor %}
-              </div>
-              <div class="rgc-sec mt">Lo que vas a llenar</div>
-              <div class="rgc-prev">
-                <div class="rgc-f"><span>Equipo (Asset ID)</span><em>Se elige del inventario</em></div><div class="rgc-f"><span>Tipo de falla</span><em>Falla reportada</em></div>
-                <div class="rgc-f full"><span>Solución aplicada</span><em>Qué se hizo</em></div>
-                <div class="rgc-f full"><span>Observaciones</span><em>Notas del técnico</em></div>
-                <div class="rgc-f full rgc-drop"><i class="ti ti-signature"></i> Fotos y ficha firmada (al publicarla pasa a «Completado»)</div>
               </div>
             </div>
             <div class="rgc-pane" data-pane="ctl">
@@ -190,19 +176,20 @@
               <div class="rgc-chips" data-grupo="ctl-variante">
                 {% for o in reg_control %}{% if forloop.counter > 4 %}<button type="button" class="rgc-chip g-ctl" data-url="{{ o.url }}" data-t="{{ o.t }}"><i class="ti {{ o.i }}"></i>{{ o.t }}</button>{% endif %}{% endfor %}
               </div>
-              <div class="rgc-sec mt">Lo que vas a llenar</div>
-              <div class="rgc-prev">
-                <div class="rgc-f"><span>Computadora</span><em>Asset ID del maestro (del inventario)</em></div><div class="rgc-f"><span>Estado del equipo</span><em>Bueno · Regular · Malo</em></div>
-                <div class="rgc-f full rgc-q"><span>Evaluación</span><em>¿Enciende correctamente? · ¿Antivirus actualizado? · ¿Accesorios completos? — Sí / No</em></div>
-                <div class="rgc-f full rgc-drop"><i class="ti ti-signature"></i> Firmas: técnico, auditora y maestro</div>
-              </div>
             </div>
             {% endif %}
+            {# <--- hecho por claude code (09-nov-2026): «Lo que vas a llenar» = el formulario REAL dentro de la ventana (?embed=1); al guardar avisa y queda listo para otro #}
+            <div class="rgc-sec mt">Lo que vas a llenar</div>
+            <div id="rgcMsg"></div>
+            <div class="rgc-frame" id="rgcFrameBox">
+              <div class="rgc-frame-load" id="rgcLoad"><span class="spinner-border spinner-border-sm me-2"></span>Cargando formulario…</div>
+              <iframe id="rgcFrame" title="Formulario de registro"></iframe>
+            </div>
           </div>
           <div class="rgc-foot">
             <span class="rgc-hint" id="rgcHint"></span>
-            <button type="button" class="btn rgc-btn" data-bs-dismiss="modal">Cancelar</button>
-            <a href="#" class="btn rgc-btn rgc-primary" id="rgcGo"><i class="ti ti-arrow-right"></i>Continuar al formulario</a>
+            <button type="button" class="btn rgc-btn" data-bs-dismiss="modal">Cerrar</button>
+            <a href="#" class="btn rgc-btn" id="rgcGo" title="Abrir el formulario en su pantalla"><i class="ti ti-external-link"></i>Pantalla completa</a>
           </div>
         </div>
       </div>
@@ -212,5 +199,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=3"></script>
+<script src="{% static 'servicio_tecnico/js/launcher.js' %}?v=4"></script>
 {% endblock %}

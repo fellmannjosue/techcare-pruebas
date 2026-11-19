@@ -70,16 +70,16 @@ def diseno_efectivo(agenda):
 
 
 def _areas(request):
-    from .views import _areas_para_usuario
-    return _areas_para_usuario(request.user, request)
+    # <--- hecho por claude code (seguridad 05-nov-2026): crear/diseñar es de COORDINACIÓN → las áreas que coordina por grupo, nunca las de la sesión (el navegador las fija con ?modo= o /accounts/aplicar-rol/)
+    from .views import _areas_coordina
+    return _areas_coordina(request.user)
 
 
 def _puede(request, agenda=None):
-    from .views import _es_coord_efectivo
+    from .views import _coordina_agenda, _es_coord_efectivo
     if not _es_coord_efectivo(request):
         return False
-    areas = _areas(request)
-    return agenda is None or areas is None or agenda.grado.area in areas
+    return agenda is None or _coordina_agenda(request.user, agenda)
 
 
 _MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
@@ -124,10 +124,13 @@ def crear_semana(request):
         return redirect(destino)
     lunes = d - timedelta(days=d.weekday())
     viernes = lunes + timedelta(days=4)
-    ids = [int(x) for x in request.POST.getlist('grados') if x.isdigit()]
+    ids = [int(x) for x in request.POST.getlist('grados') if x.isdecimal()]  # <--- hecho por claude code (seguridad 05-nov-2026): isdecimal (isdigit acepta '²' → 500)
     areas = _areas(request)
     grados = GradoAgenda.objects.filter(pk__in=ids, activo=True)
     if areas is not None:
+        # <--- hecho por claude code (seguridad 05-nov-2026): pedir grados de un área que no coordina = 403 (la pantalla nunca los ofrece)
+        if GradoAgenda.objects.filter(pk__in=ids).exclude(area__in=areas).exists():
+            return HttpResponseForbidden('Esos grados no son de tu coordinación.')
         grados = grados.filter(area__in=areas)
     if not grados:
         messages.error(request, 'Marca al menos un grado.')
@@ -191,8 +194,11 @@ def guardar(request, pk):
         datos = json.loads(request.body.decode('utf-8') or '{}')
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)
+    if not isinstance(datos, dict):   # <--- hecho por claude code (seguridad 05-nov-2026): una lista/número daba 500
+        return JsonResponse({'ok': False, 'error': 'Datos inválidos.'}, status=400)
     agenda.diseno_json = limpiar_diseno(tipo_diseno(agenda), datos.get('diseno'))
-    nuevos = {str(f.get('materia', '')): f for f in (datos.get('filas') or []) if isinstance(f, dict)}
+    _filas_in = datos.get('filas') if isinstance(datos.get('filas'), list) else []
+    nuevos = {str(f.get('materia', '')): f for f in _filas_in if isinstance(f, dict)}
     quien = request.user.get_full_name() or request.user.username
     filas = []
     for m in (agenda.materias_json or []):
@@ -251,9 +257,9 @@ def imagen_final_guardar(request, pk):
 def imagen_final_ver(request, pk):
     """Sirve la imagen final (sin depender de cómo se publique /media/)."""
     agenda = get_object_or_404(Agenda.objects.select_related('grado'), pk=pk)
-    from .views import _es_coordinador
-    areas = _areas(request)
-    if not _es_coordinador(request.user) or (areas is not None and agenda.grado.area not in areas):
+    from .views import _coordina_agenda, _es_coordinador
+    # <--- hecho por claude code (seguridad 05-nov-2026): solo quien coordina ESA área por grupo (antes valía el área de la sesión)
+    if not _es_coordinador(request.user) or not _coordina_agenda(request.user, agenda):
         return HttpResponseForbidden()
     if not agenda.imagen_final:
         raise Http404

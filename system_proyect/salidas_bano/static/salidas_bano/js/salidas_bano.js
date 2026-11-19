@@ -566,12 +566,13 @@
         lista.innerHTML = d.items.map(n => {
           const cfg       = SEM[n.semaforo] || { label: n.semaforo, cls: n.semaforo, icon: '' };
           const alertType = n.semaforo === 'negro' ? 'danger' : n.semaforo === 'rojo' ? 'warning' : 'success';
+          // <--- hecho por claude code (seguridad 05-nov-2026): grado y grupo se guardan tal como los manda el navegador, así que también se escapan (antes iban crudos al innerHTML)
           return `
           <div class="alert alert-${alertType} d-flex align-items-start justify-content-between gap-2 py-2 mb-2">
             <div>
               <span class="badge-sem ${cfg.cls} me-2">${cfg.icon} ${cfg.label}</span>
               <strong>${escHtml(n.alumno)}</strong>
-              <span class="text-muted ms-1">${n.grado} · Grupo ${n.grupo}</span>
+              <span class="text-muted ms-1">${escHtml(n.grado)} · Grupo ${escHtml(n.grupo)}</span>
               <br>
               <small class="text-muted">${escHtml(n.clase)} — ${n.hora} — ${escHtml(n.maestro)} — ${n.fecha}</small>
             </div>

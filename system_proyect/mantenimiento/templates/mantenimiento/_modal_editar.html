@@ -21,13 +21,21 @@
         <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
           <div class="row g-3">
 
+            {# <--- hecho por claude code (13-nov-2026): ficha de todo un laboratorio (oculta los campos de UNA computadora) #}
+            <div class="col-12 d-none" id="edit-lab-banner"><div class="alert alert-indigo mb-0 py-2"><i class="ti ti-flask me-1"></i><b id="edit-lab-titulo"></b> · una sola ficha para todo el laboratorio</div></div>
             <div class="col-md-4 edit-no-impresora">
               <label class="form-label fw-semibold">Computadora</label>
               <select name="computadora" id="edit-computadora" class="form-select">
                 <option value="">— Seleccionar computadora —</option>
+                {# <--- hecho por claude code (13-nov-2026): una ficha para TODO un laboratorio (control, entrega, recogida, mantenimiento) #}
+                <optgroup label="Laboratorio completo" class="edit-opt-labs">
+                  {% for lab in laboratorios %}<option value="lab:{{ lab.clave }}">{{ lab.label }} · {{ lab.n }} equipos</option>{% endfor %}
+                </optgroup>
+                <optgroup label="Computadoras">
                 {% for c in computadoras %}
                 <option value="{{ c.id }}">{{ c.asset_id }} – {{ c.modelo }}{% if c.asignado_a %} · {{ c.asignado_a }}{% endif %}</option>
                 {% endfor %}
+                </optgroup>
               </select>
             </div>
             {# <--- hecho por claude code: el modal de edición se adapta a IMPRESORA (antes mostraba el de computadora) #}
@@ -41,12 +49,12 @@
               </select>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-campo-comp">
               <label class="form-label fw-semibold">Modelo</label>
               <input type="text" name="model" id="edit-model" class="form-control bg-light text-muted" readonly>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-4 edit-campo-comp">
               <label class="form-label fw-semibold">Serie</label>
               <input type="text" name="serie" id="edit-serie" class="form-control bg-light text-muted" readonly>
             </div>
@@ -56,7 +64,7 @@
               <input type="text" id="edit-asignado-display" class="form-control bg-light text-muted" readonly>
             </div>
 
-            <div class="col-md-4 edit-no-impresora">
+            <div class="col-md-4 edit-no-impresora edit-campo-comp">
               <label class="form-label fw-semibold">Área</label>
               <input type="text" id="edit-area-display" class="form-control bg-light text-muted" readonly>
             </div>
@@ -65,7 +73,7 @@
               <input type="text" name="area" id="edit-area" class="form-control" maxlength="100">
             </div>
 
-            <div class="col-md-4 edit-no-impresora">
+            <div class="col-md-4 edit-no-impresora edit-campo-comp">
               <label class="form-label fw-semibold">Grado</label>
               <input type="text" id="edit-grado-display" class="form-control bg-light text-muted" readonly>
             </div>
@@ -169,7 +177,8 @@
             </div>
             <div class="col-md-6 edit-control d-none">
               <label class="form-label fw-semibold"><i class="ti ti-user-check me-1 text-purple"></i>Observaciones de la auditora</label>
-              <textarea name="obs_auditora" id="edit-obs-auditora" class="form-control" rows="2"></textarea>
+              {# <--- hecho por claude code (seguridad 05-nov-2026): solo la auditora (grupo mantenimiento) o el superusuario la cambian; el servidor conserva lo guardado para los demás #}
+              <textarea name="obs_auditora" id="edit-obs-auditora" class="form-control" rows="2"{% if not es_auditora %} readonly title="Solo la auditora puede escribir aquí"{% endif %}></textarea>
             </div>
             <div class="col-md-6 edit-control d-none">
               <label class="form-label fw-semibold"><i class="ti ti-tool me-1 text-azure"></i>Observaciones del técnico</label>
@@ -229,7 +238,7 @@
 
             {# Fotos de evidencia (hecho por claude code: adjuntar imágenes al editar) #}
             <div class="col-12">
-              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small">(agregar hasta 5)</span></label>
+              <label class="form-label fw-semibold"><i class="ti ti-photo me-1 text-azure"></i>Fotos de evidencia <span class="text-muted fw-normal small" id="edit-fotos-limite">(agregar hasta 5)</span></label>
               <div id="edit-fotos-actuales"></div>
               <div id="edit-drop-zone">
                 <i class="ti ti-cloud-upload fs-2 text-muted d-block mb-1"></i>
@@ -271,6 +280,7 @@
             <div class="col-md-7 edit-entrega d-none">
               <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_equipo" id="edit-ent-equipo"><span class="form-check-label lbl-mov-edit" data-ent="Se entrega el equipo" data-rec="Se recibe el equipo">Se entrega el equipo</span></label>
               <div class="ms-4 mb-2 small text-muted">Equipo: <span class="fw-semibold text-body" id="edit-ent-equipo-detalle">—</span></div>
+              <div class="ms-4 mb-2 d-none" id="edit-ent-lab-lista"><div class="ent-lab-lista border rounded small"></div></div>{# <--- hecho por claude code (13-nov-2026) #}
               <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_mouse_teclado" id="edit-ent-mouse"><span class="form-check-label lbl-mov-edit" data-ent="Se le entrega mouse y teclado" data-rec="Se recibe mouse y teclado">Se le entrega mouse y teclado</span></label>
               <label class="form-check"><input type="checkbox" class="form-check-input me-2" name="ent_televisor" id="edit-ent-televisor"><span class="form-check-label lbl-mov-edit" data-ent="Se le entrega televisor" data-rec="Se recibe televisor">Se le entrega televisor</span></label>
               <div class="ms-4 mb-2" id="edit-ent-televisor-wrap" hidden>

@@ -10,6 +10,9 @@
       URL_LADD = cfg.dataset.lineaAdd, URL_LDEL = cfg.dataset.lineaDel,
       URL_LEDIT = cfg.dataset.lineaEdit, URL_BULK = cfg.dataset.bulk;
   function J(v) { try { return JSON.parse(v || '[]'); } catch (e) { return []; } }
+  // <--- hecho por claude code (seguridad 05-nov-2026): escapar todo texto de la BD antes de meterlo en innerHTML (etiquetas y nombres eran XSS almacenado)
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function colorOk(c, def) { return /^#[0-9a-fA-F]{3,8}$/.test(c || '') ? c : def; }
   var CATS = { gabinete: J(cfg.dataset.gabinetes), dispositivo: J(cfg.dataset.dispositivos), switch: J(cfg.dataset.switches) };
   var RACKS = (function () { try { return JSON.parse(cfg.dataset.racks || '{}'); } catch (e) { return {}; } })();
 
@@ -69,7 +72,7 @@
   var selTarget = document.getElementById('mk-target');
   function optionsFor(t) {
     return '<option value="">—</option>' + (CATS[t] || []).map(function (o) {
-      return '<option value="' + o.id + '">' + o.t + '</option>';
+      return '<option value="' + esc(o.id) + '">' + esc(o.t) + '</option>';
     }).join('');
   }
   function refreshTarget() {
@@ -224,10 +227,10 @@
     el.dataset.tamano = tam;
     el.dataset.rotacion = rot;
     el.innerHTML =
-      '<span class="mk-badge" style="background:' + (m.color || '#206bc4') + ';width:' + tam + 'px;height:' + tam + 'px">' +
+      '<span class="mk-badge" style="background:' + colorOk(m.color, '#206bc4') + ';width:' + tam + 'px;height:' + tam + 'px">' +
         '<i class="ti ' + iconoDe(m.forma) + '" style="font-size:' + Math.round(tam * 0.56) + 'px"></i>' +
       '</span>' +
-      '<span class="mk-lbl">' + (m.etiqueta || '') + '</span>';
+      '<span class="mk-lbl">' + esc(m.etiqueta) + '</span>';
     setTam(el, tam);   // escala ícono + texto
     setRot(el, rot);   // la rotación gira TODO el marcador (ícono + texto)
   }
@@ -339,7 +342,7 @@
     if (!items.length) { wrap.style.display = 'none'; sel.innerHTML = ''; return; }
     wrap.style.display = '';
     sel.innerHTML = '<option value="">— Ninguno —</option>' + items.map(function (it) {
-      return '<option value="' + it.id + '">' + it.nombre + '</option>';
+      return '<option value="' + esc(it.id) + '">' + esc(it.nombre) + '</option>';
     }).join('');
     if (presel) sel.value = presel;
   }

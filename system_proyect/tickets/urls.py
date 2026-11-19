@@ -1,10 +1,11 @@
 from django.urls import path
 from . import views
 from django.shortcuts import redirect
-from django.contrib import admin
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # <--- hecho por claude code (seguridad 05-nov-2026): aquí se montaba un 2.º admin completo
+    # ('admin/', admin.site.urls) en /tickets/admin/, fuera de la restricción por IP del vhost
+    # (<LocationMatch "^/admin">). El admin vive solo en /admin/.
 
     path('submit_ticket/', views.submit_ticket, name='submit_ticket'),
     path('dashboard/administracion/', views.dashboard_administracion, name='dashboard_administracion'),
@@ -23,6 +24,9 @@ urlpatterns = [
     path('ticket_status_get_ajax/<int:ticket_id>/', views.ticket_status_get_ajax, name='ticket_status_get_ajax'),
     path('ticket_send_comment_ajax/<int:ticket_id>/', views.ticket_send_comment_ajax, name='ticket_send_comment_ajax'),
     path('ticket/<int:ticket_id>/reporte/', views.ticket_reporte_ajax, name='ticket_reporte_ajax'),
+    # <--- hecho por claude code (seguridad 05-nov-2026): adjuntos con permiso del ticket (antes URL directa de /media/ sin sesión)
+    path('ticket/<int:ticket_id>/adjunto/', views.ticket_adjunto, name='ticket_adjunto'),
+    path('comentario/<int:comment_id>/archivo/', views.ticket_comentario_archivo, name='ticket_comentario_archivo'),
 
     # 🚀 IA — Endpoint AJAX para chat IA
     #path('ticket/<int:ticket_id>/chat_ai/', views.ticket_chat_ai_ajax, name='ticket_chat_ai_ajax'),

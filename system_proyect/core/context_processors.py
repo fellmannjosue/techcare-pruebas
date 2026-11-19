@@ -137,7 +137,7 @@ def nav_context(request):
     elif nav_coord_bl:
         nav_home_url = reverse('dashboard_coordinador', kwargs={'area': 'bilingue'})
     elif grp('tecnicos'):
-        nav_home_url = reverse('tickets_dashboard')
+        nav_home_url = reverse('technician_dashboard')  # <--- hecho por claude code (seguridad 05-nov-2026): 'tickets_dashboard' no existe (NoReverseMatch = 500)
     elif grp('reloj'):
         nav_home_url = reverse('reloj_dashboard')
     elif grp('enfermeria'):   # <--- hecho por claude code: inicio de enfermería = su dashboard
@@ -147,6 +147,8 @@ def nav_context(request):
     # y Tickets aparece solo en el sidebar (nav_tickets).
     elif grp('administracion'):
         nav_home_url = reverse('dashboard_administracion')
+    elif __import__('accounts.panel_roles', fromlist=['solo_mant_mecanico']).solo_mant_mecanico(user):
+        nav_home_url = reverse('mantenimiento_mecanico:index')   # <--- hecho por claude code (06-nov-2026): su Panel Principal es el hub
     else:
         nav_home_url = reverse('menu')
 
@@ -172,14 +174,14 @@ def nav_context(request):
         'nav_maintenance':      is_admin or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
         # <--- hecho por claude code (28-sep-2026): hub Control y Servicio Técnico = Inventario ∪ Mantenimiento
         'nav_servicio':         is_admin or can('inventario.view_item') or grp('inventario') or can('mantenimiento.view_maintenancerecord') or grp('mantenimiento'),
-        # <--- hecho por claude code (03-nov-2026): Solicitud de DataShow — solo el grupo "datashow" (Config → Acceso a DataShow) o superusuario
-        'nav_datashow':         is_admin or grp('datashow'),
-        'cfg_monitoreo':        is_admin or grp('monitoreo'),   # <--- hecho por claude code (06-nov-2026): Auditoría y Actividad en el acordeón de Configuración
-        'nav_reforzamiento':    _puede_reforzamiento(request.user),   # <--- hecho por claude code (06-nov-2026): por ahora solo druiz y superusuario
         'nav_mm_insumos':       is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura'),   # <--- hecho por claude code (12-oct-2026): combustibles y aceites
         'nav_mant_mecanico':    is_admin or grp('mantenimiento_mecanico') or grp('mantenimiento_mecanico_lectura') or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # módulo completo (hub)
         'nav_vehiculos':        is_admin or grp('vehiculos_registro') or grp('vehiculos_kilometraje') or grp('vehiculos_auditoria'),   # <--- hecho por claude code (12-oct-2026)   # <--- hecho por claude code (01-oct-2026): combustibles y aceites
         'nav_enfermeria':       is_admin or grp('enfermeria'),
+        # <--- hecho por claude code (03-nov-2026): Solicitud de DataShow — solo el grupo "datashow" (Config → Acceso a DataShow) o superusuario
+        'nav_datashow':         is_admin or grp('datashow'),
+        'cfg_monitoreo':        is_admin or grp('monitoreo'),   # <--- hecho por claude code (06-nov-2026): Auditoría y Actividad en el acordeón de Configuración
+        'nav_reforzamiento':    _puede_reforzamiento(request.user),   # <--- hecho por claude code (06-nov-2026): por ahora solo druiz y superusuario
         'nav_coord_bl':         nav_coord_bl,
         'nav_coord_col':        nav_coord_col,
         'nav_maestro_bl':       nav_mbl,
@@ -215,6 +217,17 @@ def nav_context(request):
         aplicar_ocultos(ctx, ocultos(_cfg))
     except Exception:
         ctx.setdefault('programas_ocultos', {})
+    # <--- hecho por claude code (09-nov-2026): canal de la petición (Web/.exe/APK) para el JS que quita enlaces y el aviso «Probar como»
+    try:
+        from core.canales import CANAL_LABEL, SESION_PRUEBA, mapa_js
+        _canal = getattr(request, 'tc_canal', 'web')
+        _oc = getattr(request, 'tc_canal_ocultos', frozenset())
+        ctx['tc_canal'] = _canal
+        ctx['tc_canal_label'] = CANAL_LABEL.get(_canal, _canal)
+        ctx['tc_canal_prueba'] = bool(user.is_superuser and request.session.get(SESION_PRUEBA))
+        ctx['tc_canal_mapa'] = mapa_js(_oc) if _oc else None
+    except Exception:
+        ctx['tc_canal_mapa'] = None
 
     # <--- hecho por claude code (30-oct-2026): menú superior horizontal del superusuario por CATEGORÍAS
     # (las mismas del Panel Principal). Reutiliza GRUPOS_SUPER; el .js no reconstruye si ya hay items.

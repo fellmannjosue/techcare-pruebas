@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'ingresos_notas/css/notas.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'ingresos_notas/css/notas.css' %}?v=5">
 {% endblock %}
 
 {% block content %}
@@ -143,7 +143,7 @@
         </div>
       </div>
       <div class="text-muted small mt-2">
-        <i class="ti ti-info-circle me-1"></i>Puntos de 0 a 10 · se guardan solos al salir de
+        <i class="ti ti-info-circle me-1"></i>Puntos enteros de 1 a 10 · se guardan solos al salir de
         cada casilla. Llena una tarea completa antes de crear la siguiente.
       </div>
       <div id="tr-aviso" class="mt-2"></div>
@@ -199,9 +199,14 @@
             <option value="">— Elige primero el grado —</option>
           </select>
         </div>
-        <div class="col-sm-3">
-          <label class="form-label mb-1 fw-semibold">Fecha</label>
+        {# <--- hecho por claude code (06-nov-2026): diseño B «matriz» — hasta qué día y cuántas clases hacia atrás #}
+        <div class="col-sm-2">
+          <label class="form-label mb-1 fw-semibold">Hasta el día</label>
           <input type="date" class="form-control" id="as-fecha" value="{{ hoy }}">
+        </div>
+        <div class="col-sm-1">
+          <label class="form-label mb-1 fw-semibold">Días</label>
+          <select class="form-select" id="as-dias"><option value="5" selected>5</option><option value="10">10</option></select>
         </div>
       </div>
       <div class="text-muted small mt-2">
@@ -218,12 +223,14 @@
       <h3 class="card-title" id="as-titulo">Participantes</h3>
       <div class="card-actions"><span id="as-estado" class="small text-muted"></span></div>
     </div>
+    <div id="as-kpis" class="as-kpis" hidden></div>
     <div id="as-cont">
       <div class="card-body text-center text-muted py-5">
         <i class="ti ti-hand-click" style="font-size:2rem"></i>
         <div class="mt-2">Elige grado y clase para pasar asistencia.</div>
       </div>
     </div>
+    <div id="as-det" class="as-det" hidden></div>
   </div>
 
 </div>
@@ -269,7 +276,7 @@
       </div>
       <div class="text-muted small mt-2">
         {# <--- hecho por claude code: los 5 habitos se registran juntos el mismo dia #}
-        <i class="ti ti-info-circle me-1"></i>Puntos de 0 a 10 en cada hábito · se guardan
+        <i class="ti ti-info-circle me-1"></i>Puntos enteros de 1 a 10 en cada hábito · se guardan
         solos al salir de la casilla. El comentario aplica a los hábitos de ese día.
       </div>
     </div>
@@ -306,8 +313,26 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'ingresos_notas/js/notas.js' %}?v=5"></script>
-<script src="{% static 'ingresos_notas/js/tareas.js' %}?v=2"></script>
-<script src="{% static 'ingresos_notas/js/asistencias.js' %}?v=1"></script>
-<script src="{% static 'ingresos_notas/js/habitos.js' %}?v=1"></script>
+{# <--- hecho por claude code (06-nov-2026): confirmación para quitar una falta (Asistencias) #}
+<div class="modal modal-blur fade" id="as-modal-quitar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-status bg-danger"></div>
+    <div class="modal-body text-center py-4">
+      <i class="ti ti-calendar-x text-danger mb-2" style="font-size:2.4rem"></i>
+      <h3>¿Quitar la falta?</h3>
+      <div class="text-secondary"><b data-as="alumno"></b><br><span data-as="tipo"></span> · <span data-as="fecha"></span></div>
+      <div class="small text-secondary mt-2">Se borra del sistema académico y deja de contar para los recargos.</div>
+    </div>
+    <div class="modal-footer"><div class="w-100"><div class="row">
+      <div class="col"><button type="button" class="btn w-100" data-bs-dismiss="modal">Cancelar</button></div>
+      <div class="col"><button type="button" class="btn btn-danger w-100" data-as="ok">Quitar falta</button></div>
+    </div></div></div>
+  </div></div>
+</div>
+<script src="{% static 'ingresos_notas/js/planilla.js' %}?v=3"></script>{# <--- hecho por claude code (06-nov-2026): diseños A/B #}
+<script src="{% static 'ingresos_notas/js/notas.js' %}?v=7"></script>
+<script src="{% static 'ingresos_notas/js/tareas.js' %}?v=5"></script>
+{# <--- hecho por claude code (seguridad 05-nov-2026): v2 = manda la confirmación de borrado (quitar) y Otros con maxlength 50 #}
+<script src="{% static 'ingresos_notas/js/asistencias.js' %}?v=4"></script>
+<script src="{% static 'ingresos_notas/js/habitos.js' %}?v=3"></script>
 {% endblock %}

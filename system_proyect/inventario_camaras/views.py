@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): candado global de sesión
 import base64
 import json
 import re
@@ -31,10 +32,17 @@ from django.views.decorators.csrf import csrf_protect
 from .models import (
     Servidor, NVR, Componente, Gabinete, Camara,
     TipoFallaCamara, MantenimientoCamara, FotoMantenimientoCamara,
+    ESTADO_MANT_CHOICES,
 )
 from .forms import (
     ServidorForm, NVRForm, ComponenteForm, GabineteForm, CamaraForm,
     MantenimientoCamaraForm, FirmaTecnicoForm,
+)
+# <--- hecho por claude code (seguridad 05-nov-2026): validación de firmas/fotos, vigencia del link y escape del PDF
+from django.db import transaction
+from django.http import FileResponse, Http404
+from .seguridad import (
+    FIRMA_LADO_MAX, FIRMA_LINK_DIAS, link_firma_vigente, procesar_fotos, texto_pdf, validar_firma_png,
 )
 
 # URL pública del sistema (incluye el puerto :437). El link de firma del técnico
@@ -280,21 +288,67 @@ def _camaras_por_grupo_json():
     return json.dumps(data)
 
 
+def _firma_y_fotos(request):
+    """<--- hecho por claude code (seguridad 05-nov-2026): valida la firma del responsable (PNG real) y las
+    fotos (lista blanca, tamaño, Pillow, re-codificadas) ANTES de guardar nada. Lanza ValueError."""
+    firma = (request.POST.get('firma_responsable_data') or '').strip()
+    if firma:
+        try:
+            firma = validar_firma_png(firma)
+        except ValueError as e:
+            raise ValueError(f'firma del responsable: {e}')
+    fotos = procesar_fotos(request.FILES.getlist('fotos'))
+    return (firma or None), fotos
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): campos que guarda la edición normal (nunca los de la firma del técnico)
+_CAMPOS_EDITABLES_MANT = ['grupo', 'tipo_falla', 'date', 'status', 'solucion', 'observaciones',
+                          'responsable_nombre', 'modificado_por', 'fecha_modificado']
+
+
+def _editar_ficha_firmada(request, rec):
+    """<--- hecho por claude code (seguridad 05-nov-2026): con la firma del técnico puesta, lo firmado ya no se
+    toca; solo se actualiza el estado y se pueden agregar fotos."""
+    estado = request.POST.get('status') or rec.status
+    if estado not in dict(ESTADO_MANT_CHOICES):
+        messages.error(request, 'Error al actualizar: estado no válido.')
+        return redirect('inventario_camaras:mantenimiento')
+    try:
+        fotos = procesar_fotos(request.FILES.getlist('fotos'))
+    except ValueError as e:
+        messages.error(request, f'Error al actualizar: {e}')
+        return redirect('inventario_camaras:mantenimiento')
+    with transaction.atomic():
+        rec.status = estado
+        rec.modificado_por = request.user
+        rec.save(update_fields=['status', 'modificado_por', 'fecha_modificado'])
+        for f in fotos:
+            FotoMantenimientoCamara.objects.create(registro=rec, imagen=f)
+    messages.success(request, f'Registro {rec.record_id} actualizado. Ya está firmado por el técnico: '
+                              f'solo se cambió el estado{" y se agregaron las fotos" if fotos else ""}.')
+    return redirect('inventario_camaras:mantenimiento')
+
+
 @_camaras_required
 def mantenimiento_dashboard(request):
     if request.method == 'POST':
         form = MantenimientoCamaraForm(request.POST, request.FILES)
         if form.is_valid():
-            rec = form.save(commit=False)
-            firma = request.POST.get('firma_responsable_data', '').strip()
-            if firma:
-                rec.firma_responsable = firma
-            if not rec.creado_por_id:
-                rec.creado_por = request.user
-            rec.modificado_por = request.user
-            rec.save()
-            for f in request.FILES.getlist('fotos'):
-                FotoMantenimientoCamara.objects.create(registro=rec, imagen=f)
+            try:
+                firma, fotos = _firma_y_fotos(request)   # <--- hecho por claude code (seguridad 05-nov-2026)
+            except ValueError as e:
+                messages.error(request, f'Error al guardar: {e}')
+                return redirect('inventario_camaras:mantenimiento')
+            with transaction.atomic():
+                rec = form.save(commit=False)
+                if firma:
+                    rec.firma_responsable = firma
+                if not rec.creado_por_id:
+                    rec.creado_por = request.user
+                rec.modificado_por = request.user
+                rec.save()
+                for f in fotos:
+                    FotoMantenimientoCamara.objects.create(registro=rec, imagen=f)
             messages.success(request, f'Registro {rec.record_id} guardado correctamente.')
         else:
             messages.error(request, f'Error al guardar: {_errores(form)}')
@@ -312,6 +366,7 @@ def mantenimiento_dashboard(request):
         'camaras_grupo_json': _camaras_por_grupo_json(),
         'tipos_falla':       TipoFallaCamara.objects.all().order_by('nombre'),
         'site_url':          SITE_URL,
+        'firma_link_dias':   FIRMA_LINK_DIAS,   # <--- hecho por claude code (seguridad 05-nov-2026)
     })
 
 
@@ -319,16 +374,29 @@ def mantenimiento_dashboard(request):
 def mantenimiento_editar(request, pk):
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
     if request.method == 'POST':
+        if rec.firmado:
+            return _editar_ficha_firmada(request, rec)   # <--- hecho por claude code (seguridad 05-nov-2026): lo firmado no se edita
         form = MantenimientoCamaraForm(request.POST, request.FILES, instance=rec)
         if form.is_valid():
-            rec = form.save(commit=False)
-            firma = request.POST.get('firma_responsable_data', '').strip()
-            if firma:
-                rec.firma_responsable = firma
-            rec.modificado_por = request.user
-            rec.save()
-            for f in request.FILES.getlist('fotos'):
-                FotoMantenimientoCamara.objects.create(registro=rec, imagen=f)
+            try:
+                firma, fotos = _firma_y_fotos(request)   # <--- hecho por claude code (seguridad 05-nov-2026)
+            except ValueError as e:
+                messages.error(request, f'Error al actualizar: {e}')
+                return redirect('inventario_camaras:mantenimiento')
+            with transaction.atomic():
+                # <--- hecho por claude code (seguridad 05-nov-2026): si el técnico firmó mientras tanto, no se pisa su firma ni se cambia lo firmado
+                if MantenimientoCamara.objects.select_for_update().get(pk=rec.pk).firmado:
+                    messages.error(request, f'{rec.record_id} acaba de ser firmado por el técnico: vuelve a abrirlo para cambiar el estado.')
+                    return redirect('inventario_camaras:mantenimiento')
+                rec = form.save(commit=False)
+                campos = list(_CAMPOS_EDITABLES_MANT)
+                if firma:
+                    rec.firma_responsable = firma
+                    campos.append('firma_responsable')
+                rec.modificado_por = request.user
+                rec.save(update_fields=campos)
+                for f in fotos:
+                    FotoMantenimientoCamara.objects.create(registro=rec, imagen=f)
             messages.success(request, f'Registro {rec.record_id} actualizado correctamente.')
         else:
             messages.error(request, f'Error al actualizar: {_errores(form)}')
@@ -339,6 +407,7 @@ def mantenimiento_editar(request, pk):
         'tipo_falla': rec.tipo_falla_id or '', 'date': rec.date.strftime('%Y-%m-%d') if rec.date else '',
         'status': rec.status, 'solucion': rec.solucion or '', 'observaciones': rec.observaciones or '',
         'responsable_nombre': rec.responsable_nombre or '',
+        'firmado': rec.firmado,   # <--- hecho por claude code (seguridad 05-nov-2026): el JS bloquea lo firmado en el modal
     })
 
 
@@ -346,6 +415,10 @@ def mantenimiento_editar(request, pk):
 def mantenimiento_eliminar(request, pk):
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
     if request.method == 'POST':
+        # <--- hecho por claude code (seguridad 05-nov-2026): una ficha con la firma del técnico es evidencia; solo el superusuario la borra
+        if rec.firmado and not request.user.is_superuser:
+            messages.error(request, f'{rec.record_id} ya está firmado por el técnico: solo el administrador puede eliminarlo.')
+            return redirect('inventario_camaras:mantenimiento')
         rec.delete()
         messages.success(request, 'Registro eliminado correctamente.')
         return redirect('inventario_camaras:mantenimiento')
@@ -355,6 +428,7 @@ def mantenimiento_eliminar(request, pk):
 # ════════════════════════════════════════════════════════════
 # FIRMA REMOTA DEL TÉCNICO (link público con token, sin login)
 # ════════════════════════════════════════════════════════════
+@login_not_required  # <--- hecho por claude code (seguridad 05-nov-2026): pública a propósito; el resto del sistema exige sesión (LoginRequiredMiddleware)
 @csrf_protect
 def firmar_publico(request, token):
     rec = get_object_or_404(MantenimientoCamara, token_firma=token)
@@ -364,13 +438,24 @@ def firmar_publico(request, token):
             'rec': rec, 'ya_firmado': True,
         })
 
+    # <--- hecho por claude code (seguridad 05-nov-2026): el link solo sirve si TI lo envió y por FIRMA_LINK_DIAS (sin datos de la ficha si caducó)
+    if not link_firma_vigente(rec):
+        return render(request, 'inventario_camaras/firmar.html', {'caducado': True}, status=403)
+
     if request.method == 'POST':
         form = FirmaTecnicoForm(request.POST)
         if form.is_valid():
-            rec.tecnico_nombre = form.cleaned_data['tecnico_nombre']
-            rec.firma_tecnico  = form.cleaned_data['firma_data']
-            rec.firmado_en     = timezone.now()
-            rec.save(update_fields=['tecnico_nombre', 'firma_tecnico', 'firmado_en', 'fecha_modificado'])
+            # <--- hecho por claude code (seguridad 05-nov-2026): una sola firma aunque lleguen dos envíos a la vez
+            with transaction.atomic():
+                rec = MantenimientoCamara.objects.select_for_update().get(pk=rec.pk)
+                if rec.firmado:
+                    return render(request, 'inventario_camaras/firmar.html', {'rec': rec, 'ya_firmado': True})
+                if not link_firma_vigente(rec):
+                    return render(request, 'inventario_camaras/firmar.html', {'caducado': True}, status=403)
+                rec.tecnico_nombre = form.cleaned_data['tecnico_nombre']
+                rec.firma_tecnico  = form.cleaned_data['firma_data']
+                rec.firmado_en     = timezone.now()
+                rec.save(update_fields=['tecnico_nombre', 'firma_tecnico', 'firmado_en', 'fecha_modificado'])
             return render(request, 'inventario_camaras/firmar.html', {
                 'rec': rec, 'exito': True,
             })
@@ -387,10 +472,36 @@ def marcar_firma_solicitada(request, pk):
     """Marca que ya se mandó el link de firma al técnico (AJAX)."""
     rec = get_object_or_404(MantenimientoCamara, pk=pk)
     if request.method == 'POST':
+        # <--- hecho por claude code (seguridad 05-nov-2026): ya firmada = no hay link que activar (el JS lo avisa en vez de mandar un link que da 403)
+        if rec.firmado:
+            return JsonResponse({'ok': False, 'error': f'{rec.record_id} ya está firmado por el técnico.'}, status=409)
         rec.firma_solicitada = True
-        rec.save(update_fields=['firma_solicitada', 'fecha_modificado'])
+        rec.modificado_por = request.user   # <--- hecho por claude code (seguridad 05-nov-2026): queda quién activó/renovó el link público
+        rec.save(update_fields=['firma_solicitada', 'modificado_por', 'fecha_modificado'])
         return JsonResponse({'ok': True})
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): Apache ya no sirve /media/inventario_camaras/ por URL directa; las fotos se ven por aquí, con el candado del módulo
+_FOTO_CTYPES = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif'}
+
+
+@_camaras_required
+def foto_ver(request, pk):
+    import os as _os
+    foto = get_object_or_404(FotoMantenimientoCamara, pk=pk)
+    if not foto.imagen:
+        raise Http404('Foto no encontrada')
+    try:
+        fh = foto.imagen.open('rb')
+    except (OSError, ValueError):
+        raise Http404('Foto no encontrada')
+    ext = _os.path.splitext(foto.imagen.name)[1].lower()
+    ctype = _FOTO_CTYPES.get(ext)
+    resp = FileResponse(fh, content_type=ctype or 'application/octet-stream',
+                        as_attachment=ctype is None, filename=f'foto_{foto.pk}{ext}')
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 # ════════════════════════════════════════════════════════════
@@ -400,7 +511,10 @@ def _firma_img(b64, RLImage, cm):
     from PIL import Image as PILImage
     b64 = re.sub(r'^data:image/[^;]+;base64,', '', b64)
     img_bytes = base64.b64decode(b64)
-    pil_img = PILImage.open(BytesIO(img_bytes)).convert('RGBA')
+    pil_img = PILImage.open(BytesIO(img_bytes))
+    if max(pil_img.size) > FIRMA_LADO_MAX:   # <--- hecho por claude code (seguridad 05-nov-2026): no descomprimir firmas gigantes
+        raise ValueError('firma demasiado grande')
+    pil_img = pil_img.convert('RGBA')
     bg = PILImage.new('RGB', pil_img.size, (255, 255, 255))
     bg.paste(pil_img, mask=pil_img.split()[3])
     out = BytesIO()
@@ -447,9 +561,9 @@ def download_mantenimiento_pdf(request, pk):
         RLImage(logo_path, width=2.5 * cm, height=2.5 * cm) if logo_path else "",
         [Paragraph("Ficha de Mantenimiento de Cámara", st_title),
          Paragraph("Asociación Nuevo Amanecer – Sistema TechCare", st_sub)],
-        Paragraph(f"<b>ID:</b> {rec.record_id}<br/>"
+        Paragraph(f"<b>ID:</b> {texto_pdf(rec.record_id)}<br/>"   # <--- hecho por claude code (seguridad 05-nov-2026): texto escapado
                   f"<b>Fecha:</b> {rec.date.strftime('%d/%m/%Y') if rec.date else '—'}<br/>"
-                  f"<b>Estado:</b> {rec.status}",
+                  f"<b>Estado:</b> {texto_pdf(rec.status)}",
                   ParagraphStyle("hr", fontSize=9, fontName="Helvetica", alignment=TA_LEFT)),
     ]]
     htbl = Table(header, colWidths=[2.8 * cm, 10 * cm, 4.5 * cm])
@@ -471,8 +585,9 @@ def download_mantenimiento_pdf(request, pk):
         ]))
         return tbl
 
-    def fr(label, value):
-        return [Paragraph(label, st_label), Paragraph(str(value) if value else "—", st_value)]
+    def fr(label, value, multilinea=False):
+        # <--- hecho por claude code (seguridad 05-nov-2026): Paragraph interpreta marcado (<img src>, <a href>): el valor va escapado
+        return [Paragraph(label, st_label), Paragraph(texto_pdf(value, multilinea) if value else "—", st_value)]
 
     def _datatable(rows):
         t = Table(rows, colWidths=[4.3 * cm, 13 * cm])
@@ -497,11 +612,11 @@ def download_mantenimiento_pdf(request, pk):
     th = ParagraphStyle("th", fontSize=9, fontName="Helvetica-Bold", textColor=colors.white)
     cam_rows = [[Paragraph(t, th) for t in ("ID", "Modelo", "Serie", "Ubicación", "Gabinete", "Estado")]]
     for c in cams:
-        cam_rows.append([
-            Paragraph(c.camara_id, st_value), Paragraph(c.modelo or "—", st_value),
-            Paragraph(c.serie or "—", st_value), Paragraph(c.ubicacion or "—", st_value),
-            Paragraph(str(c.gabinete) if c.gabinete else "—", st_value),
-            Paragraph(c.estado or "—", st_value),
+        cam_rows.append([   # <--- hecho por claude code (seguridad 05-nov-2026): texto escapado
+            Paragraph(texto_pdf(c.camara_id), st_value), Paragraph(texto_pdf(c.modelo or "—"), st_value),
+            Paragraph(texto_pdf(c.serie or "—"), st_value), Paragraph(texto_pdf(c.ubicacion or "—"), st_value),
+            Paragraph(texto_pdf(c.gabinete) if c.gabinete else "—", st_value),
+            Paragraph(texto_pdf(c.estado or "—"), st_value),
         ])
     if len(cam_rows) == 1:
         cam_rows.append([Paragraph("Sin cámaras en este grupo", st_value), "", "", "", "", ""])
@@ -520,8 +635,8 @@ def download_mantenimiento_pdf(request, pk):
     story += [_st("Diagnóstico y Solución"), Spacer(1, 0.1 * cm)]
     story += [_datatable([
         fr("Tipo de Falla:", str(rec.tipo_falla) if rec.tipo_falla else "—"),
-        fr("Solución aplicada:", rec.solucion or "—"),
-        fr("Observaciones:", rec.observaciones or "—"),
+        fr("Solución aplicada:", rec.solucion or "—", multilinea=True),
+        fr("Observaciones:", rec.observaciones or "—", multilinea=True),
     ]), Spacer(1, 0.4 * cm)]
 
     # ── Firmas (responsable + técnico) ──
@@ -539,7 +654,7 @@ def download_mantenimiento_pdf(request, pk):
         cell.append(HRFlowable(width="80%", thickness=1, color=colors.gray, hAlign="CENTER"))
         cell.append(Spacer(1, 0.1 * cm))
         cell.append(Paragraph(f"<b>{rol}</b>", st_center))
-        cell.append(Paragraph(nombre or "—", st_center))
+        cell.append(Paragraph(texto_pdf(nombre) if nombre else "—", st_center))   # <--- hecho por claude code (seguridad 05-nov-2026): el nombre del técnico lo escribe un anónimo
         return cell
 
     firmas_tbl = Table([[
@@ -569,8 +684,15 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): la SPA crea/edita/borra por el API, que quedó de SOLO LECTURA (daba 405 a medio uso); /app/ lleva al hub. Reactivar = devolver la escritura al API con auditoría y poner True
+_SPA_ACTIVA = False
+
+
 @_camaras_required
 def app_spa(request):
+    if not _SPA_ACTIVA:   # <--- hecho por claude code (seguridad 05-nov-2026)
+        messages.info(request, 'La vista nueva de Cámaras está en pausa: el inventario se administra desde estas pantallas.')
+        return redirect('inventario_camaras:hub')
     build = os.path.join(settings.BASE_DIR, 'inventario_camaras', 'static',
                          'inventario_camaras', 'app', 'index.html')
     try:

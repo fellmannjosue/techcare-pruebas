@@ -115,23 +115,25 @@ const CFG_ROUTING_BL = (function () {
       const d = (COORD_ORDEN[a.e.coord||'']||9) - (COORD_ORDEN[b.e.coord||'']||9);
       return d !== 0 ? d : (a.e.docente||'').localeCompare(b.e.docente||'');
     });
+    const _rbEsc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');   // <--- (09-nov-2026)
     let coordActual = null;
     filas.forEach(({e, idx})=>{
       const cc = e.coord || '';
       if(cc !== coordActual){
         coordActual = cc;
-        const titulo = cc ? `${cc} · ${COORD_NOMBRES[cc]||''}` : 'Auto (sin coordinador · por materia/grado)';
+        const titulo = cc ? `${_rbEsc(cc)} · ${_rbEsc(COORD_NOMBRES[cc]||'')}` : 'Auto (sin coordinador · por materia/grado)';   // <--- (09-nov-2026) escapado: XSS
         const hdr = document.createElement('tr'); hdr.className = 'doc-group-hdr';
         hdr.innerHTML = `<td colspan="4" class="bg-light fw-semibold small text-uppercase text-muted py-1">${titulo}</td>`;
         docTbody.appendChild(hdr);
       }
       const coordHtml = cc
-        ? `<span class="badge bg-orange-lt text-orange" title="${COORD_NOMBRES[cc]||''}">${cc}</span>`
+        ? `<span class="badge bg-orange-lt text-orange" title="${_rbEsc(COORD_NOMBRES[cc]||'')}">${_rbEsc(cc)}</span>`
         : '<span class="badge bg-secondary-lt text-muted">Auto</span>';
       const tr = document.createElement('tr'); tr.dataset.idx = idx; tr.style.cursor='pointer';
       if(idx===docEdit) tr.classList.add('table-active');
-      tr.innerHTML = `<td class="fw-medium">${e.docente||''}</td>`+
-        `<td class="text-muted small">${e.materias || '<span class="text-secondary">—</span>'}</td>`+
+      // <--- hecho por claude code (09-nov-2026, ISO 27001): docente/materias son texto libre guardado en el servidor → se escapan (antes XSS almacenado)
+      tr.innerHTML = `<td class="fw-medium">${_rbEsc(e.docente||'')}</td>`+
+        `<td class="text-muted small">${e.materias ? _rbEsc(e.materias) : '<span class="text-secondary">—</span>'}</td>`+
         `<td class="text-center">${coordHtml}</td>`+
         `<td class="text-end"><button type="button" class="btn btn-sm btn-ghost-danger doc-del" data-idx="${idx}"><i class="ti ti-x"></i></button></td>`;
       docTbody.appendChild(tr);

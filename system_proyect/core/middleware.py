@@ -87,6 +87,56 @@ def _audiencia_afectada(user, config):
     return bool(is_auth and grupos and user.groups.filter(name__in=grupos).exists())
 
 
+# <--- hecho por claude code (17-nov-2026): área a la que pertenece una petición (para el bloqueo por formulario).
+_TOKENS_AREA = {
+    'bilingue': {'bilingue', 'bilingüe', 'bl', 'colegio_bl', 'primaria_bl', 'primaria'},
+    'colegio':  {'colegio', 'col', 'bachillerato'},
+}
+
+
+def _peticion_de_otra_area(request, config):
+    """True si la petición es claramente de un área distinta a la bloqueada y el usuario también pertenece a esa área.
+
+    Solo aplica con un área concreta (bilingue/colegio). Las pistas del área: la URL, el parámetro `area`
+    (GET, POST o JSON) y, en Agendas, el área del modo maestro guardada en la sesión. Sin pistas → se bloquea.
+    """
+    area = getattr(config, 'MAINTENANCE_AREA', 'all')
+    if area not in _TOKENS_AREA:
+        return False
+    user = getattr(request, 'user', None)
+    if not (user and user.is_authenticated):
+        return False
+    otras = [a for a in _TOKENS_AREA if a != area]
+    grupos = set(user.groups.values_list('name', flat=True))
+    otras = [a for a in otras if grupos & set(_AREA_GROUPS.get(a, ()))]
+    if not otras:
+        return False                      # solo pertenece al área bloqueada
+    pistas = [seg.lower() for seg in request.path_info.split('/') if seg]
+    for v in (request.GET.get('area'), request.POST.get('area') if request.method == 'POST' else None):
+        if v:
+            pistas.append(str(v).lower())
+    if request.method == 'POST' and 'json' in (request.content_type or ''):
+        try:
+            import json as _json
+            cuerpo = _json.loads(request.body or b'{}')
+            if isinstance(cuerpo, dict) and cuerpo.get('area'):
+                pistas.append(str(cuerpo['area']).lower())
+        except Exception:
+            pass
+    if request.path_info.startswith('/agendas/'):
+        try:
+            if request.session.get('agenda_modo_maestro') and request.session.get('agenda_area_maestro'):
+                pistas.append(str(request.session['agenda_area_maestro']).lower())
+            elif request.GET.get('modo') == 'maestro' and request.GET.get('area'):
+                pistas.append(str(request.GET['area']).lower())
+        except Exception:
+            pass
+    pistas = set(pistas)
+    if pistas & _TOKENS_AREA[area]:
+        return False                      # la petición es del área bloqueada
+    return any(pistas & _TOKENS_AREA[a] for a in otras)
+
+
 class MaintenanceModeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -251,6 +301,10 @@ class MaintenanceModeMiddleware:
 
         if not _audiencia_afectada(getattr(request, 'user', None), config):
             return None
+        # <--- hecho por claude code (17-nov-2026): pedido del usuario — el bloqueo por formulario solo afecta el ÁREA
+        # elegida. Un usuario de dos áreas (p. ej. maestra de Bilingüe y de Colegio) sigue libre en lo de la otra área.
+        if _peticion_de_otra_area(request, config):
+            return None
 
         # En "solo lectura": la página se muestra, pero marcada para dejarla no editable
         if estado == 'lectura' and request.method in ('GET', 'HEAD', 'OPTIONS'):
@@ -299,4 +353,131 @@ class SesionInactividadMiddleware:
                 request.session.set_expiry(self.minutos() * 60)
             except Exception:
                 pass
+        return response
+
+
+# <--- hecho por claude code (seguridad 05-nov-2026): CANDADO GLOBAL DE SESIÓN. Antes cada vista tenía que acordarse de @login_required y un olvido la dejaba pública en internet (pasó 3 veces: enfermería, dashboard C1, PDF/QR de inventario). Ahora TODO pide sesión salvo lo marcado con @login_not_required (login, PWA, firmas por token, PNG de WhatsApp, Google Forms, formulario de tickets) y las vistas de Django REST Framework, que hacen su propia autenticación (IsAuthenticated por defecto) y responden 401/403 en vez de redirigir.
+from django.contrib.auth.middleware import LoginRequiredMiddleware as _DjLoginRequiredMiddleware
+
+
+class TechCareLoginRequiredMiddleware(_DjLoginRequiredMiddleware):
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        cls = getattr(view_func, 'cls', None)
+        if cls is not None:
+            try:
+                from rest_framework.views import APIView
+                if isinstance(cls, type) and issubclass(cls, APIView):
+                    return None
+            except Exception:
+                pass
+        return super().process_view(request, view_func, view_args, view_kwargs)
+
+
+# <--- hecho por claude code (09-nov-2026): programas por CANAL (Web / .exe / APK), ver core/canales.py.
+class CanalAppMiddleware:
+    """Fija el canal de la petición (para los armadores de menús) y bloquea las rutas de los
+    programas que ese canal no tiene activados. Aplica también al superusuario (así ve cómo
+    queda cada app); /accounts/ no es un programa, así que Configuración nunca se bloquea."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from core.canales import canal_de, ocultos_de_canal, CANAL_ACTUAL, OCULTOS_ACTUAL, CANAL_LABEL
+        canal = 'web'
+        oc = frozenset()
+        try:
+            from constance import config
+            canal = canal_de(request)
+            oc = frozenset(ocultos_de_canal(config, canal))
+        except Exception:
+            pass
+        request.tc_canal = canal
+        request.tc_canal_ocultos = oc
+        t1 = CANAL_ACTUAL.set(canal)
+        t2 = OCULTOS_ACTUAL.set(oc)
+        try:
+            user = getattr(request, 'user', None)
+            if oc and user is not None and user.is_authenticated:
+                from core.programas import programa_de_ruta
+                prog = programa_de_ruta(request.path_info)
+                if prog and prog['key'] in oc:
+                    try:
+                        inicio = reverse('menu')
+                    except NoReverseMatch:
+                        inicio = '/'
+                    return render(request, 'core/formulario_bloqueado.html', {
+                        'mod_label':   prog['label'],
+                        'mod_key':     prog['key'],
+                        'desactivado': True,
+                        'canal_label': CANAL_LABEL.get(canal, canal),
+                        'solo_lectura': False,
+                        'inicio_url':  inicio,
+                    }, status=403)
+            return self.get_response(request)
+        finally:
+            CANAL_ACTUAL.reset(t1)
+            OCULTOS_ACTUAL.reset(t2)
+
+
+# <--- hecho por claude code (09-nov-2026): modo VENTANA (?embed=1). El launcher «Registrar» de Servicio Técnico
+# carga el formulario REAL dentro de su ventana (iframe). Aquí: (1) se permite meterlo en un iframe del MISMO sitio
+# (X-Frame-Options SAMEORIGIN solo para ?embed=1; el resto sigue DENY) y (2) cuando el POST termina en redirección
+# (guardado o error), en vez de seguir a la lista se responde una página mínima que avisa a la ventana padre
+# con los mensajes de Django. Si la redirección abre OTRO formulario (caso especial, ?nuevo=), sigue en la ventana.
+class EmbedVentanaMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        embed = request.GET.get('embed') == '1'
+        response = self.get_response(request)
+        if not embed:
+            return response
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        if request.method == 'POST' and response.status_code in (301, 302, 303):
+            destino = response.get('Location', '') or ''
+            if 'caso_especial=' in destino or 'nuevo=' in destino:
+                sep = '&' if '?' in destino else '?'
+                response['Location'] = destino + sep + 'embed=1'
+                return response
+            from django.contrib import messages as _msgs
+            lista = [{'nivel': m.level_tag, 'texto': str(m)} for m in _msgs.get_messages(request)]
+            ok = not any(m['nivel'] == 'error' for m in lista)
+            r = render(request, 'core/embed_resultado.html',
+                       {'resultado': {'ok': ok, 'mensajes': lista, 'destino': destino}})
+            r['X-Frame-Options'] = 'SAMEORIGIN'
+            return r
+        return response
+
+
+# <--- hecho por claude code (09-nov-2026, revisión ISO 27001 · fuga de información): descargas sin caché
+_TIPOS_PRIVADOS = (
+    'application/pdf', 'application/zip', 'application/x-zip-compressed',
+    'application/vnd.openxmlformats-officedocument', 'application/vnd.ms-excel',
+    'application/msword', 'text/csv', 'application/octet-stream',
+)
+
+
+class DescargasPrivadasMiddleware:
+    """Los documentos que genera TechCare (ficha médica, notas, reportes de conducta, planillas,
+    exportes) llevan datos de menores y de personal. Sin cabecera, el navegador o un proxy pueden
+    guardarlos en caché en equipos compartidos. Se agrega `Cache-Control: private, no-store` a toda
+    respuesta de documento o de descarga (Content-Disposition) que no haya fijado su propia caché.
+    No afecta a /static/ ni /media/ (los sirve Apache)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            tipo = (response.get('Content-Type') or '').lower()
+            if response.has_header('Cache-Control'):
+                return response
+            if response.has_header('Content-Disposition') or tipo.startswith(_TIPOS_PRIVADOS):
+                response['Cache-Control'] = 'private, no-store'
+                response['Pragma'] = 'no-cache'
+        except Exception:
+            pass
         return response

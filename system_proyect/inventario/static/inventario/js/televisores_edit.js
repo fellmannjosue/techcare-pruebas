@@ -1,9 +1,18 @@
 $(document).ready(function () {
 
+    // <--- hecho por claude code (seguridad 05-nov-2026): token CSRF para el borrado (ahora solo POST): del input del formulario "Agregar" de la página o de la cookie.
+    function csrfToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+
     // ================================
     // ABRIR MODAL EDITAR TELEVISOR
     // ================================
-    $(document).on("click", ".editar-btn", function () {
+    // <--- hecho por claude code (seguridad 05-nov-2026): la plantilla usa .editar-televisor / .eliminar-televisor (desde feb-2026) y aquí se escuchaba .editar-btn / .eliminar-btn: los botones no hacían nada.
+    $(document).on("click", ".editar-televisor", function () {
 
         let id = $(this).data("id");
 
@@ -52,7 +61,7 @@ $(document).ready(function () {
     // ================================
     // ELIMINAR TELEVISOR
     // ================================
-    $(document).on("click", ".eliminar-btn", function () {
+    $(document).on("click", ".eliminar-televisor", function () {
 
         let id = $(this).data("id");
 
@@ -66,13 +75,13 @@ $(document).ready(function () {
         }).then((res) => {
 
             if (res.isConfirmed) {
-                $.post(`/inventario/televisor/delete/${id}/`, function (resp) {
+                $.post(`/inventario/televisor/delete/${id}/`, { csrfmiddlewaretoken: csrfToken() }, function (resp) {
                     if (resp.ok) {
                         Swal.fire("Eliminado", "Televisor eliminado correctamente.", "success")
                             .then(() => location.reload());
                     }
-                }).fail(() => {
-                    Swal.fire("Error", "No se pudo eliminar el registro.", "error");
+                }).fail((xhr) => {
+                    Swal.fire({ title: "Error", text: (xhr.responseJSON && xhr.responseJSON.error) || "No se pudo eliminar el registro.", icon: "error" });
                 });
             }
 

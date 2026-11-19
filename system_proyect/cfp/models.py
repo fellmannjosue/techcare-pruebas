@@ -114,6 +114,8 @@ class EjecucionCurso(models.Model):
     part_pago    = models.PositiveIntegerField('Participantes final', default=0)
     costo_hora   = models.DecimalField('Costo por Hora', max_digits=8, decimal_places=2, default=0)
     horario      = models.CharField('Horario', max_length=80, blank=True)
+    # <--- hecho por claude code (06-nov-2026, pedido del usuario): pérdida escrita a mano; vacía = se calcula por deserción
+    perdida_manual = models.DecimalField('Pérdida (manual)', max_digits=12, decimal_places=2, null=True, blank=True)
     creado       = models.DateTimeField(auto_now_add=True)
 
     history = HistoricalRecords()   # <--- hecho por claude code (30-sep-2026): auditoría
@@ -132,8 +134,15 @@ class EjecucionCurso(models.Model):
         return round(self.horas * self.part_pago * float(self.costo_hora), 2)
 
     @property
-    def perdida(self):
+    def perdida_calculada(self):
         return round(self.horas * max(0, self.part_inicial - self.part_pago) * float(self.costo_hora), 2)
+
+    @property
+    def perdida(self):
+        # <--- hecho por claude code (06-nov-2026): si se escribió una pérdida manda esa; si no, la de deserción (horas × participantes que bajaron × costo/hora)
+        if self.perdida_manual is not None:
+            return round(float(self.perdida_manual), 2)
+        return self.perdida_calculada
 
     @property
     def anticipo(self):

@@ -2,6 +2,8 @@
   const _cfg = document.getElementById('page-config');
   if (!_cfg) return;
   const CSRF = _cfg.dataset.csrf;
+  // <--- hecho por claude code (seguridad 05-nov-2026): nombre y usuario los escribe cada uno en Mi perfil; se pintaban con innerHTML (XSS almacenado)
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   // ── Modal ver usuarios del grupo ──
   const modalUsuarios = new bootstrap.Modal(document.getElementById('modalUsuariosGrupo'));
@@ -31,8 +33,8 @@
             <i class="ti ti-user"></i>
           </span>
           <div>
-            <div class="fw-semibold">${u.username}</div>
-            ${fullname ? `<div class="small text-muted">${fullname}</div>` : ''}
+            <div class="fw-semibold">${esc(u.username)}</div>
+            ${fullname ? `<div class="small text-muted">${esc(fullname)}</div>` : ''}
           </div>
           <span class="ms-auto badge ${u.is_active ? 'bg-success-lt text-success' : 'bg-danger-lt text-danger'}">
             ${u.is_active ? 'Activo' : 'Inactivo'}

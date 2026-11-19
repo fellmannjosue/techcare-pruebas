@@ -32,6 +32,18 @@ def fmt(dt):
     return dt.strftime("%d/%m/%Y %H:%M")
 
 
+# <--- hecho por claude code (seguridad 05-nov-2026): resúmenes de coordinación solo para la coordinación de ESA área o el superusuario (antes, cualquier autenticado)
+def _prohibido():
+    return JsonResponse({"total": 0, "items": [], "error": "Sin permiso"}, status=403)
+
+
+def _es_coord_de(user, grupos):
+    """Mismos grupos que nav_coord_bl/nav_coord_col (core/context_processors.py) y las tarjetas del menú.
+    Antes cualquier autenticado recibía "alumno - materia - docente" de las dos áreas; el área sale del USUARIO, nunca del navegador."""
+    from accounts.panel_roles import _g
+    return user.is_superuser or _g(user, *grupos)
+
+
 # ============================================================
 # 📌 RESUMEN: TICKETS
 # ============================================================
@@ -39,6 +51,9 @@ def fmt(dt):
 @login_required
 def summary_tickets(request):
     pendientes = Ticket.objects.exclude(status__iexact="Resuelto").order_by("-id")
+    # <--- hecho por claude code (seguridad 05-nov-2026): mismo criterio que la tarjeta del menú: el técnico ve todos; el resto, solo los suyos
+    if not (request.user.is_superuser or request.user.has_perm('tickets.view_ticket')):
+        pendientes = pendientes.filter(usuario=request.user)
 
     return JsonResponse({
         "total": pendientes.count(),
@@ -66,6 +81,9 @@ def summary_coordinacion_bl(request):
     Esto NO es el dashboard del coordinador.
     Solo envía un resumen simple para el dashboard principal.
     """
+    from accounts.panel_roles import _GRUPOS_COORD_BL
+    if not _es_coord_de(request.user, _GRUPOS_COORD_BL):   # <--- hecho por claude code (seguridad 05-nov-2026)
+        return _prohibido()
 
     total = (
         ReporteInformativo.objects.filter(area="bilingue", estado="enviado").count() +
@@ -75,7 +93,7 @@ def summary_coordinacion_bl(request):
 
     info     = ReporteInformativo.objects.filter(area="bilingue").order_by("-fecha")[:5]
     conducta = ReporteConductual.objects.filter(area="bilingue").order_by("-fecha")[:5]
-    progress = ProgressReport.objects.all().order_by("-fecha")[:5]
+    progress = ProgressReport.objects.exclude(estado="borrador").order_by("-fecha")[:5]   # <--- hecho por claude code (seguridad 05-nov-2026): los borradores del maestro no van al coordinador
 
     recientes = sorted(list(info) + list(conducta) + list(progress),
                        key=lambda x: x.fecha, reverse=True)
@@ -100,6 +118,9 @@ def summary_coordinacion_bl(request):
 @require_GET
 @login_required
 def summary_coordinacion_col(request):
+    from accounts.panel_roles import _GRUPOS_COORD_COL
+    if not _es_coord_de(request.user, _GRUPOS_COORD_COL):   # <--- hecho por claude code (seguridad 05-nov-2026)
+        return _prohibido()
     total = (
         ReporteInformativo.objects.filter(area="colegio", estado="enviado").count() +
         ReporteConductual.objects.filter(area="colegio", estado="enviado").count()
@@ -131,6 +152,8 @@ def summary_coordinacion_col(request):
 @require_GET
 @login_required
 def summary_reloj(request):
+    if not request.user.is_superuser:   # <--- hecho por claude code (seguridad 05-nov-2026): sin ruta hoy; si se enlaza, que no quede abierta
+        return _prohibido()
 
     if not TiempoCompensatorio or not PermisoEmpleado:
         return JsonResponse({"total": 0, "items": []})

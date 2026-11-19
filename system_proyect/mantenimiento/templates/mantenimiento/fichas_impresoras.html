@@ -10,11 +10,12 @@
                     <tbody>
                       {% for r in records_imp %}
                       <tr>
-                        <td><span class="badge bg-orange-lt text-orange">{{ r.record_id }}</span></td>
+                        <td><span class="badge bg-orange-lt text-orange btn-editar-mant" data-pk="{{ r.id }}" role="button" style="cursor:pointer" title="Editar esta ficha">{{ r.record_id }}</span></td>
                         <td class="fw-semibold">{% if r.impresora %}{{ r.impresora.asset_id }}{% else %}{{ r.model|default:"—" }}{% endif %}</td>
                         {# <--- hecho por claude code: Modelo con hover (modelo · serie · persona/área) #}
+                        {# <--- hecho por claude code (seguridad 05-nov-2026): popover HTML con doble escape en los datos del usuario (el navegador deshace un nivel y Bootstrap mete el resto como HTML) #}
                         <td><span class="mant-pop" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right" data-bs-title="Detalle de la impresora"
-                              data-bs-content="<div><b>Modelo:</b> {{ r.model|default:'—' }}</div><div><b>Serie:</b> {{ r.serie|default:'—' }}</div><div><b>Persona:</b> {{ r.teacher_name|default:'—' }}</div>{% if r.area %}<div><b>Área:</b> {{ r.area }}</div>{% endif %}">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
+                              data-bs-content="<div><b>Modelo:</b> {{ r.model|default:'—'|force_escape|force_escape }}</div><div><b>Serie:</b> {{ r.serie|default:'—'|force_escape|force_escape }}</div><div><b>Persona:</b> {{ r.teacher_name|default:'—'|force_escape|force_escape }}</div>{% if r.area %}<div><b>Área:</b> {{ r.area|force_escape|force_escape }}</div>{% endif %}">{{ r.model|default:"—" }} <i class="ti ti-info-circle text-muted"></i></span></td>
                         <td>{{ r.get_estado_tinta_display|default:"—" }}{% if r.tipo_tinta %}<span class="text-muted small"> · {{ r.tipo_tinta }}</span>{% endif %}</td>
                         <td>{{ r.get_tipo_mant_impresora_display|default:"—" }}</td>
                         <td data-order="{{ r.date|date:'Y-m-d' }}">{{ r.date|date:"d/m/Y" }}</td>

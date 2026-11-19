@@ -114,7 +114,7 @@
     habitos.forEach(function (hb) {
       h += '<th class="text-center col-nota" title="' + esc(hb.label) + '">' + esc(hb.label) + '</th>';
     });
-    h += '<th>Comentario</th></tr></thead><tbody>';
+    h += '<th class="text-center col-prom">Promedio</th><th>Comentario</th></tr></thead><tbody>';   // <--- diseño A (06-nov-2026)
 
     alumnos.forEach(function (a, i) {
       var com = ' data-materia="' + a.materia_id + '" data-alumno="' + esc(a.nombre) + '"';
@@ -127,12 +127,36 @@
              ' data-habito="' + hb.id + '"' + com +
              ' value="' + esc(a.puntos[String(hb.id)]) + '"></td>';
       });
+      h += '<td class="text-center td-prom">—</td>';
       h += '<td class="p-1"><input type="text" class="form-control form-control-sm celda-habito"' +
            ' data-campo="comentario"' + com + ' value="' + esc(a.comentario) + '"' +
            ' placeholder="Aplica a los hábitos del día"></td></tr>';
     });
-    cont.innerHTML = h + '</tbody></table></div>';
+    h += '</tbody><tfoot><tr><td></td><td class="tf-lbl">Promedio del grupo</td>';
+    habitos.forEach(function (hb) { h += '<td class="text-center tf-col" data-habito="' + hb.id + '">—</td>'; });
+    h += '<td class="text-center tf-prom">—</td><td></td></tr></tfoot>';
+    cont.innerHTML = h + '</table></div>';
+    recalcular();
   }
+
+  // <--- hecho por claude code (06-nov-2026): diseño A — promedios en vivo y puntos bajos (< 6) en rojo
+  var MINIMO = 6;
+  function recalcular() {
+    var P = TC_PLANILLA, todos = [];
+    cont.querySelectorAll('tbody tr').forEach(function (tr) {
+      var p = P.prom([].map.call(tr.querySelectorAll('.celda-habito[data-campo="puntos"]'), function (i) { return P.num(i.value); }));
+      var td = tr.querySelector('.td-prom'); if (!td) return;
+      td.textContent = P.fmt(p); td.classList.toggle('prom-baja', p !== null && p < MINIMO);
+      if (p !== null) todos.push(p);
+    });
+    cont.querySelectorAll('tfoot .tf-col').forEach(function (td) {
+      var p = P.prom([].map.call(cont.querySelectorAll('.celda-habito[data-campo="puntos"][data-habito="' + td.dataset.habito + '"]'), function (i) { return P.num(i.value); }));
+      td.textContent = P.fmt(p); td.classList.toggle('prom-baja', p !== null && p < MINIMO);
+    });
+    var tp = cont.querySelector('.tf-prom'); if (tp) tp.textContent = P.fmt(P.prom(todos));
+    P.marcarBajas(cont, '.celda-habito[data-campo="puntos"]', MINIMO);
+  }
+  cont.addEventListener('input', function (e) { if (e.target.classList.contains('celda-habito')) recalcular(); });
 
   // ── Autoguardado por celda ──
   cont.addEventListener('focusin', function (e) {
@@ -166,19 +190,18 @@
       .then(function (dd) {
         inp.classList.remove('celda-guardando');
         if (!dd.ok) {
-          inp.classList.add('celda-error');
-          inp.value = inp.dataset.antes || '';
+          TC_PLANILLA.rechazo(inp, dd.error || 'error');
+          recalcular();
           pinta('<i class="ti ti-alert-triangle me-1"></i>' + esc(dd.error), 'text-danger');
           return;
         }
-        inp.classList.add('celda-ok');
+        inp.classList.add('celda-ok'); inp.removeAttribute('title');
         inp.dataset.antes = actual;
+        TC_PLANILLA.burbuja(inp);
         pinta('<i class="ti ti-check me-1"></i>Guardado', 'text-green');
       })
       .catch(function () {
-        inp.classList.remove('celda-guardando');
-        inp.classList.add('celda-error');
-        inp.value = inp.dataset.antes || '';
+        TC_PLANILLA.rechazo(inp, 'sin conexión');
         pinta('<i class="ti ti-cloud-off me-1"></i>Sin conexión — no se guardó', 'text-danger');
       });
   });
