@@ -22,7 +22,7 @@
       </tr></thead>
       <tbody>
         {% for r in p_rows %}
-        <tr>
+        <tr data-emp="{{ r.emp_code }}">
           <td><div class="fw-semibold">{{ r.nombre }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center">{% if r.ingreso %}{{ r.ingreso|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}{% if r.al_tramos %} <i class="ti ti-info-circle text-blue al-info" tabindex="0" role="button" data-bs-toggle="tooltip" data-bs-placement="right" aria-label="Año laboral" title="Año laboral {{ r.al_tramos.ini|date:'d/m/Y' }} – {{ r.al_tramos.fin|date:'d/m/Y' }}{% if not r.al_tramos.n %} · sin cierres registrados{% endif %}"></i>{% if not r.al_tramos.n %} <i class="ti ti-alert-triangle text-warning" title="Sin cierres registrados en este año laboral"></i>{% endif %}{% endif %}</td>{# <--- hecho por claude code (11-nov-2026): año laboral en la «i» de información (pedido del usuario) #}{# <--- hecho por claude code (10-nov-2026): año laboral (prueba con Nancy) #}
           <td class="text-center">{{ r.derecho }}</td>
@@ -80,7 +80,7 @@
       </tr></thead>
       <tbody>
         {% for item in registros_data %}{% with r=item.r %}
-        <tr>
+        <tr data-emp="{{ r.emp_code }}">
           <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center fw-bold font-monospace {% if item.p_debe_h < 0 %}text-danger{% endif %}">{{ item.p_debe_h }} h</td>
           <td class="text-center d-none">
@@ -129,7 +129,7 @@
       </tr></thead>
       <tbody>
         {% for item in con_permisos %}{% with r=item.r %}
-        <tr>
+        <tr data-emp="{{ r.emp_code }}">
           <td><div class="fw-semibold">{{ r.nombre_empleado }}</div><div class="text-muted small">{{ r.emp_code }}</div></td>
           <td class="text-center fw-bold table-primary font-monospace">{{ item.p_permisos_h }} h</td>
           {# <--- hecho por claude code (16-sep-2026): horas hechas = lo hecho por encima de lo que debe (tab 3); restan = hechas − tomado #}

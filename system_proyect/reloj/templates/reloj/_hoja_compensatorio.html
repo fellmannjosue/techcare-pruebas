@@ -1,7 +1,7 @@
 {% load static %}
 {# <--- hecho por claude code (16-nov-2026): Fase 1 · tab «Cálculo compensatorio año» con una sub-pestaña por empleado (formato del Excel del usuario) #}
 <div class="tab-pane fade" id="tab-hoja">
-  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'reloj/css/hoja_compensatorio.css' %}?v=5">
   <div id="hoja-config" hidden data-url="{% url 'reloj_compensatorio_hoja_save' %}" data-csrf="{{ csrf_token }}"
        data-anio="{{ hoja_anio }}" data-edit="{{ can_edit_extra|yesno:'1,0' }}"></div>
 
@@ -14,6 +14,15 @@
   <div class="tab-content">
   {% for h in hojas %}
   <div class="tab-pane fade{% if forloop.first %} show active{% endif %} hc-hoja" id="hoja-{{ h.emp_code }}" data-emp="{{ h.emp_code }}">
+    {# <--- hecho por claude code (19-nov-2026): por empleado, 1) el consolidado (esta hoja) y 2-4) su fila de cada control de Pruebas #}
+    <ul class="nav nav-pills hc-sub-tabs mb-3" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#hs-cons-{{ h.emp_code }}" type="button"><i class="ti ti-table me-1"></i>Consolidado</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#hs-vac-{{ h.emp_code }}" type="button"><i class="ti ti-beach me-1"></i>Días a compensar</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#hs-deuda-{{ h.emp_code }}" type="button"><i class="ti ti-clock-hour-4 me-1"></i>Control de compensatorio {{ hoja_anio }}</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#hs-perm-{{ h.emp_code }}" type="button"><i class="ti ti-license me-1"></i>Control 3 días {{ hoja_anio }}</button></li>
+    </ul>
+    <div class="tab-content">
+    <div class="tab-pane fade show active" id="hs-cons-{{ h.emp_code }}">
     <div class="hc-scroll">
     <table class="hc-tabla hc-principal">
       <thead>
@@ -98,6 +107,11 @@
       </div>
     </div>
     <div class="hc-estado text-muted small mt-2"></div>
+    </div>
+    <div class="tab-pane fade" id="hs-vac-{{ h.emp_code }}"><div class="hc-ind" data-src="ptab-vac" data-emp="{{ h.emp_code }}"></div></div>
+    <div class="tab-pane fade" id="hs-deuda-{{ h.emp_code }}"><div class="hc-ind" data-src="ptab-deuda" data-emp="{{ h.emp_code }}"></div></div>
+    <div class="tab-pane fade" id="hs-perm-{{ h.emp_code }}"><div class="hc-ind" data-src="ptab-permisos" data-emp="{{ h.emp_code }}"></div></div>
+    </div>
   </div>
   {% empty %}
   <div class="alert alert-info">No hay empleados en el Cálculo Compensatorio.</div>

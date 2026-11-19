@@ -34,3 +34,6 @@
 /* <--- hecho por claude code (16-nov-2026): Extra 3 días apagado cuando el empleado no tiene el derecho */
 .hc-extra.hc-off tbody { opacity: .4; }
 .hc-3dias .form-check-input { float: none; }
+/* <--- hecho por claude code (19-nov-2026): sub-pestañas por empleado (consolidado + los 3 controles) */
+.hc-sub-tabs { gap: .25rem; flex-wrap: wrap; }
+.hc-sub-tabs .nav-link { padding: .3rem .75rem; font-size: .85rem; }
