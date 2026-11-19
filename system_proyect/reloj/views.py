@@ -3440,6 +3440,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
     if modo_pruebas:
         return render(request, 'reloj/compensatorio_pruebas.html', {
             **_ctx_p, 'registros_data': registros_data, 'anio_sel': anio_sel,
+            # <--- hecho por claude code (19-nov-2026): la hoja «Cálculo compensatorio <año>» se movió a Pruebas
+            'hoja_anio': anio_sel,
+            'hojas': _hojas_compensatorio(anio_sel, {str(_it['r'].emp_code): (_it.get('p_trabajadas_total_h') if _it.get('p_trab_manual') else _it.get('p_hecho_h')) for _it in registros_data if _it.get('r') is not None},
+                                          _tres_hoja(registros_data)),
             'can_edit': can_edit, 'can_edit_extra': can_edit_extra, 'can_delete_extra': can_delete_extra,
         })
 
@@ -3471,9 +3475,6 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         # <--- hecho por claude code: el tiempo tomado manual lo gestiona el grupo reloj
         "puede_tomado":     _puede_tomado_manual(request.user),
         # <--- hecho por claude code (16-nov-2026): tab «Cálculo compensatorio <año>» (hoja por empleado)
-        "hoja_anio":        anio_sel,   # <--- hecho por claude code (16-nov-2026): sigue al selector «Año» (fecha de corte en ese año)
-        "hojas":            _hojas_compensatorio(anio_sel, {str(_it['r'].emp_code): (_it.get('p_trabajadas_total_h') if _it.get('p_trab_manual') else _it.get('p_hecho_h')) for _it in registros_data if _it.get('r') is not None},
-                                                 _tres_hoja(registros_data)),
     }
     if _es_pdf(request):
         sec = request.GET.get('sec', 'adeudados')

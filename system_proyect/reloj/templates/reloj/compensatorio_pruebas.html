@@ -18,11 +18,13 @@
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptab-vac" type="button"><i class="ti ti-beach me-1 text-orange"></i>1 · Días a compensar</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Control de deudas compensatorio {{ anio_sel }}</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-permisos" type="button"><i class="ti ti-license me-1 text-purple"></i>3 · Control 3 días de permiso {{ anio_sel }} <span class="badge bg-purple-lt text-purple ms-1">{{ con_permisos|length }}</span></button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-hoja" type="button"><i class="ti ti-table me-1 text-green"></i>Cálculo compensatorio {{ hoja_anio }}</button></li>{# <--- hecho por claude code (19-nov-2026): movido desde Control Compensatorio #}
   <li class="nav-item ms-auto"><span class="nav-link disabled text-muted">Año {{ anio_sel }} · hoy {{ hoy|date:"d/m/Y" }}</span></li>
 </ul>
 
 <div class="tab-content">
 {% include 'reloj/_compensatorio_pruebas_tabs.html' %}
+{% include 'reloj/_hoja_compensatorio.html' %}
 </div>
 
 {# <--- hecho por claude code (16-sep-2026): misma config y modales que Cálculo Compensatorio; el JS compartido los maneja #}
@@ -47,5 +49,6 @@
 {% block extra_js %}
 <script src="{% static 'reloj/js/compensatorio_calculo_list.js' %}?v=43"></script>
 <script src="{% static 'reloj/js/compensatorio_pruebas.js' %}?v=8"></script>
-<script src="{% static 'reloj/js/trabajadas_manual.js' %}?v=1"></script>{# <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos) #}
+<script src="{% static 'reloj/js/trabajadas_manual.js' %}?v=1"></script>
+<script src="{% static 'reloj/js/hoja_compensatorio.js' %}?v=8"></script>{# <--- hecho por claude code (11-nov-2026): horas trabajadas manuales (Santos) #}
 {% endblock %}
