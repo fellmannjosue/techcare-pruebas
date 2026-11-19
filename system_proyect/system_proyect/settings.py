@@ -39,6 +39,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.10.6:451',
     'http://localhost:451',
     'http://localhost:8001',
+    # <--- hecho por claude code (19-nov-2026): pruebas DIRECTO en el servidor (sin Coolify) por HTTP en :455
+    'http://192.168.10.6:455',
+    'http://localhost:455',
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -722,3 +725,18 @@ REST_FRAMEWORK = {
 # ─────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 ASISTENTE_MODELO = os.getenv('ASISTENTE_MODELO', 'claude-sonnet-5-5')
+
+
+# <--- hecho por claude code (19-nov-2026): PRUEBAS DIRECTO (sin Coolify, servicio techcare-pruebas-directo en :455).
+# Con TC_RECARGA_EN_VIVO=1 los cambios se ven al recargar: plantillas sin caché y estáticos leídos de cada app
+# (sin collectstatic). gunicorn --reload recarga los .py. En Coolify/producción esta variable no existe → no cambia nada.
+if os.getenv('TC_RECARGA_EN_VIVO', '0') == '1':
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+    for _tpl in TEMPLATES:
+        if _tpl.get('BACKEND', '').endswith('DjangoTemplates'):
+            _tpl['APP_DIRS'] = False
+            _tpl.setdefault('OPTIONS', {})['loaders'] = [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            ]

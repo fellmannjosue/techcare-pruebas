@@ -161,3 +161,8 @@ Este repo contiene **las dos cosas**: `system_proyect/` = la **web** TechCare, y
 - **"Recordar mis datos" en el login** (para el .exe): casilla en `accounts/templates/accounts/login.html` + `accounts/static/accounts/js/recordar_login.js` (correo+contraseña 1 mes en localStorage, ofuscación base64).
 - **Footer oculto SOLO en la app**: `main.js` inyecta `footer.tc-footer{display:none}` por `insertCSS` en cada `dom-ready`; la web no se toca.
 - **SmartScreen** (sin firmar): para probar → "Más información → Ejecutar de todos modos" o Propiedades → Desbloquear. Masivo = MSI por GPO/PDQ.
+
+## Pruebas DIRECTO en el servidor (sin Coolify, 19-nov-2026)
+- Tres entornos: **producción** (Apache :437) · **pruebas directo** `http://192.168.10.6:455` (servicio systemd `techcare-pruebas-directo`, gunicorn `--reload`, venv `/home/admin2/techcare-pruebas/venv`, `.env` propio en `system_proyect/.env` 600 NO versionado) · **pruebas Coolify** `:451` (se conserva como 3.ª opción, sigue con Redeploy).
+- En el directo los cambios se ven al recargar, sin deploy: gunicorn recarga los `.py`; con `TC_RECARGA_EN_VIVO=1` (solo en ese `.env`) las plantillas van sin caché y WhiteNoise lee los estáticos de cada app (`WHITENOISE_USE_FINDERS`/`AUTOREFRESH`), sin collectstatic. Misma base `sponsors2_pruebas` que Coolify.
+- Logs: `journalctl -u techcare-pruebas-directo -f`. Reinicio: `sudo systemctl restart techcare-pruebas-directo`. Un paquete nuevo de `requirements.txt` → `venv/bin/pip install` y reiniciar.
