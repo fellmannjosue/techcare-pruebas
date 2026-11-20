@@ -1,0 +1,5 @@
+{# <--- hecho por claude code (20-nov-2026, PRUEBAS): fecha fin del compensatorio (misma regla que «Termina el» del tab 2); espera `item` #}
+{% if item.p_debe_h <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
+{% elif item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Completado</span>{% if item.p_fecha_termino %}<div class="text-muted small">terminó el {{ item.p_fecha_termino|date:"d/m/Y" }}</div>{% endif %}
+{% elif item.p_alcanza %}<span class="badge {% if item.p_en_matricula %}bg-yellow-lt text-yellow{% else %}bg-blue-lt text-blue{% endif %}"><i class="ti ti-calendar-event me-1"></i>{{ item.p_fecha|date:"d/m/Y" }}</span><div class="text-muted small">termina el{% if item.p_en_matricula %} · en matrícula{% endif %}</div>
+{% else %}<span class="badge bg-red-lt text-red"><i class="ti ti-alert-triangle me-1"></i>No alcanza</span>{% if item.p_fecha_aprox %}<div class="small fw-semibold">≈ {{ item.p_fecha_aprox|date:"d/m/Y" }}</div>{% endif %}{% endif %}

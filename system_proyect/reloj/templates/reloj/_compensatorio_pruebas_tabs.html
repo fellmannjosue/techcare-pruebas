@@ -103,10 +103,10 @@
           <td class="text-center"><span class="fw-semibold font-monospace{% if item.p_saldo_favor < 0 %} text-danger{% endif %}">{{ item.p_saldo_favor }} h</span></td>{# <--- hecho por claude code (11-nov-2026): horas trabajadas − tiempo aplicado #}
           <td class="text-center table-warning">
             {% if item.p_debe_h <= 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Sin deuda</span>
-            {% elif item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Completado</span>
+            {% elif item.p_pendiente_h == 0 %}<span class="badge bg-green-lt text-green"><i class="ti ti-circle-check me-1"></i>Completado</span>{% if item.p_fecha_termino %}<div class="text-muted small" title="Día en que lo trabajado alcanzó lo que debe compensar">terminó el {{ item.p_fecha_termino|date:"d/m/Y" }}</div>{% endif %}{# <--- hecho por claude code (20-nov-2026): fecha REAL en que completó #}
             {% elif item.p_alcanza and item.p_en_matricula %}<span class="badge bg-yellow-lt text-yellow" title="Termina dentro del periodo de matrícula ({{ min_matricula }} min/día)"><i class="ti ti-calendar-event me-1"></i>{{ item.p_fecha|date:"d/m/Y" }}</span><div class="text-muted small">en matrícula · {{ min_matricula }} min/día</div>
             {% elif item.p_alcanza %}<span class="badge bg-green-lt text-green"><i class="ti ti-calendar-check me-1"></i>{{ item.p_fecha|date:"d/m/Y" }}</span><div class="text-muted small">desde hoy · {{ min_dia }} min/día</div>
-            {% else %}<span class="badge bg-red-lt text-red" title="Con {{ min_dia }} min/día (y {{ min_matricula }} en matrícula) no alcanza"><i class="ti ti-alert-triangle me-1"></i>No alcanza · faltan {{ item.p_faltan_h }} h</span><div class="text-muted small">máx. {{ item.p_disponible_h }} h desde hoy</div>{% endif %}
+            {% else %}<span class="badge bg-red-lt text-red" title="Con {{ min_dia }} min/día (y {{ min_matricula }} en matrícula) no alcanza"><i class="ti ti-alert-triangle me-1"></i>No alcanza · faltan {{ item.p_faltan_h }} h</span><div class="text-muted small">máx. {{ item.p_disponible_h }} h desde hoy</div>{% if item.p_fecha_aprox %}<div class="small fw-semibold" title="Aproximado: sigue a {{ min_dia }} min/día después de la matrícula, sin contar feriados ni el cierre de diciembre">≈ termina el {{ item.p_fecha_aprox|date:"d/m/Y" }}</div>{% endif %}{% endif %}{# <--- hecho por claude code (20-nov-2026): fecha aproximada a quien no alcanza #}
           </td>
         </tr>
         {% endwith %}{% empty %}<tr><td colspan="9" class="text-center text-muted py-4">Sin registros.</td></tr>{% endfor %}
@@ -148,6 +148,93 @@
       </tbody>
     </table>
   </div></div>
+</div>
+
+{# <--- hecho por claude code (20-nov-2026): tab 4 «Detalle horas trabajadas» — SOLO LECTURA, mismos datos de la columna Horas trabajadas del tab 2 #}
+<div class="tab-pane fade" id="ptab-detalle">
+  <div class="d-flex justify-content-end mb-2"><a class="btn btn-sm btn-success" href="?{% if request.GET.anio %}anio={{ request.GET.anio|urlencode }}&amp;{% endif %}xlsx=detalle"><i class="ti ti-file-spreadsheet me-1"></i>Descargar Excel</a></div>{# <--- hecho por claude code (20-nov-2026): Excel del tab 4 #}
+  <div class="alert alert-info py-2 small mb-3"><i class="ti ti-info-circle me-1"></i>De dónde sale la columna <b>Horas trabajadas</b> del tab 2. <b>Total trabajado = Compensado (marcas del reloj) + Tiempo extra autorizado + Permisos compensatorio − Tiempo de receso de más.</b> De ese total cuenta para la deuda hasta lo que <b>debe</b>; lo que pasa de ahí va a los <b>3 días</b> (quien tiene ese derecho) o queda <b>de más</b>. Haga clic en un empleado para ver el detalle. Esta pestaña no cambia nada.</div>
+  <div class="card"><div class="table-responsive"><table class="table table-sm table-vcenter mb-0 det-trab">
+    <thead><tr>
+      <th>Empleado</th>
+      <th class="text-center">Compensado<div class="text-muted small fw-normal">marcas del reloj</div></th>
+      <th class="text-center">+ Tiempo extra<div class="text-muted small fw-normal">autorizado</div></th>
+      <th class="text-center">+ Permisos<div class="text-muted small fw-normal">compensatorio</div></th>
+      <th class="text-center">− Receso<div class="text-muted small fw-normal">de más</div></th>
+      <th class="text-center table-success">= Total trabajado</th>
+      <th class="text-center">Debe</th>
+      <th class="text-center">Cuenta para la deuda</th>
+      <th class="text-center">Excedente</th>
+      <th class="text-center table-warning">Fecha fin</th>{# <--- hecho por claude code (20-nov-2026, PRUEBAS) #}
+    </tr></thead>
+    <tbody>
+    {% for item in registros_data %}{% with r=item.r d=item.p_det %}{% if d %}
+      <tr class="det-fila" data-bs-toggle="collapse" data-bs-target="#det-{{ r.pk }}" aria-expanded="false" role="button">
+        <td><i class="ti ti-chevron-right det-ico me-1 text-muted"></i><span class="fw-semibold">{{ r.nombre_empleado }}</span> <span class="text-muted small">{{ r.emp_code }}</span></td>
+        {% if d.manual %}
+        <td class="text-center font-monospace" colspan="2"><span class="badge bg-azure-lt text-azure">registro manual</span> {{ d.manual_h }} h</td>
+        {% else %}
+        <td class="text-center font-monospace">{{ d.comp_h }} h{% if d.comp_override %}<div class="text-muted small">puesto a mano</div>{% endif %}</td>
+        <td class="text-center font-monospace">{% if d.te_h %}+{{ d.te_h }} h<div class="text-muted small">{{ d.te_list|length }} registro{{ d.te_list|length|pluralize }}</div>{% else %}—{% endif %}</td>
+        {% endif %}
+        <td class="text-center font-monospace">{% if d.perm_h %}+{{ d.perm_h }} h{% else %}—{% endif %}</td>
+        <td class="text-center font-monospace text-danger">{% if d.receso_h %}−{{ d.receso_h }} h{% else %}—{% endif %}</td>
+        <td class="text-center font-monospace fw-bold table-success">{{ d.total_h }} h</td>
+        <td class="text-center font-monospace">{{ d.debe_h }} h</td>
+        <td class="text-center font-monospace fw-semibold">{{ d.cuenta_h }} h</td>
+        <td class="text-center font-monospace">{% if d.exceso_h %}+{{ d.exceso_h }} h<div class="text-muted small">{% if d.exceso_destino == '3 días' %}a los 3 días{% else %}de más{% endif %}</div>{% else %}—{% endif %}</td>
+        <td class="text-center table-warning">{% include 'reloj/_fecha_fin_comp.html' %}</td>
+      </tr>
+      <tr class="collapse" id="det-{{ r.pk }}"><td colspan="10" class="bg-light">
+        <div class="row g-3 p-2">
+          {% if d.manual %}
+          <div class="col-lg-6"><div class="fw-semibold mb-1"><i class="ti ti-clock-plus text-azure me-1"></i>Horas trabajadas registradas a mano</div>
+            <table class="table table-sm mb-0"><thead><tr><th>Fecha</th><th class="text-end">Horas</th><th>Razón</th></tr></thead><tbody>
+            {% for t in d.manual_list %}<tr><td>{{ t.fecha|date:"d/m/Y" }}</td><td class="text-end font-monospace">{{ t.horas }}</td><td class="small">{{ t.razon|default:"—" }}</td></tr>{% empty %}<tr><td colspan="3" class="text-muted">Sin registros.</td></tr>{% endfor %}
+            </tbody></table></div>
+          {% else %}
+          <div class="col-lg-4"><div class="fw-semibold mb-1"><i class="ti ti-fingerprint text-blue me-1"></i>Compensado por mes (marcas)</div>
+            <div class="text-muted small mb-1">Desde {{ d.desde|date:"d/m/Y" }} · tope {{ d.tope }} min/día · {{ d.comp_dias }} días con compensado{% if d.comp_override %} · <b>el total se puso a mano</b> (marcas: {{ d.comp_marcas_h }} h){% endif %}</div>
+            <table class="table table-sm mb-0"><thead><tr><th>Mes</th><th class="text-center">Días</th><th class="text-center">Prom. min/día</th><th class="text-end">Horas</th></tr></thead><tbody>
+            {% for m in d.comp_meses %}<tr><td>{{ m.mes }}</td><td class="text-center">{{ m.dias }}</td><td class="text-center">{{ m.prom }}</td><td class="text-end font-monospace">{{ m.h }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted">Sin marcas con compensado.</td></tr>{% endfor %}
+            <tr class="fw-bold"><td colspan="3">Total marcas</td><td class="text-end font-monospace">{{ d.comp_marcas_h }}</td></tr>
+            </tbody></table></div>
+          <div class="col-lg-5"><div class="fw-semibold mb-1"><i class="ti ti-clock-bolt text-cyan me-1"></i>Tiempo extra autorizado</div>
+            <table class="table table-sm mb-0"><thead><tr><th>Fecha</th><th class="text-end">Min</th><th>Razón</th><th>Autorizó</th></tr></thead><tbody>
+            {% for t in d.te_list %}<tr><td>{{ t.fecha|date:"d/m/Y" }}</td><td class="text-end font-monospace">{{ t.minutos }}</td><td class="small">{{ t.razon|default:"—" }}{% if t.comentario %}<div class="text-muted">{{ t.comentario }}</div>{% endif %}</td><td class="small">{{ t.autorizado_por|default:"—" }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted">Sin tiempo extra.</td></tr>{% endfor %}
+            {% if d.te_list %}<tr class="fw-bold"><td>Total</td><td class="text-end font-monospace" colspan="3">{{ d.te_h }} h</td></tr>{% endif %}
+            </tbody></table></div>
+          {% endif %}
+          <div class="col-lg-3"><div class="fw-semibold mb-1"><i class="ti ti-file-certificate text-green me-1"></i>Permisos compensatorio</div>
+            <div class="text-muted small mb-1">Sin contar los que caen en un cierre ANA</div>
+            <table class="table table-sm mb-0"><tbody>
+            {% for p in d.perm_list %}<tr><td>{{ p.fecha|date:"d/m/Y" }}</td><td class="text-end font-monospace">+{{ p.h }} h</td></tr>{% empty %}<tr><td class="text-muted">Ninguno.</td></tr>{% endfor %}
+            </tbody></table>
+            {% if d.receso_h %}<div class="mt-2 small"><i class="ti ti-coffee text-danger me-1"></i>Receso de más (desde junio 2026): <b class="text-danger">−{{ d.receso_h }} h</b></div>{% endif %}
+          </div>
+        </div>
+
+        <div class="p-2 pt-0">{# <--- hecho por claude code (20-nov-2026, PRUEBAS): marcas del reloj día por día con el acumulado #}
+          <div class="fw-semibold mb-1"><i class="ti ti-calendar-time text-orange me-1"></i>Día por día{% if not d.manual %} (marcas del reloj){% endif %}</div>
+          <div class="text-muted small mb-1">Meta = lo que debe {{ d.debe_h }} h{% if d.receso_h %} + receso de más {{ d.receso_h }} h{% endif %} = <b>{{ d.diario.meta_h }} h</b>. {% if item.p_fecha_termino %}Completó el <b>{{ item.p_fecha_termino|date:"d/m/Y" }}</b> (fila verde).{% else %}Aún no completa.{% endif %}</div>
+          <div class="det-diario"><table class="table table-sm table-vcenter mb-0">
+            <thead><tr><th>Fecha</th><th class="text-center">Día</th>{% if not d.manual %}<th class="text-center">Entrada</th><th class="text-center">Salida</th><th class="text-end">Compensado (min)</th><th class="text-end">T. extra (min)</th>{% else %}<th class="text-end">Manual (h)</th>{% endif %}<th class="text-end">Permiso (h)</th><th class="text-end">Del día (h)</th><th class="text-end">Acumulado (h)</th><th class="text-end">Falta (h)</th><th>Nota</th></tr></thead>
+            <tbody>
+            {% for x in d.diario.filas %}<tr class="{% if x.es_fin %}table-success fw-bold{% elif x.despues %}det-despues{% endif %}">
+              <td>{{ x.fecha|date:"d/m/Y" }}</td><td class="text-center">{{ x.dia_sem }}</td>
+              {% if not d.manual %}<td class="text-center font-monospace">{{ x.entrada|time:"H:i"|default:"—" }}</td><td class="text-center font-monospace">{% if x.salida and x.salida != x.entrada %}{{ x.salida|time:"H:i" }}{% else %}—{% endif %}</td><td class="text-end font-monospace">{{ x.comp_min|default:"—" }}</td><td class="text-end font-monospace">{{ x.te_min|default:"—" }}</td>{% else %}<td class="text-end font-monospace">{{ x.manual_h|default:"—" }}</td>{% endif %}
+              <td class="text-end font-monospace">{{ x.perm_h|default:"—" }}</td>
+              <td class="text-end font-monospace">{{ x.dia_h }}</td><td class="text-end font-monospace fw-semibold">{{ x.acum_h }}</td>
+              <td class="text-end font-monospace">{% if x.falta_h %}{{ x.falta_h }}{% else %}<i class="ti ti-circle-check text-green"></i>{% endif %}</td>
+              <td class="small">{% if x.es_fin %}<span class="badge bg-green-lt text-green">Completó aquí</span> {% endif %}{{ x.razon }}</td>
+            </tr>{% empty %}<tr><td colspan="11" class="text-muted">Sin marcas.</td></tr>{% endfor %}
+            </tbody>
+          </table></div>
+        </div>
+      </td></tr>
+    {% endif %}{% endwith %}{% endfor %}
+    </tbody>
+  </table></div></div>
 </div>
 
 {# <--- hecho por claude code (11-nov-2026): ventana de HORAS TRABAJADAS manuales (solo empleados en _TRABAJADAS_MANUAL_EMP) #}

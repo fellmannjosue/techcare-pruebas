@@ -14,3 +14,12 @@
   #tab3 .mc-inp { -moz-appearance: textfield; }
   /* Celdas To (tomado, solo lectura) */
   #tab3 .mc-tom { font-size: .82rem; color: #be185d; min-width: 50px; }
+  /* <--- hecho por claude code (20-nov-2026): tab 4 «Detalle horas trabajadas» */
+  .det-trab .det-fila { cursor: pointer; }
+  .det-trab .det-ico { transition: transform .15s; display: inline-block; }
+  .det-trab .det-fila[aria-expanded="true"] .det-ico { transform: rotate(90deg); }
+  .det-trab .collapse td .table { background: var(--tblr-bg-surface, #fff); }
+  /* <--- hecho por claude code (20-nov-2026, PRUEBAS): tabla día por día con scroll propio */
+  .det-trab .det-diario { max-height: 380px; overflow: auto; border: 1px solid var(--tblr-border-color, #e2e8f0); border-radius: 4px; }
+  .det-trab .det-diario thead th { position: sticky; top: 0; background: var(--tblr-bg-surface, #fff); z-index: 1; }
+  .det-trab .det-despues { opacity: .6; }

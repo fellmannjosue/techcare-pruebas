@@ -5,7 +5,7 @@
 {% block title %}Pruebas · Compensatorio{% endblock %}
 {% block page_pretitle %}Reloj · Pruebas{% endblock %}
 {% block page_title %}<i class="ti ti-flask me-2 text-teal"></i>Pruebas — compensatorio 47 min/día{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'reloj/css/compensatorio_calculo_list.css' %}?v=1">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'reloj/css/compensatorio_calculo_list.css' %}?v=3">{% endblock %}
 
 {% block page_actions %}
 <div class="col-auto">
@@ -18,6 +18,7 @@
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ptab-vac" type="button"><i class="ti ti-beach me-1 text-orange"></i>1 · Días a compensar</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-deuda" type="button"><i class="ti ti-clock-hour-4 me-1 text-blue"></i>2 · Control de deudas compensatorio {{ anio_sel }}</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-permisos" type="button"><i class="ti ti-license me-1 text-purple"></i>3 · Control 3 días de permiso {{ anio_sel }} <span class="badge bg-purple-lt text-purple ms-1">{{ con_permisos|length }}</span></button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ptab-detalle" type="button"><i class="ti ti-list-details me-1 text-green"></i>4 · Detalle horas trabajadas</button></li>{# <--- hecho por claude code (20-nov-2026, PRUEBAS) #}
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-hoja" type="button"><i class="ti ti-table me-1 text-green"></i>Cálculo compensatorio {{ hoja_anio }}</button></li>{# <--- hecho por claude code (19-nov-2026): hoja por empleado (consolidado) #}
   <li class="nav-item ms-auto"><span class="nav-link disabled text-muted">Año {{ anio_sel }} · hoy {{ hoy|date:"d/m/Y" }}</span></li>
 </ul>

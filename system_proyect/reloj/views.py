@@ -2724,6 +2724,309 @@ def _permiso_dias_tomado(cc):
     return round(total, 2), fechas
 
 
+def _fecha_termino_real(it, debe_h, receso_h, trab_manual, comp_dia, te_detail, perm_dia):
+    """<--- hecho por claude code (20-nov-2026): día en que lo trabajado (compensado de las marcas + tiempo extra +
+    permisos compensatorio, o el registro manual) llegó a lo que debe. El receso se descuenta completo al principio
+    (no se sabe en qué día cae). None si el compensado se puso a mano (no hay fechas)."""
+    r = it['r']; ec = str(r.emp_code)
+    ev = {}
+    def _add(f, h):
+        if f is not None and h:
+            ev[f] = ev.get(f, 0.0) + float(h)
+    if trab_manual:
+        for t in r.trabajadas_manual.all():
+            _add(t.fecha, t.horas)
+    else:
+        if r.minutos_compensados_manual:          # compensado puesto a mano (>0): no tiene fechas
+            return None
+        if r.minutos_compensados_manual is None:  # override 0 = no cuentan las marcas
+            for f, m in (comp_dia.get(ec) or {}).items():
+                _add(f, m / 60.0)
+        for te in te_detail.get(ec, []):
+            _add(te.fecha, te.minutos / 60.0)
+    for f, h in perm_dia.get(ec, []):
+        _add(f, h)
+    meta = debe_h + (0.0 if trab_manual else receso_h) - 0.005
+    acum = 0.0
+    for f in sorted(ev):
+        acum += ev[f]
+        if acum >= meta:
+            return f
+    return None
+
+
+_MESES_CORTO = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+                'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+
+def _diario_trabajadas(it, debe_h, receso_h, trab_manual, marcas, perm_dia, termino):
+    """<--- hecho por claude code (20-nov-2026, PRUEBAS): día por día lo que suma a «Horas trabajadas» (marcas del reloj,
+    tiempo extra, permisos o registro manual) con el ACUMULADO. La meta es lo que debe + el receso de más (el receso se
+    descuenta completo, no se sabe en qué día cae); `termino` = día en que el acumulado llegó a la meta."""
+    r = it['r']; ec = str(r.emp_code)
+    dias = {}
+    def _d(f):
+        return dias.setdefault(f, {'fecha': f, 'entrada': None, 'salida': None, 'comp_min': 0, 'te_min': 0,
+                                   'perm_h': 0.0, 'manual_h': 0.0, 'razon': []})
+    if trab_manual:
+        for t in r.trabajadas_manual.all():
+            x = _d(t.fecha); x['manual_h'] += float(t.horas)
+            if getattr(t, 'razon', ''):
+                x['razon'].append(t.razon)
+    else:
+        usa_marcas = r.minutos_compensados_manual is None
+        for f, (e, sa, cm) in (marcas.get(ec) or {}).items():
+            x = _d(f); x['entrada'], x['salida'] = e, sa
+            x['comp_min'] = cm if usa_marcas else 0
+        for t in it.get('tiempo_extra_detalle') or []:
+            x = _d(t.fecha); x['te_min'] += t.minutos
+            if t.razon:
+                x['razon'].append(t.razon)
+    for f, h in perm_dia.get(ec, []):
+        x = _d(f); x['perm_h'] += h; x['razon'].append('Permiso compensatorio')
+    meta = round(debe_h + (0.0 if trab_manual else receso_h), 2)
+    acum = 0.0; filas = []
+    for f in sorted(dias):
+        x = dias[f]
+        _h = x['comp_min'] / 60 + x['te_min'] / 60 + x['perm_h'] + x['manual_h']
+        x['dia_h'] = round(_h, 2)
+        acum += _h   # sin redondear día a día (si no, el error se acumula)
+        x['acum_h'] = round(acum, 2)
+        x['falta_h'] = round(max(0.0, meta - acum), 2)
+        x['es_fin'] = (termino is not None and f == termino)
+        x['despues'] = (termino is not None and f > termino)
+        x['razon'] = ' · '.join(x['razon'])
+        x['dia_sem'] = 'LMMJVSD'[f.weekday()]
+        filas.append(x)
+    return {'filas': filas, 'meta_h': meta}
+
+
+def _detalle_trabajadas(it, debe_h, total_h, receso_h, perm_h, trab_manual, perm_dias, comp_dia, perm_dia,
+                        marcas=None, termino=None):
+    """<--- hecho por claude code (20-nov-2026): desglose de «Horas trabajadas» para el tab de detalle. SOLO LECTURA:
+    usa los mismos números que la columna (no recalcula nada distinto ni guarda)."""
+    r = it['r']; ec = str(r.emp_code)
+    meses = {}
+    for f, m in (comp_dia.get(ec) or {}).items():
+        k = (f.year, f.month)
+        a = meses.setdefault(k, [0, 0]); a[0] += m; a[1] += 1
+    comp_meses = [{'mes': f"{_MESES_CORTO[k[1]]} {k[0]}", 'h': round(v[0] / 60, 2), 'dias': v[1],
+                   'prom': round(v[0] / v[1]) if v[1] else 0} for k, v in sorted(meses.items())]
+    te = list(it.get('tiempo_extra_detalle') or [])
+    manual = list(r.trabajadas_manual.all().order_by('fecha')) if trab_manual else []
+    cuenta = round(min(total_h, debe_h), 2) if debe_h > 0 else round(total_h, 2)
+    exceso = round(max(0.0, total_h - max(debe_h, 0.0)), 2)
+    return {
+        'manual': trab_manual, 'manual_list': manual,
+        'manual_h': round(sum(float(t.horas) for t in manual), 2),
+        # compensado = (Compensado + T. extra, el mismo redondeo de la columna) − T. extra → la fila suma exacto
+        'comp_h': max(0.0, round(float(it.get('comp_mas_te_hrs') or 0) - sum(t.minutos for t in te) / 60, 2)),
+        'comp_marcas_h': round(sum((comp_dia.get(ec) or {}).values()) / 60, 2),
+        'comp_override': r.minutos_compensados_manual is not None,
+        'comp_meses': comp_meses, 'comp_dias': sum(x['dias'] for x in comp_meses),
+        'desde': r.fecha_inicio, 'tope': r.minutos_autorizados_dia,
+        'te_list': te, 'te_h': round(sum(t.minutos for t in te) / 60, 2),
+        'perm_list': [{'fecha': f, 'h': round(h, 2)} for f, h in sorted(perm_dia.get(ec, []))], 'perm_h': perm_h,
+        'receso_h': 0.0 if trab_manual else receso_h,
+        'total_h': round(total_h, 2), 'debe_h': round(debe_h, 2), 'cuenta_h': cuenta, 'exceso_h': exceso,
+        'exceso_destino': '3 días' if perm_dias > 0 else 'de más',
+        'diario': _diario_trabajadas(it, debe_h, receso_h, trab_manual, marcas or {}, perm_dia, termino),
+    }
+
+
+def _texto_fecha_fin(it):
+    """<--- hecho por claude code (20-nov-2026, PRUEBAS): (estado, fecha) de la fecha fin, misma regla que «Termina el»."""
+    if it.get('p_debe_h', 0) <= 0:
+        return 'Sin deuda', None
+    if it.get('p_pendiente_h') == 0:
+        return 'Terminó', it.get('p_fecha_termino')
+    if it.get('p_alcanza'):
+        return ('Termina (en matrícula)' if it.get('p_en_matricula') else 'Termina'), it.get('p_fecha')
+    return 'No alcanza · aprox.', it.get('p_fecha_aprox')
+
+
+def _xlsx_detalle_trabajadas(registros_data, anio):
+    """<--- hecho por claude code (20-nov-2026): Excel del tab «Detalle horas trabajadas»: resumen + compensado por
+    mes + tiempo extra + permisos + registro manual. Mismos números que la pantalla."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    wb = Workbook()
+    head_fill = PatternFill('solid', fgColor='1E40AF'); head_font = Font(bold=True, color='FFFFFF')
+    tot_fill = PatternFill('solid', fgColor='DCFCE7'); fino = Side(style='thin', color='CBD5E1')
+    borde = Border(left=fino, right=fino, top=fino, bottom=fino)
+
+    def hoja(ws, titulo, cols, filas, anchos, num_cols=()):
+        ws.append([titulo]); ws['A1'].font = Font(bold=True, size=13)
+        ws.append([])
+        ws.append(cols)
+        for c in ws[3]:
+            c.fill = head_fill; c.font = head_font; c.border = borde
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        for f in filas:
+            ws.append(f)
+            for i, c in enumerate(ws[ws.max_row], 1):
+                c.border = borde
+                if i in num_cols:
+                    c.number_format = '0.00'
+        for i, w in enumerate(anchos, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        ws.freeze_panes = 'A4'
+
+    # <--- hecho por claude code (20-nov-2026): pedido del usuario — una hoja RESUMEN y luego UNA HOJA POR EMPLEADO
+    res = []
+    usados = set()
+    ws = wb.active; ws.title = 'Resumen'
+    detalles = []
+    for it in registros_data:
+        d = it.get('p_det'); r = it['r']
+        if not d:
+            continue
+        nom, ec = r.nombre_empleado, str(r.emp_code)
+        comp, te = (d['manual_h'], 0) if d['manual'] else (d['comp_h'], d['te_h'])
+        dest = ('a los 3 días' if d['exceso_destino'] == '3 días' else 'de más') if d['exceso_h'] else ''
+        fin_txt, fin_f = _texto_fecha_fin(it)
+        res.append([nom, ec, 'Manual' if d['manual'] else ('Puesto a mano' if d['comp_override'] else 'Marcas'),
+                    comp, te, d['perm_h'], d['receso_h'], d['total_h'], d['debe_h'], d['cuenta_h'], d['exceso_h'], dest,
+                    fin_txt, fin_f])
+        detalles.append((nom, ec, d, comp, te, dest, fin_txt, fin_f))
+    hoja(ws, f'Detalle horas trabajadas {anio} — Total = Compensado + Tiempo extra + Permisos − Receso',
+         ['Empleado', 'Código', 'Origen compensado', 'Compensado (h)', '+ Tiempo extra (h)', '+ Permisos comp. (h)',
+          '− Receso de más (h)', '= Total trabajado (h)', 'Debe (h)', 'Cuenta para la deuda (h)', 'Excedente (h)', 'Excedente va a', 'Fin', 'Fecha fin'],
+         res, [26, 9, 16, 14, 14, 14, 14, 16, 11, 16, 13, 14, 20, 12], num_cols=(4, 5, 6, 7, 8, 9, 10, 11))
+    for row in ws.iter_rows(min_row=4, min_col=8, max_col=8):
+        for c in row:
+            c.fill = tot_fill; c.font = Font(bold=True)
+
+    sec_font = Font(bold=True, size=11, color='1E40AF')
+
+    def tabla(w, fila, titulo, cols, filas, num_cols=(), total=None):
+        w.cell(row=fila, column=1, value=titulo).font = sec_font
+        fila += 1
+        for i, v in enumerate(cols, 1):
+            c = w.cell(row=fila, column=i, value=v)
+            c.fill = head_fill; c.font = head_font; c.border = borde
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        fila += 1
+        if not filas:
+            w.cell(row=fila, column=1, value='Sin registros.').font = Font(italic=True, color='64748B')
+            return fila + 2
+        for f in filas:
+            for i, v in enumerate(f, 1):
+                c = w.cell(row=fila, column=i, value=v); c.border = borde
+                if isinstance(v, date):
+                    c.number_format = 'DD/MM/YYYY'
+                elif i in num_cols:
+                    c.number_format = '0.00'
+            fila += 1
+        if total:
+            for i, v in total.items():
+                c = w.cell(row=fila, column=i, value=v); c.font = Font(bold=True); c.fill = tot_fill; c.border = borde
+                if isinstance(v, (int, float)):
+                    c.number_format = '0.00'
+            fila += 1
+        return fila + 1
+
+    for nom, ec, d, comp, te, dest, fin_txt, fin_f in detalles:
+        base = ''.join(ch for ch in f'{nom}' if ch not in '[]:*?/\\')[:28].strip() or ec
+        nombre = base; k = 2
+        while nombre.lower() in usados:
+            nombre = f'{base[:26]} {k}'; k += 1
+        usados.add(nombre.lower())
+        w = wb.create_sheet(nombre)
+        w['A1'] = f'{nom} ({ec}) — Horas trabajadas {anio}'; w['A1'].font = Font(bold=True, size=13)
+        w['A2'] = 'Total = Compensado + Tiempo extra + Permisos compensatorio − Receso de más'
+        w['A2'].font = Font(italic=True, color='64748B')
+        fila = tabla(w, 4, 'Resumen',
+                     ['Concepto', 'Horas'],
+                     [['Compensado (' + ('registro manual' if d['manual'] else 'puesto a mano' if d['comp_override'] else 'marcas del reloj') + ')', comp],
+                      ['+ Tiempo extra autorizado', te], ['+ Permisos compensatorio', d['perm_h']],
+                      ['− Receso de más', -d['receso_h'] if d['receso_h'] else 0],
+                      ['= Total trabajado', d['total_h']], ['Debe', d['debe_h']],
+                      ['Cuenta para la deuda', d['cuenta_h']],
+                      ['Excedente' + (f' ({dest})' if dest else ''), d['exceso_h']],
+                      ['Fecha fin · ' + fin_txt, fin_f]], num_cols=(2,))
+        if d['manual']:
+            fila = tabla(w, fila, 'Horas trabajadas registradas a mano', ['Fecha', 'Horas', 'Razón'],
+                         [[t.fecha, float(t.horas), getattr(t, 'razon', '') or ''] for t in d['manual_list']],
+                         num_cols=(2,), total={1: 'Total', 2: d['manual_h']})
+        else:
+            fila = tabla(w, fila, f"Compensado por mes (marcas desde {d['desde']:%d/%m/%Y}, tope {d['tope']} min/día)",
+                         ['Mes', 'Días con compensado', 'Prom. min/día', 'Horas'],
+                         [[m['mes'], m['dias'], m['prom'], m['h']] for m in d['comp_meses']],
+                         num_cols=(4,), total={1: 'Total marcas', 2: d['comp_dias'], 4: d['comp_marcas_h']})
+            fila = tabla(w, fila, 'Tiempo extra autorizado', ['Fecha', 'Minutos', 'Horas', 'Razón', 'Comentario', 'Autorizó'],
+                         [[t.fecha, t.minutos, round(t.minutos / 60, 2), t.razon or '', t.comentario or '', t.autorizado_por or '']
+                          for t in d['te_list']], num_cols=(3,), total={1: 'Total', 3: d['te_h']} if d['te_list'] else None)
+        fila = tabla(w, fila, 'Permisos compensatorio (sin los que caen en un cierre ANA)', ['Fecha', 'Horas'],
+                     [[p['fecha'], p['h']] for p in d['perm_list']], num_cols=(2,),
+                     total={1: 'Total', 2: d['perm_h']} if d['perm_list'] else None)
+        dd = d.get('diario') or {'filas': [], 'meta_h': 0}
+        if d['manual']:
+            cols_d = ['Fecha', 'Día', 'Manual (h)', 'Permiso (h)', 'Del día (h)', 'Acumulado (h)', 'Falta (h)', 'Nota']
+            filas_d = [[x['fecha'], x['dia_sem'], x['manual_h'], x['perm_h'], x['dia_h'], x['acum_h'], x['falta_h'],
+                        ('COMPLETÓ AQUÍ · ' if x['es_fin'] else '') + x['razon']] for x in dd['filas']]
+            nums = (3, 4, 5, 6, 7)
+        else:
+            cols_d = ['Fecha', 'Día', 'Entrada', 'Salida', 'Compensado (min)', 'T. extra (min)', 'Permiso (h)',
+                      'Del día (h)', 'Acumulado (h)', 'Falta (h)', 'Nota']
+            filas_d = [[x['fecha'], x['dia_sem'], x['entrada'].strftime('%H:%M') if x['entrada'] else '',
+                        x['salida'].strftime('%H:%M') if x['salida'] and x['salida'] != x['entrada'] else '',
+                        x['comp_min'], x['te_min'], x['perm_h'], x['dia_h'], x['acum_h'], x['falta_h'],
+                        ('COMPLETÓ AQUÍ · ' if x['es_fin'] else '') + x['razon']] for x in dd['filas']]
+            nums = (7, 8, 9, 10)
+        ini_d = fila + 1
+        fila = tabla(w, fila, f"Día por día (meta = {dd['meta_h']} h: lo que debe + receso de más)", cols_d, filas_d, num_cols=nums)
+        for row in w.iter_rows(min_row=ini_d + 1, max_row=fila):
+            nota = row[len(cols_d) - 1].value if len(row) >= len(cols_d) else None
+            if isinstance(nota, str) and nota.startswith('COMPLETÓ AQUÍ'):
+                for c in row[:len(cols_d)]:
+                    c.fill = tot_fill; c.font = Font(bold=True)
+        for col, ancho in zip('ABCDEFGHIJK', (44, 18, 14, 14, 16, 14, 12, 12, 14, 12, 40)):
+            w.column_dimensions[col].width = ancho
+    for w in wb.worksheets:
+        for row in w.iter_rows(min_row=4):
+            for c in row:
+                if isinstance(c.value, date):
+                    c.number_format = 'DD/MM/YYYY'
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="detalle_horas_trabajadas_{anio}.xlsx"'
+    wb.save(resp)
+    return resp
+
+
+def _fecha_aprox_siguiente(anio, ff, faltan_min, feriados):
+    """<--- hecho por claude code (20-nov-2026): fecha APROXIMADA para quien no alcanza en el periodo: sigue a
+    47 min/día en días hábiles después de la matrícula (o del fin del periodo), saltando feriados y los cierres
+    ANA registrados (p. ej. Cierre de Diciembre: desde su fecha, `dias` días hábiles)."""
+    from datetime import timedelta as _td
+    import math as _m
+    if faltan_min <= 0:
+        return None
+    cierre = set()
+    vistos = set()
+    for f, dias in DiaNoLaborableANA.objects.exclude(fecha__isnull=True).values_list('fecha', 'dias'):
+        n = int(_m.ceil(float(dias or 0)))
+        if (f, n) in vistos or n <= 0:
+            continue
+        vistos.add((f, n))
+        d, k = f, 0
+        while k < n:
+            if d.weekday() < 5:
+                cierre.add(d); k += 1
+            d += _td(days=1)
+    tramos = _matricula_tramos(anio, ff)
+    d = max([ff] + [b for _a, b in tramos]) + _td(days=1)
+    necesarios = int(_m.ceil(faltan_min / _MIN_COMP_DIA))
+    for _ in range(800):
+        if d.weekday() < 5 and d not in feriados and d not in cierre:
+            necesarios -= 1
+            if necesarios <= 0:
+                return d
+        d += _td(days=1)
+    return None
+
+
 def _recorrer_compensatorio(inicio, ff, anio, feriados, min_necesarios):
     """Recorre los días hábiles desde `inicio` sumando 47 min/día hasta `ff` y luego 12 min/día
     en los tramos de matrícula, hasta cubrir `min_necesarios`. Devuelve fecha en que termina,
@@ -3109,6 +3412,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
     # Obtiene la última marca de cada empleado/día desde la fecha_inicio más
     # antigua hasta hoy, y suma los minutos reales de compensatorio.
     real_comp_map = {}  # {emp_code: total_min_real}
+    real_comp_dia = {}  # <--- hecho por claude code (20-nov-2026): {emp_code: {fecha: min}} para saber QUÉ DÍA completó
+    real_marcas_dia = {}  # <--- hecho por claude code (20-nov-2026, PRUEBAS): {emp_code: {fecha: (entrada, salida, comp_min)}} para el detalle por día
     if todos_registros:
         fechas_inicio_map = {str(r.emp_code): r.fecha_inicio for r in todos_registros}
         topes_map         = {str(r.emp_code): r.minutos_autorizados_dia for r in todos_registros}
@@ -3133,8 +3438,10 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
                     if fi and fecha < fi:
                         continue
                     comp_min, _ = _comp_min_dia(ec, _t_to_seg(primera), _t_to_seg(ultima), topes_map.get(ec, 47), fecha)
+                    real_marcas_dia.setdefault(ec, {})[fecha] = (primera, ultima, comp_min)
                     if comp_min > 0:
                         real_comp_map[ec] = real_comp_map.get(ec, 0) + comp_min
+                        _dd = real_comp_dia.setdefault(ec, {}); _dd[fecha] = _dd.get(fecha, 0) + comp_min
         except Exception as _ex:
             print(f"[WARN] compensatorio_calculo real_comp_map: {_ex}")
 
@@ -3421,12 +3728,14 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
     # una fecha de cierre ANA (unión de las fechas de cierre registradas a cualquier empleado).
     _fechas_cierre = set(DiaNoLaborableANA.objects.exclude(fecha__isnull=True).values_list('fecha', flat=True))
     _perm_ingresado_map = {}
+    _perm_ingresado_dia = {}   # <--- hecho por claude code (20-nov-2026): {emp: [(fecha, horas)]}
     for _pp in PermisoReporte.objects.filter(tipo__in=_TIPOS_PERMISO_COMP,
                                             emp_code__in=[str(x['r'].emp_code) for x in registros_data]):
         if _pp.fecha in _fechas_cierre:
             continue
         _k = str(_pp.emp_code)
         _perm_ingresado_map[_k] = _perm_ingresado_map.get(_k, 0.0) + float(_permiso_horas_val(_pp.horas, _pp.dias) or 0)
+        _perm_ingresado_dia.setdefault(_k, []).append((_pp.fecha, float(_permiso_horas_val(_pp.horas, _pp.dias) or 0)))
     for _it in registros_data:
         _rd = _p_by_pk.get(_it['r'].pk)
         _tot = float(_rd['p_debe_h']) if _rd else 0.0
@@ -3447,6 +3756,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         _perm_comp_h = round(_perm_ingresado_map.get(str(_it['r'].emp_code), 0.0), 2)
         _hecho = round(_hecho + _perm_comp_h, 3)
         _pend = round(max(0.0, _tot - _hecho), 2)
+        _termino = _fecha_termino_real(_it, _tot, _receso_h, _trab_manual, real_comp_dia, te_detail_map,
+                                       _perm_ingresado_dia) if (_tot > 0 and _pend == 0) else None
         _teo = _recorrer_compensatorio(_emp_fi, _ff_p, anio_sel, feriados, max(0.0, _tot) * 60)
         _real = _recorrer_compensatorio(max(hoy, _emp_fi), _ff_p, anio_sel, feriados, _pend * 60)
         _perm_d = float(_rd['permisos_dias']) if _rd else 0.0
@@ -3492,6 +3803,12 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
             'p_hecho_real_h': round(_hecho, 2), 'p_pendiente_h': _pend,
             'p_dias_total': _teo['dias_47'], 'p_dias_pend': _real['dias_47'],
             'p_fecha': _real['fecha'], 'p_alcanza': _real['alcanza'],
+            # <--- hecho por claude code (20-nov-2026): fecha PROGRAMADA = desde su inicio, 47 min/día, cubre lo que debe
+            'p_fecha_plan': _teo['fecha'], 'p_plan_alcanza': _teo['alcanza'],
+            'p_fecha_aprox': None if _real['alcanza'] else _fecha_aprox_siguiente(anio_sel, _ff_p, _real['faltan_h'] * 60, feriados),   # aprox. si no alcanza
+            'p_fecha_termino': _termino,
+            'p_det': _detalle_trabajadas(_it, _tot, _hecho, _receso_h, _perm_comp_h, _trab_manual, _perm_d,
+                                         real_comp_dia, _perm_ingresado_dia, real_marcas_dia, _termino),   # tab «Detalle horas trabajadas» (solo lectura)
             'p_en_matricula': _real['en_matricula'], 'p_faltan_h': _real['faltan_h'],
             'p_disponible_h': round(_real['disponible_min'] / 60, 2),
         })
@@ -3506,6 +3823,8 @@ def compensatorio_calculo_list(request, modo_pruebas=False):
         'p_max_h': round((_dh_p * _MIN_COMP_DIA + _mat_p * _MIN_MATRICULA_DIA) / 60, 1),
         'puede_tomado': _puede_tomado_manual(request.user), 'hoy': hoy,
     }
+    if request.GET.get('xlsx') == 'detalle':   # <--- hecho por claude code (20-nov-2026): Excel del tab 4 (solo lectura)
+        return _xlsx_detalle_trabajadas(registros_data, anio_sel)
     if modo_pruebas:
         return render(request, 'reloj/compensatorio_pruebas.html', {
             **_ctx_p, 'registros_data': registros_data, 'anio_sel': anio_sel,
